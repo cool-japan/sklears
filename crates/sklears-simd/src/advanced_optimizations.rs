@@ -15,10 +15,38 @@ use alloc::{vec, vec::Vec};
 #[cfg(not(feature = "no-std"))]
 use std::{vec, vec::Vec};
 
+/// Parameters for the convolution operation.
+pub struct ConvolutionParams {
+    /// Shape of the input tensor as `(channels, height, width)`.
+    pub input_shape: (usize, usize, usize),
+    /// Shape of the kernel tensor as `(filters, height, width)`.
+    pub kernel_shape: (usize, usize, usize),
+    /// Convolution stride.
+    pub stride: usize,
+    /// Zero-padding applied to input borders.
+    pub padding: usize,
+}
+
+/// Row/column ranges for a single matrix-multiplication tile.
+struct BlockRange {
+    i_start: usize,
+    j_start: usize,
+    k_start: usize,
+    i_end: usize,
+    j_end: usize,
+    k_end: usize,
+    n: usize,
+    k: usize,
+}
+
 /// Advanced SIMD optimization strategies
 pub struct AdvancedSimdOptimizer {
+    #[allow(dead_code)]
+    // Used for cache-aware algorithm tuning; read by calculate_optimal_block_size indirectly
     cache_line_size: usize,
+    #[allow(dead_code)] // Reserved for prefetch-hint emission in future AVX512 prefetch path
     prefetch_distance: usize,
+    #[allow(dead_code)] // Stored for reporting and future adaptive-width selection
     vectorization_width: usize,
 }
 
@@ -59,7 +87,21 @@ impl AdvancedSimdOptimizer {
                     let j_max = (j + block_size).min(n);
                     let k_max = (kk + block_size).min(k);
 
-                    self.matrix_multiply_block(a, b, c, i, j, kk, i_max, j_max, k_max, m, n, k)?;
+                    self.matrix_multiply_block(
+                        a,
+                        b,
+                        c,
+                        &BlockRange {
+                            i_start: i,
+                            j_start: j,
+                            k_start: kk,
+                            i_end: i_max,
+                            j_end: j_max,
+                            k_end: k_max,
+                            n,
+                            k,
+                        },
+                    )?;
                 }
             }
         }
@@ -117,13 +159,12 @@ impl AdvancedSimdOptimizer {
         input: &[f32],
         kernel: &[f32],
         output: &mut [f32],
-        input_shape: (usize, usize, usize), // (channels, height, width)
-        kernel_shape: (usize, usize, usize), // (filters, height, width)
-        stride: usize,
-        padding: usize,
+        params: &ConvolutionParams,
     ) -> Result<(), SimdError> {
-        let (in_channels, in_height, in_width) = input_shape;
-        let (out_channels, k_height, k_width) = kernel_shape;
+        let (in_channels, in_height, in_width) = params.input_shape;
+        let (out_channels, k_height, k_width) = params.kernel_shape;
+        let stride = params.stride;
+        let padding = params.padding;
 
         let out_height = (in_height + 2 * padding - k_height) / stride + 1;
         let out_width = (in_width + 2 * padding - k_width) / stride + 1;
@@ -136,8 +177,13 @@ impl AdvancedSimdOptimizer {
         }
 
         // Use im2col transformation for better memory access patterns
-        let im2col_data =
-            self.im2col_transform(input, input_shape, kernel_shape, stride, padding)?;
+        let im2col_data = self.im2col_transform(
+            input,
+            params.input_shape,
+            params.kernel_shape,
+            stride,
+            padding,
+        )?;
 
         // Perform optimized matrix multiplication
         self.cache_aware_matrix_multiply(
@@ -183,7 +229,7 @@ impl AdvancedSimdOptimizer {
         let block_elements = cache_size / (3 * element_size); // Account for A, B, C matrices
 
         let block_size = (block_elements as f32).sqrt() as usize;
-        block_size.min(64).max(8) // Clamp to reasonable range
+        block_size.clamp(8, 64) // Clamp to reasonable range
     }
 
     fn matrix_multiply_block(
@@ -191,23 +237,15 @@ impl AdvancedSimdOptimizer {
         a: &[f32],
         b: &[f32],
         c: &mut [f32],
-        i_start: usize,
-        j_start: usize,
-        k_start: usize,
-        i_end: usize,
-        j_end: usize,
-        k_end: usize,
-        _m: usize,
-        n: usize,
-        k: usize,
+        block: &BlockRange,
     ) -> Result<(), SimdError> {
-        for i in i_start..i_end {
-            for j in j_start..j_end {
+        for i in block.i_start..block.i_end {
+            for j in block.j_start..block.j_end {
                 let mut sum = 0.0f32;
-                for kk in k_start..k_end {
-                    sum += a[i * k + kk] * b[kk * n + j];
+                for kk in block.k_start..block.k_end {
+                    sum += a[i * block.k + kk] * b[kk * block.n + j];
                 }
-                c[i * n + j] += sum;
+                c[i * block.n + j] += sum;
             }
         }
         Ok(())
@@ -355,11 +393,11 @@ impl AdvancedSimdOptimizer {
         };
 
         // Handle remaining elements
-        for i in (chunks * 8)..len {
+        for val in data.iter().take(len).skip(chunks * 8) {
             final_result = match op {
-                ReductionOp::Sum | ReductionOp::Mean => final_result + data[i],
-                ReductionOp::Max => final_result.max(data[i]),
-                ReductionOp::Min => final_result.min(data[i]),
+                ReductionOp::Sum | ReductionOp::Mean => final_result + *val,
+                ReductionOp::Max => final_result.max(*val),
+                ReductionOp::Min => final_result.min(*val),
             };
         }
 

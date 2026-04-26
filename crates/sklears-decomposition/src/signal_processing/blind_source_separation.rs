@@ -364,7 +364,7 @@ impl FastICA {
         let (n_features, n_samples) = x.dim();
 
         // Convert to f64 for numerical stability
-        let x_f64 = Array2::from_shape_fn((n_features, n_samples), |(i, j)| x[[i, j]] as f64);
+        let x_f64 = Array2::from_shape_fn((n_features, n_samples), |(i, j)| x[[i, j]]);
 
         // Compute covariance matrix
         let cov = x_f64.dot(&x_f64.t()) / (n_samples - 1) as f64;
@@ -439,7 +439,7 @@ impl FastICA {
         let mut w_matrix = Array2::zeros((n_components, n_features));
 
         // Convert to f64 for SIMD processing
-        let x_f64 = Array2::from_shape_fn((n_features, n_samples), |(i, j)| x[[i, j]] as f64);
+        let x_f64 = Array2::from_shape_fn((n_features, n_samples), |(i, j)| x[[i, j]]);
 
         // Initialize mixing vectors randomly
         let mut rng = thread_rng();
@@ -450,7 +450,7 @@ impl FastICA {
 
             // SIMD-accelerated normalization
             let mut w_vec = w_matrix.slice_mut(s![i, ..]);
-            let mut w_f64 = Array1::from_vec(w_vec.iter().map(|&x| x as f64).collect());
+            let mut w_f64: Array1<f64> = w_vec.to_owned();
             let norm = w_f64.dot(&w_f64).sqrt();
             w_f64 /= norm;
 
@@ -464,7 +464,7 @@ impl FastICA {
         for comp in 0..n_components {
             for iter in 0..self.max_iter {
                 let w = w_matrix.slice(s![comp, ..]);
-                let w_f64 = Array1::from_vec(w.iter().map(|&x| x as f64).collect());
+                let w_f64: Array1<f64> = w.to_owned();
 
                 // SIMD-accelerated contrast function computation
                 let w_x = w_f64.view().insert_axis(Axis(0)).dot(&x_f64);
@@ -474,13 +474,7 @@ impl FastICA {
                 // Gram-Schmidt orthogonalization against previous components
                 let mut w_new = w_new_f64;
                 for prev_comp in 0..comp {
-                    let prev_w = Array1::from_vec(
-                        w_matrix
-                            .slice(s![prev_comp, ..])
-                            .iter()
-                            .map(|&x| x as f64)
-                            .collect(),
-                    );
+                    let prev_w: Array1<f64> = w_matrix.slice(s![prev_comp, ..]).to_owned();
                     let proj = w_new.dot(&prev_w);
                     for j in 0..n_features {
                         w_new[j] -= proj * prev_w[j];
@@ -496,13 +490,7 @@ impl FastICA {
                 }
 
                 // Check convergence
-                let old_w_f64 = Array1::from_vec(
-                    w_matrix
-                        .slice(s![comp, ..])
-                        .iter()
-                        .map(|&x| x as f64)
-                        .collect(),
-                );
+                let old_w_f64: Array1<f64> = w_matrix.slice(s![comp, ..]).to_owned();
 
                 let convergence = 1.0 - (w_new.dot(&old_w_f64)).abs();
 
@@ -511,7 +499,7 @@ impl FastICA {
                     w_matrix[[comp, j]] = w_new[j] as Float;
                 }
 
-                if convergence < self.tolerance as f64 {
+                if convergence < self.tolerance {
                     break;
                 }
 
@@ -1334,7 +1322,7 @@ impl InfoMax {
                 let y_val = y[[i, j]];
                 // Sigmoid derivative: 1 - 2/(1 + exp(-y))
                 // Clamped to prevent numerical instability
-                let y_clamped = y_val.max(-50.0).min(50.0);
+                let y_clamped = y_val.clamp(-50.0, 50.0);
                 let exp_neg_y = (-y_clamped).exp();
                 phi[[i, j]] = 1.0 - 2.0 / (1.0 + exp_neg_y);
             }
@@ -1814,16 +1802,14 @@ mod tests {
         assert_eq!(fastica_result.algorithm, "FastICA");
 
         // JADE and InfoMax may not converge with simplified implementations
-        if jade_result.is_ok() {
-            let jade = jade_result.expect("operation should succeed");
+        if let Ok(jade) = jade_result {
             assert_eq!(jade.n_sources(), 2);
             assert_eq!(jade.algorithm, "JADE");
         } else {
             println!("JADE failed to converge (expected with simplified implementation)");
         }
 
-        if infomax_result.is_ok() {
-            let infomax = infomax_result.expect("operation should succeed");
+        if let Ok(infomax) = infomax_result {
             assert_eq!(infomax.n_sources(), 2);
             assert_eq!(infomax.algorithm, "InfoMax");
         } else {

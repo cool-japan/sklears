@@ -144,7 +144,6 @@
 //! optimizer.add_optimizer(Box::new(predictive_optimizer))?;
 //! ```
 
-use crate::execution_core::ExecutionStrategy;
 use sklears_core::error::Result as SklResult;
 use std::collections::{HashMap, VecDeque};
 use std::fmt;
@@ -155,6 +154,7 @@ use std::time::{Duration, SystemTime};
 
 /// Main performance optimizer coordinating all optimization strategies
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PerformanceOptimizer {
     /// Optimization configuration
     config: OptimizerConfig,
@@ -426,14 +426,23 @@ pub struct PerformanceBottleneck {
 /// Bottleneck types
 #[derive(Debug, Clone, PartialEq)]
 pub enum BottleneckType {
+    /// Variant value.
     CpuBound,
+    /// Variant value.
     MemoryBound,
+    /// Variant value.
     IoBound,
+    /// Variant value.
     NetworkBound,
+    /// Variant value.
     CacheMiss,
+    /// Variant value.
     ContentionLock,
+    /// Variant value.
     ResourceStarvation,
+    /// Variant value.
     Scheduling,
+    /// Variant value.
     Custom(String),
 }
 
@@ -564,18 +573,43 @@ pub enum RecommendationType {
 #[derive(Debug, Clone)]
 pub enum OptimizationAction {
     /// Change configuration parameter
-    ChangeParameter { name: String, value: String },
+    ChangeParameter {
+        /// The name.
+        name: String,
+        /// The value.
+        value: String,
+    },
     /// Scale resource allocation
-    ScaleResource { resource: String, factor: f64 },
+    ScaleResource {
+        /// The resource.
+        resource: String,
+        /// The factor.
+        factor: f64,
+    },
     /// Change algorithm
-    ChangeAlgorithm { from: String, to: String },
+    ChangeAlgorithm {
+        /// The from.
+        from: String,
+        /// The to.
+        to: String,
+    },
     /// Adjust batch size
-    AdjustBatchSize { new_size: usize },
+    AdjustBatchSize {
+        /// The new size.
+        new_size: usize,
+    },
     /// Enable/disable feature
-    ToggleFeature { feature: String, enabled: bool },
+    ToggleFeature {
+        /// The feature.
+        feature: String,
+        /// The enabled.
+        enabled: bool,
+    },
     /// Custom action
     Custom {
+        /// The action.
         action: String,
+        /// The parameters.
         parameters: HashMap<String, String>,
     },
 }
@@ -871,6 +905,7 @@ pub struct PerformanceBaselines {
 
 /// Throughput optimizer implementation
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ThroughputOptimizer {
     /// Configuration
     config: ThroughputOptimizerConfig,
@@ -931,6 +966,7 @@ pub struct ThroughputOptimizerState {
 
 /// Latency optimizer implementation
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct LatencyOptimizer {
     /// Configuration
     config: LatencyOptimizerConfig,
@@ -991,6 +1027,7 @@ pub struct LatencyOptimizerState {
 
 /// Energy optimizer implementation
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct EnergyOptimizer {
     /// Configuration
     config: EnergyOptimizerConfig,
@@ -1060,6 +1097,7 @@ pub enum PowerMode {
 
 /// Machine learning-based predictive optimizer
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PredictiveOptimizer {
     /// Configuration
     config: PredictiveOptimizerConfig,
@@ -1336,7 +1374,7 @@ impl SpecializedOptimizer for ThroughputOptimizer {
         Ok(())
     }
 
-    fn analyze_performance(&self, metrics: &PerformanceMetrics) -> SklResult<PerformanceAnalysis> {
+    fn analyze_performance(&self, _metrics: &PerformanceMetrics) -> SklResult<PerformanceAnalysis> {
         Ok(PerformanceAnalysis {
             timestamp: SystemTime::now(),
             domain: OptimizationDomain::Throughput,
@@ -1350,14 +1388,14 @@ impl SpecializedOptimizer for ThroughputOptimizer {
 
     fn generate_recommendations(
         &self,
-        analysis: &PerformanceAnalysis,
+        _analysis: &PerformanceAnalysis,
     ) -> SklResult<Vec<OptimizationRecommendation>> {
         Ok(Vec::new())
     }
 
     fn apply_optimizations(
         &mut self,
-        recommendations: &[OptimizationRecommendation],
+        _recommendations: &[OptimizationRecommendation],
     ) -> Pin<Box<dyn Future<Output = SklResult<OptimizationResult>> + Send + '_>> {
         Box::pin(async move {
             Ok(OptimizationResult {
@@ -1384,6 +1422,7 @@ impl SpecializedOptimizer for ThroughputOptimizer {
 }
 
 impl ThroughputOptimizer {
+    /// Creates a new instance.
     pub fn new(config: ThroughputOptimizerConfig) -> SklResult<Self> {
         Ok(Self {
             config,
@@ -1394,6 +1433,7 @@ impl ThroughputOptimizer {
 }
 
 impl LatencyOptimizer {
+    /// Creates a new instance.
     pub fn new(config: LatencyOptimizerConfig) -> SklResult<Self> {
         Ok(Self {
             config,
@@ -1404,6 +1444,7 @@ impl LatencyOptimizer {
 }
 
 impl EnergyOptimizer {
+    /// Creates a new instance.
     pub fn new(config: EnergyOptimizerConfig) -> SklResult<Self> {
         Ok(Self {
             config,
@@ -1414,6 +1455,7 @@ impl EnergyOptimizer {
 }
 
 impl PredictiveOptimizer {
+    /// Creates a new instance.
     pub fn new(config: PredictiveOptimizerConfig) -> SklResult<Self> {
         Ok(Self {
             config,

@@ -2,16 +2,14 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
-use super::super::config::{
-    MetaFeatureStrategy, MetaLearningStrategy, MultiLayerStackingConfig, StackingLayerConfig,
-};
-
-use super::types::MultiLayerStackingClassifier;
-
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
-    use super::*;
+    #[allow(unused_imports)]
+    use super::super::types::*;
+    use crate::stacking::{
+        MetaLearningStrategy, MultiLayerStackingClassifier, MultiLayerStackingConfig,
+    };
     use scirs2_core::ndarray::{array, Array1};
     use sklears_core::traits::Fit;
     use sklears_core::types::Float;

@@ -43,7 +43,7 @@ use sklears_core::prelude::Transform;
 ///     .n_components(100)
 ///     .random_state(Some(42));
 ///
-/// let features = rbf_sampler.fit_transform(&X.view()).unwrap();
+/// let features = rbf_sampler.fit_transform(&X.view()).expect("valid input produces fit_transform output");
 /// ```
 #[derive(Debug, Clone)]
 pub struct RBFSampler {
@@ -54,6 +54,7 @@ pub struct RBFSampler {
     random_offset: Option<Array1<Float>>,
 }
 
+#[allow(non_snake_case)] // X/Y/K/A/Av/W_inv/C follow sklearn/math convention for feature and kernel matrices
 impl RBFSampler {
     /// Create a new RBFSampler
     pub fn new() -> Self {
@@ -210,7 +211,7 @@ pub enum NystromKernel {
 ///     .n_components(50);
 ///
 /// let mut fitted = nystroem;
-/// let features = fitted.fit_transform(&X.view()).unwrap();
+/// let features = fitted.fit_transform(&X.view()).expect("valid input produces fit_transform output");
 /// ```
 #[derive(Debug, Clone)]
 pub struct Nystroem {
@@ -224,6 +225,7 @@ pub struct Nystroem {
     normalization_matrix: Option<Array2<Float>>,
 }
 
+#[allow(non_snake_case)] // X/Y/K/A/Av/W_inv/C follow sklearn/math convention for feature and kernel matrices
 impl Nystroem {
     /// Create a new Nyström approximator
     pub fn new() -> Self {
@@ -491,7 +493,7 @@ impl Default for Nystroem {
 ///     .sample_steps(2)
 ///     .sample_interval(0.5);
 ///
-/// let features = sampler.transform(&X.view()).unwrap();
+/// let features = sampler.transform(&X.view()).expect("valid input produces transform output");
 /// ```
 #[derive(Debug, Clone)]
 pub struct AdditiveChi2Sampler {
@@ -521,6 +523,7 @@ impl AdditiveChi2Sampler {
     }
 
     /// Transform data using additive chi-squared features
+    #[allow(non_snake_case)]
     pub fn transform(&self, X: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
         let (n_samples, n_features) = X.dim();
         let n_components = 2 * n_features * self.sample_steps;
@@ -564,6 +567,7 @@ impl Default for AdditiveChi2Sampler {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for AdditiveChi2Sampler {
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
         self.transform(X)

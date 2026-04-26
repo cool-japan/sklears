@@ -28,12 +28,10 @@
 //! let mut gan = SimpleGAN::new(config, 784, 28); // MNIST-like dimensions
 //! ```
 
-use crate::activation::Activation;
 use crate::{NeuralResult, SklearsError};
-use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::essentials::{Normal, Uniform};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::essentials::Normal;
 use scirs2_core::random::{thread_rng, Distribution};
-use sklears_core::types::FloatBounds;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -100,6 +98,7 @@ impl GANConfig {
 
 /// Simple fully connected neural network for GAN components
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // layer_sizes retained for architecture introspection and future serialization
 struct SimpleNetwork {
     layers: Vec<(Array2<f64>, Array1<f64>)>, // (weights, biases)
     layer_sizes: Vec<usize>,
@@ -160,6 +159,7 @@ impl SimpleNetwork {
 }
 
 /// Simple GAN implementation
+#[allow(dead_code)] // data_dim retained for shape validation; train step methods are planned v0.2.0 API
 pub struct SimpleGAN {
     generator: SimpleNetwork,
     discriminator: SimpleNetwork,
@@ -239,6 +239,7 @@ impl SimpleGAN {
     /// # Note
     ///
     /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+    #[allow(dead_code)] // Planned v0.2.0 API; not yet called from public train() method
     fn train_discriminator_step(
         &mut self,
         _real_data: &Array2<f64>,
@@ -254,6 +255,7 @@ impl SimpleGAN {
     /// # Note
     ///
     /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+    #[allow(dead_code)] // Planned v0.2.0 API; not yet called from public train() method
     fn train_generator_step(&mut self, _batch_size: usize) -> NeuralResult<f64> {
         Err(SklearsError::NotImplemented(
             "GAN generator training step not yet implemented".to_string(),
@@ -271,12 +273,16 @@ impl SimpleGAN {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GANTrainingHistory {
+    /// Generator loss recorded at the end of each training epoch
     pub generator_losses: Vec<f64>,
+    /// Discriminator loss recorded at the end of each training epoch
     pub discriminator_losses: Vec<f64>,
+    /// Number of epochs that have been completed
     pub epochs_completed: usize,
 }
 
 impl GANTrainingHistory {
+    /// Create an empty `GANTrainingHistory` with no recorded epochs
     pub fn new() -> Self {
         Self {
             generator_losses: Vec::new(),
@@ -429,7 +435,7 @@ mod tests {
         assert_eq!(generated.shape(), &[5, 10]);
         // Check that tanh output is in [-1, 1]
         for &val in generated.iter() {
-            assert!(val >= -1.0 && val <= 1.0);
+            assert!((-1.0..=1.0).contains(&val));
         }
     }
 
@@ -444,7 +450,7 @@ mod tests {
         assert_eq!(predictions.shape(), &[5, 1]);
         // Check that sigmoid output is in [0, 1]
         for &val in predictions.iter() {
-            assert!(val >= 0.0 && val <= 1.0);
+            assert!((0.0..=1.0).contains(&val));
         }
     }
 

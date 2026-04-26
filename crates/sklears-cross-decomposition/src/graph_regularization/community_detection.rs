@@ -18,8 +18,8 @@
 //! - Community-aware canonical correlation
 //! - Structured sparsity patterns
 
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, CoreRandom, Rng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_core::random::thread_rng;
 use sklears_core::types::Float;
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -123,7 +123,7 @@ impl CommunityDetector {
         let m = adjacency.sum() / 2.0; // Total edge weight
         let mut best_modularity = 0.0;
 
-        for iteration in 0..self.config.max_iterations {
+        for _iteration in 0..self.config.max_iterations {
             let mut improved = false;
 
             // Phase 1: Move nodes to maximize modularity
@@ -285,7 +285,7 @@ impl CommunityDetector {
         let n = adjacency.nrows();
         let mut assignments = Array1::from_iter(0..n); // Initially, each node is its own community
 
-        let mut rng = if let Some(seed) = self.config.random_seed {
+        let mut rng = if let Some(_seed) = self.config.random_seed {
             thread_rng() // In practice, would use seeded RNG
         } else {
             thread_rng()
@@ -355,7 +355,7 @@ impl CommunityDetector {
         let mut num_communities = 1;
 
         // Iteratively remove edges with highest betweenness
-        for iteration in 0..self.config.max_iterations {
+        for _iteration in 0..self.config.max_iterations {
             // Find edge with highest betweenness (simplified: use edge weight)
             let mut max_weight = 0.0;
             let mut max_edge = (0, 0);
@@ -631,8 +631,8 @@ impl CommunityDetector {
 
         // Simple bipartition based on connectivity
         let mut assignments = vec![0; nodes.len()];
-        for i in (nodes.len() / 2)..nodes.len() {
-            assignments[i] = 1;
+        for item in assignments.iter_mut().skip(nodes.len() / 2) {
+            *item = 1;
         }
 
         Some(assignments)

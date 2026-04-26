@@ -24,17 +24,7 @@ use alloc::string::{String, ToString};
 #[cfg(feature = "no-std")]
 use alloc::vec::Vec;
 
-// Mock types for no-std compatibility
-#[cfg(feature = "no-std")]
-type SystemTime = u64;
-#[cfg(feature = "no-std")]
-type OpenOptions = ();
-#[cfg(feature = "no-std")]
-type File = ();
-#[cfg(feature = "no-std")]
-type BufReader = ();
-#[cfg(feature = "no-std")]
-type Path = str;
+// (no-std does not need these aliases; all usages are guarded by #[cfg(not(feature = "no-std"))])
 
 // Helper functions for no-std compatibility
 #[cfg(feature = "no-std")]
@@ -60,6 +50,7 @@ impl From<std::io::Error> for PerformanceError {
 
 /// Performance monitor for tracking results over time
 pub struct PerformanceMonitor {
+    #[allow(dead_code)] // Used by record_results/load_history in std builds; dead in no-std
     results_file: String,
     historical_data: Vec<PerformanceRecord>,
     thresholds: PerformanceThresholds,
@@ -437,6 +428,7 @@ impl PerformanceMonitor {
         Ok(())
     }
 
+    #[cfg(not(feature = "no-std"))]
     fn parse_record_line(&self, line: &str) -> Option<PerformanceRecord> {
         let parts: Vec<&str> = line.split(',').collect();
         if parts.len() < 8 {
@@ -706,22 +698,24 @@ mod tests {
     #[test]
     #[cfg(not(feature = "no-std"))]
     fn test_performance_monitor_creation() {
-        let temp_file = "/tmp/test_perf_monitor.csv";
-        let _ = fs::remove_file(temp_file); // Clean up if exists
+        let temp_path = std::env::temp_dir().join("test_perf_monitor.csv");
+        let temp_file = temp_path.to_string_lossy().into_owned();
+        let _ = fs::remove_file(&temp_file); // Clean up if exists
 
-        let monitor = PerformanceMonitor::new(temp_file);
+        let monitor = PerformanceMonitor::new(&temp_file);
         assert!(monitor.is_ok());
 
-        let _ = fs::remove_file(temp_file); // Clean up
+        let _ = fs::remove_file(&temp_file); // Clean up
     }
 
     #[test]
     #[cfg(not(feature = "no-std"))]
     fn test_performance_record_parsing() {
-        let temp_file = "/tmp/test_perf_parsing.csv";
-        let _ = fs::remove_file(temp_file);
+        let temp_path = std::env::temp_dir().join("test_perf_parsing.csv");
+        let temp_file = temp_path.to_string_lossy().into_owned();
+        let _ = fs::remove_file(&temp_file);
 
-        let mut monitor = PerformanceMonitor::new(temp_file).expect("operation should succeed");
+        let mut monitor = PerformanceMonitor::new(&temp_file).expect("operation should succeed");
 
         let test_results = vec![BenchmarkResult {
             name: "test_op".to_string(),
@@ -735,16 +729,17 @@ mod tests {
         let result = monitor.record_results(&test_results, Some("abc123".to_string()));
         assert!(result.is_ok());
 
-        let _ = fs::remove_file(temp_file);
+        let _ = fs::remove_file(&temp_file);
     }
 
     #[test]
     #[cfg(not(feature = "no-std"))]
     fn test_trend_analysis() {
-        let temp_file = "/tmp/test_trend_analysis.csv";
-        let _ = fs::remove_file(temp_file);
+        let temp_path = std::env::temp_dir().join("test_trend_analysis.csv");
+        let temp_file = temp_path.to_string_lossy().into_owned();
+        let _ = fs::remove_file(&temp_file);
 
-        let monitor = PerformanceMonitor::new(temp_file).expect("operation should succeed");
+        let monitor = PerformanceMonitor::new(&temp_file).expect("operation should succeed");
         let trend = monitor.analyze_trends("nonexistent_op", 7);
 
         match trend {
@@ -754,7 +749,7 @@ mod tests {
             _ => panic!("Expected NoData for empty dataset"),
         }
 
-        let _ = fs::remove_file(temp_file);
+        let _ = fs::remove_file(&temp_file);
     }
 
     #[test]

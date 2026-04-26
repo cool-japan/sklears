@@ -3,11 +3,12 @@
 //! This module provides algorithms for sequence labeling and structured prediction tasks.
 //! It includes Hidden Markov Models (HMM), Structured Perceptron, and Maximum Entropy
 //! Markov Models (MEMM) for handling sequential and structured data.
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::{RandNormal, Rng};
+use scirs2_core::random::RandNormal;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -124,7 +125,7 @@ impl Fit<Array3<Float>, Array2<i32>> for StructuredPerceptron<Untrained> {
         let feature_dim = n_features * n_classes as usize + n_classes as usize * n_classes as usize;
         let mut weights = Array1::<Float>::zeros(feature_dim);
 
-        let rng = thread_rng();
+        let _rng = thread_rng();
 
         for _iteration in 0..self.max_iterations {
             let mut updated = false;
@@ -299,6 +300,7 @@ pub struct HiddenMarkovModel<State = Untrained> {
 pub struct HiddenMarkovModelTrained {
     transition_matrix: Array2<Float>,
     emission_means: Array2<Float>,
+    #[allow(dead_code)]
     emission_covariances: Array3<Float>,
     initial_probs: Array1<Float>,
     n_features: usize,
@@ -417,8 +419,6 @@ impl Fit<Array3<Float>, Array2<i32>> for HiddenMarkovModel<Untrained> {
 
         // EM algorithm
         for _iteration in 0..self.max_iterations {
-            let mut total_likelihood = 0.0;
-
             // E-step: Forward-backward algorithm would go here
             // For simplicity, we'll use supervised learning with the provided labels
 
@@ -483,7 +483,7 @@ impl Fit<Array3<Float>, Array2<i32>> for HiddenMarkovModel<Untrained> {
             }
 
             // Simple likelihood calculation
-            total_likelihood = state_counts.sum();
+            let total_likelihood = state_counts.sum() as Float;
 
             if (total_likelihood - prev_likelihood).abs() < self.tolerance {
                 break;
@@ -674,6 +674,7 @@ pub struct MaximumEntropyMarkovModel<S = Untrained> {
     learning_rate: Float,
     l2_reg: Float,
     tolerance: Float,
+    #[allow(dead_code)]
     feature_functions: Vec<FeatureFunction>,
     random_state: Option<u64>,
 }
@@ -686,6 +687,7 @@ pub struct MaximumEntropyMarkovModelTrained {
     n_labels: usize,
     n_features: usize,
     label_to_idx: HashMap<i32, usize>,
+    #[allow(dead_code)]
     idx_to_label: HashMap<usize, i32>,
 }
 
@@ -828,7 +830,7 @@ impl Fit<Vec<Array2<Float>>, Vec<Vec<i32>>> for MaximumEntropyMarkovModel<Untrai
 
         // Previous label features
         for &prev_label in &sorted_labels {
-            for &curr_label in &sorted_labels {
+            for &_curr_label in &sorted_labels {
                 feature_functions.push(FeatureFunction {
                     feature_type: FeatureType::PreviousLabel(prev_label),
                     weight_index: weight_idx,
@@ -860,7 +862,7 @@ impl Fit<Vec<Array2<Float>>, Vec<Vec<i32>>> for MaximumEntropyMarkovModel<Untrai
         // Training loop
         for _iter in 0..self.max_iter {
             let mut gradient = Array1::<Float>::zeros(n_weights);
-            let mut total_loss = 0.0;
+            let mut _total_loss = 0.0;
 
             // Process each sequence
             for (seq_idx, (sequence_x, sequence_y)) in X.iter().zip(y.iter()).enumerate() {
@@ -880,14 +882,14 @@ impl Fit<Vec<Array2<Float>>, Vec<Vec<i32>>> for MaximumEntropyMarkovModel<Untrai
                     let prev_label = if pos == 0 { -1 } else { sequence_y[pos - 1] };
 
                     // Calculate feature vector for current position
-                    let features =
+                    let _features =
                         self.extract_features(&current_obs, prev_label, &feature_functions);
 
                     // Calculate probabilities for all possible labels
                     let mut scores = Array1::<Float>::zeros(n_labels);
                     let mut max_score = Float::NEG_INFINITY;
 
-                    for (label_idx, &label) in unique_labels.iter().enumerate() {
+                    for (label_idx, _label) in unique_labels.iter().enumerate() {
                         let label_features =
                             self.extract_features(&current_obs, prev_label, &feature_functions);
                         scores[label_idx] = label_features.dot(&weights);
@@ -906,10 +908,10 @@ impl Fit<Vec<Array2<Float>>, Vec<Vec<i32>>> for MaximumEntropyMarkovModel<Untrai
 
                     // Calculate loss (negative log likelihood)
                     let true_label_idx = label_to_idx[&true_label];
-                    total_loss -= probabilities[true_label_idx].ln();
+                    _total_loss -= probabilities[true_label_idx].ln();
 
                     // Calculate gradient
-                    for (label_idx, &label) in sorted_labels.iter().enumerate() {
+                    for (label_idx, _label) in sorted_labels.iter().enumerate() {
                         let label_features =
                             self.extract_features(&current_obs, prev_label, &feature_functions);
                         let prob = probabilities[label_idx];
@@ -1033,7 +1035,7 @@ impl Predict<Vec<Array2<Float>>, Vec<Vec<i32>>>
                 let mut labels_sorted: Vec<_> = self.state.label_to_idx.iter().collect();
                 labels_sorted.sort_by_key(|(&label, _)| label);
 
-                for (&label, &label_idx) in labels_sorted {
+                for (&label, &_label_idx) in labels_sorted {
                     let features = self.extract_features(
                         &current_obs,
                         prev_label,

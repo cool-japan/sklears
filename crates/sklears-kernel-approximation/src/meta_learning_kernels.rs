@@ -258,8 +258,8 @@ pub struct TaskMetadata {
 /// let selector = MetaLearningKernelSelector::new(config);
 ///
 /// let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-/// let fitted = selector.fit(&X, &()).unwrap();
-/// let features = fitted.transform(&X).unwrap();
+/// let fitted = selector.fit(&X, &()).expect("fit should succeed with valid meta-learning kernel selector input");
+/// let features = fitted.transform(&X).expect("transform should succeed after meta-learning kernel selector fitting");
 /// ```
 #[derive(Debug, Clone)]
 pub struct MetaLearningKernelSelector<State = Untrained> {
@@ -470,7 +470,7 @@ impl MetaLearningKernelSelector<Untrained> {
             return 0.0;
         }
 
-        (dot / (norm_a * norm_b)).max(-1.0).min(1.0)
+        (dot / (norm_a * norm_b)).clamp(-1.0, 1.0)
     }
 }
 

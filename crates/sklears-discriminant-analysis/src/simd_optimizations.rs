@@ -327,9 +327,9 @@ impl SimdMatrixOps {
                 .map(|&i| -> Result<Vec<Float>> {
                     let a_row = a.row(i);
                     let mut row_result = vec![0.0; n];
-                    for j in 0..n {
+                    for (j, cell) in row_result.iter_mut().enumerate().take(n) {
                         let b_col = b.column(j);
-                        row_result[j] = self.simd_dot_product(&a_row, b_col)?;
+                        *cell = self.simd_dot_product(&a_row, b_col)?;
                     }
                     Ok(row_result)
                 })
@@ -386,6 +386,7 @@ impl SimdMatrixOps {
     }
 
     /// Compute a single block in tiled matrix multiplication
+    #[allow(clippy::too_many_arguments)] // all 9 parameters are distinct block-boundary indices
     fn compute_block(
         &self,
         a: &Array2<Float>,
@@ -666,7 +667,7 @@ impl AdvancedSimdOps {
 
     /// SIMD-accelerated eigenvalue computation approximation for 2x2 matrices
     pub fn simd_eigenvalues_2x2(&self, matrices: &Array2<Float>) -> Result<Array1<Float>> {
-        if matrices.nrows() % 2 != 0 || matrices.ncols() % 2 != 0 {
+        if !matrices.nrows().is_multiple_of(2) || !matrices.ncols().is_multiple_of(2) {
             return Err(SklearsError::InvalidInput(
                 "Input must be stacks of 2x2 matrices".to_string(),
             ));
@@ -697,7 +698,7 @@ impl AdvancedSimdOps {
 
     /// SIMD-accelerated batch matrix inversion for small matrices
     pub fn simd_batch_inverse_2x2(&self, matrices: &Array2<Float>) -> Result<Array2<Float>> {
-        if matrices.nrows() % 2 != 0 || matrices.ncols() % 2 != 0 {
+        if !matrices.nrows().is_multiple_of(2) || !matrices.ncols().is_multiple_of(2) {
             return Err(SklearsError::InvalidInput(
                 "Input must be stacks of 2x2 matrices".to_string(),
             ));
@@ -1159,6 +1160,7 @@ pub struct SimdBenchmarkResults {
 /// ARM NEON SIMD support (placeholder for future ARM optimization)
 #[cfg(target_arch = "aarch64")]
 pub struct NeonSimdOps {
+    #[allow(dead_code)] // retained for future ARM NEON kernel configuration
     config: SimdConfig,
 }
 

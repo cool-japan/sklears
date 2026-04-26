@@ -16,10 +16,9 @@
 //! - Brain connectivity dynamics
 //! - Financial network evolution
 
-use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2, ArrayView3, Axis};
-use scirs2_core::random::{thread_rng, CoreRandom, Rng};
+use scirs2_core::ndarray::{Array2, Array3, Axis};
 use sklears_core::types::Float;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
 use super::community_detection::{CommunityDetectionConfig, CommunityDetector, CommunityStructure};
 
@@ -417,7 +416,7 @@ mod tests {
         let config = TemporalNetworkConfig::default();
 
         assert_eq!(config.window_size, 3);
-        assert_eq!(config.aggregate_windows, true);
+        assert!(config.aggregate_windows);
     }
 
     #[test]
@@ -426,7 +425,7 @@ mod tests {
         let analyzer = TemporalNetworkAnalyzer::new(config);
 
         let snapshots =
-            Array3::from_shape_fn((2, 3, 3), |(t, i, j)| if i != j { 1.0 } else { 0.0 });
+            Array3::from_shape_fn((2, 3, 3), |(_t, i, j)| if i != j { 1.0 } else { 0.0 });
 
         let network = TemporalNetwork::new(snapshots);
         let centralities = analyzer.compute_temporal_centralities(&network);

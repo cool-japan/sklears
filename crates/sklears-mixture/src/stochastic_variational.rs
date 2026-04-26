@@ -14,6 +14,15 @@ use sklears_core::{
 };
 use std::f64::consts::PI;
 
+/// Type alias for global variational parameter tuple
+type GlobalParamsResult = SklResult<(
+    Array1<f64>,
+    Array2<f64>,
+    Array2<f64>,
+    Array1<f64>,
+    Vec<Array2<f64>>,
+)>;
+
 /// Stochastic Variational Inference for Gaussian Mixture Models
 ///
 /// This implementation uses stochastic optimization to scale variational inference
@@ -42,8 +51,8 @@ use std::f64::consts::PI;
 ///     .learning_rate(0.01)
 ///     .optimizer(OptimizerType::Adam)
 ///     .max_epochs(100);
-/// let fitted = model.fit(&X.view(), &()).unwrap();
-/// let labels = fitted.predict(&X.view()).unwrap();
+/// let fitted = model.fit(&X.view(), &()).expect("stochastic variational GMM fitting should succeed with valid data");
+/// let labels = fitted.predict(&X.view()).expect("prediction should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct StochasticVariationalGMM<S = Untrained> {
@@ -73,6 +82,7 @@ pub struct StochasticVariationalGMM<S = Untrained> {
     w_prior: f64,     // Prior scale for precision matrices
 
     // Batch processing parameters
+    #[allow(dead_code)]
     n_samples_seen: usize,
     update_interval: usize, // Update global parameters every N batches
 }
@@ -97,10 +107,13 @@ pub struct StochasticVariationalGMMTrained {
     global_pi_alpha: Array1<f64>, // Dirichlet parameters for mixing weights
     global_mu_mean: Array2<f64>,  // Mean parameters for component means
     global_mu_precision: Array2<f64>, // Precision parameters for component means
+    #[allow(dead_code)]
     global_lambda_nu: Array1<f64>, // Degrees of freedom for precision matrices
+    #[allow(dead_code)]
     global_lambda_w: Vec<Array2<f64>>, // Scale matrices for precision matrices
 
     // Optimizer state
+    #[allow(dead_code)]
     optimizer_state: OptimizerState,
 
     // Derived quantities
@@ -539,19 +552,14 @@ impl Fit<ArrayView2<'_, Float>, ()> for StochasticVariationalGMM<Untrained> {
     }
 }
 
+#[allow(non_snake_case, clippy::too_many_arguments)]
 impl StochasticVariationalGMM<Untrained> {
     /// Initialize global variational parameters
     fn initialize_global_parameters(
         &self,
         X: &Array2<f64>,
         rng: &mut scirs2_core::random::rngs::StdRng,
-    ) -> SklResult<(
-        Array1<f64>,      // global_pi_alpha
-        Array2<f64>,      // global_mu_mean
-        Array2<f64>,      // global_mu_precision
-        Array1<f64>,      // global_lambda_nu
-        Vec<Array2<f64>>, // global_lambda_w
-    )> {
+    ) -> GlobalParamsResult {
         let (n_samples, n_features) = X.dim();
 
         // Initialize mixing weight parameters
@@ -662,7 +670,7 @@ impl StochasticVariationalGMM<Untrained> {
         global_mu_mean: &Array2<f64>,
         global_mu_precision: &Array2<f64>,
         global_lambda_nu: &Array1<f64>,
-        global_lambda_w: &Vec<Array2<f64>>,
+        global_lambda_w: &[Array2<f64>],
     ) -> SklResult<LocalParameters> {
         let (batch_size, n_features) = batch_X.dim();
         let mut local_z = Array2::zeros((batch_size, self.n_components));
@@ -719,7 +727,7 @@ impl StochasticVariationalGMM<Untrained> {
         global_mu_mean: &Array2<f64>,
         global_mu_precision: &Array2<f64>,
         global_lambda_nu: &Array1<f64>,
-        _global_lambda_w: &Vec<Array2<f64>>,
+        _global_lambda_w: &[Array2<f64>],
         n_total: usize,
         batch_size: usize,
     ) -> SklResult<Gradients> {
@@ -1063,7 +1071,7 @@ impl StochasticVariationalGMM<Untrained> {
         global_mu_mean: &Array2<f64>,
         global_mu_precision: &Array2<f64>,
         global_lambda_nu: &Array1<f64>,
-        global_lambda_w: &Vec<Array2<f64>>,
+        global_lambda_w: &[Array2<f64>],
         n_total: usize,
         batch_size: usize,
     ) -> SklResult<f64> {
@@ -1099,7 +1107,7 @@ impl StochasticVariationalGMM<Untrained> {
         global_mu_mean: &Array2<f64>,
         global_mu_precision: &Array2<f64>,
         global_lambda_nu: &Array1<f64>,
-        global_lambda_w: &Vec<Array2<f64>>,
+        global_lambda_w: &[Array2<f64>],
     ) -> SklResult<f64> {
         let val_local_params = self.compute_local_parameters(
             val_X,
@@ -1130,7 +1138,7 @@ impl StochasticVariationalGMM<Untrained> {
         &self,
         k: usize,
         global_lambda_nu: &Array1<f64>,
-        global_lambda_w: &Vec<Array2<f64>>,
+        global_lambda_w: &[Array2<f64>],
     ) -> f64 {
         let n_features = global_lambda_w[k].nrows();
         let mut log_det = 0.0;
@@ -1159,7 +1167,7 @@ impl StochasticVariationalGMM<Untrained> {
     fn compute_covariances(
         &self,
         global_lambda_nu: &Array1<f64>,
-        global_lambda_w: &Vec<Array2<f64>>,
+        global_lambda_w: &[Array2<f64>],
     ) -> SklResult<Vec<Array2<f64>>> {
         let mut covariances = Vec::new();
 
@@ -1258,6 +1266,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
     }
 }
 
+#[allow(non_snake_case)]
 impl StochasticVariationalGMM<StochasticVariationalGMMTrained> {
     /// Get the mixing weights
     pub fn weights(&self) -> &Array1<f64> {
@@ -1529,7 +1538,7 @@ mod tests {
         assert_eq!(labels.len(), 8);
         // Check that labels are in valid range
         for &label in labels.iter() {
-            assert!(label >= 0 && label < 2);
+            assert!((0..2).contains(&label));
         }
     }
 

@@ -166,6 +166,7 @@ impl Fit<Vec<Array2<Float>>, ()> for GeneralizedCCA<Untrained> {
 
 impl GeneralizedCCA<Untrained> {
     /// Fit the model to multiple views
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit_views(self, views: &Vec<Array2<Float>>) -> Result<GeneralizedCCA<Trained>> {
         if views.len() < 2 {
             return Err(SklearsError::InvalidInput(
@@ -340,7 +341,7 @@ impl GeneralizedCCA<Untrained> {
         // For generalized CCA, correlations should be clipped to [0, 1]
         let canonical_correlations = selected_eigenvalues.mapv(|x| {
             let correlation = x.sqrt().abs();
-            correlation.min(1.0).max(0.0)
+            correlation.clamp(0.0, 1.0)
         });
 
         Ok(GeneralizedCCA {
@@ -365,6 +366,7 @@ impl GeneralizedCCA<Untrained> {
     }
 
     /// Solve the generalized eigenvalue problem K*v = lambda*H*v
+    #[allow(non_snake_case)] // standard ML notation
     fn solve_generalized_eigenvalue(
         &self,
         K: &Array2<Float>,
@@ -400,6 +402,7 @@ impl GeneralizedCCA<Untrained> {
     }
 
     /// Cholesky decomposition: A = L * L^T
+    #[allow(non_snake_case)] // standard ML notation
     fn cholesky_decomposition(&self, A: &Array2<Float>) -> Result<Array2<Float>> {
         let n = A.nrows();
         let mut L = Array2::zeros((n, n));
@@ -427,6 +430,7 @@ impl GeneralizedCCA<Untrained> {
     }
 
     /// Invert a lower triangular matrix
+    #[allow(non_snake_case)] // standard ML notation
     fn invert_lower_triangular(&self, L: &Array2<Float>) -> Result<Array2<Float>> {
         let n = L.nrows();
         let mut L_inv = Array2::zeros((n, n));
@@ -443,6 +447,7 @@ impl GeneralizedCCA<Untrained> {
     }
 
     /// Simple eigenvalue decomposition for symmetric matrices
+    #[allow(non_snake_case)] // standard ML notation
     fn eigenvalue_decomposition(
         &self,
         A: &Array2<Float>,
@@ -580,7 +585,6 @@ impl GeneralizedCCA<Trained> {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::array;
-    use sklears_core::traits::Fit;
 
     #[test]
     fn test_generalized_cca_basic() {

@@ -225,23 +225,19 @@ unsafe fn insertion_sort_simd_sse2(arr: &mut [f32]) {
         let mut j = i;
 
         // Use SIMD for comparison when possible
-        while j >= 4 {
+        if j >= 4 {
             let vec = _mm_loadu_ps(&arr[j - 4]);
             let key_vec = _mm_set1_ps(key);
             let cmp = _mm_cmpgt_ps(vec, key_vec);
             let mask = _mm_movemask_ps(cmp);
 
-            if mask == 0 {
-                // No elements are greater than key
-                break;
+            if mask != 0 {
+                // Shift elements one by one (scalar fallback for shifting)
+                while j > 0 && arr[j - 1] > key {
+                    arr[j] = arr[j - 1];
+                    j -= 1;
+                }
             }
-
-            // Shift elements one by one (scalar fallback for shifting)
-            while j > 0 && arr[j - 1] > key {
-                arr[j] = arr[j - 1];
-                j -= 1;
-            }
-            break;
         }
 
         // Handle remaining elements with scalar code
@@ -282,23 +278,19 @@ unsafe fn insertion_sort_simd_avx2(arr: &mut [f32]) {
         let mut j = i;
 
         // Use SIMD for comparison when possible
-        while j >= 8 {
+        if j >= 8 {
             let vec = _mm256_loadu_ps(&arr[j - 8]);
             let key_vec = _mm256_set1_ps(key);
             let cmp = _mm256_cmp_ps(vec, key_vec, _CMP_GT_OQ);
             let mask = _mm256_movemask_ps(cmp);
 
-            if mask == 0 {
-                // No elements are greater than key
-                break;
+            if mask != 0 {
+                // Shift elements one by one (scalar fallback for shifting)
+                while j > 0 && arr[j - 1] > key {
+                    arr[j] = arr[j - 1];
+                    j -= 1;
+                }
             }
-
-            // Shift elements one by one (scalar fallback for shifting)
-            while j > 0 && arr[j - 1] > key {
-                arr[j] = arr[j - 1];
-                j -= 1;
-            }
-            break;
         }
 
         // Handle remaining elements with scalar code

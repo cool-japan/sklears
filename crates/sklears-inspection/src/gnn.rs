@@ -197,6 +197,7 @@ pub struct MessagePassingExplanation {
 /// GNN Explainer
 pub struct GNNExplainer {
     /// Task type
+    #[allow(dead_code)] // stored for task-specific logic
     task: GNNTask,
     /// Configuration
     config: GNNExplainerConfig,
@@ -266,7 +267,7 @@ impl GNNExplainer {
     /// Explain a graph classification
     pub fn explain_graph(&self, graph: &Graph) -> SklResult<GNNExplanation> {
         // For graph classification, consider all nodes
-        let all_nodes: HashSet<usize> = (0..graph.num_nodes).collect();
+        let _all_nodes: HashSet<usize> = (0..graph.num_nodes).collect();
 
         // Compute node importance for the entire graph
         let important_nodes = self.compute_graph_node_importance(graph)?;
@@ -580,7 +581,7 @@ mod tests {
 
     #[test]
     fn test_gnn_task_types() {
-        let tasks = vec![
+        let tasks = [
             GNNTask::NodeClassification,
             GNNTask::GraphClassification,
             GNNTask::LinkPrediction,

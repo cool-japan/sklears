@@ -1,23 +1,21 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(unexpected_cfgs)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
 //! SIMD-optimized operations for sklears
 //!
 //! This crate provides SIMD-accelerated implementations of common machine learning operations.
 //!
 //! ## SciRS2 Policy Compliance
-//! ✅ SIMD operations delegated to scirs2-core's backend
-//! ✅ Works on stable Rust (no nightly features required)
-//! ✅ Platform-specific optimizations handled by ndarray/BLAS
+//! - SIMD operations delegated to scirs2-core's backend
+//! - Works on stable Rust (no nightly features required)
+//! - Platform-specific optimizations handled by ndarray/BLAS
 
-#![allow(incomplete_features)]
 // Note: no-std feature is temporarily disabled until implementation is complete
 #![cfg_attr(feature = "no-std", no_std)]
+// The simd_feature_detected! macro wraps is_x86_feature_detected! with different
+// feature strings. Clippy cannot distinguish these macro invocations and fires
+// false-positive "same condition" / "simplified bool" lints. These are intentional
+// SIMD dispatch patterns and the lints are suppressed at crate level.
+#![allow(clippy::ifs_same_cond)]
+#![allow(clippy::nonminimal_bool)]
+#![allow(clippy::eq_op)]
 
 #[cfg(feature = "no-std")]
 extern crate alloc;

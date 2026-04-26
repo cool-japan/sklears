@@ -215,7 +215,6 @@ pub fn analyze_classification_dataset(x: &Array2<f64>, y: &Array1<i32>) -> Datas
         None // Single class
     };
 
-    /// DatasetCharacteristics
     DatasetCharacteristics {
         n_samples,
         n_features,
@@ -228,7 +227,6 @@ pub fn analyze_classification_dataset(x: &Array2<f64>, y: &Array1<i32>) -> Datas
 /// Analyze regression dataset characteristics
 pub fn analyze_regression_dataset(_x: &Array2<f64>, _y: &Array1<f64>) -> DatasetCharacteristics {
     // Placeholder implementation
-    /// DatasetCharacteristics
     DatasetCharacteristics {
         n_samples: 100,
         n_features: 5,
@@ -274,7 +272,6 @@ pub fn cross_validate_dummy(
     _cv: usize,
 ) -> DummyValidationResult {
     // Placeholder implementation
-    /// DummyValidationResult
     DummyValidationResult {
         strategy: "placeholder".to_string(),
         cv_scores: vec![0.5, 0.6, 0.7],
@@ -291,7 +288,6 @@ pub fn comprehensive_validation_classifier(
     _y: &Array1<i32>,
 ) -> ValidationSummary {
     // Placeholder implementation
-    /// ValidationSummary
     ValidationSummary {
         best_strategy: "most_frequent".to_string(),
         all_results: vec![],
@@ -332,7 +328,6 @@ pub fn permutation_test_classifier(
     _y: &Array1<i32>,
 ) -> PermutationTestResult {
     // Placeholder implementation
-    /// PermutationTestResult
     PermutationTestResult {
         observed_score: 0.8,
         null_distribution: vec![0.5; 100],
@@ -349,7 +344,6 @@ pub fn permutation_test_vs_random_classifier(
     _y: &Array1<i32>,
 ) -> PermutationTestResult {
     // Placeholder implementation
-    /// PermutationTestResult
     PermutationTestResult {
         observed_score: 0.8,
         null_distribution: vec![0.5; 100],
@@ -382,7 +376,6 @@ pub fn recommend_classification_strategy(
     _x: &Array2<f64>,
     _y: &Array1<i32>,
 ) -> StrategyRecommendation {
-    /// StrategyRecommendation
     StrategyRecommendation {
         recommended_strategy: "most_frequent".to_string(),
         confidence: 0.8,
@@ -393,7 +386,6 @@ pub fn recommend_classification_strategy(
 
 /// Recommend regression strategy
 pub fn recommend_regression_strategy(_x: &Array2<f64>, _y: &Array1<f64>) -> StrategyRecommendation {
-    /// StrategyRecommendation
     StrategyRecommendation {
         recommended_strategy: "mean".to_string(),
         confidence: 0.8,

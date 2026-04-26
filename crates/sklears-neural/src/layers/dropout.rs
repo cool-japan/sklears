@@ -5,13 +5,12 @@
 //! prevent overfitting. This implementation follows the paper "Dropout: A Simple
 //! Way to Prevent Neural Networks from Overfitting" by Srivastava et al. (2014).
 
-use super::{Layer, LayerConfig};
+use super::Layer;
 use crate::NeuralResult;
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::Array2;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{Rng, RngExt, SeedableRng};
 use sklears_core::{
-    error::SklearsError,
     types::FloatBounds,
     validation::{ConfigValidation, Validate, ValidationRule, ValidationRules},
 };
@@ -133,6 +132,7 @@ impl<T: FloatBounds> Dropout<T> {
         self
     }
 
+    /// Set the random seed used to determine which units are dropped
     pub fn seed(mut self, seed: u64) -> Self {
         self.config.seed = Some(seed);
         self

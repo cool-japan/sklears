@@ -393,7 +393,7 @@ impl CorrelationFeatureExtractor {
     fn mic_correlation(&self, x: &ArrayView1<Float>, y: &ArrayView1<Float>) -> SklResult<Float> {
         // Simplified MIC implementation using binning
         let n_bins = (x.len() as Float).log2().ceil() as usize + 1;
-        let n_bins = n_bins.min(10).max(2); // Reasonable bounds
+        let n_bins = n_bins.clamp(2, 10); // Reasonable bounds
 
         let x_bins = self.discretize_data(x, n_bins);
         let y_bins = self.discretize_data(y, n_bins);

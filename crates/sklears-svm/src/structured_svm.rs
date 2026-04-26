@@ -138,9 +138,13 @@ pub struct StructuredSVM<State = Untrained> {
     weights: Option<Array1<f64>>,
     transition_weights: Option<Array2<f64>>,
     // Training data statistics
+    #[allow(dead_code)] // intentionally deferred: feature count readout pending
     n_features: Option<usize>,
+    #[allow(dead_code)] // intentionally deferred: label count readout pending
     n_labels: Option<usize>,
+    #[allow(dead_code)] // intentionally deferred: label encoding readout pending
     label_to_idx: Option<HashMap<usize, usize>>,
+    #[allow(dead_code)] // intentionally deferred: label decoding readout pending
     idx_to_label: Option<HashMap<usize, usize>>,
 }
 

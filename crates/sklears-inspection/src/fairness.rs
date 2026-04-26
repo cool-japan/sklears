@@ -5,7 +5,7 @@
 
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{RngExt, SeedableRng};
+use scirs2_core::random::RngExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -169,6 +169,7 @@ impl Default for FairnessConfig {
 ///
 /// Evaluates multiple fairness criteria including demographic parity, equalized odds,
 /// and individual fairness.
+#[allow(non_snake_case)] // standard ML notation
 pub fn assess_fairness<F>(
     predict_fn: &F,
     X: &ArrayView2<Float>,
@@ -346,10 +347,11 @@ pub fn analyze_equalized_odds(
 /// Analyze individual fairness
 ///
 /// Ensures that similar individuals receive similar predictions.
+#[allow(non_snake_case)] // standard ML notation
 pub fn analyze_individual_fairness<F>(
     predict_fn: &F,
     X: &ArrayView2<Float>,
-    protected_attributes: &ArrayView2<Float>,
+    _protected_attributes: &ArrayView2<Float>,
     config: &FairnessConfig,
 ) -> SklResult<IndividualFairnessResult>
 where
@@ -639,7 +641,7 @@ fn check_statistical_parity(
     y_pred: &ArrayView1<Float>,
     protected_attr: &ArrayView1<Float>,
     attr_name: &str,
-    config: &FairnessConfig,
+    _config: &FairnessConfig,
 ) -> SklResult<BiasViolation> {
     let groups = group_by_attribute(protected_attr)?;
     let mut selection_rates = Vec::new();
@@ -715,7 +717,7 @@ fn check_predictive_parity(
     y_pred: &ArrayView1<Float>,
     protected_attr: &ArrayView1<Float>,
     attr_name: &str,
-    config: &FairnessConfig,
+    _config: &FairnessConfig,
 ) -> SklResult<BiasViolation> {
     let groups = group_by_attribute(protected_attr)?;
     let mut precision_values = Vec::new();
@@ -791,7 +793,7 @@ mod tests {
         let result = analyze_demographic_parity(&y_pred.view(), &protected_attr.view(), &config)
             .expect("operation should succeed");
 
-        assert!(result.selection_rates.len() >= 1);
+        assert!(!result.selection_rates.is_empty());
         assert!(result.parity_difference >= 0.0);
         assert!(result.parity_ratio >= 0.0 && result.parity_ratio <= 1.0);
     }
@@ -812,8 +814,8 @@ mod tests {
         )
         .expect("operation should succeed");
 
-        assert!(result.true_positive_rates.len() >= 1);
-        assert!(result.false_positive_rates.len() >= 1);
+        assert!(!result.true_positive_rates.is_empty());
+        assert!(!result.false_positive_rates.is_empty());
         assert!(result.odds_difference >= 0.0);
     }
 
@@ -827,8 +829,10 @@ mod tests {
         let X = array![[1.0, 2.0], [1.1, 2.1], [3.0, 4.0]];
         let protected_attr = array![[0.0], [0.0], [1.0]];
 
-        let mut config = FairnessConfig::default();
-        config.individual_fairness_samples = 10; // Small for test
+        let config = FairnessConfig {
+            individual_fairness_samples: 10, // Small for test
+            ..Default::default()
+        };
 
         let result =
             analyze_individual_fairness(&predict_fn, &X.view(), &protected_attr.view(), &config)

@@ -4,7 +4,6 @@
 //! label dependency modeling and hierarchical label structures.
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
-use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::{
     error::Result,
@@ -667,7 +666,7 @@ impl AdvancedChainClassifier {
 
         let n_samples = x.nrows();
         let n_labels = self.n_labels.expect("operation should succeed");
-        let n_features = x.ncols();
+        let _n_features = x.ncols();
 
         if self.chains.len() == 1 {
             // Single chain prediction
@@ -941,7 +940,7 @@ impl MultiLabelNB {
 
     /// Fit the multi-label classifier
     pub fn fit(&mut self, x: &Array2<f64>, y: &Array2<i32>) -> Result<()> {
-        let (n_samples, n_labels) = y.dim();
+        let (_n_samples, n_labels) = y.dim();
         self.n_labels = Some(n_labels);
 
         match self.strategy {

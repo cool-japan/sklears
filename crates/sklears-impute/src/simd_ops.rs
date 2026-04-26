@@ -30,8 +30,7 @@ impl CacheOptimizedData {
         let cache_line_size = 64; // Common cache line size
 
         // Pad columns to cache line boundaries
-        let padded_cols =
-            ((n_cols * 8 + cache_line_size - 1) / cache_line_size) * cache_line_size / 8;
+        let padded_cols = (n_cols * 8).div_ceil(cache_line_size) * cache_line_size / 8;
         let mut aligned_data = vec![0.0; n_rows * padded_cols];
 
         // Copy data with padding
@@ -42,7 +41,7 @@ impl CacheOptimizedData {
         }
 
         // Create packed missing mask (64 bits per u64)
-        let mask_len = (n_rows * n_cols + 63) / 64;
+        let mask_len = (n_rows * n_cols).div_ceil(64);
         let mut missing_mask = vec![0u64; mask_len];
 
         for i in 0..n_rows {
@@ -74,9 +73,8 @@ impl CacheOptimizedData {
     /// Get value at position (i, j) with bounds checking
     pub fn get(&self, i: usize, j: usize) -> Option<f64> {
         if i < self.n_rows && j < self.n_cols {
-            let padded_cols = ((self.n_cols * 8 + self.cache_line_size - 1) / self.cache_line_size)
-                * self.cache_line_size
-                / 8;
+            let padded_cols =
+                (self.n_cols * 8).div_ceil(self.cache_line_size) * self.cache_line_size / 8;
             Some(self.data[i * padded_cols + j])
         } else {
             None
@@ -98,9 +96,8 @@ impl CacheOptimizedData {
     /// Get row slice for cache-friendly access
     pub fn get_row(&self, i: usize) -> Option<&[f64]> {
         if i < self.n_rows {
-            let padded_cols = ((self.n_cols * 8 + self.cache_line_size - 1) / self.cache_line_size)
-                * self.cache_line_size
-                / 8;
+            let padded_cols =
+                (self.n_cols * 8).div_ceil(self.cache_line_size) * self.cache_line_size / 8;
             let start = i * padded_cols;
             Some(&self.data[start..start + self.n_cols])
         } else {

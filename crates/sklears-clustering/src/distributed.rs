@@ -125,29 +125,43 @@ impl DataPartition {
 pub enum WorkerMessage {
     /// Border point cluster assignment
     BorderAssignment {
+        /// Point identifier
         point_id: usize,
+        /// Cluster the point belongs to, if any
         cluster_id: Option<i32>,
+        /// Partition that owns this point
         partition_id: usize,
     },
     /// Request for point information
     PointRequest {
+        /// Point identifier being requested
         point_id: usize,
+        /// Partition that is requesting the information
         requesting_partition: usize,
     },
     /// Response with point information
     PointResponse {
+        /// Point identifier
         point_id: usize,
+        /// Cluster the point belongs to, if any
         cluster_id: Option<i32>,
+        /// Neighbor point identifiers
         neighbors: Vec<usize>,
     },
     /// Cluster merge request
     MergeRequest {
+        /// First cluster to merge
         cluster_a: i32,
+        /// Second cluster to merge
         cluster_b: i32,
+        /// Partition requesting the merge
         partition_id: usize,
     },
     /// Completion signal
-    Completed { partition_id: usize },
+    Completed {
+        /// Partition that has completed processing
+        partition_id: usize,
+    },
 }
 
 /// Worker state for distributed DBSCAN
@@ -278,7 +292,7 @@ impl DBSCANWorker {
                 })?;
 
             // Send border point information to neighboring partitions
-            for &neighbor_id in &self.partition.neighbors {
+            for &_neighbor_id in &self.partition.neighbors {
                 let message = WorkerMessage::BorderAssignment {
                     point_id: border_idx,
                     cluster_id: if self.labels[local_idx] != -1 {
@@ -371,7 +385,7 @@ impl DBSCANWorker {
     }
 
     /// Handle request for point information
-    fn handle_point_request(&self, point_id: usize, requesting_partition: usize) -> Result<()> {
+    fn handle_point_request(&self, point_id: usize, _requesting_partition: usize) -> Result<()> {
         if let Some(local_idx) = self.partition.indices.iter().position(|&x| x == point_id) {
             let cluster_id = if self.labels[local_idx] != -1 {
                 Some(self.labels[local_idx])
@@ -456,7 +470,9 @@ pub struct DistributedDBSCAN<State = Untrained> {
     // Trained state fields
     labels: Option<Array1<i32>>,
     core_sample_mask: Option<Array1<bool>>,
+    #[allow(dead_code)] // Retained for future feature-based operations
     n_features: Option<usize>,
+    #[allow(dead_code)] // Retained for incremental updates to partitions
     partitions: Option<Vec<DataPartition>>,
 }
 
@@ -534,11 +550,11 @@ impl<State> DistributedDBSCAN<State> {
         }
 
         // Create grid partitions
-        let grid_dim = (n_workers as Float).powf(1.0 / n_features as Float).ceil() as usize;
+        let _grid_dim = (n_workers as Float).powf(1.0 / n_features as Float).ceil() as usize;
         let mut partitions = Vec::new();
 
         // Simple linear partitioning for now (can be improved to spatial grid)
-        let points_per_partition = (n_samples + n_workers - 1) / n_workers;
+        let points_per_partition = n_samples.div_ceil(n_workers);
 
         for i in 0..n_workers {
             let start_idx = i * points_per_partition;
@@ -563,7 +579,7 @@ impl<State> DistributedDBSCAN<State> {
     /// Add border points and neighbor relationships between partitions
     fn add_border_relationships(
         &self,
-        partitions: &mut Vec<DataPartition>,
+        partitions: &mut [DataPartition],
         x: &ArrayView2<Float>,
     ) -> Result<()> {
         let overlap_eps = self.config.eps + self.config.overlap_size;
@@ -603,7 +619,7 @@ impl<State> DistributedDBSCAN<State> {
         &self,
         partitions: Vec<DataPartition>,
     ) -> Result<(Array1<i32>, Array1<bool>)> {
-        let n_partitions = partitions.len();
+        let _n_partitions = partitions.len();
         let message_queue = Arc::new(Mutex::new(VecDeque::new()));
 
         // Create workers
@@ -740,7 +756,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>> for DistributedDBSCAN<Trained> 
     fn predict(&self, x: &ArrayView2<Float>) -> Result<Array1<i32>> {
         // For simplicity, assign new points to nearest existing cluster
         // In a full implementation, this would involve the full distributed prediction process
-        let labels = self.labels()?;
+        let _labels = self.labels()?;
         let n_new = x.nrows();
         let mut predictions = Array1::from_elem(n_new, -1); // Default to noise
 
@@ -753,7 +769,6 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>> for DistributedDBSCAN<Trained> 
     }
 }
 
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
     use super::*;

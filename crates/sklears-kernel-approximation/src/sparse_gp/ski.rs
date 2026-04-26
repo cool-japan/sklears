@@ -360,10 +360,10 @@ impl<K: SparseKernel> FittedSKI<K> {
         let n_features = self.grid_points.ncols();
         let mut grid_size = vec![1; n_features];
 
-        for j in 0..n_features {
+        for (j, size) in grid_size.iter_mut().enumerate().take(n_features) {
             let col = self.grid_points.column(j);
             let unique_vals: HashSet<_> = col.iter().map(|&x| (x * 1e6).round() as i64).collect();
-            grid_size[j] = unique_vals.len();
+            *size = unique_vals.len();
         }
 
         Ok(grid_size)
@@ -459,12 +459,14 @@ impl<K: SparseKernel> TensorSKI<K> {
         }
 
         // Compute 1D kernel matrices
-        let mut kernel_matrices_1d = Vec::with_capacity(n_features);
-        for j in 0..n_features {
-            let grid_1d_2d = dim_grids[j].clone().insert_axis(Axis(1));
-            let k_1d = self.kernel.kernel_matrix(&grid_1d_2d, &grid_1d_2d);
-            kernel_matrices_1d.push(k_1d);
-        }
+        let kernel_matrices_1d: Vec<_> = dim_grids
+            .iter()
+            .take(n_features)
+            .map(|grid_1d| {
+                let grid_1d_2d = grid_1d.clone().insert_axis(Axis(1));
+                self.kernel.kernel_matrix(&grid_1d_2d, &grid_1d_2d)
+            })
+            .collect();
 
         Ok(FittedTensorSKI {
             dim_grids,

@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 /// Main pipeline visualizer that orchestrates the visualization process
+#[allow(dead_code)]
 pub struct PipelineVisualizer {
     /// Visualization configuration
     config: VisualizationConfig,
@@ -77,7 +78,12 @@ pub enum NodeSize {
     /// Large
     Large,
     /// Custom
-    Custom { width: f64, height: f64 },
+    Custom {
+        /// The width.
+        width: f64,
+        /// The height.
+        height: f64,
+    },
 }
 
 /// Font properties for text rendering
@@ -105,6 +111,7 @@ pub enum FontWeight {
 }
 
 /// Graph representation of a pipeline
+#[allow(dead_code)]
 pub struct PipelineGraph {
     /// Graph nodes (pipeline steps)
     nodes: Vec<GraphNode>,
@@ -160,9 +167,13 @@ pub struct CustomTheme {
 /// Color representation
 #[derive(Debug, Clone)]
 pub struct Color {
+    /// The r.
     pub r: u8,
+    /// The g.
     pub g: u8,
+    /// The b.
     pub b: u8,
+    /// The a.
     pub a: f32,
 }
 
@@ -216,6 +227,7 @@ pub enum EasingFunction {
 pub struct GraphLayout {
     /// Canvas dimensions
     pub width: f64,
+    /// The height.
     pub height: f64,
     /// Node positions
     pub node_positions: HashMap<String, Position>,
@@ -230,7 +242,9 @@ pub struct GraphLayout {
 /// 2D position
 #[derive(Debug, Clone, Copy)]
 pub struct Position {
+    /// The x.
     pub x: f64,
+    /// The y.
     pub y: f64,
 }
 
@@ -374,7 +388,7 @@ impl PipelineVisualizer {
     }
 
     /// Export visualization to file
-    pub fn export(&self, format: ExportFormat, path: &str) -> SklResult<()> {
+    pub fn export(&self, _format: ExportFormat, path: &str) -> SklResult<()> {
         let output = self.visualize()?;
 
         // Save output to file (implementation would depend on the format)
@@ -463,7 +477,12 @@ pub enum ShapeSpecification {
     /// Fixed shape
     Fixed(Vec<usize>),
     /// Variable shape with constraints
-    Variable { min_dims: usize, max_dims: usize },
+    Variable {
+        /// The min dims.
+        min_dims: usize,
+        /// The max dims.
+        max_dims: usize,
+    },
     /// Scalar value
     Scalar,
     /// Unknown shape

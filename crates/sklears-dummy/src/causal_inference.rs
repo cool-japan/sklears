@@ -100,6 +100,7 @@ pub struct CausalDiscoveryBaseline {
 
 /// Fitted causal discovery baseline
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct FittedCausalDiscoveryBaseline {
     strategy: CausalDiscoveryStrategy,
     causal_graph: Array2<f64>,
@@ -110,6 +111,7 @@ pub struct FittedCausalDiscoveryBaseline {
 
 /// Counterfactual baseline estimator
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct CounterfactualBaseline {
     strategy: CounterfactualStrategy,
     treatment_column: usize,
@@ -119,6 +121,7 @@ pub struct CounterfactualBaseline {
 
 /// Fitted counterfactual baseline
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct FittedCounterfactualBaseline {
     strategy: CounterfactualStrategy,
     treatment_column: usize,
@@ -131,6 +134,7 @@ pub struct FittedCounterfactualBaseline {
 
 /// Instrumental variable baseline estimator
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct InstrumentalVariableBaseline {
     strategy: InstrumentalVariableStrategy,
     instrument_columns: Vec<usize>,
@@ -140,6 +144,7 @@ pub struct InstrumentalVariableBaseline {
 
 /// Fitted instrumental variable baseline
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct FittedInstrumentalVariableBaseline {
     strategy: InstrumentalVariableStrategy,
     instrument_columns: Vec<usize>,
@@ -152,6 +157,7 @@ pub struct FittedInstrumentalVariableBaseline {
 
 /// Mediation analysis baseline estimator
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct MediationAnalysisBaseline {
     strategy: MediationStrategy,
     treatment_column: usize,
@@ -162,6 +168,7 @@ pub struct MediationAnalysisBaseline {
 
 /// Fitted mediation analysis baseline
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct FittedMediationAnalysisBaseline {
     strategy: MediationStrategy,
     treatment_column: usize,
@@ -176,6 +183,7 @@ pub struct FittedMediationAnalysisBaseline {
 
 /// Do-calculus baseline estimator
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct DoCalculusBaseline {
     strategy: DoCalculusStrategy,
     intervention_variables: Vec<usize>,
@@ -185,6 +193,7 @@ pub struct DoCalculusBaseline {
 
 /// Fitted do-calculus baseline
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct FittedDoCalculusBaseline {
     strategy: DoCalculusStrategy,
     intervention_variables: Vec<usize>,
@@ -328,7 +337,7 @@ impl Fit<Array2<f64>, Array1<f64>, FittedCausalDiscoveryBaseline> for CausalDisc
 
 impl CausalDiscoveryBaseline {
     fn compute_correlation(&self, x: &ArrayView1<f64>, y: &ArrayView1<f64>) -> f64 {
-        let n = x.len() as f64;
+        let _n = x.len() as f64;
         let mean_x = x
             .mean()
             .expect("array should have elements for mean computation");
@@ -466,7 +475,9 @@ impl Fit<Array2<f64>, Array1<f64>, FittedCounterfactualBaseline> for Counterfact
             y.view()
         };
 
-        let mut treatment_effect = 0.0;
+        // treatment_effect initial value is always overwritten by match arms before use
+        #[allow(unused_assignments)]
+        let mut treatment_effect = 0.0_f64;
         let mut propensity_scores = Array1::zeros(x.nrows());
         let mut outcome_model_params = Array1::zeros(x.ncols());
 
@@ -607,7 +618,7 @@ impl Fit<Array2<f64>, Array1<f64>, FittedCounterfactualBaseline> for Counterfact
 
 impl CounterfactualBaseline {
     fn compute_correlation(&self, x: &ArrayView1<f64>, y: &ArrayView1<f64>) -> f64 {
-        let n = x.len() as f64;
+        let _n = x.len() as f64;
         let mean_x = x
             .mean()
             .expect("array should have elements for mean computation");
@@ -686,7 +697,7 @@ impl CounterfactualBaseline {
         let mut count = 0;
 
         for i in 0..treatment.len() {
-            let propensity = propensity_scores[i].max(0.01).min(0.99);
+            let propensity = propensity_scores[i].clamp(0.01, 0.99);
             let weight_treated = treatment[i] / propensity;
             let weight_untreated = (1.0 - treatment[i]) / (1.0 - propensity);
 
@@ -718,7 +729,7 @@ impl CounterfactualBaseline {
         let mut untreated_weight_sum = 0.0;
 
         for i in 0..treatment.len() {
-            let propensity = propensity_scores[i].max(0.01).min(0.99);
+            let propensity = propensity_scores[i].clamp(0.01, 0.99);
 
             if treatment[i] > 0.5 {
                 let weight = 1.0 / propensity;
@@ -761,7 +772,7 @@ impl CounterfactualBaseline {
             let mut count = 0;
 
             for i in 0..treatment.len() {
-                let propensity = propensity_scores[i].max(0.01).min(0.99);
+                let propensity = propensity_scores[i].clamp(0.01, 0.99);
                 let clever_covariate =
                     treatment[i] / propensity - (1.0 - treatment[i]) / (1.0 - propensity);
                 adjustment_sum += clever_covariate * current_outcome[i];

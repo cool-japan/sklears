@@ -284,6 +284,7 @@ impl<T: FloatBounds> DriftDetection<T> for AdwinDetector<T> {
 pub struct DriftDetector<T: FloatBounds> {
     page_hinkley: PageHinkleyDetector<T>,
     adwin: AdwinDetector<T>,
+    #[allow(dead_code)] // config retained for future extension of detector parameters
     config: DriftDetectionConfig,
 }
 

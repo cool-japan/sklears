@@ -117,7 +117,7 @@ impl DataCleaner {
 
             if !valid_values.is_empty() {
                 valid_values.sort_by(compare_floats);
-                let median = if valid_values.len() % 2 == 0 {
+                let median = if valid_values.len().is_multiple_of(2) {
                     let mid = valid_values.len() / 2;
                     (valid_values[mid - 1] + valid_values[mid]) / const_to_float::<T>(2.0)?
                 } else {
@@ -226,7 +226,7 @@ impl OutlierDetector {
             return Vec::new();
         };
 
-        let median = if n % 2 == 0 {
+        let median = if n.is_multiple_of(2) {
             (sorted_data[n / 2 - 1] + sorted_data[n / 2]) / two
         } else {
             sorted_data[n / 2]
@@ -236,7 +236,7 @@ impl OutlierDetector {
         let mut deviations: Vec<T> = data.iter().map(|&x| (x - median).abs()).collect();
         deviations.sort_by(compare_floats);
 
-        let mad = if deviations.len() % 2 == 0 {
+        let mad = if deviations.len().is_multiple_of(2) {
             let mid = deviations.len() / 2;
             (deviations[mid - 1] + deviations[mid]) / two
         } else {
@@ -353,7 +353,7 @@ impl FeatureScaler {
             sorted_col.sort_by(compare_floats);
 
             let n = sorted_col.len();
-            let median = if n % 2 == 0 {
+            let median = if n.is_multiple_of(2) {
                 (sorted_col[n / 2 - 1] + sorted_col[n / 2]) / const_to_float::<T>(2.0)?
             } else {
                 sorted_col[n / 2]

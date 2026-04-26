@@ -13,7 +13,8 @@ use sklears_core::{
 /// Trained Bayesian Discriminant Analysis model
 #[derive(Debug, Clone)]
 pub struct TrainedBayesianDiscriminantAnalysis {
-    /// Configuration used for training
+    /// Configuration used for training; retained for re-fit and serialisation
+    #[allow(dead_code)] // retained for future serialisation / re-fit support
     pub(crate) config: BayesianDiscriminantAnalysisConfig,
     /// Unique classes found during training
     pub(crate) classes: Array1<i32>,

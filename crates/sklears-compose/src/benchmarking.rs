@@ -4,12 +4,9 @@
 //! and comparing the performance of different composition strategies.
 
 use scirs2_core::ndarray::{Array2, ArrayView2};
-use scirs2_core::random::{Rng, RngExt};
+use scirs2_core::random::RngExt;
 use serde::{Deserialize, Serialize};
-use sklears_core::{
-    error::Result as SklResult,
-    traits::{Estimator, Transform},
-};
+use sklears_core::{error::Result as SklResult, traits::Transform};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as FmtWrite;
 use std::time::{Duration, Instant};
@@ -585,7 +582,7 @@ impl BenchmarkSuite {
         let (n_samples, n_features) = dimensions;
         let data_size_mb = (n_samples * n_features * 8) as f64 / (1024.0 * 1024.0);
 
-        /// MemoryUsage
+        // MemoryUsage
         MemoryUsage {
             peak_usage_mb: data_size_mb * 2.5, // Assume some overhead
             average_usage_mb: data_size_mb * 1.8,
@@ -758,14 +755,14 @@ impl BenchmarkReport {
 
         summary.push_str("Performance Rankings:\n");
         for (i, (strategy, score)) in self.performance_rankings.iter().enumerate() {
-            let _ = write!(summary, "{}. {} (score: {:.3})\n", i + 1, strategy, score);
+            let _ = writeln!(summary, "{}. {} (score: {:.3})", i + 1, strategy, score);
         }
 
         summary.push_str("\nScalability Analysis:\n");
         for (strategy, metrics) in &self.scalability_analysis {
-            let _ = write!(
+            let _ = writeln!(
                 summary,
-                "{}: Sample complexity: {:?}, Feature complexity: {:?}\n",
+                "{}: Sample complexity: {:?}, Feature complexity: {:?}",
                 strategy, metrics.sample_complexity, metrics.feature_complexity
             );
         }
@@ -911,10 +908,15 @@ pub mod advanced_benchmarking {
     /// Statistical model for performance prediction
     #[derive(Debug, Clone)]
     pub struct StatisticalModel {
+        /// Field value.
         pub model_type: ModelType,
+        /// Field value.
         pub coefficients: Vec<f64>,
+        /// Field value.
         pub r_squared: f64,
+        /// Field value.
         pub confidence_intervals: Vec<(f64, f64)>,
+        /// Field value.
         pub prediction_accuracy: f64,
     }
 
@@ -934,6 +936,7 @@ pub mod advanced_benchmarking {
     }
 
     /// Trend analysis for performance over time
+    #[allow(dead_code)]
     pub struct TrendAnalyzer {
         historical_data: BTreeMap<chrono::DateTime<chrono::Utc>, f64>,
         trend_models: HashMap<String, TrendModel>,
@@ -942,10 +945,15 @@ pub mod advanced_benchmarking {
     /// Trend model for performance forecasting
     #[derive(Debug, Clone)]
     pub struct TrendModel {
+        /// Field value.
         pub trend_direction: TrendDirection,
+        /// Field value.
         pub slope: f64,
+        /// Field value.
         pub seasonal_component: Option<f64>,
+        /// Field value.
         pub confidence: f64,
+        /// Field value.
         pub forecast_horizon: chrono::Duration,
     }
 
@@ -965,6 +973,7 @@ pub mod advanced_benchmarking {
     }
 
     /// Resource efficiency analyzer
+    #[allow(dead_code)]
     pub struct ResourceEfficiencyAnalyzer {
         cpu_profiles: HashMap<String, CpuProfile>,
         memory_profiles: HashMap<String, MemoryProfile>,
@@ -974,20 +983,30 @@ pub mod advanced_benchmarking {
     /// CPU usage profile
     #[derive(Debug, Clone)]
     pub struct CpuProfile {
+        /// Field value.
         pub utilization_history: Vec<f64>,
+        /// Field value.
         pub peak_utilization: f64,
+        /// Field value.
         pub average_utilization: f64,
+        /// Field value.
         pub efficiency_score: f64,
+        /// Field value.
         pub hotspots: Vec<String>,
     }
 
     /// Memory usage profile
     #[derive(Debug, Clone)]
     pub struct MemoryProfile {
+        /// Field value.
         pub allocation_pattern: AllocationPattern,
+        /// Field value.
         pub peak_usage_mb: f64,
+        /// Field value.
         pub average_usage_mb: f64,
+        /// Field value.
         pub fragmentation_score: f64,
+        /// Field value.
         pub gc_impact: f64,
     }
 
@@ -1009,39 +1028,59 @@ pub mod advanced_benchmarking {
     /// Energy consumption profile
     #[derive(Debug, Clone)]
     pub struct EnergyProfile {
+        /// Field value.
         pub total_energy_joules: f64,
+        /// Field value.
         pub average_power_watts: f64,
+        /// Field value.
         pub efficiency_score: f64,
+        /// Field value.
         pub carbon_footprint_kg: f64,
     }
 
     /// Comparative benchmark analysis
     pub struct ComparativeBenchmarkAnalysis {
+        /// Field value.
         pub baseline_component: String,
+        /// Field value.
         pub comparison_components: Vec<String>,
+        /// Field value.
         pub metrics: Vec<ComparisonMetric>,
+        /// Field value.
         pub statistical_significance: f64,
+        /// Field value.
         pub effect_sizes: HashMap<String, f64>,
+        /// Field value.
         pub confidence_intervals: HashMap<String, (f64, f64)>,
     }
 
     /// Comparison metrics
     #[derive(Debug, Clone)]
     pub struct ComparisonMetric {
+        /// Field value.
         pub name: String,
+        /// Field value.
         pub baseline_value: f64,
+        /// Field value.
         pub comparison_values: HashMap<String, f64>,
+        /// Field value.
         pub relative_improvements: HashMap<String, f64>,
+        /// Field value.
         pub statistical_tests: HashMap<String, StatisticalTest>,
     }
 
     /// Statistical test results
     #[derive(Debug, Clone)]
     pub struct StatisticalTest {
+        /// Field value.
         pub test_type: TestType,
+        /// Field value.
         pub p_value: f64,
+        /// Field value.
         pub test_statistic: f64,
+        /// Field value.
         pub is_significant: bool,
+        /// Field value.
         pub effect_size: f64,
     }
 
@@ -1131,7 +1170,7 @@ pub mod advanced_benchmarking {
                 component_analyses.insert(component_name.clone(), analysis);
             }
 
-            /// AdvancedAnalysisReport
+            // AdvancedAnalysisReport
             AdvancedAnalysisReport {
                 analysis_timestamp: chrono::Utc::now(),
                 total_components: component_analyses.len(),
@@ -1154,7 +1193,7 @@ pub mod advanced_benchmarking {
 
                 for &component in comparisons {
                     if let Some(comp_results) = self.results_database.get(component) {
-                        let baseline_mean = self.calculate_mean_performance(baseline_results);
+                        let _baseline_mean = self.calculate_mean_performance(baseline_results);
                         let comp_mean = self.calculate_mean_performance(comp_results);
 
                         comparison_values.insert(component.to_string(), comp_mean);
@@ -1201,7 +1240,7 @@ pub mod advanced_benchmarking {
                 .sum();
             let r_squared = 1.0 - (ss_res / ss_tot);
 
-            /// StatisticalModel
+            // StatisticalModel
             StatisticalModel {
                 model_type: ModelType::Linear,
                 coefficients: vec![intercept, slope],
@@ -1287,6 +1326,7 @@ pub mod advanced_benchmarking {
 
     impl TrendAnalyzer {
         #[must_use]
+        /// Creates a new instance.
         pub fn new() -> Self {
             Self {
                 historical_data: BTreeMap::new(),
@@ -1295,6 +1335,7 @@ pub mod advanced_benchmarking {
         }
 
         #[must_use]
+        /// Performs the operation.
         pub fn analyze_component_trends(&self, _component_name: &str) -> Option<TrendModel> {
             // Simplified trend analysis
             Some(TrendModel {
@@ -1310,21 +1351,32 @@ pub mod advanced_benchmarking {
     /// Component-specific analysis results
     #[derive(Debug, Clone)]
     pub struct ComponentAnalysis {
+        /// Field value.
         pub component_name: String,
+        /// Field value.
         pub total_benchmarks: usize,
+        /// Field value.
         pub performance_model: Option<StatisticalModel>,
+        /// Field value.
         pub trend_analysis: Option<TrendModel>,
+        /// Field value.
         pub efficiency_scores: HashMap<String, f64>,
+        /// Field value.
         pub recommendations: Vec<String>,
     }
 
     /// Advanced analysis report
     #[derive(Debug, Clone)]
     pub struct AdvancedAnalysisReport {
+        /// Field value.
         pub analysis_timestamp: chrono::DateTime<chrono::Utc>,
+        /// Field value.
         pub total_components: usize,
+        /// Field value.
         pub component_analyses: HashMap<String, ComponentAnalysis>,
+        /// Field value.
         pub cross_component_insights: Vec<String>,
+        /// Field value.
         pub optimization_recommendations: Vec<String>,
     }
 

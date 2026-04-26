@@ -122,11 +122,13 @@ impl SimdOps {
     }
 
     /// Scalar implementation for fallback
+    #[allow(dead_code)] // fallback when SIMD extensions unavailable
     fn add_arrays_scalar(a: &Array1<Float>, b: &Array1<Float>) -> Array1<Float> {
         a + b
     }
 
     /// Scalar implementation for fallback
+    #[allow(dead_code)] // fallback when SIMD extensions unavailable
     fn scalar_multiply_scalar(array: &Array1<Float>, scalar: Float) -> Array1<Float> {
         array * scalar
     }

@@ -8,9 +8,17 @@ use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArr
 use pyo3::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
 
+/// Train-test split result: (X_train, X_test, y_train, y_test)
+type TrainTestSplitResult = (
+    Py<PyArray2<f64>>,
+    Py<PyArray2<f64>>,
+    Py<PyArray1<f64>>,
+    Py<PyArray1<f64>>,
+);
+
 /// Split arrays into random train and test subsets
 #[pyfunction]
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)] // scikit-learn API compatibility requires matching argument count
 #[pyo3(signature = (x, _y=None, _test_size=None, _train_size=None, _random_state=None, _shuffle=true, _stratify=None))]
 pub fn train_test_split(
     py: Python<'_>,
@@ -21,12 +29,7 @@ pub fn train_test_split(
     _random_state: Option<u64>,
     _shuffle: bool,
     _stratify: Option<PyReadonlyArray1<f64>>,
-) -> PyResult<(
-    Py<PyArray2<f64>>,
-    Py<PyArray2<f64>>,
-    Py<PyArray1<f64>>,
-    Py<PyArray1<f64>>,
-)> {
+) -> PyResult<TrainTestSplitResult> {
     // Stub implementation - uses x to suppress unused warning
     let _n_samples = x.shape()[0];
 

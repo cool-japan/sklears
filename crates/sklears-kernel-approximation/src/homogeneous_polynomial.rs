@@ -63,8 +63,8 @@ pub enum CoefficientMethod {
 /// let X = array![[1.0, 2.0], [3.0, 4.0]];
 ///
 /// let homo_poly = HomogeneousPolynomialFeatures::new(2);
-/// let fitted_homo = homo_poly.fit(&X, &()).unwrap();
-/// let X_transformed = fitted_homo.transform(&X).unwrap();
+/// let fitted_homo = homo_poly.fit(&X, &()).expect("fit should succeed with valid polynomial input");
+/// let X_transformed = fitted_homo.transform(&X).expect("transform should succeed after fitting");
 /// ```
 #[derive(Debug, Clone)]
 /// HomogeneousPolynomialFeatures

@@ -4,9 +4,9 @@
 //! cross-decomposition algorithms designed for large-scale data processing
 //! with bounded memory usage and parallel computation support.
 
-use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, Axis};
+use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::SklearsError;
 use std::sync::Arc;
 use std::thread;
@@ -189,7 +189,7 @@ impl MemoryEfficientCCA {
             StdRng::from_rng(&mut entropy_rng)
         };
 
-        use scirs2_core::random::{Distribution, RandNormal as Normal, Rng, SeedableRng};
+        use scirs2_core::random::{Distribution, RandNormal as Normal, SeedableRng};
 
         let normal = Normal::new(0.0, 0.1)
             .map_err(|e| SklearsError::InvalidInput(format!("invalid Normal params: {}", e)))?;
@@ -356,14 +356,6 @@ impl MemoryEfficientCCA {
         }
     }
 
-    fn compute_correlation(
-        &self,
-        u: &scirs2_core::ndarray::ArrayView1<f64>,
-        v: &scirs2_core::ndarray::ArrayView1<f64>,
-    ) -> f64 {
-        Self::compute_correlation_static(u, v)
-    }
-
     fn orthogonalize_weights_static(
         wx: &mut Array2<f64>,
         wy: &mut Array2<f64>,
@@ -400,13 +392,9 @@ impl MemoryEfficientCCA {
         }
     }
 
-    fn orthogonalize_weights(&self, wx: &mut Array2<f64>, wy: &mut Array2<f64>) {
-        Self::orthogonalize_weights_static(wx, wy, self.n_components);
-    }
-
     /// Get current canonical correlations
     pub fn canonical_correlations(&self) -> Option<Array1<f64>> {
-        if let (Some(ref wx), Some(ref wy)) = (&self.wx, &self.wy) {
+        if let (Some(_wx), Some(_wy)) = (&self.wx, &self.wy) {
             // Return placeholder correlations - in practice, you'd compute these
             // from a validation set or using running estimates
             Some(Array1::ones(self.n_components) * 0.8)
@@ -617,21 +605,21 @@ impl DistributedCCA {
         // Compute covariance matrices
         let cxx = x_centered.t().dot(&x_centered) / (n - 1.0);
         let cyy = y_centered.t().dot(&y_centered) / (n - 1.0);
-        let cxy = x_centered.t().dot(&y_centered) / (n - 1.0);
+        let _cxy = x_centered.t().dot(&y_centered) / (n - 1.0);
 
         // Add regularization
         let reg_eye_x = Array2::<f64>::eye(cxx.nrows()) * regularization;
         let reg_eye_y = Array2::<f64>::eye(cyy.nrows()) * regularization;
-        let cxx_reg = &cxx + &reg_eye_x;
-        let cyy_reg = &cyy + &reg_eye_y;
+        let _cxx_reg = &cxx + &reg_eye_x;
+        let _cyy_reg = &cyy + &reg_eye_y;
 
         // Simplified CCA solution (placeholder implementation)
         let p_x = x.ncols();
         let p_y = y.ncols();
         let n_comp = n_components.min(p_x).min(p_y);
 
-        let mut wx = Array2::<f64>::eye(p_x).slice(s![.., ..n_comp]).to_owned();
-        let mut wy = Array2::<f64>::eye(p_y).slice(s![.., ..n_comp]).to_owned();
+        let wx = Array2::<f64>::eye(p_x).slice(s![.., ..n_comp]).to_owned();
+        let wy = Array2::<f64>::eye(p_y).slice(s![.., ..n_comp]).to_owned();
         let correlations = Array1::ones(n_comp) * 0.7; // Placeholder
 
         Ok(WorkerCCAResult {
@@ -642,6 +630,7 @@ impl DistributedCCA {
         })
     }
 
+    #[allow(clippy::type_complexity)] // returns (x_weights, y_weights, correlations) triple
     fn aggregate_results(
         &self,
         results: &[WorkerCCAResult],
@@ -662,9 +651,9 @@ impl DistributedCCA {
                 let mut corr_sum = Array1::zeros(self.n_components);
 
                 for result in results {
-                    wx_sum = wx_sum + &result.wx;
-                    wy_sum = wy_sum + &result.wy;
-                    corr_sum = corr_sum + &result.correlations;
+                    wx_sum += &result.wx;
+                    wy_sum += &result.wy;
+                    corr_sum += &result.correlations;
                 }
 
                 let n_workers = results.len() as f64;
@@ -679,9 +668,9 @@ impl DistributedCCA {
 
                 for result in results {
                     let weight = result.n_samples as f64 / total_samples as f64;
-                    wx_weighted = wx_weighted + &(&result.wx * weight);
-                    wy_weighted = wy_weighted + &(&result.wy * weight);
-                    corr_weighted = corr_weighted + &(&result.correlations * weight);
+                    wx_weighted += &(&result.wx * weight);
+                    wy_weighted += &(&result.wy * weight);
+                    corr_weighted += &(&result.correlations * weight);
                 }
 
                 Ok((wx_weighted, wy_weighted, corr_weighted))
@@ -804,7 +793,6 @@ impl DistributedCCAResults {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::array;
 
     #[test]

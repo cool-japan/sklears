@@ -83,7 +83,7 @@ impl Activation {
             Activation::ReLU => {
                 // K(x, x') = ||x|| ||x'|| / (2π) * (sin(θ) + (π - θ) cos(θ))
                 // where cos(θ) = rho / (||x|| ||x'||)
-                let theta = rho.max(-1.0).min(1.0).acos();
+                let theta = rho.clamp(-1.0, 1.0).acos();
                 (theta.sin() + (PI - theta) * theta.cos()) / (2.0 * PI)
             }
             Activation::Tanh => {
@@ -101,12 +101,12 @@ impl Activation {
             }
             Activation::GELU => {
                 // GELU kernel approximation
-                let theta = rho.max(-1.0).min(1.0).acos();
+                let theta = rho.clamp(-1.0, 1.0).acos();
                 (theta.sin() + (PI - theta) * theta.cos()) / (2.0 * PI) * 1.702
             }
             Activation::Swish => {
                 // Swish kernel approximation (similar to GELU)
-                let theta = rho.max(-1.0).min(1.0).acos();
+                let theta = rho.clamp(-1.0, 1.0).acos();
                 (theta.sin() + (PI - theta) * theta.cos()) / (2.0 * PI) * 1.5
             }
         }
@@ -172,8 +172,8 @@ impl Default for NTKConfig {
 ///
 /// let ntk = NeuralTangentKernel::new(config);
 /// let X = array![[1.0, 2.0], [3.0, 4.0]];
-/// let fitted = ntk.fit(&X, &()).unwrap();
-/// let features = fitted.transform(&X).unwrap();
+/// let fitted = ntk.fit(&X, &()).expect("fit should succeed with valid NTK input");
+/// let features = fitted.transform(&X).expect("transform should succeed after NTK fitting");
 /// assert_eq!(features.shape()[0], 2);
 /// ```
 #[derive(Debug, Clone)]
@@ -264,7 +264,7 @@ impl NeuralTangentKernel<Untrained> {
 
                     // Compute correlation
                     let norm = (k_ii * k_jj).sqrt().max(1e-10);
-                    let rho = (k_ij / norm).max(-1.0).min(1.0);
+                    let rho = (k_ij / norm).clamp(-1.0, 1.0);
 
                     // Apply activation kernel
                     let activated = self.config.activation.kernel_value(rho);
@@ -440,8 +440,8 @@ impl NeuralTangentKernel<Trained> {
 ///
 /// let dkl = DeepKernelLearning::new(config);
 /// let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-/// let fitted = dkl.fit(&X, &()).unwrap();
-/// let features = fitted.transform(&X).unwrap();
+/// let fitted = dkl.fit(&X, &()).expect("fit should succeed with valid DKL configuration");
+/// let features = fitted.transform(&X).expect("transform should succeed after DKL fitting");
 /// assert_eq!(features.shape(), &[3, 50]);
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -711,8 +711,8 @@ impl DeepKernelLearning<Trained> {
 ///
 /// let kernel = InfiniteWidthKernel::new(3, Activation::ReLU);
 /// let X = array![[1.0, 2.0], [3.0, 4.0]];
-/// let fitted = kernel.fit(&X, &()).unwrap();
-/// let features = fitted.transform(&X).unwrap();
+/// let fitted = kernel.fit(&X, &()).expect("fit should succeed with valid infinite-width kernel input");
+/// let features = fitted.transform(&X).expect("transform should succeed after infinite-width kernel fitting");
 /// assert_eq!(features.shape()[0], 2);
 /// ```
 #[derive(Debug, Clone)]
@@ -768,7 +768,7 @@ impl InfiniteWidthKernel<Untrained> {
                     let k_jj = if j < n_x { kernel[[j, j]] } else { 1.0 };
 
                     let norm = (k_ii * k_jj).sqrt().max(1e-10);
-                    let rho = (k_ij / norm).max(-1.0).min(1.0);
+                    let rho = (k_ij / norm).clamp(-1.0, 1.0);
 
                     new_kernel[[i, j]] = norm * self.activation.kernel_value(rho);
                 }

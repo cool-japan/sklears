@@ -6,7 +6,6 @@
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::numeric::Float;
 use std::collections::{HashMap, VecDeque};
 use thiserror::Error;
 
@@ -385,6 +384,7 @@ pub struct OnlineNBCheckpoint {
     pub total_samples_seen: u64,
 }
 
+#[allow(non_snake_case)]
 impl OnlineNaiveBayes {
     pub fn new(config: OnlineLearningConfig) -> Self {
         let drift_detector = if config.concept_drift_detection {
@@ -921,6 +921,7 @@ pub struct OutOfCoreNaiveBayes {
     memory_usage_mb: usize,
 }
 
+#[allow(non_snake_case)]
 impl OutOfCoreNaiveBayes {
     pub fn new(config: OnlineLearningConfig) -> Self {
         let online_nb = OnlineNaiveBayes::new(config.clone());
@@ -975,13 +976,15 @@ impl OutOfCoreNaiveBayes {
 
             // Optional: checkpoint saving
             if self.config.checkpoint_frequency > 0
-                && self.processed_chunks % self.config.checkpoint_frequency == 0
+                && self
+                    .processed_chunks
+                    .is_multiple_of(self.config.checkpoint_frequency)
             {
                 self.save_checkpoint()?;
             }
 
             // Log progress
-            if self.processed_chunks % 10 == 0 {
+            if self.processed_chunks.is_multiple_of(10) {
                 println!(
                     "Processed {} chunks, {} total samples",
                     self.processed_chunks, self.total_samples_seen
@@ -1133,7 +1136,7 @@ impl OutOfCoreNaiveBayes {
     }
 }
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::field_reassign_with_default)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1340,7 +1343,7 @@ mod tests {
         assert!((total_prob - 1.0).abs() < 1e-10);
 
         for &prob in probabilities.values() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 

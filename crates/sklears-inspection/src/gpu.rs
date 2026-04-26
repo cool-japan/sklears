@@ -64,12 +64,14 @@ pub struct GpuDevice {
 /// GPU memory buffer for explanation data
 pub struct GpuBuffer<T> {
     /// Raw pointer to GPU memory
+    #[allow(dead_code)] // used in unsafe GPU memory operations
     ptr: *mut T,
     /// Size in elements
     size: usize,
     /// Backend type
     backend: GpuBackend,
     /// Whether the buffer is pinned in memory
+    #[allow(dead_code)] // used for memory pinning checks
     pinned: bool,
 }
 
@@ -135,6 +137,7 @@ pub struct GpuContext {
     /// Backend type
     backend: GpuBackend,
     /// Memory pool for reusing allocations
+    #[allow(dead_code)] // used for GPU memory recycling
     memory_pool: std::collections::HashMap<usize, Vec<*mut u8>>,
 }
 
@@ -265,11 +268,18 @@ impl Default for GpuConfig {
     }
 }
 
+// SAFETY: GpuContext contains raw pointers for GPU memory management.
+// Access is controlled through Mutex, and GPU operations are synchronized externally.
+unsafe impl Send for GpuContext {}
+unsafe impl Sync for GpuContext {}
+
 /// GPU-accelerated explanation computer
 pub struct GpuExplanationComputer {
     /// GPU context
+    #[allow(dead_code)] // held for GPU lifetime management
     context: Arc<std::sync::Mutex<GpuContext>>,
     /// Configuration
+    #[allow(dead_code)] // stored for GPU operation configuration
     config: GpuConfig,
     /// Whether initialization was successful
     initialized: bool,

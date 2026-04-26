@@ -1,6 +1,6 @@
-use scirs2_core::ndarray::{Array1, Array2, Array3, Axis, ScalarOperand};
-use scirs2_core::numeric::{Float, One, ToPrimitive};
-use scirs2_core::random::{Rng, RngExt, SeedableRng};
+use scirs2_core::ndarray::{Array1, Array2, ScalarOperand};
+use scirs2_core::numeric::{Float, ToPrimitive};
+use scirs2_core::random::{RngExt, SeedableRng};
 use std::fmt::Debug;
 
 use crate::activation::Activation;
@@ -11,10 +11,15 @@ use sklears_core::traits::{Fit, Predict};
 use sklears_core::types::FloatBounds;
 use std::collections::HashMap;
 
-/// Model comparison and selection utilities for neural networks
-///
-/// This module provides tools for comparing different neural network architectures,
-/// hyperparameter optimization, cross-validation, and model selection.
+/// Type alias for cross-validation fold indices: (train_indices, val_indices)
+pub type FoldIndices = (Vec<usize>, Vec<usize>);
+
+/// Type alias for the statistics tuple returned by learning curve analysis
+pub type LearningCurveStats<T> = (Vec<T>, Vec<T>, Vec<T>, Vec<T>);
+
+// Model comparison and selection utilities for neural networks.
+// This module provides tools for comparing different neural network architectures,
+// hyperparameter optimization, cross-validation, and model selection.
 
 /// Model performance metrics
 #[derive(Debug, Clone)]
@@ -194,10 +199,15 @@ impl<T: Float> Default for GridSearchConfig<T> {
 /// Hyperparameter combination
 #[derive(Debug, Clone)]
 pub struct HyperparameterSet<T: Float> {
+    /// Hidden layer architecture (number of neurons per layer)
     pub hidden_layer_sizes: Vec<usize>,
+    /// Learning rate for the optimizer
     pub learning_rate: T,
+    /// L2 regularization coefficient
     pub alpha: T,
+    /// Activation function applied to hidden layers
     pub activation: Activation,
+    /// Maximum number of training epochs
     pub max_iter: usize,
 }
 
@@ -256,7 +266,7 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive + std::iter::Sum> ModelSelecto
             // Train classifier
             let classifier = MLPClassifier::new()
                 .hidden_layer_sizes(hidden_layer_sizes)
-                .activation(activation.clone())
+                .activation(activation)
                 .learning_rate_init(learning_rate.to_f64().unwrap_or(0.0))
                 .alpha(alpha.to_f64().unwrap_or(0.0))
                 .max_iter(max_iter);
@@ -300,7 +310,7 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive + std::iter::Sum> ModelSelecto
             // Train regressor
             let regressor = MLPRegressor::new()
                 .hidden_layer_sizes(hidden_layer_sizes)
-                .activation(activation.clone())
+                .activation(activation)
                 .learning_rate_init(learning_rate.to_f64().unwrap_or(0.0))
                 .alpha(alpha.to_f64().unwrap_or(0.0))
                 .max_iter(max_iter);
@@ -350,7 +360,7 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive + std::iter::Sum> ModelSelecto
                                 hidden_layer_sizes: hidden_layers.clone(),
                                 learning_rate,
                                 alpha,
-                                activation: activation.clone(),
+                                activation: *activation,
                                 max_iter,
                             };
 
@@ -358,7 +368,7 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive + std::iter::Sum> ModelSelecto
                                 X,
                                 y,
                                 hidden_layers,
-                                activation.clone(),
+                                *activation,
                                 learning_rate,
                                 alpha,
                                 max_iter,
@@ -384,7 +394,7 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive + std::iter::Sum> ModelSelecto
         // Train final model with best parameters
         let final_classifier = MLPClassifier::new()
             .hidden_layer_sizes(&best_params.hidden_layer_sizes)
-            .activation(best_params.activation.clone())
+            .activation(best_params.activation)
             .learning_rate_init(best_params.learning_rate.to_f64().unwrap_or(0.0))
             .alpha(best_params.alpha.to_f64().unwrap_or(0.0))
             .max_iter(best_params.max_iter);
@@ -433,11 +443,12 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive + std::iter::Sum> ModelSelecto
     }
 
     /// Create k-fold splits
+    /// Create k-fold splits from training data
     fn create_folds(
         &self,
         X: &Array2<T>,
-        y: Option<&[usize]>,
-    ) -> Result<Vec<(Vec<usize>, Vec<usize>)>, SklearsError> {
+        _y: Option<&[usize]>,
+    ) -> Result<Vec<FoldIndices>, SklearsError> {
         let n_samples = X.nrows();
         let fold_size = n_samples / self.cv_config.n_folds;
         let mut indices: Vec<usize> = (0..n_samples).collect();
@@ -568,6 +579,12 @@ pub struct LearningCurveAnalyzer<T: Float> {
     pub validation_scores: Vec<Vec<T>>,
 }
 
+impl<T: Float + std::iter::Sum> Default for LearningCurveAnalyzer<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Float + std::iter::Sum> LearningCurveAnalyzer<T> {
     /// Create new learning curve analyzer
     pub fn new() -> Self {
@@ -621,7 +638,7 @@ impl<T: Float + std::iter::Sum> LearningCurveAnalyzer<T> {
             // Train model
             let classifier = MLPClassifier::new()
                 .hidden_layer_sizes(hidden_layer_sizes)
-                .activation(activation.clone())
+                .activation(activation)
                 .learning_rate_init(learning_rate)
                 .alpha(alpha)
                 .max_iter(max_iter);
@@ -651,7 +668,7 @@ impl<T: Float + std::iter::Sum> LearningCurveAnalyzer<T> {
     }
 
     /// Get learning curve statistics
-    pub fn get_statistics(&self) -> Result<(Vec<T>, Vec<T>, Vec<T>, Vec<T>), SklearsError> {
+    pub fn get_statistics(&self) -> Result<LearningCurveStats<T>, SklearsError> {
         let train_means: Vec<T> = self
             .train_scores
             .iter()
@@ -824,7 +841,7 @@ mod tests {
 
     #[test]
     fn test_learning_curve_analyzer() {
-        let mut analyzer = LearningCurveAnalyzer::<f32>::new();
+        let analyzer = LearningCurveAnalyzer::<f32>::new();
         assert!(analyzer.train_sizes.is_empty());
         assert!(analyzer.train_scores.is_empty());
     }

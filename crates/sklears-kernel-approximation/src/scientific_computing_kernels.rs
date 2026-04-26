@@ -95,8 +95,8 @@ pub enum PhysicalSystem {
 ///
 /// let pinn = PhysicsInformedKernel::new(config);
 /// let X = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]; // (x, t) coordinates
-/// let fitted = pinn.fit(&X, &()).unwrap();
-/// let features = fitted.transform(&X).unwrap();
+/// let fitted = pinn.fit(&X, &()).expect("fit should succeed with valid physics-informed kernel input");
+/// let features = fitted.transform(&X).expect("transform should succeed after physics-informed kernel fitting");
 /// ```
 #[derive(Debug, Clone)]
 pub struct PhysicsInformedKernel<State = Untrained> {
@@ -104,6 +104,7 @@ pub struct PhysicsInformedKernel<State = Untrained> {
 
     // Fitted attributes
     kernel_weights: Option<Array2<Float>>,
+    #[allow(dead_code)] // physics-informed derivative constraints for future use
     derivative_weights: Option<Vec<Array2<Float>>>,
     boundary_data: Option<Array2<Float>>,
 
@@ -401,8 +402,8 @@ impl PhysicsInformedKernel<Trained> {
 ///
 /// let kernel = MultiscaleKernel::with_scales(vec![0.1, 1.0, 10.0]);
 /// let X = array![[1.0, 2.0], [3.0, 4.0]];
-/// let fitted = kernel.fit(&X, &()).unwrap();
-/// let features = fitted.transform(&X).unwrap();
+/// let fitted = kernel.fit(&X, &()).expect("fit should succeed with valid multiscale kernel input");
+/// let features = fitted.transform(&X).expect("transform should succeed after multiscale kernel fitting");
 /// ```
 #[derive(Debug, Clone)]
 pub struct MultiscaleKernel<State = Untrained> {
@@ -541,7 +542,7 @@ mod tests {
         let pinn = PhysicsInformedKernel::new(config);
 
         // Data: [x, t] coordinates
-        let X = array![
+        let x = array![
             [0.0, 0.0],
             [0.5, 0.0],
             [1.0, 0.0],
@@ -550,8 +551,8 @@ mod tests {
             [1.0, 0.1]
         ];
 
-        let fitted = pinn.fit(&X, &()).expect("operation should succeed");
-        let features = fitted.transform(&X).expect("operation should succeed");
+        let fitted = pinn.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 6);
         assert_eq!(features.ncols(), 60); // 3 * n_components
@@ -565,12 +566,12 @@ mod tests {
             PhysicalSystem::BurgersEquation,
         ];
 
-        let X = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]];
+        let x = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]];
 
         for system in systems {
             let pinn = PhysicsInformedKernel::with_system(system).n_components(20);
-            let fitted = pinn.fit(&X, &()).expect("operation should succeed");
-            let features = fitted.transform(&X).expect("operation should succeed");
+            let fitted = pinn.fit(&x, &()).expect("operation should succeed");
+            let features = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(features.nrows(), 3);
         }
@@ -585,7 +586,7 @@ mod tests {
         };
 
         let pinn = PhysicsInformedKernel::new(config);
-        let X = array![
+        let x = array![
             [0.0, 0.0],
             [0.5, 0.0],
             [1.0, 0.0],
@@ -594,13 +595,13 @@ mod tests {
             [1.0, 0.1]
         ];
 
-        let fitted = pinn.fit(&X, &()).expect("operation should succeed");
+        let fitted = pinn.fit(&x, &()).expect("operation should succeed");
 
         // Test solution (simple linear function)
         let solution = array![0.0, 0.5, 1.0, 0.0, 0.5, 1.0];
 
         let residual = fitted
-            .pde_residual(&X, &solution)
+            .pde_residual(&x, &solution)
             .expect("operation should succeed");
 
         assert_eq!(residual.len(), 6);
@@ -612,10 +613,10 @@ mod tests {
         let scales = vec![0.1, 1.0, 10.0];
         let kernel = MultiscaleKernel::with_scales(scales).n_components_per_scale(10);
 
-        let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
+        let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
-        let fitted = kernel.fit(&X, &()).expect("operation should succeed");
-        let features = fitted.transform(&X).expect("operation should succeed");
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 3);
         assert_eq!(features.ncols(), 30); // 3 scales * 10 components
@@ -626,9 +627,9 @@ mod tests {
         let scales = vec![0.5, 2.0, 8.0];
         let kernel = MultiscaleKernel::with_scales(scales.clone());
 
-        let X = array![[1.0], [2.0]];
+        let x = array![[1.0], [2.0]];
 
-        let fitted = kernel.fit(&X, &()).expect("operation should succeed");
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
 
         assert_eq!(fitted.scales(), &scales[..]);
     }

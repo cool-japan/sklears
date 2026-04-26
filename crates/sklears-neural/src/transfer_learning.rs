@@ -3,15 +3,12 @@
 //! This module provides comprehensive transfer learning capabilities including
 //! model freezing, layer replacement, fine-tuning strategies, and domain adaptation.
 
-use crate::layers::{Layer, ParameterizedLayer};
-use crate::models::{Functional, Sequential};
+use crate::layers::Layer;
 use crate::weight_init::{InitStrategy, WeightInitializer};
 use crate::NeuralResult;
-use scirs2_core::ndarray::{Array1, Array2, Array3, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
 use scirs2_core::random::ChaCha8Rng;
-use scirs2_core::random::RandomExt;
 use scirs2_core::random::SeedableRng;
-use sklears_core::error::SklearsError;
 use sklears_core::types::FloatBounds;
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
@@ -57,7 +54,10 @@ pub enum FineTuningStrategy {
     /// Fine-tune all layers
     FineTuneAll,
     /// Fine-tune only top layers
-    FineTuneTop { num_layers: usize },
+    FineTuneTop {
+        /// Number of top (output-side) layers to unfreeze for fine-tuning
+        num_layers: usize,
+    },
     /// Gradual unfreezing strategy
     GradualUnfreeze,
     /// Layer-wise adaptive fine-tuning
@@ -104,9 +104,13 @@ pub struct DomainAdaptationConfig<T: FloatBounds> {
 /// Domain adaptation techniques
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DomainAdaptationTechnique {
+    /// Maximum Mean Discrepancy: align feature distributions via kernel mean embeddings
     MMD,
+    /// Domain-Adversarial Neural Networks: use a gradient reversal layer to confuse a domain classifier
     DANN,
+    /// CORrelation ALignment: minimize the covariance difference between source and target features
     CORAL,
+    /// Adaptive Batch Normalization: re-estimate BN statistics on the target domain
     AdaBN,
 }
 
@@ -196,7 +200,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> TransferLearningManag
 
     /// Apply gradual unfreezing schedule
     fn apply_unfreeze_schedule(&mut self, schedule: &UnfreezeSchedule) -> NeuralResult<()> {
-        if self.current_epoch % schedule.epochs_per_step == 0 && self.current_epoch > 0 {
+        if self.current_epoch.is_multiple_of(schedule.epochs_per_step) && self.current_epoch > 0 {
             let step = self.current_epoch / schedule.epochs_per_step;
             let layers_to_unfreeze = self.select_layers_for_unfreezing(schedule, step)?;
             self.unfreeze_layers(&layers_to_unfreeze)?;
@@ -367,14 +371,14 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> ModelAdapter<T> {
         &mut self,
         num_classes: usize,
         hidden_size: usize,
-        layer_name: String,
+        _layer_name: String,
     ) -> NeuralResult<()> {
         let mut rng = ChaCha8Rng::seed_from_u64(42);
-        let initializer: WeightInitializer<T> = WeightInitializer::new(self.init_strategy.clone());
+        let initializer: WeightInitializer<T> = WeightInitializer::new(self.init_strategy);
 
         // Create new classification layer (simple dense layer implementation)
-        let weights = initializer.initialize_2d(&mut rng, (hidden_size, num_classes))?;
-        let bias: Array1<T> = Array1::zeros(num_classes);
+        let _weights = initializer.initialize_2d(&mut rng, (hidden_size, num_classes))?;
+        let _bias: Array1<T> = Array1::zeros(num_classes);
 
         // For now, we'll create a placeholder - in practice this would be a proper Dense layer
         // self.layer_replacements.insert(layer_name, Box::new(DenseLayer::new(weights, bias)));
@@ -457,7 +461,7 @@ impl<T: FloatBounds> FeatureExtractor<T> {
             let (batch_size, _, _) = features.dim();
             let flattened_size = features.len() / batch_size;
             Ok(features
-                .into_shape((batch_size, flattened_size))
+                .into_shape_with_order((batch_size, flattened_size))
                 .expect("array shape error"))
         }
     }
@@ -558,11 +562,11 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> DomainAdapter<T> {
         for b in 0..batch_size {
             for s in 0..seq_len {
                 for f in 0..feature_dim {
-                    mean[f] = mean[f] + data[[b, s, f]];
+                    mean[f] += data[[b, s, f]];
                 }
             }
         }
-        mean = mean / T::from(total_samples).unwrap_or_else(|| T::zero());
+        mean /= T::from(total_samples).unwrap_or_else(|| T::zero());
 
         // Compute covariance
         let mut covariance = Array2::zeros((feature_dim, feature_dim));
@@ -572,12 +576,12 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> DomainAdapter<T> {
                     for j in 0..feature_dim {
                         let diff_i = data[[b, s, i]] - mean[i];
                         let diff_j = data[[b, s, j]] - mean[j];
-                        covariance[[i, j]] = covariance[[i, j]] + diff_i * diff_j;
+                        covariance[[i, j]] += diff_i * diff_j;
                     }
                 }
             }
         }
-        covariance = covariance / T::from(total_samples - 1).unwrap_or_else(|| T::zero());
+        covariance /= T::from(total_samples - 1).unwrap_or_else(|| T::zero());
 
         Ok(DomainStatistics { mean, covariance })
     }
@@ -604,7 +608,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> DomainAdapter<T> {
             for b in 0..batch_size {
                 for s in 0..seq_len {
                     for f in 0..feature_dim {
-                        adapted[[b, s, f]] = adapted[[b, s, f]] - domain_stats.mean[f];
+                        adapted[[b, s, f]] -= domain_stats.mean[f];
                     }
                 }
             }
@@ -632,7 +636,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> DomainAdapter<T> {
 
             for b in 0..batch_size {
                 for s in 0..seq_len {
-                    sum = sum + features[[b, s, f]];
+                    sum += features[[b, s, f]];
                     count += 1;
                 }
             }
@@ -643,7 +647,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> DomainAdapter<T> {
             for b in 0..batch_size {
                 for s in 0..seq_len {
                     let diff = features[[b, s, f]] - mean;
-                    variance_sum = variance_sum + diff * diff;
+                    variance_sum += diff * diff;
                 }
             }
 
@@ -754,11 +758,11 @@ mod tests {
 
         let source_data = Array3::from_shape_fn((10, 5, 8), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         let target_data = Array3::from_shape_fn((10, 5, 8), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
 
         let result = adapter.compute_domain_statistics(&source_data, &target_data);
@@ -775,8 +779,10 @@ mod tests {
             unfreeze_direction: UnfreezeDirection::TopToBottom,
         };
 
-        let mut config = TransferConfig::<f64>::default();
-        config.unfreeze_schedule = Some(schedule);
+        let mut config = TransferConfig::<f64> {
+            unfreeze_schedule: Some(schedule),
+            ..Default::default()
+        };
 
         // Add some frozen layers
         for i in 0..6 {

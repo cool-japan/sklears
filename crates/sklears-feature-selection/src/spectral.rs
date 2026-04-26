@@ -16,13 +16,25 @@ use std::marker::PhantomData;
 #[derive(Debug, Clone)]
 pub enum GraphConstructionMethod {
     /// k-nearest neighbors graph
-    KNN { k: usize },
+    KNN {
+        /// k
+        k: usize,
+    },
     /// ε-neighborhood graph
-    Epsilon { epsilon: Float },
+    Epsilon {
+        /// epsilon
+        epsilon: Float,
+    },
     /// Fully connected graph with Gaussian weights
-    FullyConnected { sigma: Float },
+    FullyConnected {
+        /// sigma
+        sigma: Float,
+    },
     /// Heat kernel
-    HeatKernel { t: Float },
+    HeatKernel {
+        /// t
+        t: Float,
+    },
 }
 
 /// Spectral feature selection using Laplacian score
@@ -714,11 +726,20 @@ pub struct ManifoldFeatureSelector<State = Untrained> {
 #[derive(Debug, Clone)]
 pub enum ManifoldMethod {
     /// Isomap-based feature selection
-    Isomap { n_components: usize },
+    Isomap {
+        /// n_components
+        n_components: usize,
+    },
     /// Locally Linear Embedding (LLE)
-    LLE { n_components: usize },
+    LLE {
+        /// n_components
+        n_components: usize,
+    },
     /// Laplacian Eigenmap
-    LaplacianEigenmap { n_components: usize },
+    LaplacianEigenmap {
+        /// n_components
+        n_components: usize,
+    },
 }
 
 impl Default for ManifoldFeatureSelector<Untrained> {
@@ -1263,16 +1284,27 @@ pub enum KernelType {
     Linear,
     /// Polynomial kernel
     Polynomial {
+        /// degree
         degree: usize,
 
+        /// gamma
         gamma: Float,
 
+        /// coef0
         coef0: Float,
     },
     /// RBF (Gaussian) kernel
-    RBF { gamma: Float },
+    RBF {
+        /// gamma
+        gamma: Float,
+    },
     /// Sigmoid kernel
-    Sigmoid { gamma: Float, coef0: Float },
+    Sigmoid {
+        /// gamma
+        gamma: Float,
+        /// coef0
+        coef0: Float,
+    },
 }
 
 impl Default for KernelFeatureSelector<Untrained> {

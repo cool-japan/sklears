@@ -6,13 +6,13 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use sklears_core::{
     error::Result as SklResult,
-    prelude::{Predict, SklearsError},
+    prelude::SklearsError,
     traits::{Estimator, Fit, Untrained},
     types::Float,
 };
 use std::collections::{HashMap, VecDeque};
 
-use crate::{PipelinePredictor, PipelineStep};
+use crate::PipelinePredictor;
 
 /// Experience entry for meta-learning
 #[derive(Debug, Clone)]
@@ -206,25 +206,37 @@ impl ExperienceStorage {
 pub enum AdaptationStrategy {
     /// Fine-tune all parameters
     FineTuning {
+        /// Field value.
         learning_rate: f64,
+        /// Field value.
         num_steps: usize,
     },
     /// Fine-tune only the last layer
     LastLayerFineTuning {
+        /// Field value.
         learning_rate: f64,
+        /// Field value.
         num_steps: usize,
     },
     /// Feature-based adaptation
-    FeatureAdaptation { adaptation_weight: f64 },
+    FeatureAdaptation {
+        /// Field value.
+        adaptation_weight: f64,
+    },
     /// Parameter averaging from similar tasks
     ParameterAveraging {
+        /// Field value.
         num_similar: usize,
+        /// Field value.
         similarity_threshold: f64,
     },
     /// Gradient-based meta-learning (MAML-style)
     GradientBased {
+        /// Field value.
         inner_lr: f64,
+        /// Field value.
         outer_lr: f64,
+        /// Field value.
         num_inner_steps: usize,
     },
 }
@@ -499,6 +511,7 @@ pub struct MetaLearningPipeline<S = Untrained> {
 
 /// Trained state for `MetaLearningPipeline`
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct MetaLearningPipelineTrained {
     fitted_estimator: Box<dyn PipelinePredictor>,
     experience_storage: ExperienceStorage,
@@ -702,11 +715,7 @@ mod tests {
         let mut pipeline = MetaLearningPipeline::new(base_estimator);
 
         // Add some experience
-        let experience = Experience::new(
-            "task1".to_string(),
-            x.mapv(|v| v as f64),
-            y.mapv(|v| v as f64),
-        );
+        let experience = Experience::new("task1".to_string(), x.clone(), y.clone());
         pipeline.add_experience(experience);
 
         let fitted_pipeline = pipeline

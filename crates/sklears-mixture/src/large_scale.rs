@@ -75,7 +75,7 @@ pub enum ParallelStrategy {
 ///     .build();
 ///
 /// let X = array![[1.0, 2.0], [1.5, 2.5], [10.0, 11.0], [10.5, 11.5]];
-/// let fitted = model.fit(&X.view(), &()).unwrap();
+/// let fitted = model.fit(&X.view(), &()).expect("MiniBatch GMM fitting should succeed with valid data");
 /// ```
 #[derive(Debug, Clone)]
 pub struct MiniBatchGMM<S = Untrained> {
@@ -427,7 +427,9 @@ impl Predict<ArrayView2<'_, Float>, Array1<usize>> for MiniBatchGMM<MiniBatchGMM
 // Parallel EM GMM (placeholder structure)
 #[derive(Debug, Clone)]
 pub struct ParallelGMM<S = Untrained> {
+    #[allow(dead_code)]
     n_components: usize,
+    #[allow(dead_code)]
     parallel_strategy: ParallelStrategy,
     _phantom: std::marker::PhantomData<S>,
 }
@@ -538,6 +540,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_minibatch_gmm_fit() {
         let X = array![
             [1.0, 2.0],

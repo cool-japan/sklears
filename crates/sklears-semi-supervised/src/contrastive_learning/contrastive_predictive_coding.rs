@@ -110,8 +110,9 @@ impl ContrastivePredictiveCoding {
         self
     }
 
-    fn encode(&self, x: &ArrayView2<f64>) -> Result<Array2<f64>> {
-        let (n_samples, n_features) = x.dim();
+    #[allow(dead_code)]
+    pub(crate) fn encode(&self, x: &ArrayView2<f64>) -> Result<Array2<f64>> {
+        let (_n_samples, n_features) = x.dim();
         let mut rng = match self.random_state {
             Some(seed) => Random::seed(seed),
             None => Random::seed(42),
@@ -132,8 +133,9 @@ impl ContrastivePredictiveCoding {
         Ok(x.dot(&encoder_weights))
     }
 
-    fn context_network(&self, embeddings: &ArrayView2<f64>) -> Result<Array2<f64>> {
-        let (n_samples, embedding_dim) = embeddings.dim();
+    #[allow(dead_code)]
+    pub(crate) fn context_network(&self, embeddings: &ArrayView2<f64>) -> Result<Array2<f64>> {
+        let (_n_samples, embedding_dim) = embeddings.dim();
         if embedding_dim != self.embedding_dim {
             return Err(ContrastiveLearningError::EmbeddingDimensionMismatch {
                 expected: self.embedding_dim,
@@ -231,6 +233,7 @@ impl Estimator for ContrastivePredictiveCoding {
 impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for ContrastivePredictiveCoding {
     type Fitted = FittedContrastivePredictiveCoding;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &ArrayView2<'_, f64>, y: &ArrayView1<'_, i32>) -> Result<Self::Fitted> {
         let (n_samples, n_features) = X.dim();
 
@@ -304,7 +307,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for ContrastivePredictiveCodi
                 let encoded = batch_X.dot(&encoder_weights);
 
                 // Context network
-                let context = encoded.dot(&context_weights);
+                let _context = encoded.dot(&context_weights);
 
                 // Generate positive and negative samples
                 let mut positive_samples = Vec::new();
@@ -412,6 +415,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for ContrastivePredictiveCodi
 }
 
 impl Predict<ArrayView2<'_, f64>, Array1<i32>> for FittedContrastivePredictiveCoding {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, f64>) -> Result<Array1<i32>> {
         let embeddings = X.dot(&self.encoder_weights);
 
@@ -443,6 +447,7 @@ impl Predict<ArrayView2<'_, f64>, Array1<i32>> for FittedContrastivePredictiveCo
 }
 
 impl PredictProba<ArrayView2<'_, f64>, Array2<f64>> for FittedContrastivePredictiveCoding {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_proba(&self, X: &ArrayView2<'_, f64>) -> Result<Array2<f64>> {
         let embeddings = X.dot(&self.encoder_weights);
 

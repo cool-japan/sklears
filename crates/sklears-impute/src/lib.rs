@@ -1,10 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
 //! Missing value imputation strategies
 //!
 //! This module provides various strategies for handling missing values in datasets.
@@ -221,6 +214,7 @@ pub struct KNNImputer<S = Untrained> {
 
 /// Trained state for KNNImputer
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct KNNImputerTrained {
     X_train_: Array2<f64>,
     n_features_in_: usize,
@@ -269,6 +263,7 @@ impl KNNImputer<Untrained> {
         self
     }
 
+    #[allow(dead_code)]
     fn is_missing(&self, value: f64) -> bool {
         if self.missing_values.is_nan() {
             value.is_nan()
@@ -547,6 +542,7 @@ pub fn missing_completeness_matrix(
 }
 
 /// Generate comprehensive missing data summary
+#[allow(non_snake_case)]
 pub fn missing_data_summary(X: &ArrayView2<'_, Float>, missing_values: f64) -> SklResult<String> {
     generate_missing_summary_stats(X, missing_values)
 }

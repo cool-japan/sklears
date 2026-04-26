@@ -270,8 +270,8 @@ pub fn estimate_causal_effect(
 fn estimate_ate(
     treatment: &ArrayView1<Float>,
     outcome: &ArrayView1<Float>,
-    covariates: Option<&ArrayView2<Float>>,
-    config: &CausalConfig,
+    _covariates: Option<&ArrayView2<Float>>,
+    _config: &CausalConfig,
 ) -> SklResult<CausalEffectResult> {
     if treatment.len() != outcome.len() {
         return Err(SklearsError::InvalidInput(
@@ -450,8 +450,8 @@ pub fn analyze_instrumental_variables(
     treatment: &ArrayView1<Float>,
     outcome: &ArrayView1<Float>,
     instruments: &ArrayView2<Float>,
-    covariates: Option<&ArrayView2<Float>>,
-    config: &CausalConfig,
+    _covariates: Option<&ArrayView2<Float>>,
+    _config: &CausalConfig,
 ) -> SklResult<InstrumentalVariableResult> {
     if treatment.len() != outcome.len() || treatment.len() != instruments.nrows() {
         return Err(SklearsError::InvalidInput(
@@ -488,7 +488,7 @@ pub fn analyze_instrumental_variables(
 pub fn discover_causal_structure(
     data: &ArrayView2<Float>,
     variable_names: Vec<String>,
-    config: &CausalConfig,
+    _config: &CausalConfig,
 ) -> SklResult<CausalGraph> {
     let n_vars = data.ncols();
     if variable_names.len() != n_vars {

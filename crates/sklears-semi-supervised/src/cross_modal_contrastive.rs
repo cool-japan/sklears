@@ -333,8 +333,6 @@ impl CrossModalContrastive<Untrained> {
         x2: &ArrayView2<f64>,
         y: &ArrayView1<i32>,
     ) -> SklResult<()> {
-        let n_samples = x1.nrows();
-
         if x1.nrows() != x2.nrows() || x1.nrows() != y.len() {
             return Err(SklearsError::InvalidInput(
                 "All inputs must have the same number of samples".to_string(),

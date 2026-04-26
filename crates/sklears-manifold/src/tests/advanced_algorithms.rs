@@ -4,7 +4,7 @@
 //! MVU, SNE, and Symmetric SNE, including validation and property tests.
 
 use crate::*;
-use scirs2_core::ndarray::{array, Array2};
+use scirs2_core::ndarray::array;
 
 #[test]
 fn test_hessian_lle_basic() {

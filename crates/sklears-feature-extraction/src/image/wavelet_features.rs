@@ -99,12 +99,12 @@ impl Default for FeatureConfig {
 /// use sklears_feature_extraction::image::wavelet_features::{WaveletFeatureExtractor, WaveletType};
 /// use scirs2_core::ndarray::Array2;
 ///
-/// let image = Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64 / 1024.0).collect()).unwrap();
+/// let image = Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64 / 1024.0).collect()).expect("shape and data length match");
 /// let extractor = WaveletFeatureExtractor::new()
 ///     .wavelet_type(WaveletType::Haar)
 ///     .decomposition_levels(3)
 ///     .enable_all_features();
-/// let features = extractor.extract_features(&image.view()).unwrap();
+/// let features = extractor.extract_features(&image.view()).expect("valid image produces wavelet features");
 /// ```
 #[derive(Debug, Clone)]
 pub struct WaveletFeatureExtractor {
@@ -153,7 +153,7 @@ impl WaveletFeatureExtractor {
     /// More levels provide finer frequency analysis but increase computation.
     /// Typical range: 2-6 levels.
     pub fn decomposition_levels(mut self, levels: usize) -> Self {
-        self.decomposition_levels = levels.max(1).min(8);
+        self.decomposition_levels = levels.clamp(1, 8);
         self.decomposition_mode = DecompositionMode::MultiLevel(levels);
         self
     }
@@ -205,7 +205,7 @@ impl WaveletFeatureExtractor {
 
     /// Set window size for local statistical features
     pub fn window_size(mut self, size: usize) -> Self {
-        self.window_size = size.max(3).min(15) | 1; // Ensure odd size
+        self.window_size = size.clamp(3, 15) | 1; // Ensure odd size
         self
     }
 
@@ -813,7 +813,7 @@ mod tests {
             .extract_features(&image.view())
             .expect("operation should succeed");
 
-        assert!(features.len() > 0);
+        assert!(!features.is_empty());
         // Should extract multiple features from multiple subbands
         assert!(features.len() >= 20); // Reasonable lower bound
     }

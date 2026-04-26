@@ -48,10 +48,11 @@ use crate::types::{PermutationImportanceResult, ScoreFunction};
 ///     ScoreFunction::R2,
 ///     5,
 ///     Some(42),
-/// ).unwrap();
+/// ).expect("permutation importance should succeed with valid inputs");
 ///
 /// assert_eq!(result.importances_mean.len(), 3);
 /// ```
+#[allow(non_snake_case)] // standard ML notation
 pub fn permutation_importance<F>(
     predict_fn: &F,
     X: &ArrayView2<Float>,
@@ -209,9 +210,8 @@ pub fn compute_score(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
     // ✅ SciRS2 Policy Compliant Import
-    use scirs2_core::ndarray::{array, ArrayView1, ArrayView2};
+    use scirs2_core::ndarray::{array, ArrayView2};
 
     #[test]
     fn test_accuracy_score() {

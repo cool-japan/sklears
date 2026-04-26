@@ -7,10 +7,12 @@
 use crate::types::*;
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::Rng;
 use sklears_core::prelude::SklearsError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
+/// Type alias for lazy model prediction function
+type LazyModelFn = Arc<dyn Fn(&ArrayView2<Float>) -> crate::SklResult<Array1<Float>> + Send + Sync>;
 
 /// Lazy evaluation wrapper for explanation computations
 pub struct LazyExplanation<T> {
@@ -73,10 +75,11 @@ pub struct LazyFeatureImportance {
     /// Target reference
     target: Arc<Array1<Float>>,
     /// Model function
-    model: Arc<dyn Fn(&ArrayView2<Float>) -> crate::SklResult<Array1<Float>> + Send + Sync>,
+    model: LazyModelFn,
     /// Cached importance values
     importance_cache: Arc<Mutex<Option<Array1<Float>>>>,
     /// Computation configuration
+    #[allow(dead_code)] // stored for lazy computation settings
     config: LazyConfig,
 }
 
@@ -85,12 +88,13 @@ pub struct LazyShapValues {
     /// Data reference
     data: Arc<Array2<Float>>,
     /// Model function
-    model: Arc<dyn Fn(&ArrayView2<Float>) -> crate::SklResult<Array1<Float>> + Send + Sync>,
+    model: LazyModelFn,
     /// Cached SHAP values
     shap_cache: Arc<Mutex<Option<Array2<Float>>>>,
     /// Background data
     background_data: Arc<Mutex<Option<Array2<Float>>>>,
     /// Computation configuration
+    #[allow(dead_code)] // stored for lazy computation settings
     config: LazyConfig,
 }
 
@@ -391,7 +395,7 @@ impl LazyFeatureImportance {
             self.compute_r2_score(&self.target.view(), &baseline_predictions.view())?;
 
         let mut importances = Array1::zeros(n_features);
-        let mut X_permuted = self.data.as_ref().clone();
+        let mut x_permuted = self.data.as_ref().clone();
 
         for feature_idx in 0..n_features {
             // Permute feature
@@ -399,7 +403,7 @@ impl LazyFeatureImportance {
 
             // Shuffle column
             {
-                let mut column = X_permuted.column_mut(feature_idx);
+                let mut column = x_permuted.column_mut(feature_idx);
                 let mut rng = scirs2_core::random::thread_rng();
                 for i in (1..column.len()).rev() {
                     let j = rng.gen_range(0..i + 1);
@@ -408,7 +412,7 @@ impl LazyFeatureImportance {
             } // Drop mutable borrow here
 
             // Compute permuted score
-            let permuted_predictions = (self.model)(&X_permuted.view())?;
+            let permuted_predictions = (self.model)(&x_permuted.view())?;
             let permuted_score =
                 self.compute_r2_score(&self.target.view(), &permuted_predictions.view())?;
 
@@ -416,7 +420,7 @@ impl LazyFeatureImportance {
             importances[feature_idx] = baseline_score - permuted_score;
 
             // Restore original column
-            X_permuted.column_mut(feature_idx).assign(&original_column);
+            x_permuted.column_mut(feature_idx).assign(&original_column);
         }
 
         Ok(importances)
@@ -576,6 +580,7 @@ pub struct LazyExplanationPipeline {
     /// Ordered list of lazy computations
     computations: Vec<Box<dyn LazyComputation>>,
     /// Pipeline configuration
+    #[allow(dead_code)] // stored for pipeline execution settings
     config: LazyConfig,
     /// Computation manager
     manager: LazyComputationManager,
@@ -620,10 +625,7 @@ impl LazyExplanationPipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
-    // ✅ SciRS2 Policy Compliant Import
     use scirs2_core::ndarray::array;
-    use scirs2_core::random::Rng;
 
     #[test]
     fn test_lazy_explanation_creation() {

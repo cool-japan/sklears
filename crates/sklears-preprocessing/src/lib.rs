@@ -1,9 +1,3 @@
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
 //! Preprocessing utilities for sklears
 //!
 //! This crate provides data preprocessing utilities including:
@@ -13,23 +7,6 @@
 //! - Feature engineering (PolynomialFeatures, SplineTransformer, PowerTransformer, FunctionTransformer)
 //! - Text processing (TfIdfVectorizer, TextTokenizer, NgramGenerator, TextSimilarity, BagOfWordsEmbedding)
 //! - Advanced pipelines (conditional steps, parallel branches, caching, dynamic construction)
-
-#![allow(dead_code)]
-#![allow(clippy::manual_clamp)]
-#![allow(clippy::single_char_add_str)]
-#![allow(clippy::let_and_return)]
-#![allow(clippy::map_clone)]
-#![allow(clippy::manual_slice_size_calculation)]
-#![allow(clippy::needless_range_loop)]
-#![allow(clippy::if_same_then_else)]
-#![allow(clippy::arc_with_non_send_sync)]
-#![allow(clippy::excessive_precision)]
-#![allow(clippy::type_complexity)]
-#![allow(clippy::too_many_arguments)]
-#![allow(clippy::only_used_in_recursion)]
-#![allow(clippy::new_without_default)]
-#![allow(clippy::derivable_impls)]
-#![allow(clippy::ptr_arg)]
 
 pub mod adaptive;
 pub mod automated_feature_engineering;
@@ -104,8 +81,8 @@ pub use dimensionality_reduction::{
 };
 pub use encoding::{
     BinaryEncoder, BinaryEncoderConfig, CategoricalEmbedding, CategoricalEmbeddingConfig,
-    FrequencyEncoder, FrequencyEncoderConfig, HashEncoder, HashEncoderConfig, LabelEncoder,
-    OneHotEncoder, OrdinalEncoder, RareStrategy, TargetEncoder,
+    DropStrategy, FrequencyEncoder, FrequencyEncoderConfig, HashEncoder, HashEncoderConfig,
+    LabelEncoder, OneHotEncoder, OrdinalEncoder, RareStrategy, TargetEncoder,
 };
 pub use feature_engineering::{
     ExtrapolationStrategy, FeatureOrder, KnotStrategy, PolynomialFeatures, PowerMethod,
@@ -193,8 +170,8 @@ pub use robust_preprocessing::{
 pub use scaling::{
     FeatureWiseScaler, FeatureWiseScalerConfig, MaxAbsScaler, MinMaxScaler, NormType, Normalizer,
     OutlierAwareScaler, OutlierAwareScalerConfig, OutlierAwareScalingStrategy, OutlierScalingStats,
-    RobustScaler, RobustStatistic, ScalingMethod, StandardScaler, UnitVectorScaler,
-    UnitVectorScalerConfig,
+    RobustScaler, RobustStatistic, ScalingMethod, StandardScaler, StandardScalerFitParams,
+    UnitVectorScaler, UnitVectorScalerConfig,
 };
 pub use simd_optimizations::{
     add_scalar_f64_simd, add_vectors_f64_simd, mean_f64_simd, min_max_f64_simd,
@@ -234,10 +211,10 @@ pub use type_safety::{
 };
 pub use winsorization::{NanStrategy, WinsorizationStats, Winsorizer, WinsorizerConfig};
 
-// Re-export functional APIs (excluding complex transformations that are commented out)
+// Re-export functional APIs
 pub use functional::{
     add_dummy_feature, binarize, label_binarize, maxabs_scale, minmax_scale, normalize,
-    robust_scale, scale,
+    power_transform, quantile_transform, robust_scale, scale,
 };
 
 /// Prelude module for convenient imports
@@ -277,8 +254,8 @@ pub mod prelude {
     };
     pub use crate::encoding::{
         BinaryEncoder, BinaryEncoderConfig, CategoricalEmbedding, CategoricalEmbeddingConfig,
-        FrequencyEncoder, FrequencyEncoderConfig, HashEncoder, HashEncoderConfig, LabelEncoder,
-        OneHotEncoder, OrdinalEncoder, RareStrategy, TargetEncoder,
+        DropStrategy, FrequencyEncoder, FrequencyEncoderConfig, HashEncoder, HashEncoderConfig,
+        LabelEncoder, OneHotEncoder, OrdinalEncoder, RareStrategy, TargetEncoder,
     };
     pub use crate::feature_engineering::{
         ExtrapolationStrategy, FeatureOrder, KnotStrategy, PolynomialFeatures, PowerMethod,
@@ -370,7 +347,7 @@ pub mod prelude {
         FeatureWiseScaler, FeatureWiseScalerConfig, MaxAbsScaler, MinMaxScaler, NormType,
         Normalizer, OutlierAwareScaler, OutlierAwareScalerConfig, OutlierAwareScalingStrategy,
         OutlierScalingStats, RobustScaler, RobustStatistic, ScalingMethod, StandardScaler,
-        UnitVectorScaler, UnitVectorScalerConfig,
+        StandardScalerFitParams, UnitVectorScaler, UnitVectorScalerConfig,
     };
     pub use crate::simd_optimizations::{
         add_scalar_f64_simd, add_vectors_f64_simd, mean_f64_simd, min_max_f64_simd,
@@ -413,9 +390,9 @@ pub mod prelude {
     };
     pub use crate::winsorization::{NanStrategy, WinsorizationStats, Winsorizer, WinsorizerConfig};
 
-    // Re-export functional APIs (excluding complex transformations that are commented out)
+    // Re-export functional APIs
     pub use crate::functional::{
         add_dummy_feature, binarize, label_binarize, maxabs_scale, minmax_scale, normalize,
-        robust_scale, scale,
+        power_transform, quantile_transform, robust_scale, scale,
     };
 }

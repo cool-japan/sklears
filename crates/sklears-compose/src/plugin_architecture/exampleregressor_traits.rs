@@ -9,10 +9,9 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
-    traits::Estimator,
     types::Float,
 };
 use std::any::Any;

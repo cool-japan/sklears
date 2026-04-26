@@ -23,9 +23,8 @@ pub mod advanced_simd;
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
 use scirs2_core::numeric::Float as FloatTrait;
-use scirs2_core::simd::{simd_binary_op, simd_maximum_f32, simd_maximum_f64, SimdOps};
+use scirs2_core::simd::SimdOps;
 use scirs2_core::simd_ops::SimdUnifiedOps;
-use sklears_core::types::Float;
 use std::marker::PhantomData;
 
 pub use advanced_simd::{AdvancedSimdConfig, AdvancedSimdOps, SimdBenchmarkResults};
@@ -391,8 +390,8 @@ where
     fn solve_cca_eigenproblem(
         &self,
         cxx: &Array2<F>,
-        cyy: &Array2<F>,
-        cxy: &Array2<F>,
+        _cyy: &Array2<F>,
+        _cxy: &Array2<F>,
     ) -> (Array1<F>, Array2<F>) {
         // Simplified eigenvalue problem solution
         // In a complete implementation, this would use proper generalized eigenvalue decomposition
@@ -414,7 +413,7 @@ where
     /// Compute Y weights from X weights
     fn compute_y_weights(
         &self,
-        cyy: &Array2<F>,
+        _cyy: &Array2<F>,
         cxy: &Array2<F>,
         x_weights: &Array2<F>,
     ) -> Array2<F> {
@@ -485,7 +484,7 @@ mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
     use scirs2_core::essentials::Normal;
-    use scirs2_core::ndarray::{arr1, arr2, Array1, Array2};
+    use scirs2_core::ndarray::{arr1, arr2, Array2};
     use scirs2_core::random::thread_rng;
 
     #[test]
@@ -571,7 +570,7 @@ mod tests {
         // Create test data
         let data = Array2::from_shape_simple_fn((50, 3), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let cov = ops.covariance_matrix(&data);
@@ -597,11 +596,11 @@ mod tests {
 
         let x = Array2::from_shape_simple_fn((100, 4), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_simple_fn((100, 3), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let fitted = cca.fit(&x, &y);
@@ -614,11 +613,11 @@ mod tests {
         // Test transformation
         let x_test = Array2::from_shape_simple_fn((10, 4), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y_test = Array2::from_shape_simple_fn((10, 3), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let (x_transformed, y_transformed) = fitted.transform(&x_test, &y_test);
@@ -643,11 +642,11 @@ mod tests {
         // Create large matrices to trigger blocked algorithms
         let a = Array2::from_shape_simple_fn((100, 80), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let b = Array2::from_shape_simple_fn((80, 60), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let result = ops.matmul(&a, &b);

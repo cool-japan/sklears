@@ -9,7 +9,6 @@ use approx::assert_abs_diff_eq;
 use scirs2_core::ndarray::{array, s, Array2};
 use scirs2_core::random::seq::SliceRandom;
 use scirs2_core::random::thread_rng;
-use scirs2_core::SliceRandomExt;
 use std::f64::consts::PI;
 
 /// Create synthetic data with known structure for testing
@@ -380,6 +379,8 @@ fn test_mds_distance_preservation() {
     );
 }
 
+type AlgorithmFnVec = Vec<(&'static str, Box<dyn Fn() -> Array2<f64>>)>;
+
 /// Comprehensive test across multiple algorithms
 #[test]
 fn test_all_algorithms_basic_preservation() {
@@ -393,11 +394,12 @@ fn test_all_algorithms_basic_preservation() {
         [1.0, 0.0, 1.0]
     ];
 
-    let algorithms: Vec<(&str, Box<dyn Fn() -> Array2<f64>>)> = vec![(
+    let x_clone = x.clone();
+    let algorithms: AlgorithmFnVec = vec![(
         "PCA",
-        Box::new(|| {
+        Box::new(move || {
             // Simple PCA projection to 2D (just take first 2 components)
-            x.slice(s![.., 0..2]).to_owned()
+            x_clone.slice(s![.., 0..2]).to_owned()
         }),
     )];
 

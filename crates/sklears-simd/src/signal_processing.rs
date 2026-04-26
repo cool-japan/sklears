@@ -107,7 +107,13 @@ pub mod fft {
         fft_result.iter().map(|c| c.magnitude().powi(2)).collect()
     }
 
-    /// Simple FFT wrapper function for raw pointer interface
+    /// Simple FFT wrapper function for raw pointer interface.
+    ///
+    /// # Safety
+    ///
+    /// `input` must be valid and point to at least `n` initialized `f32` values.
+    /// `output` must be valid and point to writable storage for at least `n` `f32` values.
+    /// Neither pointer may be null.
     pub unsafe fn fft(
         input: *const f32,
         output: *mut f32,
@@ -125,9 +131,7 @@ pub mod fft {
 
         // For simplicity, just copy input to output (placeholder implementation)
         // In a real implementation, this would perform FFT
-        for i in 0..n {
-            output_slice[i] = input_slice[i];
-        }
+        output_slice.copy_from_slice(input_slice);
 
         Ok(())
     }
@@ -161,19 +165,16 @@ pub mod filters {
         }
 
         let mut output = Vec::with_capacity(input.len());
-        let mut window_sum = 0.0;
         let window_size_f32 = window_size as f32;
 
         // Initialize window
-        for i in 0..window_size.min(input.len()) {
-            window_sum += input[i];
-        }
+        let mut window_sum: f32 = input.iter().take(window_size.min(input.len())).sum();
 
-        for i in 0..input.len() {
+        for (i, &val) in input.iter().enumerate() {
             if i < window_size {
                 output.push(window_sum / (i + 1) as f32);
             } else {
-                window_sum += input[i] - input[i - window_size];
+                window_sum += val - input[i - window_size];
                 output.push(window_sum / window_size_f32);
             }
         }
@@ -222,7 +223,7 @@ pub mod filters {
             let mut window: Vec<f32> = input[start..end].to_vec();
             window.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
 
-            let median = if window.len() % 2 == 0 {
+            let median = if window.len().is_multiple_of(2) {
                 (window[window.len() / 2 - 1] + window[window.len() / 2]) / 2.0
             } else {
                 window[window.len() / 2]
@@ -409,9 +410,7 @@ pub mod resampling {
 
         for &sample in input {
             output.push(sample);
-            for _ in 1..factor {
-                output.push(0.0);
-            }
+            output.resize(output.len() + (factor - 1), 0.0);
         }
 
         // Apply anti-imaging low-pass filter

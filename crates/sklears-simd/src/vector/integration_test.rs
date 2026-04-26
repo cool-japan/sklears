@@ -149,7 +149,7 @@ mod tests {
         let b = vec![1.0, 2.0, 3.0, 4.0];
 
         // Test Pythagorean theorem: a² + b² = c² for (3,4,5) and (12,5,13)
-        let a_norm_sq = norm_l2_squared(&vec![3.0, 4.0]);
+        let a_norm_sq = norm_l2_squared(&[3.0, 4.0]);
         let expected_c = (a_norm_sq).sqrt();
         assert!((expected_c - 5.0).abs() < 1e-6);
 
@@ -233,13 +233,13 @@ mod tests {
         let b = F32x4::new(5.0, 6.0, 7.0, 8.0);
 
         // Test basic operations
-        let sum = a.add(b);
+        let sum = a + b;
         assert_eq!(sum.extract(0), 6.0);
         assert_eq!(sum.extract(1), 8.0);
         assert_eq!(sum.extract(2), 10.0);
         assert_eq!(sum.extract(3), 12.0);
 
-        let product = a.mul(b);
+        let product = a * b;
         assert_eq!(product.extract(0), 5.0);
         assert_eq!(product.extract(1), 12.0);
         assert_eq!(product.extract(2), 21.0);

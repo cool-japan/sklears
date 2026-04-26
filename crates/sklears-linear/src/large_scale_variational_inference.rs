@@ -220,6 +220,7 @@ pub struct LargeScaleVariationalRegression<State = Untrained> {
     posterior: Option<VariationalPosterior>,
     convergence_history: Option<Vec<Float>>,
     feature_relevance: Option<Array1<Float>>,
+    #[allow(dead_code)] // cached for introspection after fit; returned via accessor in future
     n_features: Option<usize>,
     intercept: Option<Float>,
 }
@@ -615,8 +616,11 @@ impl LargeScaleVariationalRegression<Untrained> {
 #[derive(Debug, Clone)]
 struct VariationalGradients {
     weight_mean_grad: Array1<Float>,
+    #[allow(dead_code)] // second-order variational gradient; used in natural gradient extension
     weight_precision_grad: Array2<Float>,
+    #[allow(dead_code)] // noise precision gradient; reserved for full natural gradient update
     noise_precision_shape_grad: Float,
+    #[allow(dead_code)] // noise precision gradient; reserved for full natural gradient update
     noise_precision_rate_grad: Float,
 }
 

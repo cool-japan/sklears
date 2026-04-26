@@ -104,6 +104,7 @@ pub struct SparseNeighborMatrix {
     shape: (usize, usize),
     index_type: SparseIndexType,
     threshold: Float,
+    #[allow(dead_code)] // reserved for neighbor count limiting
     max_neighbors: Option<usize>,
     stats: SparseStats,
 }
@@ -776,6 +777,7 @@ impl SparseNeighborMatrix {
 pub struct SparseNeighborBuilder {
     index_type: SparseIndexType,
     threshold: Option<Float>,
+    #[allow(dead_code)] // reserved for neighbor count limiting
     max_neighbors: Option<usize>,
 }
 

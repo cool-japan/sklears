@@ -159,9 +159,9 @@ impl Default for MixtureDiscriminantAnalysisConfig {
 /// let X = array![[1.0, 2.0], [2.0, 3.0], [8.0, 9.0], [9.0, 10.0]];
 /// let y = array![0, 0, 1, 1];
 ///
-/// let trained_mda = mda.fit(&X, &y).unwrap();
-/// let predictions = trained_mda.predict(&X).unwrap();
-/// let probabilities = trained_mda.predict_proba(&X).unwrap();
+/// let trained_mda = mda.fit(&X, &y).expect("fit should succeed with valid input");
+/// let predictions = trained_mda.predict(&X).expect("predict should succeed on fitted model");
+/// let probabilities = trained_mda.predict_proba(&X).expect("predict_proba should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct MixtureDiscriminantAnalysis<State = Untrained> {

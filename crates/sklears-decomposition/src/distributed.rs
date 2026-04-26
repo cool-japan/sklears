@@ -102,6 +102,11 @@ pub struct DistributedWorker {
     id: usize,
     config: DistributedConfig,
     local_data: Vec<DataPartition>,
+    /// Cache that stores intermediate results keyed by a label (e.g. `"worker_0_eigenvalues"`).
+    ///
+    /// During distributed PCA / SVD each worker stores its locally computed vector quantities
+    /// here so they can be inspected for fault-recovery or aggregated by the coordinator
+    /// without having to recompute them.
     results: Arc<Mutex<HashMap<String, Vec<Float>>>>,
 }
 
@@ -114,6 +119,32 @@ impl DistributedWorker {
             local_data: Vec::new(),
             results: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    /// Store a named result in the worker's result cache.
+    pub fn cache_result(&self, key: String, values: Vec<Float>) -> Result<()> {
+        self.results
+            .lock()
+            .map_err(|_| SklearsError::InvalidInput("Result cache lock poisoned".to_string()))?
+            .insert(key, values);
+        Ok(())
+    }
+
+    /// Retrieve a cached result by key.  Returns `None` when the key is absent.
+    pub fn get_cached_result(&self, key: &str) -> Result<Option<Vec<Float>>> {
+        let guard = self
+            .results
+            .lock()
+            .map_err(|_| SklearsError::InvalidInput("Result cache lock poisoned".to_string()))?;
+        Ok(guard.get(key).cloned())
+    }
+
+    /// Return a snapshot of all cached results for this worker.
+    pub fn all_cached_results(&self) -> Result<HashMap<String, Vec<Float>>> {
+        self.results
+            .lock()
+            .map(|g| g.clone())
+            .map_err(|_| SklearsError::InvalidInput("Result cache lock poisoned".to_string()))
     }
 
     /// Assign data partition to this worker
@@ -178,13 +209,21 @@ impl DistributedWorker {
             .slice(scirs2_core::ndarray::s![.., ..n_components])
             .to_owned();
 
+        let data_mean = centered_data.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::InvalidInput("Empty array for mean computation".to_string())
+        })?;
+
+        // Cache results for aggregation and fault recovery
+        let eigenvals_key = format!("worker_{}_eigenvalues", self.id);
+        self.cache_result(eigenvals_key, selected_eigenvals.to_vec())?;
+        let mean_key = format!("worker_{}_mean", self.id);
+        self.cache_result(mean_key, data_mean.to_vec())?;
+
         Ok(LocalPCAResult {
             worker_id: self.id,
             eigenvalues: selected_eigenvals,
             eigenvectors: selected_eigenvecs,
-            data_mean: centered_data
-                .mean_axis(Axis(0))
-                .expect("array should have elements for mean computation"),
+            data_mean,
             sample_count: total_rows,
         })
     }
@@ -217,6 +256,10 @@ impl DistributedWorker {
         // Perform local SVD using simplified approach
         // In practice, this would use proper SVD decomposition
         let (u, s, vt) = self.simplified_svd(&local_matrix, n_components)?;
+
+        // Cache singular values for aggregation and fault recovery
+        let sv_key = format!("worker_{}_singular_values", self.id);
+        self.cache_result(sv_key, s.to_vec())?;
 
         Ok(LocalSVDResult {
             worker_id: self.id,
@@ -326,8 +369,7 @@ impl DistributedDecomposition {
     /// Partition data for distributed processing
     pub fn partition_data(&mut self, data: &Array2<Float>) -> Result<()> {
         let (total_rows, total_cols) = data.dim();
-        let rows_per_partition =
-            (total_rows + self.config.num_workers - 1) / self.config.num_workers;
+        let rows_per_partition = total_rows.div_ceil(self.config.num_workers);
 
         self.data_partitions.clear();
 
@@ -766,5 +808,102 @@ mod tests {
         assert_eq!(result.n_components, 2);
         assert_eq!(result.singular_values.len(), 2);
         assert!(result.convergence_info.converged);
+    }
+
+    /// After compute_local_pca the worker's result cache should contain eigenvalues.
+    #[test]
+    fn test_worker_results_cache_populated_after_pca() {
+        let config = DistributedConfig {
+            num_workers: 1,
+            ..DistributedConfig::default()
+        };
+        let mut worker = DistributedWorker::new(0, config);
+
+        let data = Array2::from_shape_vec(
+            (4, 3),
+            vec![
+                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+            ],
+        )
+        .expect("operation should succeed");
+
+        let partition = DataPartition::new(0, data, vec![0, 1, 2, 3], vec![0, 1, 2], 0);
+        worker
+            .assign_partition(partition)
+            .expect("partition assignment should succeed");
+
+        let _result = worker
+            .compute_local_pca(2)
+            .expect("local pca should succeed");
+
+        // The result cache must contain eigenvalues keyed by worker id
+        let eigenvals = worker
+            .get_cached_result("worker_0_eigenvalues")
+            .expect("cache lock should not be poisoned");
+        assert!(
+            eigenvals.is_some(),
+            "eigenvalues should have been cached after compute_local_pca"
+        );
+        assert_eq!(
+            eigenvals.expect("just checked Some").len(),
+            2,
+            "cached eigenvalues should have length equal to n_components"
+        );
+    }
+
+    /// After compute_local_svd the worker's result cache should contain singular values.
+    #[test]
+    fn test_worker_results_cache_populated_after_svd() {
+        let config = DistributedConfig {
+            num_workers: 1,
+            ..DistributedConfig::default()
+        };
+        let mut worker = DistributedWorker::new(0, config);
+
+        let data = Array2::from_shape_vec(
+            (4, 3),
+            vec![
+                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+            ],
+        )
+        .expect("operation should succeed");
+
+        let partition = DataPartition::new(0, data, vec![0, 1, 2, 3], vec![0, 1, 2], 0);
+        worker
+            .assign_partition(partition)
+            .expect("partition assignment should succeed");
+
+        let _result = worker
+            .compute_local_svd(2)
+            .expect("local svd should succeed");
+
+        let sv = worker
+            .get_cached_result("worker_0_singular_values")
+            .expect("cache lock should not be poisoned");
+        assert!(
+            sv.is_some(),
+            "singular values should have been cached after compute_local_svd"
+        );
+    }
+
+    /// Manual cache_result / get_cached_result round-trip.
+    #[test]
+    fn test_worker_cache_round_trip() {
+        let config = DistributedConfig::default();
+        let worker = DistributedWorker::new(42, config);
+
+        worker
+            .cache_result("my_key".to_string(), vec![1.0, 2.0, 3.0])
+            .expect("cache_result should succeed");
+
+        let got = worker
+            .get_cached_result("my_key")
+            .expect("cache lock should not be poisoned");
+        assert_eq!(got, Some(vec![1.0, 2.0, 3.0]));
+
+        let missing = worker
+            .get_cached_result("no_such_key")
+            .expect("cache lock should not be poisoned");
+        assert_eq!(missing, None);
     }
 }

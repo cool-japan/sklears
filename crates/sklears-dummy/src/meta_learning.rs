@@ -11,7 +11,7 @@
 //! - [`ContinualLearningBaseline`] - Continual learning baseline with catastrophic forgetting prevention
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
-use scirs2_core::random::{prelude::*, thread_rng, Distribution, RngExt};
+use scirs2_core::random::{rngs::StdRng, thread_rng, Distribution, Rng, RngExt, SeedableRng};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::error::SklearsError;
@@ -91,6 +91,7 @@ pub struct FewShotBaselineClassifier {
 
 /// Fitted few-shot classifier
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct FittedFewShotClassifier {
     strategy: FewShotStrategy,
     prototypes: HashMap<i32, Array1<f64>>,
@@ -129,13 +130,16 @@ pub struct TransferLearningBaseline {
 pub struct SourceDomainStats {
     feature_means: Array1<f64>,
     feature_stds: Array1<f64>,
+    #[allow(dead_code)] // deferred: used in future domain-adaptation algorithms
     class_priors: HashMap<i32, f64>,
     target_mean: f64,
+    #[allow(dead_code)] // deferred: used in future domain-adaptation algorithms
     target_std: f64,
 }
 
 /// Fitted transfer learning baseline
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct FittedTransferBaseline {
     strategy: TransferStrategy,
     source_stats: SourceDomainStats,
@@ -154,6 +158,7 @@ pub struct DomainAdaptationBaseline {
 
 /// Fitted domain adaptation baseline
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct FittedDomainAdaptationBaseline {
     strategy: DomainAdaptationStrategy,
     source_stats: SourceDomainStats,
@@ -192,11 +197,6 @@ impl Fit<Array2<f64>, Array1<i32>, FittedFewShotClassifier> for FewShotBaselineC
                 actual: format!("{} labels", y.len()),
             });
         }
-
-        let rng = self.random_state.map_or_else(
-            || Box::new(thread_rng()) as Box<dyn RngCore>,
-            |seed| Box::new(StdRng::seed_from_u64(seed)),
-        );
 
         // Compute class counts
         let mut class_counts = HashMap::new();
@@ -251,7 +251,7 @@ impl Predict<Array2<f64>, Array1<i32>> for FittedFewShotClassifier {
     fn predict(&self, x: &Array2<f64>) -> Result<Array1<i32>, SklearsError> {
         let mut predictions = Vec::with_capacity(x.nrows());
         let mut rng = self.random_state.map_or_else(
-            || Box::new(thread_rng()) as Box<dyn RngCore>,
+            || Box::new(thread_rng()) as Box<dyn Rng>,
             |seed| Box::new(StdRng::seed_from_u64(seed)),
         );
 
@@ -370,7 +370,7 @@ impl FittedFewShotClassifier {
     fn predict_probabilistic(
         &self,
         sample: &ArrayView1<f64>,
-        rng: &mut dyn RngCore,
+        rng: &mut dyn Rng,
     ) -> Result<i32, SklearsError> {
         // Compute class probabilities based on prototype distances
         let mut class_probs: HashMap<i32, f64> = HashMap::new();
@@ -473,7 +473,7 @@ impl Predict<Array2<f64>, Array1<f64>> for FittedFewShotRegressor {
     fn predict(&self, x: &Array2<f64>) -> Result<Array1<f64>, SklearsError> {
         let mut predictions = Vec::with_capacity(x.nrows());
         let mut rng = self.random_state.map_or_else(
-            || Box::new(thread_rng()) as Box<dyn RngCore>,
+            || Box::new(thread_rng()) as Box<dyn Rng>,
             |seed| Box::new(StdRng::seed_from_u64(seed)),
         );
 
@@ -574,7 +574,7 @@ impl FittedFewShotRegressor {
     fn predict_probabilistic(
         &self,
         sample: &ArrayView1<f64>,
-        rng: &mut dyn RngCore,
+        rng: &mut dyn Rng,
     ) -> Result<f64, SklearsError> {
         // Gaussian process-like prediction with uncertainty
         let mut weighted_sum = 0.0;
@@ -712,9 +712,10 @@ impl Predict<Array2<f64>, Array1<f64>> for FittedTransferBaseline {
     fn predict(&self, x: &Array2<f64>) -> Result<Array1<f64>, SklearsError> {
         let mut predictions = Vec::with_capacity(x.nrows());
 
-        for sample in x.rows() {
-            // Simple transfer prediction combining source and target knowledge
-            let mut prediction = 0.0;
+        for _sample in x.rows() {
+            // Simple transfer prediction combining source and target knowledge; initial value always overwritten
+            #[allow(unused_assignments)]
+            let mut prediction = 0.0_f64;
 
             match &self.strategy {
                 TransferStrategy::SourcePrior { source_weight } => {
@@ -944,7 +945,7 @@ impl DomainAdaptationBaseline {
                         *adaptation_strength
                     };
 
-                    weights[i] = weight.max(0.1).min(10.0); // Clamp weights
+                    weights[i] = weight.clamp(0.1, 10.0); // Clamp weights
                 }
             }
             _ => {
@@ -1021,6 +1022,7 @@ pub struct ContinualLearningBaseline {
 
 /// Fitted continual learning baseline
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct FittedContinualLearningBaseline {
     strategy: ContinualStrategy,
     memory_buffer: Vec<(Array1<f64>, f64)>,
@@ -1450,7 +1452,7 @@ mod tests {
         let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
-        assert!(fitted.adaptation_matrix.shape() == &[2, 2]);
+        assert_eq!(fitted.adaptation_matrix.shape(), [2, 2]);
     }
 
     #[test]

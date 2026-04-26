@@ -5,7 +5,7 @@
 
 use super::common::{MEstimatorType, Trained, Untrained};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Transform},
@@ -108,7 +108,7 @@ impl RobustPLS<Untrained> {
 
     /// Set breakdown point
     pub fn breakdown_point(mut self, breakdown_point: Float) -> Self {
-        self.breakdown_point = breakdown_point.max(0.0).min(0.5);
+        self.breakdown_point = breakdown_point.clamp(0.0, 0.5);
         self
     }
 
@@ -144,14 +144,15 @@ impl Estimator for RobustPLS<Untrained> {
 impl Fit<Array2<Float>, Array2<Float>> for RobustPLS<Untrained> {
     type Fitted = RobustPLS<Trained>;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &Array2<Float>, Y: &Array2<Float>) -> Result<Self::Fitted> {
         let (n_samples, n_features_x) = X.dim();
         let (n_samples_y, n_features_y) = Y.dim();
 
         if n_samples != n_samples_y {
-            return Err(SklearsError::InvalidInput(format!(
-                "X and Y must have same number of samples"
-            )));
+            return Err(SklearsError::InvalidInput(
+                "X and Y must have same number of samples".to_string(),
+            ));
         }
 
         // Compute robust location and scale
@@ -247,8 +248,8 @@ impl Fit<Array2<Float>, Array2<Float>> for RobustPLS<Untrained> {
             loadings_y.column_mut(comp).assign(&q_y);
 
             // Deflate X and Y
-            X_residual = X_residual - &t_x.insert_axis(Axis(1)).dot(&p_x.insert_axis(Axis(0)));
-            Y_residual = Y_residual - &u_y.insert_axis(Axis(1)).dot(&q_y.insert_axis(Axis(0)));
+            X_residual -= &t_x.insert_axis(Axis(1)).dot(&p_x.insert_axis(Axis(0)));
+            Y_residual -= &u_y.insert_axis(Axis(1)).dot(&q_y.insert_axis(Axis(0)));
 
             n_iter = iter_count;
         }
@@ -279,6 +280,7 @@ impl Fit<Array2<Float>, Array2<Float>> for RobustPLS<Untrained> {
 
 impl RobustPLS<Untrained> {
     /// Compute robust location and scale estimates
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_robust_estimates(
         &self,
         X: &Array2<Float>,
@@ -293,7 +295,7 @@ impl RobustPLS<Untrained> {
             // Robust location: median
             let mut sorted_col = col.to_vec();
             sorted_col.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-            location[j] = if sorted_col.len() % 2 == 0 {
+            location[j] = if sorted_col.len().is_multiple_of(2) {
                 (sorted_col[sorted_col.len() / 2 - 1] + sorted_col[sorted_col.len() / 2]) / 2.0
             } else {
                 sorted_col[sorted_col.len() / 2]
@@ -304,7 +306,7 @@ impl RobustPLS<Untrained> {
             let mut sorted_deviations = deviations;
             sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-            scale[j] = if sorted_deviations.len() % 2 == 0 {
+            scale[j] = if sorted_deviations.len().is_multiple_of(2) {
                 (sorted_deviations[sorted_deviations.len() / 2 - 1]
                     + sorted_deviations[sorted_deviations.len() / 2])
                     / 2.0
@@ -323,6 +325,7 @@ impl RobustPLS<Untrained> {
     }
 
     /// Preprocess data
+    #[allow(non_snake_case)] // standard ML notation
     fn preprocess_data(
         &self,
         X: &Array2<Float>,
@@ -332,7 +335,7 @@ impl RobustPLS<Untrained> {
         let mut X_processed = X.clone();
 
         if self.center {
-            X_processed = X_processed - location;
+            X_processed -= location;
         }
 
         if self.scale {
@@ -419,7 +422,7 @@ impl RobustPLS<Untrained> {
     /// Andrews weight function
     fn andrews_weight(&self, residual: Float) -> Float {
         if residual <= self.tuning_parameter {
-            (std::f64::consts::PI * residual / self.tuning_parameter as f64).sin() as Float
+            (std::f64::consts::PI * residual / self.tuning_parameter).sin() as Float
                 / (residual / self.tuning_parameter)
         } else {
             0.0
@@ -452,6 +455,7 @@ impl RobustPLS<Untrained> {
     }
 
     /// Update PLS weight using weighted covariance
+    #[allow(non_snake_case)] // standard ML notation
     fn update_pls_weight(
         &self,
         X: &Array2<Float>,
@@ -474,6 +478,7 @@ impl RobustPLS<Untrained> {
     }
 
     /// Compute weighted loading
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_weighted_loading(
         &self,
         X: &Array2<Float>,
@@ -506,6 +511,7 @@ impl RobustPLS<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for RobustPLS<Trained> {
     /// Transform X to PLS space
+    #[allow(non_snake_case)] // standard ML notation
     fn transform(&self, X: &Array2<Float>) -> Result<Array2<Float>> {
         // Preprocess using robust estimates
         let X_processed = self.preprocess_data(
@@ -571,7 +577,18 @@ impl RobustPLS<Trained> {
         self.n_iter_.expect("value should be set after fitting")
     }
 
+    /// Get robust mean for Y (sklearn-style fitted attribute)
+    pub fn robust_mean_y(&self) -> Option<&Array1<Float>> {
+        self.robust_mean_y_.as_ref()
+    }
+
+    /// Get robust scale for Y (sklearn-style fitted attribute)
+    pub fn robust_scale_y(&self) -> Option<&Array1<Float>> {
+        self.robust_scale_y_.as_ref()
+    }
+
     /// Helper method for preprocessing
+    #[allow(non_snake_case)] // standard ML notation
     fn preprocess_data(
         &self,
         X: &Array2<Float>,
@@ -581,7 +598,7 @@ impl RobustPLS<Trained> {
         let mut X_processed = X.clone();
 
         if self.center {
-            X_processed = X_processed - location;
+            X_processed -= location;
         }
 
         if self.scale {

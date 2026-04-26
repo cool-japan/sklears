@@ -9,7 +9,29 @@ Create a production-ready machine learning library in Rust that:
 - Enables deployment without Python runtime dependencies
 - Leverages SciRS2's scientific computing capabilities
 
-## 📊 Current Status (v0.1.0)
+## v0.1.1 Changelog (2026-04-25)
+
+### Completed
+- [x] HDBSCAN persistence extraction fix
+- [x] StreamingStandardScaler/SimpleImputer Default derive fix
+- [x] Pipeline get_step_mut lifetime fix
+- [x] zstd -> oxiarc-zstd migration
+- [x] Clippy zero-warnings
+- [x] All files <2000 lines (splitrs applied)
+- [x] Version bump to 0.1.1
+
+### Known Incomplete / Outstanding Issues
+- [ ] `sklears-simd`: needs test authoring (0 tests for 1,314 pub items)
+- [ ] `sklears-mixture`: gaussian_log_pdf correctness bug (covariance ignored)
+- [ ] `sklears-clustering`: constrained spectral clustering test failure
+- [ ] `sklears-inspection`: flaky test_gaussian_noise_generation (needs seeded RNG)
+- [ ] `sklears-naive-bayes`: feature_engineering subsystem stubs (80 stubs)
+- [ ] `sklears-compose`: 406 stubs in 570k lines
+- [ ] `sklears-preprocessing`: 97 stubs in temporal/geospatial/image modules
+
+---
+
+## 📊 Current Status (v0.1.1)
 
 **Overall API Coverage: >99%** 🎉
 
@@ -106,6 +128,6 @@ All major scikit-learn modules are implemented with production-ready quality:
 
 ---
 
-*Version: 0.1.0*
-*Release Date: March 20, 2026*
-*Next Milestone: 0.1.1 - Q2 2026*
+*Version: 0.1.1*
+*Release Date: 2026-04-25*
+*Next Milestone: 0.1.2 - Q2 2026*

@@ -16,6 +16,15 @@ use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{error::SklearsError, traits::Fit, traits::Predict};
 use std::collections::HashMap;
 
+/// Return type for internal classifier strategy computation helpers.
+type ClassifierStrategyResult = (
+    Array2<f64>,
+    Array1<f64>,
+    Option<Vec<f64>>,
+    Option<HashMap<i32, Vec<f64>>>,
+    Option<Vec<i32>>,
+);
+
 /// Game-theoretic baseline strategies
 #[derive(Debug, Clone)]
 pub enum GameTheoreticStrategy {
@@ -80,6 +89,7 @@ pub enum ExplorationStrategy {
 
 /// Game-theoretic dummy classifier
 #[derive(Debug)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct GameTheoreticClassifier<State = sklears_core::traits::Untrained> {
     strategy: GameTheoreticStrategy,
     random_state: Option<u64>,
@@ -97,6 +107,7 @@ pub struct GameTheoreticClassifier<State = sklears_core::traits::Untrained> {
 
 /// Game-theoretic dummy regressor
 #[derive(Debug)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct GameTheoreticRegressor<State = sklears_core::traits::Untrained> {
     strategy: GameTheoreticStrategy,
     random_state: Option<u64>,
@@ -216,16 +227,16 @@ impl GameTheoreticRegressor {
 impl Fit<Array2<f64>, Array1<i32>> for GameTheoreticClassifier {
     type Fitted = GameTheoreticClassifier<sklears_core::traits::Trained>;
 
-    fn fit(self, X: &Array2<f64>, y: &Array1<i32>) -> Result<Self::Fitted, SklearsError> {
-        if X.is_empty() || y.is_empty() {
+    fn fit(self, x: &Array2<f64>, y: &Array1<i32>) -> Result<Self::Fitted, SklearsError> {
+        if x.is_empty() || y.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "Input arrays cannot be empty".to_string(),
             ));
         }
 
-        if X.nrows() != y.len() {
+        if x.nrows() != y.len() {
             return Err(SklearsError::ShapeMismatch {
-                expected: format!("X.nrows() == y.len() ({})", X.nrows()),
+                expected: format!("x.nrows() == y.len() ({})", x.nrows()),
                 actual: y.len().to_string(),
             });
         }
@@ -239,7 +250,7 @@ impl Fit<Array2<f64>, Array1<i32>> for GameTheoreticClassifier {
         let mut classes: Vec<i32> = class_counts.keys().copied().collect();
         classes.sort();
         let classes_array = Array1::from_vec(classes.clone());
-        let n_classes = classes.len();
+        let _n_classes = classes.len();
         let n_samples = y.len();
 
         // Initialize RNG
@@ -274,7 +285,7 @@ impl Fit<Array2<f64>, Array1<i32>> for GameTheoreticClassifier {
                     &mut rng,
                 ),
                 GameTheoreticStrategy::AdversarialRobust { epsilon, norm } => {
-                    Self::compute_adversarial_robust(&classes, &class_counts, *epsilon, norm, X)
+                    Self::compute_adversarial_robust(&classes, &class_counts, *epsilon, norm, x)
                 }
                 GameTheoreticStrategy::ZeroSum { opponent_strategy } => {
                     Self::compute_zero_sum_strategy(
@@ -309,12 +320,12 @@ impl Fit<Array2<f64>, Array1<i32>> for GameTheoreticClassifier {
 }
 
 impl Predict<Array2<f64>, Array1<i32>> for GameTheoreticClassifier<sklears_core::traits::Trained> {
-    fn predict(&self, X: &Array2<f64>) -> Result<Array1<i32>, SklearsError> {
-        if X.is_empty() {
+    fn predict(&self, x: &Array2<f64>) -> Result<Array1<i32>, SklearsError> {
+        if x.is_empty() {
             return Ok(Array1::zeros(0));
         }
 
-        let n_samples = X.nrows();
+        let n_samples = x.nrows();
         let classes = self.classes_.as_ref().expect("operation should succeed");
         let strategy_probs = self
             .strategy_probabilities_
@@ -394,20 +405,14 @@ impl GameTheoreticClassifier {
         classes: &[i32],
         class_counts: &HashMap<i32, usize>,
         n_samples: usize,
-    ) -> (
-        Array2<f64>,
-        Array1<f64>,
-        Option<Vec<f64>>,
-        Option<HashMap<i32, Vec<f64>>>,
-        Option<Vec<i32>>,
-    ) {
+    ) -> ClassifierStrategyResult {
         let n_classes = classes.len();
 
         // Create payoff matrix (simplified: based on class frequencies)
         let mut payoff_matrix = Array2::zeros((n_classes, n_classes));
 
         for (i, &class_i) in classes.iter().enumerate() {
-            for (j, &class_j) in classes.iter().enumerate() {
+            for (j, &_class_j) in classes.iter().enumerate() {
                 if i == j {
                     // Reward for correct prediction
                     let freq_i =
@@ -448,13 +453,7 @@ impl GameTheoreticClassifier {
         class_counts: &HashMap<i32, usize>,
         max_iterations: usize,
         tolerance: f64,
-    ) -> (
-        Array2<f64>,
-        Array1<f64>,
-        Option<Vec<f64>>,
-        Option<HashMap<i32, Vec<f64>>>,
-        Option<Vec<i32>>,
-    ) {
+    ) -> ClassifierStrategyResult {
         let n_classes = classes.len();
         let n_samples: usize = class_counts.values().sum();
 
@@ -462,7 +461,7 @@ impl GameTheoreticClassifier {
         let mut payoff_matrix = Array2::zeros((n_classes, n_classes));
 
         for (i, &class_i) in classes.iter().enumerate() {
-            for (j, &class_j) in classes.iter().enumerate() {
+            for (j, &_class_j) in classes.iter().enumerate() {
                 if i == j {
                     let freq_i =
                         *class_counts.get(&class_i).unwrap_or(&0) as f64 / n_samples as f64;
@@ -522,13 +521,7 @@ impl GameTheoreticClassifier {
         learning_rate: f64,
         window_size: usize,
         rng: &mut scirs2_core::random::rngs::StdRng,
-    ) -> (
-        Array2<f64>,
-        Array1<f64>,
-        Option<Vec<f64>>,
-        Option<HashMap<i32, Vec<f64>>>,
-        Option<Vec<i32>>,
-    ) {
+    ) -> ClassifierStrategyResult {
         let n_classes = classes.len();
         let n_samples: usize = class_counts.values().sum();
 
@@ -536,7 +529,7 @@ impl GameTheoreticClassifier {
         let mut payoff_matrix = Array2::zeros((n_classes, n_classes));
 
         for (i, &class_i) in classes.iter().enumerate() {
-            for (j, &class_j) in classes.iter().enumerate() {
+            for (j, &_class_j) in classes.iter().enumerate() {
                 if i == j {
                     let freq_i =
                         *class_counts.get(&class_i).unwrap_or(&0) as f64 / n_samples as f64;
@@ -609,14 +602,8 @@ impl GameTheoreticClassifier {
         class_counts: &HashMap<i32, usize>,
         epsilon: f64,
         norm: &LpNorm,
-        X: &Array2<f64>,
-    ) -> (
-        Array2<f64>,
-        Array1<f64>,
-        Option<Vec<f64>>,
-        Option<HashMap<i32, Vec<f64>>>,
-        Option<Vec<i32>>,
-    ) {
+        x: &Array2<f64>,
+    ) -> ClassifierStrategyResult {
         let n_classes = classes.len();
         let n_samples: usize = class_counts.values().sum();
 
@@ -624,7 +611,7 @@ impl GameTheoreticClassifier {
         let mut payoff_matrix = Array2::zeros((n_classes, n_classes));
 
         // Estimate robustness based on feature statistics
-        let feature_std = X.std_axis(Axis(0), 1.0);
+        let feature_std = x.std_axis(Axis(0), 1.0);
         let robustness_factor = match norm {
             LpNorm::LInf => feature_std.iter().fold(0.0f64, |a, &b| a.max(b)) * epsilon,
             LpNorm::L2 => {
@@ -636,7 +623,7 @@ impl GameTheoreticClassifier {
         };
 
         for (i, &class_i) in classes.iter().enumerate() {
-            for (j, &class_j) in classes.iter().enumerate() {
+            for (j, &_class_j) in classes.iter().enumerate() {
                 if i == j {
                     let freq_i =
                         *class_counts.get(&class_i).unwrap_or(&0) as f64 / n_samples as f64;
@@ -659,14 +646,8 @@ impl GameTheoreticClassifier {
         classes: &[i32],
         class_counts: &HashMap<i32, usize>,
         opponent_strategy: &OpponentStrategy,
-        rng: &mut scirs2_core::random::rngs::StdRng,
-    ) -> (
-        Array2<f64>,
-        Array1<f64>,
-        Option<Vec<f64>>,
-        Option<HashMap<i32, Vec<f64>>>,
-        Option<Vec<i32>>,
-    ) {
+        _rng: &mut scirs2_core::random::rngs::StdRng,
+    ) -> ClassifierStrategyResult {
         let n_classes = classes.len();
         let n_samples: usize = class_counts.values().sum();
 
@@ -674,7 +655,7 @@ impl GameTheoreticClassifier {
         let mut payoff_matrix = Array2::zeros((n_classes, n_classes));
 
         for (i, &class_i) in classes.iter().enumerate() {
-            for (j, &class_j) in classes.iter().enumerate() {
+            for (j, &_class_j) in classes.iter().enumerate() {
                 if i == j {
                     let freq_i =
                         *class_counts.get(&class_i).unwrap_or(&0) as f64 / n_samples as f64;
@@ -765,13 +746,7 @@ impl GameTheoreticClassifier {
         class_counts: &HashMap<i32, usize>,
         exploration_strategy: &ExplorationStrategy,
         rng: &mut scirs2_core::random::rngs::StdRng,
-    ) -> (
-        Array2<f64>,
-        Array1<f64>,
-        Option<Vec<f64>>,
-        Option<HashMap<i32, Vec<f64>>>,
-        Option<Vec<i32>>,
-    ) {
+    ) -> ClassifierStrategyResult {
         let n_classes = classes.len();
         let n_samples: usize = class_counts.values().sum();
 
@@ -886,7 +861,7 @@ impl GameTheoreticClassifier {
         // Create payoff matrix
         let mut payoff_matrix = Array2::zeros((n_classes, n_classes));
         for (i, &class_i) in classes.iter().enumerate() {
-            for (j, &class_j) in classes.iter().enumerate() {
+            for (j, &_class_j) in classes.iter().enumerate() {
                 if i == j {
                     let freq_i =
                         *class_counts.get(&class_i).unwrap_or(&0) as f64 / n_samples as f64;
@@ -938,7 +913,7 @@ mod tests {
 
         // All predictions should be valid classes
         for &pred in &predictions {
-            assert!(pred >= 0 && pred <= 2);
+            assert!((0..=2).contains(&pred));
         }
     }
 
@@ -1050,7 +1025,7 @@ mod tests {
         assert_eq!(predictions.len(), 6);
 
         for &pred in &predictions {
-            assert!(pred >= 0 && pred <= 2);
+            assert!((0..=2).contains(&pred));
         }
     }
 
@@ -1080,7 +1055,7 @@ mod tests {
         assert_eq!(predictions.len(), 8);
 
         for &pred in &predictions {
-            assert!(pred >= 0 && pred <= 2);
+            assert!((0..=2).contains(&pred));
         }
     }
 

@@ -85,6 +85,8 @@ pub fn create_stratified_folds(
             }
 
             // Add to train sets of other folds
+            #[allow(clippy::needless_range_loop)]
+            // index needed to skip fold_idx and mutate folds[i]
             for other_fold_idx in 0..n_folds {
                 if other_fold_idx != fold_idx {
                     for &idx in &indices[start..end] {
@@ -200,7 +202,6 @@ fn create_stratified_train_test_split(
         }
 
         let n_test = (indices.len() as Float * test_size).round() as usize;
-        let n_train = indices.len() - n_test;
 
         test_indices.extend(&indices[..n_test]);
         train_indices.extend(&indices[n_test..]);

@@ -11,6 +11,7 @@ use sklears_core::types::Float;
 /// Trait for graph construction strategies
 pub trait GraphBuilder: Clone {
     /// Build a graph from data
+    #[allow(non_snake_case)] // standard ML notation
     fn build(&self, X: &ArrayView2<Float>) -> SklResult<Array2<f64>>;
 }
 
@@ -52,6 +53,7 @@ impl KNNGraphBuilder {
 }
 
 impl GraphBuilder for KNNGraphBuilder {
+    #[allow(non_snake_case)] // standard ML notation
     fn build(&self, X: &ArrayView2<Float>) -> SklResult<Array2<f64>> {
         let n_samples = X.nrows();
         let mut graph = Array2::<f64>::zeros((n_samples, n_samples));
@@ -115,6 +117,7 @@ impl EpsilonGraphBuilder {
 }
 
 impl GraphBuilder for EpsilonGraphBuilder {
+    #[allow(non_snake_case)] // standard ML notation
     fn build(&self, X: &ArrayView2<Float>) -> SklResult<Array2<f64>> {
         let n_samples = X.nrows();
         let mut graph = Array2::<f64>::zeros((n_samples, n_samples));
@@ -297,6 +300,7 @@ impl std::fmt::Debug for GraphPipeline {
 
 // Helper traits with object safety
 trait GraphBuilderTrait {
+    #[allow(non_snake_case)] // standard ML notation
     fn build_graph(&self, X: &ArrayView2<Float>) -> SklResult<Array2<f64>>;
     fn clone_box(&self) -> Box<dyn GraphBuilderTrait>;
 }
@@ -307,6 +311,7 @@ trait GraphTransformTrait {
 }
 
 impl<T: GraphBuilder + 'static> GraphBuilderTrait for T {
+    #[allow(non_snake_case)] // standard ML notation
     fn build_graph(&self, X: &ArrayView2<Float>) -> SklResult<Array2<f64>> {
         self.build(X)
     }
@@ -354,6 +359,7 @@ impl GraphPipeline {
     }
 
     /// Build the graph with all transformations
+    #[allow(non_snake_case)] // standard ML notation
     pub fn build(&self, X: &ArrayView2<Float>) -> SklResult<Array2<f64>> {
         let mut graph = self.builder.build_graph(X)?;
 

@@ -362,9 +362,19 @@ pub enum RetryStrategy {
     /// Fixed delay between retries
     Fixed(Duration),
     /// Exponential backoff
-    Exponential { base: Duration, multiplier: f64 },
+    Exponential {
+        /// The base.
+        base: Duration,
+        /// The multiplier.
+        multiplier: f64,
+    },
     /// Linear backoff
-    Linear { base: Duration, increment: Duration },
+    Linear {
+        /// The base.
+        base: Duration,
+        /// The increment.
+        increment: Duration,
+    },
     /// Custom strategy
     Custom(String),
 }

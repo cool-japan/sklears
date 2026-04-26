@@ -22,10 +22,8 @@ pub struct FraudDetectionNB<T: Float> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FraudLabel {
     /// Legitimate
-
     Legitimate,
     /// Fraud
-
     Fraud,
 }
 
@@ -68,7 +66,19 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
             _phantom: PhantomData,
         }
     }
+}
 
+impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std::iter::Sum> Default
+    for FraudDetectionNB<T>
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std::iter::Sum>
+    FraudDetectionNB<T>
+{
     /// Fit the fraud detection model
     pub fn fit(
         &mut self,
@@ -265,7 +275,8 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
     fn gaussian_pdf(&self, x: T, mean: T, variance: T) -> T {
         let two_pi = T::from(2.0 * std::f64::consts::PI).expect("operation should succeed");
         let coefficient = T::one() / (two_pi * variance).sqrt();
-        let exponent = -((x - mean).powi(2)) / (T::from(2.0).expect("operation should succeed") * variance);
+        let exponent =
+            -((x - mean).powi(2)) / (T::from(2.0).expect("operation should succeed") * variance);
         coefficient * exponent.exp()
     }
 

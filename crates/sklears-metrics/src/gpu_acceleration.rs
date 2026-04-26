@@ -99,13 +99,16 @@ pub struct GpuMetricsContext {
 /// CUDA stream wrapper for async operations
 #[derive(Debug)]
 pub struct CudaStream {
+    #[allow(dead_code)] // intentionally deferred: CUDA stream handle not yet used
     stream_ptr: *mut std::ffi::c_void,
+    #[allow(dead_code)] // intentionally deferred: GPU device selection pending
     device_id: i32,
 }
 
 /// GPU memory pool for efficient allocation
 #[derive(Debug)]
 pub struct GpuMemoryPool {
+    #[allow(dead_code)] // intentionally deferred: allocation tracking pending
     allocations: HashMap<usize, Vec<GpuBuffer>>,
     total_allocated: usize,
     peak_usage: usize,
@@ -114,8 +117,11 @@ pub struct GpuMemoryPool {
 /// GPU buffer wrapper
 #[derive(Debug)]
 pub struct GpuBuffer {
+    #[allow(dead_code)] // intentionally deferred: raw GPU pointer not yet dereferenced
     ptr: *mut std::ffi::c_void,
+    #[allow(dead_code)] // intentionally deferred: buffer size not yet exposed
     size: usize,
+    #[allow(dead_code)] // intentionally deferred: GPU device binding pending
     device_id: i32,
 }
 
@@ -131,6 +137,7 @@ pub struct MetricCache {
 #[derive(Debug, Clone)]
 pub struct CachedResult {
     value: f64,
+    #[allow(dead_code)] // intentionally deferred: metadata readout not yet implemented
     metadata: HashMap<String, f64>,
     timestamp: std::time::SystemTime,
 }
@@ -768,7 +775,7 @@ pub mod utils {
 
     /// Calculate grid size for CUDA kernel launch
     pub fn calculate_grid_size(problem_size: usize, block_size: usize) -> usize {
-        (problem_size + block_size - 1) / block_size
+        problem_size.div_ceil(block_size)
     }
 
     /// Estimate GPU memory requirements for metric computation

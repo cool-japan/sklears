@@ -5,7 +5,7 @@
 
 use crate::layers::{Layer, LayerConfig};
 use crate::NeuralResult;
-use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::error::SklearsError;
 use sklears_core::types::FloatBounds;
 use std::marker::PhantomData;
@@ -255,8 +255,6 @@ pub struct LinearProjection<T: FloatBounds> {
     last_input: Option<Array2<T>>,
     /// Input size
     input_size: usize,
-    /// Output size  
-    output_size: usize,
 }
 
 impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> LinearProjection<T> {
@@ -279,7 +277,6 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> LinearProjection<T> {
             bias: Some(Array1::zeros(output_size)),
             last_input: None,
             input_size,
-            output_size,
         })
     }
 }

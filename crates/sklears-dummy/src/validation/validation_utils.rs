@@ -1,3 +1,4 @@
+use super::validation_core::StatisticalSummary;
 use scirs2_core::ndarray::Array1;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::types::{Float, Int};
@@ -237,29 +238,6 @@ pub struct ValidationResult {
     pub std_score: Float,
     /// fold_scores
     pub fold_scores: Vec<Float>,
-}
-
-/// Statistical summary for formatting
-#[derive(Debug, Clone)]
-pub struct StatisticalSummary {
-    /// mean
-    pub mean: Float,
-    /// std
-    pub std: Float,
-    /// min
-    pub min: Float,
-    /// max
-    pub max: Float,
-    /// median
-    pub median: Float,
-    /// q25
-    pub q25: Float,
-    /// q75
-    pub q75: Float,
-    /// skewness
-    pub skewness: Float,
-    /// kurtosis
-    pub kurtosis: Float,
 }
 
 /// Data validation utilities
@@ -533,8 +511,8 @@ impl ScoreUtils {
     }
 }
 
-/// Validate cross-validation parameters
-pub fn validate_cv_params(n_samples: usize, cv: usize) -> Result<()> {
+/// Validate cross-validation parameters (strict check: cv must be > 0 and <= n_samples)
+pub fn validate_cv_params_strict(n_samples: usize, cv: usize) -> Result<()> {
     if cv == 0 {
         return Err(SklearsError::InvalidParameter {
             name: "cv".to_string(),
@@ -550,8 +528,8 @@ pub fn validate_cv_params(n_samples: usize, cv: usize) -> Result<()> {
     Ok(())
 }
 
-/// Calculate classification score (accuracy)
-pub fn calculate_classification_score(y_true: &Array1<Int>, y_pred: &Array1<Int>) -> Float {
+/// Calculate classification accuracy score
+pub fn calculate_accuracy_score(y_true: &Array1<Int>, y_pred: &Array1<Int>) -> Float {
     if y_true.len() != y_pred.len() || y_true.is_empty() {
         return 0.0;
     }
@@ -565,8 +543,8 @@ pub fn calculate_classification_score(y_true: &Array1<Int>, y_pred: &Array1<Int>
     correct / y_true.len() as Float
 }
 
-/// Calculate regression score (R² coefficient of determination)
-pub fn calculate_regression_score(y_true: &Array1<Float>, y_pred: &Array1<Float>) -> Float {
+/// Calculate regression R² score (coefficient of determination)
+pub fn calculate_r2_score(y_true: &Array1<Float>, y_pred: &Array1<Float>) -> Float {
     if y_true.len() != y_pred.len() || y_true.is_empty() {
         return 0.0;
     }

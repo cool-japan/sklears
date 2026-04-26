@@ -29,72 +29,76 @@ pub trait ExplanationHook: Debug + Send + Sync {
     fn interested_events(&self) -> Vec<HookEvent>;
 
     /// Called before explanation starts
-    fn before_explanation(&self, context: &mut HookContext) -> SklResult<()> {
+    fn before_explanation(&self, _context: &mut HookContext) -> SklResult<()> {
         Ok(())
     }
 
     /// Called after explanation completes
-    fn after_explanation(&self, context: &mut HookContext) -> SklResult<()> {
+    fn after_explanation(&self, _context: &mut HookContext) -> SklResult<()> {
         Ok(())
     }
 
     /// Called before feature importance computation
-    fn before_feature_importance(&self, context: &mut HookContext) -> SklResult<()> {
+    fn before_feature_importance(&self, _context: &mut HookContext) -> SklResult<()> {
         Ok(())
     }
 
     /// Called after feature importance computation
-    fn after_feature_importance(&self, context: &mut HookContext) -> SklResult<()> {
+    fn after_feature_importance(&self, _context: &mut HookContext) -> SklResult<()> {
         Ok(())
     }
 
     /// Called before local explanation
-    fn before_local_explanation(&self, context: &mut HookContext) -> SklResult<()> {
+    fn before_local_explanation(&self, _context: &mut HookContext) -> SklResult<()> {
         Ok(())
     }
 
     /// Called after local explanation
-    fn after_local_explanation(&self, context: &mut HookContext) -> SklResult<()> {
+    fn after_local_explanation(&self, _context: &mut HookContext) -> SklResult<()> {
         Ok(())
     }
 
     /// Called before global explanation
-    fn before_global_explanation(&self, context: &mut HookContext) -> SklResult<()> {
+    fn before_global_explanation(&self, _context: &mut HookContext) -> SklResult<()> {
         Ok(())
     }
 
     /// Called after global explanation
-    fn after_global_explanation(&self, context: &mut HookContext) -> SklResult<()> {
+    fn after_global_explanation(&self, _context: &mut HookContext) -> SklResult<()> {
         Ok(())
     }
 
     /// Called before counterfactual generation
-    fn before_counterfactual(&self, context: &mut HookContext) -> SklResult<()> {
+    fn before_counterfactual(&self, _context: &mut HookContext) -> SklResult<()> {
         Ok(())
     }
 
     /// Called after counterfactual generation
-    fn after_counterfactual(&self, context: &mut HookContext) -> SklResult<()> {
+    fn after_counterfactual(&self, _context: &mut HookContext) -> SklResult<()> {
         Ok(())
     }
 
     /// Called on error
-    fn on_error(&self, context: &mut HookContext, error: &dyn std::error::Error) -> SklResult<()> {
+    fn on_error(
+        &self,
+        _context: &mut HookContext,
+        _error: &dyn std::error::Error,
+    ) -> SklResult<()> {
         Ok(())
     }
 
     /// Called on progress update
-    fn on_progress(&self, context: &mut HookContext, progress: &ProgressInfo) -> SklResult<()> {
+    fn on_progress(&self, _context: &mut HookContext, _progress: &ProgressInfo) -> SklResult<()> {
         Ok(())
     }
 
     /// Called on warning
-    fn on_warning(&self, context: &mut HookContext, warning: &str) -> SklResult<()> {
+    fn on_warning(&self, _context: &mut HookContext, _warning: &str) -> SklResult<()> {
         Ok(())
     }
 
     /// Called on custom event
-    fn on_custom_event(&self, context: &mut HookContext, event: &CustomEvent) -> SklResult<()> {
+    fn on_custom_event(&self, _context: &mut HookContext, _event: &CustomEvent) -> SklResult<()> {
         Ok(())
     }
 }
@@ -400,7 +404,7 @@ impl HookRegistry {
     pub fn register_hook<H: ExplanationHook + 'static>(&self, hook: H) -> SklResult<()> {
         let hook_id = hook.hook_id().to_string();
         let interested_events = hook.interested_events();
-        let priority = hook.priority();
+        let _priority = hook.priority();
 
         // Store hook
         {
@@ -977,10 +981,13 @@ mod uuid {
         pub fn new_v4() -> Self {
             Self
         }
+    }
 
-        pub fn to_string(&self) -> String {
+    impl std::fmt::Display for Uuid {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             let mut rng = scirs2_core::random::thread_rng();
-            format!(
+            write!(
+                f,
                 "{:08x}-{:04x}-{:04x}-{:04x}-{:012x}",
                 rng.random::<u32>(),
                 rng.random::<u16>(),

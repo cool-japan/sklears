@@ -36,11 +36,11 @@ pub struct NuclearNormMinimization<S = Untrained> {
 #[derive(Debug, Clone)]
 pub enum NuclearNormAlgorithm {
     /// Singular Value Thresholding (SVT)
-    SVT,
+    Svt,
     /// Accelerated Proximal Gradient
-    APG,
+    Apg,
     /// Fixed Point Continuation
-    FPC,
+    Fpc,
 }
 
 impl Default for NuclearNormMinimization<Untrained> {
@@ -58,7 +58,7 @@ impl NuclearNormMinimization<Untrained> {
             max_iter: 1000,
             tol: 1e-6,
             assume_centered: false,
-            algorithm: NuclearNormAlgorithm::SVT,
+            algorithm: NuclearNormAlgorithm::Svt,
             target_rank: None,
         }
     }
@@ -229,9 +229,9 @@ impl NuclearNormMinimization<Untrained> {
         matrix: &mut Array2<f64>,
     ) -> SklResult<(Array2<f64>, usize, usize)> {
         match self.algorithm {
-            NuclearNormAlgorithm::SVT => self.singular_value_thresholding(matrix),
-            NuclearNormAlgorithm::APG => self.accelerated_proximal_gradient(matrix),
-            NuclearNormAlgorithm::FPC => self.fixed_point_continuation(matrix),
+            NuclearNormAlgorithm::Svt => self.singular_value_thresholding(matrix),
+            NuclearNormAlgorithm::Apg => self.accelerated_proximal_gradient(matrix),
+            NuclearNormAlgorithm::Fpc => self.fixed_point_continuation(matrix),
         }
     }
 
@@ -451,7 +451,6 @@ fn compute_singular_values(matrix: &Array2<f64>) -> SklResult<Array1<f64>> {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::array;
-    use scirs2_linalg::compat::ArrayLinalgExt;
 
     #[test]
     fn test_nuclear_norm_basic() {
@@ -503,7 +502,7 @@ mod tests {
 
         let estimator = NuclearNormMinimization::new()
             .lambda(0.1)
-            .algorithm(NuclearNormAlgorithm::APG);
+            .algorithm(NuclearNormAlgorithm::Apg);
         let fitted = estimator
             .fit(&x.view(), &())
             .expect("model fitting should succeed");
@@ -518,7 +517,7 @@ mod tests {
 
         let estimator = NuclearNormMinimization::new()
             .lambda(0.05)
-            .algorithm(NuclearNormAlgorithm::FPC);
+            .algorithm(NuclearNormAlgorithm::Fpc);
         let fitted = estimator
             .fit(&x.view(), &())
             .expect("model fitting should succeed");

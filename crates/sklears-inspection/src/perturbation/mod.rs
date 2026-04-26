@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_gaussian_perturbation() {
-        let X = array![[0.5, 0.7], [0.3, 0.9]];
+        let x = array![[0.5, 0.7], [0.3, 0.9]];
         let config = PerturbationConfig {
             strategy: PerturbationStrategy::Gaussian,
             magnitude: 0.1,
@@ -74,19 +74,19 @@ mod tests {
         };
 
         let perturbed =
-            generate_perturbations(&X.view(), &config).expect("operation should succeed");
+            generate_perturbations(&x.view(), &config).expect("operation should succeed");
         assert_eq!(perturbed.len(), 5);
-        assert_eq!(perturbed[0].dim(), X.dim());
+        assert_eq!(perturbed[0].dim(), x.dim());
 
         // Check that perturbations are different from original
-        let original_sum: Float = X.sum();
+        let original_sum: Float = x.sum();
         let perturbed_sum: Float = perturbed[0].sum();
         assert!((original_sum - perturbed_sum).abs() > 1e-10);
     }
 
     #[test]
     fn test_uniform_perturbation() {
-        let X = array![[0.5, 0.7]];
+        let x = array![[0.5, 0.7]];
         let config = PerturbationConfig {
             strategy: PerturbationStrategy::Uniform,
             magnitude: 0.1,
@@ -96,13 +96,13 @@ mod tests {
         };
 
         let perturbed =
-            generate_perturbations(&X.view(), &config).expect("operation should succeed");
+            generate_perturbations(&x.view(), &config).expect("operation should succeed");
         assert_eq!(perturbed.len(), 3);
     }
 
     #[test]
     fn test_robustness_analysis() {
-        let X = array![[0.5, 0.7], [0.3, 0.9]];
+        let x = array![[0.5, 0.7], [0.3, 0.9]];
         let config = PerturbationConfig {
             strategy: PerturbationStrategy::Gaussian,
             magnitude: 0.05,
@@ -111,7 +111,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = analyze_robustness(&simple_model, &X.view(), &config)
+        let result = analyze_robustness(&simple_model, &x.view(), &config)
             .expect("operation should succeed");
 
         assert_eq!(result.original_predictions.len(), 2);
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_salt_pepper_perturbation() {
-        let X = array![[0.5, 0.7], [0.3, 0.9]];
+        let x = array![[0.5, 0.7], [0.3, 0.9]];
         let config = PerturbationConfig {
             strategy: PerturbationStrategy::SaltPepper,
             magnitude: 0.2, // 20% chance of noise
@@ -132,13 +132,13 @@ mod tests {
         };
 
         let perturbed =
-            generate_perturbations(&X.view(), &config).expect("operation should succeed");
+            generate_perturbations(&x.view(), &config).expect("operation should succeed");
         assert_eq!(perturbed.len(), 5);
     }
 
     #[test]
     fn test_dropout_perturbation() {
-        let X = array![[0.5, 0.7, 0.3]];
+        let x = array![[0.5, 0.7, 0.3]];
         let config = PerturbationConfig {
             strategy: PerturbationStrategy::Dropout,
             magnitude: 0.3, // 30% dropout rate
@@ -148,7 +148,7 @@ mod tests {
         };
 
         let perturbed =
-            generate_perturbations(&X.view(), &config).expect("operation should succeed");
+            generate_perturbations(&x.view(), &config).expect("operation should succeed");
         assert_eq!(perturbed.len(), 5);
 
         // Check that some values are zero (dropped)
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn test_structured_perturbation() {
-        let X = array![[0.5, 0.7, 0.3, 0.8, 0.2, 0.9]]; // 6 features
+        let x = array![[0.5, 0.7, 0.3, 0.8, 0.2, 0.9]]; // 6 features
         let config = PerturbationConfig {
             strategy: PerturbationStrategy::Structured,
             magnitude: 0.1,
@@ -168,9 +168,9 @@ mod tests {
         };
 
         let perturbed =
-            generate_perturbations(&X.view(), &config).expect("operation should succeed");
+            generate_perturbations(&x.view(), &config).expect("operation should succeed");
         assert_eq!(perturbed.len(), 3);
-        assert_eq!(perturbed[0].dim(), X.dim());
+        assert_eq!(perturbed[0].dim(), x.dim());
     }
 
     #[test]
@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_sequential_execution() {
-        let X = array![[0.5, 0.7], [0.3, 0.9]];
+        let x = array![[0.5, 0.7], [0.3, 0.9]];
 
         let mut pipeline = PerturbationPipeline::builder()
             .execution_mode(ExecutionMode::Sequential)
@@ -212,7 +212,7 @@ mod tests {
             .build();
 
         let result = pipeline
-            .execute(&X.view())
+            .execute(&x.view())
             .expect("operation should succeed");
 
         assert_eq!(result.stage_results.len(), 2);
@@ -224,7 +224,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_conditional_execution() {
-        let X = array![[0.5, 0.7], [0.3, 0.9]]; // 2 samples, 2 features
+        let x = array![[0.5, 0.7], [0.3, 0.9]]; // 2 samples, 2 features
 
         let stage_with_condition = PerturbationStage {
             id: "conditional".to_string(),
@@ -255,7 +255,7 @@ mod tests {
         pipeline.add_stage(stage_with_condition);
 
         let result = pipeline
-            .execute(&X.view())
+            .execute(&x.view())
             .expect("operation should succeed");
 
         // Stage should be skipped due to condition

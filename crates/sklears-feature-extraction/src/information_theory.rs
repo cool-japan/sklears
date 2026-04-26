@@ -537,6 +537,7 @@ impl<S> InformationGainExtractor<S> {
 }
 
 /// Fitted information gain extractor
+#[allow(dead_code)] // FittedInformationGainExtractor extractor/information_gains retained for future feature importance retrieval
 pub struct FittedInformationGainExtractor {
     extractor: InformationGainExtractor,
     information_gains: Vec<f64>,

@@ -98,6 +98,7 @@ impl PredictionCache {
     }
 
     /// Get cached prediction if available
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     pub fn get_prediction(&mut self, X: &Array2<f64>) -> Option<Array1<i32>> {
         if !self.config.enabled {
             return None;
@@ -115,6 +116,7 @@ impl PredictionCache {
     }
 
     /// Cache a prediction
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     pub fn cache_prediction(&mut self, X: &Array2<f64>, prediction: Array1<i32>) {
         if !self.config.enabled {
             return;
@@ -130,6 +132,7 @@ impl PredictionCache {
     }
 
     /// Get cached probability predictions if available
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     pub fn get_prediction_proba(&mut self, X: &Array2<f64>) -> Option<Array2<f64>> {
         if !self.config.enabled {
             return None;
@@ -147,6 +150,7 @@ impl PredictionCache {
     }
 
     /// Cache probability predictions
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     pub fn cache_prediction_proba(&mut self, X: &Array2<f64>, proba: Array2<f64>) {
         if !self.config.enabled {
             return;
@@ -287,6 +291,7 @@ where
     T: sklears_core::traits::Predict<Array2<f64>, Array1<i32>>,
 {
     /// Make predictions with caching
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     pub fn predict_cached(&mut self, X: &Array2<f64>) -> sklears_core::error::Result<Array1<i32>> {
         // Try cache first
         if let Some(cached_result) = self.cache.get_prediction(X) {
@@ -306,6 +311,7 @@ where
     T: sklears_core::traits::PredictProba<Array2<f64>, Array2<f64>>,
 {
     /// Make probability predictions with caching
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     pub fn predict_proba_cached(
         &mut self,
         X: &Array2<f64>,

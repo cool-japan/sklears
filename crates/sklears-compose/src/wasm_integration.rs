@@ -7,19 +7,26 @@
 use crate::enhanced_errors::PipelineError;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use sklears_core::{error::Result as SklResult, prelude::SklearsError, traits::Estimator};
+use sklears_core::{error::Result as SklResult, prelude::SklearsError};
 use std::collections::HashMap;
 use std::fmt;
 
 /// WebAssembly runtime configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WasmConfig {
+    /// The memory limit mb.
     pub memory_limit_mb: usize,
+    /// The enable threads.
     pub enable_threads: bool,
+    /// The enable simd.
     pub enable_simd: bool,
+    /// The enable bulk memory.
     pub enable_bulk_memory: bool,
+    /// The stack size kb.
     pub stack_size_kb: usize,
+    /// The optimization level.
     pub optimization_level: OptimizationLevel,
+    /// The debug mode.
     pub debug_mode: bool,
 }
 
@@ -38,6 +45,7 @@ impl Default for WasmConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Enumeration of optimization level variants.
 pub enum OptimizationLevel {
     /// Debug
     Debug,
@@ -59,6 +67,7 @@ pub struct WasmPipeline {
 
 impl WasmPipeline {
     #[must_use]
+    /// Creates a new instance.
     pub fn new(config: WasmConfig) -> Self {
         Self {
             config,
@@ -223,17 +232,26 @@ impl WasmPipeline {
 /// WebAssembly-compatible pipeline step
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WasmStep {
+    /// The name.
     pub name: String,
+    /// The step type.
     pub step_type: WasmStepType,
+    /// The parameters.
     pub parameters: HashMap<String, WasmValue>,
+    /// The input schema.
     pub input_schema: DataSchema,
+    /// The output schema.
     pub output_schema: DataSchema,
+    /// The estimated memory mb.
     pub estimated_memory_mb: usize,
+    /// The requires threads.
     pub requires_threads: bool,
+    /// The requires simd.
     pub requires_simd: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Enumeration of wasm step type variants.
 pub enum WasmStepType {
     /// Transformer
     Transformer,
@@ -286,12 +304,16 @@ impl fmt::Display for WasmValue {
 /// Data schema for WASM interop
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataSchema {
+    /// The shape.
     pub shape: Vec<usize>,
+    /// The dtype.
     pub dtype: WasmDataType,
+    /// The optional.
     pub optional: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Enumeration of wasm data type variants.
 pub enum WasmDataType {
     /// F32
     F32,
@@ -308,12 +330,19 @@ pub enum WasmDataType {
 /// Pipeline metadata for WASM
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineMetadata {
+    /// The name.
     pub name: String,
+    /// The version.
     pub version: String,
+    /// The description.
     pub description: String,
+    /// The author.
     pub author: String,
+    /// The creation date.
     pub creation_date: String,
+    /// The features.
     pub features: Vec<String>,
+    /// The performance metrics.
     pub performance_metrics: HashMap<String, f64>,
 }
 
@@ -333,9 +362,13 @@ impl Default for PipelineMetadata {
 
 /// WebAssembly module representation
 pub struct WasmModule {
+    /// The binary.
     pub binary: Vec<u8>,
+    /// The metadata.
     pub metadata: PipelineMetadata,
+    /// The exports.
     pub exports: Vec<String>,
+    /// The imports.
     pub imports: Vec<String>,
 }
 
@@ -371,6 +404,7 @@ impl WasmModule {
 }
 
 /// WebAssembly compiler
+#[allow(dead_code)]
 pub struct WasmCompiler {
     config: WasmConfig,
     steps: Vec<WasmStep>,
@@ -379,6 +413,7 @@ pub struct WasmCompiler {
 
 impl WasmCompiler {
     #[must_use]
+    /// Creates a new instance.
     pub fn new(config: WasmConfig) -> Self {
         Self {
             config,
@@ -387,15 +422,18 @@ impl WasmCompiler {
         }
     }
 
+    /// Adds a step.
     pub fn add_step(&mut self, step: &WasmStep) -> SklResult<()> {
         self.steps.push(step.clone());
         Ok(())
     }
 
+    /// Adds a optimization.
     pub fn add_optimization(&mut self, optimization: WasmOptimization) {
         self.optimizations.push(optimization);
     }
 
+    /// Performs compile.
     pub fn compile(&self) -> SklResult<WasmModule> {
         // Generate WASM text format
         let wat_code = self.generate_wat()?;
@@ -479,7 +517,7 @@ impl WasmCompiler {
         Ok(func)
     }
 
-    fn wat_to_wasm(&self, wat_code: &str) -> SklResult<Vec<u8>> {
+    fn wat_to_wasm(&self, _wat_code: &str) -> SklResult<Vec<u8>> {
         // Simplified compilation - in practice would use wabt or similar
         // For now, return a placeholder binary
         Ok(vec![0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]) // WASM magic number + version
@@ -531,7 +569,7 @@ struct BrowserPayload {
 
 /// Browser integration utilities
 pub mod browser {
-    use super::{Estimator, SklResult, WasmModule, WasmPipeline};
+    use super::{SklResult, WasmModule, WasmPipeline};
 
     /// JavaScript code generator for browser integration
     pub struct BrowserIntegration;
@@ -776,8 +814,8 @@ mod tests {
 
     #[test]
     fn test_wasm_value_display() {
-        let value = WasmValue::F64(3.14159);
-        assert_eq!(value.to_string(), "3.14159");
+        let value = WasmValue::F64(1.23456);
+        assert_eq!(value.to_string(), "1.23456");
 
         let array_value = WasmValue::Array(vec![
             WasmValue::I32(1),

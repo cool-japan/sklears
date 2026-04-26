@@ -65,6 +65,7 @@ pub struct TensorIsotonicRegression<State = Untrained> {
     // Fitted attributes
     tensor_shape_: Option<Vec<usize>>,
     fitted_values_: Option<Array1<Float>>,
+    #[allow(dead_code)] // intentionally deferred: axis mapping retrieval not yet exposed
     axis_mappings_: Option<Vec<Vec<usize>>>,
 
     _state: PhantomData<State>,

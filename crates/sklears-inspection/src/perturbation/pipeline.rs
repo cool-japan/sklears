@@ -57,6 +57,7 @@ impl PerturbationPipeline {
     }
 
     /// Execute the pipeline
+    #[allow(non_snake_case)] // standard ML notation
     pub fn execute(&mut self, X: &ArrayView2<Float>) -> SklResult<PipelineResult> {
         let start_time = std::time::Instant::now();
         let mut stage_results = HashMap::new();
@@ -102,6 +103,7 @@ impl PerturbationPipeline {
     }
 
     /// Execute stages sequentially
+    #[allow(non_snake_case)] // standard ML notation
     fn execute_sequential(
         &self,
         X: &ArrayView2<Float>,
@@ -143,6 +145,7 @@ impl PerturbationPipeline {
 
     /// Execute stages in parallel
     #[cfg(feature = "parallel")]
+    #[allow(non_snake_case)] // standard ML notation
     fn execute_parallel(
         &self,
         X: &ArrayView2<Float>,
@@ -156,7 +159,7 @@ impl PerturbationPipeline {
 
         // Sort stages by priority for parallel execution
         let mut sorted_stages = self.stages.clone();
-        sorted_stages.sort_by(|a, b| b.priority.cmp(&a.priority));
+        sorted_stages.sort_by_key(|s| std::cmp::Reverse(s.priority));
 
         // Group stages that can run in parallel (no dependencies)
         let mut parallel_groups = Vec::new();
@@ -222,7 +225,7 @@ impl PerturbationPipeline {
                 .collect();
 
             // Collect results
-            for (stage_id, result, stage_start) in parallel_results {
+            for (stage_id, result, _stage_start) in parallel_results {
                 match result {
                     Ok(stage_result) => {
                         let mut results_guard = results.lock().expect("operation should succeed");
@@ -281,6 +284,7 @@ impl PerturbationPipeline {
     }
 
     /// Execute stages conditionally
+    #[allow(non_snake_case)] // standard ML notation
     fn execute_conditional(
         &self,
         X: &ArrayView2<Float>,
@@ -335,6 +339,7 @@ impl PerturbationPipeline {
     }
 
     /// Execute stages in branching pattern
+    #[allow(non_snake_case)] // standard ML notation
     fn execute_branching(
         &self,
         X: &ArrayView2<Float>,
@@ -404,6 +409,7 @@ impl PerturbationPipeline {
     }
 
     /// Execute a single stage
+    #[allow(non_snake_case)] // standard ML notation
     fn execute_stage(
         &self,
         stage: &PerturbationStage,
@@ -459,6 +465,7 @@ impl PerturbationPipeline {
     }
 
     /// Evaluate execution condition
+    #[allow(non_snake_case)] // standard ML notation
     fn evaluate_condition(
         &self,
         condition: &ExecutionCondition,
@@ -595,6 +602,7 @@ impl PerturbationPipeline {
     }
 
     /// Calculate quality metrics for a stage
+    #[allow(non_snake_case)] // standard ML notation
     fn calculate_stage_quality_metrics(
         &self,
         X: &ArrayView2<Float>,

@@ -34,7 +34,7 @@
 //! let result = cache.get_or_compute_feature_importance(&key, || {
 //!     // Expensive computation here
 //!     Ok(array![0.8, 0.2])
-//! }).unwrap();
+//! }).expect("cache computation should succeed with valid key and closure");
 //! ```
 //!
 //! ## Memory Layout Optimization
@@ -58,19 +58,19 @@
 //! use tempfile::TempDir;
 //! # use scirs2_core::ndarray::array;
 //!
-//! let temp_dir = TempDir::new().unwrap();
+//! let temp_dir = TempDir::new().expect("temporary directory creation should succeed");
 //! let config = MemoryMapConfig::default();
-//! let storage = MemoryMappedStorage::new(temp_dir.path(), config).unwrap();
+//! let storage = MemoryMappedStorage::new(temp_dir.path(), config).expect("memory-mapped storage creation should succeed with valid temp path");
 //!
 //! let feature_importance = array![1.0, 2.0, 3.0];
 //! let result = storage.store_explanation_results(
 //!     "my_explanation",
 //!     &feature_importance,
 //!     None,
-//! ).unwrap();
+//! ).expect("storing explanation results should succeed with valid data");
 //!
 //! // Later, load the data
-//! let loaded = storage.load_feature_importance(&result).unwrap();
+//! let loaded = storage.load_feature_importance(&result).expect("loading feature importance should succeed with valid result handle");
 //! ```
 //!
 //! ## Shared Explanation Management
@@ -97,7 +97,7 @@
 //!     feature_importance,
 //!     None,
 //!     metadata,
-//! ).unwrap();
+//! ).expect("creating shared explanation should succeed with valid data");
 //!
 //! // Explanation is reference-counted and automatically managed
 //! println!("Reference count: {}", explanation.ref_count());
@@ -166,21 +166,21 @@ mod integration_tests {
         let shared_manager = SharedExplanationManager::new(shared_config);
 
         // Test data
-        let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
+        let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
         let y = array![1.0, 2.0, 3.0];
 
         // Simple model for testing
         let model =
-            |x: &ArrayView2<Float>| -> crate::SklResult<scirs2_core::ndarray::Array1<Float>> {
-                Ok(x.column(0).to_owned())
+            |xv: &ArrayView2<Float>| -> crate::SklResult<scirs2_core::ndarray::Array1<Float>> {
+                Ok(xv.column(0).to_owned())
             };
 
         // Test cache-friendly computation
-        let cache_key = CacheKey::new(&X.view(), "test_method", 0);
+        let cache_key = CacheKey::new(&x.view(), "test_method", 0);
         let importances = cache
             .get_or_compute_feature_importance(&cache_key, || {
                 cache_ops::cache_friendly_permutation_importance(
-                    &X.view(),
+                    &x.view(),
                     &y.view(),
                     &model,
                     &cache,
@@ -257,17 +257,17 @@ mod integration_tests {
 
     #[test]
     fn test_unsafe_ops_integration() {
-        let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
+        let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
         let y = array![3.0, 7.0, 11.0]; // y = x1 + x2
 
-        let model = |x: &ArrayView2<Float>| -> scirs2_core::ndarray::Array1<Float> {
-            x.sum_axis(scirs2_core::ndarray::Axis(1))
+        let model = |xv: &ArrayView2<Float>| -> scirs2_core::ndarray::Array1<Float> {
+            xv.sum_axis(scirs2_core::ndarray::Axis(1))
         };
 
         // Test unsafe feature importance computation
         let importances = unsafe_ops::compute_feature_importance_unsafe(
             &model,
-            &X.view(),
+            &x.view(),
             &y.view(),
             3,        // n_repeats
             Some(42), // random_state
@@ -278,8 +278,8 @@ mod integration_tests {
         assert!(importances.iter().any(|&x| x.abs() > 0.0));
 
         // Test unsafe array operations
-        let a = vec![1.0, 2.0, 3.0, 4.0];
-        let b = vec![2.0, 3.0, 4.0, 5.0];
+        let a = [1.0, 2.0, 3.0, 4.0];
+        let b = [2.0, 3.0, 4.0, 5.0];
         let mut result = vec![0.0; 4];
 
         unsafe {
@@ -297,8 +297,8 @@ mod integration_tests {
         let config = CacheConfig::default();
         let cache = ExplanationCache::new(&config);
 
-        let X = array![[1.0, 2.0], [3.0, 4.0]];
-        let key = CacheKey::new(&X.view(), "test", 0);
+        let x = array![[1.0, 2.0], [3.0, 4.0]];
+        let key = CacheKey::new(&x.view(), "test", 0);
 
         // First access - should be miss
         let _result1 = cache

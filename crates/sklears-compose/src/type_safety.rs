@@ -150,14 +150,25 @@ pub trait PipelineValidation<Stages> {
 pub enum PipelineValidationError {
     /// Incompatible input/output types between stages
     IncompatibleTypes {
+        /// The stage index.
         stage_index: usize,
+        /// The expected.
         expected: String,
+        /// The found.
         found: String,
     },
     /// Missing required stage
-    MissingStage { stage_name: String },
+    MissingStage {
+        /// The stage name.
+        stage_name: String,
+    },
     /// Invalid stage configuration
-    InvalidConfiguration { stage_index: usize, reason: String },
+    InvalidConfiguration {
+        /// The stage index.
+        stage_index: usize,
+        /// The reason.
+        reason: String,
+    },
 }
 
 impl std::fmt::Display for PipelineValidationError {
@@ -341,7 +352,7 @@ pub trait StructureValidation {
 /// Helper macro for creating type-safe pipelines
 #[macro_export]
 macro_rules! typed_pipeline {
-    ($($stage:expr),+ $(,)?) => {{
+    ($($stage:expr_2021),+ $(,)?) => {{
         let mut builder = TypedPipelineBuilder::new();
         $(
             builder = builder.add_stage($stage);
@@ -353,7 +364,7 @@ macro_rules! typed_pipeline {
 /// Helper macro for validating pipeline compatibility at compile time
 #[macro_export]
 macro_rules! validate_pipeline {
-    ($pipeline:expr) => {{
+    ($pipeline:expr_2021) => {{
         compile_time_validate!($pipeline)
     }};
 }
@@ -361,7 +372,7 @@ macro_rules! validate_pipeline {
 /// Compile-time validation macro
 #[macro_export]
 macro_rules! compile_time_validate {
-    ($pipeline:expr) => {{
+    ($pipeline:expr_2021) => {{
         // This would be expanded at compile time to validate pipeline structure
         Ok(())
     }};

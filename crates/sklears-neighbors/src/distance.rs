@@ -7,6 +7,9 @@ use sklears_utils::metrics;
 
 use std::hash::{Hash, Hasher};
 
+/// Type alias for custom distance functions
+type CustomDistFn = Box<dyn Fn(&ArrayView1<Float>, &ArrayView1<Float>) -> Float + Send + Sync>;
+
 /// Distance metric enum
 #[derive(Default)]
 pub enum Distance {
@@ -26,7 +29,7 @@ pub enum Distance {
     /// Mahalanobis distance with inverse covariance matrix
     Mahalanobis(Array2<Float>),
     /// Custom distance function
-    Custom(Box<dyn Fn(&ArrayView1<Float>, &ArrayView1<Float>) -> Float + Send + Sync>),
+    Custom(CustomDistFn),
     /// RBF (Gaussian) kernel distance
     RbfKernel(Float), // gamma parameter
     /// Polynomial kernel distance

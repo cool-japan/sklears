@@ -153,7 +153,7 @@ impl BaggingPredictor {
                     let mut sorted: Vec<f64> = row.to_vec();
                     sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                     let mid = sorted.len() / 2;
-                    result[i] = if sorted.len() % 2 == 0 {
+                    result[i] = if sorted.len().is_multiple_of(2) {
                         (sorted[mid - 1] + sorted[mid]) / 2.0
                     } else {
                         sorted[mid]

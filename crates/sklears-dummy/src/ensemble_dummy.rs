@@ -6,7 +6,7 @@
 use crate::dummy_classifier::{DummyClassifier, Strategy as ClassifierStrategy};
 use crate::dummy_regressor::{DummyRegressor, Strategy as RegressorStrategy};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{prelude::*, Rng};
+use scirs2_core::random::prelude::*;
 use sklears_core::error::Result;
 use sklears_core::traits::{Estimator, Fit, Predict, PredictProba};
 use sklears_core::types::{Features, Float, Int};

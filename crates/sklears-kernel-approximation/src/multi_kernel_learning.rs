@@ -186,6 +186,7 @@ pub struct MultipleKernelLearning {
     config: MultiKernelConfig,
     weights: Option<Array1<f64>>,
     kernel_matrices: Option<Vec<Array2<f64>>>,
+    #[allow(dead_code)] // cached combined features for potential reuse
     combined_features: Option<Array2<f64>>,
     random_state: Option<u64>,
     rng: StdRng,

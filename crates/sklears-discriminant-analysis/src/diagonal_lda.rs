@@ -324,7 +324,7 @@ impl Fit<Array2<Float>, Array1<i32>> for DiagonalLinearDiscriminantAnalysis<Untr
                 .expect("mean should not fail on non-empty array");
             let stds = self.compute_feature_stds(x, &means);
 
-            for (_i, mut sample) in x_processed.axis_iter_mut(Axis(0)).enumerate() {
+            for mut sample in x_processed.axis_iter_mut(Axis(0)) {
                 for j in 0..n_features {
                     sample[j] = (sample[j] - means[j]) / stds[j];
                 }
@@ -449,7 +449,7 @@ impl DiagonalLinearDiscriminantAnalysis<Trained> {
         let mut x_processed = x.clone();
 
         if let (Some(means), Some(scales)) = (&data.feature_means, &data.feature_scales) {
-            for (_i, mut sample) in x_processed.axis_iter_mut(Axis(0)).enumerate() {
+            for mut sample in x_processed.axis_iter_mut(Axis(0)) {
                 for j in 0..data.n_features {
                     sample[j] = (sample[j] - means[j]) / scales[j];
                 }

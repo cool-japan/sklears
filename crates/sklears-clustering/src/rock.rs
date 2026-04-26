@@ -224,9 +224,16 @@ pub struct ROCK {
     config: ROCKConfig,
 }
 
+impl Default for ROCK {
+    fn default() -> Self {
+        Self::new(ROCKConfig::default())
+    }
+}
+
 /// Fitted ROCK model
 #[derive(Debug, Clone)]
 pub struct ROCKFitted {
+    #[allow(dead_code)] // Config retained for post-fit parameter inspection
     config: ROCKConfig,
     cluster_labels: Vec<i32>,
     n_samples: usize,
@@ -238,11 +245,6 @@ impl ROCK {
     /// Create a new ROCK clustering algorithm
     pub fn new(config: ROCKConfig) -> Self {
         Self { config }
-    }
-
-    /// Create ROCK with default configuration
-    pub fn default() -> Self {
-        Self::new(ROCKConfig::default())
     }
 
     /// Get configuration builder
@@ -481,14 +483,14 @@ impl Predict<Array2<f64>, Array1<i32>> for ROCKFitted {
             cluster_representatives.entry(label).or_default().push(i);
         }
 
-        for (i, new_point) in X.rows().into_iter().enumerate() {
+        for (i, _new_point) in X.rows().into_iter().enumerate() {
             let mut best_cluster = 0;
             let mut best_similarity = -1.0;
 
             for (&cluster_id, cluster_points) in &cluster_representatives {
                 let mut total_similarity = 0.0;
 
-                for &point_idx in cluster_points {
+                for &_point_idx in cluster_points {
                     // We need the original training data to compute similarity
                     // For now, we'll assign to the first cluster
                     // In a real implementation, we'd store the training data

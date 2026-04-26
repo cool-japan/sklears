@@ -336,8 +336,8 @@ impl OutOfCoreKMeans<Trained> {
         let k = self.config.n_clusters.min(n_samples);
 
         let mut rng = match self.config.random_state {
-            Some(seed) => Random::default(),
-            None => Random::default(),
+            Some(seed) => Random::seed(seed),
+            None => Random::seed(42),
         };
 
         // Initialize cluster summaries with random samples
@@ -359,21 +359,25 @@ impl OutOfCoreKMeans<Trained> {
 
     /// Update clusters with a new chunk of data
     fn update_clusters(&mut self, x: &ArrayView2<Float>) -> Result<()> {
-        if self.cluster_summaries.is_some() && self.centroids.is_some() {
-            // Get current centroids for assignment
-            let current_centroids = self
-                .centroids
-                .as_ref()
-                .expect("operation should succeed")
-                .clone();
+        if let Some(centroids_ref) = self.centroids.as_ref() {
+            if self.cluster_summaries.is_none() {
+                return Ok(());
+            }
+            // Clone centroids to avoid borrow conflict with cluster_summaries
+            let current_centroids = centroids_ref.clone();
 
-            // Assign points to clusters and update summaries
+            // Compute all cluster assignments before mutating summaries
+            let mut assignments = Vec::with_capacity(x.nrows());
             for sample in x.outer_iter() {
                 let cluster_idx = self.assign_to_cluster(&sample, &current_centroids)?;
-                self.cluster_summaries
-                    .as_mut()
-                    .expect("operation should succeed")[cluster_idx]
-                    .update(&sample);
+                assignments.push(cluster_idx);
+            }
+
+            // Update summaries using computed assignments
+            if let Some(cluster_summaries) = self.cluster_summaries.as_mut() {
+                for (sample, cluster_idx) in x.outer_iter().zip(assignments.iter()) {
+                    cluster_summaries[*cluster_idx].update(&sample);
+                }
             }
 
             // Update centroids from summaries

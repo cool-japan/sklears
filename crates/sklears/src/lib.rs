@@ -1,17 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(unused_mut)]
-#![allow(unused_assignments)]
-#![allow(unused_doc_comments)]
-#![allow(unused_parens)]
-#![allow(unused_comparisons)]
 //! # sklears - Machine Learning in Rust
 //!
 //! A comprehensive machine learning library inspired by scikit-learn's intuitive API,

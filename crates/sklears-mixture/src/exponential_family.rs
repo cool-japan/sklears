@@ -56,8 +56,8 @@ pub enum ExponentialFamilyType {
 ///     .n_components(2)
 ///     .family_type(ExponentialFamilyType::Poisson)
 ///     .max_iter(100);
-/// let fitted = model.fit(&X.view(), &()).unwrap();
-/// let labels = fitted.predict(&X.view()).unwrap();
+/// let fitted = model.fit(&X.view(), &()).expect("exponential family mixture fitting should succeed with valid data");
+/// let labels = fitted.predict(&X.view()).expect("prediction should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct ExponentialFamilyMixture<S = Untrained> {
@@ -70,6 +70,7 @@ pub struct ExponentialFamilyMixture<S = Untrained> {
     random_state: Option<u64>,
 }
 
+#[allow(non_snake_case, clippy::too_many_arguments)]
 impl ExponentialFamilyMixture<Untrained> {
     /// Create a new ExponentialFamilyMixture instance
     pub fn new() -> Self {
@@ -238,8 +239,7 @@ impl ExponentialFamilyMixture<Untrained> {
 
                 for k in 0..self.n_components {
                     let p = (sample_mean + 0.1 * (k as f64 - self.n_components as f64 / 2.0))
-                        .max(0.01)
-                        .min(0.99);
+                        .clamp(0.01, 0.99);
                     params[[k, 0]] = (p / (1.0 - p)).ln();
                 }
                 Ok(params)
@@ -796,6 +796,7 @@ impl ExponentialFamilyMixture<ExponentialFamilyMixtureTrained> {
     }
 
     /// Compute the log-likelihood score of the samples
+    #[allow(non_snake_case)]
     pub fn score(&self, X: &ArrayView2<'_, Float>) -> SklResult<f64> {
         let scores = self.score_samples(X)?;
         Ok(scores.sum())

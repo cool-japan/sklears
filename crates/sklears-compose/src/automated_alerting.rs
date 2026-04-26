@@ -320,6 +320,7 @@ pub struct ConsoleAlertChannel {
 
 /// Email alert channel
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct EmailAlertChannel {
     /// Channel name
     name: String,
@@ -337,6 +338,7 @@ pub struct EmailAlertChannel {
 
 /// Webhook alert channel
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct WebhookAlertChannel {
     /// Channel name
     name: String,
@@ -352,6 +354,7 @@ pub struct WebhookAlertChannel {
 
 /// Slack alert channel
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct SlackAlertChannel {
     /// Channel name
     name: String,

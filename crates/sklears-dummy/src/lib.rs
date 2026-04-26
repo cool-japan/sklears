@@ -1,18 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(unused_mut)]
-#![allow(unused_assignments)]
-#![allow(unused_doc_comments)]
-#![allow(unused_parens)]
-#![allow(unused_comparisons)]
-#![allow(ambiguous_glob_reexports)]
 //! Dummy estimators for baseline comparisons
 //!
 //! This module provides simple baseline estimators that ignore the input features

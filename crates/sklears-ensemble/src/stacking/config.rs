@@ -51,9 +51,10 @@ pub enum MetaLearningStrategy {
 }
 
 /// Advanced meta-feature engineering strategies
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum MetaFeatureStrategy {
     /// Raw predictions only (default)
+    #[default]
     Raw,
     /// Include statistical transformations (mean, std, skew, etc.)
     Statistical,
@@ -81,12 +82,6 @@ pub enum MetaFeatureStrategy {
     BasisExpansion,
     /// Meta-learning features
     MetaLearning,
-}
-
-impl Default for MetaFeatureStrategy {
-    fn default() -> Self {
-        Self::Raw
-    }
 }
 
 /// Configuration for a single stacking layer

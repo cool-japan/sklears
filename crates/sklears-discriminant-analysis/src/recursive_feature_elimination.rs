@@ -66,6 +66,7 @@ pub struct TrainedRecursiveFeatureElimination {
     /// Number of features originally present
     n_features_in: usize,
     /// Configuration used for training
+    #[allow(dead_code)] // retained for future serialisation / re-fit support
     config: RecursiveFeatureEliminationConfig,
     /// Feature elimination history
     elimination_history: Vec<EliminationStep>,
@@ -393,8 +394,11 @@ impl Fit<Array2<Float>, Array1<i32>> for RecursiveFeatureElimination {
 
             // Eliminate the least important features
             let mut eliminated_features = Vec::new();
-            for i in 0..features_to_eliminate {
-                let feature_idx = feature_importance_pairs[i].0;
+            for (i, &(feature_idx, _)) in feature_importance_pairs
+                .iter()
+                .enumerate()
+                .take(features_to_eliminate)
+            {
                 current_features.remove(&feature_idx);
                 ranking[feature_idx] = rank_counter - i;
                 eliminated_features.push(feature_idx);

@@ -86,6 +86,7 @@ impl LandmarkGraphConstruction {
     }
 
     /// Construct landmark-based graph
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(&self, X: &ArrayView2<f64>) -> Result<LandmarkGraphResult, SklearsError> {
         let n_samples = X.nrows();
 
@@ -114,6 +115,7 @@ impl LandmarkGraphConstruction {
     }
 
     /// Select landmarks using different strategies
+    #[allow(non_snake_case)] // standard ML notation
     fn select_landmarks(
         &self,
         X: &ArrayView2<f64>,
@@ -133,6 +135,7 @@ impl LandmarkGraphConstruction {
     }
 
     /// Random landmark selection
+    #[allow(non_snake_case)] // standard ML notation
     fn random_landmarks(
         &self,
         X: &ArrayView2<f64>,
@@ -141,7 +144,7 @@ impl LandmarkGraphConstruction {
     ) -> Result<(Vec<usize>, Array2<f64>), SklearsError> {
         let n_samples = X.nrows();
         let indices: Vec<usize> = (0..n_samples)
-            .choose_multiple(rng, n_landmarks)
+            .sample(rng, n_landmarks)
             .into_iter()
             .collect();
 
@@ -154,6 +157,7 @@ impl LandmarkGraphConstruction {
     }
 
     /// K-means based landmark selection
+    #[allow(non_snake_case)] // standard ML notation
     fn kmeans_landmarks(
         &self,
         X: &ArrayView2<f64>,
@@ -259,6 +263,7 @@ impl LandmarkGraphConstruction {
     }
 
     /// Farthest-first landmark selection
+    #[allow(non_snake_case)] // standard ML notation
     fn farthest_first_landmarks(
         &self,
         X: &ArrayView2<f64>,
@@ -312,6 +317,7 @@ impl LandmarkGraphConstruction {
     }
 
     /// Density-based landmark selection
+    #[allow(non_snake_case)] // standard ML notation
     fn density_based_landmarks(
         &self,
         X: &ArrayView2<f64>,
@@ -343,7 +349,7 @@ impl LandmarkGraphConstruction {
         let total_density: f64 = densities.sum();
 
         if total_density > 0.0 {
-            for iteration in 0..n_landmarks {
+            for _iteration in 0..n_landmarks {
                 let threshold = rng.random::<f64>() * total_density;
                 let mut cumulative = 0.0;
                 let previous_len = landmark_indices.len();
@@ -384,6 +390,7 @@ impl LandmarkGraphConstruction {
     }
 
     /// Estimate radius for density computation
+    #[allow(non_snake_case)] // standard ML notation
     fn estimate_density_radius(&self, X: &ArrayView2<f64>) -> Result<f64, SklearsError> {
         let n_samples = X.nrows();
         let sample_size = (n_samples / 10).clamp(10, 100);
@@ -412,6 +419,7 @@ impl LandmarkGraphConstruction {
     }
 
     /// Construct graph based on landmarks
+    #[allow(non_snake_case)] // standard ML notation
     fn construct_landmark_graph(
         &self,
         X: &ArrayView2<f64>,
@@ -430,6 +438,7 @@ impl LandmarkGraphConstruction {
     }
 
     /// K-NN to landmarks graph construction
+    #[allow(non_snake_case)] // standard ML notation
     fn knn_to_landmarks_graph(
         &self,
         X: &ArrayView2<f64>,
@@ -519,6 +528,7 @@ impl LandmarkGraphConstruction {
     }
 
     /// RBF to landmarks graph construction
+    #[allow(non_snake_case)] // standard ML notation
     fn rbf_to_landmarks_graph(
         &self,
         X: &ArrayView2<f64>,
@@ -567,10 +577,11 @@ impl LandmarkGraphConstruction {
     }
 
     /// Interpolation-based graph construction
+    #[allow(non_snake_case)] // standard ML notation
     fn interpolation_graph(
         &self,
         X: &ArrayView2<f64>,
-        landmarks: &Array2<f64>,
+        _landmarks: &Array2<f64>,
         landmark_indices: &[usize],
     ) -> Result<Array2<f64>, SklearsError> {
         let n_samples = X.nrows();
@@ -596,7 +607,7 @@ impl LandmarkGraphConstruction {
 
             // Find nearest landmarks
             let mut landmark_distances: Vec<(f64, usize)> = Vec::new();
-            for (l_idx, &landmark_idx) in landmark_indices.iter().enumerate() {
+            for &landmark_idx in landmark_indices.iter() {
                 let dist = self.euclidean_distance(&X.row(i), &X.row(landmark_idx));
                 landmark_distances.push((dist, landmark_idx));
             }
@@ -727,6 +738,7 @@ impl LandmarkLabelPropagation {
     }
 
     /// Perform landmark-based label propagation
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit_predict(
         &self,
         X: &ArrayView2<f64>,
@@ -844,6 +856,7 @@ impl LandmarkLabelPropagation {
     }
 
     /// Normalize adjacency matrix to transition matrix
+    #[allow(non_snake_case)] // standard ML notation
     fn normalize_adjacency(&self, adjacency: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
         let n_samples = adjacency.nrows();
         let mut P = adjacency.clone();
@@ -871,7 +884,6 @@ impl Default for LandmarkLabelPropagation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::array;
 
     #[test]
@@ -996,7 +1008,7 @@ mod tests {
         let y = array![0, 1, -1, -1, -1, -1]; // First two are labeled
 
         let llp = LandmarkLabelPropagation::new();
-        let mut graph_constructor = LandmarkGraphConstruction::new()
+        let graph_constructor = LandmarkGraphConstruction::new()
             .n_landmarks(3)
             .random_state(42);
 

@@ -54,12 +54,14 @@ pub mod popcount {
         }
     }
 
-    /// Scalar implementation for u64 popcount
+    /// Scalar implementation for u64 popcount (fallback for non-x86/non-aarch64 targets)
+    #[allow(dead_code)] // Used at runtime on non-SIMD targets; dead on x86_64 when SIMD is available
     fn popcount_u64_slice_scalar(data: &[u64]) -> usize {
         data.iter().map(|&x| x.count_ones() as usize).sum()
     }
 
-    /// Scalar implementation for u32 popcount
+    /// Scalar implementation for u32 popcount (fallback for non-x86/non-aarch64 targets)
+    #[allow(dead_code)] // Used at runtime on non-SIMD targets; dead on x86_64 when SIMD is available
     fn popcount_u32_slice_scalar(data: &[u32]) -> usize {
         data.iter().map(|&x| x.count_ones() as usize).sum()
     }
@@ -625,9 +627,9 @@ pub mod boolean_indexing {
             }
 
             // Extract elements based on mask
-            for i in 0..8 {
+            for (i, &val) in data_chunk.iter().enumerate().take(8) {
                 if mask_bits & (1 << i) != 0 {
-                    result.push(data_chunk[i]);
+                    result.push(val);
                 }
             }
         }
@@ -714,7 +716,7 @@ mod tests {
     #[test]
     fn test_popcount_u64() {
         let data = vec![0xFF, 0x00, 0xF0F0F0F0F0F0F0F0, 0x5555555555555555];
-        let expected = 8 + 0 + 32 + 32; // 72 total bits
+        let expected = 8 + 32 + 32; // 72 total bits
 
         let result = popcount::popcount_u64_slice(&data);
         assert_eq!(result, expected);
@@ -723,7 +725,7 @@ mod tests {
     #[test]
     fn test_popcount_u32() {
         let data = vec![0xFF, 0x00, 0xF0F0F0F0, 0x55555555];
-        let expected = 8 + 0 + 16 + 16; // 40 total bits
+        let expected = 8 + 16 + 16; // 40 total bits
 
         let result = popcount::popcount_u32_slice(&data);
         assert_eq!(result, expected);

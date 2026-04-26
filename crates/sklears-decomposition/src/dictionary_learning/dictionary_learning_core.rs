@@ -303,17 +303,9 @@ impl Transform<Array2<Float>, Array2<Float>> for DictionaryLearning<Trained> {
 }
 
 /// Builder for Dictionary Learning
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DictionaryLearningBuilder {
     config: DictionaryLearningConfig,
-}
-
-impl Default for DictionaryLearningBuilder {
-    fn default() -> Self {
-        Self {
-            config: DictionaryLearningConfig::default(),
-        }
-    }
 }
 
 impl DictionaryLearningBuilder {

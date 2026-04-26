@@ -188,6 +188,8 @@ fn compute_quantiles(
 
 /// Compute the inverse of the error function (for normal distribution)
 /// Uses an accurate rational approximation by Winitzki (2008)
+/// Retained as a simpler/faster alternative to `erfinv_accurate` for benchmarking purposes.
+#[allow(dead_code)]
 fn erfinv(x: Float) -> Float {
     if x.abs() >= 1.0 {
         return if x > 0.0 {
@@ -717,7 +719,7 @@ mod tests {
         assert_abs_diff_eq!(uniform_to_normal(0.5, true), 0.0, epsilon = 1e-4);
 
         // Test that it's monotonic
-        let values = vec![0.1, 0.3, 0.5, 0.7, 0.9];
+        let values = [0.1, 0.3, 0.5, 0.7, 0.9];
         let transformed: Vec<Float> = values.iter().map(|&v| uniform_to_normal(v, true)).collect();
 
         for i in 1..transformed.len() {
@@ -814,7 +816,7 @@ mod tests {
         );
 
         // Test that it's monotonic
-        let values = vec![-0.9, -0.5, 0.0, 0.5, 0.9];
+        let values = [-0.9, -0.5, 0.0, 0.5, 0.9];
         let transformed: Vec<Float> = values.iter().map(|&v| erfinv_accurate(v)).collect();
 
         for i in 1..transformed.len() {
@@ -851,7 +853,7 @@ mod tests {
         assert_eq!(qt.config.n_quantiles, 500);
         assert_eq!(qt.config.output_distribution, QuantileOutput::Normal);
         assert_eq!(qt.config.subsample, Some(1000));
-        assert_eq!(qt.config.clip, false);
+        assert!(!qt.config.clip);
         assert_eq!(qt.config.ignore_outliers, Some((0.05, 0.95)));
     }
 

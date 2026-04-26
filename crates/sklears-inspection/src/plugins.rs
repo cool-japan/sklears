@@ -1202,7 +1202,7 @@ mod tests {
             .insert("integer_param".to_string(), PluginParameter::Integer(42));
         config
             .parameters
-            .insert("float_param".to_string(), PluginParameter::Float(3.14));
+            .insert("float_param".to_string(), PluginParameter::Float(1.23));
         config.parameters.insert(
             "string_param".to_string(),
             PluginParameter::String("test".to_string()),
@@ -1219,7 +1219,7 @@ mod tests {
         }
 
         match config.parameters.get("float_param") {
-            Some(PluginParameter::Float(val)) => assert_eq!(*val, 3.14),
+            Some(PluginParameter::Float(val)) => assert_eq!(*val, 1.23),
             _ => panic!("Expected float parameter"),
         }
     }

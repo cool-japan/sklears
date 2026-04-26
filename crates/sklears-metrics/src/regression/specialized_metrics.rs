@@ -139,7 +139,7 @@ pub fn relative_error_metrics(
     let mut sorted_errors = relative_errors;
     sorted_errors.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let n = sorted_errors.len();
-    let median_rel_error = if n % 2 == 0 {
+    let median_rel_error = if n.is_multiple_of(2) {
         (sorted_errors[n / 2 - 1] + sorted_errors[n / 2]) / 2.0
     } else {
         sorted_errors[n / 2]

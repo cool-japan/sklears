@@ -277,6 +277,7 @@ pub enum EntanglementPattern {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum ErrorCorrectionCode {
     /// SurfaceCode
     SurfaceCode,
@@ -286,7 +287,7 @@ pub enum ErrorCorrectionCode {
     ShorCode,
     /// RepetitionCode
     RepetitionCode,
-    /// CSS
+    /// CSS (Calderbank-Shor-Steane) code
     CSS,
 }
 
@@ -416,7 +417,7 @@ impl<
     fn create_quantum_feature_map(
         &self,
         features: &DMatrix<T>,
-        class_indices: &[usize],
+        _class_indices: &[usize],
     ) -> Result<QuantumFeatureMap<T>, QuantumError> {
         let num_features = features.ncols();
         let mut quantum_gates = Vec::new();

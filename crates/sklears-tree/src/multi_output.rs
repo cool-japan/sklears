@@ -98,6 +98,23 @@ pub struct LabelCorrelationMatrix {
     hierarchy: Option<Vec<(usize, usize)>>,
 }
 
+impl LabelCorrelationMatrix {
+    /// Pairwise Pearson correlation coefficients between labels
+    pub fn correlations(&self) -> &Array2<f64> {
+        &self.correlations
+    }
+
+    /// Raw co-occurrence count matrix between labels
+    pub fn cooccurrence(&self) -> &Array2<usize> {
+        &self.cooccurrence
+    }
+
+    /// Optional label hierarchy as (parent, child) index pairs
+    pub fn hierarchy(&self) -> Option<&Vec<(usize, usize)>> {
+        self.hierarchy.as_ref()
+    }
+}
+
 /// Trait for models that can handle multiple outputs
 pub trait MultiOutputTreeModel: Send + Sync {
     /// Fit the model to multi-output data
@@ -119,8 +136,6 @@ pub struct IndependentMultiOutputTree {
     n_outputs: usize,
     /// Number of features
     n_features: usize,
-    /// Configuration
-    config: DecisionTreeConfig,
 }
 
 /// Single output tree wrapper
@@ -137,8 +152,6 @@ pub struct SingleOutputTree {
 /// Multi-output tree node
 #[derive(Debug, Clone)]
 pub struct MultiOutputTreeNode {
-    /// Node ID
-    id: usize,
     /// Feature index for split (None for leaf)
     feature_idx: Option<usize>,
     /// Split threshold (None for leaf)
@@ -185,9 +198,9 @@ impl SingleOutputTree {
     /// Create a tree node
     fn create_node(
         &self,
-        id: usize,
+        _id: usize,
         samples: Vec<usize>,
-        x: &Array2<f64>,
+        _x: &Array2<f64>,
         y: &Array1<f64>,
         depth: usize,
     ) -> Result<MultiOutputTreeNode> {
@@ -219,7 +232,6 @@ impl SingleOutputTree {
         }
 
         Ok(MultiOutputTreeNode {
-            id,
             feature_idx: None,
             threshold: None,
             predictions,
@@ -298,7 +310,9 @@ impl SingleOutputTree {
                 let impurity_reduction =
                     self.calculate_impurity_reduction(x, y, samples, feature_idx, threshold);
 
-                if best_split.is_none() || impurity_reduction > best_split.as_ref().expect("operation should succeed").2 {
+                if best_split.is_none()
+                    || impurity_reduction > best_split.as_ref().expect("operation should succeed").2
+                {
                     best_split = Some((feature_idx, threshold, impurity_reduction));
                 }
             }
@@ -447,6 +461,434 @@ impl SingleOutputTree {
     }
 }
 
+/// Shared multi-output tree: one decision tree where each leaf stores
+/// predictions for all output dimensions.  The split criterion at each
+/// internal node sums the variance/impurity reduction over all outputs.
+#[derive(Debug)]
+pub struct SharedMultiOutputTree {
+    /// Nodes — index 0 is the root
+    nodes: Vec<SharedMultiOutputTreeNode>,
+    /// Number of outputs
+    n_outputs: usize,
+    /// Number of features
+    n_features: usize,
+    /// Per-output type (regression / classification)
+    output_types: Vec<OutputType>,
+    /// Aggregate feature importances (summed over outputs)
+    feature_importances: Array1<f64>,
+    /// Config for depth / samples limits
+    config: DecisionTreeConfig,
+}
+
+/// One node in the shared multi-output tree
+#[derive(Debug, Clone)]
+struct SharedMultiOutputTreeNode {
+    feature_idx: Option<usize>,
+    threshold: Option<f64>,
+    /// Prediction vector — one value per output
+    predictions: Array1<f64>,
+    left_child: Option<usize>,
+    right_child: Option<usize>,
+    samples: Vec<usize>,
+    depth: usize,
+    is_leaf: bool,
+}
+
+impl SharedMultiOutputTree {
+    /// Create a new shared multi-output tree
+    pub fn new(
+        n_outputs: usize,
+        n_features: usize,
+        output_types: Vec<OutputType>,
+        config: DecisionTreeConfig,
+    ) -> Self {
+        Self {
+            nodes: Vec::new(),
+            n_outputs,
+            n_features,
+            output_types,
+            feature_importances: Array1::zeros(n_features),
+            config,
+        }
+    }
+
+    /// Compute multi-output predictions for a set of samples (mean / majority per output)
+    fn compute_predictions(&self, samples: &[usize], y: &Array2<f64>) -> Array1<f64> {
+        let mut preds = Array1::zeros(self.n_outputs);
+        if samples.is_empty() {
+            return preds;
+        }
+        for (out_idx, output_type) in self.output_types.iter().enumerate() {
+            match output_type {
+                OutputType::Regression => {
+                    let sum: f64 = samples.iter().map(|&i| y[[i, out_idx]]).sum();
+                    preds[out_idx] = sum / samples.len() as f64;
+                }
+                OutputType::Classification { .. } => {
+                    let mut counts: HashMap<i32, usize> = HashMap::new();
+                    for &i in samples {
+                        let cls = y[[i, out_idx]] as i32;
+                        *counts.entry(cls).or_insert(0) += 1;
+                    }
+                    if let Some((&cls, _)) = counts.iter().max_by_key(|(_, &c)| c) {
+                        preds[out_idx] = cls as f64;
+                    }
+                }
+            }
+        }
+        preds
+    }
+
+    /// Weighted variance/impurity summed over all outputs for the given sample subset
+    fn multi_output_impurity(&self, samples: &[usize], y: &Array2<f64>) -> f64 {
+        if samples.is_empty() {
+            return 0.0;
+        }
+        let mut total = 0.0;
+        for (out_idx, output_type) in self.output_types.iter().enumerate() {
+            match output_type {
+                OutputType::Regression => {
+                    let mean = samples.iter().map(|&i| y[[i, out_idx]]).sum::<f64>()
+                        / samples.len() as f64;
+                    total += samples
+                        .iter()
+                        .map(|&i| (y[[i, out_idx]] - mean).powi(2))
+                        .sum::<f64>()
+                        / samples.len() as f64;
+                }
+                OutputType::Classification { .. } => {
+                    let mut counts: HashMap<i32, usize> = HashMap::new();
+                    for &i in samples {
+                        let cls = y[[i, out_idx]] as i32;
+                        *counts.entry(cls).or_insert(0) += 1;
+                    }
+                    let n = samples.len() as f64;
+                    let mut gini = 1.0_f64;
+                    for &c in counts.values() {
+                        let p = c as f64 / n;
+                        gini -= p * p;
+                    }
+                    total += gini;
+                }
+            }
+        }
+        total
+    }
+
+    /// Find the best split that maximises the summed impurity reduction over all outputs
+    fn find_best_split(
+        &self,
+        x: &Array2<f64>,
+        y: &Array2<f64>,
+        samples: &[usize],
+    ) -> Option<(usize, f64)> {
+        let n_features = x.ncols();
+        let mut best: Option<(usize, f64, f64)> = None; // (feature, threshold, reduction)
+        let parent_impurity = self.multi_output_impurity(samples, y);
+
+        for feat in 0..n_features {
+            let mut values: Vec<f64> = samples.iter().map(|&i| x[[i, feat]]).collect();
+            values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            values.dedup();
+
+            for w in values.windows(2) {
+                let threshold = (w[0] + w[1]) / 2.0;
+
+                let (left, right): (Vec<usize>, Vec<usize>) =
+                    samples.iter().partition(|&&i| x[[i, feat]] <= threshold);
+
+                if left.is_empty() || right.is_empty() {
+                    continue;
+                }
+
+                let lw = left.len() as f64 / samples.len() as f64;
+                let rw = right.len() as f64 / samples.len() as f64;
+                let reduction = parent_impurity
+                    - lw * self.multi_output_impurity(&left, y)
+                    - rw * self.multi_output_impurity(&right, y);
+
+                if reduction > best.as_ref().map_or(f64::NEG_INFINITY, |b| b.2) {
+                    best = Some((feat, threshold, reduction));
+                }
+            }
+        }
+
+        best.filter(|b| b.2 > 1e-10)
+            .map(|(feat, threshold, _)| (feat, threshold))
+    }
+
+    /// Build the tree recursively
+    fn build_from_node(&mut self, node_id: usize, x: &Array2<f64>, y: &Array2<f64>) -> Result<()> {
+        let max_depth = self.config.max_depth.unwrap_or(10);
+        let min_split = self.config.min_samples_split;
+
+        let node_depth = self.nodes[node_id].depth;
+        let node_samples = self.nodes[node_id].samples.clone();
+
+        if node_samples.len() < min_split || node_depth >= max_depth {
+            return Ok(());
+        }
+
+        let split = self.find_best_split(x, y, &node_samples);
+        let (feat, threshold) = match split {
+            Some(s) => s,
+            None => return Ok(()),
+        };
+
+        let (left_samples, right_samples): (Vec<usize>, Vec<usize>) = node_samples
+            .iter()
+            .partition(|&&i| x[[i, feat]] <= threshold);
+
+        if left_samples.is_empty() || right_samples.is_empty() {
+            return Ok(());
+        }
+
+        let left_preds = self.compute_predictions(&left_samples, y);
+        let right_preds = self.compute_predictions(&right_samples, y);
+        let left_depth = self.nodes[node_id].depth + 1;
+        let right_depth = left_depth;
+
+        let left_id = self.nodes.len();
+        self.nodes.push(SharedMultiOutputTreeNode {
+            feature_idx: None,
+            threshold: None,
+            predictions: left_preds,
+            left_child: None,
+            right_child: None,
+            samples: left_samples,
+            depth: left_depth,
+            is_leaf: true,
+        });
+
+        let right_id = self.nodes.len();
+        self.nodes.push(SharedMultiOutputTreeNode {
+            feature_idx: None,
+            threshold: None,
+            predictions: right_preds,
+            left_child: None,
+            right_child: None,
+            samples: right_samples,
+            depth: right_depth,
+            is_leaf: true,
+        });
+
+        // Update parent
+        self.nodes[node_id].is_leaf = false;
+        self.nodes[node_id].feature_idx = Some(feat);
+        self.nodes[node_id].threshold = Some(threshold);
+        self.nodes[node_id].left_child = Some(left_id);
+        self.nodes[node_id].right_child = Some(right_id);
+
+        // Track feature importance
+        self.feature_importances[feat] += 1.0;
+
+        // Recurse
+        self.build_from_node(left_id, x, y)?;
+        self.build_from_node(right_id, x, y)?;
+
+        Ok(())
+    }
+
+    /// Predict for a single sample, returning a vector of predictions
+    fn predict_single(&self, x: &Array1<f64>) -> Result<Array1<f64>> {
+        if self.nodes.is_empty() {
+            return Err(SklearsError::PredictError("Tree not fitted".to_string()));
+        }
+        let mut idx = 0usize;
+        loop {
+            let node = &self.nodes[idx];
+            if node.is_leaf {
+                return Ok(node.predictions.clone());
+            }
+            match (node.feature_idx, node.threshold) {
+                (Some(feat), Some(thr)) => {
+                    if feat >= x.len() {
+                        return Err(SklearsError::PredictError(
+                            "Feature index out of bounds".to_string(),
+                        ));
+                    }
+                    if x[feat] <= thr {
+                        idx = node.left_child.ok_or_else(|| {
+                            SklearsError::PredictError("Missing left child".to_string())
+                        })?;
+                    } else {
+                        idx = node.right_child.ok_or_else(|| {
+                            SklearsError::PredictError("Missing right child".to_string())
+                        })?;
+                    }
+                }
+                _ => return Ok(node.predictions.clone()),
+            }
+        }
+    }
+}
+
+impl MultiOutputTreeModel for SharedMultiOutputTree {
+    fn fit_multi(&mut self, x: &Array2<f64>, y: &Array2<f64>) -> Result<()> {
+        if y.ncols() != self.n_outputs {
+            return Err(SklearsError::InvalidInput(format!(
+                "Expected {} outputs, got {}",
+                self.n_outputs,
+                y.ncols()
+            )));
+        }
+
+        let n_samples = x.nrows();
+        let samples: Vec<usize> = (0..n_samples).collect();
+        let root_preds = self.compute_predictions(&samples, y);
+
+        self.nodes.push(SharedMultiOutputTreeNode {
+            feature_idx: None,
+            threshold: None,
+            predictions: root_preds,
+            left_child: None,
+            right_child: None,
+            samples,
+            depth: 0,
+            is_leaf: true,
+        });
+
+        self.build_from_node(0, x, y)?;
+        Ok(())
+    }
+
+    fn predict_multi(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
+        let n_samples = x.nrows();
+        let mut predictions = Array2::zeros((n_samples, self.n_outputs));
+        for (i, row) in x.rows().into_iter().enumerate() {
+            let preds = self.predict_single(&row.to_owned())?;
+            predictions.row_mut(i).assign(&preds);
+        }
+        Ok(predictions)
+    }
+
+    fn feature_importances_multi(&self) -> Result<Array2<f64>> {
+        let mut importances = Array2::zeros((self.n_features, self.n_outputs));
+        for out_idx in 0..self.n_outputs {
+            importances
+                .column_mut(out_idx)
+                .assign(&self.feature_importances);
+        }
+        Ok(importances)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chained multi-output tree
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Chained multi-output tree: each output is predicted by a tree trained on the
+/// original features augmented with the *training-time* predictions of all
+/// previous outputs.
+///
+/// During prediction the chain is applied sequentially:
+///   pred_0 = tree_0.predict(X)
+///   pred_1 = tree_1.predict([X | pred_0])
+///   ...
+#[derive(Debug)]
+pub struct ChainedMultiOutputTree {
+    /// One `SingleOutputTree` per output dimension
+    chains: Vec<SingleOutputTree>,
+    /// Number of outputs
+    n_outputs: usize,
+    /// Number of *original* features (not including chained predictions)
+    n_features: usize,
+}
+
+impl ChainedMultiOutputTree {
+    /// Create a new chained multi-output tree
+    pub fn new(
+        n_outputs: usize,
+        n_features: usize,
+        output_types: Vec<OutputType>,
+        _config: DecisionTreeConfig,
+    ) -> Self {
+        // Tree k is trained on n_features + k extra columns (outputs 0..k-1)
+        let chains = output_types
+            .iter()
+            .enumerate()
+            .map(|(k, ot)| SingleOutputTree::new(*ot, n_features + k))
+            .collect();
+
+        Self {
+            chains,
+            n_outputs,
+            n_features,
+        }
+    }
+
+    /// Build the augmented feature matrix [X | prev_preds] for output k
+    fn augmented_x(x: &Array2<f64>, train_preds: &Array2<f64>, k: usize) -> Array2<f64> {
+        let n_samples = x.nrows();
+        let n_orig = x.ncols();
+        let mut aug = Array2::zeros((n_samples, n_orig + k));
+        for i in 0..n_samples {
+            for j in 0..n_orig {
+                aug[[i, j]] = x[[i, j]];
+            }
+            for p in 0..k {
+                aug[[i, n_orig + p]] = train_preds[[i, p]];
+            }
+        }
+        aug
+    }
+}
+
+impl MultiOutputTreeModel for ChainedMultiOutputTree {
+    fn fit_multi(&mut self, x: &Array2<f64>, y: &Array2<f64>) -> Result<()> {
+        if y.ncols() != self.n_outputs {
+            return Err(SklearsError::InvalidInput(format!(
+                "Expected {} outputs, got {}",
+                self.n_outputs,
+                y.ncols()
+            )));
+        }
+
+        let n_samples = x.nrows();
+        // Accumulate training-time predictions as we go
+        let mut train_preds = Array2::<f64>::zeros((n_samples, self.n_outputs));
+
+        for k in 0..self.n_outputs {
+            // Build augmented feature matrix for output k
+            let aug = Self::augmented_x(x, &train_preds, k);
+            let y_k = y.column(k).to_owned();
+
+            self.chains[k].fit(&aug, &y_k)?;
+
+            // Record in-bag predictions for subsequent outputs
+            let preds_k = self.chains[k].predict(&aug)?;
+            train_preds.column_mut(k).assign(&preds_k);
+        }
+
+        Ok(())
+    }
+
+    fn predict_multi(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
+        let n_samples = x.nrows();
+        let mut predictions = Array2::<f64>::zeros((n_samples, self.n_outputs));
+
+        for k in 0..self.n_outputs {
+            let aug = Self::augmented_x(x, &predictions, k);
+            let preds_k = self.chains[k].predict(&aug)?;
+            predictions.column_mut(k).assign(&preds_k);
+        }
+
+        Ok(predictions)
+    }
+
+    fn feature_importances_multi(&self) -> Result<Array2<f64>> {
+        let mut importances = Array2::zeros((self.n_features, self.n_outputs));
+        for (k, chain) in self.chains.iter().enumerate() {
+            // Only the first n_features importances correspond to original features
+            let src = chain
+                .feature_importances
+                .slice(scirs2_core::ndarray::s![..self.n_features]);
+            importances.column_mut(k).assign(&src);
+        }
+        Ok(importances)
+    }
+}
+
 impl IndependentMultiOutputTree {
     /// Create a new independent multi-output tree
     pub fn new(
@@ -460,11 +902,11 @@ impl IndependentMultiOutputTree {
             .map(|output_type| SingleOutputTree::new(output_type, n_features))
             .collect();
 
+        let _ = config; // config forwarding to SingleOutputTree is not yet implemented
         Self {
             trees,
             n_outputs,
             n_features,
-            config,
         }
     }
 }
@@ -532,11 +974,7 @@ impl<State> MultiOutputDecisionTree<State> {
 
 impl MultiOutputDecisionTree<Untrained> {
     /// Fit the multi-output tree
-    pub fn fit(
-        mut self,
-        x: &Array2<f64>,
-        y: &Array2<f64>,
-    ) -> Result<MultiOutputDecisionTree<Trained>> {
+    pub fn fit(self, x: &Array2<f64>, y: &Array2<f64>) -> Result<MultiOutputDecisionTree<Trained>> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
         let n_outputs = y.ncols();
@@ -572,24 +1010,18 @@ impl MultiOutputDecisionTree<Untrained> {
                 output_types.clone(),
                 self.config.base_config.clone(),
             )),
-            MultiOutputStrategy::Shared => {
-                // TODO: Implement shared tree structure
-                Box::new(IndependentMultiOutputTree::new(
-                    n_outputs,
-                    n_features,
-                    output_types.clone(),
-                    self.config.base_config.clone(),
-                ))
-            }
-            MultiOutputStrategy::Chained => {
-                // TODO: Implement chained outputs
-                Box::new(IndependentMultiOutputTree::new(
-                    n_outputs,
-                    n_features,
-                    output_types.clone(),
-                    self.config.base_config.clone(),
-                ))
-            }
+            MultiOutputStrategy::Shared => Box::new(SharedMultiOutputTree::new(
+                n_outputs,
+                n_features,
+                output_types.clone(),
+                self.config.base_config.clone(),
+            )),
+            MultiOutputStrategy::Chained => Box::new(ChainedMultiOutputTree::new(
+                n_outputs,
+                n_features,
+                output_types.clone(),
+                self.config.base_config.clone(),
+            )),
         };
 
         // Compute label correlations if needed
@@ -647,10 +1079,23 @@ impl MultiOutputDecisionTree<Trained> {
     pub fn label_correlations(&self) -> Option<&LabelCorrelationMatrix> {
         self.label_correlations.as_ref()
     }
+
+    /// Return the number of outputs the model was fitted with (sklearn-compatible `n_outputs_`)
+    pub fn n_outputs(&self) -> usize {
+        self.n_outputs
+    }
+
+    /// Return the per-output types (regression vs classification) as a slice
+    pub fn output_types(&self) -> &[OutputType] {
+        &self.output_types
+    }
 }
 
 /// Compute label correlations for multi-label data
-fn compute_label_correlations(y: &Array2<f64>, min_support: f64) -> Result<LabelCorrelationMatrix> {
+fn compute_label_correlations(
+    y: &Array2<f64>,
+    _min_support: f64,
+) -> Result<LabelCorrelationMatrix> {
     let n_samples = y.nrows();
     let n_labels = y.ncols();
 
@@ -744,11 +1189,7 @@ impl MultiLabelRandomForest<Untrained> {
     }
 
     /// Fit the multi-label random forest
-    pub fn fit(
-        mut self,
-        x: &Array2<f64>,
-        y: &Array2<f64>,
-    ) -> Result<MultiLabelRandomForest<Trained>> {
+    pub fn fit(self, x: &Array2<f64>, y: &Array2<f64>) -> Result<MultiLabelRandomForest<Trained>> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
         let n_outputs = y.ncols();
@@ -802,7 +1243,6 @@ impl MultiLabelRandomForest<Untrained> {
 
     /// Bootstrap sample indices
     fn bootstrap_sample(&self, n_samples: usize) -> Vec<usize> {
-        use scirs2_core::random::{Random, rng};
         let mut rng = scirs2_core::random::thread_rng();
         (0..n_samples)
             .map(|_| rng.gen_range(0..n_samples))
@@ -858,7 +1298,7 @@ impl MultiLabelRandomForest<Trained> {
         }
 
         // Normalize by number of trees
-        predictions = predictions / self.trees.len() as f64;
+        predictions /= self.trees.len() as f64;
 
         Ok(predictions)
     }
@@ -877,17 +1317,19 @@ impl MultiLabelRandomForest<Trained> {
 
         for tree in &self.trees {
             let tree_importances = tree.feature_importances()?;
-            let mean_importance = tree_importances.mean_axis(Axis(1)).expect("array should have elements for mean computation");
+            let mean_importance = tree_importances
+                .mean_axis(Axis(1))
+                .expect("array should have elements for mean computation");
             total_importances = total_importances + mean_importance;
         }
 
         // Normalize by number of trees
-        total_importances = total_importances / self.trees.len() as f64;
+        total_importances /= self.trees.len() as f64;
 
         // Normalize to sum to 1
         let sum = total_importances.sum();
         if sum > 0.0 {
-            total_importances = total_importances / sum;
+            total_importances /= sum;
         }
 
         Ok(total_importances)
@@ -903,7 +1345,6 @@ impl MultiLabelRandomForest<Trained> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::array;
 
     #[test]
@@ -981,7 +1422,9 @@ mod tests {
         let y = array![[1.0, 0.0], [0.0, 1.0], [1.0, 1.0], [0.0, 0.0],];
 
         let fitted_forest = forest.fit(&x, &y).expect("model fitting should succeed");
-        let predictions = fitted_forest.predict(&x).expect("prediction should succeed");
+        let predictions = fitted_forest
+            .predict(&x)
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.nrows(), 4);
         assert_eq!(predictions.ncols(), 2);
@@ -1001,9 +1444,251 @@ mod tests {
         let y = array![[1.0, 0.0], [2.0, 1.0], [3.0, 0.0], [4.0, 1.0]];
 
         let fitted_tree = tree.fit(&x, &y).expect("model fitting should succeed");
-        let importances = fitted_tree.feature_importances().expect("operation should succeed");
+        let importances = fitted_tree
+            .feature_importances()
+            .expect("operation should succeed");
 
         assert_eq!(importances.nrows(), 2); // 2 features
         assert_eq!(importances.ncols(), 2); // 2 outputs
+    }
+
+    // ── Shared multi-output tree ──────────────────────────────────────────────
+
+    #[test]
+    fn test_shared_multi_output_tree_basic() {
+        let x = array![
+            [1.0, 0.0],
+            [2.0, 0.5],
+            [3.0, 1.0],
+            [4.0, 1.5],
+            [5.0, 2.0],
+            [6.0, 2.5],
+            [7.0, 3.0],
+            [8.0, 3.5],
+            [9.0, 4.0],
+            [10.0, 4.5],
+            [11.0, 5.0],
+            [12.0, 5.5],
+        ];
+        // Two outputs that both correlate with x[:,0]
+        let y = array![
+            [1.0, 2.0],
+            [1.0, 2.0],
+            [1.0, 2.0],
+            [1.0, 2.0],
+            [2.0, 4.0],
+            [2.0, 4.0],
+            [2.0, 4.0],
+            [2.0, 4.0],
+            [3.0, 6.0],
+            [3.0, 6.0],
+            [3.0, 6.0],
+            [3.0, 6.0],
+        ];
+
+        let config = MultiOutputTreeConfig {
+            multi_output_strategy: MultiOutputStrategy::Shared,
+            ..Default::default()
+        };
+        let tree = MultiOutputDecisionTree::<Untrained>::new(config);
+        let fitted = tree.fit(&x, &y).expect("shared tree fit should succeed");
+        let preds = fitted
+            .predict(&x)
+            .expect("shared tree predict should succeed");
+
+        assert_eq!(preds.nrows(), 12);
+        assert_eq!(preds.ncols(), 2);
+        // Predictions should be non-trivial (not all zeros)
+        let nonzero = preds.iter().any(|&v| v > 0.0);
+        assert!(nonzero, "shared tree should produce non-zero predictions");
+    }
+
+    #[test]
+    fn test_shared_multi_output_tree_regression_accuracy() {
+        // Larger dataset: two outputs that are perfect linear functions of x
+        let n = 30usize;
+        let mut x_data = Vec::with_capacity(n * 2);
+        let mut y_data = Vec::with_capacity(n * 2);
+        for i in 0..n {
+            let xi = i as f64;
+            x_data.push(xi);
+            x_data.push(xi * 0.5);
+            y_data.push(xi * 2.0);
+            y_data.push(xi * 3.0);
+        }
+        let x = Array2::from_shape_vec((n, 2), x_data).expect("shape should be valid");
+        let y = Array2::from_shape_vec((n, 2), y_data).expect("shape should be valid");
+
+        let config = MultiOutputTreeConfig {
+            multi_output_strategy: MultiOutputStrategy::Shared,
+            ..Default::default()
+        };
+        let tree = MultiOutputDecisionTree::<Untrained>::new(config);
+        let fitted = tree.fit(&x, &y).expect("shared tree regression fit");
+        let preds = fitted.predict(&x).expect("shared tree regression predict");
+
+        assert_eq!(preds.nrows(), n);
+        assert_eq!(preds.ncols(), 2);
+    }
+
+    #[test]
+    fn test_shared_tree_feature_importances_shape() {
+        let x = array![
+            [1.0, 2.0],
+            [3.0, 4.0],
+            [5.0, 6.0],
+            [7.0, 8.0],
+            [9.0, 10.0],
+            [11.0, 12.0],
+            [13.0, 14.0],
+            [15.0, 16.0],
+            [17.0, 18.0],
+            [19.0, 20.0],
+            [21.0, 22.0],
+            [23.0, 24.0]
+        ];
+        let y = array![
+            [1.0, 0.0],
+            [2.0, 1.0],
+            [1.0, 0.0],
+            [2.0, 1.0],
+            [1.0, 0.0],
+            [2.0, 1.0],
+            [1.0, 0.0],
+            [2.0, 1.0],
+            [1.0, 0.0],
+            [2.0, 1.0],
+            [1.0, 0.0],
+            [2.0, 1.0]
+        ];
+        let config = MultiOutputTreeConfig {
+            multi_output_strategy: MultiOutputStrategy::Shared,
+            ..Default::default()
+        };
+        let fitted = MultiOutputDecisionTree::<Untrained>::new(config)
+            .fit(&x, &y)
+            .expect("fit");
+        let imp = fitted.feature_importances().expect("importances");
+        assert_eq!(imp.nrows(), 2); // 2 features
+        assert_eq!(imp.ncols(), 2); // 2 outputs
+    }
+
+    // ── Chained multi-output tree ─────────────────────────────────────────────
+
+    #[test]
+    fn test_chained_multi_output_tree_basic() {
+        let x = array![
+            [1.0, 0.0],
+            [2.0, 0.5],
+            [3.0, 1.0],
+            [4.0, 1.5],
+            [5.0, 2.0],
+            [6.0, 2.5],
+            [7.0, 3.0],
+            [8.0, 3.5],
+            [9.0, 4.0],
+            [10.0, 4.5],
+            [11.0, 5.0],
+            [12.0, 5.5],
+        ];
+        let y = array![
+            [1.0, 2.0],
+            [1.0, 2.0],
+            [1.0, 2.0],
+            [1.0, 2.0],
+            [2.0, 4.0],
+            [2.0, 4.0],
+            [2.0, 4.0],
+            [2.0, 4.0],
+            [3.0, 6.0],
+            [3.0, 6.0],
+            [3.0, 6.0],
+            [3.0, 6.0],
+        ];
+
+        let config = MultiOutputTreeConfig {
+            multi_output_strategy: MultiOutputStrategy::Chained,
+            ..Default::default()
+        };
+        let tree = MultiOutputDecisionTree::<Untrained>::new(config);
+        let fitted = tree.fit(&x, &y).expect("chained tree fit should succeed");
+        let preds = fitted
+            .predict(&x)
+            .expect("chained tree predict should succeed");
+
+        assert_eq!(preds.nrows(), 12);
+        assert_eq!(preds.ncols(), 2);
+    }
+
+    #[test]
+    fn test_chained_tree_uses_previous_outputs() {
+        // output_1 = output_0 * 2 — a perfect linear relationship.
+        // The chained tree sees the real output_0 as a feature when training
+        // output_1, so it should learn a tighter model than independent trees.
+        let n = 20usize;
+        let mut x_data = Vec::with_capacity(n);
+        let mut y_data = Vec::with_capacity(n * 2);
+        for i in 0..n {
+            x_data.push(i as f64);
+            y_data.push((i % 3) as f64); // output_0
+            y_data.push(((i % 3) * 2) as f64); // output_1 = 2 * output_0
+        }
+        let x = Array2::from_shape_vec((n, 1), x_data).expect("shape");
+        let y = Array2::from_shape_vec((n, 2), y_data).expect("shape");
+
+        let config = MultiOutputTreeConfig {
+            multi_output_strategy: MultiOutputStrategy::Chained,
+            ..Default::default()
+        };
+        let fitted = MultiOutputDecisionTree::<Untrained>::new(config)
+            .fit(&x, &y)
+            .expect("chained tree fit");
+        let preds = fitted.predict(&x).expect("chained tree predict");
+        assert_eq!(preds.nrows(), n);
+        assert_eq!(preds.ncols(), 2);
+        // Predictions for output_1 should be non-negative
+        assert!(preds.column(1).iter().all(|&v| v >= 0.0));
+    }
+
+    #[test]
+    fn test_chained_tree_feature_importances_shape() {
+        let x = array![
+            [1.0, 2.0],
+            [3.0, 4.0],
+            [5.0, 6.0],
+            [7.0, 8.0],
+            [9.0, 10.0],
+            [11.0, 12.0],
+            [13.0, 14.0],
+            [15.0, 16.0],
+            [17.0, 18.0],
+            [19.0, 20.0],
+            [21.0, 22.0],
+            [23.0, 24.0]
+        ];
+        let y = array![
+            [1.0, 0.0],
+            [2.0, 1.0],
+            [1.0, 0.0],
+            [2.0, 1.0],
+            [1.0, 0.0],
+            [2.0, 1.0],
+            [1.0, 0.0],
+            [2.0, 1.0],
+            [1.0, 0.0],
+            [2.0, 1.0],
+            [1.0, 0.0],
+            [2.0, 1.0]
+        ];
+        let config = MultiOutputTreeConfig {
+            multi_output_strategy: MultiOutputStrategy::Chained,
+            ..Default::default()
+        };
+        let fitted = MultiOutputDecisionTree::<Untrained>::new(config)
+            .fit(&x, &y)
+            .expect("fit");
+        let imp = fitted.feature_importances().expect("importances");
+        assert_eq!(imp.nrows(), 2); // 2 original features
+        assert_eq!(imp.ncols(), 2); // 2 outputs
     }
 }

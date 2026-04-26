@@ -6,6 +6,7 @@
 //! random walk algorithms, eigenvalue decomposition, adjacency matrix operations, neighborhood
 //! sampling, graph neural networks, network representation learning, and high-performance graph
 //! processing pipelines.
+#![allow(dead_code)] // graph feature structs retain config/embedding fields for future public API completeness
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use sklears_core::{error::Result as SklResult, prelude::SklearsError};

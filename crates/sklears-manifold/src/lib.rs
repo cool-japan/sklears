@@ -1,20 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(unused_assignments)]
-#![allow(unused_mut)]
-#![allow(unused_doc_comments)]
-#![allow(unused_comparisons)]
-#![allow(unused_must_use)]
-#![allow(mismatched_lifetime_syntaxes)]
-#![allow(ambiguous_glob_reexports)]
-#![allow(unexpected_cfgs)]
 //! Manifold learning algorithms (t-SNE, Isomap, etc.)
 //!
 //! This module is part of sklears, providing scikit-learn compatible
@@ -26,7 +9,6 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::SeedableRng;
-use scirs2_core::Distribution;
 use scirs2_core::RngExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -265,7 +247,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for SparseCoding<Untrained> {
         }
 
         // Iterative dictionary learning using coordinate descent
-        for iter in 0..self.max_iter {
+        for _iter in 0..self.max_iter {
             let mut max_change = 0.0f64;
 
             // Update dictionary atoms one at a time
@@ -543,8 +525,14 @@ pub use random_projections::*;
 /// Re-export similarity learning utilities for convenience
 pub use similarity::*;
 
+/// Re-export hierarchical::EmbeddingQuality struct under a distinct name
+pub use hierarchical::EmbeddingQuality as HierarchicalEmbeddingQuality;
 /// Re-export hierarchical manifold learning utilities for convenience
-pub use hierarchical::*;
+/// (EmbeddingQuality excluded to avoid ambiguity with manifold_traits::EmbeddingQuality trait)
+pub use hierarchical::{
+    AdaptationStep, AdaptiveResolutionManifold, HierarchicalManifold, MultiScaleEmbedding,
+    TrainedAdaptiveResolutionManifold, TrainedHierarchicalManifold, TrainedMultiScaleEmbedding,
+};
 
 /// Re-export temporal manifold learning utilities for convenience
 pub use temporal::*;
@@ -634,8 +622,22 @@ pub mod extensible_metrics;
 /// Type-safe geometric operations with compile-time dimension checking
 pub mod type_safe_geometry;
 
+/// Re-export DistanceMetric trait from manifold_traits under a distinct name
+pub use manifold_traits::DistanceMetric as BasicDistanceMetric;
+/// Re-export EmbeddingQuality trait from manifold_traits under a distinct name
+pub use manifold_traits::EmbeddingQuality as EmbeddingQualityTrait;
+/// Re-export ManifoldPipeline from manifold_traits under a distinct name
+pub use manifold_traits::ManifoldPipeline as BasicManifoldPipeline;
+/// Re-export SpectralEmbedding trait from manifold_traits under a distinct name
+pub use manifold_traits::SpectralEmbedding as SpectralEmbeddingTrait;
 /// Re-export manifold traits and utilities for convenience
-pub use manifold_traits::*;
+/// (DistanceMetric, ManifoldPipeline, and EmbeddingQuality re-exported explicitly
+/// to avoid ambiguity with extensible_metrics, pipeline_middleware, and hierarchical)
+pub use manifold_traits::{
+    IterativeOptimization, KernelBased, ManifoldComplexity, ManifoldConfig, ManifoldFactory,
+    ManifoldLearning, ManifoldPresets, NeighborhoodBased, ProbabilisticEmbedding,
+    RandomizedAlgorithm,
+};
 
 /// Re-export fluent API for convenience
 pub use fluent_api::*;
@@ -664,8 +666,18 @@ pub use serialization::*;
 /// Plugin architecture for custom manifold learning methods
 pub mod plugin_architecture;
 
+/// Re-export plugin_architecture::utils submodule under a distinct name
+pub use plugin_architecture::utils as plugin_utils;
+/// Re-export plugin_architecture::ParameterValue under a distinct name
+pub use plugin_architecture::ParameterValue as PluginParameterValue;
 /// Re-export plugin architecture utilities for convenience
-pub use plugin_architecture::*;
+/// (ParameterValue excluded to avoid ambiguity with pipeline_middleware::ParameterValue;
+/// utils excluded to avoid ambiguity with information_theory::utils)
+pub use plugin_architecture::{
+    CustomManifoldLearner, CustomManifoldWrapper, CustomModelMetadata, ManifoldPlugin,
+    ParameterConstraints, ParameterDefinition, ParameterType, PluginFeature, PluginMetadata,
+    PluginParameters, PluginRegistry,
+};
 
 /// Information-theoretic manifold learning methods
 pub mod information_theory;
@@ -713,7 +725,12 @@ pub use performance_optimization::*;
 pub mod deep_learning;
 
 /// Re-export deep learning utilities for convenience
-pub use deep_learning::*;
+/// (AdversarialAutoencoder excluded; the canonical version is in adversarial::AdversarialAutoencoder;
+/// ContinuousNormalizingFlow excluded; the canonical version is in continuous_normalizing_flows)
+pub use deep_learning::{
+    AutoencoderManifold, NeuralODE, ODESolverType, PriorType, TrainedAAE, TrainedAutoencoder,
+    TrainedCNF, TrainedNODE, TrainedVAE, VariationalAutoencoder,
+};
 
 /// Computer vision applications for manifold learning including image patch embedding and face analysis
 pub mod computer_vision;

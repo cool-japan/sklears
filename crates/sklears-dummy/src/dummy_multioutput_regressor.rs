@@ -4,9 +4,7 @@
 //! supporting various strategies for handling correlations and dependencies between outputs.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{
-    essentials::Normal, prelude::*, rngs::StdRng, Distribution, RngExt, SeedableRng,
-};
+use scirs2_core::random::{essentials::Normal, rngs::StdRng, Distribution, RngExt, SeedableRng};
 use sklears_core::error::Result;
 use sklears_core::traits::{Estimator, Fit, Predict};
 use sklears_core::types::{Features, Float};
@@ -241,7 +239,7 @@ impl Fit<Features, Array2<Float>> for MultiOutputDummyRegressor {
                             sorted.sort_by(|a, b| {
                                 a.partial_cmp(b).expect("operation should succeed")
                             });
-                            let median = if sorted.len() % 2 == 0 {
+                            let median = if sorted.len().is_multiple_of(2) {
                                 (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0
                             } else {
                                 sorted[sorted.len() / 2]
@@ -409,7 +407,7 @@ impl Predict<Features, Array2<Float>> for MultiOutputDummyRegressor<sklears_core
                     }
                 }
             }
-            MultiOutputStrategy::Hierarchical(parents) => {
+            MultiOutputStrategy::Hierarchical(_parents) => {
                 let hierarchy = self.hierarchy_.as_ref().expect("operation should succeed");
 
                 // Predict outputs in order, using parent outputs for dependent variables
@@ -555,7 +553,7 @@ fn cholesky_decomposition(matrix: &Array2<Float>) -> Result<Array2<Float>> {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::{array, Array2};
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_multioutput_independent() {

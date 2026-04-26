@@ -186,7 +186,8 @@ impl EnergyBasedModel {
     }
 
     /// Apply ReLU activation function
-    fn relu(&self, x: &Array1<f64>) -> Array1<f64> {
+    #[allow(dead_code)]
+    pub(crate) fn relu(&self, x: &Array1<f64>) -> Array1<f64> {
         x.mapv(|v| v.max(0.0))
     }
 
@@ -262,7 +263,6 @@ impl EnergyBasedModel {
         &self,
         positive_samples: &ArrayView2<f64>,
     ) -> Result<Array2<f64>, SklearsError> {
-        let n_samples = positive_samples.nrows();
         let input_dim = positive_samples.ncols();
 
         // Generate random noise samples manually
@@ -399,6 +399,7 @@ impl EnergyBasedModel {
 impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for EnergyBasedModel {
     type Fitted = EnergyBasedModel;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &ArrayView2<f64>, y: &ArrayView1<i32>) -> Result<Self::Fitted, SklearsError> {
         if X.nrows() != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -424,7 +425,6 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for EnergyBasedModel {
         for epoch in 0..model.epochs {
             let mut total_energy_loss = 0.0;
             let mut total_class_loss = 0.0;
-            let mut n_processed = 0;
 
             // Generate negative samples for contrastive learning
             let negative_samples = model.generate_negative_samples(X)?;
@@ -465,8 +465,6 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for EnergyBasedModel {
                     let class_loss = -class_probs[target_class].ln();
                     total_class_loss += model.classification_weight * class_loss;
                 }
-
-                n_processed += 1;
             }
 
             // Simple gradient descent update (simplified)
@@ -492,6 +490,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for EnergyBasedModel {
 }
 
 impl Predict<ArrayView2<'_, f64>, Array1<i32>> for EnergyBasedModel {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<f64>) -> Result<Array1<i32>, SklearsError> {
         if !self.fitted {
             return Err(SklearsError::NotFitted {
@@ -517,6 +516,7 @@ impl Predict<ArrayView2<'_, f64>, Array1<i32>> for EnergyBasedModel {
 }
 
 impl PredictProba<ArrayView2<'_, f64>, Array2<f64>> for EnergyBasedModel {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_proba(&self, X: &ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
         if !self.fitted {
             return Err(SklearsError::NotFitted {

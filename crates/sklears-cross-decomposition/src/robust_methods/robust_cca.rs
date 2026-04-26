@@ -4,8 +4,8 @@
 //! reweighting to find canonical correlations that are resistant to outliers and
 //! contaminated observations.
 
-use scirs2_core::ndarray::{s, Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Transform},
@@ -13,7 +13,7 @@ use sklears_core::{
 };
 use std::marker::PhantomData;
 
-use super::common::{MEstimatorType, Trained, Untrained};
+use super::common::{Trained, Untrained};
 
 /// Robust Canonical Correlation Analysis
 ///
@@ -102,7 +102,7 @@ impl RobustCCA<Untrained> {
 
     /// Set breakdown point (fraction of outliers to tolerate)
     pub fn breakdown_point(mut self, breakdown_point: Float) -> Self {
-        self.breakdown_point = breakdown_point.max(0.0).min(0.5);
+        self.breakdown_point = breakdown_point.clamp(0.0, 0.5);
         self
     }
 
@@ -150,6 +150,7 @@ impl Estimator for RobustCCA<Untrained> {
 impl Fit<Array2<Float>, Array2<Float>> for RobustCCA<Untrained> {
     type Fitted = RobustCCA<Trained>;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &Array2<Float>, Y: &Array2<Float>) -> Result<Self::Fitted> {
         let (n_samples, n_features_x) = X.dim();
         let (n_samples_y, n_features_y) = Y.dim();
@@ -172,8 +173,8 @@ impl Fit<Array2<Float>, Array2<Float>> for RobustCCA<Untrained> {
         let mut obs_weights = Array1::ones(n_samples) / n_samples as Float;
 
         // Compute initial robust location and scale estimates
-        let (mut robust_mean_x, mut robust_scale_x) = self.compute_robust_location_scale(X)?;
-        let (mut robust_mean_y, mut robust_scale_y) = self.compute_robust_location_scale(Y)?;
+        let (robust_mean_x, robust_scale_x) = self.compute_robust_location_scale(X)?;
+        let (robust_mean_y, robust_scale_y) = self.compute_robust_location_scale(Y)?;
 
         // Center and scale the data if requested
         let X_processed = self.preprocess_data(X, &robust_mean_x, &robust_scale_x)?;
@@ -268,6 +269,7 @@ impl Fit<Array2<Float>, Array2<Float>> for RobustCCA<Untrained> {
 
 impl RobustCCA<Untrained> {
     /// Compute robust location and scale estimates using MAD
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_robust_location_scale(
         &self,
         X: &Array2<Float>,
@@ -282,7 +284,7 @@ impl RobustCCA<Untrained> {
             // Robust location: median
             let mut sorted_col = col.to_vec();
             sorted_col.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-            location[j] = if sorted_col.len() % 2 == 0 {
+            location[j] = if sorted_col.len().is_multiple_of(2) {
                 (sorted_col[sorted_col.len() / 2 - 1] + sorted_col[sorted_col.len() / 2]) / 2.0
             } else {
                 sorted_col[sorted_col.len() / 2]
@@ -293,7 +295,7 @@ impl RobustCCA<Untrained> {
             let mut sorted_deviations = deviations;
             sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-            scale[j] = if sorted_deviations.len() % 2 == 0 {
+            scale[j] = if sorted_deviations.len().is_multiple_of(2) {
                 (sorted_deviations[sorted_deviations.len() / 2 - 1]
                     + sorted_deviations[sorted_deviations.len() / 2])
                     / 2.0
@@ -314,6 +316,7 @@ impl RobustCCA<Untrained> {
     }
 
     /// Preprocess data by centering and scaling
+    #[allow(non_snake_case)] // standard ML notation
     fn preprocess_data(
         &self,
         X: &Array2<Float>,
@@ -323,7 +326,7 @@ impl RobustCCA<Untrained> {
         let mut X_processed = X.clone();
 
         if self.center {
-            X_processed = X_processed - location;
+            X_processed -= location;
         }
 
         if self.scale {
@@ -338,11 +341,12 @@ impl RobustCCA<Untrained> {
     }
 
     /// Initialize robust canonical weights
+    #[allow(non_snake_case)] // standard ML notation
     fn initialize_robust_weights(
         &self,
         X: &Array2<Float>,
         Y: &Array2<Float>,
-        weights: &Array1<Float>,
+        _weights: &Array1<Float>,
     ) -> Result<(Array1<Float>, Array1<Float>)> {
         let n_features_x = X.ncols();
         let n_features_y = Y.ncols();
@@ -396,6 +400,7 @@ impl RobustCCA<Untrained> {
     }
 
     /// Update canonical weights using weighted least squares
+    #[allow(non_snake_case)] // standard ML notation
     fn update_canonical_weights(
         &self,
         X: &Array2<Float>,
@@ -407,9 +412,9 @@ impl RobustCCA<Untrained> {
         let n_features_y = Y.ncols();
 
         // Compute weighted covariance matrices
-        let Cxx = self.weighted_covariance(X, X, weights)?;
-        let Cyy = self.weighted_covariance(Y, Y, weights)?;
-        let Cxy = self.weighted_covariance(X, Y, weights)?;
+        let _Cxx = self.weighted_covariance(X, X, weights)?;
+        let _Cyy = self.weighted_covariance(Y, Y, weights)?;
+        let _Cxy = self.weighted_covariance(X, Y, weights)?;
 
         // Solve generalized eigenvalue problem (simplified)
         // In practice, would use proper eigenvalue decomposition
@@ -431,6 +436,7 @@ impl RobustCCA<Untrained> {
     }
 
     /// Compute weighted covariance matrix
+    #[allow(non_snake_case)] // standard ML notation
     fn weighted_covariance(
         &self,
         X: &Array2<Float>,
@@ -491,12 +497,13 @@ impl RobustCCA<Untrained> {
     }
 
     /// Identify outliers based on canonical distances
+    #[allow(non_snake_case)] // standard ML notation
     fn identify_outliers(
         &self,
         X: &Array2<Float>,
-        Y: &Array2<Float>,
-        weights_x: &Array2<Float>,
-        weights_y: &Array2<Float>,
+        _Y: &Array2<Float>,
+        _weights_x: &Array2<Float>,
+        _weights_y: &Array2<Float>,
         obs_weights: &Array1<Float>,
     ) -> Result<Array1<bool>> {
         let n_samples = X.nrows();
@@ -519,6 +526,7 @@ impl Transform<(Array2<Float>, Array2<Float>), (Array2<Float>, Array2<Float>)>
     for RobustCCA<Trained>
 {
     /// Transform data to canonical space
+    #[allow(non_snake_case)] // standard ML notation
     fn transform(
         &self,
         data: &(Array2<Float>, Array2<Float>),
@@ -637,6 +645,7 @@ impl RobustCCA<Trained> {
     }
 
     /// Helper method for preprocessing
+    #[allow(non_snake_case)] // standard ML notation
     fn preprocess_data(
         &self,
         X: &Array2<Float>,
@@ -646,7 +655,7 @@ impl RobustCCA<Trained> {
         let mut X_processed = X.clone();
 
         if self.center {
-            X_processed = X_processed - location;
+            X_processed -= location;
         }
 
         if self.scale {

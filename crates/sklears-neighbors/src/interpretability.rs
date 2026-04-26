@@ -90,7 +90,7 @@ pub struct NeighborExplainer {
     /// The fitted KNN classifier to explain
     classifier: Option<KNeighborsClassifier<sklears_core::traits::Trained>>,
     /// Training data
-    X_train: Array2<Float>,
+    x_train: Array2<Float>,
     /// Training labels
     y_train: Array1<Int>,
     /// Distance metric used
@@ -105,12 +105,12 @@ impl NeighborExplainer {
     /// Create a new explainer for a fitted KNN classifier
     pub fn new(
         classifier: KNeighborsClassifier<sklears_core::traits::Trained>,
-        X_train: Array2<Float>,
+        x_train: Array2<Float>,
         y_train: Array1<Int>,
     ) -> Result<Self, NeighborsError> {
-        if X_train.nrows() != y_train.len() {
+        if x_train.nrows() != y_train.len() {
             return Err(NeighborsError::ShapeMismatch {
-                expected: vec![X_train.nrows()],
+                expected: vec![x_train.nrows()],
                 actual: vec![y_train.len()],
             });
         }
@@ -119,7 +119,7 @@ impl NeighborExplainer {
             distance_metric: classifier.metric.clone(),
             k: classifier.n_neighbors,
             classifier: Some(classifier),
-            X_train,
+            x_train,
             y_train,
             prototypes: None,
         })
@@ -127,27 +127,27 @@ impl NeighborExplainer {
 
     /// Create an explainer from raw data (will fit a new classifier)
     pub fn from_data(
-        X_train: Array2<Float>,
+        x_train: Array2<Float>,
         y_train: Array1<Int>,
         k: usize,
         distance_metric: Distance,
     ) -> Result<Self, NeighborsError> {
-        if X_train.nrows() != y_train.len() {
+        if x_train.nrows() != y_train.len() {
             return Err(NeighborsError::ShapeMismatch {
-                expected: vec![X_train.nrows()],
+                expected: vec![x_train.nrows()],
                 actual: vec![y_train.len()],
             });
         }
 
         let classifier = KNeighborsClassifier::new(k)
             .with_metric(distance_metric.clone())
-            .fit(&X_train, &y_train)?;
+            .fit(&x_train, &y_train)?;
 
         Ok(Self {
             distance_metric,
             k,
             classifier: Some(classifier),
-            X_train,
+            x_train,
             y_train,
             prototypes: None,
         })
@@ -210,11 +210,11 @@ impl NeighborExplainer {
     /// Explain multiple predictions at once
     pub fn explain_predictions(
         &self,
-        X: ArrayView2<Float>,
+        samples: ArrayView2<Float>,
     ) -> Result<Vec<NeighborExplanation>, NeighborsError> {
-        let mut explanations = Vec::with_capacity(X.nrows());
+        let mut explanations = Vec::with_capacity(samples.nrows());
 
-        for (i, sample) in X.outer_iter().enumerate() {
+        for (i, sample) in samples.outer_iter().enumerate() {
             let mut explanation = self.explain_prediction(sample)?;
             explanation.sample_index = i;
             explanations.push(explanation);
@@ -242,7 +242,7 @@ impl NeighborExplainer {
             // Calculate feature importance by measuring how much the neighbor
             // distances change when we set this feature to the mean value
             let original_value = sample_copy[feature_idx];
-            let mean_value = self.X_train.column(feature_idx).mean().unwrap_or(0.0);
+            let mean_value = self.x_train.column(feature_idx).mean().unwrap_or(0.0);
 
             sample_copy[feature_idx] = mean_value;
 
@@ -306,7 +306,7 @@ impl NeighborExplainer {
             let mut candidates: Vec<Prototype> = Vec::new();
 
             for &sample_idx in &class_indices {
-                let sample = self.X_train.row(sample_idx);
+                let sample = self.x_train.row(sample_idx);
 
                 // Calculate representativeness scores
                 let (avg_intra, avg_inter, influence_count) = self
@@ -347,7 +347,7 @@ impl NeighborExplainer {
         &self,
         sample: ArrayView1<Float>,
     ) -> Result<InfluenceAnalysis, NeighborsError> {
-        let n_train = self.X_train.nrows();
+        let n_train = self.x_train.nrows();
         let mut influence_scores = vec![0.0; n_train];
 
         // Get baseline prediction
@@ -355,15 +355,15 @@ impl NeighborExplainer {
         let baseline_prediction = baseline_explanation.prediction;
 
         // Calculate influence by leave-one-out approach
-        for train_idx in 0..n_train {
+        for (train_idx, score) in influence_scores.iter_mut().enumerate().take(n_train) {
             // Create training set without this sample
-            let mut X_reduced = Array2::zeros((n_train - 1, self.X_train.ncols()));
+            let mut x_reduced = Array2::zeros((n_train - 1, self.x_train.ncols()));
             let mut y_reduced = Array1::zeros(n_train - 1);
 
             let mut reduced_idx = 0;
             for i in 0..n_train {
                 if i != train_idx {
-                    X_reduced.row_mut(reduced_idx).assign(&self.X_train.row(i));
+                    x_reduced.row_mut(reduced_idx).assign(&self.x_train.row(i));
                     y_reduced[reduced_idx] = self.y_train[i];
                     reduced_idx += 1;
                 }
@@ -372,14 +372,14 @@ impl NeighborExplainer {
             // Fit new classifier without this sample
             let temp_classifier = KNeighborsClassifier::new(self.k)
                 .with_metric(self.distance_metric.clone())
-                .fit(&X_reduced, &y_reduced)?;
+                .fit(&x_reduced, &y_reduced)?;
 
             // Make prediction
             let new_prediction =
                 temp_classifier.predict(&sample.to_owned().insert_axis(Axis(0)))?[0];
 
             // Calculate influence as change in prediction confidence
-            influence_scores[train_idx] = if new_prediction != baseline_prediction {
+            *score = if new_prediction != baseline_prediction {
                 1.0
             } else {
                 0.0
@@ -531,9 +531,9 @@ impl NeighborExplainer {
         sample: ArrayView1<Float>,
     ) -> Result<(Vec<usize>, Vec<Float>), NeighborsError> {
         let mut distances_with_indices: Vec<(usize, Float)> =
-            Vec::with_capacity(self.X_train.nrows());
+            Vec::with_capacity(self.x_train.nrows());
 
-        for (idx, train_sample) in self.X_train.outer_iter().enumerate() {
+        for (idx, train_sample) in self.x_train.outer_iter().enumerate() {
             let distance = self
                 .distance_metric
                 .calculate(&sample, &train_sample.view());
@@ -601,7 +601,7 @@ impl NeighborExplainer {
         _sample: ArrayView1<Float>,
         neighbor_indices: &[usize],
     ) -> Result<Array1<Float>, NeighborsError> {
-        let n_features = self.X_train.ncols();
+        let n_features = self.x_train.ncols();
         let mut importance = Array1::zeros(n_features);
 
         if neighbor_indices.is_empty() {
@@ -613,7 +613,7 @@ impl NeighborExplainer {
         for feature_idx in 0..n_features {
             let feature_values: Vec<Float> = neighbor_indices
                 .iter()
-                .map(|&idx| self.X_train[(idx, feature_idx)])
+                .map(|&idx| self.x_train[(idx, feature_idx)])
                 .collect();
 
             if feature_values.len() > 1 {
@@ -642,14 +642,14 @@ impl NeighborExplainer {
         class_label: Int,
         class_indices: &[usize],
     ) -> Result<(Float, Float, usize), NeighborsError> {
-        let sample = self.X_train.row(sample_idx);
+        let sample = self.x_train.row(sample_idx);
 
         // Calculate average intra-class distance
         let intra_distances: Vec<Float> = class_indices
             .iter()
             .filter(|&&idx| idx != sample_idx)
             .map(|&idx| {
-                let other_sample = self.X_train.row(idx);
+                let other_sample = self.x_train.row(idx);
                 self.distance_metric.calculate(&sample, &other_sample)
             })
             .collect();
@@ -667,7 +667,7 @@ impl NeighborExplainer {
             .enumerate()
             .filter(|(idx, &label)| *idx != sample_idx && label != class_label)
             .map(|(idx, _)| {
-                let other_sample = self.X_train.row(idx);
+                let other_sample = self.x_train.row(idx);
                 self.distance_metric.calculate(&sample, &other_sample)
             })
             .collect();
@@ -680,7 +680,7 @@ impl NeighborExplainer {
 
         // Calculate influence count (how many samples have this as nearest neighbor)
         let mut influence_count = 0;
-        for (other_idx, other_sample) in self.X_train.outer_iter().enumerate() {
+        for (other_idx, other_sample) in self.x_train.outer_iter().enumerate() {
             if other_idx == sample_idx {
                 continue;
             }
@@ -700,9 +700,9 @@ impl NeighborExplainer {
         k: usize,
     ) -> Result<(Vec<usize>, Vec<Float>), NeighborsError> {
         let mut distances_with_indices: Vec<(usize, Float)> =
-            Vec::with_capacity(self.X_train.nrows());
+            Vec::with_capacity(self.x_train.nrows());
 
-        for (idx, train_sample) in self.X_train.outer_iter().enumerate() {
+        for (idx, train_sample) in self.x_train.outer_iter().enumerate() {
             let distance = self
                 .distance_metric
                 .calculate(&sample, &train_sample.view());

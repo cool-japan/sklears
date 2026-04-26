@@ -8,13 +8,16 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
 use scirs2_core::random::essentials::Uniform;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Distribution;
-use scirs2_core::random::Rng;
 
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
     types::Float,
 };
+
+/// Type alias for sparse factor analysis output: (loadings, factors, specific variances, iterations, history)
+type SparseFaResult =
+    Result<(Array2<f64>, Array2<f64>, Array1<f64>, usize, Vec<f64>), SklearsError>;
 
 /// Sparse regularization methods
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -56,13 +59,13 @@ pub enum SparseOptimizer {
     /// Coordinate descent
     CoordinateDescent,
     /// Iterative soft thresholding
-    ISTA,
+    Ista,
     /// Fast iterative shrinkage-thresholding algorithm
-    FISTA,
+    Fista,
     /// Proximal gradient descent
     ProximalGradient,
     /// Alternating direction method of multipliers
-    ADMM,
+    Admm,
 }
 
 /// Configuration for Sparse Factor Models
@@ -162,6 +165,12 @@ pub struct SparseFactorModelTrained {
     n_iter: usize,
     /// Convergence history
     convergence_history: Vec<f64>,
+}
+
+impl Default for SparseFactorModel<Untrained> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SparseFactorModel<Untrained> {
@@ -364,7 +373,7 @@ impl SparseFactorModel<Untrained> {
                     SklearsError::InvalidInput("Invalid uniform distribution".to_string())
                 })?;
 
-                for ((i, j), val) in loadings.indexed_iter_mut() {
+                for ((_i, _j), val) in loadings.indexed_iter_mut() {
                     if uniform.sample(rng) > sparsity {
                         *val = value_uniform.sample(rng);
                     }
@@ -398,7 +407,7 @@ impl SparseFactorModel<Untrained> {
     ) -> Result<(Array2<f64>, Array2<f64>), SklearsError> {
         // Simplified PCA initialization
         // In practice, would compute actual SVD
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
         let k = self.config.n_factors;
 
         let uniform_loadings =
@@ -436,7 +445,7 @@ impl SparseFactorModel<Untrained> {
         mut loadings: Array2<f64>,
         mut factors: Array2<f64>,
         mut specific_variances: Array1<f64>,
-    ) -> Result<(Array2<f64>, Array2<f64>, Array1<f64>, usize, Vec<f64>), SklearsError> {
+    ) -> SparseFaResult {
         let mut convergence_history = Vec::new();
         let mut prev_error = f64::INFINITY;
 
@@ -500,10 +509,10 @@ impl SparseFactorModel<Untrained> {
         x: &Array2<f64>,
         loadings: &Array2<f64>,
         factors: &mut Array2<f64>,
-        specific_variances: &Array1<f64>,
+        _specific_variances: &Array1<f64>,
     ) -> Result<(), SklearsError> {
         let (n_samples, _) = x.dim();
-        let (_n_features, n_factors) = loadings.dim();
+        let (_n_features, _n_factors) = loadings.dim();
 
         // For each sample, solve: factors[i, :] = argmin ||x[i, :] - loadings @ factors[i, :]||^2
         for i in 0..n_samples {
@@ -554,12 +563,12 @@ impl SparseFactorModel<Untrained> {
             SparseOptimizer::CoordinateDescent => {
                 self.coordinate_descent_loadings(x, factors, loadings, specific_variances)
             }
-            SparseOptimizer::ISTA => self.ista_loadings(x, factors, loadings, specific_variances),
-            SparseOptimizer::FISTA => self.fista_loadings(x, factors, loadings, specific_variances),
+            SparseOptimizer::Ista => self.ista_loadings(x, factors, loadings, specific_variances),
+            SparseOptimizer::Fista => self.fista_loadings(x, factors, loadings, specific_variances),
             SparseOptimizer::ProximalGradient => {
                 self.proximal_gradient_loadings(x, factors, loadings, specific_variances)
             }
-            SparseOptimizer::ADMM => self.admm_loadings(x, factors, loadings, specific_variances),
+            SparseOptimizer::Admm => self.admm_loadings(x, factors, loadings, specific_variances),
         }
     }
 
@@ -847,7 +856,7 @@ impl SparseFactorModel<Untrained> {
     fn compute_log_likelihood(&self, x: &Array2<f64>, covariance: &Array2<f64>) -> f64 {
         // Simplified log-likelihood computation
         // In practice, would compute multivariate normal log-likelihood
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
         let det = crate::utils::matrix_determinant(covariance).max(1e-6);
 
         if det <= 0.0 {

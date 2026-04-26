@@ -1,17 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(unused_mut)]
-#![allow(unused_assignments)]
-#![allow(unused_doc_comments)]
-#![allow(unused_parens)]
-#![allow(unused_comparisons)]
 // SIMD operations are provided by scirs2-core::simd_ops (SciRS2 Policy compliant)
 //! Ensemble methods for sklears
 //!
@@ -39,8 +25,7 @@ pub mod gradient_boosting;
 pub mod imbalanced;
 pub mod memory_efficient;
 pub mod mixed_precision;
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub mod model_selection;
+pub mod model_selection;
 pub mod monitoring;
 pub mod multi_label;
 pub mod multi_task;
@@ -94,13 +79,12 @@ pub use mixed_precision::{
     AMPContext, GradientScaler, Half, MixedPrecisionArray, MixedPrecisionConfig,
     MixedPrecisionGradientAccumulator, MixedPrecisionTrainer, ScalerState,
 };
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub use model_selection::{
-//     BiasVarianceAnalyzer, BiasVarianceConfig, BiasVarianceDecomposition,
-//     BiasVarianceEnsembleSizeAnalysis, DiversityAnalyzer, DiversityMetrics, EnsembleCVResults,
-//     EnsembleCVStrategy, EnsembleConstructionConfig, EnsembleCrossValidator, InterraterReliability,
-//     ModelSelectionLossFunction, SampleBiasVariance, ScoringMetric,
-// };
+pub use model_selection::{
+    BiasVarianceAnalyzer, BiasVarianceConfig, BiasVarianceDecomposition,
+    BiasVarianceEnsembleSizeAnalysis, DiversityAnalyzer, DiversityMetrics, EnsembleCVResults,
+    EnsembleCVStrategy, EnsembleConstructionConfig, EnsembleCrossValidator, InterraterReliability,
+    ModelSelectionLossFunction, SampleBiasVariance, ScoringMetric,
+};
 pub use monitoring::{
     DegradationIndicators, DriftDetectionResult, DriftType, EnsembleMonitor, ModelHealth,
     MonitoringConfig, MonitoringResults, PerformanceDataPoint, PerformanceMetric, PerformanceTrend,
@@ -197,13 +181,12 @@ pub mod prelude {
         AMPContext, GradientScaler, Half, MixedPrecisionArray, MixedPrecisionConfig,
         MixedPrecisionGradientAccumulator, MixedPrecisionTrainer, ScalerState,
     };
-    // KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-    // pub use crate::model_selection::{
-    //     BiasVarianceAnalyzer, BiasVarianceConfig, BiasVarianceDecomposition,
-    //     BiasVarianceEnsembleSizeAnalysis, DiversityAnalyzer, DiversityMetrics, EnsembleCVResults,
-    //     EnsembleCVStrategy, EnsembleConstructionConfig, EnsembleCrossValidator,
-    //     InterraterReliability, ModelSelectionLossFunction, SampleBiasVariance, ScoringMetric,
-    // };
+    pub use crate::model_selection::{
+        BiasVarianceAnalyzer, BiasVarianceConfig, BiasVarianceDecomposition,
+        BiasVarianceEnsembleSizeAnalysis, DiversityAnalyzer, DiversityMetrics, EnsembleCVResults,
+        EnsembleCVStrategy, EnsembleConstructionConfig, EnsembleCrossValidator,
+        InterraterReliability, ModelSelectionLossFunction, SampleBiasVariance, ScoringMetric,
+    };
     pub use crate::monitoring::{
         DegradationIndicators, DriftDetectionResult, DriftType, EnsembleMonitor, ModelHealth,
         MonitoringConfig, MonitoringResults, PerformanceDataPoint, PerformanceMetric,

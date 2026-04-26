@@ -171,7 +171,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for RiemannianManifold<Untrained> {
     type Fitted = RiemannianManifold<RiemannianManifoldTrained>;
 
     fn fit(self, x: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
 
         if n_samples < self.n_neighbors {
             return Err(SklearsError::InvalidInput(format!(
@@ -588,8 +588,8 @@ fn compute_geodesic_distance_between_points(
 /// Parallel transport using Schild's ladder construction
 fn parallel_transport_schild_ladder(
     vector: &ArrayView1<Float>,
-    start_point: &ArrayView1<Float>,
-    end_point: &ArrayView1<Float>,
+    _start_point: &ArrayView1<Float>,
+    _end_point: &ArrayView1<Float>,
     _christoffel: &Array2<Float>,
 ) -> SklResult<Array1<Float>> {
     // Simplified parallel transport - in practice this would use the geodesic equation
@@ -602,8 +602,8 @@ fn parallel_transport_schild_ladder(
 /// Parallel transport using pole ladder construction  
 fn parallel_transport_pole_ladder(
     vector: &ArrayView1<Float>,
-    start_point: &ArrayView1<Float>,
-    end_point: &ArrayView1<Float>,
+    _start_point: &ArrayView1<Float>,
+    _end_point: &ArrayView1<Float>,
     _christoffel: &Array2<Float>,
 ) -> SklResult<Array1<Float>> {
     // Simplified parallel transport - pole ladder is more accurate than Schild's ladder

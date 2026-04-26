@@ -312,7 +312,7 @@ fn solve_cholesky(a: &Array2<Float>, b: &Array1<Float>) -> Result<Array1<Float>>
     }
 
     // Use scirs2's linear solver which handles Cholesky decomposition
-    a.solve(&b)
+    a.solve(b)
         .map_err(|e| SklearsError::NumericalError(format!("Cholesky decomposition failed: {}", e)))
 }
 
@@ -523,7 +523,7 @@ pub fn solve_with_iterative_refinement(
 
     // Get initial solution using direct method
     let mut x = a
-        .solve(&b)
+        .solve(b)
         .map_err(|e| SklearsError::NumericalError(format!("Initial solve failed: {}", e)))?;
 
     // Check if iterative refinement is needed

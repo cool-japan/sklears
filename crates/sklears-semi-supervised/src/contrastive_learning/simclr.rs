@@ -289,6 +289,7 @@ impl Estimator for SimCLR {
 impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for SimCLR {
     type Fitted = FittedSimCLR;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &ArrayView2<'_, f64>, y: &ArrayView1<'_, i32>) -> Result<Self::Fitted> {
         let (n_samples, n_features) = X.dim();
 
@@ -334,10 +335,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for SimCLR {
         let n_classes = unique_classes.len();
 
         // Training loop
-        for epoch in 0..self.max_epochs {
-            let mut epoch_loss = 0.0;
-            let mut n_batches = 0;
-
+        for _epoch in 0..self.max_epochs {
             // Generate batches
             let mut indices: Vec<usize> = (0..n_samples).collect();
             indices.shuffle(&mut rng);
@@ -387,8 +385,6 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for SimCLR {
 
                 // Combined loss
                 let total_loss = simclr_loss + self.labeled_weight * supervised_loss;
-                epoch_loss += total_loss;
-                n_batches += 1;
 
                 // Simple gradient simulation (in practice, would use proper backpropagation)
                 let gradient_scale = self.learning_rate * total_loss;
@@ -419,10 +415,6 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for SimCLR {
                 encoder_weights = encoder_weights - encoder_grad;
                 projection_weights = projection_weights - projection_grad;
             }
-
-            if n_batches > 0 {
-                epoch_loss /= n_batches as f64;
-            }
         }
 
         Ok(FittedSimCLR {
@@ -436,6 +428,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for SimCLR {
 }
 
 impl Predict<ArrayView2<'_, f64>, Array1<i32>> for FittedSimCLR {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, f64>) -> Result<Array1<i32>> {
         let embeddings = X.dot(&self.encoder_weights);
         let n_samples = X.nrows();
@@ -460,6 +453,7 @@ impl Predict<ArrayView2<'_, f64>, Array1<i32>> for FittedSimCLR {
 }
 
 impl PredictProba<ArrayView2<'_, f64>, Array2<f64>> for FittedSimCLR {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_proba(&self, X: &ArrayView2<'_, f64>) -> Result<Array2<f64>> {
         let embeddings = X.dot(&self.encoder_weights);
         let n_samples = X.nrows();
@@ -541,7 +535,7 @@ mod tests {
 
         assert_eq!(predictions.len(), 6);
         for &pred in predictions.iter() {
-            assert!(pred >= 0 && pred < 2);
+            assert!((0..2).contains(&pred));
         }
 
         let probas = fitted

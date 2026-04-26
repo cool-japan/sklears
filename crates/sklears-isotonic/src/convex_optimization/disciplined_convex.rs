@@ -486,7 +486,7 @@ pub fn disciplined_convex_isotonic_regression(
         .ok_or_else(|| SklearsError::NotFitted {
             operation: "disciplined_convex_isotonic_regression".to_string(),
         })
-        .map(|v| v.clone())
+        .cloned()
 }
 
 #[allow(non_snake_case)]

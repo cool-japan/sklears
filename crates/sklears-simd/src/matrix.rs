@@ -12,7 +12,12 @@ use alloc::{string::ToString, vec::Vec};
 #[cfg(not(feature = "no-std"))]
 use std::{string::ToString, vec::Vec};
 
-/// Generic matrix multiplication function compatible with FPGA/TPU interfaces
+/// Generic matrix multiplication function compatible with FPGA/TPU interfaces.
+///
+/// # Safety
+///
+/// `a`, `b`, and `c` must be valid, non-null pointers. `a` must point to `m * k` f32 values,
+/// `b` to `k * n` f32 values, and `c` to writable storage for `m * n` f32 values.
 pub unsafe fn matrix_multiply(
     a: *const f32,
     b: *const f32,
@@ -940,8 +945,8 @@ mod tests {
 
         // For this simple test, just check that we get some output
         // The QR implementation is a simplified version, so we won't expect perfect accuracy
-        assert!(q.len() > 0);
-        assert!(r.len() > 0);
+        assert!(!q.is_empty());
+        assert!(!r.is_empty());
     }
 
     #[test]

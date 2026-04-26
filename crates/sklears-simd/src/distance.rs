@@ -445,8 +445,8 @@ unsafe fn minkowski_distance_sse2(a: &[f32], b: &[f32], p: f32) -> f32 {
         let mut pow_result = [0.0f32; 4];
         _mm_storeu_ps(pow_result.as_mut_ptr(), abs_diff);
 
-        for j in 0..4 {
-            pow_result[j] = pow_result[j].powf(p);
+        for val in &mut pow_result {
+            *val = val.powf(p);
         }
 
         let pow_vec = _mm_loadu_ps(pow_result.as_ptr());
@@ -484,8 +484,8 @@ unsafe fn minkowski_distance_avx2(a: &[f32], b: &[f32], p: f32) -> f32 {
         let mut pow_result = [0.0f32; 8];
         _mm256_storeu_ps(pow_result.as_mut_ptr(), abs_diff);
 
-        for j in 0..8 {
-            pow_result[j] = pow_result[j].powf(p);
+        for val in &mut pow_result {
+            *val = val.powf(p);
         }
 
         let pow_vec = _mm256_loadu_ps(pow_result.as_ptr());
@@ -544,8 +544,8 @@ unsafe fn hamming_distance_sse2(a: &[u32], b: &[u32]) -> u32 {
         let mut result = [0u32; 4];
         _mm_storeu_si128(result.as_mut_ptr() as *mut _, xor_vec);
 
-        for j in 0..4 {
-            sum += result[j].count_ones();
+        for val in &result {
+            sum += val.count_ones();
         }
         i += 4;
     }
@@ -574,8 +574,8 @@ unsafe fn hamming_distance_avx2(a: &[u32], b: &[u32]) -> u32 {
         let mut result = [0u32; 8];
         _mm256_storeu_si256(result.as_mut_ptr() as *mut _, xor_vec);
 
-        for j in 0..8 {
-            sum += result[j].count_ones();
+        for val in &result {
+            sum += val.count_ones();
         }
         i += 8;
     }

@@ -1,10 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
 //! Linear and Quadratic Discriminant Analysis
 //!
 //! This module is part of sklears, providing scikit-learn compatible
@@ -12,17 +5,15 @@
 //!
 //! ## Known Limitations
 //!
-//! The following modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
-//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
-//! - `boundary_adjustment` - Boundary adjustment discriminant analysis with Fit/Predict/Score traits
+//! The following module is disabled due to missing GPU API dependencies:
+//! - `gpu_acceleration` — requires scirs2-core `gpu` feature and GPU-specific APIs not yet available
 
 // #![warn(missing_docs)]
 
 pub mod adaptive_discriminant;
-// pub mod async_optimization; // Temporarily disabled - needs error type fixes
+pub mod async_optimization;
 pub mod bayesian_discriminant;
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub mod boundary_adjustment;
+pub mod boundary_adjustment;
 pub mod canonical_discriminant;
 pub mod cost_sensitive_discriminant_analysis;
 pub mod cross_modal_discriminant;
@@ -34,7 +25,7 @@ pub mod distributed_discriminant;
 pub mod ensemble_imbalanced;
 pub mod error_correcting_output_codes;
 pub mod feature_ranking;
-// pub mod gpu_acceleration; // Disabled - requires extensive GPU API refactoring
+// pub mod gpu_acceleration; // [~] DEFERRED: scirs2_core::gpu::kernels::reduction::ReductionKernel and scirs2_core::gpu::memory do not exist in scirs2-core 0.4.2; requires gpu feature gate and API refactoring
 pub mod heteroscedastic;
 pub mod hierarchical;
 pub mod information_theoretic;
@@ -58,7 +49,7 @@ pub mod online_discriminant;
 pub mod out_of_core;
 pub mod parallel_eigen;
 pub mod penalized_discriminant_analysis;
-// pub mod phantom_types; // Disabled - uses unstable const generics features
+pub mod phantom_types;
 pub mod qda;
 pub mod random_projection_discriminant_analysis;
 pub mod recursive_feature_elimination;
@@ -75,20 +66,19 @@ pub use adaptive_discriminant::{
     AdaptationEvent, AdaptationStrategy, AdaptiveDiscriminantLearning,
     AdaptiveDiscriminantLearningConfig, BaseDiscriminant, TrainedAdaptiveDiscriminantLearning,
 };
-// pub use async_optimization::{
-//     AsyncDiscriminantAnalysis, AsyncDiscriminantOptimizer, AsyncOptimizationConfig,
-//     DistributedDiscriminantAnalysis, OptimizationMessage, OptimizationState, OptimizationStats,
-// };
+pub use async_optimization::{
+    AsyncDiscriminantAnalysis, AsyncDiscriminantOptimizer, AsyncOptimizationConfig,
+    DistributedDiscriminantAnalysis, OptimizationMessage, OptimizationState, OptimizationStats,
+};
 pub use bayesian_discriminant::{
     BayesianDiscriminantAnalysis, BayesianDiscriminantAnalysisConfig, InferenceMethod,
     PosteriorParameters, PriorType, TrainedBayesianDiscriminantAnalysis,
 };
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub use boundary_adjustment::{
-//     BoundaryAdjustmentConfig, BoundaryAdjustmentDiscriminantAnalysis, BoundaryAdjustmentMethod,
-//     DensityKernel, OptimizationCriterion, SearchMethod,
-//     TrainedBoundaryAdjustmentDiscriminantAnalysis,
-// };
+pub use boundary_adjustment::{
+    BoundaryAdjustmentConfig, BoundaryAdjustmentDiscriminantAnalysis, BoundaryAdjustmentMethod,
+    DensityKernel, OptimizationCriterion, SearchMethod,
+    TrainedBoundaryAdjustmentDiscriminantAnalysis,
+};
 pub use canonical_discriminant::{
     CanonicalDiscriminantAnalysis, CanonicalDiscriminantAnalysisConfig,
     TrainedCanonicalDiscriminantAnalysis,
@@ -209,13 +199,13 @@ pub use penalized_discriminant_analysis::{
     PenalizedDiscriminantAnalysis, PenalizedDiscriminantAnalysisConfig, PenaltyType,
     TrainedPenalizedDiscriminantAnalysis,
 };
-// pub use phantom_types::{
-//     data_markers, discriminant_markers, regularization_markers, solver_markers, state_markers,
-//     ConfigurationValidator, DiscriminantAnalysisBuilder, DiscriminantMethod, DiscriminantPredictor,
-//     RegularizationType, RegularizedLDA, RegularizedQDA, SolverType, SparseLDA, StandardLDA,
-//     StandardQDA, TrainedLinearDA, TrainedQuadraticDA, TypeErasedDiscriminant,
-//     TypeSafeDiscriminantAnalysis, UntrainedLinearDA, UntrainedQuadraticDA, GPULDA,
-// };
+pub use phantom_types::{
+    data_markers, discriminant_markers, regularization_markers, solver_markers, state_markers,
+    ConfigurationValidator, DiscriminantAnalysisBuilder, DiscriminantMethod, DiscriminantPredictor,
+    RegularizationType, RegularizedLDA, RegularizedQDA, SolverType, SparseLDA, StandardLDA,
+    StandardQDA, TrainedLinearDA, TrainedQuadraticDA, TypeErasedDiscriminant,
+    TypeSafeDiscriminantAnalysis, UntrainedLinearDA, UntrainedQuadraticDA, GPULDA,
+};
 pub use qda::{QuadraticDiscriminantAnalysis, QuadraticDiscriminantAnalysisConfig};
 pub use random_projection_discriminant_analysis::{
     DiscriminantModel, LDAModel, ProjectionType, QDAModel, RDAModel,

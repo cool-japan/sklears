@@ -30,6 +30,7 @@ pub struct WassersteinEmbedding<S = Untrained> {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct WETrained {
     embedding: Array2<f64>,
     wasserstein_distances: Array2<f64>,
@@ -131,7 +132,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for WassersteinEmbedding<Untrained> {
     type Fitted = WassersteinEmbedding<WETrained>;
 
     fn fit(self, x: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
         let x_f64 = x.mapv(|v| v);
 
         // Estimate bandwidth if not provided
@@ -208,7 +209,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for WassersteinEmbedding<Untrained> {
 }
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for WassersteinEmbedding<WETrained> {
-    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
+    fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         // For fitted data, return the stored embedding
         // For new data, this would require out-of-sample extension
         Ok(self.state.embedding.clone())
@@ -231,6 +232,7 @@ pub struct GromovWassersteinEmbedding<S = Untrained> {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct GWETrained {
     embedding: Array2<f64>,
     gw_distances: Array2<f64>,
@@ -308,7 +310,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for GromovWassersteinEmbedding<Untrained> {
     type Fitted = GromovWassersteinEmbedding<GWETrained>;
 
     fn fit(self, x: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let (n_samples, _) = x.dim();
+        let (_n_samples, _) = x.dim();
         let x_f64 = x.mapv(|v| v);
 
         // Compute pairwise distance matrices for each point's neighborhood
@@ -358,7 +360,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for GromovWassersteinEmbedding<Untrained> {
 }
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for GromovWassersteinEmbedding<GWETrained> {
-    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
+    fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         // For fitted data, return the stored embedding
         Ok(self.state.embedding.clone())
     }
@@ -455,7 +457,7 @@ impl Sinkhorn {
 /// Create probability distributions from data points
 fn create_probability_distributions(
     x: &Array2<f64>,
-    n_neighbors: usize,
+    _n_neighbors: usize,
     bandwidth: f64,
 ) -> SklResult<Vec<Array1<f64>>> {
     let n_samples = x.nrows();
@@ -681,9 +683,9 @@ fn compute_neighborhood_distance_matrices(
 /// Compute Gromov-Wasserstein distances between neighborhoods
 fn compute_gromov_wasserstein_distances(
     neighborhoods: &[Array2<f64>],
-    reg: f64,
-    n_iter: usize,
-    tol: f64,
+    _reg: f64,
+    _n_iter: usize,
+    _tol: f64,
     _loss_fun: &str,
 ) -> SklResult<Array2<f64>> {
     let n_samples = neighborhoods.len();

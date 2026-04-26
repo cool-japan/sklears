@@ -55,6 +55,7 @@ impl Default for OneVsRestDiscriminantAnalysisConfig {
 
 /// Classifier wrapper for binary classification in OvR
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)] // LDA/QDA variants differ in size by design; boxing would require Arc for Predict impls
 pub enum BinaryClassifier<State = Untrained> {
     /// LDA
     LDA(LinearDiscriminantAnalysis<State>),
@@ -215,6 +216,7 @@ impl OneVsRestDiscriminantAnalysis<Untrained> {
     }
 
     /// Balance class weights if requested
+    #[allow(dead_code)] // utility for future weighted-OvR training
     fn balance_sample_weights(&self, y: &Array1<i32>, positive_class: i32) -> Array1<Float> {
         let n_samples = y.len();
         let n_positive = y.iter().filter(|&&label| label == positive_class).count();

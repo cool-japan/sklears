@@ -424,6 +424,7 @@ impl Predict<Array2<f64>, Vec<i32>> for SphericalKMeansFitted {
 /// Document Clustering using spherical K-means with TF-IDF preprocessing
 #[derive(Debug, Clone)]
 pub struct DocumentClustering {
+    /// Configuration parameters for document clustering
     pub config: DocumentClusteringConfig,
 }
 

@@ -3,10 +3,9 @@
 //! This module provides methods for analyzing gene-environment interactions
 //! using cross-decomposition techniques.
 
-use crate::cca::CCA;
 use crate::multi_omics::GenomicsError;
 use crate::pls::PLSRegression;
-use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{s, Array2, ArrayView1, ArrayView2};
 use sklears_core::traits::{Fit, Predict, Trained};
 use sklears_core::types::Float;
 
@@ -17,11 +16,11 @@ pub struct GeneEnvironmentInteraction {
     /// Regularization parameter
     alpha: Float,
     /// Maximum number of iterations
-    max_iter: usize,
+    pub max_iter: usize,
     /// Convergence tolerance
-    tol: Float,
+    pub tol: Float,
     /// Whether to scale the data
-    scale: bool,
+    pub scale: bool,
     /// Interaction strength threshold
     interaction_threshold: Float,
 }
@@ -102,7 +101,7 @@ impl GeneEnvironmentInteraction {
         &self,
         gene_data: &ArrayView2<Float>,
         env_data: &ArrayView2<Float>,
-        fitted_pls: &PLSRegression<Trained>,
+        _fitted_pls: &PLSRegression<Trained>,
     ) -> Result<Array2<Float>, GenomicsError> {
         let n_genes = gene_data.ncols();
         let n_env = env_data.ncols();
@@ -134,7 +133,7 @@ impl GeneEnvironmentInteraction {
             ));
         }
 
-        let n = x.len() as Float;
+        let _n = x.len() as Float;
         let mean_x = x.mean().unwrap_or(0.0);
         let mean_y = y.mean().unwrap_or(0.0);
 
@@ -145,9 +144,9 @@ impl GeneEnvironmentInteraction {
         for (&xi, &yi) in x.iter().zip(y.iter()) {
             let dx = xi - mean_x;
             let dy = yi - mean_y;
-            sum_xy = sum_xy + dx * dy;
-            sum_x2 = sum_x2 + dx * dx;
-            sum_y2 = sum_y2 + dy * dy;
+            sum_xy += dx * dy;
+            sum_x2 += dx * dx;
+            sum_y2 += dy * dy;
         }
 
         let denominator = (sum_x2 * sum_y2).sqrt();
@@ -186,7 +185,8 @@ pub struct FittedGeneEnvironmentInteraction {
     fitted_pls: PLSRegression<Trained>,
     interaction_effects: Array2<Float>,
     significant_interactions: Vec<(usize, usize, Float)>,
-    n_components: usize,
+    /// Number of PLS components used
+    pub n_components: usize,
 }
 
 impl FittedGeneEnvironmentInteraction {

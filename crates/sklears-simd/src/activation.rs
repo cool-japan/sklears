@@ -663,7 +663,7 @@ fn gelu_scalar(input: &[f32], output: &mut [f32]) {
 unsafe fn gelu_sse2(input: &[f32], output: &mut [f32]) {
     use core::arch::x86_64::*;
 
-    let sqrt_2_pi = _mm_set1_ps(0.7978845608028654);
+    let sqrt_2_pi = _mm_set1_ps(0.797_884_6_f32);
     let coeff = _mm_set1_ps(0.044715);
     let half = _mm_set1_ps(0.5);
     let one = _mm_set1_ps(1.0);
@@ -689,7 +689,7 @@ unsafe fn gelu_sse2(input: &[f32], output: &mut [f32]) {
     while i < input.len() {
         let x = input[i];
         let x_cubed = x * x * x;
-        let inner = 0.7978845608028654 * (x + 0.044715 * x_cubed);
+        let inner = 0.797_884_6_f32 * (x + 0.044715 * x_cubed);
         output[i] = 0.5 * x * (1.0 + inner.tanh());
         i += 1;
     }
@@ -700,7 +700,7 @@ unsafe fn gelu_sse2(input: &[f32], output: &mut [f32]) {
 unsafe fn gelu_avx2(input: &[f32], output: &mut [f32]) {
     use core::arch::x86_64::*;
 
-    let sqrt_2_pi = _mm256_set1_ps(0.7978845608028654);
+    let sqrt_2_pi = _mm256_set1_ps(0.797_884_6_f32);
     let coeff = _mm256_set1_ps(0.044715);
     let half = _mm256_set1_ps(0.5);
     let one = _mm256_set1_ps(1.0);
@@ -726,7 +726,7 @@ unsafe fn gelu_avx2(input: &[f32], output: &mut [f32]) {
     while i < input.len() {
         let x = input[i];
         let x_cubed = x * x * x;
-        let inner = 0.7978845608028654 * (x + 0.044715 * x_cubed);
+        let inner = 0.797_884_6_f32 * (x + 0.044715 * x_cubed);
         output[i] = 0.5 * x * (1.0 + inner.tanh());
         i += 1;
     }

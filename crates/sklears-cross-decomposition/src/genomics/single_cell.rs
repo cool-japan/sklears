@@ -16,9 +16,9 @@ pub struct SingleCellMultiModal {
     /// Regularization parameter
     alpha: Float,
     /// Maximum number of iterations
-    max_iter: usize,
+    pub max_iter: usize,
     /// Convergence tolerance
-    tol: Float,
+    pub tol: Float,
     /// Cell type resolution
     resolution: Float,
     /// Minimum cells per cluster
@@ -98,7 +98,7 @@ impl SingleCellMultiModal {
 
         // Simple clustering based on first two components
         // In practice, this would use more sophisticated clustering methods
-        for (i, mut cell_type) in cell_types.iter_mut().enumerate() {
+        for (i, cell_type) in cell_types.iter_mut().enumerate() {
             let x = embedding[(i, 0)];
             let y = if embedding.ncols() > 1 {
                 embedding[(i, 1)]
@@ -136,7 +136,8 @@ pub struct FittedSingleCellMultiModal {
     fitted_cca: CCA<Trained>,
     cell_types: Array1<usize>,
     modality_correlations: Array1<Float>,
-    n_components: usize,
+    /// Number of CCA components used
+    pub n_components: usize,
 }
 
 impl FittedSingleCellMultiModal {
@@ -166,7 +167,7 @@ impl FittedSingleCellMultiModal {
         // Simple nearest neighbor classification based on existing cell types
         let mut predicted_types = Array1::zeros(embedding.nrows());
 
-        for (i, mut pred_type) in predicted_types.iter_mut().enumerate() {
+        for (i, pred_type) in predicted_types.iter_mut().enumerate() {
             let x = embedding[(i, 0)];
             let y = if embedding.ncols() > 1 {
                 embedding[(i, 1)]

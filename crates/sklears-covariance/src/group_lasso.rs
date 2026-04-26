@@ -314,7 +314,6 @@ fn group_lasso_optimization(
     tol: f64,
 ) -> SklResult<(Array2<f64>, usize, f64)> {
     let n_features = empirical_cov.nrows();
-    let n_groups = group_weights.len();
 
     // Initialize precision matrix as empirical precision (regularized)
     let mut precision = matrix_inverse(empirical_cov)?;
@@ -332,7 +331,7 @@ fn group_lasso_optimization(
         let mut precision_new = precision.clone();
 
         // Update each group using block coordinate descent
-        for group_id in 0..n_groups {
+        for (group_id, _group_weight) in group_weights.iter().enumerate() {
             let group_indices: Vec<usize> = groups
                 .iter()
                 .enumerate()
@@ -417,10 +416,9 @@ fn compute_group_penalty(
     group_weights: &[f64],
     alpha: f64,
 ) -> f64 {
-    let n_groups = group_weights.len();
     let mut total_penalty = 0.0;
 
-    for group_id in 0..n_groups {
+    for (group_id, &group_weight) in group_weights.iter().enumerate() {
         let group_indices: Vec<usize> = groups
             .iter()
             .enumerate()
@@ -442,7 +440,7 @@ fn compute_group_penalty(
         }
 
         let group_norm = compute_group_norm(&group_block);
-        total_penalty += alpha * group_weights[group_id] * group_norm;
+        total_penalty += alpha * group_weight * group_norm;
     }
 
     total_penalty

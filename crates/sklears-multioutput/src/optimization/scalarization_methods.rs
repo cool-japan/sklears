@@ -12,6 +12,7 @@
 //! - **Augmented Weighted Tchebycheff**: Improved Tchebycheff scalarization
 //! - **Normalized Normal Constraint**: Advanced constraint handling for Pareto front generation
 //! - **Problem Generation**: Systematic generation of scalarized subproblems
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
@@ -302,8 +303,8 @@ impl ScalarizationOptimizer<Untrained> {
                     if n_objectives > 2 {
                         let remaining = weights[1];
                         weights[1] = remaining * (i as Float / n_problems as Float);
-                        for j in 2..n_objectives {
-                            weights[j] = remaining / (n_objectives - 1) as Float;
+                        for weight in weights[2..].iter_mut() {
+                            *weight = remaining / (n_objectives - 1) as Float;
                         }
                     }
 
@@ -365,7 +366,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView2<'_, Float>> for ScalarizationOptimize
         let mut convergence_history = Vec::new();
         let mut prev_scalarized_value = Float::INFINITY;
 
-        for iteration in 0..self.config.max_iter {
+        for _iteration in 0..self.config.max_iter {
             // Compute current objectives (simplified for demonstration)
             let objectives: Vec<Float> = (0..n_objectives)
                 .map(|i| {

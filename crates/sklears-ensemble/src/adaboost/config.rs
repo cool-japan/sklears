@@ -1,7 +1,6 @@
 //! Configuration implementations for AdaBoost
 
 use super::types::*;
-use sklears_core::types::Float;
 
 impl Default for AdaBoostConfig {
     fn default() -> Self {

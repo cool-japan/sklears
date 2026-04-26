@@ -33,8 +33,8 @@
 //! // let fitted = qdr.fit(&data.view(), &()).unwrap();
 //! ```
 
-use scirs2_core::essentials::{Normal, Uniform};
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::essentials::Uniform;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::thread_rng;
 use scirs2_core::Distribution;
 use sklears_core::{
@@ -178,6 +178,7 @@ impl QuantumDimensionalityReduction<Untrained> {
     }
 
     /// Train the quantum circuit parameters
+    #[allow(non_snake_case)] // standard ML notation: X = data matrix
     fn train_parameters(&self, X: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
         let mut rng = thread_rng();
         let uniform = Uniform::new(0.0, 2.0 * PI).map_err(|e| {
@@ -194,7 +195,7 @@ impl QuantumDimensionalityReduction<Untrained> {
 
         // Simple gradient-free optimization (random search)
         let mut best_params = params.clone();
-        let mut best_loss = std::f64::MAX;
+        let mut best_loss = f64::MAX;
 
         for _epoch in 0..self.n_epochs.min(10) {
             // Evaluate current parameters
@@ -337,6 +338,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 /// 5. Measure to obtain embedding
 #[derive(Debug, Clone)]
 pub struct QAOAManifoldLearning<S = Untrained> {
+    #[allow(dead_code)] // phantom type marker for typestate pattern
     state: S,
     n_qubits: usize,
     p_layers: usize, // QAOA depth (number of p repetitions)
@@ -375,7 +377,7 @@ impl QAOAManifoldLearning<Untrained> {
     }
 
     /// Train QAOA parameters (classical simulation)
-    fn train_qaoa(&self, X: &ArrayView2<Float>) -> SklResult<(Array1<Float>, Array1<Float>)> {
+    fn train_qaoa(&self, _x: &ArrayView2<Float>) -> SklResult<(Array1<Float>, Array1<Float>)> {
         let mut rng = thread_rng();
 
         // Initialize QAOA parameters
@@ -515,7 +517,8 @@ impl VQEManifoldLearning<Untrained> {
     }
 
     /// Train VQE parameters
-    fn train_vqe(&self, X: &ArrayView2<Float>) -> SklResult<(Array2<Float>, Float)> {
+    fn train_vqe(&self, _x: &ArrayView2<Float>) -> SklResult<(Array2<Float>, Float)> {
+        // standard ML notation: _x is the input data matrix (not used in VQE parameter init)
         let mut rng = thread_rng();
         let uniform = Uniform::new(0.0, 2.0 * PI).map_err(|e| {
             SklearsError::FitError(format!("Failed to create uniform distribution: {}", e))
@@ -529,7 +532,7 @@ impl VQEManifoldLearning<Untrained> {
             }
         }
 
-        let mut best_energy = std::f64::MAX;
+        let mut best_energy = f64::MAX;
         let mut best_params = params.clone();
 
         // Optimization loop

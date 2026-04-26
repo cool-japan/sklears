@@ -67,6 +67,7 @@ struct TrainedData {
     class_locations: Array2<Float>,
     class_covariances: Vec<Array2<Float>>,
     class_precisions: Vec<Array2<Float>>,
+    #[allow(dead_code)] // retained for future outlier-mask queries
     class_supports: Vec<Array1<bool>>,
     n_features: usize,
     determinant: Float,
@@ -90,7 +91,7 @@ impl MinimumVolumeEllipsoidDiscriminantAnalysis<Untrained> {
     }
 
     pub fn support_fraction(mut self, support_fraction: Float) -> Self {
-        self.config.support_fraction = support_fraction.max(0.0).min(1.0);
+        self.config.support_fraction = support_fraction.clamp(0.0, 1.0);
         self
     }
 

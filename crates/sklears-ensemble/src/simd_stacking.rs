@@ -27,6 +27,7 @@ pub fn simd_linear_prediction(
 }
 
 /// Batch linear predictions
+#[allow(non_snake_case)] // standard ML notation
 pub fn simd_batch_linear_predictions(
     X: &ArrayView2<Float>,
     weights: &ArrayView1<Float>,
@@ -52,6 +53,7 @@ pub fn simd_batch_linear_predictions(
 }
 
 /// Meta-feature generation
+#[allow(non_snake_case)] // standard ML notation
 pub fn simd_generate_meta_features(
     X: &ArrayView2<Float>,
     base_weights: &ArrayView2<Float>,
@@ -90,6 +92,7 @@ pub fn simd_generate_meta_features(
 }
 
 /// Gradient computation for meta-learner
+#[allow(non_snake_case)] // standard ML notation
 pub fn simd_compute_gradients(
     X: &ArrayView2<Float>,
     y: &ArrayView1<Float>,
@@ -179,6 +182,7 @@ pub struct StackingEnsembleModel {
 
 impl StackingEnsembleModel {
     /// Prediction using trained stacking ensemble
+    #[allow(non_snake_case)] // standard ML notation
     pub fn predict(&self, X: &ArrayView2<Float>) -> Result<Array1<Float>> {
         let meta_features = simd_generate_meta_features(
             X,
@@ -195,6 +199,7 @@ impl StackingEnsembleModel {
 }
 
 /// Simplified stacking ensemble training
+#[allow(non_snake_case)] // standard ML notation
 pub fn simd_train_stacking_ensemble(
     X: &ArrayView2<Float>,
     y: &ArrayView1<Float>,
@@ -261,6 +266,7 @@ fn simd_mean(arr: &ArrayView1<Float>) -> Float {
 }
 
 /// Calculate variance of array
+#[allow(dead_code)] // used in statistical feature generation pipelines
 fn simd_variance(arr: &ArrayView1<Float>, mean: Float) -> Float {
     if arr.len() < 2 {
         return 0.0;
@@ -271,7 +277,7 @@ fn simd_variance(arr: &ArrayView1<Float>, mean: Float) -> Float {
 
 /// Ensemble diversity measurement
 pub fn simd_compute_ensemble_diversity(predictions: &ArrayView2<Float>) -> Result<Float> {
-    let (n_samples, n_estimators) = predictions.dim();
+    let (_n_samples, n_estimators) = predictions.dim();
 
     if n_estimators < 2 {
         return Ok(0.0);

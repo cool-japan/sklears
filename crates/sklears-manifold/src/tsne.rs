@@ -519,6 +519,7 @@ impl SpatialTreeNode {
         self.point_indices.clear();
     }
 
+    #[allow(clippy::only_used_in_recursion)] // point_idx passed to child nodes for potential future use
     fn compute_force(
         &self,
         point: &Array2<f64>,

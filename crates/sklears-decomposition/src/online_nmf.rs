@@ -110,7 +110,7 @@ impl OnlineNMF {
     }
 
     /// Create with default configuration
-    pub fn default() -> Self {
+    pub fn with_defaults() -> Self {
         Self::new(OnlineNMFConfig::default())
     }
 

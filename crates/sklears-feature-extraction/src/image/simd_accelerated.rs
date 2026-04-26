@@ -81,6 +81,7 @@ pub mod simd_operations {
 
         // Reconstruct image by placing patches
         let mut patch_idx = 0;
+        #[allow(clippy::explicit_counter_loop)] // patch_idx counts valid patches independently of i
         for i in (0..total_positions).step_by(step.max(1)) {
             if patch_idx >= n_patches {
                 break;

@@ -1,43 +1,39 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
 //! Feature selection algorithms
 //!
 //! This module provides algorithms for selecting relevant features from data,
 //! compatible with scikit-learn's feature_selection module.
 //!
-//! ## Known Limitations
-//!
-//! The following modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
-//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
-//! - `embedded` - Embedded feature selection methods (L1-based, tree-based)
+//! All major modules are now enabled, including:
+//! - `comparison_tests` - Comparison tests against reference implementations
+//! - `embedded` - Embedded feature selection methods (L1-based, tree-based, stability selection)
 //! - `ensemble_selectors` - Ensemble-based feature selection (Boruta, Bootstrap)
 //! - `genetic_optimization` - Genetic algorithm-based multi-objective feature selection
 //! - `tree_based_selectors` - Tree importance-based feature selectors
 //! - `validation` - Statistical validation framework for feature selection
-//! - `wrapper` - Wrapper methods (RFE, RFECV, SequentialFeatureSelector)
+//! - `wrapper` - Wrapper methods (RFE, RFECV, SelectFromModel)
+//!
+//! ## Technical Note: ndarray 0.17 Fix
+//!
+//! ndarray 0.17 added a 3rd default type parameter `A = <S as RawData>::Elem` to `ArrayBase`.
+//! The Rust trait solver previously could not normalize `Array2<Float>` (2-param alias) to
+//! `ArrayBase<OwnedRepr<f64>, Dim<[usize;2]>, f64>` (3-param form) in where bounds with
+//! any remaining generic type parameters. Fixed by using fully expanded 3-parameter form
+//! in all where bounds via type aliases (Mat2f64, Vec1f64, etc.) and macro-based impls.
 
 pub mod automl;
 pub mod base;
 pub mod bayesian;
 pub mod benchmark;
-// TODO: ndarray 0.17 - uses disabled embedded module
-// pub mod comparison_tests;
+pub mod comparison_tests;
 pub mod comprehensive_benchmark;
 pub mod domain_benchmark;
 pub mod domain_specific;
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub mod embedded;
-// pub mod ensemble_selectors;
+pub mod embedded;
+pub mod ensemble_selectors;
 pub mod evaluation;
 pub mod filter;
 pub mod fluent_api;
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub mod genetic_optimization;
+pub mod genetic_optimization;
 pub mod group_selection;
 pub mod hierarchical;
 pub mod ml_based;
@@ -53,13 +49,10 @@ pub mod serialization;
 pub mod spectral;
 pub mod statistical_tests;
 pub mod streaming;
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub mod tree_based_selectors;
+pub mod tree_based_selectors;
 pub mod type_safe;
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub mod validation;
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub mod wrapper;
+pub mod validation;
+pub mod wrapper;
 
 pub use automl::{
     analyze_and_recommend, comprehensive_automl, quick_automl, AdvancedHyperparameterOptimizer,
@@ -84,36 +77,31 @@ pub use crate::filter::{
     SureIndependenceScreening, VarianceThreshold,
 };
 
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub use crate::wrapper::{
-//     FeatureImportance, HasCoefficients, IndexableTarget, RFECVResults, SelectFromModel,
-//     SequentialFeatureSelector, RFE, RFECV,
-// };
+pub use crate::wrapper::{
+    CrossValidator, FeatureImportance, HasCoefficients, IndexableTarget, KFold, RFECVResults,
+    SelectFromModel, SequentialFeatureSelector, RFE, RFECV,
+};
 
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub use crate::embedded::{
-//     ConsensusFeatureSelector, ConsensusMethod, ConsensusThresholdParams, MultiTaskFeatureSelector,
-//     StabilitySelector,
-// };
+pub use crate::embedded::{
+    ConsensusFeatureSelector, ConsensusMethod, ConsensusThresholdParams, MultiTaskFeatureSelector,
+    StabilitySelector,
+};
 
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub use crate::genetic_optimization::{
-//     CostSensitiveObjective, CrossValidator, FairnessAwareObjective, FairnessMetric,
-//     FeatureCountObjective, FeatureDiversityObjective, FeatureImportanceObjective, GeneticSelector,
-//     Individual, KFold, MultiObjectiveFeatureSelector, MultiObjectiveMethod, ObjectiveFunction,
-//     PredictivePerformanceObjective,
-// };
+pub use crate::genetic_optimization::{
+    CostSensitiveObjective, FairnessAwareObjective, FairnessMetric, FeatureCountObjective,
+    FeatureDiversityObjective, FeatureImportanceObjective, GeneticSelector, Individual,
+    MultiObjectiveFeatureSelector, MultiObjectiveMethod, ObjectiveFunction,
+    PredictivePerformanceObjective,
+};
 
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub use crate::ensemble_selectors::{
-//     extract_features, AggregationMethod, BootstrapSelector, BorutaSelector, EnsembleFeatureRanking,
-//     SelectorFunction, UnivariateMethod, UnivariateSelector,
-// };
+pub use crate::ensemble_selectors::{
+    extract_features, AggregationMethod, BootstrapSelector, BorutaSelector, EnsembleFeatureRanking,
+    SelectorFunction, UnivariateMethod, UnivariateSelector,
+};
 
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub use crate::tree_based_selectors::{
-//     GradientBoostingSelector, TreeImportance, TreeImportanceSelector, TreeSelector,
-// };
+pub use crate::tree_based_selectors::{
+    GradientBoostingSelector, TreeImportance, TreeImportanceSelector, TreeSelector,
+};
 
 pub use crate::regularization_selectors::{ElasticNetSelector, LassoSelector, RidgeSelector};
 
@@ -185,11 +173,10 @@ pub use crate::optimization::{
     ProximalGradientSelector, SemidefiniteFeatureSelector,
 };
 
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub use crate::validation::{
-//     DistributionalPropertyTest, PermutationSignificanceTest, RobustnessTest,
-//     SelectionConsistencyTest, StatisticalValidationFramework, StatisticalValidationResults,
-// };
+pub use crate::validation::{
+    DistributionalPropertyTest, PermutationSignificanceTest, RobustnessTest,
+    SelectionConsistencyTest, StatisticalValidationFramework, StatisticalValidationResults,
+};
 
 pub use crate::parallel::{
     ParallelCorrelationComputer, ParallelFeatureEvaluator, ParallelFeatureRanker,
@@ -226,7 +213,6 @@ pub use crate::comprehensive_benchmark::{
 #[cfg(feature = "serde")]
 pub use crate::serialization::{exports, ExportFormat, SelectionResultsIO};
 
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
     #[test]
@@ -235,6 +221,5 @@ mod tests {
     }
 }
 
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod domain_specific_tests;

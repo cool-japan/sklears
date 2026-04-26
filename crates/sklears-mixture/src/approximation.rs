@@ -73,7 +73,7 @@ pub enum ImportanceSamplingStrategy {
 ///     .build();
 ///
 /// let X = array![[1.0, 2.0], [1.5, 2.5], [10.0, 11.0]];
-/// let fitted = model.fit(&X.view(), &()).unwrap();
+/// let fitted = model.fit(&X.view(), &()).expect("Laplace GMM fitting should succeed with valid data");
 /// ```
 #[derive(Debug, Clone)]
 pub struct LaplaceGMM<S = Untrained> {
@@ -278,7 +278,9 @@ impl Predict<ArrayView2<'_, Float>, Array1<usize>> for LaplaceGMM<LaplaceGMMTrai
 // Monte Carlo GMM
 #[derive(Debug, Clone)]
 pub struct MonteCarloGMM<S = Untrained> {
+    #[allow(dead_code)]
     n_components: usize,
+    #[allow(dead_code)]
     mc_method: MonteCarloMethod,
     _phantom: std::marker::PhantomData<S>,
 }
@@ -338,7 +340,9 @@ impl MonteCarloGMM<Untrained> {
 // Importance Sampling GMM
 #[derive(Debug, Clone)]
 pub struct ImportanceSamplingGMM<S = Untrained> {
+    #[allow(dead_code)]
     n_components: usize,
+    #[allow(dead_code)]
     is_strategy: ImportanceSamplingStrategy,
     _phantom: std::marker::PhantomData<S>,
 }
@@ -449,6 +453,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_laplace_gmm_fit() {
         let X = array![[1.0, 2.0], [1.5, 2.5], [10.0, 11.0]];
 

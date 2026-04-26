@@ -12,10 +12,7 @@ type Float = f64;
 use super::utilities::compute_pearson_correlation;
 
 /// Compute market factor (CAPM beta)
-pub(crate) fn compute_market_factor(
-    x: &Array2<Float>,
-    _y: &Array1<Float>,
-) -> Result<Array1<Float>> {
+pub fn compute_market_factor(x: &Array2<Float>, _y: &Array1<Float>) -> Result<Array1<Float>> {
     let market_returns = x
         .mean_axis(scirs2_core::ndarray::Axis(1))
         .expect("operation should succeed");
@@ -23,7 +20,7 @@ pub(crate) fn compute_market_factor(
 }
 
 /// Compute SMB (Small Minus Big) factor
-pub(crate) fn compute_smb_factor(x: &Array2<Float>) -> Result<Array1<Float>> {
+pub fn compute_smb_factor(x: &Array2<Float>) -> Result<Array1<Float>> {
     let n_samples = x.nrows();
     let n_features = x.ncols();
 
@@ -44,7 +41,7 @@ pub(crate) fn compute_smb_factor(x: &Array2<Float>) -> Result<Array1<Float>> {
 }
 
 /// Compute HML (High Minus Low) factor
-pub(crate) fn compute_hml_factor(x: &Array2<Float>) -> Result<Array1<Float>> {
+pub fn compute_hml_factor(x: &Array2<Float>) -> Result<Array1<Float>> {
     let n_samples = x.nrows();
     let n_features = x.ncols();
 
@@ -65,7 +62,7 @@ pub(crate) fn compute_hml_factor(x: &Array2<Float>) -> Result<Array1<Float>> {
 }
 
 /// Compute RMW (Robust Minus Weak) factor
-pub(crate) fn compute_rmw_factor(x: &Array2<Float>) -> Result<Array1<Float>> {
+pub fn compute_rmw_factor(x: &Array2<Float>) -> Result<Array1<Float>> {
     let n_samples = x.nrows();
     let n_features = x.ncols();
 
@@ -86,7 +83,7 @@ pub(crate) fn compute_rmw_factor(x: &Array2<Float>) -> Result<Array1<Float>> {
 }
 
 /// Compute CMA (Conservative Minus Aggressive) factor
-pub(crate) fn compute_cma_factor(x: &Array2<Float>) -> Result<Array1<Float>> {
+pub fn compute_cma_factor(x: &Array2<Float>) -> Result<Array1<Float>> {
     let n_samples = x.nrows();
     let n_features = x.ncols();
 
@@ -107,7 +104,7 @@ pub(crate) fn compute_cma_factor(x: &Array2<Float>) -> Result<Array1<Float>> {
 }
 
 /// Compute factor loading (regression coefficient)
-pub(crate) fn compute_factor_loading(feature: &ArrayView1<Float>, factor: &Array1<Float>) -> Float {
+pub fn compute_factor_loading(feature: &ArrayView1<Float>, factor: &Array1<Float>) -> Float {
     if feature.len() != factor.len() || feature.is_empty() {
         return 0.0;
     }
@@ -124,7 +121,7 @@ pub(crate) fn compute_factor_loading(feature: &ArrayView1<Float>, factor: &Array
 }
 
 /// Compute R-squared for factor model
-pub(crate) fn compute_factor_model_r_squared(
+pub fn compute_factor_model_r_squared(
     feature: &ArrayView1<Float>,
     factors: &[Array1<Float>],
 ) -> Float {
@@ -164,7 +161,7 @@ pub(crate) fn compute_factor_model_r_squared(
 }
 
 /// Compute macroeconomic model R-squared
-pub(crate) fn compute_macro_model_r_squared(
+pub fn compute_macro_model_r_squared(
     feature: &ArrayView1<Float>,
     macro_factors: &[Array1<Float>],
 ) -> Float {

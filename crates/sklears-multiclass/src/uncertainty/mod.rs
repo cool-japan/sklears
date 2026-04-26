@@ -85,6 +85,7 @@ pub struct UncertaintyResult {
 /// comprehensive uncertainty estimates for multiclass classification predictions.
 #[derive(Debug, Clone)]
 pub struct UncertaintyQuantifier {
+    #[allow(dead_code)] // config retained for future uncertainty parameter tuning
     config: UncertaintyConfig,
     confidence_estimator: ConfidenceEstimator,
     conformal_predictor: ConformalPredictor,

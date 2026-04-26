@@ -1568,10 +1568,10 @@ mod tests {
             .expect("operation should succeed");
 
         // All should be valid values
-        assert!(weighted_precision >= 0.0 && weighted_precision <= 1.0);
-        assert!(weighted_recall >= 0.0 && weighted_recall <= 1.0);
-        assert!(weighted_f1 >= 0.0 && weighted_f1 <= 1.0);
-        assert!(weighted_accuracy >= 0.0 && weighted_accuracy <= 1.0);
+        assert!((0.0..=1.0).contains(&weighted_precision));
+        assert!((0.0..=1.0).contains(&weighted_recall));
+        assert!((0.0..=1.0).contains(&weighted_f1));
+        assert!((0.0..=1.0).contains(&weighted_accuracy));
 
         // Test invalid metric name
         assert!(metrics.weighted_average("invalid").is_err());
@@ -1840,26 +1840,26 @@ mod tests {
 
         // Test that existing metrics still work
         let hamming = hamming_loss(&y_true_view, &y_pred_view).expect("operation should succeed");
-        assert!(hamming >= 0.0 && hamming <= 1.0);
+        assert!((0.0..=1.0).contains(&hamming));
 
         let subset_acc =
             subset_accuracy(&y_true_view, &y_pred_view).expect("operation should succeed");
-        assert!(subset_acc >= 0.0 && subset_acc <= 1.0);
+        assert!((0.0..=1.0).contains(&subset_acc));
 
         let jaccard = jaccard_score(&y_true_view, &y_pred_view).expect("operation should succeed");
-        assert!(jaccard >= 0.0 && jaccard <= 1.0);
+        assert!((0.0..=1.0).contains(&jaccard));
 
         let f1_micro =
             f1_score(&y_true_view, &y_pred_view, "micro").expect("operation should succeed");
-        assert!(f1_micro >= 0.0 && f1_micro <= 1.0);
+        assert!((0.0..=1.0).contains(&f1_micro));
 
         let f1_macro =
             f1_score(&y_true_view, &y_pred_view, "macro").expect("operation should succeed");
-        assert!(f1_macro >= 0.0 && f1_macro <= 1.0);
+        assert!((0.0..=1.0).contains(&f1_macro));
 
         let f1_samples =
             f1_score(&y_true_view, &y_pred_view, "samples").expect("sampling should succeed");
-        assert!(f1_samples >= 0.0 && f1_samples <= 1.0);
+        assert!((0.0..=1.0).contains(&f1_samples));
     }
 
     #[test]

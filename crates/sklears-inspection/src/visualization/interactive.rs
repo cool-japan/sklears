@@ -11,12 +11,15 @@ use std::collections::HashMap;
 
 use super::core::PlotConfig;
 
+/// Type alias for interactive update callback
+type UpdateCallback = Option<Box<dyn Fn(&ArrayView2<Float>) -> SklResult<()> + Send + Sync>>;
+
 /// Interactive visualizer with real-time capabilities
 pub struct InteractiveVisualizer {
     /// Plot configuration
     config: PlotConfig,
     /// Update callback function
-    update_callback: Option<Box<dyn Fn(&ArrayView2<Float>) -> SklResult<()> + Send + Sync>>,
+    update_callback: UpdateCallback,
 }
 
 impl std::fmt::Debug for InteractiveVisualizer {
@@ -76,6 +79,7 @@ pub struct RealTimePlotUpdater {
     /// Is actively updating
     is_active: bool,
     /// Plot configuration
+    #[allow(dead_code)] // stored for plot rendering configuration
     config: PlotConfig,
 }
 
@@ -230,7 +234,7 @@ mod tests {
         let config = PlotConfig::default();
         let visualizer = InteractiveVisualizer::new(config);
 
-        assert!(!visualizer.update_callback.is_some());
+        assert!(visualizer.update_callback.is_none());
         assert!(visualizer.config().interactive);
     }
 

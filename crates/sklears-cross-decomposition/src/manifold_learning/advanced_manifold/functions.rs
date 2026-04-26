@@ -2,18 +2,14 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-
-use super::types::{
-    AdvancedManifoldLearning, DistanceMetric, EigenSolver, GeodesicMethod, ManifoldMethod,
-    PathMethod,
-};
-
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use scirs2_core::ndarray::array;
+    use crate::manifold_learning::{
+        AdvancedManifoldLearning, AdvancedManifoldMethod as ManifoldMethod, DistanceMetric,
+        EigenSolver, GeodesicMethod, PathMethod,
+    };
+    use scirs2_core::ndarray::{array, Array2};
     #[test]
     fn test_manifold_learning_creation() {
         let manifold = AdvancedManifoldLearning::new(2, 2);
@@ -165,7 +161,7 @@ mod tests {
         let neighborhood_preservation = manifold
             .compute_neighborhood_preservation(&original_data.view(), &embedding)
             .expect("operation should succeed");
-        assert!(neighborhood_preservation >= 0.0 && neighborhood_preservation <= 1.0);
+        assert!((0.0..=1.0).contains(&neighborhood_preservation));
         let distances = manifold
             .compute_pairwise_distances(&original_data.view())
             .expect("operation should succeed");

@@ -52,7 +52,7 @@ pub enum FeatureImportanceType {
 ///     None,
 ///     &config,
 ///     FeatureImportanceType::Bar
-/// ).unwrap();
+/// ).expect("feature importance plot creation should succeed with valid inputs");
 /// assert_eq!(plot.feature_names.len(), 3);
 /// assert_eq!(plot.importance_values.len(), 3);
 /// ```

@@ -501,21 +501,17 @@ impl EmpiricalBayesEstimator {
         // For Dirichlet: E[ln(X_i)] = ψ(α_i) - ψ(Σα_j)
         // Assuming symmetric Dirichlet: α_i = α for all i
 
-        let mean_log_prob = mean_log_probs.iter().fold(F::zero(), |acc, &x| acc + x)
+        let _mean_log_prob = mean_log_probs.iter().fold(F::zero(), |acc, &x| acc + x)
             / F::from(k).expect("operation should succeed");
         let mean_prob = mean_probs.iter().fold(F::zero(), |acc, &x| acc + x)
             / F::from(k).expect("operation should succeed");
 
         // Simple approximation: use the relationship between mean and variance
-        let mut alpha = F::one();
-
         // Newton-Raphson iteration would go here for more precise estimation
-        // For now, use a simple heuristic
-        alpha =
-            mean_prob / (F::one() - mean_prob + F::from(1e-10).expect("operation should succeed"));
-        alpha = alpha
-            .max(F::from(0.1).expect("operation should succeed"))
-            .min(F::from(100.0).expect("operation should succeed"));
+        let alpha = (mean_prob
+            / (F::one() - mean_prob + F::from(1e-10).expect("operation should succeed")))
+        .max(F::from(0.1).expect("operation should succeed"))
+        .min(F::from(100.0).expect("operation should succeed"));
 
         Ok(alpha)
     }
@@ -561,7 +557,7 @@ mod tests {
         let estimator = MultinomialEstimator::new(ParameterEstimationMethod::MaximumLikelihood);
         let params = estimator.estimate(&data).expect("operation should succeed");
 
-        let expected = vec![10.0 / 60.0, 20.0 / 60.0, 30.0 / 60.0];
+        let expected = [10.0 / 60.0, 20.0 / 60.0, 30.0 / 60.0];
         for (i, &prob) in params.probabilities.iter().enumerate() {
             assert_abs_diff_eq!(prob, expected[i], epsilon = 1e-10);
         }
@@ -576,7 +572,7 @@ mod tests {
 
         // Should be smoothed
         let total = 60.0 + 3.0; // data sum + alpha * vocab_size
-        let expected = vec![11.0 / total, 21.0 / total, 31.0 / total];
+        let expected = [11.0 / total, 21.0 / total, 31.0 / total];
         for (i, &prob) in params.probabilities.iter().enumerate() {
             assert_abs_diff_eq!(prob, expected[i], epsilon = 1e-10);
         }

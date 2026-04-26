@@ -1269,7 +1269,7 @@ impl DependencyUpdater {
         }
 
         // Sort by priority
-        recommendations.sort_by(|a, b| b.priority.cmp(&a.priority));
+        recommendations.sort_by_key(|r| std::cmp::Reverse(r.priority));
 
         Ok(recommendations)
     }

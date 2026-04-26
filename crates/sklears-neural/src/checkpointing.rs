@@ -10,9 +10,10 @@ use scirs2_core::ndarray::{Array1, Array2};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
-use std::fs::{self, File, OpenOptions};
-use std::io::{BufReader, BufWriter, Read, Write};
-use std::path::{Path, PathBuf};
+use std::fs;
+#[cfg(feature = "mmap")]
+use std::io::Write;
+use std::path::Path;
 
 #[cfg(feature = "serde")]
 use serde_json;
@@ -23,29 +24,19 @@ use oxicode;
 #[cfg(feature = "serde")]
 use chrono;
 
-#[cfg(feature = "mmap")]
-use memmap2::{MmapMut, MmapOptions};
-#[cfg(feature = "mmap")]
-use std::io::{Seek, SeekFrom};
-
 /// Format for saving checkpoints
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum CheckpointFormat {
     /// JSON format (human-readable, larger files)
     Json,
     /// Binary format (compact, faster I/O)
+    #[default]
     Binary,
     /// Custom format with compression
     Compressed,
     /// Memory-mapped format for large models (efficient random access)
     #[cfg(feature = "mmap")]
     MemoryMapped,
-}
-
-impl Default for CheckpointFormat {
-    fn default() -> Self {
-        CheckpointFormat::Binary
-    }
 }
 
 #[cfg(feature = "serde")]
@@ -283,7 +274,7 @@ impl TrainingHistory {
     pub fn add_custom_metric(&mut self, name: &str, value: f64) {
         self.custom_metrics
             .entry(name.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(value);
     }
 
@@ -594,27 +585,16 @@ impl CheckpointManager {
                     }
                 })?;
 
-                use flate2::write::GzEncoder;
-                use flate2::Compression;
-                use std::io::Write;
-
-                let file = fs::File::create(&path).map_err(|e| SklearsError::InvalidParameter {
-                    name: "file_path".to_string(),
-                    reason: format!("Failed to create checkpoint file: {}", e),
-                })?;
-                let mut encoder = GzEncoder::new(file, Compression::default());
-                encoder
-                    .write_all(&binary_data)
-                    .map_err(|e| SklearsError::InvalidParameter {
+                let compressed = oxiarc_deflate::gzip_compress(&binary_data, 6).map_err(|e| {
+                    SklearsError::InvalidParameter {
                         name: "compression".to_string(),
                         reason: format!("Failed to compress checkpoint: {}", e),
-                    })?;
-                encoder
-                    .finish()
-                    .map_err(|e| SklearsError::InvalidParameter {
-                        name: "compression".to_string(),
-                        reason: format!("Failed to finish compression: {}", e),
-                    })?;
+                    }
+                })?;
+                fs::write(&path, &compressed).map_err(|e| SklearsError::InvalidParameter {
+                    name: "file_path".to_string(),
+                    reason: format!("Failed to write checkpoint file: {}", e),
+                })?;
                 path
             }
             #[cfg(feature = "mmap")]
@@ -665,17 +645,11 @@ impl CheckpointManager {
                 })?
             }
             "gz" => {
-                use flate2::read::GzDecoder;
-                use std::io::Read;
-
-                let file =
-                    fs::File::open(file_path).map_err(|e| SklearsError::InvalidParameter {
-                        name: "file_path".to_string(),
-                        reason: format!("Failed to open checkpoint file: {}", e),
-                    })?;
-                let mut decoder = GzDecoder::new(file);
-                let mut binary_data = Vec::new();
-                decoder.read_to_end(&mut binary_data).map_err(|e| {
+                let raw = fs::read(file_path).map_err(|e| SklearsError::InvalidParameter {
+                    name: "file_path".to_string(),
+                    reason: format!("Failed to read checkpoint file: {}", e),
+                })?;
+                let binary_data = oxiarc_deflate::gzip_decompress(&raw).map_err(|e| {
                     SklearsError::InvalidParameter {
                         name: "decompression".to_string(),
                         reason: format!("Failed to decompress checkpoint: {}", e),
@@ -746,6 +720,7 @@ impl CheckpointManager {
     }
 
     /// Clean up old checkpoints
+    #[allow(dead_code)]
     fn cleanup_old_checkpoints(&self, max_checkpoints: usize) -> NeuralResult<()> {
         let checkpoints = self.list_checkpoints()?;
 
@@ -768,8 +743,6 @@ impl CheckpointManager {
         checkpoint: &ModelCheckpoint,
         path: &Path,
     ) -> NeuralResult<()> {
-        use std::mem;
-
         // First, serialize the checkpoint to binary to get the size
         let binary_data =
             serialize_to_binary(checkpoint).map_err(|e| SklearsError::InvalidParameter {
@@ -842,7 +815,8 @@ pub trait Checkpointable {
     fn to_checkpoint(&self, current_epoch: usize) -> NeuralResult<ModelCheckpoint>;
 
     /// Load model state from checkpoint
-    fn from_checkpoint(&mut self, checkpoint: &ModelCheckpoint) -> NeuralResult<()>;
+    /// Load model state from a checkpoint
+    fn load_from_checkpoint(&mut self, checkpoint: &ModelCheckpoint) -> NeuralResult<()>;
 
     /// Get model type identifier
     fn model_type(&self) -> String;

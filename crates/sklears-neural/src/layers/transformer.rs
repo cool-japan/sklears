@@ -5,29 +5,12 @@
 
 use crate::activation::Activation;
 use crate::weight_init::{InitStrategy, WeightInitializer};
-use crate::{
-    layers::{Layer, ParameterizedLayer},
-    NeuralResult,
-};
+use crate::NeuralResult;
 use scirs2_core::ndarray::{s, Array1, Array2, Array3};
 use scirs2_core::numeric::NumCast;
 use scirs2_core::random::thread_rng;
 use sklears_core::error::SklearsError;
 use sklears_core::types::FloatBounds;
-
-/// Helper function to apply activation to a generic floating point array
-fn apply_activation<T: FloatBounds>(activation: &Activation, input: &Array2<T>) -> Array2<T> {
-    match activation {
-        Activation::Identity => input.clone(),
-        Activation::Logistic => input.mapv(|val| {
-            let exp_neg = (-val).exp();
-            T::one() / (T::one() + exp_neg)
-        }),
-        Activation::Tanh => input.mapv(|val| val.tanh()),
-        Activation::Relu => input.mapv(|val| val.max(T::zero())),
-        _ => input.clone(), // For other activations, just return input for now
-    }
-}
 
 /// Apply activation to 3D array (for transformer use)
 fn apply_activation_3d<T: FloatBounds>(activation: &Activation, input: &Array3<T>) -> Array3<T> {
@@ -59,6 +42,7 @@ pub enum PositionalEncodingType {
 /// Adds positional information to input embeddings to help the model
 /// understand the order of elements in a sequence.
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // dropout_rate retained for future regularization; currently stored but not applied
 pub struct PositionalEncoding<T: FloatBounds> {
     /// Maximum sequence length
     max_seq_len: usize,
@@ -180,8 +164,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + From<f64>> Positiona
                     for batch in 0..batch_size {
                         for pos in 0..seq_len {
                             for dim in 0..d_model {
-                                output[[batch, pos, dim]] =
-                                    output[[batch, pos, dim]] + encodings[[pos, dim]];
+                                output[[batch, pos, dim]] += encodings[[pos, dim]];
                             }
                         }
                     }
@@ -192,8 +175,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + From<f64>> Positiona
                     for batch in 0..batch_size {
                         for pos in 0..seq_len {
                             for dim in 0..d_model {
-                                output[[batch, pos, dim]] =
-                                    output[[batch, pos, dim]] + embeddings[[pos, dim]];
+                                output[[batch, pos, dim]] += embeddings[[pos, dim]];
                             }
                         }
                     }
@@ -293,6 +275,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + From<f64>> Positiona
 /// Implements scaled dot-product attention with multiple attention heads:
 /// Attention(Q, K, V) = softmax(QK^T / sqrt(d_k))V
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // dropout_rate, use_bias retained for future regularization and bias enabling
 pub struct MultiHeadAttention<T: FloatBounds> {
     /// Number of attention heads
     num_heads: usize,
@@ -327,13 +310,14 @@ pub struct MultiHeadAttention<T: FloatBounds> {
 }
 
 impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + From<f64>> MultiHeadAttention<T> {
+    /// Create a multi-head attention layer; `d_model` must be divisible by `num_heads`
     pub fn new(
         d_model: usize,
         num_heads: usize,
         dropout_rate: T,
         use_bias: bool,
     ) -> NeuralResult<Self> {
-        if d_model % num_heads != 0 {
+        if !d_model.is_multiple_of(num_heads) {
             return Err(SklearsError::InvalidParameter {
                 name: "d_model".to_string(),
                 reason: format!(
@@ -448,7 +432,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + From<f64>> MultiHead
             if let Some(bias_vec) = bias {
                 for seq in 0..seq_len {
                     for dim in 0..d_model {
-                        output[[batch, seq, dim]] = output[[batch, seq, dim]] + bias_vec[dim];
+                        output[[batch, seq, dim]] += bias_vec[dim];
                     }
                 }
             }
@@ -472,7 +456,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + From<f64>> MultiHead
             for head in 0..self.num_heads {
                 let head_idx = batch * self.num_heads + head;
                 let start_dim = head * self.d_k;
-                let end_dim = start_dim + self.d_k;
+                let _end_dim = start_dim + self.d_k;
 
                 for seq in 0..seq_len {
                     for dim in 0..self.d_k {
@@ -590,12 +574,12 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + From<f64>> MultiHead
                 for k in 0..dim2 {
                     let exp_val = (input[[i, j, k]] - max_val).exp();
                     output[[i, j, k]] = exp_val;
-                    sum = sum + exp_val;
+                    sum += exp_val;
                 }
 
                 // Normalize
                 for k in 0..dim2 {
-                    output[[i, j, k]] = output[[i, j, k]] / sum;
+                    output[[i, j, k]] /= sum;
                 }
             }
         }
@@ -625,6 +609,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + From<f64>> MultiHead
 
 /// Feed-forward network for transformer blocks
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // dropout_rate and use_bias retained for future regularization and bias enabling
 pub struct FeedForward<T: FloatBounds> {
     /// First linear layer weights
     w1: Array2<T>,
@@ -643,6 +628,7 @@ pub struct FeedForward<T: FloatBounds> {
 }
 
 impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> FeedForward<T> {
+    /// Create a position-wise feed-forward network with the given model and expansion dimensions
     pub fn new(
         d_model: usize,
         d_ff: usize,
@@ -689,7 +675,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> FeedForward<T> {
             if let Some(ref bias) = self.b1 {
                 for seq in 0..seq_len {
                     for dim in 0..bias.len() {
-                        hidden[[batch, seq, dim]] = hidden[[batch, seq, dim]] + bias[dim];
+                        hidden[[batch, seq, dim]] += bias[dim];
                     }
                 }
             }
@@ -709,7 +695,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> FeedForward<T> {
             if let Some(ref bias) = self.b2 {
                 for seq in 0..seq_len {
                     for dim in 0..bias.len() {
-                        output[[batch, seq, dim]] = output[[batch, seq, dim]] + bias[dim];
+                        output[[batch, seq, dim]] += bias[dim];
                     }
                 }
             }
@@ -734,8 +720,6 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> FeedForward<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::array;
 
     #[test]
     #[ignore]

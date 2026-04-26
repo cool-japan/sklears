@@ -8,7 +8,6 @@
 use std::fmt;
 
 /// High-precision timer for measuring algorithm performance
-use sklears_core::traits::Estimator;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 #[derive(Debug, Clone)]
@@ -97,7 +96,7 @@ impl PerformanceTimer {
             }
         }
 
-        /// TimingReport
+        // TimingReport
         TimingReport {
             total_duration,
             checkpoint_durations,
@@ -213,7 +212,7 @@ impl TimingStatistics {
         sorted_measurements.sort();
 
         let mid = sorted_measurements.len() / 2;
-        if sorted_measurements.len() % 2 == 0 {
+        if sorted_measurements.len().is_multiple_of(2) {
             let sum_nanos =
                 sorted_measurements[mid - 1].as_nanos() + sorted_measurements[mid].as_nanos();
             Duration::from_nanos((sum_nanos / 2) as u64)
@@ -293,7 +292,7 @@ impl TimingStatistics {
 
     /// Generate statistical report
     pub fn generate_report(&self) -> StatisticalReport {
-        /// StatisticalReport
+        // StatisticalReport
         StatisticalReport {
             algorithm_name: self.algorithm_name.clone(),
             dataset_info: self.dataset_info.clone(),

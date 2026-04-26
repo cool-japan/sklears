@@ -2,12 +2,12 @@
 
 use scirs2_core::ndarray::Array2;
 use sklears_core::types::Float;
-use std::marker::PhantomData;
 
 /// Initialization methods for tensor decomposition
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum TensorInitMethod {
     /// Random initialization
+    #[default]
     Random,
     /// SVD-based initialization
     SVD,
@@ -22,9 +22,3 @@ pub struct Untrained;
 /// Marker type for trained state
 #[derive(Debug, Clone)]
 pub struct Trained;
-
-impl Default for TensorInitMethod {
-    fn default() -> Self {
-        TensorInitMethod::Random
-    }
-}

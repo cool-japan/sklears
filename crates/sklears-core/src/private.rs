@@ -288,6 +288,8 @@ pub(crate) mod testing {
     /// Mock algorithm for testing (internal)
     pub(crate) struct MockAlgorithm {
         state: algorithm_internals::InternalState,
+        #[allow(dead_code)]
+        // intentionally deferred: fitted data stored but prediction is a mock stub
         fitted_data: Option<Vec<f64>>,
     }
 
@@ -299,6 +301,7 @@ pub(crate) mod testing {
             }
         }
 
+        #[allow(dead_code)] // intentionally deferred: mock fit method for future integration tests
         pub(crate) fn fit(&mut self, data: Vec<f64>) -> Result<()> {
             self.state = algorithm_internals::InternalState::Fitting;
             self.fitted_data = Some(data);
@@ -306,6 +309,7 @@ pub(crate) mod testing {
             Ok(())
         }
 
+        #[allow(dead_code)] // intentionally deferred: mock predict method for future integration tests
         pub(crate) fn predict(&self, input: &[f64]) -> Result<Vec<f64>> {
             if self.state != algorithm_internals::InternalState::Fitted {
                 return Err(SklearsError::InvalidOperation(

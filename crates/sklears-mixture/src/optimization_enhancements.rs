@@ -74,7 +74,7 @@ pub enum QuasiNewtonMethod {
 ///     .acceleration(AccelerationType::SQUAREM)
 ///     .build();
 ///
-/// let fitted = model.fit(&X.view(), &()).unwrap();
+/// let fitted = model.fit(&X.view(), &()).expect("AcceleratedEM fitting should succeed with valid data");
 /// ```
 #[derive(Debug, Clone)]
 pub struct AcceleratedEM<S = Untrained> {
@@ -452,12 +452,19 @@ impl Predict<ArrayView2<'_, Float>, Array1<usize>> for AcceleratedEM<Accelerated
 // Quasi-Newton GMM
 #[derive(Debug, Clone)]
 pub struct QuasiNewtonGMM<S = Untrained> {
+    #[allow(dead_code)]
     n_components: usize,
+    #[allow(dead_code)]
     method: QuasiNewtonMethod,
+    #[allow(dead_code)]
     covariance_type: CovarianceType,
+    #[allow(dead_code)]
     max_iter: usize,
+    #[allow(dead_code)]
     tol: f64,
+    #[allow(dead_code)]
     reg_covar: f64,
+    #[allow(dead_code)]
     random_state: Option<u64>,
     _phantom: std::marker::PhantomData<S>,
 }
@@ -535,8 +542,11 @@ impl QuasiNewtonGMM<Untrained> {
 // Natural Gradient GMM
 #[derive(Debug, Clone)]
 pub struct NaturalGradientGMM<S = Untrained> {
+    #[allow(dead_code)]
     n_components: usize,
+    #[allow(dead_code)]
     learning_rate: f64,
+    #[allow(dead_code)]
     use_fisher: bool,
     _phantom: std::marker::PhantomData<S>,
 }
@@ -638,6 +648,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_accelerated_em_fit() {
         let X = array![[1.0, 2.0], [1.5, 2.5], [10.0, 11.0], [10.5, 11.5]];
 

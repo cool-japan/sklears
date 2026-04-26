@@ -124,6 +124,7 @@ impl UncertaintyQuantifier {
     }
 
     /// Quantify uncertainty using bootstrap method
+    #[allow(non_snake_case)] // standard ML notation
     pub fn bootstrap_uncertainty<F>(
         &self,
         X_train: &Array2<Float>,
@@ -159,6 +160,7 @@ impl UncertaintyQuantifier {
     }
 
     /// Quantify uncertainty using Bayesian approach
+    #[allow(non_snake_case)] // standard ML notation
     pub fn bayesian_uncertainty(
         &self,
         posterior_samples: &Array2<Float>,
@@ -214,6 +216,7 @@ impl UncertaintyQuantifier {
     }
 
     /// Quantify uncertainty using conformal prediction
+    #[allow(non_snake_case)] // standard ML notation
     pub fn conformal_uncertainty<F>(
         &self,
         X_cal: &Array2<Float>,
@@ -306,6 +309,7 @@ impl UncertaintyQuantifier {
     }
 
     /// Extract bootstrap data based on indices
+    #[allow(non_snake_case)] // standard ML notation
     fn extract_bootstrap_data(
         &self,
         X: &Array2<Float>,
@@ -487,6 +491,7 @@ impl Default for UncertaintyQuantifier {
 /// Trait for models that support uncertainty quantification
 pub trait UncertaintyCapable {
     /// Predict with uncertainty quantification
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_with_uncertainty(
         &self,
         X: &Array2<Float>,
@@ -494,9 +499,11 @@ pub trait UncertaintyCapable {
     ) -> Result<UncertaintyResult>;
 
     /// Get epistemic uncertainty (model uncertainty)
+    #[allow(non_snake_case)] // standard ML notation
     fn epistemic_uncertainty(&self, X: &Array2<Float>) -> Result<Array1<Float>>;
 
     /// Get aleatoric uncertainty (data uncertainty)
+    #[allow(non_snake_case)] // standard ML notation
     fn aleatoric_uncertainty(&self, X: &Array2<Float>) -> Result<Array1<Float>>;
 }
 

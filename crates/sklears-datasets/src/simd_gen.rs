@@ -424,9 +424,9 @@ mod tests {
         assert_eq!(targets.len(), 100);
 
         // Check that we have all classes
-        let mut has_class = vec![false; 3];
+        let mut has_class = [false; 3];
         for &target in targets.iter() {
-            assert!(target >= 0 && target < 3);
+            assert!((0..3).contains(&target));
             has_class[target as usize] = true;
         }
         assert!(has_class.iter().all(|&x| x));

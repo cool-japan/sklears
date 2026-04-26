@@ -161,7 +161,7 @@ impl GroupKFold {
             .collect();
 
         // Sort by size to distribute large groups first
-        group_sizes.sort_by(|a, b| b.1.cmp(&a.1));
+        group_sizes.sort_by_key(|b| std::cmp::Reverse(b.1));
 
         let mut fold_assignments: Vec<Vec<i32>> = vec![Vec::new(); self.n_splits];
         let mut fold_sizes: Vec<usize> = vec![0; self.n_splits];

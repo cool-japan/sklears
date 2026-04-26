@@ -45,6 +45,11 @@ use sklears_core::traits::{Fit, Predict, Trained};
 use sklears_core::types::{Features, Float, Int};
 use std::collections::HashMap;
 
+/// Type alias for extracted patches: list of (patch_features, (x, y) position)
+type PatchList = Vec<(scirs2_core::ndarray::Array1<f64>, (usize, usize))>;
+/// Type alias for image database entry: (pixel_data, (width, height, channels))
+type ImageEntry = (Vec<f64>, (usize, usize, usize));
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -101,6 +106,7 @@ impl Default for ImageSearchConfig {
 
 /// Image similarity search engine
 pub struct ImageSimilaritySearch {
+    #[allow(dead_code)] // reserved for search configuration access
     config: ImageSearchConfig,
     feature_extractor: Box<dyn FeatureExtractor>,
     neighbor_index: Option<KNeighborsClassifier<Trained>>,
@@ -675,9 +681,7 @@ impl ImageSimilaritySearch {
             1.0
         };
 
-        for i in 0..k_results {
-            let (distance, idx) = distances_with_indices[i];
-
+        for &(distance, idx) in distances_with_indices.iter().take(k_results) {
             let features = database.row(idx).to_owned();
 
             // Compute confidence score (inverse of normalized distance)
@@ -779,7 +783,7 @@ impl PatchBasedMatching {
         &self,
         image_data: &[f64],
         dimensions: (usize, usize, usize),
-    ) -> NeighborsResult<Vec<(Array1<f64>, (usize, usize))>> {
+    ) -> NeighborsResult<PatchList> {
         let (width, height, channels) = dimensions;
         let mut patches = Vec::new();
 
@@ -811,10 +815,7 @@ impl PatchBasedMatching {
     }
 
     /// Build patch database from multiple images
-    pub fn build_patch_database(
-        &mut self,
-        images: &[(Vec<f64>, (usize, usize, usize))],
-    ) -> NeighborsResult<()> {
+    pub fn build_patch_database(&mut self, images: &[ImageEntry]) -> NeighborsResult<()> {
         let mut all_patch_features = Vec::new();
 
         for (image_data, dimensions) in images {

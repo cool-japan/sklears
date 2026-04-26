@@ -17,8 +17,11 @@ use crate::simd_distances::{simd_distance, SimdDistanceMetric};
 /// Sparse matrix entry with row, column, and value
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SparseEntry {
+    /// Row index of the entry
     pub row: usize,
+    /// Column index of the entry
     pub col: usize,
+    /// Value at this position
     pub value: Float,
 }
 
@@ -97,7 +100,6 @@ impl SparseDistanceMatrix {
         let n_samples = data.nrows();
 
         // First pass: count non-zero entries to estimate sparsity
-        let entry_count = 0;
         let total_entries = if config.symmetric {
             (n_samples * (n_samples - 1)) / 2
         } else {
@@ -105,7 +107,7 @@ impl SparseDistanceMatrix {
         };
 
         // Sample a subset to estimate sparsity
-        let sample_size = (n_samples / 10).max(10).min(100);
+        let sample_size = (n_samples / 10).clamp(10, 100);
         let mut sampled_entries = 0;
         let mut sampled_nonzero = 0;
 
@@ -724,14 +726,23 @@ impl SparseDistanceMatrix {
 /// Statistics for sparse matrix
 #[derive(Debug, Clone)]
 pub struct SparseMatrixStats {
+    /// Number of rows
     pub n_rows: usize,
+    /// Number of columns
     pub n_cols: usize,
+    /// Number of non-zero entries
     pub nnz: usize,
+    /// Total possible entries (n_rows × n_cols)
     pub total_entries: usize,
+    /// Fraction of entries that are zero
     pub sparsity: f64,
+    /// Memory in bytes if stored as a dense matrix
     pub dense_memory_bytes: usize,
+    /// Actual memory in bytes in sparse format
     pub sparse_memory_bytes: usize,
+    /// Fraction of memory saved compared to dense format
     pub memory_savings: f64,
+    /// Whether the matrix is symmetric
     pub symmetric: bool,
 }
 
@@ -824,11 +835,17 @@ impl SparseNeighborhoodGraph {
 /// Statistics for sparse neighborhood graph
 #[derive(Debug, Clone)]
 pub struct GraphStats {
+    /// Number of vertices (nodes) in the graph
     pub n_vertices: usize,
+    /// Number of edges
     pub n_edges: usize,
+    /// Average vertex degree
     pub avg_degree: f64,
+    /// Maximum vertex degree
     pub max_degree: usize,
+    /// Minimum vertex degree
     pub min_degree: usize,
+    /// Underlying sparse matrix statistics
     pub matrix_stats: SparseMatrixStats,
 }
 

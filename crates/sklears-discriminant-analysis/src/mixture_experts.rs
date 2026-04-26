@@ -441,7 +441,7 @@ impl Fit<Array2<Float>, Array1<i32>> for MixtureOfExpertsDiscriminantAnalysis<Un
 impl MixtureOfExpertsDiscriminantAnalysis<Untrained> {
     fn initialize_parameters(
         &self,
-        experts: &mut Vec<ExpertModel>,
+        experts: &mut [ExpertModel],
         gating_network: &mut GatingNetwork,
         classes: &Array1<i32>,
         x: &Array2<Float>,
@@ -511,7 +511,7 @@ impl MixtureOfExpertsDiscriminantAnalysis<Untrained> {
         &self,
         x: &Array2<Float>,
         y: &Array1<i32>,
-        experts: &Vec<ExpertModel>,
+        experts: &[ExpertModel],
         gating_network: &GatingNetwork,
         classes: &Array1<i32>,
     ) -> Result<(Array2<Float>, Float)> {
@@ -561,7 +561,7 @@ impl MixtureOfExpertsDiscriminantAnalysis<Untrained> {
         &self,
         x: &Array2<Float>,
         y: &Array1<i32>,
-        experts: &mut Vec<ExpertModel>,
+        experts: &mut [ExpertModel],
         gating_network: &mut GatingNetwork,
         responsibilities: &Array2<Float>,
         classes: &Array1<i32>,
@@ -859,7 +859,7 @@ mod tests {
         let history = fitted.log_likelihood_history();
 
         // Check that log likelihood generally increases
-        assert!(history.len() > 0);
+        assert!(!history.is_empty());
         if history.len() > 1 {
             let initial_ll = history[0];
             let final_ll = *history.last().expect("operation should succeed");

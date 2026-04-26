@@ -14,8 +14,10 @@ use alloc::{
 #[derive(Debug, Clone)]
 pub struct HammingCode74 {
     // Generator matrix for Hamming(7,4)
+    #[allow(dead_code)] // Stored as reference; encode() inlines the arithmetic for performance
     generator_matrix: [[u8; 7]; 4],
     // Parity check matrix
+    #[allow(dead_code)] // Stored as reference; decode() inlines the syndrome calculation
     parity_check_matrix: [[u8; 4]; 7],
 }
 
@@ -120,7 +122,7 @@ impl HammingCode74 {
 
     /// Decode a byte array encoded with Hamming(7,4) codes
     pub fn decode_bytes(&self, encoded: &[u8]) -> Result<Vec<u8>, String> {
-        if encoded.len() % 2 != 0 {
+        if !encoded.len().is_multiple_of(2) {
             return Err("Encoded data length must be even".to_string());
         }
 
@@ -160,7 +162,7 @@ impl CRC32 {
         // IEEE 802.3 polynomial: 0xEDB88320
         const POLYNOMIAL: u32 = 0xEDB88320;
 
-        for i in 0..256 {
+        for (i, entry) in table.iter_mut().enumerate() {
             let mut crc = i as u32;
             for _ in 0..8 {
                 if crc & 1 != 0 {
@@ -169,7 +171,7 @@ impl CRC32 {
                     crc >>= 1;
                 }
             }
-            table[i] = crc;
+            *entry = crc;
         }
 
         Self { table }
@@ -250,10 +252,10 @@ impl SimpleReedSolomon {
         codeword[..self.k].copy_from_slice(data);
 
         // Generate parity symbols using systematic encoding
-        for i in 0..self.k {
-            for j in 0..(self.n - self.k) {
+        for (i, &di) in data.iter().enumerate() {
+            for (j, parity) in codeword[self.k..].iter_mut().enumerate() {
                 let generator_coeff = ((i + j + 1) % 255 + 1) as u8; // Simplified generator
-                codeword[self.k + j] ^= Self::gf_multiply(data[i], generator_coeff);
+                *parity ^= Self::gf_multiply(di, generator_coeff);
             }
         }
 
@@ -266,11 +268,11 @@ impl SimpleReedSolomon {
 
         // Calculate syndromes
         let mut syndromes = vec![0u8; self.n - self.k];
-        for i in 0..syndromes.len() {
-            for j in 0..self.n {
+        for (i, syn) in syndromes.iter_mut().enumerate() {
+            for (j, &rec) in received.iter().enumerate() {
                 let eval_point = ((i + 1) % 255 + 1) as u8;
                 let power = Self::gf_multiply(eval_point, j as u8);
-                syndromes[i] ^= Self::gf_multiply(received[j], power);
+                *syn ^= Self::gf_multiply(rec, power);
             }
         }
 

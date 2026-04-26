@@ -12,7 +12,31 @@ use sklears_core::{
 // use scirs2_sparse::{CsMat, TriMat};
 use std::collections::HashMap;
 
-use crate::{MockTransformer, PipelineStep};
+use crate::{
+    mock::{DropTransformer, PassthroughTransformer},
+    PipelineStep,
+};
+
+/// Build a named transformer by dispatch key.
+///
+/// Supported names:
+/// - `"passthrough"` — identity, copies columns unchanged.
+/// - `"drop"` — discards all columns (returns a 0-column array).
+///
+/// Any other name returns [`SklearsError::InvalidInput`]. When a full
+/// transformer factory backed by `sklears-preprocessing` is available, add
+/// the new variants here.
+fn build_transformer(name: &str) -> Result<Box<dyn PipelineStep>, SklearsError> {
+    match name {
+        "passthrough" => Ok(Box::new(PassthroughTransformer::new())),
+        "drop" => Ok(Box::new(DropTransformer::new())),
+        _ => Err(SklearsError::InvalidInput(format!(
+            "Unknown transformer name '{name}'. Supported: 'passthrough', 'drop'. \
+             For other transformers use `add_transformer_step` and supply the concrete \
+             `Box<dyn PipelineStep>` directly."
+        ))),
+    }
+}
 
 /// Column Transformer
 ///
@@ -53,6 +77,7 @@ pub struct ColumnTransformer<S = Untrained> {
 
 /// Trained state for `ColumnTransformer`
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ColumnTransformerTrained {
     fitted_transformers: Vec<(String, Box<dyn PipelineStep>, Vec<usize>)>,
     output_indices: Vec<Vec<usize>>,
@@ -92,7 +117,7 @@ impl ColumnTransformer<Untrained> {
     pub fn add_transformer_step(
         &mut self,
         name: String,
-        transformer: Box<dyn PipelineStep>,
+        _transformer: Box<dyn PipelineStep>,
         columns: Vec<usize>,
     ) {
         self.transformer_names.push(name);
@@ -172,9 +197,13 @@ impl Default for ColumnTransformer<Untrained> {
 /// Configuration for `ColumnTransformer`
 #[derive(Debug, Clone)]
 pub struct ColumnTransformerConfig {
+    /// The remainder.
     pub remainder: String,
+    /// The sparse threshold.
     pub sparse_threshold: f64,
+    /// The n jobs.
     pub n_jobs: Option<i32>,
+    /// The transformer weights.
     pub transformer_weights: Option<HashMap<String, f64>>,
 }
 
@@ -239,8 +268,11 @@ impl Fit<ArrayView2<'_, Float>, Option<&ArrayView1<'_, Float>>> for ColumnTransf
             // Extract columns for this transformer
             let x_subset = self.extract_columns(x, columns)?;
 
-            // Create a mock transformer for now - in real implementation, this would be provided
-            let mut transformer = Box::new(MockTransformer::new()) as Box<dyn PipelineStep>;
+            // Use the name as a transformer-type key if it is a known keyword
+            // ("passthrough", "drop"), otherwise fall back to PassthroughTransformer
+            // so the existing add_transformer("numeric", ...) API continues to work.
+            let mut transformer: Box<dyn PipelineStep> =
+                build_transformer(name).unwrap_or_else(|_| Box::new(PassthroughTransformer::new()));
             transformer.fit(&x_subset.view(), y.as_ref().copied())?;
 
             fitted_transformers.push((name.clone(), transformer, columns.clone()));
@@ -253,8 +285,8 @@ impl Fit<ArrayView2<'_, Float>, Option<&ArrayView1<'_, Float>>> for ColumnTransf
 
         if !remainder_columns.is_empty() && self.remainder == "passthrough" {
             let x_remainder = self.extract_columns(x, &remainder_columns)?;
-            let mut remainder_transformer =
-                Box::new(MockTransformer::new()) as Box<dyn PipelineStep>;
+            let mut remainder_transformer: Box<dyn PipelineStep> =
+                Box::new(PassthroughTransformer::new());
             remainder_transformer.fit(&x_remainder.view(), y.as_ref().copied())?;
             fitted_transformers.push((
                 "remainder".to_string(),
@@ -508,7 +540,7 @@ impl ColumnTransformerBuilder {
     /// Build the `ColumnTransformer`
     #[must_use]
     pub fn build(self) -> ColumnTransformer<Untrained> {
-        /// ColumnTransformer
+        // ColumnTransformer
         ColumnTransformer {
             state: Untrained,
             transformer_names: self.transformer_names,

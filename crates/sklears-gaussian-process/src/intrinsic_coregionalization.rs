@@ -83,8 +83,8 @@ impl Default for IcmConfig {
 ///     .kernel(Box::new(kernel))
 ///     .n_outputs(2)
 ///     .alpha(1e-6);
-/// let fitted = icm.fit(&X.view(), &Y.view()).unwrap();
-/// let predictions = fitted.predict(&X.view()).unwrap();
+/// let fitted = icm.fit(&X.view(), &Y.view()).expect("fit should succeed with valid training data");
+/// let predictions = fitted.predict(&X.view()).expect("predict should succeed on trained model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct IntrinsicCoregionalizationModel<S = Untrained> {
@@ -98,18 +98,23 @@ pub struct IntrinsicCoregionalizationModel<S = Untrained> {
 
 /// Trained state for Intrinsic Coregionalization Model
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct IcmTrained {
     X_train: Array2<f64>,
+    #[allow(dead_code)]
     Y_train: Array2<f64>,
     kernel: Box<dyn Kernel>,
     coregionalization_matrix: Array2<f64>,
+    #[allow(dead_code)]
     alpha: f64,
     n_outputs: usize,
     alpha_vec: Array1<f64>, // Solution to the linear system
     log_marginal_likelihood_value: f64,
+    #[allow(dead_code)]
     gram_matrix: Array2<f64>, // Base kernel matrix
 }
 
+#[allow(non_snake_case)]
 impl IntrinsicCoregionalizationModel<Untrained> {
     /// Create a new Intrinsic Coregionalization Model
     pub fn new() -> Self {
@@ -192,7 +197,7 @@ impl IntrinsicCoregionalizationModel<Untrained> {
         X1: &Array2<f64>,
         X2: Option<&Array2<f64>>,
         coregionalization_matrix: &Array2<f64>,
-        kernel: &Box<dyn Kernel>,
+        kernel: &dyn Kernel,
     ) -> SklResult<Array2<f64>> {
         let n1 = X1.nrows();
         let n2 = X2.map_or(n1, |x| x.nrows());
@@ -235,6 +240,7 @@ impl IntrinsicCoregionalizationModel<Untrained> {
     }
 
     /// Devectorize predictions back to matrix form
+    #[allow(dead_code)]
     fn devectorize_predictions(&self, y_vec: &Array1<f64>, n_samples: usize) -> Array2<f64> {
         let mut Y = Array2::<f64>::zeros((n_samples, self.n_outputs));
 
@@ -321,8 +327,12 @@ impl Fit<ArrayView2<'_, f64>, ArrayView2<'_, f64>> for IntrinsicCoregionalizatio
         let coregionalization_matrix = self.initialize_coregionalization_matrix();
 
         // Compute the full ICM covariance matrix
-        let K_full =
-            self.compute_icm_covariance(&X_owned, None, &coregionalization_matrix, kernel)?;
+        let K_full = self.compute_icm_covariance(
+            &X_owned,
+            None,
+            &coregionalization_matrix,
+            kernel.as_ref(),
+        )?;
 
         // Add regularization to the diagonal
         let mut K_reg = K_full.clone();
@@ -368,6 +378,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView2<'_, f64>> for IntrinsicCoregionalizatio
     }
 }
 
+#[allow(non_snake_case)]
 impl IntrinsicCoregionalizationModel<IcmTrained> {
     /// Access the trained state
     pub fn trained_state(&self) -> &IcmTrained {

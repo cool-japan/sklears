@@ -91,9 +91,12 @@ impl MultiModalCalibrator {
                     let mean_i = modal_probabilities[i].mean().unwrap_or(0.5);
                     let mean_j = modal_probabilities[j].mean().unwrap_or(0.5);
 
-                    for k in 0..n_samples {
-                        let dev_i = modal_probabilities[i][k] - mean_i;
-                        let dev_j = modal_probabilities[j][k] - mean_j;
+                    for (pi, pj) in modal_probabilities[i]
+                        .iter()
+                        .zip(modal_probabilities[j].iter())
+                    {
+                        let dev_i = pi - mean_i;
+                        let dev_j = pj - mean_j;
                         correlation += dev_i * dev_j;
                     }
 
@@ -407,7 +410,7 @@ impl CrossModalCalibrator {
 
 impl CalibrationEstimator for CrossModalCalibrator {
     fn fit(&mut self, probabilities: &Array1<Float>, y_true: &Array1<i32>) -> Result<()> {
-        if probabilities.len() % 2 != 0 {
+        if !probabilities.len().is_multiple_of(2) {
             return Err(SklearsError::InvalidInput(
                 "Need even number of samples for source and target modalities".to_string(),
             ));
@@ -590,11 +593,12 @@ impl HeterogeneousEnsembleCalibrator {
         // Compute pairwise diversity (disagreement)
         for i in 0..n_calibrators {
             for j in (i + 1)..n_calibrators {
-                let mut disagreement = 0.0;
-                for k in 0..probabilities.len() {
-                    disagreement += (all_predictions[i][k] - all_predictions[j][k]).abs();
-                }
-                disagreement /= probabilities.len() as Float;
+                let disagreement: Float = all_predictions[i]
+                    .iter()
+                    .zip(all_predictions[j].iter())
+                    .map(|(a, b)| (a - b).abs())
+                    .sum::<Float>()
+                    / probabilities.len() as Float;
 
                 diversity_scores[i] += disagreement;
                 diversity_scores[j] += disagreement;
@@ -852,7 +856,7 @@ impl DomainAdaptationCalibrator {
 
 impl CalibrationEstimator for DomainAdaptationCalibrator {
     fn fit(&mut self, probabilities: &Array1<Float>, y_true: &Array1<i32>) -> Result<()> {
-        if probabilities.len() % 2 != 0 {
+        if !probabilities.len().is_multiple_of(2) {
             return Err(SklearsError::InvalidInput(
                 "Need even number of samples for source and target domains".to_string(),
             ));

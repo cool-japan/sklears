@@ -389,7 +389,7 @@ impl MetaLearner {
 
 /// Calculate ensemble diversity using pairwise correlation
 pub fn calculate_diversity(predictions: &Array2<Float>) -> Result<Float> {
-    let (n_samples, n_estimators) = predictions.dim();
+    let (_n_samples, n_estimators) = predictions.dim();
 
     if n_estimators < 2 {
         return Ok(0.0);
@@ -545,7 +545,7 @@ mod tests {
         ];
 
         let diversity = calculate_diversity(&predictions).expect("operation should succeed");
-        assert!(diversity >= 0.0 && diversity <= 1.0);
+        assert!((0.0..=1.0).contains(&diversity));
     }
 
     #[test]

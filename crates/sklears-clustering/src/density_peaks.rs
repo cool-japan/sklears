@@ -49,8 +49,11 @@ impl Default for DensityPeaksConfig {
 /// Distance metrics for density peaks clustering
 #[derive(Debug, Clone, Copy)]
 pub enum DistanceMetric {
+    /// Standard Euclidean (L2) distance
     Euclidean,
+    /// Manhattan (L1) distance
     Manhattan,
+    /// Chebyshev (L∞) distance
     Chebyshev,
 }
 
@@ -60,6 +63,7 @@ pub struct DensityPeaks<State = Untrained> {
     config: DensityPeaksConfig,
     state: PhantomData<State>,
     // Trained state fields
+    #[allow(dead_code)] // Retained for future prediction on new points
     training_data_: Option<Array2<Float>>,
     cluster_centers_: Option<Array2<Float>>,
     center_indices_: Option<Vec<usize>>,

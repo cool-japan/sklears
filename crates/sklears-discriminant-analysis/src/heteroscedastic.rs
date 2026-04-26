@@ -365,9 +365,7 @@ impl HeteroscedasticDiscriminantAnalysis<Untrained> {
         let _mu = trace / n_features as Float;
 
         // Simplified shrinkage estimation
-        let shrinkage = ((n_features as Float) / (n_samples as Float))
-            .min(1.0)
-            .max(0.0);
+        let shrinkage = ((n_features as Float) / (n_samples as Float)).clamp(0.0, 1.0);
 
         Ok(shrinkage)
     }
@@ -383,8 +381,7 @@ impl HeteroscedasticDiscriminantAnalysis<Untrained> {
         // OAS shrinkage formula (simplified)
         let rho = ((1.0 - 2.0 / n_features as Float)
             / (n_samples as Float + 1.0 - 2.0 / n_features as Float))
-            .min(1.0)
-            .max(0.0);
+            .clamp(0.0, 1.0);
 
         Ok(rho)
     }

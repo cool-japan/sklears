@@ -61,14 +61,17 @@ impl DatasetMetrics {
 /// Hyperparameter optimizer for feature selection methods
 #[derive(Debug, Clone)]
 pub struct HyperparameterOptimizer {
+    /// max_iterations
     pub max_iterations: usize,
 }
 
 impl HyperparameterOptimizer {
+    /// new
     pub fn new() -> Self {
         Self { max_iterations: 20 }
     }
 
+    /// optimize_method
     pub fn optimize_method(
         &self,
         method: &AutoMLMethod,
@@ -425,8 +428,11 @@ impl Default for HyperparameterOptimizer {
 /// Optimized method with hyperparameters
 #[derive(Debug, Clone)]
 pub struct OptimizedMethod {
+    /// method_type
     pub method_type: AutoMLMethod,
+    /// config
     pub config: MethodConfig,
+    /// estimated_cost
     pub estimated_cost: f64,
 }
 
@@ -435,50 +441,81 @@ pub struct OptimizedMethod {
 pub enum MethodConfig {
     /// Univariate
     Univariate {
+        /// k
         k: usize,
     },
     /// Correlation
     Correlation {
+        /// threshold
         threshold: f64,
     },
     /// Tree
     Tree {
+        /// n_estimators
         n_estimators: usize,
 
+        /// max_depth
         max_depth: usize,
     },
+    /// Lasso
     Lasso {
+        /// alpha
         alpha: f64,
     },
+    /// Wrapper
     Wrapper {
+        /// cv_folds
         cv_folds: usize,
+        /// scoring
         scoring: String,
     },
+    /// Ensemble
     Ensemble {
+        /// n_methods
         n_methods: usize,
+        /// aggregation
         aggregation: String,
     },
+    /// Hybrid
     Hybrid {
+        /// stage1_method
         stage1_method: String,
+        /// stage2_method
         stage2_method: String,
+        /// stage1_features
         stage1_features: usize,
     },
+    /// NeuralArchitectureSearch
     NeuralArchitectureSearch {
+        /// max_epochs
         max_epochs: usize,
+        /// population_size
         population_size: usize,
+        /// mutation_rate
         mutation_rate: f64,
+        /// early_stopping_patience
         early_stopping_patience: usize,
     },
+    /// TransferLearning
     TransferLearning {
+        /// source_domain
         source_domain: String,
+        /// adaptation_method
         adaptation_method: String,
+        /// fine_tuning_epochs
         fine_tuning_epochs: usize,
+        /// transfer_ratio
         transfer_ratio: f64,
     },
+    /// MetaLearningEnsemble
     MetaLearningEnsemble {
+        /// base_methods
         base_methods: Vec<String>,
+        /// meta_learner
         meta_learner: String,
+        /// adaptation_strategy
         adaptation_strategy: String,
+        /// ensemble_size
         ensemble_size: usize,
     },
 }
@@ -565,13 +602,18 @@ impl OptimizedMethod {
 /// Trained method with selected features
 #[derive(Debug, Clone)]
 pub struct TrainedMethod {
+    /// method_type
     pub method_type: AutoMLMethod,
+    /// config
     pub config: MethodConfig,
+    /// selected_features
     pub selected_features: Vec<usize>,
+    /// feature_importances
     pub feature_importances: Vec<f64>,
 }
 
 impl TrainedMethod {
+    /// transform_indices
     pub fn transform_indices(&self) -> Result<Vec<usize>> {
         Ok(self.selected_features.clone())
     }

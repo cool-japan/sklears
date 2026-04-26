@@ -22,6 +22,7 @@ impl BatchNorm {
     /// Apply batch normalization to a batch of data
     /// Input shape: [batch_size, features]
     /// mean, variance, gamma, beta shape: \[features\]
+    #[allow(clippy::too_many_arguments)] // BatchNorm forward requires all statistical parameters
     pub fn forward(
         &self,
         input: &[f32],
@@ -51,6 +52,7 @@ impl BatchNorm {
     }
 
     /// Apply batch normalization with FP16 precision
+    #[allow(clippy::too_many_arguments)] // BatchNorm forward_f16 requires all statistical parameters
     pub fn forward_f16(
         &self,
         input: &[F16],
@@ -98,24 +100,22 @@ impl BatchNorm {
         assert_eq!(variance.len(), features);
 
         // Compute mean
-        for feat in 0..features {
+        for (feat, m) in mean.iter_mut().enumerate() {
             let mut sum = 0.0;
             for batch in 0..batch_size {
-                let idx = batch * features + feat;
-                sum += input[idx];
+                sum += input[batch * features + feat];
             }
-            mean[feat] = sum / batch_size as f32;
+            *m = sum / batch_size as f32;
         }
 
         // Compute variance
-        for feat in 0..features {
+        for (feat, v) in variance.iter_mut().enumerate() {
             let mut sum_sq_diff = 0.0;
             for batch in 0..batch_size {
-                let idx = batch * features + feat;
-                let diff = input[idx] - mean[feat];
+                let diff = input[batch * features + feat] - mean[feat];
                 sum_sq_diff += diff * diff;
             }
-            variance[feat] = sum_sq_diff / batch_size as f32;
+            *v = sum_sq_diff / batch_size as f32;
         }
     }
 }
@@ -152,18 +152,11 @@ impl LayerNorm {
             let end_idx = start_idx + features;
 
             // Compute mean for this sample
-            let mut sum = 0.0;
-            for i in start_idx..end_idx {
-                sum += input[i];
-            }
-            let mean = sum / features as f32;
+            let sample_slice = &input[start_idx..end_idx];
+            let mean = sample_slice.iter().sum::<f32>() / features as f32;
 
             // Compute variance for this sample
-            let mut sum_sq_diff = 0.0;
-            for i in start_idx..end_idx {
-                let diff = input[i] - mean;
-                sum_sq_diff += diff * diff;
-            }
+            let sum_sq_diff: f32 = sample_slice.iter().map(|&x| (x - mean).powi(2)).sum();
             let variance = sum_sq_diff / features as f32;
             let std_dev = (variance + self.epsilon).sqrt();
 
@@ -324,6 +317,7 @@ pub mod attention {
     /// Scaled dot-product attention
     /// Query, Key, Value shapes: [batch_size, seq_len, d_model]
     /// Output shape: [batch_size, seq_len, d_model]
+    #[allow(clippy::too_many_arguments)] // Attention signature requires all tensor dimensions
     pub fn scaled_dot_product_attention(
         query: &[f32],
         key: &[f32],
@@ -375,23 +369,21 @@ pub mod attention {
                 let row_end = row_start + seq_len;
 
                 // Find max for numerical stability
-                let mut max_val = f32::NEG_INFINITY;
-                for idx in row_start..row_end {
-                    if scores[idx] > max_val {
-                        max_val = scores[idx];
-                    }
-                }
+                let max_val = scores[row_start..row_end]
+                    .iter()
+                    .copied()
+                    .fold(f32::NEG_INFINITY, f32::max);
 
                 // Compute exp and sum
-                let mut sum_exp = 0.0;
-                for idx in row_start..row_end {
-                    scores[idx] = (scores[idx] - max_val).exp();
-                    sum_exp += scores[idx];
+                let row = &mut scores[row_start..row_end];
+                for s in row.iter_mut() {
+                    *s = (*s - max_val).exp();
                 }
+                let sum_exp: f32 = scores[row_start..row_end].iter().sum();
 
                 // Normalize
-                for idx in row_start..row_end {
-                    scores[idx] /= sum_exp;
+                for s in scores[row_start..row_end].iter_mut() {
+                    *s /= sum_exp;
                 }
             }
 
@@ -412,6 +404,7 @@ pub mod attention {
     }
 
     /// Multi-head attention
+    #[allow(clippy::too_many_arguments)] // Multi-head attention requires all tensor + head dimensions
     pub fn multi_head_attention(
         query: &[f32],
         key: &[f32],
@@ -485,9 +478,8 @@ pub mod attention {
 
             // Store head output
             let head_offset = head * batch_size * seq_len * d_k;
-            for i in 0..head_output.len() {
-                head_outputs[head_offset + i] = head_output[i];
-            }
+            head_outputs[head_offset..head_offset + head_output.len()]
+                .copy_from_slice(&head_output);
         }
 
         // Concatenate all heads
@@ -515,6 +507,7 @@ pub mod convolution {
     /// Input shape: [batch_size, in_channels, height, width]
     /// Weight shape: [out_channels, in_channels, kernel_height, kernel_width]
     /// Output shape: [batch_size, out_channels, out_height, out_width]
+    #[allow(clippy::too_many_arguments)] // Conv2d requires all spatial and channel dimensions
     pub fn conv2d_batch(
         input: &[f32],
         weight: &[f32],
@@ -550,10 +543,10 @@ pub mod convolution {
         );
 
         for batch in 0..batch_size {
-            for out_ch in 0..out_channels {
+            for (out_ch, &bias_val) in bias.iter().enumerate() {
                 for out_y in 0..output_height {
                     for out_x in 0..output_width {
-                        let mut sum = bias[out_ch];
+                        let mut sum = bias_val;
 
                         for in_ch in 0..in_channels {
                             for ky in 0..kernel_height {
@@ -678,7 +671,7 @@ mod tests {
         batch_matmul::batch_matmul_f32(&a, &b, &mut c, batch_size, m, n, k);
 
         // With identity matrices, output should equal input
-        let expected = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+        let expected = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         for i in 0..expected.len() {
             assert!((c[i] - expected[i]).abs() < 1e-5);
         }
@@ -701,7 +694,7 @@ mod tests {
         batch_matmul::batch_matmul_broadcast_f32(&a, &b, &mut c, batch_size, m, n, k);
 
         // With identity matrix, output should equal input
-        let expected = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+        let expected = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         for i in 0..expected.len() {
             assert!((c[i] - expected[i]).abs() < 1e-5);
         }

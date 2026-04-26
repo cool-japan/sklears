@@ -198,10 +198,15 @@ pub struct AutomatedValidationResult {
     /// Stability score (0-1)
     pub stability_score: f64,
     /// Individual metric scores
+    /// Silhouette coefficient (-1 to 1, higher is better)
     pub silhouette_score: f64,
+    /// Calinski-Harabász index (higher is better)
     pub calinski_harabasz_score: f64,
+    /// Davies-Bouldin index (lower is better)
     pub davies_bouldin_score: f64,
+    /// Intra-cluster coherence score (0-1, higher is better)
     pub coherence_score: f64,
+    /// Inter-cluster separation score (0-1, higher is better)
     pub separation_score: f64,
     /// Automated recommendations for improvement
     pub recommendations: Vec<String>,
@@ -290,14 +295,17 @@ impl AutomatedValidationResult {
 /// Automated cluster validation framework
 pub struct AutomatedValidator {
     /// Distance metric for validation
+    #[allow(dead_code)] // Metric used in construction of sub-validators
     metric: ValidationMetric,
     /// Internal validation methods
     internal_validator: InternalValidationMethods,
     /// External validation methods
+    #[allow(dead_code)] // Reserved for future external validation integration
     external_validator: ExternalValidationMetrics,
     /// Coherence and separation analyzer
     coherence_separation_analyzer: CoherenceSeparationAnalyzer,
     /// Stability analyzer
+    #[allow(dead_code)] // Reserved for future stability-based automation
     stability_analyzer: StabilityAnalyzer,
 }
 
@@ -690,7 +698,7 @@ mod tests {
         assert_eq!(best_score, 15.0);
 
         let problematic = result.problematic_metrics(0.7);
-        assert!(problematic.len() > 0); // Some metrics should be below 0.7
+        assert!(!problematic.is_empty()); // Some metrics should be below 0.7
 
         let report = result.detailed_report();
         assert!(report.contains("Automated Cluster Validation Report"));
@@ -767,7 +775,7 @@ mod tests {
             &separation,
         );
 
-        assert!(quality_score >= 0.0 && quality_score <= 1.0);
+        assert!((0.0..=1.0).contains(&quality_score));
     }
 
     #[test]
@@ -859,8 +867,10 @@ mod tests {
             .is_err());
 
         // Test invalid configuration
-        let mut invalid_config = AutomatedValidationConfig::default();
-        invalid_config.quality_threshold = 1.5; // Invalid threshold
+        let invalid_config = AutomatedValidationConfig {
+            quality_threshold: 1.5, // Invalid threshold
+            ..AutomatedValidationConfig::default()
+        };
 
         let correct_labels = vec![0, 1];
         assert!(validator

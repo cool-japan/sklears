@@ -4,9 +4,8 @@
 //! their predictions as new data arrives. These are useful for online learning
 //! scenarios and establishing baselines for streaming models.
 
-use scirs2_core::ndarray::distributions::Distribution;
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{prelude::*, Rng};
+use scirs2_core::random::prelude::*;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::{Estimator, Fit, Predict, Trained};
 use sklears_core::types::Float;
@@ -81,6 +80,7 @@ pub struct OnlineDummyRegressor<State = sklears_core::traits::Untrained> {
 
 /// Internal state for drift detection algorithms
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 struct DriftDetectorState {
     // ADWIN state
     adwin_buckets: VecDeque<(f64, usize)>,
@@ -181,14 +181,11 @@ impl<State> OnlineDummyRegressor<State> {
         }
 
         // Update window-based storage
-        match &self.window_strategy {
-            WindowStrategy::FixedWindow(size) => {
-                self.window_data.push_back(target);
-                if self.window_data.len() > *size {
-                    self.window_data.pop_front();
-                }
+        if let WindowStrategy::FixedWindow(size) = &self.window_strategy {
+            self.window_data.push_back(target);
+            if self.window_data.len() > *size {
+                self.window_data.pop_front();
             }
-            _ => {} // Other window strategies handled in update methods
         }
 
         Ok(())
@@ -428,22 +425,19 @@ impl<State> OnlineDummyClassifier<State> {
         self.total_samples += 1;
         *self.class_counts.entry(target).or_insert(0) += 1;
 
-        match &self.window_strategy {
-            WindowStrategy::FixedWindow(size) => {
-                self.class_window.push_back(target);
-                if self.class_window.len() > *size {
-                    if let Some(old_class) = self.class_window.pop_front() {
-                        if let Some(count) = self.class_counts.get_mut(&old_class) {
-                            *count = count.saturating_sub(1);
-                            if *count == 0 {
-                                self.class_counts.remove(&old_class);
-                            }
+        if let WindowStrategy::FixedWindow(size) = &self.window_strategy {
+            self.class_window.push_back(target);
+            if self.class_window.len() > *size {
+                if let Some(old_class) = self.class_window.pop_front() {
+                    if let Some(count) = self.class_counts.get_mut(&old_class) {
+                        *count = count.saturating_sub(1);
+                        if *count == 0 {
+                            self.class_counts.remove(&old_class);
                         }
-                        self.total_samples = self.total_samples.saturating_sub(1);
                     }
+                    self.total_samples = self.total_samples.saturating_sub(1);
                 }
             }
-            _ => {} // Other strategies handled differently
         }
     }
 

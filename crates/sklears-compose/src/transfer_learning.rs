@@ -6,13 +6,13 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use sklears_core::{
     error::Result as SklResult,
-    prelude::{Predict, SklearsError},
+    prelude::SklearsError,
     traits::{Estimator, Fit, Untrained},
-    types::{Float, FloatBounds},
+    types::Float,
 };
 use std::collections::HashMap;
 
-use crate::{PipelinePredictor, PipelineStep};
+use crate::PipelinePredictor;
 
 /// Pre-trained model wrapper for transfer learning
 #[derive(Debug)]
@@ -67,7 +67,7 @@ impl PretrainedModel {
         let features = self.model.predict(x)?;
         Array2::from_shape_vec(
             (x.nrows(), features.len() / x.nrows()),
-            features.into_raw_vec(),
+            features.into_raw_vec_and_offset().0,
         )
         .map_err(|e| SklearsError::InvalidData {
             reason: format!("Feature extraction failed: {e}"),
@@ -125,6 +125,7 @@ pub struct TransferLearningPipeline<S = Untrained> {
 
 /// Trained state for `TransferLearningPipeline`
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TransferLearningPipelineTrained {
     adapted_model: Box<dyn PipelinePredictor>,
     feature_extractor: Option<PretrainedModel>,
@@ -168,23 +169,35 @@ impl Default for AdaptationConfig {
 #[derive(Debug, Clone)]
 pub enum LearningRateSchedule {
     /// Constant learning rate
-    Constant { rate: f64 },
+    Constant {
+        /// Field value.
+        rate: f64,
+    },
     /// Exponential decay
     ExponentialDecay {
+        /// Field value.
         initial_rate: f64,
+        /// Field value.
         decay_rate: f64,
+        /// Field value.
         decay_steps: usize,
     },
     /// Step decay
     StepDecay {
+        /// Field value.
         initial_rate: f64,
+        /// Field value.
         drop_rate: f64,
+        /// Field value.
         epochs_drop: usize,
     },
     /// Cosine annealing
     CosineAnnealing {
+        /// Field value.
         max_rate: f64,
+        /// Field value.
         min_rate: f64,
+        /// Field value.
         cycle_length: usize,
     },
 }
@@ -428,7 +441,7 @@ impl TransferLearningPipeline<Untrained> {
     /// Apply fine-tuning strategy
     fn apply_fine_tuning(
         &mut self,
-        pretrained_model: &PretrainedModel,
+        _pretrained_model: &PretrainedModel,
         x: &ArrayView2<'_, Float>,
         y: &Option<&ArrayView1<'_, Float>>,
         learning_rate: f64,
@@ -437,7 +450,7 @@ impl TransferLearningPipeline<Untrained> {
         if let Some(mut target_estimator) = self.target_estimator.take() {
             // Simulate fine-tuning by training the target estimator
             for epoch in 0..epochs {
-                let current_lr = learning_rate * (0.95_f64).powi(epoch as i32); // Simple decay
+                let _current_lr = learning_rate * (0.95_f64).powi(epoch as i32); // Simple decay
                 let y_ref = y.as_ref().ok_or_else(|| {
                     SklearsError::InvalidInput("No target values provided".to_string())
                 })?;
@@ -455,7 +468,7 @@ impl TransferLearningPipeline<Untrained> {
     /// Apply progressive unfreezing strategy
     fn apply_progressive_unfreezing(
         &mut self,
-        pretrained_model: &PretrainedModel,
+        _pretrained_model: &PretrainedModel,
         x: &ArrayView2<'_, Float>,
         y: &Option<&ArrayView1<'_, Float>>,
         learning_rates: &[f64],
@@ -463,11 +476,7 @@ impl TransferLearningPipeline<Untrained> {
     ) -> SklResult<Box<dyn PipelinePredictor>> {
         if let Some(mut target_estimator) = self.target_estimator.take() {
             // Simulate progressive unfreezing
-            for (step, (lr, layers)) in learning_rates
-                .iter()
-                .zip(unfreeze_schedule.iter())
-                .enumerate()
-            {
+            for (_lr, _layers) in learning_rates.iter().zip(unfreeze_schedule.iter()) {
                 // In a real implementation, we would unfreeze specific layers
                 // For now, we'll just train with different learning rates
                 let y_ref = y.as_ref().ok_or_else(|| {
@@ -486,10 +495,10 @@ impl TransferLearningPipeline<Untrained> {
     /// Apply layer-wise adaptive rates strategy
     fn apply_layer_wise_adaptive(
         &mut self,
-        pretrained_model: &PretrainedModel,
+        _pretrained_model: &PretrainedModel,
         x: &ArrayView2<'_, Float>,
         y: &Option<&ArrayView1<'_, Float>>,
-        layer_rates: &HashMap<String, f64>,
+        _layer_rates: &HashMap<String, f64>,
     ) -> SklResult<Box<dyn PipelinePredictor>> {
         if let Some(mut target_estimator) = self.target_estimator.take() {
             // Simulate layer-wise adaptive training
@@ -515,15 +524,15 @@ impl TransferLearningPipeline<Untrained> {
         x: &ArrayView2<'_, Float>,
         y: &Option<&ArrayView1<'_, Float>>,
         temperature: f64,
-        distillation_weight: f64,
-        task_weight: f64,
+        _distillation_weight: f64,
+        _task_weight: f64,
     ) -> SklResult<Box<dyn PipelinePredictor>> {
         if let Some(mut student_estimator) = self.target_estimator.take() {
             // Get teacher predictions
             let teacher_predictions = teacher_model.model.predict(x)?;
 
             // Apply temperature scaling (softmax with temperature)
-            let soft_targets = self.apply_temperature_scaling(&teacher_predictions, temperature);
+            let _soft_targets = self.apply_temperature_scaling(&teacher_predictions, temperature);
 
             // Train student with both hard and soft targets
             // In a real implementation, this would involve a custom loss function
@@ -597,7 +606,7 @@ impl TransferLearningPipeline<TransferLearningPipelineTrained> {
         &mut self,
         x: &ArrayView2<'_, Float>,
         y: &ArrayView1<'_, Float>,
-        learning_rate: f64,
+        _learning_rate: f64,
         epochs: usize,
     ) -> SklResult<()> {
         // Simulate fine-tuning the adapted model
@@ -616,6 +625,7 @@ pub struct FeatureExtractorWrapper {
 
 impl FeatureExtractorWrapper {
     #[must_use]
+    /// Creates a new instance.
     pub fn new(extractor: &PretrainedModel) -> Self {
         // Clone the essential parts of the PretrainedModel
         Self {
@@ -662,6 +672,7 @@ impl Default for MockExtractor {
 
 impl MockExtractor {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {}
     }
@@ -684,26 +695,39 @@ impl PipelinePredictor for MockExtractor {
 /// Domain adaptation utilities
 pub mod domain_adaptation {
     use super::{
-        Array1, Array2, ArrayView1, ArrayView2, Axis, Estimator, Fit, Float, FloatBounds, HashMap,
-        PipelinePredictor, PipelineStep, Predict, SklResult, SklearsError, Untrained,
+        Array1, Array2, ArrayView1, ArrayView2, Axis, Estimator, Fit, Float, HashMap,
+        PipelinePredictor, SklResult, SklearsError, Untrained,
     };
 
     /// Domain adaptation strategy
     #[derive(Debug, Clone)]
     pub enum DomainAdaptationStrategy {
         /// Maximum Mean Discrepancy (MMD) alignment
-        MMD { bandwidth: f64, lambda: f64 },
+        MMD {
+            /// Field value.
+            bandwidth: f64,
+            /// Field value.
+            lambda: f64,
+        },
         /// Adversarial domain adaptation
         Adversarial {
+            /// Field value.
             discriminator_lr: f64,
+            /// Field value.
             generator_lr: f64,
+            /// Field value.
             adversarial_weight: f64,
         },
         /// Correlation alignment (CORAL)
-        CORAL { lambda: f64 },
+        CORAL {
+            /// Field value.
+            lambda: f64,
+        },
         /// Deep domain confusion
         DeepDomainConfusion {
+            /// Field value.
             adaptation_factor: f64,
+            /// Field value.
             confusion_weight: f64,
         },
     }
@@ -719,6 +743,7 @@ pub mod domain_adaptation {
 
     /// Trained state for `DomainAdaptationPipeline`
     #[derive(Debug)]
+    #[allow(dead_code)]
     pub struct DomainAdaptationPipelineTrained {
         adapted_estimator: Box<dyn PipelinePredictor>,
         domain_alignment_metrics: HashMap<String, f64>,
@@ -797,7 +822,7 @@ pub mod domain_adaptation {
         fn fit(
             mut self,
             target_x: &ArrayView2<'_, Float>,
-            target_y: &Option<&ArrayView1<'_, Float>>,
+            _target_y: &Option<&ArrayView1<'_, Float>>,
         ) -> SklResult<Self::Fitted> {
             let (source_x, source_y) = self
                 .source_data
@@ -885,10 +910,10 @@ pub mod domain_adaptation {
         /// Apply adversarial domain adaptation
         fn apply_adversarial_adaptation(
             &self,
-            source_x: &Array2<f64>,
-            target_x: &Array2<f64>,
-            discriminator_lr: f64,
-            generator_lr: f64,
+            _source_x: &Array2<f64>,
+            _target_x: &Array2<f64>,
+            _discriminator_lr: f64,
+            _generator_lr: f64,
             adversarial_weight: f64,
         ) -> SklResult<HashMap<String, f64>> {
             // Simulate adversarial training metrics
@@ -956,8 +981,8 @@ pub mod domain_adaptation {
             }
 
             // Compute covariance matrices (simplified)
-            let source_mean = source_x.mean_axis(Axis(0)).unwrap_or_default();
-            let target_mean = target_x.mean_axis(Axis(0)).unwrap_or_default();
+            let _source_mean = source_x.mean_axis(Axis(0)).unwrap_or_default();
+            let _target_mean = target_x.mean_axis(Axis(0)).unwrap_or_default();
 
             // For simplicity, just compute variance differences
             let source_var = source_x.var_axis(Axis(0), 1.0);

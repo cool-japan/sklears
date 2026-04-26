@@ -3,10 +3,9 @@
 //! This module provides comprehensive multi-task learning capabilities, allowing models
 //! to learn multiple related tasks simultaneously with shared representations.
 
-use crate::layers::Layer;
-use crate::models::{Functional, Sequential};
+use crate::models::Sequential;
 use crate::NeuralResult;
-use scirs2_core::ndarray::{Array1, Array2, ScalarOperand};
+use scirs2_core::ndarray::{Array2, ScalarOperand};
 use sklears_core::error::SklearsError;
 use sklears_core::types::FloatBounds;
 use std::collections::HashMap;
@@ -21,18 +20,28 @@ use serde::{Deserialize, Serialize};
 pub enum SharingStrategy {
     /// Hard parameter sharing: shared backbone, task-specific heads
     HardSharing {
+        /// Number of shared bottom layers before task-specific heads branch off
         shared_layers: usize,
+        /// Sizes (number of neurons) of each task-specific layer after the shared trunk
         task_specific_layers: Vec<usize>,
     },
     /// Soft parameter sharing: task-specific networks with regularization
     SoftSharing {
+        /// L2 penalty encouraging the task-specific weight matrices to remain similar
         l2_penalty: f64,
+        /// Cosine similarity threshold below which the penalty is applied more aggressively
         similarity_threshold: f64,
     },
     /// Cross-stitch networks: linear combinations of task-specific features
-    CrossStitch { num_units: Vec<usize> },
+    CrossStitch {
+        /// Number of units in each cross-stitch layer
+        num_units: Vec<usize>,
+    },
     /// Attention-based sharing: learn what to share between tasks
-    AttentionSharing { attention_dim: usize },
+    AttentionSharing {
+        /// Dimensionality of the attention keys and queries used for sharing decisions
+        attention_dim: usize,
+    },
 }
 
 impl Default for SharingStrategy {
@@ -45,10 +54,11 @@ impl Default for SharingStrategy {
 }
 
 /// Task weighting strategies for multi-task loss balancing
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TaskWeightingStrategy {
     /// Equal weights for all tasks
+    #[default]
     Equal,
     /// Manual task weights
     Manual(Vec<f64>),
@@ -56,21 +66,20 @@ pub enum TaskWeightingStrategy {
     UncertaintyWeighting,
     /// Dynamic weight adjustment based on task difficulty
     DynamicWeighting {
+        /// Rate of adaptation
         adaptation_rate: f64,
+        /// Minimum allowed weight
         min_weight: f64,
+        /// Maximum allowed weight
         max_weight: f64,
     },
     /// Gradient normalization based weighting
     GradNorm {
+        /// Balancing factor alpha for gradient normalization
         alpha: f64,
+        /// Initial weight values per task
         initial_weights: Vec<f64>,
     },
-}
-
-impl Default for TaskWeightingStrategy {
-    fn default() -> Self {
-        TaskWeightingStrategy::Equal
-    }
 }
 
 /// Multi-task loss configuration
@@ -129,6 +138,7 @@ pub struct MultiTaskConfig<T: FloatBounds> {
 }
 
 impl<T: FloatBounds> MultiTaskConfig<T> {
+    /// Create a new multi-task configuration; `output_dims.len()` must equal `num_tasks`
     pub fn new(num_tasks: usize, input_dim: usize, output_dims: Vec<usize>) -> NeuralResult<Self> {
         if output_dims.len() != num_tasks {
             return Err(SklearsError::InvalidParameter {
@@ -246,7 +256,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
         task_specific_layers: &[usize],
     ) -> NeuralResult<()> {
         // Build shared backbone
-        let mut shared_model = Sequential::new();
+        let shared_model = Sequential::new();
         let mut current_dim = self.config.input_dim;
 
         for _ in 0..shared_layers {
@@ -260,16 +270,16 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
 
         // Build task-specific heads
         for (task_idx, task_name) in self.config.task_names.iter().enumerate() {
-            let mut task_head = Sequential::new();
-            let mut head_dim = current_dim;
+            let task_head = Sequential::new();
+            let mut _head_dim = current_dim;
 
             for &layer_size in task_specific_layers {
                 // Add task-specific layers
-                head_dim = layer_size;
+                _head_dim = layer_size;
             }
 
             // Final output layer
-            let output_dim = self.config.output_dims[task_idx];
+            let _output_dim = self.config.output_dims[task_idx];
             // Add final layer with output_dim neurons
 
             self.task_heads.insert(task_name.clone(), task_head);
@@ -282,8 +292,8 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
     fn build_soft_sharing_architecture(&mut self) -> NeuralResult<()> {
         // Create separate networks for each task with shared structure
         for (task_idx, task_name) in self.config.task_names.iter().enumerate() {
-            let mut task_network = Sequential::new();
-            let output_dim = self.config.output_dims[task_idx];
+            let task_network = Sequential::new();
+            let _output_dim = self.config.output_dims[task_idx];
 
             // Build task-specific network
             // (Implementation would add actual layers here)
@@ -298,7 +308,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
     fn build_cross_stitch_architecture(&mut self, num_units: &[usize]) -> NeuralResult<()> {
         // Initialize cross-stitch units
         let mut units = Vec::new();
-        for &unit_size in num_units {
+        for &_unit_size in num_units {
             let unit = Array2::eye(self.config.num_tasks)
                 * T::from(0.8).unwrap_or_else(|| T::zero())
                 + Array2::from_elem(
@@ -312,8 +322,8 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
 
         // Build task-specific networks
         for (task_idx, task_name) in self.config.task_names.iter().enumerate() {
-            let mut task_network = Sequential::new();
-            let output_dim = self.config.output_dims[task_idx];
+            let task_network = Sequential::new();
+            let _output_dim = self.config.output_dims[task_idx];
 
             // Build network with cross-stitch connections
             // (Implementation would add actual layers here)
@@ -325,17 +335,18 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
     }
 
     /// Build attention-based sharing architecture
-    fn build_attention_sharing_architecture(&mut self, attention_dim: usize) -> NeuralResult<()> {
+    fn build_attention_sharing_architecture(&mut self, _attention_dim: usize) -> NeuralResult<()> {
         // Build shared encoder with attention mechanism
-        let mut shared_model = Sequential::new();
+        let shared_model = Sequential::new();
         // (Implementation would add attention layers here)
 
         self.shared_model = Some(shared_model);
 
         // Build task-specific decoders
         for (task_idx, task_name) in self.config.task_names.iter().enumerate() {
-            let mut task_head = Sequential::new();
-            let output_dim = self.config.output_dims[task_idx];
+            let task_head = Sequential::new();
+            // Placeholder for output dimension - used when adding final layer
+            let _output_dim = self.config.output_dims[task_idx];
 
             // Build attention-based task head
             // (Implementation would add actual layers here)
@@ -348,7 +359,6 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
 
     /// Initialize task embeddings
     fn initialize_task_embeddings(&mut self) -> NeuralResult<()> {
-        use scirs2_core::random::Rng;
         let mut rng = scirs2_core::random::thread_rng();
 
         let mut embeddings = Array2::zeros((self.config.num_tasks, self.config.task_embedding_dim));
@@ -428,7 +438,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
                 } else {
                     T::from(1.0).unwrap_or_else(|| T::zero())
                 };
-                total_loss = total_loss + weight * task_loss;
+                total_loss += weight * task_loss;
                 valid_tasks += 1;
             }
         }
@@ -488,7 +498,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
     }
 
     /// Update task weights based on strategy
-    pub fn update_task_weights(&mut self, task_losses: &[T], epoch: usize) -> NeuralResult<()> {
+    pub fn update_task_weights(&mut self, task_losses: &[T], _epoch: usize) -> NeuralResult<()> {
         let strategy = self.config.loss_config.weighting_strategy.clone();
         match strategy {
             TaskWeightingStrategy::Equal => {
@@ -644,12 +654,12 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
             .fold(T::from(0.0).unwrap_or_else(|| T::zero()), |a, b| a + b);
         let avg_loss = total_loss / T::from(task_losses.len() as f64).unwrap_or_else(|| T::zero());
 
-        for (i, (&loss, weight)) in task_losses.iter().zip(weights.iter_mut()).enumerate() {
+        for (&loss, weight) in task_losses.iter().zip(weights.iter_mut()) {
             let relative_rate = loss / avg_loss;
             let target_rate = T::from(1.0).unwrap_or_else(|| T::zero());
             let adjustment =
                 (relative_rate / target_rate).powf(T::from(alpha).unwrap_or_else(|| T::zero()));
-            *weight = *weight * adjustment;
+            *weight *= adjustment;
         }
 
         // Normalize weights

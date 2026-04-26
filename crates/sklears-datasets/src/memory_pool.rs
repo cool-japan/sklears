@@ -39,6 +39,7 @@ struct MemoryBlock {
     size: usize,
     layout: Layout,
     allocated_at: std::time::Instant,
+    #[allow(dead_code)] // pool_id reserved for multi-pool debugging and diagnostics
     pool_id: usize,
     magic: u64, // For corruption detection
 }
@@ -77,12 +78,13 @@ impl MemoryBlock {
         self.magic = 0;
     }
 
-    fn as_slice_mut(&self) -> &mut [u8] {
+    fn as_slice_mut(&mut self) -> &mut [u8] {
         unsafe { std::slice::from_raw_parts_mut(self.ptr.as_ptr(), self.size) }
     }
 
-    fn as_f64_slice_mut(&self) -> MemoryPoolResult<&mut [f64]> {
-        if self.size % std::mem::size_of::<f64>() != 0 {
+    #[allow(dead_code)] // available to callers but not yet used in current test paths
+    fn as_f64_slice_mut(&mut self) -> MemoryPoolResult<&mut [f64]> {
+        if !self.size.is_multiple_of(std::mem::size_of::<f64>()) {
             return Err(MemoryPoolError::InvalidBlockSize(self.size));
         }
 
@@ -486,7 +488,7 @@ impl PooledBlock {
 
     /// Get a mutable slice as f64 values
     pub fn as_f64_slice_mut(&mut self) -> MemoryPoolResult<&mut [f64]> {
-        if self.size % std::mem::size_of::<f64>() != 0 {
+        if !self.size.is_multiple_of(std::mem::size_of::<f64>()) {
             return Err(MemoryPoolError::InvalidBlockSize(self.size));
         }
 
@@ -666,13 +668,13 @@ mod tests {
         // Get mutable view and fill with data
         {
             let mut view = array.view_mut()?;
-            view.fill(3.14);
+            view.fill(std::f64::consts::PI);
         }
 
         // Convert to owned array
         let owned = array.to_array()?;
         assert_eq!(owned.dim(), (100, 50));
-        assert!((owned[[0, 0]] - 3.14).abs() < f64::EPSILON);
+        assert!((owned[[0, 0]] - std::f64::consts::PI).abs() < f64::EPSILON);
 
         Ok(())
     }

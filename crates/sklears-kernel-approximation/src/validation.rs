@@ -833,6 +833,7 @@ mod tests {
     use super::*;
     // Mock implementation for testing
     struct MockValidatableRBF {
+        #[allow(dead_code)] // test fixture field
         gamma: f64,
     }
 

@@ -39,13 +39,14 @@ pub struct NeuralFeatureSelector<State = Untrained> {
     random_state: Option<u64>,
     state: PhantomData<State>,
     // Trained state
-    weights_: Option<Vec<Array2<Float>>>,
-    biases_: Option<Vec<Array1<Float>>>,
+    _weights_: Option<Vec<Array2<Float>>>,
+    _biases_: Option<Vec<Array1<Float>>>,
     feature_importances_: Option<Array1<Float>>,
     selected_features_: Option<Vec<usize>>,
 }
 
 impl NeuralFeatureSelector<Untrained> {
+    /// new
     pub fn new() -> Self {
         Self {
             hidden_layers: vec![64, 32],
@@ -57,48 +58,56 @@ impl NeuralFeatureSelector<Untrained> {
             importance_threshold: 0.01,
             random_state: None,
             state: PhantomData,
-            weights_: None,
-            biases_: None,
+            _weights_: None,
+            _biases_: None,
             feature_importances_: None,
             selected_features_: None,
         }
     }
 
+    /// hidden_layers
     pub fn hidden_layers(mut self, layers: Vec<usize>) -> Self {
         self.hidden_layers = layers;
         self
     }
 
+    /// learning_rate
     pub fn learning_rate(mut self, lr: f64) -> Self {
         self.learning_rate = lr;
         self
     }
 
+    /// epochs
     pub fn epochs(mut self, epochs: usize) -> Self {
         self.epochs = epochs;
         self
     }
 
+    /// l1_reg
     pub fn l1_reg(mut self, l1_reg: f64) -> Self {
         self.l1_reg = l1_reg;
         self
     }
 
+    /// l2_reg
     pub fn l2_reg(mut self, l2_reg: f64) -> Self {
         self.l2_reg = l2_reg;
         self
     }
 
+    /// k
     pub fn k(mut self, k: Option<usize>) -> Self {
         self.k = k;
         self
     }
 
+    /// importance_threshold
     pub fn importance_threshold(mut self, threshold: f64) -> Self {
         self.importance_threshold = threshold;
         self
     }
 
+    /// random_state
     pub fn random_state(mut self, seed: Option<u64>) -> Self {
         self.random_state = seed;
         self
@@ -225,8 +234,8 @@ impl Fit<Array2<Float>, Array1<Float>> for NeuralFeatureSelector<Untrained> {
             importance_threshold: self.importance_threshold,
             random_state: self.random_state,
             state: PhantomData,
-            weights_: Some(weights),
-            biases_: Some(biases),
+            _weights_: Some(weights),
+            _biases_: Some(biases),
             feature_importances_: Some(feature_importances),
             selected_features_: Some(selected_features),
         })
@@ -440,12 +449,13 @@ pub struct AttentionFeatureSelector<State = Untrained> {
     random_state: Option<u64>,
     state: PhantomData<State>,
     // Trained state
-    attention_weights_: Option<Array2<Float>>,
+    _attention_weights_: Option<Array2<Float>>,
     feature_attention_: Option<Array1<Float>>,
     selected_features_: Option<Vec<usize>>,
 }
 
 impl AttentionFeatureSelector<Untrained> {
+    /// new
     pub fn new() -> Self {
         Self {
             attention_dim: 64,
@@ -457,47 +467,55 @@ impl AttentionFeatureSelector<Untrained> {
             attention_threshold: 0.01,
             random_state: None,
             state: PhantomData,
-            attention_weights_: None,
+            _attention_weights_: None,
             feature_attention_: None,
             selected_features_: None,
         }
     }
 
+    /// attention_dim
     pub fn attention_dim(mut self, dim: usize) -> Self {
         self.attention_dim = dim;
         self
     }
 
+    /// n_heads
     pub fn n_heads(mut self, n_heads: usize) -> Self {
         self.n_heads = n_heads;
         self
     }
 
+    /// learning_rate
     pub fn learning_rate(mut self, lr: f64) -> Self {
         self.learning_rate = lr;
         self
     }
 
+    /// epochs
     pub fn epochs(mut self, epochs: usize) -> Self {
         self.epochs = epochs;
         self
     }
 
+    /// temperature
     pub fn temperature(mut self, temperature: f64) -> Self {
         self.temperature = temperature;
         self
     }
 
+    /// k
     pub fn k(mut self, k: Option<usize>) -> Self {
         self.k = k;
         self
     }
 
+    /// attention_threshold
     pub fn attention_threshold(mut self, threshold: f64) -> Self {
         self.attention_threshold = threshold;
         self
     }
 
+    /// random_state
     pub fn random_state(mut self, seed: Option<u64>) -> Self {
         self.random_state = seed;
         self
@@ -631,7 +649,7 @@ impl Fit<Array2<Float>, Array1<Float>> for AttentionFeatureSelector<Untrained> {
             attention_threshold: self.attention_threshold,
             random_state: self.random_state,
             state: PhantomData,
-            attention_weights_: Some(query_weights), // Store one of the weight matrices
+            _attention_weights_: Some(query_weights), // Store one of the weight matrices
             feature_attention_: Some(feature_attention),
             selected_features_: Some(selected_features),
         })
@@ -734,12 +752,13 @@ pub struct RLFeatureSelector<State = Untrained> {
     random_state: Option<u64>,
     state: PhantomData<State>,
     // Trained state
-    q_table_: Option<HashMap<String, Array1<Float>>>,
+    _q_table_: Option<HashMap<String, Array1<Float>>>,
     selected_features_: Option<Vec<usize>>,
     n_features_: Option<usize>,
 }
 
 impl RLFeatureSelector<Untrained> {
+    /// new
     pub fn new(k: usize) -> Self {
         Self {
             learning_rate: 0.1,
@@ -751,37 +770,43 @@ impl RLFeatureSelector<Untrained> {
             k,
             random_state: None,
             state: PhantomData,
-            q_table_: None,
+            _q_table_: None,
             selected_features_: None,
             n_features_: None,
         }
     }
 
+    /// learning_rate
     pub fn learning_rate(mut self, lr: f64) -> Self {
         self.learning_rate = lr;
         self
     }
 
+    /// discount_factor
     pub fn discount_factor(mut self, gamma: f64) -> Self {
         self.discount_factor = gamma;
         self
     }
 
+    /// epsilon
     pub fn epsilon(mut self, epsilon: f64) -> Self {
         self.epsilon = epsilon;
         self
     }
 
+    /// episodes
     pub fn episodes(mut self, episodes: usize) -> Self {
         self.episodes = episodes;
         self
     }
 
+    /// max_steps
     pub fn max_steps(mut self, max_steps: usize) -> Self {
         self.max_steps = max_steps;
         self
     }
 
+    /// random_state
     pub fn random_state(mut self, seed: Option<u64>) -> Self {
         self.random_state = seed;
         self
@@ -929,7 +954,7 @@ impl Fit<Array2<Float>, Array1<Float>> for RLFeatureSelector<Untrained> {
             k: self.k,
             random_state: self.random_state,
             state: PhantomData,
-            q_table_: Some(q_table),
+            _q_table_: Some(q_table),
             selected_features_: Some(best_features),
             n_features_: Some(n_features),
         })
@@ -1020,12 +1045,13 @@ pub struct MetaLearningFeatureSelector<State = Untrained> {
     random_state: Option<u64>,
     state: PhantomData<State>,
     // Trained state
-    meta_weights_: Option<Array1<Float>>,
+    _meta_weights_: Option<Array1<Float>>,
     base_selections_: Option<Vec<Vec<usize>>>,
     selected_features_: Option<Vec<usize>>,
 }
 
 impl MetaLearningFeatureSelector<Untrained> {
+    /// new
     pub fn new() -> Self {
         Self {
             base_methods: vec![
@@ -1039,32 +1065,37 @@ impl MetaLearningFeatureSelector<Untrained> {
             k: None,
             random_state: None,
             state: PhantomData,
-            meta_weights_: None,
+            _meta_weights_: None,
             base_selections_: None,
             selected_features_: None,
         }
     }
 
+    /// base_methods
     pub fn base_methods(mut self, methods: Vec<String>) -> Self {
         self.base_methods = methods;
         self
     }
 
+    /// meta_learning_rate
     pub fn meta_learning_rate(mut self, lr: f64) -> Self {
         self.meta_learning_rate = lr;
         self
     }
 
+    /// meta_epochs
     pub fn meta_epochs(mut self, epochs: usize) -> Self {
         self.meta_epochs = epochs;
         self
     }
 
+    /// k
     pub fn k(mut self, k: Option<usize>) -> Self {
         self.k = k;
         self
     }
 
+    /// random_state
     pub fn random_state(mut self, seed: Option<u64>) -> Self {
         self.random_state = seed;
         self
@@ -1156,7 +1187,7 @@ impl Fit<Array2<Float>, Array1<Float>> for MetaLearningFeatureSelector<Untrained
             k: self.k,
             random_state: self.random_state,
             state: PhantomData,
-            meta_weights_: Some(meta_weights),
+            _meta_weights_: Some(meta_weights),
             base_selections_: Some(base_selections),
             selected_features_: Some(selected_features),
         })
@@ -1275,6 +1306,7 @@ fn compute_simple_correlation(x: Float, y: Float) -> Float {
     x * y
 }
 
+/// compute_simple_correlation_array
 pub fn compute_simple_correlation_array(x: &Array1<Float>, y: &Array1<Float>) -> Float {
     let n = x.len().min(y.len());
     if n < 2 {

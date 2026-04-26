@@ -1,4 +1,6 @@
 //! Sampling-based imputation methods
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides imputation methods based on various sampling techniques
 //! including importance sampling, stratified sampling, and adaptive sampling.

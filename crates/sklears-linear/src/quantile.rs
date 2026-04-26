@@ -14,8 +14,6 @@ use sklears_core::{
     types::Float,
 };
 
-use crate::solver::Solver;
-
 /// Helper function to safely compute mean along an axis
 #[inline]
 fn safe_mean_axis(arr: &Array2<Float>, axis: Axis) -> Result<Array1<Float>> {
@@ -27,13 +25,13 @@ fn safe_mean_axis(arr: &Array2<Float>, axis: Axis) -> Result<Array1<Float>> {
 /// Helper function to safely compute mean of 1D array
 #[inline]
 fn safe_mean(arr: &Array1<Float>) -> Result<Float> {
-    arr.mean().ok_or_else(|| {
-        SklearsError::NumericalError("Failed to compute mean".to_string())
-    })
+    arr.mean()
+        .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean".to_string()))
 }
 
 /// Helper function to safely compare floats
 #[inline]
+#[allow(dead_code)] // NaN-safe float comparison used in quantile computation routines
 fn compare_floats(a: &Float, b: &Float) -> Result<std::cmp::Ordering> {
     a.partial_cmp(b).ok_or_else(|| {
         SklearsError::InvalidInput("Cannot compare values: NaN encountered".to_string())
@@ -344,7 +342,7 @@ fn solve_irls(
 
         // Add L2 regularization to diagonal
         let xt_w_x = x_weighted.t().dot(&x_weighted);
-        let mut xt_w_x_reg = xt_w_x + Array2::<Float>::eye(n_params) * alpha;
+        let xt_w_x_reg = xt_w_x + Array2::<Float>::eye(n_params) * alpha;
 
         // Adjust the gradient for quantile
         let mut gradient_adjustment = Array1::<Float>::zeros(n_samples);
@@ -395,7 +393,7 @@ fn solve_irls(
 impl Fit<Array2<Float>, Array1<Float>> for QuantileRegressor<Untrained> {
     type Fitted = QuantileRegressor<Trained>;
 
-    fn fit(mut self, x: &Array2<Float>, y: &Array1<Float>) -> Result<Self::Fitted> {
+    fn fit(self, x: &Array2<Float>, y: &Array1<Float>) -> Result<Self::Fitted> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
 
@@ -538,7 +536,6 @@ impl QuantileRegressor<Trained> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::array;
 
     #[test]
@@ -549,7 +546,8 @@ mod tests {
 
         // Median regression (quantile = 0.5)
         let model = QuantileRegressor::new()
-            .quantile(0.5).expect("valid parameter")
+            .quantile(0.5)
+            .expect("valid parameter")
             .alpha(0.0)
             .solver(QuantileSolver::IRLS)
             .fit(&x, &y)
@@ -563,11 +561,18 @@ mod tests {
         // The model should produce a reasonable fit
         // Since we have a simple linear relationship, check R-squared-like metric
         let ss_res = residuals.mapv(|r| r * r).sum();
-        let y_mean = y.mean().expect("mean computation should succeed for non-empty array");
+        let y_mean = y
+            .mean()
+            .expect("mean computation should succeed for non-empty array");
         let ss_tot = y.mapv(|yi| (yi - y_mean).powi(2)).sum();
         let r2 = 1.0 - ss_res / ss_tot;
 
-        assert!(r2 > 0.8, "R² = {}, coef = {}", r2, model.coef().expect("operation should succeed")[0]);
+        assert!(
+            r2 > 0.8,
+            "R² = {}, coef = {}",
+            r2,
+            model.coef().expect("operation should succeed")[0]
+        );
     }
 
     #[test]
@@ -577,7 +582,8 @@ mod tests {
 
         // 25th percentile regression
         let model = QuantileRegressor::new()
-            .quantile(0.25).expect("valid parameter")
+            .quantile(0.25)
+            .expect("valid parameter")
             .alpha(0.0)
             .solver(QuantileSolver::CoordinateDescent)
             .fit(&x, &y)
@@ -591,7 +597,7 @@ mod tests {
         let ratio = n_negative as f64 / residuals.len() as f64;
 
         // Should be approximately 0.25
-        assert!(ratio >= 0.0 && ratio <= 0.5);
+        assert!((0.0..=0.5).contains(&ratio));
     }
 
     #[test]
@@ -601,7 +607,8 @@ mod tests {
 
         // 75th percentile regression
         let model = QuantileRegressor::new()
-            .quantile(0.75).expect("valid parameter")
+            .quantile(0.75)
+            .expect("valid parameter")
             .alpha(0.0)
             .fit(&x, &y)
             .expect("operation should succeed");
@@ -609,11 +616,14 @@ mod tests {
         let predictions = model.predict(&x).expect("prediction should succeed");
 
         // For upper quantile, predictions should generally be higher
-        let residuals = &y - &predictions;
+        let _residuals = &y - &predictions;
 
         // The predictions should be above most data points
         // Just check that the model runs and produces reasonable output
-        assert!(model.coef().expect("operation should succeed")[0] > 1.5 && model.coef().expect("operation should succeed")[0] < 2.5);
+        assert!(
+            model.coef().expect("operation should succeed")[0] > 1.5
+                && model.coef().expect("operation should succeed")[0] < 2.5
+        );
     }
 
     #[test]
@@ -622,7 +632,8 @@ mod tests {
         let y = array![2.0, 4.0, 6.0, 8.0];
 
         let model = QuantileRegressor::new()
-            .quantile(0.5).expect("valid parameter")
+            .quantile(0.5)
+            .expect("valid parameter")
             .alpha(1.0)
             .fit(&x, &y)
             .expect("operation should succeed");
@@ -641,7 +652,10 @@ mod tests {
             .fit(&x, &y)
             .expect("operation should succeed");
 
-        assert_eq!(model.intercept().expect("intercept should be available"), 0.0);
+        assert_eq!(
+            model.intercept().expect("intercept should be available"),
+            0.0
+        );
     }
 
     #[test]

@@ -264,6 +264,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for WassersteinSemiSupervis
 
 impl WassersteinSemiSupervised<Untrained> {
     /// Compute cost matrix (pairwise distances)
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_cost_matrix(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         let n_samples = X.nrows();
         let mut cost_matrix = Array2::<f64>::zeros((n_samples, n_samples));
@@ -284,7 +285,7 @@ impl WassersteinSemiSupervised<Untrained> {
         &self,
         cost_matrix: &Array2<f64>,
         label_distributions: &Array2<f64>,
-        labeled_indices: &[usize],
+        _labeled_indices: &[usize],
         classes: &[i32],
     ) -> SklResult<Array2<f64>> {
         let n_samples = cost_matrix.nrows();
@@ -517,7 +518,6 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for EarthMoverDistance<Untr
         }
 
         // Label propagation with EMD-based weights
-        let mut prev_Y = Y.clone();
         for _iter in 0..self.max_iter {
             // Propagate labels: Y_new = alpha * A * Y + (1 - alpha) * Y_init
             let mut Y_new = Array2::<f64>::zeros((n_samples, n_classes));
@@ -558,7 +558,6 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for EarthMoverDistance<Untr
             }
 
             Y = Y_new;
-            prev_Y = Y.clone();
         }
 
         // Generate final labels
@@ -593,6 +592,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for EarthMoverDistance<Untr
 
 impl EarthMoverDistance<Untrained> {
     /// Build graph using Earth Mover's Distance as edge weights
+    #[allow(non_snake_case)] // standard ML notation
     fn build_emd_graph(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         let n_samples = X.nrows();
         let mut adjacency = Array2::<f64>::zeros((n_samples, n_samples));
@@ -704,6 +704,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>> for EarthMoverDistance<EarthMov
 
 /// Trained state for WassersteinSemiSupervised
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct WassersteinTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -721,6 +722,7 @@ pub struct WassersteinTrained {
 
 /// Trained state for EarthMoverDistance
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct EarthMoverTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -998,6 +1000,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
 
 /// Trained state for GromovWassersteinSemiSupervised
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct GromovWassersteinTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -1036,7 +1039,7 @@ mod tests {
         let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
-        assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
+        assert!(predictions.iter().all(|&p| (0..=1).contains(&p)));
 
         // Check that predictions are reasonable (given the changes in random generation,
         // we verify that predictions are valid class labels rather than exact values)
@@ -1062,7 +1065,7 @@ mod tests {
         let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
-        assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
+        assert!(predictions.iter().all(|&p| (0..=1).contains(&p)));
     }
 
     #[test]
@@ -1186,7 +1189,7 @@ mod tests {
         let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
-        assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
+        assert!(predictions.iter().all(|&p| (0..=1).contains(&p)));
     }
 
     #[test]

@@ -33,14 +33,14 @@ num_cpus = { workspace = true }
 # ❌ ndarray-linalg - use scirs2-linalg instead
 
 # External dependencies (evaluated for necessity)
-smartcore = "0.4"  # Third-party ML library for specific algorithms
+smartcore = "0.5"  # Third-party ML library for specific algorithms
 
 [dev-dependencies]
 criterion = { workspace = true }
 sklears-metrics = { workspace = true }
 approx = { workspace = true }
 tempfile = { workspace = true }
-proptest = "1.10"
+proptest = "1.11"
 
 [features]
 default = ["std"]

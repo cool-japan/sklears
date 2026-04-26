@@ -56,7 +56,7 @@ pub fn cache_optimized_centroids(
     labels: &[usize],
     n_clusters: usize,
 ) -> Array2<Float> {
-    let (n_samples, n_features) = data.dim();
+    let (_n_samples, n_features) = data.dim();
     let mut centroids = Array2::zeros((n_clusters, n_features));
     let mut counts = vec![0usize; n_clusters];
 
@@ -129,7 +129,9 @@ pub fn memory_efficient_knn(
 ///
 /// Reorganizes data for better cache performance in clustering algorithms
 pub struct CacheAwareData {
+    /// Data matrix reorganized for cache-friendly access patterns
     pub data: Array2<Float>,
+    /// Mapping from new row indices back to original row indices
     pub original_indices: Vec<usize>,
 }
 

@@ -5,7 +5,7 @@
 //! and comparison with other frameworks. It enables systematic performance
 //! analysis and optimization of neural network implementations.
 
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::Array2;
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
 use std::fmt;
@@ -37,6 +37,7 @@ pub struct MemoryStats {
 }
 
 impl MemoryStats {
+    /// Create a zeroed `MemoryStats` with no recorded allocations or usage
     pub fn new() -> Self {
         Self {
             peak_usage_bytes: 0,
@@ -94,6 +95,7 @@ pub struct PerformanceMetrics {
 }
 
 impl PerformanceMetrics {
+    /// Create a new `PerformanceMetrics` with the given execution time and memory statistics; other fields default to zero
     pub fn new(execution_time: Duration, memory_stats: MemoryStats) -> Self {
         Self {
             execution_time,
@@ -106,26 +108,31 @@ impl PerformanceMetrics {
         }
     }
 
+    /// Set the throughput in operations per second
     pub fn with_ops_per_second(mut self, ops_per_second: f64) -> Self {
         self.ops_per_second = ops_per_second;
         self
     }
 
+    /// Set the throughput in training or inference samples per second
     pub fn with_samples_per_second(mut self, samples_per_second: f64) -> Self {
         self.samples_per_second = samples_per_second;
         self
     }
 
+    /// Set the measured CPU utilization percentage
     pub fn with_cpu_usage(mut self, cpu_usage_percent: f64) -> Self {
         self.cpu_usage_percent = cpu_usage_percent;
         self
     }
 
+    /// Set the measured GPU utilization percentage
     pub fn with_gpu_usage(mut self, gpu_usage_percent: f64) -> Self {
         self.gpu_usage_percent = Some(gpu_usage_percent);
         self
     }
 
+    /// Insert an arbitrary named metric into the custom metrics map
     pub fn add_custom_metric(&mut self, name: String, value: f64) {
         self.custom_metrics.insert(name, value);
     }
@@ -152,6 +159,7 @@ pub struct BenchmarkComparison {
 }
 
 impl BenchmarkComparison {
+    /// Compute performance and memory ratios by comparing `current` against the `baseline`
     pub fn new(
         benchmark_name: String,
         baseline: PerformanceMetrics,
@@ -207,6 +215,7 @@ pub struct PerformanceProfiler {
 }
 
 impl PerformanceProfiler {
+    /// Create a new profiler in the stopped state with zeroed counters
     pub fn new() -> Self {
         Self {
             start_time: None,
@@ -309,6 +318,7 @@ pub struct BenchmarkSuite {
 }
 
 impl BenchmarkSuite {
+    /// Create an empty benchmark suite with no registered benchmarks or baselines
     pub fn new() -> Self {
         Self {
             benchmarks: HashMap::new(),
@@ -428,8 +438,11 @@ impl Default for BenchmarkSuite {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum PerformanceStatus {
+    /// All benchmarks within acceptable bounds
     Pass,
+    /// One or more regressions detected above the failure threshold
     Fail,
+    /// At least one regression detected but below the failure threshold
     Warning,
 }
 
@@ -437,13 +450,21 @@ pub enum PerformanceStatus {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PerformanceReport {
+    /// Total number of benchmarks that were run and compared
     pub total_benchmarks: usize,
+    /// Number of benchmarks with a detected performance regression
     pub regression_count: usize,
+    /// Number of benchmarks showing a measurable performance improvement
     pub improvement_count: usize,
+    /// Number of benchmarks with a detected memory usage regression
     pub memory_regression_count: usize,
+    /// Aggregate pass/fail/warning status for the entire test run
     pub overall_status: PerformanceStatus,
+    /// Details of each benchmark with a detected regression
     pub regressions: Vec<BenchmarkComparison>,
+    /// Details of each benchmark with a measured improvement
     pub improvements: Vec<BenchmarkComparison>,
+    /// Details of each benchmark with increased memory usage
     pub memory_regressions: Vec<BenchmarkComparison>,
 }
 
@@ -500,6 +521,7 @@ impl fmt::Display for PerformanceReport {
 }
 
 /// Memory leak detector
+#[allow(dead_code)] // allocation_tracker retained for async leak detection in future multi-threaded profiling
 pub struct MemoryLeakDetector {
     initial_memory: u64,
     allocations: HashMap<usize, u64>,
@@ -507,6 +529,7 @@ pub struct MemoryLeakDetector {
 }
 
 impl MemoryLeakDetector {
+    /// Create a new leak detector, recording the current memory usage as the baseline
     pub fn new() -> Self {
         Self {
             initial_memory: Self::get_current_memory_usage(),
@@ -572,12 +595,19 @@ impl Default for MemoryLeakDetector {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct MemoryLeakReport {
+    /// Memory usage (bytes) when monitoring started
     pub initial_memory: u64,
+    /// Memory usage (bytes) at the time of this report
     pub current_memory: u64,
+    /// Bytes of memory added since monitoring started (`current - initial`, saturating)
     pub memory_increase: u64,
+    /// `true` if `memory_increase` exceeds `leak_threshold`
     pub has_leak: bool,
+    /// Threshold in bytes above which a leak is declared
     pub leak_threshold: u64,
+    /// Number of tracked allocations that have not yet been freed
     pub active_allocations: usize,
+    /// Sum of bytes across all active tracked allocations
     pub total_allocated: u64,
 }
 
@@ -714,7 +744,7 @@ mod tests {
     fn test_benchmark_comparison() {
         let baseline = PerformanceMetrics::new(Duration::from_millis(100), MemoryStats::new());
 
-        let mut improved = PerformanceMetrics::new(Duration::from_millis(80), MemoryStats::new());
+        let improved = PerformanceMetrics::new(Duration::from_millis(80), MemoryStats::new());
 
         let comparison = BenchmarkComparison::new("test_benchmark".to_string(), baseline, improved);
 

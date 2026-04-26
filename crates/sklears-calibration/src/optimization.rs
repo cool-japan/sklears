@@ -697,6 +697,7 @@ pub struct RobustCalibrator {
     /// Outlier detection threshold
     outlier_threshold: Float,
     /// Robust loss function type
+    #[allow(dead_code)] // intentionally deferred: robust loss dispatch not yet implemented
     loss_type: RobustLossType,
     /// Whether the calibrator is fitted
     is_fitted: bool,
@@ -744,6 +745,7 @@ impl RobustCalibrator {
     }
 
     /// Apply robust loss weighting
+    #[allow(dead_code)] // intentionally deferred: robust weighting not yet applied in fit
     fn compute_robust_weights(&self, residuals: &Array1<Float>) -> Array1<Float> {
         match &self.loss_type {
             RobustLossType::Huber { delta } => residuals.mapv(|r| {

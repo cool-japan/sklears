@@ -4,9 +4,7 @@
 //! reliable baseline predictions even in the presence of data quality issues.
 
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::{
-    essentials::Normal, prelude::*, rngs::StdRng, Distribution, RngExt, SeedableRng,
-};
+use scirs2_core::random::{essentials::Normal, rngs::StdRng, Distribution, RngExt, SeedableRng};
 use sklears_core::error::Result;
 use sklears_core::traits::{Estimator, Fit, Predict};
 use sklears_core::types::{Features, Float};
@@ -497,7 +495,7 @@ impl RobustDummyRegressor<sklears_core::traits::Trained> {
         sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = sorted_data.len();
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             (sorted_data[n / 2 - 1] + sorted_data[n / 2]) / 2.0
         } else {
             sorted_data[n / 2]
@@ -651,7 +649,7 @@ impl RobustDummyRegressor<sklears_core::traits::Trained> {
                     if !distances.is_empty() {
                         distances
                             .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
-                        let median_dist = if distances.len() % 2 == 0 {
+                        let median_dist = if distances.len().is_multiple_of(2) {
                             (distances[distances.len() / 2 - 1] + distances[distances.len() / 2])
                                 / 2.0
                         } else {

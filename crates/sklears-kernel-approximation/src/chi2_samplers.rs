@@ -31,7 +31,7 @@ use scirs2_core::random::{thread_rng, SeedableRng};
 /// let X = array![[1.0, 2.0], [3.0, 4.0]];
 ///
 /// let chi2 = AdditiveChi2Sampler::new(2);
-/// let X_transformed = chi2.transform(&X).unwrap();
+/// let X_transformed = chi2.transform(&X).expect("transform should succeed with non-negative Chi2 input");
 /// assert_eq!(X_transformed.shape(), &[2, 6]); // 2 features * 3 = 6
 /// ```
 #[derive(Debug, Clone)]
@@ -143,8 +143,8 @@ impl Transform<Array2<Float>, Array2<Float>> for AdditiveChi2Sampler {
 /// let X = array![[1.0, 2.0], [3.0, 4.0]];
 ///
 /// let skewed_chi2 = SkewedChi2Sampler::new(50);
-/// let fitted_chi2 = skewed_chi2.fit(&X, &()).unwrap();
-/// let X_transformed = fitted_chi2.transform(&X).unwrap();
+/// let fitted_chi2 = skewed_chi2.fit(&X, &()).expect("fit should succeed with valid skewed Chi2 input");
+/// let X_transformed = fitted_chi2.transform(&X).expect("transform should succeed after skewed Chi2 fitting");
 /// assert_eq!(X_transformed.shape(), &[2, 50]);
 /// ```
 #[derive(Debug, Clone)]

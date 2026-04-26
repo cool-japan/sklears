@@ -28,8 +28,9 @@ use scirs2_core::ndarray::{ArrayView1, ArrayView2};
 ///     x.rows().into_iter().map(|row| row[0] * 2.0 + row[1] * 0.5).collect()
 /// };
 ///
-/// let result = analyze_robustness(&model_fn, &X.view(), &config).unwrap();
+/// let result = analyze_robustness(&model_fn, &X.view(), &config).expect("robustness analysis should succeed with valid inputs");
 /// ```
+#[allow(non_snake_case)] // standard ML notation
 pub fn analyze_robustness<F>(
     model_fn: &F,
     X: &ArrayView2<Float>,
@@ -82,6 +83,7 @@ where
 /// # Returns
 ///
 /// Result containing counterfactual examples and their statistics
+#[allow(non_snake_case)] // standard ML notation
 pub fn generate_counterfactuals<F>(
     model_fn: &F,
     X: &ArrayView2<Float>,
@@ -199,6 +201,7 @@ pub struct CounterfactualResult {
 /// # Returns
 ///
 /// Result containing sensitivity analysis results
+#[allow(non_snake_case)] // standard ML notation
 pub fn sensitivity_analysis<F>(
     model_fn: &F,
     X: &ArrayView2<Float>,
@@ -320,6 +323,7 @@ pub struct FeatureSensitivity {
 /// # Returns
 ///
 /// Result containing stability analysis across magnitude levels
+#[allow(non_snake_case)] // standard ML notation
 pub fn stability_analysis<F>(
     model_fn: &F,
     X: &ArrayView2<Float>,

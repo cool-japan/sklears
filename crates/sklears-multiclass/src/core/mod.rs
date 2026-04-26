@@ -4,9 +4,9 @@
 //! One-vs-Rest, One-vs-One, and Error-Correcting Output Codes (ECOC).
 
 pub mod ecoc;
-pub mod one_vs_one;
-pub mod one_vs_rest;
+// pub mod one_vs_one; // deleted: canonical form is src/one_vs_one.rs
+// pub mod one_vs_rest; // deleted: canonical form is src/one_vs_rest.rs
 
 pub use ecoc::*;
-pub use one_vs_one::*;
-pub use one_vs_rest::*;
+// pub use one_vs_one::*;
+// pub use one_vs_rest::*;

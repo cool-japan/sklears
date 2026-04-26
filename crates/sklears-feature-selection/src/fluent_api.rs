@@ -21,21 +21,37 @@ pub struct FeatureSelectionBuilder {
 #[derive(Debug, Clone)]
 pub enum SelectionStep {
     /// VarianceFilter
-    VarianceFilter { threshold: f64 },
+    VarianceFilter {
+        /// threshold
+        threshold: f64,
+    },
     /// SelectKBestFilter
-    SelectKBestFilter { k: usize, score_func: String },
+    SelectKBestFilter {
+        /// k
+        k: usize,
+        /// score_func
+        score_func: String,
+    },
     /// RFEWrapper
     RFEWrapper {
+        /// estimator_name
         estimator_name: String,
 
+        /// n_features
         n_features: Option<usize>,
     },
+    /// RFECVWrapper
     RFECVWrapper {
+        /// estimator_name
         estimator_name: String,
+        /// cv_folds
         cv_folds: usize,
     },
+    /// CustomFilter
     CustomFilter {
+        /// name
         name: String,
+        /// params
         params: HashMap<String, f64>,
     },
 }
@@ -43,11 +59,17 @@ pub enum SelectionStep {
 /// Configuration for the fluent API
 #[derive(Debug, Clone)]
 pub struct FluentConfig {
+    /// parallel
     pub parallel: bool,
+    /// random_state
     pub random_state: Option<u64>,
+    /// verbose
     pub verbose: bool,
+    /// cache_results
     pub cache_results: bool,
+    /// validation_split
     pub validation_split: Option<f64>,
+    /// scoring_metric
     pub scoring_metric: String,
 }
 
@@ -67,19 +89,30 @@ impl Default for FluentConfig {
 /// Results from fluent feature selection
 #[derive(Debug, Clone)]
 pub struct FluentSelectionResult {
+    /// selected_features
     pub selected_features: Vec<usize>,
+    /// feature_scores
     pub feature_scores: Array1<f64>,
+    /// step_results
     pub step_results: Vec<StepResult>,
+    /// total_execution_time
     pub total_execution_time: f64,
+    /// config_used
     pub config_used: FluentConfig,
 }
 
 #[derive(Debug, Clone)]
+/// StepResult
 pub struct StepResult {
+    /// step_name
     pub step_name: String,
+    /// features_before
     pub features_before: usize,
+    /// features_after
     pub features_after: usize,
+    /// execution_time
     pub execution_time: f64,
+    /// step_scores
     pub step_scores: Option<Array1<f64>>,
 }
 
@@ -572,6 +605,7 @@ impl Default for FeatureSelectionBuilder {
 pub mod presets {
     use super::*;
 
+    /// quick_eda
     pub fn quick_eda() -> FeatureSelectionBuilder {
         FeatureSelectionBuilder::new().preset("quick_filter")
     }

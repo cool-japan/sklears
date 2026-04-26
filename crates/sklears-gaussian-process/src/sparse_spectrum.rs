@@ -28,11 +28,11 @@ use sklears_core::prelude::{Estimator, Fit, Predict};
 ///     .num_spectral_points(50)
 ///     .spectral_density_threshold(1e-6);
 ///
-/// let X = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+/// let X = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).expect("shape (10,2) matches 20 elements");
 /// let y = Array1::from_vec((0..10).map(|x| (x as f64).sin()).collect());
 ///
-/// let trained_model = model.fit(&X.view(), &y.view()).unwrap();
-/// let predictions = trained_model.predict(&X.view()).unwrap();
+/// let trained_model = model.fit(&X.view(), &y.view()).expect("fit should succeed with valid training data");
+/// let predictions = trained_model.predict(&X.view()).expect("predict should succeed on trained model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct SparseSpectrumGaussianProcessRegressor {
@@ -68,6 +68,7 @@ pub enum SpectralSelectionMethod {
 
 /// Trained sparse spectrum Gaussian process regressor
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct SparseSpectrumGprTrained {
     /// Original configuration
     pub config: SparseSpectrumGaussianProcessRegressor,
@@ -124,6 +125,7 @@ impl Default for SparseSpectrumGaussianProcessRegressor {
     }
 }
 
+#[allow(non_snake_case)]
 impl SparseSpectrumGaussianProcessRegressor {
     /// Create a new sparse spectrum Gaussian process regressor
     pub fn new(kernel: Box<dyn Kernel>) -> Self {
@@ -658,6 +660,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, f64>, SparseSpectrumGprTrained>
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<ArrayView2<'_, f64>, Array1<f64>> for SparseSpectrumGprTrained {
     fn predict(&self, X: &ArrayView2<f64>) -> SklResult<Array1<f64>> {
         // Compute spectral features for test data
@@ -673,6 +676,7 @@ impl Predict<ArrayView2<'_, f64>, Array1<f64>> for SparseSpectrumGprTrained {
     }
 }
 
+#[allow(non_snake_case)]
 impl SparseSpectrumGprTrained {
     /// Predict with uncertainty quantification
     pub fn predict_with_uncertainty(

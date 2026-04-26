@@ -341,7 +341,7 @@ mod tests {
 
         assert_eq!(model.inputs.len(), 1);
         assert_eq!(model.outputs.len(), 2);
-        assert!(model.nodes.len() > 0);
+        assert!(!model.nodes.is_empty());
     }
 
     #[test]

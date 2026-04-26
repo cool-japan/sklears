@@ -74,6 +74,7 @@ impl Default for GpuConfig {
 /// GPU-accelerated linear operations
 pub struct GpuLinearOps {
     config: GpuConfig,
+    #[allow(dead_code)] // GPU context handle reserved for real CUDA integration
     context: Arc<GpuContext>,
     // Note: In a real implementation, these would be CUDA resources
     // For now, we provide CPU fallback implementations

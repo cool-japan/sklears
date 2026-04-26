@@ -32,7 +32,7 @@ use std::collections::{HashMap, HashSet};
 
 use scirs2_core::ndarray::Array2;
 use scirs2_core::rand_prelude::{Distribution, SliceRandom};
-use scirs2_core::random::{thread_rng, RandNormal, Rng, RngExt};
+use scirs2_core::random::{thread_rng, RandNormal};
 use sklears_core::error::{Result, SklearsError};
 
 use super::internal_validation::ClusteringValidator;
@@ -222,6 +222,7 @@ pub struct CrossValidationStabilityResult {
 /// Stability analysis methods for clustering evaluation
 pub struct StabilityAnalyzer {
     /// Distance metric for validation
+    #[allow(dead_code)] // Metric used in construction of the external validator
     metric: ValidationMetric,
     /// External validation methods for computing ARI, etc.
     external_validator: ClusteringValidator,
@@ -835,7 +836,7 @@ impl StabilityAnalyzer {
 
         let mut rng = thread_rng();
 
-        for repeat in 0..n_repeats {
+        for _repeat in 0..n_repeats {
             // Create random fold assignments
             let mut indices: Vec<usize> = (0..n_samples).collect();
             indices.shuffle(&mut rng);
@@ -1240,8 +1241,8 @@ mod tests {
         let analyzer = StabilityAnalyzer::euclidean();
 
         let parameters = vec![1.0, 2.0, 3.0, 4.0];
-        let clusterer_factory = |_param: f64| -> Box<dyn Fn(&Array2<f64>) -> Result<Vec<i32>>> {
-            Box::new(simple_clustering_fn)
+        let clusterer_factory = |_param: f64| {
+            Box::new(simple_clustering_fn) as Box<dyn Fn(&Array2<f64>) -> Result<Vec<i32>>>
         };
 
         let result = analyzer

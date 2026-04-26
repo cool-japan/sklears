@@ -610,6 +610,7 @@ fn compute_alpha_max_enhanced(
 }
 
 /// Legacy alpha_max computation for backward compatibility
+#[allow(dead_code)] // retained for backward-compat; superseded by enet_path_enhanced
 fn compute_alpha_max(
     x: &Array2<Float>,
     y: &Array1<Float>,

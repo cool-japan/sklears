@@ -114,7 +114,7 @@ impl Fit<ArrayView2<'_, Float>, Array2<i32>> for MLTSVM<Untrained> {
     type Fitted = MLTSVM<MLTSVMTrained>;
 
     fn fit(self, x: &ArrayView2<'_, Float>, y: &Array2<i32>) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
         let (y_samples, n_labels) = y.dim();
 
         if n_samples != y_samples {
@@ -188,7 +188,7 @@ impl MLTSVM<Untrained> {
 
         // Normalize features
         let mut x_normalized = x.to_owned();
-        for (i, mut row) in x_normalized.rows_mut().into_iter().enumerate() {
+        for mut row in x_normalized.rows_mut().into_iter() {
             row -= feature_means;
             row /= feature_stds;
         }
@@ -307,7 +307,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<i32>> for MLTSVM<MLTSVMTrained> {
 
         // Normalize features
         let mut x_normalized = x.to_owned();
-        for (i, mut row) in x_normalized.rows_mut().into_iter().enumerate() {
+        for mut row in x_normalized.rows_mut().into_iter() {
             row -= &self.state.feature_means;
             row /= &self.state.feature_stds;
         }
@@ -344,7 +344,7 @@ impl MLTSVM<MLTSVMTrained> {
 
         // Normalize features
         let mut x_normalized = x.to_owned();
-        for (i, mut row) in x_normalized.rows_mut().into_iter().enumerate() {
+        for mut row in x_normalized.rows_mut().into_iter() {
             row -= &self.state.feature_means;
             row /= &self.state.feature_stds;
         }
@@ -467,7 +467,7 @@ impl Fit<ArrayView2<'_, Float>, Array2<i32>> for RankSVM<Untrained> {
     type Fitted = RankSVM<RankSVMTrained>;
 
     fn fit(self, x: &ArrayView2<'_, Float>, y: &Array2<i32>) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
         let (y_samples, n_labels) = y.dim();
 
         if n_samples != y_samples {
@@ -546,7 +546,7 @@ impl RankSVM<Untrained> {
 
         // Normalize features
         let mut x_normalized = x.to_owned();
-        for (i, mut row) in x_normalized.rows_mut().into_iter().enumerate() {
+        for mut row in x_normalized.rows_mut().into_iter() {
             row -= feature_means;
             row /= feature_stds;
         }
@@ -611,14 +611,9 @@ impl RankSVM<Untrained> {
     ) -> SklResult<Vec<Float>> {
         let mut thresholds = Vec::new();
 
-        for label_idx in 0..y.ncols() {
+        for (label_idx, model) in models.iter().enumerate().take(y.ncols()) {
             let y_true = y.column(label_idx);
-            let scores = self.predict_scores_single_label(
-                x,
-                &models[label_idx],
-                feature_means,
-                feature_stds,
-            )?;
+            let scores = self.predict_scores_single_label(x, model, feature_means, feature_stds)?;
 
             let threshold = self.find_optimal_f1_threshold(&y_true, &scores)?;
             thresholds.push(threshold);
@@ -736,7 +731,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<i32>> for RankSVM<RankSVMTrained> {
 
                     scores.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
-                    for (i, &(_, label_idx)) in scores.iter().take(*k).enumerate() {
+                    for &(_, label_idx) in scores.iter().take(*k) {
                         predictions[[sample_idx, label_idx]] = 1;
                     }
                 }
@@ -946,7 +941,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView2<'_, Float>> for MultiOutputSVM<Untrai
     type Fitted = MultiOutputSVM<MultiOutputSVMTrained>;
 
     fn fit(self, x: &ArrayView2<'_, Float>, y: &ArrayView2<'_, Float>) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
         let (y_samples, n_outputs) = y.dim();
 
         if n_samples != y_samples {
@@ -1015,11 +1010,11 @@ impl MultiOutputSVM<Untrained> {
         feature_stds: &Array1<Float>,
         kernel: SVMKernel,
     ) -> SklResult<SVMModel> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
 
         // Normalize features
         let mut x_normalized = x.to_owned();
-        for (i, mut row) in x_normalized.rows_mut().into_iter().enumerate() {
+        for mut row in x_normalized.rows_mut().into_iter() {
             row -= feature_means;
             row /= feature_stds;
         }
@@ -1055,7 +1050,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>> for MultiOutputSVM<MultiOutpu
 
         // Normalize input features
         let mut x_normalized = x.to_owned();
-        for (i, mut row) in x_normalized.rows_mut().into_iter().enumerate() {
+        for mut row in x_normalized.rows_mut().into_iter() {
             row -= &self.state.feature_means;
             row /= &self.state.feature_stds;
         }

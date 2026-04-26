@@ -8,10 +8,10 @@ use crate::types::*;
 use crate::SklResult;
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::Rng;
 use sklears_core::error::SklearsError;
 
 /// Cache-friendly permutation importance computation
+#[allow(non_snake_case)] // standard ML notation
 pub fn cache_friendly_permutation_importance<F>(
     X: &ArrayView2<Float>,
     y: &ArrayView1<Float>,
@@ -30,6 +30,7 @@ where
 }
 
 /// Cache-friendly SHAP computation with memory optimization
+#[allow(non_snake_case)] // standard ML notation
 pub fn cache_friendly_shap_computation<F>(
     X: &ArrayView2<Float>,
     model: &F,
@@ -45,6 +46,7 @@ where
 }
 
 /// Memory-optimized permutation importance computation
+#[allow(non_snake_case)] // standard ML notation
 fn compute_permutation_importance_optimized<F>(
     X: &ArrayView2<Float>,
     y: &ArrayView1<Float>,
@@ -101,6 +103,7 @@ where
 }
 
 /// Memory-optimized SHAP computation
+#[allow(non_snake_case)] // standard ML notation
 fn compute_shap_optimized<F>(
     X: &ArrayView2<Float>,
     model: &F,
@@ -148,6 +151,7 @@ where
 }
 
 /// Compute baseline data (feature means)
+#[allow(non_snake_case)] // standard ML notation
 pub fn compute_baseline_data(X: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
     let means = X
         .mean_axis(Axis(0))
@@ -260,8 +264,6 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_permutation_importance_optimized() {
-        use scirs2_core::random::seeded_rng;
-
         // Use a larger dataset to make the test more robust
         // and reduce the chance of random permutations resulting in zero importance
         let X = array![

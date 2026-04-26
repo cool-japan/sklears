@@ -199,7 +199,7 @@ fn main() -> Result<()> {
     // Analyze block structure
     println!("\n🔍 Block Structure Analysis:");
     let block_size = 5;
-    let n_blocks = (n_features + block_size - 1) / block_size;
+    let n_blocks = n_features.div_ceil(block_size);
 
     for block_idx in 0..n_blocks {
         let block_start = block_idx * block_size;

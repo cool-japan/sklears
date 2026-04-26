@@ -127,6 +127,8 @@ pub struct PCA<State = Untrained> {
 
 /// Fitted PCA with learned parameters
 pub struct PCAFitted {
+    /// Config retained for future `.get_params()` introspection API
+    #[allow(dead_code)]
     config: PCAConfig,
     components: Array2<f64>,
     explained_variance: Array1<f64>,
@@ -354,19 +356,37 @@ impl Default for LDAConfig {
 
 /// Linear Discriminant Analysis transformer
 pub struct LDA<State = Untrained> {
+    /// Config retained for future `.get_params()` API
+    #[allow(dead_code)]
     config: LDAConfig,
     state: PhantomData<State>,
 }
 
 /// Fitted LDA with learned parameters
 pub struct LDAFitted {
+    /// Config retained for future `.get_params()` introspection API
+    #[allow(dead_code)]
     config: LDAConfig,
+    /// Discriminant components (projection matrix)
+    #[allow(dead_code)]
     components: Array2<f64>,
+    /// Explained variance ratio per component
+    #[allow(dead_code)]
     explained_variance_ratio: Array1<f64>,
-    means: Array2<f64>,  // Class means
-    priors: Array1<f64>, // Class priors
+    /// Class means
+    #[allow(dead_code)]
+    means: Array2<f64>,
+    /// Class priors
+    #[allow(dead_code)]
+    priors: Array1<f64>,
+    /// Class labels
+    #[allow(dead_code)]
     classes: Array1<usize>,
+    /// Number of input features
+    #[allow(dead_code)]
     n_features: usize,
+    /// Number of components extracted
+    #[allow(dead_code)]
     n_components: usize,
 }
 
@@ -438,18 +458,34 @@ impl Default for ICAConfig {
 
 /// Independent Component Analysis transformer
 pub struct ICA<State = Untrained> {
+    /// Config retained for future `.get_params()` API
+    #[allow(dead_code)]
     config: ICAConfig,
     state: PhantomData<State>,
 }
 
 /// Fitted ICA with learned parameters
 pub struct ICAFitted {
+    /// Config retained for future `.get_params()` introspection API
+    #[allow(dead_code)]
     config: ICAConfig,
+    /// Unmixing matrix (independent components)
+    #[allow(dead_code)]
     components: Array2<f64>,
+    /// Mixing matrix (inverse of unmixing)
+    #[allow(dead_code)]
     mixing_matrix: Array2<f64>,
+    /// Feature mean used for centering
+    #[allow(dead_code)]
     mean: Array1<f64>,
+    /// Whitening matrix (optional pre-processing)
+    #[allow(dead_code)]
     whitening_matrix: Option<Array2<f64>>,
+    /// Number of input features
+    #[allow(dead_code)]
     n_features: usize,
+    /// Number of independent components extracted
+    #[allow(dead_code)]
     n_components: usize,
 }
 
@@ -524,16 +560,28 @@ impl Default for NMFConfig {
 
 /// Non-negative Matrix Factorization transformer
 pub struct NMF<State = Untrained> {
+    /// Config retained for future `.get_params()` API
+    #[allow(dead_code)]
     config: NMFConfig,
     state: PhantomData<State>,
 }
 
 /// Fitted NMF with learned parameters
 pub struct NMFFitted {
+    /// Config retained for future `.get_params()` introspection API
+    #[allow(dead_code)]
     config: NMFConfig,
+    /// Basis matrix H (non-negative components)
+    #[allow(dead_code)]
     components: Array2<f64>,
+    /// Number of input features
+    #[allow(dead_code)]
     n_features: usize,
+    /// Number of components extracted
+    #[allow(dead_code)]
     n_components: usize,
+    /// Final reconstruction error
+    #[allow(dead_code)]
     reconstruction_error: f64,
 }
 

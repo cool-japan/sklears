@@ -20,6 +20,7 @@ pub struct AdvancedPipelineDebugger {
 
 impl AdvancedPipelineDebugger {
     #[must_use]
+    /// Creates a new instance.
     pub fn new(config: DebugConfig) -> Self {
         Self {
             sessions: Arc::new(RwLock::new(HashMap::new())),
@@ -81,7 +82,7 @@ impl AdvancedPipelineDebugger {
         let sessions = self.sessions.read().unwrap_or_else(|e| e.into_inner());
         let profiler = self.profiler.lock().unwrap_or_else(|e| e.into_inner());
 
-        /// DebugStatistics
+        // DebugStatistics
         DebugStatistics {
             active_sessions: sessions.len(),
             total_events: self
@@ -122,12 +123,19 @@ impl Clone for AdvancedPipelineDebugger {
 /// Debug session configuration
 #[derive(Debug, Clone)]
 pub struct DebugConfig {
+    /// The enable step by step.
     pub enable_step_by_step: bool,
+    /// The enable breakpoints.
     pub enable_breakpoints: bool,
+    /// The enable profiling.
     pub enable_profiling: bool,
+    /// The enable memory tracking.
     pub enable_memory_tracking: bool,
+    /// The max event history.
     pub max_event_history: usize,
+    /// The auto save state.
     pub auto_save_state: bool,
+    /// The verbose logging.
     pub verbose_logging: bool,
 }
 
@@ -147,20 +155,31 @@ impl Default for DebugConfig {
 
 /// Individual debugging session
 pub struct DebugSession {
+    /// The id.
     pub id: String,
+    /// The pipeline id.
     pub pipeline_id: String,
+    /// The config.
     pub config: DebugConfig,
+    /// The state.
     pub state: DebugSessionState,
+    /// The breakpoints.
     pub breakpoints: Vec<Breakpoint>,
+    /// The watch expressions.
     pub watch_expressions: Vec<WatchExpression>,
+    /// The execution history.
     pub execution_history: Vec<ExecutionStep>,
+    /// The current step.
     pub current_step: usize,
+    /// The variable inspector.
     pub variable_inspector: VariableInspector,
+    /// The call stack.
     pub call_stack: Vec<CallStackFrame>,
 }
 
 impl DebugSession {
     #[must_use]
+    /// Creates a new instance.
     pub fn new(id: String, pipeline_id: String, config: DebugConfig) -> Self {
         Self {
             id,
@@ -251,7 +270,7 @@ impl DebugSession {
 
     fn evaluate_expression(&self, expression: &WatchExpression) -> WatchResult {
         // Simplified expression evaluation - would be more sophisticated in practice
-        /// WatchResult
+        // WatchResult
         WatchResult {
             expression: expression.clone(),
             value: format!("Evaluated: {}", expression.expression),
@@ -357,29 +376,44 @@ pub enum DebugSessionState {
 /// Execution step in debugging
 #[derive(Debug, Clone)]
 pub struct ExecutionStep {
+    /// The step id.
     pub step_id: String,
+    /// The component.
     pub component: String,
+    /// The operation.
     pub operation: String,
+    /// The input shape.
     pub input_shape: Option<(usize, usize)>,
+    /// The output shape.
     pub output_shape: Option<(usize, usize)>,
+    /// The duration.
     pub duration: Duration,
+    /// The memory delta.
     pub memory_delta: i64,
+    /// The timestamp.
     pub timestamp: SystemTime,
+    /// The metadata.
     pub metadata: HashMap<String, String>,
 }
 
 /// Breakpoint definition
 #[derive(Debug, Clone)]
 pub struct Breakpoint {
+    /// The id.
     pub id: String,
+    /// The condition.
     pub condition: BreakpointCondition,
+    /// The enabled.
     pub enabled: bool,
+    /// The hit count.
     pub hit_count: usize,
+    /// The hit limit.
     pub hit_limit: Option<usize>,
 }
 
 impl Breakpoint {
     #[must_use]
+    /// Creates a new instance.
     pub fn new(id: String, condition: BreakpointCondition) -> Self {
         Self {
             id,
@@ -391,6 +425,7 @@ impl Breakpoint {
     }
 
     #[must_use]
+    /// Performs matches step.
     pub fn matches_step(&self, step: &ExecutionStep) -> bool {
         if !self.enabled {
             return false;
@@ -425,6 +460,7 @@ pub enum BreakpointCondition {
 
 impl BreakpointCondition {
     #[must_use]
+    /// Performs matches.
     pub fn matches(&self, step: &ExecutionStep) -> bool {
         match self {
             BreakpointCondition::ComponentName(name) => step.component.contains(name),
@@ -445,18 +481,26 @@ impl BreakpointCondition {
 /// Watch expression for monitoring variables
 #[derive(Debug, Clone)]
 pub struct WatchExpression {
+    /// The id.
     pub id: String,
+    /// The expression.
     pub expression: String,
+    /// The description.
     pub description: String,
+    /// The enabled.
     pub enabled: bool,
 }
 
 /// Result of evaluating a watch expression
 #[derive(Debug, Clone)]
 pub struct WatchResult {
+    /// The expression.
     pub expression: WatchExpression,
+    /// The value.
     pub value: String,
+    /// The error.
     pub error: Option<String>,
+    /// The timestamp.
     pub timestamp: SystemTime,
 }
 
@@ -487,6 +531,7 @@ impl Default for VariableInspector {
 
 impl VariableInspector {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             variables: HashMap::new(),
@@ -494,20 +539,24 @@ impl VariableInspector {
         }
     }
 
+    /// Sets the variable.
     pub fn set_variable(&mut self, name: String, value: VariableValue) {
         self.variables.insert(name, value);
     }
 
     #[must_use]
+    /// Returns the variable.
     pub fn get_variable(&self, name: &str) -> Option<&VariableValue> {
         self.variables.get(name)
     }
 
     #[must_use]
+    /// Returns the all variables.
     pub fn get_all_variables(&self) -> HashMap<String, VariableValue> {
         self.variables.clone()
     }
 
+    /// Performs take snapshot.
     pub fn take_snapshot(&mut self) -> String {
         let snapshot = VariableSnapshot {
             timestamp: SystemTime::now(),
@@ -535,7 +584,9 @@ pub enum VariableValue {
     Array1D(Vec<f64>),
     /// Array2D
     Array2D {
+        /// The shape.
         shape: (usize, usize),
+        /// The data.
         data: Vec<f64>,
     },
     /// String
@@ -561,6 +612,7 @@ impl fmt::Display for VariableValue {
 
 /// Variable state snapshot
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct VariableSnapshot {
     timestamp: SystemTime,
     variables: HashMap<String, VariableValue>,
@@ -569,10 +621,15 @@ struct VariableSnapshot {
 /// Call stack frame
 #[derive(Debug, Clone)]
 pub struct CallStackFrame {
+    /// The function name.
     pub function_name: String,
+    /// The component.
     pub component: String,
+    /// The file.
     pub file: Option<String>,
+    /// The line.
     pub line: Option<usize>,
+    /// The local variables.
     pub local_variables: HashMap<String, VariableValue>,
 }
 
@@ -581,34 +638,47 @@ pub struct CallStackFrame {
 pub enum DebugEvent {
     /// SessionStarted
     SessionStarted {
+        /// The session id.
         session_id: String,
+        /// The timestamp.
         timestamp: SystemTime,
     },
     /// SessionEnded
     SessionEnded {
+        /// The session id.
         session_id: String,
+        /// The timestamp.
         timestamp: SystemTime,
     },
     /// BreakpointHit
     BreakpointHit {
+        /// The session id.
         session_id: String,
+        /// The breakpoint id.
         breakpoint_id: String,
+        /// The step.
         step: ExecutionStep,
     },
     /// StepExecuted
     StepExecuted {
+        /// The session id.
         session_id: String,
+        /// The step.
         step: ExecutionStep,
     },
     /// Error
     Error {
+        /// The session id.
         session_id: String,
+        /// The error.
         error: String,
+        /// The timestamp.
         timestamp: SystemTime,
     },
 }
 
 /// Advanced profiler for debugging
+#[allow(dead_code)]
 pub struct AdvancedProfiler {
     start_time: Instant,
     memory_samples: VecDeque<MemorySample>,
@@ -623,6 +693,7 @@ impl Default for AdvancedProfiler {
 
 impl AdvancedProfiler {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             start_time: Instant::now(),
@@ -631,6 +702,7 @@ impl AdvancedProfiler {
         }
     }
 
+    /// Performs sample memory.
     pub fn sample_memory(&mut self) {
         let sample = MemorySample {
             timestamp: Instant::now(),
@@ -647,17 +719,20 @@ impl AdvancedProfiler {
     }
 
     #[must_use]
+    /// Returns the memory usage.
     pub fn get_memory_usage(&self) -> usize {
         Self::get_current_memory_usage()
     }
 
     #[must_use]
+    /// Returns the cpu usage.
     pub fn get_cpu_usage(&self) -> f64 {
         // Simplified CPU usage - would use system APIs in practice
         0.0
     }
 
     #[must_use]
+    /// Returns the uptime.
     pub fn get_uptime(&self) -> Duration {
         self.start_time.elapsed()
     }
@@ -676,25 +751,35 @@ impl AdvancedProfiler {
 /// Memory usage sample
 #[derive(Debug, Clone)]
 pub struct MemorySample {
+    /// The timestamp.
     pub timestamp: Instant,
+    /// The used bytes.
     pub used_bytes: usize,
+    /// The peak bytes.
     pub peak_bytes: usize,
 }
 
 /// CPU usage sample
 #[derive(Debug, Clone)]
 pub struct CpuSample {
+    /// The timestamp.
     pub timestamp: Instant,
+    /// The usage percent.
     pub usage_percent: f64,
 }
 
 /// Debug statistics
 #[derive(Debug, Clone)]
 pub struct DebugStatistics {
+    /// The active sessions.
     pub active_sessions: usize,
+    /// The total events.
     pub total_events: usize,
+    /// The memory usage.
     pub memory_usage: usize,
+    /// The cpu usage.
     pub cpu_usage: f64,
+    /// The uptime.
     pub uptime: Duration,
 }
 
@@ -714,6 +799,7 @@ pub mod interactive {
 
     impl DebugConsole {
         #[must_use]
+        /// Creates a new instance.
         pub fn new(debugger: AdvancedPipelineDebugger) -> Self {
             Self {
                 debugger,
@@ -794,22 +880,23 @@ pub mod interactive {
 
         fn add_breakpoint(&self, args: &[&str]) -> SklResult<String> {
             if let Some(session_id) = &self.current_session {
-                if let Some(handle) = self.debugger.get_session(session_id) {
-                    let condition = if args.is_empty() {
-                        BreakpointCondition::ComponentName("*".to_string())
-                    } else {
-                        BreakpointCondition::ComponentName(args.join(" "))
-                    };
+                match self.debugger.get_session(session_id) {
+                    Some(handle) => {
+                        let condition = if args.is_empty() {
+                            BreakpointCondition::ComponentName("*".to_string())
+                        } else {
+                            BreakpointCondition::ComponentName(args.join(" "))
+                        };
 
-                    let breakpoint = Breakpoint::new(
-                        format!("bp_{}", chrono::Utc::now().timestamp()),
-                        condition,
-                    );
+                        let breakpoint = Breakpoint::new(
+                            format!("bp_{}", chrono::Utc::now().timestamp()),
+                            condition,
+                        );
 
-                    handle.add_breakpoint(breakpoint)?;
-                    Ok("Breakpoint added".to_string())
-                } else {
-                    Ok("Session not found".to_string())
+                        handle.add_breakpoint(breakpoint)?;
+                        Ok("Breakpoint added".to_string())
+                    }
+                    _ => Ok("Session not found".to_string()),
                 }
             } else {
                 Ok("No active session. Use 'use <session_id>' first.".to_string())
@@ -827,8 +914,8 @@ pub mod interactive {
 
         fn step_execution(&self) -> SklResult<String> {
             if let Some(session_id) = &self.current_session {
-                if let Some(handle) = self.debugger.get_session(session_id) {
-                    match handle.step_next()? {
+                match self.debugger.get_session(session_id) {
+                    Some(handle) => match handle.step_next()? {
                         StepResult::Completed(step) => {
                             Ok(format!("Stepped: {} -> {}", step.component, step.operation))
                         }
@@ -838,9 +925,8 @@ pub mod interactive {
                         )),
                         StepResult::ExecutionComplete => Ok("Execution completed".to_string()),
                         StepResult::Error(err) => Ok(format!("Error: {err}")),
-                    }
-                } else {
-                    Ok("Session not found".to_string())
+                    },
+                    _ => Ok("Session not found".to_string()),
                 }
             } else {
                 Ok("No active session".to_string())
@@ -849,8 +935,8 @@ pub mod interactive {
 
         fn continue_execution(&self) -> SklResult<String> {
             if let Some(session_id) = &self.current_session {
-                if let Some(handle) = self.debugger.get_session(session_id) {
-                    match handle.continue_execution()? {
+                match self.debugger.get_session(session_id) {
+                    Some(handle) => match handle.continue_execution()? {
                         StepResult::BreakpointHit(step) => Ok(format!(
                             "Breakpoint hit at: {} -> {}",
                             step.component, step.operation
@@ -858,9 +944,8 @@ pub mod interactive {
                         StepResult::ExecutionComplete => Ok("Execution completed".to_string()),
                         StepResult::Error(err) => Ok(format!("Error: {err}")),
                         _ => Ok("Continued execution".to_string()),
-                    }
-                } else {
-                    Ok("Session not found".to_string())
+                    },
+                    _ => Ok("Session not found".to_string()),
                 }
             } else {
                 Ok("No active session".to_string())
@@ -1047,7 +1132,7 @@ pub mod interactive {
 
                     // Show top 5 slowest steps
                     let mut sorted_steps = session.execution_history.clone();
-                    sorted_steps.sort_by(|a, b| b.duration.cmp(&a.duration));
+                    sorted_steps.sort_by_key(|b| std::cmp::Reverse(b.duration));
 
                     output.push_str("\n  Slowest Steps:\n");
                     for (i, step) in sorted_steps.iter().take(5).enumerate() {
@@ -1127,30 +1212,55 @@ pub mod interactive {
 
     /// Enhanced breakpoint conditions with advanced pattern matching
     pub struct AdvancedBreakpointCondition {
+        /// The condition type.
         pub condition_type: AdvancedConditionType,
+        /// The parameters.
         pub parameters: HashMap<String, String>,
     }
 
     #[derive(Debug, Clone)]
+    /// Enumeration of advanced condition type variants.
     pub enum AdvancedConditionType {
         /// Break when memory usage exceeds threshold
-        MemoryThreshold { threshold_mb: f64 },
+        MemoryThreshold {
+            /// The threshold mb.
+            threshold_mb: f64,
+        },
         /// Break when execution time exceeds threshold
-        DurationThreshold { threshold_ms: f64 },
+        DurationThreshold {
+            /// The threshold ms.
+            threshold_ms: f64,
+        },
         /// Break on specific data shape
-        DataShape { expected_shape: (usize, usize) },
+        DataShape {
+            /// The expected shape.
+            expected_shape: (usize, usize),
+        },
         /// Break on specific value patterns
-        ValuePattern { pattern: String },
+        ValuePattern {
+            /// The pattern.
+            pattern: String,
+        },
         /// Break on error conditions
-        ErrorCondition { error_type: String },
+        ErrorCondition {
+            /// The error type.
+            error_type: String,
+        },
         /// Break on performance degradation
-        PerformanceDegradation { baseline_ratio: f64 },
+        PerformanceDegradation {
+            /// The baseline ratio.
+            baseline_ratio: f64,
+        },
         /// Custom breakpoint with user-defined logic
-        Custom { expression: String },
+        Custom {
+            /// The expression.
+            expression: String,
+        },
     }
 
     impl AdvancedBreakpointCondition {
         #[must_use]
+        /// Performs matches.
         pub fn matches(&self, step: &ExecutionStep) -> bool {
             match &self.condition_type {
                 AdvancedConditionType::MemoryThreshold { threshold_mb } => {
@@ -1169,7 +1279,7 @@ pub mod interactive {
                 AdvancedConditionType::ErrorCondition { error_type } => {
                     step.metadata.get("error_type") == Some(error_type)
                 }
-                AdvancedConditionType::PerformanceDegradation { baseline_ratio } => {
+                AdvancedConditionType::PerformanceDegradation { baseline_ratio: _ } => {
                     // Would compare against baseline performance
                     false // Placeholder
                 }
@@ -1192,6 +1302,7 @@ pub mod interactive {
 
     impl PipelineReplayManager {
         #[must_use]
+        /// Creates a new instance.
         pub fn new() -> Self {
             Self {
                 recorded_executions: HashMap::new(),
@@ -1267,9 +1378,13 @@ pub mod interactive {
     /// Statistics for pipeline replay
     #[derive(Debug, Clone)]
     pub struct ReplayStatistics {
+        /// The total steps.
         pub total_steps: usize,
+        /// The current position.
         pub current_position: usize,
+        /// The total duration.
         pub total_duration: Duration,
+        /// The total memory usage.
         pub total_memory_usage: i64,
     }
 
@@ -1287,6 +1402,7 @@ pub mod interactive {
 
     impl BottleneckDetector {
         #[must_use]
+        /// Creates a new instance.
         pub fn new() -> Self {
             Self {
                 execution_profiles: HashMap::new(),
@@ -1371,10 +1487,15 @@ pub mod interactive {
     /// Bottleneck report
     #[derive(Debug, Clone)]
     pub struct BottleneckReport {
+        /// The bottleneck type.
         pub bottleneck_type: BottleneckType,
+        /// The component.
         pub component: String,
+        /// The severity.
         pub severity: BottleneckSeverity,
+        /// The description.
         pub description: String,
+        /// The suggested actions.
         pub suggested_actions: Vec<String>,
     }
 
@@ -1405,9 +1526,13 @@ pub mod interactive {
     /// Performance baseline for comparison
     #[derive(Debug, Clone)]
     pub struct PerformanceBaseline {
+        /// The average duration.
         pub average_duration: Duration,
+        /// The average memory usage.
         pub average_memory_usage: i64,
+        /// The step count.
         pub step_count: usize,
+        /// The recorded at.
         pub recorded_at: SystemTime,
     }
 
@@ -1428,7 +1553,7 @@ mod tests {
         let config = DebugConfig::default();
         let debugger = AdvancedPipelineDebugger::new(config);
 
-        let handle = debugger
+        let _handle = debugger
             .start_session("test_session".to_string(), "test_pipeline".to_string())
             .expect("operation should succeed");
 

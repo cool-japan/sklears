@@ -146,7 +146,7 @@ impl EventBus {
     }
 
     /// Deliver event to specific target
-    fn deliver_to_target(&self, event: &ComponentEvent, target: &str) -> SklResult<()> {
+    fn deliver_to_target(&self, _event: &ComponentEvent, target: &str) -> SklResult<()> {
         // In a real implementation, this would deliver to the actual component
         // For now, we'll just validate the target exists
         if self
@@ -315,6 +315,7 @@ pub struct EventMetadata {
 
 impl EventMetadata {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             category: EventCategory::General,
@@ -451,6 +452,7 @@ impl Default for EventStatistics {
 
 impl EventStatistics {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             total_events_published: 0,

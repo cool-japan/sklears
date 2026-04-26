@@ -19,10 +19,9 @@
 //! - Variational circuits for optimization
 //! - Quantum advantage analysis for specific problem instances
 
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::numeric::{Float, One, Zero};
-use scirs2_core::random::{thread_rng, Random, Rng};
-use std::collections::HashMap;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::thread_rng;
 use std::f64::consts::PI;
 
 /// Quantum-inspired method types
@@ -115,7 +114,7 @@ impl QuantumCircuit {
         let mut param_idx = 0;
 
         // Build layered circuit
-        for layer in 0..n_layers {
+        for _layer in 0..n_layers {
             // Single-qubit rotations
             for qubit in 0..self.n_qubits {
                 self.add_gate(qubit, QuantumGate::RotationY(param_idx));
@@ -304,7 +303,7 @@ impl QuantumPCA {
         let eigenvalues = self.variational_eigensolver(&covariance)?;
 
         // Extract the top components
-        let mut top_eigenvalues = eigenvalues.clone();
+        let top_eigenvalues = eigenvalues.clone();
         let n_comps = std::cmp::min(self.n_components, eigenvalues.len());
 
         // Sort eigenvalues in descending order
@@ -364,11 +363,10 @@ impl QuantumPCA {
         for (qubit, gate) in &self.circuit.gates {
             match gate {
                 QuantumGate::Hadamard => state.apply_hadamard(*qubit),
-                QuantumGate::RotationY(param_idx) => {
-                    if *param_idx < self.circuit.parameters.len() {
-                        state.apply_rotation_y(*qubit, self.circuit.parameters[*param_idx]);
-                    }
+                QuantumGate::RotationY(param_idx) if *param_idx < self.circuit.parameters.len() => {
+                    state.apply_rotation_y(*qubit, self.circuit.parameters[*param_idx]);
                 }
+                QuantumGate::RotationY(_) => {}
                 _ => {} // Implement other gates as needed
             }
         }
@@ -703,8 +701,8 @@ mod tests {
         let mut circuit = QuantumCircuit::new(3);
         circuit.create_variational_ansatz(2);
 
-        assert!(circuit.gates.len() > 0);
-        assert!(circuit.parameters.len() > 0);
+        assert!(!circuit.gates.is_empty());
+        assert!(!circuit.parameters.is_empty());
         assert_eq!(circuit.parameters.len(), 2 * 3 * 3); // 2 layers * 3 qubits * 3 params per qubit
     }
 
@@ -741,7 +739,7 @@ mod tests {
         let qpca = QuantumPCA::new(2, 3);
         assert_eq!(qpca.n_components, 2);
         assert_eq!(qpca.n_qubits, 3);
-        assert!(qpca.circuit.parameters.len() > 0);
+        assert!(!qpca.circuit.parameters.is_empty());
     }
 
     #[test]

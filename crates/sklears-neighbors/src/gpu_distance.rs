@@ -311,13 +311,13 @@ impl GpuDistanceCalculator {
     /// Compute distances using CUDA backend
     fn compute_cuda_distances<'a>(
         &self,
-        X: &ArrayView2<'a, Float>,
-        Y: &ArrayView2<'a, Float>,
+        x_data: &ArrayView2<'a, Float>,
+        y_data: &ArrayView2<'a, Float>,
         distance: Distance,
     ) -> NeighborsResult<(Array2<Float>, usize)> {
         // In a real implementation, this would use CUDA kernels
         // For now, we'll use optimized CPU computation with parallelization
-        let distances = self.compute_parallel_distances(X, Y, distance)?;
+        let distances = self.compute_parallel_distances(x_data, y_data, distance)?;
         let memory_usage = distances.len() * std::mem::size_of::<Float>();
         Ok((distances, memory_usage))
     }
@@ -325,13 +325,13 @@ impl GpuDistanceCalculator {
     /// Compute distances using OpenCL backend
     fn compute_opencl_distances<'a>(
         &self,
-        X: &ArrayView2<'a, Float>,
-        Y: &ArrayView2<'a, Float>,
+        x_data: &ArrayView2<'a, Float>,
+        y_data: &ArrayView2<'a, Float>,
         distance: Distance,
     ) -> NeighborsResult<(Array2<Float>, usize)> {
         // In a real implementation, this would use OpenCL kernels
         // For now, we'll use optimized CPU computation with parallelization
-        let distances = self.compute_parallel_distances(X, Y, distance)?;
+        let distances = self.compute_parallel_distances(x_data, y_data, distance)?;
         let memory_usage = distances.len() * std::mem::size_of::<Float>();
         Ok((distances, memory_usage))
     }
@@ -339,13 +339,13 @@ impl GpuDistanceCalculator {
     /// Compute distances using Metal backend
     fn compute_metal_distances<'a>(
         &self,
-        X: &ArrayView2<'a, Float>,
-        Y: &ArrayView2<'a, Float>,
+        x_data: &ArrayView2<'a, Float>,
+        y_data: &ArrayView2<'a, Float>,
         distance: Distance,
     ) -> NeighborsResult<(Array2<Float>, usize)> {
         // In a real implementation, this would use Metal compute shaders
         // For now, we'll use optimized CPU computation with parallelization
-        let distances = self.compute_parallel_distances(X, Y, distance)?;
+        let distances = self.compute_parallel_distances(x_data, y_data, distance)?;
         let memory_usage = distances.len() * std::mem::size_of::<Float>();
         Ok((distances, memory_usage))
     }
@@ -353,11 +353,11 @@ impl GpuDistanceCalculator {
     /// Compute distances using CPU fallback
     fn compute_cpu_distances<'a>(
         &self,
-        X: &ArrayView2<'a, Float>,
-        Y: &ArrayView2<'a, Float>,
+        x_data: &ArrayView2<'a, Float>,
+        y_data: &ArrayView2<'a, Float>,
         distance: Distance,
     ) -> NeighborsResult<(Array2<Float>, usize)> {
-        let distances = self.compute_parallel_distances(X, Y, distance)?;
+        let distances = self.compute_parallel_distances(x_data, y_data, distance)?;
         let memory_usage = distances.len() * std::mem::size_of::<Float>();
         Ok((distances, memory_usage))
     }
@@ -365,19 +365,19 @@ impl GpuDistanceCalculator {
     /// Compute distances using parallel CPU computation
     fn compute_parallel_distances<'a>(
         &self,
-        X: &ArrayView2<'a, Float>,
-        Y: &ArrayView2<'a, Float>,
+        x_data: &ArrayView2<'a, Float>,
+        y_data: &ArrayView2<'a, Float>,
         distance: Distance,
     ) -> NeighborsResult<Array2<Float>> {
-        let n_samples_x = X.nrows();
-        let n_samples_y = Y.nrows();
+        let n_samples_x = x_data.nrows();
+        let n_samples_y = y_data.nrows();
         let mut distances = Array2::zeros((n_samples_x, n_samples_y));
 
         // Sequential computation across rows
         for (i, mut row) in distances.axis_iter_mut(Axis(0)).enumerate() {
-            let x_row = X.row(i);
+            let x_row = x_data.row(i);
             for j in 0..n_samples_y {
-                let y_row = Y.row(j);
+                let y_row = y_data.row(j);
                 row[j] = distance.calculate(&x_row, &y_row);
             }
         }

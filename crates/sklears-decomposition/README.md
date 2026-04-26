@@ -7,7 +7,7 @@
 
 High-performance matrix decomposition and dimensionality reduction algorithms for Rust, featuring streaming capabilities and 10-50x speedup over scikit-learn.
 
-> **Latest release:** `0.1.0` (March 20, 2026). See the [workspace release notes](../../docs/releases/0.1.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.1` (April 25, 2026). See the [workspace release notes](../../docs/releases/0.1.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -288,11 +288,11 @@ sklears-decomposition/
 
 ## Status
 
+- **Tests**: 365 passing crate tests for `0.1.1`
 - **Core Algorithms**: 90% complete
 - **Streaming Support**: Fully implemented
 - **Advanced Methods**: Tensor decomposition, robust PCA ✓
 - **GPU Acceleration**: In development
-- **Compilation Issues**: Being resolved
 
 ## Contributing
 

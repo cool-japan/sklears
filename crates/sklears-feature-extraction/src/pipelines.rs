@@ -89,7 +89,7 @@ impl<T> Default for SequentialPipeline<T> {
 ///     "This is sad.".to_string(),
 /// ];
 ///
-/// let combined_features = union.extract_union(&documents).unwrap();
+/// let combined_features = union.extract_union(&documents).expect("valid documents produce union features");
 /// assert_eq!(combined_features.nrows(), 2);
 /// ```
 #[derive(Debug, Clone)]

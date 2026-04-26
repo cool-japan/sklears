@@ -190,7 +190,9 @@ pub struct DisentanglementMetrics {
 
 /// Main deep learning interpretability analyzer
 pub struct DeepLearningAnalyzer {
+    #[allow(dead_code)] // stored for configuration access
     config: DeepLearningConfig,
+    #[allow(dead_code)] // stored for concept lookup
     concept_database: ConceptDatabase,
 }
 
@@ -228,7 +230,7 @@ impl DeepLearningAnalyzer {
         )?;
 
         // 3. Compute directional derivatives for test examples
-        let test_activations = model_fn(test_examples)?;
+        let _test_activations = model_fn(test_examples)?;
         let directional_derivatives = self.compute_directional_derivatives(
             model_fn,
             test_examples,
@@ -378,6 +380,7 @@ impl DeepLearningAnalyzer {
         Ok(cav)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn train_linear_classifier(
         &self,
         X: &ArrayView2<Float>,
@@ -410,6 +413,7 @@ impl DeepLearningAnalyzer {
         Ok(weights)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_classifier_accuracy(
         &self,
         X: &ArrayView2<Float>,
@@ -433,7 +437,7 @@ impl DeepLearningAnalyzer {
         model_fn: F,
         inputs: &ArrayView2<Float>,
         direction: &ArrayView1<Float>,
-        target_class: usize,
+        _target_class: usize,
     ) -> SklResult<Array1<Float>>
     where
         F: Fn(&ArrayView2<Float>) -> SklResult<Array2<Float>>,
@@ -518,7 +522,7 @@ impl DeepLearningAnalyzer {
         &self,
         activations: &Array2<Float>,
         concept_labels: &HashMap<String, Array1<bool>>,
-        layer_name: &str,
+        _layer_name: &str,
     ) -> SklResult<Vec<DetectedConcept>> {
         let mut detected_concepts = Vec::new();
 
@@ -661,7 +665,7 @@ impl DeepLearningAnalyzer {
 
     fn compute_disentanglement_metrics(
         &self,
-        layer_activations: &HashMap<String, Array2<Float>>,
+        _layer_activations: &HashMap<String, Array2<Float>>,
     ) -> SklResult<DisentanglementMetrics> {
         // Simplified disentanglement metrics computation
         Ok(DisentanglementMetrics {
@@ -684,8 +688,8 @@ impl DeepLearningAnalyzer {
 
     fn cluster_segments(
         &self,
-        activations: &Array2<Float>,
-        segments: &[Vec<(usize, usize)>],
+        _activations: &Array2<Float>,
+        _segments: &[Vec<(usize, usize)>],
         num_concepts: usize,
     ) -> SklResult<Vec<Vec<usize>>> {
         // Placeholder for clustering implementation
@@ -725,7 +729,7 @@ impl DeepLearningAnalyzer {
                             .expect("operation should succeed")
                     } else {
                         let new_shape = (acc.nrows() + 1, acc.ncols());
-                        let mut new_data = acc.into_raw_vec();
+                        let (mut new_data, _) = acc.into_raw_vec_and_offset();
                         new_data.extend(row.iter().cloned());
                         Array2::from_shape_vec(new_shape, new_data)
                             .expect("operation should succeed")
@@ -748,6 +752,7 @@ impl DeepLearningAnalyzer {
 /// Concept database for storing and managing learned concepts
 pub struct ConceptDatabase {
     concepts: HashMap<String, ConceptActivationVector>,
+    #[allow(dead_code)] // stored for future relationship traversal
     concept_relationships: HashMap<String, Vec<String>>,
 }
 
@@ -808,8 +813,6 @@ impl ConceptDatabase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // ✅ SciRS2 Policy Compliant Import
-    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_deep_learning_config_creation() {

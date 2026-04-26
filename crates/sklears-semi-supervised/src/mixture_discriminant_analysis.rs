@@ -117,6 +117,7 @@ impl MixtureDiscriminantAnalysis<Untrained> {
 
     /// Initialize mixture parameters
     #[allow(clippy::type_complexity)]
+    #[allow(non_snake_case)] // standard ML notation
     fn initialize_parameters(
         &self,
         X: &Array2<f64>,
@@ -259,6 +260,7 @@ impl MixtureDiscriminantAnalysis<Untrained> {
 
     /// E-step: Compute responsibilities
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
+    #[allow(non_snake_case)] // standard ML notation
     fn e_step(
         &self,
         X: &Array2<f64>,
@@ -283,9 +285,9 @@ impl MixtureDiscriminantAnalysis<Untrained> {
             let mut probs = Vec::new();
 
             // Compute probabilities for each class and component
-            for (class_idx, &class_label) in classes.iter().enumerate() {
+            for (class_idx, &_class_label) in classes.iter().enumerate() {
                 for comp_idx in 0..self.n_components {
-                    let comp_global_idx = class_idx * self.n_components + comp_idx;
+                    let _comp_global_idx = class_idx * self.n_components + comp_idx;
                     let prob = class_priors[class_idx]
                         * component_weights[class_idx][comp_idx]
                         * self.multivariate_gaussian_pdf(
@@ -332,6 +334,7 @@ impl MixtureDiscriminantAnalysis<Untrained> {
 
     /// M-step: Update parameters
     #[allow(clippy::type_complexity)]
+    #[allow(non_snake_case)] // standard ML notation
     fn m_step(
         &self,
         X: &Array2<f64>,
@@ -556,6 +559,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for MixtureDiscriminantAnal
 impl Predict<ArrayView2<'_, Float>, Array1<i32>>
     for MixtureDiscriminantAnalysis<MixtureDiscriminantAnalysisTrained>
 {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array1<i32>> {
         let probas = self.predict_proba(X)?;
         let n_test = probas.nrows();

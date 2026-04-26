@@ -264,6 +264,7 @@ impl GradientBoostingClassifier {
 
 /// Trained Gradient Boosting Classifier
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // planned API fields
 pub struct TrainedGradientBoostingClassifier {
     config: GradientBoostingConfig,
     feature_importance: FeatureImportanceMetrics,
@@ -274,6 +275,7 @@ pub struct TrainedGradientBoostingClassifier {
 impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingClassifier {
     type Fitted = TrainedGradientBoostingClassifier;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, _X: &Array2<Float>, _y: &Array1<Float>) -> Result<Self::Fitted> {
         // Basic implementation - would need proper gradient boosting logic
         let n_features = _X.ncols();
@@ -289,6 +291,7 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingClassifier {
 }
 
 impl Predict<Array2<Float>, Array1<Float>> for TrainedGradientBoostingClassifier {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &Array2<Float>) -> Result<Array1<Float>> {
         if X.ncols() != self.n_features {
             return Err(SklearsError::FeatureMismatch {
@@ -334,6 +337,7 @@ impl GradientBoostingRegressor {
 
 /// Trained Gradient Boosting Regressor
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // planned API fields
 pub struct TrainedGradientBoostingRegressor {
     config: GradientBoostingConfig,
     feature_importance: FeatureImportanceMetrics,
@@ -343,6 +347,7 @@ pub struct TrainedGradientBoostingRegressor {
 impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingRegressor {
     type Fitted = TrainedGradientBoostingRegressor;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &Array2<Float>, _y: &Array1<Float>) -> Result<Self::Fitted> {
         let n_features = X.ncols();
 
@@ -355,6 +360,7 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingRegressor {
 }
 
 impl Predict<Array2<Float>, Array1<Float>> for TrainedGradientBoostingRegressor {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &Array2<Float>) -> Result<Array1<Float>> {
         if X.ncols() != self.n_features {
             return Err(SklearsError::FeatureMismatch {

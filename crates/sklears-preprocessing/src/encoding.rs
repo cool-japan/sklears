@@ -211,10 +211,13 @@ pub struct BinaryEncoder<State = Untrained> {
 pub struct BinaryEncoderFitted {
     config: BinaryEncoderConfig,
     /// Mapping from category to binary index
+    #[allow(dead_code)]
     category_mapping: HashMap<String, usize>,
     /// Number of binary columns needed
+    #[allow(dead_code)]
     n_binary_cols: usize,
     /// Categories seen during fitting
+    #[allow(dead_code)]
     categories: Vec<String>,
 }
 
@@ -517,19 +520,300 @@ impl Default for CategoricalEmbedding<Untrained> {
     }
 }
 
-// Placeholder implementations for the basic encoders
-// These should be replaced with full implementations
+// Full implementations for the core encoders
 
-/// Label encoder for transforming categorical labels to integers
-#[derive(Debug, Clone, Default)]
-pub struct LabelEncoder {
-    // Placeholder - should implement proper label encoding
+/// Learned state for `LabelEncoder`
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct LabelEncoderFitted {
+    /// Sorted unique classes in the order they are assigned indices
+    classes: Vec<String>,
+    /// Map from class string to integer index
+    class_to_index: HashMap<String, usize>,
 }
 
-/// One-hot encoder for categorical features
+/// Label encoder: maps string (or string-convertible) labels to integers.
+///
+/// Equivalent to scikit-learn's `LabelEncoder`. After `fit`, each unique class
+/// is assigned a contiguous integer 0..n_classes in sorted order.
 #[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct LabelEncoder {
+    /// Fitted state (None before fit)
+    fitted: Option<LabelEncoderFitted>,
+}
+
+impl LabelEncoder {
+    /// Create a new unfitted `LabelEncoder`.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Fit the encoder to the given labels.
+    ///
+    /// Labels are sorted and deduplicated; the resulting order determines the
+    /// integer encoding.
+    pub fn fit(&mut self, y: &[&str]) -> Result<&mut Self> {
+        let mut classes: Vec<String> = y.iter().map(|&s| s.to_string()).collect();
+        classes.sort();
+        classes.dedup();
+
+        let class_to_index: HashMap<String, usize> = classes
+            .iter()
+            .enumerate()
+            .map(|(i, c)| (c.clone(), i))
+            .collect();
+
+        self.fitted = Some(LabelEncoderFitted {
+            classes,
+            class_to_index,
+        });
+        Ok(self)
+    }
+
+    /// Transform labels to integer codes.
+    ///
+    /// Returns `Err` for any label not seen during fit.
+    pub fn transform(&self, y: &[&str]) -> Result<Vec<usize>> {
+        let fitted = self.fitted.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput(
+                "LabelEncoder has not been fitted yet; call fit() first".to_string(),
+            )
+        })?;
+
+        y.iter()
+            .map(|&label| {
+                fitted.class_to_index.get(label).copied().ok_or_else(|| {
+                    SklearsError::InvalidInput(format!(
+                        "Unknown label '{}' encountered during transform",
+                        label
+                    ))
+                })
+            })
+            .collect()
+    }
+
+    /// Map integer codes back to string labels.
+    ///
+    /// Returns `Err` if any index is out of range.
+    pub fn inverse_transform(&self, y: &[usize]) -> Result<Vec<String>> {
+        let fitted = self.fitted.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput(
+                "LabelEncoder has not been fitted yet; call fit() first".to_string(),
+            )
+        })?;
+
+        y.iter()
+            .map(|&idx| {
+                fitted.classes.get(idx).cloned().ok_or_else(|| {
+                    SklearsError::InvalidInput(format!(
+                        "Index {} is out of range (n_classes = {})",
+                        idx,
+                        fitted.classes.len()
+                    ))
+                })
+            })
+            .collect()
+    }
+
+    /// Fit and immediately transform the given labels.
+    pub fn fit_transform(&mut self, y: &[&str]) -> Result<Vec<usize>> {
+        self.fit(y)?;
+        self.transform(y)
+    }
+
+    /// Return the learned classes in sorted order (None before fit).
+    pub fn classes_(&self) -> Option<&[String]> {
+        self.fitted.as_ref().map(|f| f.classes.as_slice())
+    }
+
+    /// Number of classes (None before fit).
+    pub fn n_classes(&self) -> Option<usize> {
+        self.fitted.as_ref().map(|f| f.classes.len())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// OneHotEncoder
+// ---------------------------------------------------------------------------
+
+/// Drop strategy for `OneHotEncoder`
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum DropStrategy {
+    /// Keep all categories (no column dropped)
+    #[default]
+    None,
+    /// Drop the first category per feature to avoid multicollinearity
+    First,
+    /// Drop the category if the feature is binary (2 categories), keep all otherwise
+    IfBinary,
+}
+
+/// Per-feature fitted data for `OneHotEncoder`
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+struct OneHotFeature {
+    /// Sorted unique categories for this feature column
+    categories: Vec<String>,
+    /// Number of output columns contributed by this feature
+    n_out_cols: usize,
+}
+
+/// One-hot encoder for categorical features stored as numeric codes.
+///
+/// Equivalent to scikit-learn's `OneHotEncoder`. Input is `Array2<Float>`
+/// where each element is an integer category code (0.0, 1.0, 2.0, …).
+/// Output is an indicator matrix.
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct OneHotEncoder {
-    // Placeholder - should implement proper one-hot encoding
+    /// Drop strategy
+    drop: DropStrategy,
+    /// Fitted per-feature state (None before fit)
+    features_: Option<Vec<OneHotFeature>>,
+}
+
+impl OneHotEncoder {
+    /// Create a new `OneHotEncoder` with no dropping.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Configure the drop strategy.
+    pub fn drop(mut self, strategy: DropStrategy) -> Self {
+        self.drop = strategy;
+        self
+    }
+
+    /// Fit the encoder to the given integer-coded feature matrix.
+    ///
+    /// Each column of `x` is treated as a categorical feature; unique values
+    /// are collected and sorted.
+    pub fn fit(&mut self, x: &scirs2_core::ndarray::Array2<Float>) -> Result<&mut Self> {
+        let (_, n_cols) = x.dim();
+
+        let mut features = Vec::with_capacity(n_cols);
+        for j in 0..n_cols {
+            let col = x.column(j);
+            let mut unique_vals: Vec<String> =
+                col.iter().map(|&v| format!("{}", v as i64)).collect();
+            unique_vals.sort();
+            unique_vals.dedup();
+
+            let n_cats = unique_vals.len();
+            let n_out_cols = match self.drop {
+                DropStrategy::None => n_cats,
+                DropStrategy::First => n_cats.saturating_sub(1),
+                DropStrategy::IfBinary => {
+                    if n_cats == 2 {
+                        1
+                    } else {
+                        n_cats
+                    }
+                }
+            };
+
+            features.push(OneHotFeature {
+                categories: unique_vals,
+                n_out_cols,
+            });
+        }
+
+        self.features_ = Some(features);
+        Ok(self)
+    }
+
+    /// Transform integer-coded feature matrix to one-hot indicator matrix.
+    ///
+    /// Output shape is `(n_samples, sum_of_n_out_cols_per_feature)`.
+    pub fn transform(
+        &self,
+        x: &scirs2_core::ndarray::Array2<Float>,
+    ) -> Result<scirs2_core::ndarray::Array2<Float>> {
+        let features = self.features_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput(
+                "OneHotEncoder has not been fitted yet; call fit() first".to_string(),
+            )
+        })?;
+
+        let (n_rows, n_cols) = x.dim();
+        if n_cols != features.len() {
+            return Err(SklearsError::DimensionMismatch {
+                expected: features.len(),
+                actual: n_cols,
+            });
+        }
+
+        let total_out_cols: usize = features.iter().map(|f| f.n_out_cols).sum();
+        let mut out = scirs2_core::ndarray::Array2::zeros((n_rows, total_out_cols));
+
+        let mut out_col_offset = 0_usize;
+        for (j, feat) in features.iter().enumerate() {
+            for i in 0..n_rows {
+                let val_code = format!("{}", x[[i, j]] as i64);
+                let cat_idx = feat
+                    .categories
+                    .iter()
+                    .position(|c| c == &val_code)
+                    .ok_or_else(|| {
+                        SklearsError::InvalidInput(format!(
+                            "Unknown category '{}' in feature column {} during transform",
+                            val_code, j
+                        ))
+                    })?;
+
+                // Determine which output column to set, applying drop strategy
+                let effective_idx = match self.drop {
+                    DropStrategy::None => Some(cat_idx),
+                    DropStrategy::First => {
+                        if cat_idx == 0 {
+                            None // dropped
+                        } else {
+                            Some(cat_idx - 1)
+                        }
+                    }
+                    DropStrategy::IfBinary => {
+                        if feat.categories.len() == 2 {
+                            // Only output column for the second category
+                            if cat_idx == 0 {
+                                None
+                            } else {
+                                Some(0)
+                            }
+                        } else {
+                            Some(cat_idx)
+                        }
+                    }
+                };
+
+                if let Some(local_idx) = effective_idx {
+                    if local_idx < feat.n_out_cols {
+                        out[[i, out_col_offset + local_idx]] = 1.0;
+                    }
+                }
+            }
+            out_col_offset += feat.n_out_cols;
+        }
+
+        Ok(out)
+    }
+
+    /// Fit and immediately transform the given matrix.
+    pub fn fit_transform(
+        &mut self,
+        x: &scirs2_core::ndarray::Array2<Float>,
+    ) -> Result<scirs2_core::ndarray::Array2<Float>> {
+        self.fit(x)?;
+        self.transform(x)
+    }
+
+    /// Return the learned per-feature categories (None before fit).
+    pub fn categories_(&self) -> Option<Vec<&[String]>> {
+        self.features_
+            .as_ref()
+            .map(|fs| fs.iter().map(|f| f.categories.as_slice()).collect())
+    }
 }
 
 /// Ordinal encoder for categorical features with inherent ordering

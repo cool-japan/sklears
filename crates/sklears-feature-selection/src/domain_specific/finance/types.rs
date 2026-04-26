@@ -13,6 +13,19 @@ use super::algorithms::*;
 
 type Result<T> = SklResult<T>;
 
+/// Analysis result type for finance feature analysis methods:
+/// (feature_scores, technical_indicator_scores, risk_metrics, regime_probabilities,
+///  correlation_matrix, sharpe_ratios, information_ratios)
+pub type FinanceAnalysisResult = Result<(
+    Array1<Float>,
+    Option<HashMap<String, Array1<Float>>>,
+    Option<HashMap<String, Float>>,
+    Option<Array2<Float>>,
+    Option<Array2<Float>>,
+    Option<Array1<Float>>,
+    Option<Array1<Float>>,
+)>;
+
 /// Strategy for finance feature selection
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FinanceStrategy {
@@ -40,6 +53,7 @@ pub enum FinanceStrategy {
     PortfolioOptimization,
 }
 #[derive(Debug, Clone)]
+/// Trained
 pub struct Trained {
     pub(crate) selected_features: Vec<usize>,
     pub(crate) feature_scores: Array1<Float>,
@@ -53,6 +67,7 @@ pub struct Trained {
     pub(crate) feature_type: String,
 }
 #[derive(Debug, Clone)]
+/// Untrained
 pub struct Untrained;
 /// Finance-specific feature selector for trading and market data.
 ///
@@ -85,6 +100,7 @@ pub struct FinanceFeatureSelector<State = Untrained> {
     pub(crate) risk_adjusted_scoring: bool,
     pub(crate) transaction_cost_weight: Float,
     pub(crate) market_neutrality_weight: Float,
+    /// k
     pub k: usize,
     pub(crate) score_threshold: Float,
     pub(crate) strategy: FinanceStrategy,
@@ -157,21 +173,57 @@ impl FinanceFeatureSelector<Trained> {
         })?;
         Ok(&trained.selected_features)
     }
+    /// Get the computed feature scores from the last fit
+    pub fn feature_scores(&self) -> Option<&Array1<Float>> {
+        self.trained_state.as_ref().map(|t| &t.feature_scores)
+    }
+    /// Get technical indicator scores computed during fit
+    pub fn technical_indicator_scores(&self) -> Option<&HashMap<String, Array1<Float>>> {
+        self.trained_state
+            .as_ref()
+            .and_then(|t| t.technical_indicator_scores.as_ref())
+    }
+    /// Get risk metrics computed during fit
+    pub fn risk_metrics(&self) -> Option<&HashMap<String, Float>> {
+        self.trained_state
+            .as_ref()
+            .and_then(|t| t.risk_metrics.as_ref())
+    }
+    /// Get regime probability matrix from market state detection
+    pub fn regime_probabilities(&self) -> Option<&Array2<Float>> {
+        self.trained_state
+            .as_ref()
+            .and_then(|t| t.regime_probabilities.as_ref())
+    }
+    /// Get the correlation matrix computed during fit
+    pub fn correlation_matrix(&self) -> Option<&Array2<Float>> {
+        self.trained_state
+            .as_ref()
+            .and_then(|t| t.correlation_matrix.as_ref())
+    }
+    /// Get Sharpe ratios for each feature
+    pub fn sharpe_ratios(&self) -> Option<&Array1<Float>> {
+        self.trained_state
+            .as_ref()
+            .and_then(|t| t.sharpe_ratios.as_ref())
+    }
+    /// Get information ratios for each feature
+    pub fn information_ratios(&self) -> Option<&Array1<Float>> {
+        self.trained_state
+            .as_ref()
+            .and_then(|t| t.information_ratios.as_ref())
+    }
+    /// Get the feature type used during fitting
+    pub fn feature_type(&self) -> Option<&str> {
+        self.trained_state.as_ref().map(|t| t.feature_type.as_str())
+    }
 }
 impl FinanceFeatureSelector<Untrained> {
     pub(crate) fn analyze_technical_indicators(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Float>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-        Option<Array1<Float>>,
-        Option<Array1<Float>>,
-    )> {
+    ) -> FinanceAnalysisResult {
         let (_, n_features) = x.dim();
         let mut feature_scores = Array1::zeros(n_features);
         let mut technical_scores = HashMap::new();
@@ -236,15 +288,7 @@ impl FinanceFeatureSelector<Untrained> {
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Float>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-        Option<Array1<Float>>,
-        Option<Array1<Float>>,
-    )> {
+    ) -> FinanceAnalysisResult {
         let (_, n_features) = x.dim();
         let mut feature_scores = Array1::zeros(n_features);
         let mut risk_metrics = HashMap::new();
@@ -280,15 +324,7 @@ impl FinanceFeatureSelector<Untrained> {
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Float>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-        Option<Array1<Float>>,
-        Option<Array1<Float>>,
-    )> {
+    ) -> FinanceAnalysisResult {
         let (_, n_features) = x.dim();
         let mut feature_scores = Array1::zeros(n_features);
         let mut microstructure_scores = HashMap::new();
@@ -327,15 +363,7 @@ impl FinanceFeatureSelector<Untrained> {
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Float>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-        Option<Array1<Float>>,
-        Option<Array1<Float>>,
-    )> {
+    ) -> FinanceAnalysisResult {
         let (_, n_features) = x.dim();
         let mut feature_scores = Array1::zeros(n_features);
         let correlation_matrix = if self.cross_asset_correlation {
@@ -381,19 +409,11 @@ impl FinanceFeatureSelector<Untrained> {
     ///
     /// Implements factor-based selection using Fama-French three-factor and five-factor models
     /// (Market, SMB, HML, RMW, CMA) to identify features with systematic risk premia.
-    pub(crate) fn analyze_fama_french(
+    pub fn analyze_fama_french(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Float>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-        Option<Array1<Float>>,
-        Option<Array1<Float>>,
-    )> {
+    ) -> FinanceAnalysisResult {
         let (_, n_features) = x.dim();
         let mut feature_scores = Array1::zeros(n_features);
         let mut factor_scores = HashMap::new();
@@ -443,19 +463,11 @@ impl FinanceFeatureSelector<Untrained> {
     ///
     /// Advanced risk metrics including Value-at-Risk (VaR), Conditional VaR (CVaR),
     /// tail risk measures, and downside deviation for comprehensive risk assessment.
-    pub(crate) fn analyze_risk_based(
+    pub fn analyze_risk_based(
         &self,
         x: &Array2<Float>,
         _y: &Array1<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Float>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-        Option<Array1<Float>>,
-        Option<Array1<Float>>,
-    )> {
+    ) -> FinanceAnalysisResult {
         let (_, n_features) = x.dim();
         let mut feature_scores = Array1::zeros(n_features);
         let mut risk_metrics = HashMap::new();
@@ -511,19 +523,11 @@ impl FinanceFeatureSelector<Untrained> {
     /// Identifies market regimes (bull, bear, high volatility, low volatility) using
     /// Hidden Markov Models and Markov Switching models, then selects features that
     /// perform well across different market states.
-    pub(crate) fn analyze_regime_aware(
+    pub fn analyze_regime_aware(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Float>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-        Option<Array1<Float>>,
-        Option<Array1<Float>>,
-    )> {
+    ) -> FinanceAnalysisResult {
         let (n_samples, n_features) = x.dim();
         let mut feature_scores = Array1::zeros(n_features);
         let regime_probs = detect_market_regimes_hmm(x, 3)?;
@@ -577,19 +581,11 @@ impl FinanceFeatureSelector<Untrained> {
     ///
     /// Selects features based on their relationship with macroeconomic indicators
     /// (GDP growth, inflation, interest rates, unemployment) to identify systematic factors.
-    pub(crate) fn analyze_macroeconomic_factors(
+    pub fn analyze_macroeconomic_factors(
         &self,
         x: &Array2<Float>,
         _y: &Array1<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Float>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-        Option<Array1<Float>>,
-        Option<Array1<Float>>,
-    )> {
+    ) -> FinanceAnalysisResult {
         let (_, n_features) = x.dim();
         let mut feature_scores = Array1::zeros(n_features);
         let mut macro_scores = HashMap::new();
@@ -634,19 +630,11 @@ impl FinanceFeatureSelector<Untrained> {
     ///
     /// Selects features based on mean-variance optimization, minimum variance portfolios,
     /// maximum Sharpe ratio, and risk parity principles for portfolio construction.
-    pub(crate) fn analyze_portfolio_optimization(
+    pub fn analyze_portfolio_optimization(
         &self,
         x: &Array2<Float>,
         _y: &Array1<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Float>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-        Option<Array1<Float>>,
-        Option<Array1<Float>>,
-    )> {
+    ) -> FinanceAnalysisResult {
         let (_, n_features) = x.dim();
         let mut feature_scores = Array1::zeros(n_features);
         let mut portfolio_metrics = HashMap::new();
@@ -719,6 +707,7 @@ pub struct FinanceFeatureSelectorBuilder {
     pub(crate) strategy: FinanceStrategy,
 }
 impl FinanceFeatureSelectorBuilder {
+    /// new
     pub fn new() -> Self {
         Self {
             feature_type: "technical_indicators".to_string(),

@@ -137,6 +137,7 @@ pub struct IncrementalNeighborIndex {
     performance_metrics: Arc<RwLock<IndexPerformanceMetrics>>,
 
     // Configuration
+    #[allow(dead_code)] // reserved for tree construction tuning
     leaf_size: usize,
     max_batch_age: Duration,
     rebuild_threshold: Float,
@@ -625,6 +626,7 @@ pub struct IncrementalIndexBuilder {
     index_type: IncrementalIndexType,
     update_strategy: UpdateStrategy,
     distance: Distance,
+    #[allow(dead_code)] // reserved for tree construction tuning
     leaf_size: usize,
     max_batch_age: Duration,
     rebuild_threshold: Float,

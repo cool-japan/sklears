@@ -13,6 +13,19 @@ use sklears_core::{
     traits::{Estimator, Fit, Predict, Untrained},
     types::Float,
 };
+
+/// Type alias for mean-field variational parameter 6-tuple result
+type MeanFieldParamsResult = SklResult<(
+    Array2<f64>,
+    Array1<f64>,
+    Array2<f64>,
+    Array2<f64>,
+    Array1<f64>,
+    Vec<Array2<f64>>,
+)>;
+
+/// Type alias for gradient/parameter 4-tuple result
+type GradParams4Result = SklResult<(Array2<f64>, Array2<f64>, Array2<f64>, Array2<f64>)>;
 use std::f64::consts::PI;
 
 /// Mean-Field Variational Inference for Gaussian Mixture Models
@@ -35,8 +48,8 @@ use std::f64::consts::PI;
 ///     .n_components(3)
 ///     .covariance_type(CovarianceType::Diagonal)
 ///     .max_iter(100);
-/// let fitted = model.fit(&X.view(), &()).unwrap();
-/// let labels = fitted.predict(&X.view()).unwrap();
+/// let fitted = model.fit(&X.view(), &()).expect("mean-field variational GMM fitting should succeed with valid data");
+/// let labels = fitted.predict(&X.view()).expect("prediction should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct MeanFieldVariationalGMM<S = Untrained> {
@@ -61,11 +74,13 @@ pub struct MeanFieldVariationalGMM<S = Untrained> {
 #[derive(Debug, Clone)]
 pub struct MeanFieldVariationalGMMTrained {
     // Posterior parameters for mean-field approximation
-    q_z: Array2<f64>,             // Variational posterior for latent assignments
-    q_pi_alpha: Array1<f64>,      // Dirichlet parameters for mixing weights
-    q_mu_mean: Array2<f64>,       // Mean parameters for component means
-    q_mu_precision: Array2<f64>,  // Precision parameters for component means
-    q_lambda_nu: Array1<f64>,     // Degrees of freedom for precision matrices
+    q_z: Array2<f64>,            // Variational posterior for latent assignments
+    q_pi_alpha: Array1<f64>,     // Dirichlet parameters for mixing weights
+    q_mu_mean: Array2<f64>,      // Mean parameters for component means
+    q_mu_precision: Array2<f64>, // Precision parameters for component means
+    #[allow(dead_code)]
+    q_lambda_nu: Array1<f64>, // Degrees of freedom for precision matrices
+    #[allow(dead_code)]
     q_lambda_w: Vec<Array2<f64>>, // Scale matrices for precision matrices
 
     // Derived quantities
@@ -355,19 +370,10 @@ impl Fit<ArrayView2<'_, Float>, ()> for MeanFieldVariationalGMM<Untrained> {
     }
 }
 
+#[allow(non_snake_case, clippy::too_many_arguments)]
 impl MeanFieldVariationalGMM<Untrained> {
     /// Initialize variational parameters for mean-field approximation
-    fn initialize_variational_parameters(
-        &self,
-        X: &Array2<f64>,
-    ) -> SklResult<(
-        Array2<f64>,      // q_z
-        Array1<f64>,      // q_pi_alpha
-        Array2<f64>,      // q_mu_mean
-        Array2<f64>,      // q_mu_precision
-        Array1<f64>,      // q_lambda_nu
-        Vec<Array2<f64>>, // q_lambda_w
-    )> {
+    fn initialize_variational_parameters(&self, X: &Array2<f64>) -> MeanFieldParamsResult {
         let (n_samples, n_features) = X.dim();
         let mut rng = if let Some(seed) = self.random_state {
             scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
@@ -420,7 +426,7 @@ impl MeanFieldVariationalGMM<Untrained> {
         q_mu_mean: &Array2<f64>,
         q_mu_precision: &Array2<f64>,
         q_lambda_nu: &Array1<f64>,
-        q_lambda_w: &Vec<Array2<f64>>,
+        q_lambda_w: &[Array2<f64>],
     ) -> SklResult<(Array2<f64>, Array2<f64>)> {
         let (n_samples, n_features) = X.dim();
         let mut q_z = Array2::zeros((n_samples, self.n_components));
@@ -492,8 +498,8 @@ impl MeanFieldVariationalGMM<Untrained> {
         X: &Array2<f64>,
         q_z: &Array2<f64>,
         q_lambda_nu: &Array1<f64>,
-        _q_lambda_w: &Vec<Array2<f64>>,
-    ) -> SklResult<(Array2<f64>, Array2<f64>, Array2<f64>, Array2<f64>)> {
+        _q_lambda_w: &[Array2<f64>],
+    ) -> GradParams4Result {
         let (n_samples, n_features) = X.dim();
         let mut q_mu_mean = Array2::zeros((self.n_components, n_features));
         let mut q_mu_precision =
@@ -587,7 +593,7 @@ impl MeanFieldVariationalGMM<Untrained> {
         q_mu_mean: &Array2<f64>,
         q_mu_precision: &Array2<f64>,
         q_lambda_nu: &Array1<f64>,
-        q_lambda_w: &Vec<Array2<f64>>,
+        q_lambda_w: &[Array2<f64>],
     ) -> SklResult<f64> {
         let (n_samples, n_features) = X.dim();
         let mut elbo = 0.0;
@@ -675,7 +681,7 @@ impl MeanFieldVariationalGMM<Untrained> {
         &self,
         k: usize,
         q_lambda_nu: &Array1<f64>,
-        q_lambda_w: &Vec<Array2<f64>>,
+        q_lambda_w: &[Array2<f64>],
     ) -> f64 {
         let n_features = q_lambda_w[k].nrows();
         let mut log_det = 0.0;
@@ -700,7 +706,7 @@ impl MeanFieldVariationalGMM<Untrained> {
     fn compute_covariances(
         &self,
         q_lambda_nu: &Array1<f64>,
-        q_lambda_w: &Vec<Array2<f64>>,
+        q_lambda_w: &[Array2<f64>],
     ) -> SklResult<Vec<Array2<f64>>> {
         let mut covariances = Vec::new();
 
@@ -1011,7 +1017,7 @@ mod tests {
         assert_eq!(labels.len(), 4);
         // Check that labels are in valid range
         for &label in labels.iter() {
-            assert!(label >= 0 && label < 2);
+            assert!((0..2).contains(&label));
         }
     }
 

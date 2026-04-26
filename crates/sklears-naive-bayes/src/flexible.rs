@@ -408,35 +408,21 @@ impl FlexibleNB<Untrained> {
                 let diff = x - mean;
                 -0.5 * (2.0 * std::f64::consts::PI * var).ln() - 0.5 * diff * diff / var
             }
-            DistributionParams::Exponential { lambda } => {
-                if x >= 0.0 {
-                    lambda.ln() - lambda * x
-                } else {
-                    f64::NEG_INFINITY
-                }
+            DistributionParams::Exponential { lambda } if x >= 0.0 => lambda.ln() - lambda * x,
+            DistributionParams::Exponential { .. } => f64::NEG_INFINITY,
+            DistributionParams::Gamma { alpha, beta } if x > 0.0 => {
+                (alpha - 1.0) * x.ln() - beta * x + alpha * beta.ln() - gamma_ln(*alpha)
             }
-            DistributionParams::Gamma { alpha, beta } => {
-                if x > 0.0 {
-                    (alpha - 1.0) * x.ln() - beta * x + alpha * beta.ln() - gamma_ln(*alpha)
-                } else {
-                    f64::NEG_INFINITY
-                }
+            DistributionParams::Gamma { .. } => f64::NEG_INFINITY,
+            DistributionParams::Beta { alpha, beta } if x > 0.0 && x < 1.0 => {
+                let log_beta_fn = gamma_ln(*alpha) + gamma_ln(*beta) - gamma_ln(alpha + beta);
+                (alpha - 1.0) * x.ln() + (beta - 1.0) * (1.0 - x).ln() - log_beta_fn
             }
-            DistributionParams::Beta { alpha, beta } => {
-                if x > 0.0 && x < 1.0 {
-                    let log_beta_fn = gamma_ln(*alpha) + gamma_ln(*beta) - gamma_ln(alpha + beta);
-                    (alpha - 1.0) * x.ln() + (beta - 1.0) * (1.0 - x).ln() - log_beta_fn
-                } else {
-                    f64::NEG_INFINITY
-                }
+            DistributionParams::Beta { .. } => f64::NEG_INFINITY,
+            DistributionParams::Poisson { lambda } if x >= 0.0 && x.fract() == 0.0 => {
+                x * lambda.ln() - lambda - gamma_ln(x + 1.0)
             }
-            DistributionParams::Poisson { lambda } => {
-                if x >= 0.0 && x.fract() == 0.0 {
-                    x * lambda.ln() - lambda - gamma_ln(x + 1.0)
-                } else {
-                    f64::NEG_INFINITY
-                }
-            }
+            DistributionParams::Poisson { .. } => f64::NEG_INFINITY,
             DistributionParams::Bernoulli { p } => {
                 if x == 0.0 {
                     (1.0 - p).ln()
@@ -582,35 +568,21 @@ impl FlexibleNB<Trained> {
                 let diff = x - mean;
                 -0.5 * (2.0 * std::f64::consts::PI * var).ln() - 0.5 * diff * diff / var
             }
-            DistributionParams::Exponential { lambda } => {
-                if x >= 0.0 {
-                    lambda.ln() - lambda * x
-                } else {
-                    f64::NEG_INFINITY
-                }
+            DistributionParams::Exponential { lambda } if x >= 0.0 => lambda.ln() - lambda * x,
+            DistributionParams::Exponential { .. } => f64::NEG_INFINITY,
+            DistributionParams::Gamma { alpha, beta } if x > 0.0 => {
+                (alpha - 1.0) * x.ln() - beta * x + alpha * beta.ln() - gamma_ln(*alpha)
             }
-            DistributionParams::Gamma { alpha, beta } => {
-                if x > 0.0 {
-                    (alpha - 1.0) * x.ln() - beta * x + alpha * beta.ln() - gamma_ln(*alpha)
-                } else {
-                    f64::NEG_INFINITY
-                }
+            DistributionParams::Gamma { .. } => f64::NEG_INFINITY,
+            DistributionParams::Beta { alpha, beta } if x > 0.0 && x < 1.0 => {
+                let log_beta_fn = gamma_ln(*alpha) + gamma_ln(*beta) - gamma_ln(alpha + beta);
+                (alpha - 1.0) * x.ln() + (beta - 1.0) * (1.0 - x).ln() - log_beta_fn
             }
-            DistributionParams::Beta { alpha, beta } => {
-                if x > 0.0 && x < 1.0 {
-                    let log_beta_fn = gamma_ln(*alpha) + gamma_ln(*beta) - gamma_ln(alpha + beta);
-                    (alpha - 1.0) * x.ln() + (beta - 1.0) * (1.0 - x).ln() - log_beta_fn
-                } else {
-                    f64::NEG_INFINITY
-                }
+            DistributionParams::Beta { .. } => f64::NEG_INFINITY,
+            DistributionParams::Poisson { lambda } if x >= 0.0 && x.fract() == 0.0 => {
+                x * lambda.ln() - lambda - gamma_ln(x + 1.0)
             }
-            DistributionParams::Poisson { lambda } => {
-                if x >= 0.0 && x.fract() == 0.0 {
-                    x * lambda.ln() - lambda - gamma_ln(x + 1.0)
-                } else {
-                    f64::NEG_INFINITY
-                }
-            }
+            DistributionParams::Poisson { .. } => f64::NEG_INFINITY,
             DistributionParams::Bernoulli { p } => {
                 if x == 0.0 {
                     (1.0 - p).ln()

@@ -44,12 +44,12 @@ impl<C> Estimator for ECOCClassifier<C, Untrained> {
 }
 
 /// Implementation for classifiers that can fit binary problems
-impl<C> Fit<Array2<Float>, Array1<i32>> for ECOCClassifier<C, Untrained>
+impl<C, F> Fit<Array2<Float>, Array1<i32>> for ECOCClassifier<C, Untrained>
 where
-    C: Clone + Send + Sync + Fit<Array2<Float>, Array1<Float>>,
-    C::Fitted: Predict<Array2<Float>, Array1<Float>> + Send,
+    C: Clone + Send + Sync + Fit<Array2<Float>, Array1<Float>, Fitted = F>,
+    F: Predict<Array2<Float>, Array1<Float>> + Send + Sync,
 {
-    type Fitted = TrainedECOC<C::Fitted>;
+    type Fitted = TrainedECOC<F>;
     fn fit(self, x: &Array2<Float>, y: &Array1<i32>) -> SklResult<Self::Fitted> {
         validate::check_consistent_length(x, y)?;
         let (_n_samples, n_features) = x.dim();
@@ -86,7 +86,10 @@ where
         let binary_problems: Vec<_> = (0..code_length)
             .map(|bit_idx| {
                 let binary_y: Array1<Float> = y.mapv(|label| {
-                    let class_idx = classes.iter().position(|&c| c == label).expect("operation should succeed");
+                    let class_idx = classes
+                        .iter()
+                        .position(|&c| c == label)
+                        .expect("operation should succeed");
                     if code_matrix.get(class_idx, bit_idx) == 1 {
                         1.0
                     } else {

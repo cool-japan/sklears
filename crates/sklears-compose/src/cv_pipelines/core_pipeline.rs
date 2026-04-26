@@ -319,15 +319,12 @@ impl CVPipeline {
         }
 
         // Check processing mode compatibility
-        match self.config.processing_mode {
-            ProcessingMode::RealTime => {
-                if image.memory_footprint() > self.config.performance.resource_limits.max_memory {
-                    return Err(SklearsError::ValidationError(
-                        "Image too large for real-time processing".to_string(),
-                    ));
-                }
-            }
-            _ => {} // Other modes are more flexible
+        if self.config.processing_mode == ProcessingMode::RealTime
+            && image.memory_footprint() > self.config.performance.resource_limits.max_memory
+        {
+            return Err(SklearsError::ValidationError(
+                "Image too large for real-time processing".to_string(),
+            ));
         }
 
         Ok(())
@@ -780,42 +777,42 @@ impl PipelineContext {
     }
 
     /// Record step skip
-    pub fn record_step_skipped(&mut self, component: &str, step_index: usize) {
+    pub fn record_step_skipped(&mut self, _component: &str, _step_index: usize) {
         // Implementation for tracking skipped steps
     }
 
     /// Record step retry
-    pub fn record_step_retry(&mut self, component: &str, step_index: usize) {
+    pub fn record_step_retry(&mut self, _component: &str, _step_index: usize) {
         // Implementation for tracking retried steps
     }
 
     /// Record step fallback
-    pub fn record_step_fallback(&mut self, component: &str, step_index: usize) {
+    pub fn record_step_fallback(&mut self, _component: &str, _step_index: usize) {
         // Implementation for tracking fallback usage
     }
 
     /// Record step degradation
-    pub fn record_step_degraded(&mut self, component: &str, step_index: usize) {
+    pub fn record_step_degraded(&mut self, _component: &str, _step_index: usize) {
         // Implementation for tracking quality degradation
     }
 
     /// Record step cache usage
-    pub fn record_step_cached(&mut self, component: &str, step_index: usize) {
+    pub fn record_step_cached(&mut self, _component: &str, _step_index: usize) {
         // Implementation for tracking cache usage
     }
 
     /// Record batch image skip
-    pub fn record_batch_image_skipped(&mut self, image_index: usize) {
+    pub fn record_batch_image_skipped(&mut self, _image_index: usize) {
         // Implementation for tracking skipped batch images
     }
 
     /// Record batch image error
-    pub fn record_batch_image_error(&mut self, image_index: usize, error: String) {
+    pub fn record_batch_image_error(&mut self, _image_index: usize, _error: String) {
         // Implementation for tracking batch image errors
     }
 
     /// Record final results
-    pub fn record_final_results(&mut self, result_count: usize) {
+    pub fn record_final_results(&mut self, _result_count: usize) {
         // Implementation for tracking final result counts
     }
 
@@ -888,7 +885,7 @@ impl ProcessedResult {
     #[must_use]
     pub fn from_prediction(
         prediction: Prediction,
-        processing_time: Duration,
+        _processing_time: Duration,
         metadata: ProcessingMetadata,
     ) -> Self {
         Self {
@@ -999,29 +996,44 @@ impl fmt::Display for PredictionType {
 pub enum PredictionData {
     /// Classification labels and probabilities
     Classification {
+        /// The classes.
         classes: Vec<String>,
+        /// The probabilities.
         probabilities: Array1<f32>,
     },
     /// Detection bounding boxes
     Detection {
+        /// The boxes.
         boxes: Array2<f32>, // [N, 4] format (x1, y1, x2, y2)
+        /// The classes.
         classes: Vec<String>,
+        /// The scores.
         scores: Array1<f32>,
     },
     /// Segmentation mask
     Segmentation {
+        /// The mask.
         mask: Array2<u8>, // Height x Width
+        /// The classes.
         classes: Vec<String>,
     },
     /// Keypoints
     Keypoints {
+        /// The points.
         points: Array2<f32>, // [N, 2] format (x, y)
+        /// The visibility.
         visibility: Array1<f32>,
     },
     /// Feature embedding
-    Embedding { features: Array1<f32> },
+    Embedding {
+        /// The features.
+        features: Array1<f32>,
+    },
     /// Custom data
-    Custom { data: HashMap<String, Array1<f32>> },
+    Custom {
+        /// The data.
+        data: HashMap<String, Array1<f32>>,
+    },
 }
 
 // Placeholder traits for the components (these would be defined elsewhere in a real implementation)

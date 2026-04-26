@@ -196,7 +196,9 @@ pub enum QueryOperator {
 /// Order by clause for result ordering
 #[derive(Debug, Clone)]
 pub struct OrderBy {
+    /// The field.
     pub field: String,
+    /// The direction.
     pub direction: OrderDirection,
 }
 
@@ -302,6 +304,7 @@ pub struct BackupConfig {
 
 /// Analytics scheduler for automated analysis
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct AnalyticsScheduler {
     /// Scheduled jobs
     jobs: Arc<RwLock<Vec<AnalyticsJob>>>,
@@ -369,6 +372,7 @@ pub enum JobStatus {
 
 /// Job executor for running analytics jobs
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct JobExecutor {
     /// Thread pool
     thread_pool: Arc<ThreadPool>,
@@ -459,6 +463,7 @@ pub struct PatternAnalyticsConfig {
 
 /// Anomaly analytics processor
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct AnomalyAnalyticsProcessor {
     /// Processor configuration
     config: AnomalyAnalyticsConfig,
@@ -506,7 +511,7 @@ impl CircuitBreakerAnalytics {
                         enabled: false,
                         frequency: Duration::from_secs(86400),
                         retention: Duration::from_secs(2_592_000),
-                        destination: "/tmp/backups".to_string(),
+                        destination: std::env::temp_dir().join("backups").display().to_string(),
                     },
                 },
             }),
@@ -608,7 +613,7 @@ impl CircuitBreakerAnalytics {
         let mut insights = Vec::new();
 
         // Run all processors to generate insights
-        for (name, processor) in &self.processors {
+        for processor in self.processors.values() {
             let result = processor.process(&events);
             insights.extend(result.insights);
         }
@@ -742,7 +747,7 @@ impl AnalyticsProcessor for PerformanceAnalyticsProcessor {
             });
         }
 
-        /// AnalyticsResult
+        // AnalyticsResult
         AnalyticsResult {
             id: Uuid::new_v4().to_string(),
             analysis_type: "performance".to_string(),
@@ -785,11 +790,11 @@ impl PatternAnalyticsProcessor {
 }
 
 impl AnalyticsProcessor for PatternAnalyticsProcessor {
-    fn process(&self, data: &[CircuitBreakerEvent]) -> AnalyticsResult {
+    fn process(&self, _data: &[CircuitBreakerEvent]) -> AnalyticsResult {
         let insights = Vec::new(); // Simplified pattern analysis
         let metrics = HashMap::new();
 
-        /// AnalyticsResult
+        // AnalyticsResult
         AnalyticsResult {
             id: Uuid::new_v4().to_string(),
             analysis_type: "pattern".to_string(),
@@ -849,7 +854,7 @@ impl DataStorageBackend for InMemoryDataStorageBackend {
 
     fn statistics(&self) -> StorageStatistics {
         let data = self.data.read().unwrap_or_else(|e| e.into_inner());
-        /// StorageStatistics
+        // StorageStatistics
         StorageStatistics {
             total_events: data.len() as u64,
             storage_size: 0,
@@ -913,7 +918,7 @@ impl Default for BackupConfig {
             enabled: false,
             frequency: Duration::from_secs(86400),     // Daily
             retention: Duration::from_secs(2_592_000), // 30 days
-            destination: "/tmp/backups".to_string(),
+            destination: std::env::temp_dir().join("backups").display().to_string(),
         }
     }
 }

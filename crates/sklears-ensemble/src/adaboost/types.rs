@@ -1,9 +1,9 @@
 //! Type definitions for AdaBoost ensemble methods
 
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::Array1;
 use sklears_core::{
     traits::{Trained, Untrained},
-    types::{Float, Int},
+    types::Float,
 };
 use std::marker::PhantomData;
 
@@ -44,6 +44,7 @@ pub struct AdaBoostConfig {
 
 /// Configuration for LogitBoost
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // planned API fields for LogitBoost configuration
 pub struct LogitBoostConfig {
     pub(crate) n_estimators: usize,
     pub(crate) learning_rate: Float,

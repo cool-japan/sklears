@@ -98,31 +98,44 @@ pub enum TaskState {
     Ready,
     /// Task is currently running
     Running {
+        /// The started at.
         started_at: SystemTime,
+        /// The node id.
         node_id: Option<NodeId>,
     },
     /// Task completed successfully
     Completed {
+        /// The completed at.
         completed_at: SystemTime,
+        /// The execution time.
         execution_time: Duration,
     },
     /// Task failed
     Failed {
+        /// The failed at.
         failed_at: SystemTime,
+        /// The error.
         error: String,
+        /// The retry count.
         retry_count: usize,
     },
     /// Task was cancelled
-    Cancelled { cancelled_at: SystemTime },
+    Cancelled {
+        /// The cancelled at.
+        cancelled_at: SystemTime,
+    },
     /// Task is waiting for retry
     Retrying {
+        /// The next retry at.
         next_retry_at: SystemTime,
+        /// The retry count.
         retry_count: usize,
     },
 }
 
 /// Task wrapper for priority queue
 #[derive(Debug)]
+#[allow(dead_code)]
 struct PriorityTask {
     task: ScheduledTask,
     priority_score: i64,
@@ -169,6 +182,7 @@ pub enum SchedulingStrategy {
     ResourceAware,
     /// Custom scheduling function
     Custom {
+        /// The schedule fn.
         schedule_fn: fn(&[ScheduledTask], &ResourcePool) -> Option<TaskId>,
     },
 }
@@ -443,34 +457,48 @@ pub struct SchedulerMetrics {
 pub enum AdvancedSchedulingStrategy {
     /// Machine learning-based adaptive scheduling
     MLAdaptive {
+        /// The model path.
         model_path: String,
+        /// The feature extractors.
         feature_extractors: Vec<String>,
     },
     /// Genetic algorithm optimization
     GeneticOptimization {
+        /// The population size.
         population_size: usize,
+        /// The generations.
         generations: usize,
+        /// The mutation rate.
         mutation_rate: f64,
     },
     /// Multi-objective optimization (Pareto-optimal)
     MultiObjective {
+        /// The objectives.
         objectives: Vec<SchedulingObjective>,
+        /// The weights.
         weights: Vec<f64>,
     },
     /// Reinforcement learning scheduler
     ReinforcementLearning {
+        /// The agent type.
         agent_type: String,
+        /// The learning rate.
         learning_rate: f64,
+        /// The exploration rate.
         exploration_rate: f64,
     },
     /// Game theory-based scheduling
     GameTheory {
+        /// The strategy type.
         strategy_type: GameTheoryStrategy,
+        /// The coalition formation.
         coalition_formation: bool,
     },
     /// Quantum-inspired optimization
     QuantumInspired {
+        /// The quantum operators.
         quantum_operators: Vec<String>,
+        /// The entanglement depth.
         entanglement_depth: usize,
     },
 }
@@ -492,7 +520,9 @@ pub enum SchedulingObjective {
     MinimizeDeadlineViolations,
     /// Custom objective function
     Custom {
+        /// The name.
         name: String,
+        /// The objective fn.
         objective_fn: fn(&[ScheduledTask], &ResourcePool) -> f64,
     },
 }
@@ -511,6 +541,7 @@ pub enum GameTheoryStrategy {
 }
 
 /// Multi-level feedback scheduler
+#[allow(dead_code)]
 pub struct MultiLevelFeedbackScheduler {
     name: String,
     queues: Vec<PriorityQueue>,
@@ -523,6 +554,7 @@ pub struct MultiLevelFeedbackScheduler {
 
 /// Priority queue for multi-level scheduler
 #[derive(Debug)]
+#[allow(dead_code)]
 struct PriorityQueue {
     tasks: VecDeque<ScheduledTask>,
     priority_level: u8,
@@ -530,6 +562,7 @@ struct PriorityQueue {
 }
 
 /// Fair share scheduler with proportional allocation
+#[allow(dead_code)]
 pub struct FairShareScheduler {
     name: String,
     user_shares: HashMap<String, f64>,
@@ -540,6 +573,7 @@ pub struct FairShareScheduler {
 }
 
 /// Deadline-aware earliest deadline first scheduler
+#[allow(dead_code)]
 pub struct DeadlineAwareScheduler {
     name: String,
     deadline_weight: f64,
@@ -550,6 +584,7 @@ pub struct DeadlineAwareScheduler {
 }
 
 /// Resource-aware scheduler with load balancing
+#[allow(dead_code)]
 pub struct ResourceAwareScheduler {
     name: String,
     resource_weights: HashMap<String, f64>,
@@ -567,14 +602,21 @@ pub enum LoadBalancingStrategy {
     /// Least loaded first
     LeastLoaded,
     /// Weighted round-robin
-    WeightedRoundRobin { weights: HashMap<String, f64> },
+    WeightedRoundRobin {
+        /// The weights.
+        weights: HashMap<String, f64>,
+    },
     /// Random allocation
     Random,
     /// Consistent hashing
-    ConsistentHashing { virtual_nodes: usize },
+    ConsistentHashing {
+        /// The virtual nodes.
+        virtual_nodes: usize,
+    },
 }
 
 /// Machine learning adaptive scheduler
+#[allow(dead_code)]
 pub struct MLAdaptiveScheduler {
     name: String,
     model_type: MLModelType,
@@ -591,13 +633,25 @@ pub enum MLModelType {
     /// Decision tree
     DecisionTree,
     /// Random forest
-    RandomForest { n_trees: usize },
+    RandomForest {
+        /// The n trees.
+        n_trees: usize,
+    },
     /// Neural network
-    NeuralNetwork { layers: Vec<usize> },
+    NeuralNetwork {
+        /// The layers.
+        layers: Vec<usize>,
+    },
     /// Support vector machine
-    SVM { kernel: String },
+    SVM {
+        /// The kernel.
+        kernel: String,
+    },
     /// Reinforcement learning
-    ReinforcementLearning { algorithm: String },
+    ReinforcementLearning {
+        /// The algorithm.
+        algorithm: String,
+    },
 }
 
 /// Feature extractor trait for ML scheduler
@@ -637,6 +691,7 @@ pub struct DecisionOutcome {
 
 /// Task scheduler implementation with pluggable strategies
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TaskScheduler {
     /// Primary scheduling strategy
     strategy: SchedulingStrategy,
@@ -839,7 +894,7 @@ impl TaskScheduler {
         task_notification: Arc<Condvar>,
         is_running: Arc<Mutex<bool>>,
         config: SchedulerConfig,
-        strategy: SchedulingStrategy,
+        _strategy: SchedulingStrategy,
     ) {
         let mut lock = task_queue.lock().unwrap_or_else(|e| e.into_inner());
 
@@ -874,7 +929,7 @@ impl TaskScheduler {
 
     /// Find tasks that are ready to execute
     fn find_ready_tasks(
-        task_queue: &Arc<Mutex<BinaryHeap<PriorityTask>>>,
+        _task_queue: &Arc<Mutex<BinaryHeap<PriorityTask>>>,
         task_states: &Arc<RwLock<HashMap<TaskId, TaskState>>>,
         dependency_graph: &Arc<RwLock<HashMap<TaskId, HashSet<TaskId>>>>,
     ) -> Vec<TaskId> {
@@ -914,8 +969,8 @@ impl TaskScheduler {
 
     /// Check if resources can be allocated for a task
     fn can_allocate_resources(
-        task_id: &TaskId,
-        task_states: &Arc<RwLock<HashMap<TaskId, TaskState>>>,
+        _task_id: &TaskId,
+        _task_states: &Arc<RwLock<HashMap<TaskId, TaskState>>>,
         resource_pool: &Arc<RwLock<ResourcePool>>,
     ) -> bool {
         // Simplified resource check
@@ -1034,7 +1089,7 @@ impl TaskScheduler {
             .filter(|s| matches!(s, TaskState::Failed { .. }))
             .count();
 
-        /// SchedulerStatistics
+        // SchedulerStatistics
         SchedulerStatistics {
             total_tasks: states.len(),
             pending_tasks: pending_count,
@@ -1230,7 +1285,10 @@ pub enum WorkflowState {
     /// Workflow completed successfully
     Completed,
     /// Workflow failed
-    Failed { error: String },
+    Failed {
+        /// The error.
+        error: String,
+    },
     /// Workflow was cancelled
     Cancelled,
     /// Workflow is paused

@@ -16,15 +16,16 @@
 //! - Cross-platform file format compatibility
 
 #[cfg(feature = "hdf5-support")]
-use hdf5::{Dataset, File, Group, H5Type};
-use scirs2_core::ndarray::{Array, Array1, Array2, ArrayView2};
+use hdf5::{Dataset, File, Group};
+use scirs2_core::ndarray::{Array1, Array2};
 use serde::{Deserialize, Serialize};
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
 };
-#[cfg(feature = "sparse")]
-use sprs::{CsMat, CsMatBase, CsVec, TriMat};
+// sprs removed per SciRS2/COOLJAPAN Policy; use scirs2-sparse instead
+// #[cfg(feature = "sparse")]
+// use sprs::{CsMat, CsMatBase, CsVec, TriMat};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -68,6 +69,7 @@ pub enum SparseFormat {
 
 /// HDF5 format support for matrix operations
 #[cfg(feature = "hdf5-support")]
+#[derive(Default)]
 pub struct HDF5Support {
     config: FormatConfig,
 }
@@ -76,9 +78,7 @@ pub struct HDF5Support {
 impl HDF5Support {
     /// Create new HDF5 support instance
     pub fn new() -> Self {
-        Self {
-            config: FormatConfig::default(),
-        }
+        Self::default()
     }
 
     /// Create with custom configuration
@@ -108,14 +108,20 @@ impl HDF5Support {
 
         // Convert to standard layout and write
         if matrix.is_standard_layout() {
+            let slice = matrix.as_slice().ok_or_else(|| {
+                SklearsError::InvalidInput("matrix is not contiguous".to_string())
+            })?;
             dataset
-                .write(matrix.as_slice().expect("slice operation should succeed"))
-                .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {}", e)))?;
+                .write(slice)
+                .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {e}")))?;
         } else {
             let standard_matrix = matrix.to_owned();
+            let slice = standard_matrix.as_slice().ok_or_else(|| {
+                SklearsError::InvalidInput("matrix copy is not contiguous".to_string())
+            })?;
             dataset
-                .write(standard_matrix.as_slice().expect("slice operation should succeed"))
-                .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {}", e)))?;
+                .write(slice)
+                .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {e}")))?;
         }
 
         // Add metadata
@@ -181,9 +187,12 @@ impl HDF5Support {
                     SklearsError::InvalidInput(format!("Failed to create dataset: {}", e))
                 })?;
 
+            let slice = s.as_slice().ok_or_else(|| {
+                SklearsError::InvalidInput("singular_values not contiguous".to_string())
+            })?;
             dataset
-                .write(s.as_slice().expect("slice operation should succeed"))
-                .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {}", e)))?;
+                .write(slice)
+                .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {e}")))?;
         }
 
         if let Some(ref vt) = results.vt_matrix {
@@ -203,9 +212,12 @@ impl HDF5Support {
                     SklearsError::InvalidInput(format!("Failed to create dataset: {}", e))
                 })?;
 
+            let ev_slice = eigenvalues.as_slice().ok_or_else(|| {
+                SklearsError::InvalidInput("eigenvalues array not contiguous".to_string())
+            })?;
             dataset
-                .write(eigenvalues.as_slice().expect("slice operation should succeed"))
-                .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {}", e)))?;
+                .write(ev_slice)
+                .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {e}")))?;
         }
 
         // Write metadata
@@ -301,14 +313,20 @@ impl HDF5Support {
             .map_err(|e| SklearsError::InvalidInput(format!("Failed to create dataset: {}", e)))?;
 
         if matrix.is_standard_layout() {
+            let slice = matrix.as_slice().ok_or_else(|| {
+                SklearsError::InvalidInput(format!("matrix '{}' not contiguous", name))
+            })?;
             dataset
-                .write(matrix.as_slice().expect("slice operation should succeed"))
-                .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {}", e)))?;
+                .write(slice)
+                .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {e}")))?;
         } else {
             let standard_matrix = matrix.to_owned();
+            let slice = standard_matrix.as_slice().ok_or_else(|| {
+                SklearsError::InvalidInput(format!("matrix copy '{}' not contiguous", name))
+            })?;
             dataset
-                .write(standard_matrix.as_slice().expect("slice operation should succeed"))
-                .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {}", e)))?;
+                .write(slice)
+                .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {e}")))?;
         }
 
         Ok(())
@@ -361,7 +379,11 @@ impl HDF5Support {
                 .map_err(|e| {
                     SklearsError::InvalidInput(format!("Failed to create attribute: {}", e))
                 })?
-                .write(&[hdf5::types::VarLenAscii::from_ascii(algorithm.as_bytes()).expect("operation should succeed")])
+                .write(&[
+                    hdf5::types::VarLenAscii::from_ascii(algorithm.as_bytes()).map_err(|e| {
+                        SklearsError::InvalidInput(format!("Invalid ASCII in algorithm name: {e}"))
+                    })?,
+                ])
                 .map_err(|e| {
                     SklearsError::InvalidInput(format!("Failed to write attribute: {}", e))
                 })?;
@@ -380,9 +402,9 @@ impl HDF5Support {
 
     fn collect_datasets(
         &self,
-        item: &hdf5::Group,
-        prefix: &str,
-        datasets: &mut Vec<String>,
+        _item: &hdf5::Group,
+        _prefix: &str,
+        _datasets: &mut Vec<String>,
     ) -> Result<()> {
         // Simplified dataset collection - in practice would recursively walk the HDF5 structure
         Ok(())
@@ -391,6 +413,7 @@ impl HDF5Support {
 
 /// Sparse matrix support for efficient decomposition
 #[cfg(feature = "sparse")]
+#[derive(Default)]
 pub struct SparseMatrixSupport {
     config: FormatConfig,
 }
@@ -399,9 +422,7 @@ pub struct SparseMatrixSupport {
 impl SparseMatrixSupport {
     /// Create new sparse matrix support instance
     pub fn new() -> Self {
-        Self {
-            config: FormatConfig::default(),
-        }
+        Self::default()
     }
 
     /// Create with custom configuration
@@ -466,8 +487,8 @@ impl SparseMatrixSupport {
 
         // Simplified sparse matrix multiplication
         // In practice, would use optimized sparse BLAS routines
-        let result_rows = a.shape.0;
-        let result_cols = b.shape.1;
+        let _result_rows = a.shape.0;
+        let _result_cols = b.shape.1;
 
         // Convert to dense for multiplication (not optimal, but functional)
         let dense_a = self.sparse_to_dense(a)?;
@@ -489,12 +510,12 @@ impl SparseMatrixSupport {
         let min_dim = m.min(n).min(k);
 
         // Simplified sparse SVD - in practice would use specialized algorithms like ARPACK
-        let dense_matrix = self.sparse_to_dense(sparse)?;
+        let _dense_matrix = self.sparse_to_dense(sparse)?;
 
         // Use power iteration for largest singular values
-        let mut u = Array2::<Float>::eye(m);
-        let mut s = Array1::<Float>::ones(min_dim);
-        let mut vt = Array2::<Float>::eye(n);
+        let u = Array2::<Float>::eye(m);
+        let s = Array1::<Float>::ones(min_dim);
+        let vt = Array2::<Float>::eye(n);
 
         // Simplified power iteration (placeholder)
         for _iter in 0..max_iter {
@@ -619,28 +640,44 @@ pub struct MemoryMappedMatrix {
 impl MemoryMappedMatrix {
     /// Create memory-mapped matrix from file
     pub fn new<P: AsRef<Path>>(file_path: P, shape: (usize, usize)) -> Result<Self> {
-        let file = std::fs::File::open(&file_path)
-            .map_err(|e| SklearsError::InvalidInput(format!("Failed to open file: {}", e)))?;
+        let path = file_path.as_ref().to_path_buf();
+        let file = std::fs::File::open(&path).map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to open file '{}': {}", path.display(), e))
+        })?;
 
         let mmap = unsafe {
             memmap2::MmapOptions::new().map(&file).map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to memory map file: {}", e))
+                SklearsError::InvalidInput(format!(
+                    "Failed to memory map file '{}': {}",
+                    path.display(),
+                    e
+                ))
             })?
         };
 
         // Verify file size matches expected shape
         let expected_size = shape.0 * shape.1 * std::mem::size_of::<Float>();
         if mmap.len() != expected_size {
-            return Err(SklearsError::InvalidInput(
-                "File size doesn't match expected matrix dimensions".to_string(),
-            ));
+            return Err(SklearsError::InvalidInput(format!(
+                "File '{}' size {} bytes does not match expected matrix dimensions {}x{} ({} bytes)",
+                path.display(),
+                mmap.len(),
+                shape.0,
+                shape.1,
+                expected_size
+            )));
         }
 
         Ok(Self {
-            file_path: file_path.as_ref().to_path_buf(),
+            file_path: path,
             shape,
             mmap,
         })
+    }
+
+    /// Get the file path used for this memory-mapped matrix
+    pub fn file_path(&self) -> &std::path::Path {
+        &self.file_path
     }
 
     /// Get matrix shape
@@ -658,7 +695,13 @@ impl MemoryMappedMatrix {
         let (total_rows, cols) = self.shape;
 
         if start_row >= total_rows || end_row > total_rows || start_row >= end_row {
-            return Err(SklearsError::InvalidInput("Invalid row range".to_string()));
+            return Err(SklearsError::InvalidInput(format!(
+                "Invalid row range [{}, {}) for file '{}' with {} rows",
+                start_row,
+                end_row,
+                self.file_path.display(),
+                total_rows
+            )));
         }
 
         let chunk_rows = end_row - start_row;
@@ -675,8 +718,13 @@ impl MemoryMappedMatrix {
             )
         };
 
-        Array2::from_shape_vec((chunk_rows, cols), float_slice.to_vec())
-            .map_err(|e| SklearsError::InvalidInput(format!("Failed to create array: {}", e)))
+        Array2::from_shape_vec((chunk_rows, cols), float_slice.to_vec()).map_err(|e| {
+            SklearsError::InvalidInput(format!(
+                "Failed to create array from file '{}': {}",
+                self.file_path.display(),
+                e
+            ))
+        })
     }
 }
 
@@ -717,12 +765,16 @@ mod tests {
                 .expect("operation should succeed");
 
         // Convert to sparse
-        let sparse = sparse_support.dense_to_sparse(&dense, 0.5).expect("parsing should succeed");
+        let sparse = sparse_support
+            .dense_to_sparse(&dense, 0.5)
+            .expect("parsing should succeed");
         assert_eq!(sparse.nnz, 4); // Four non-zero elements
         assert!(sparse.sparsity > 0.0);
 
         // Convert back to dense
-        let reconstructed = sparse_support.sparse_to_dense(&sparse).expect("parsing should succeed");
+        let reconstructed = sparse_support
+            .sparse_to_dense(&sparse)
+            .expect("parsing should succeed");
         assert_eq!(reconstructed.shape(), dense.shape());
 
         // Get statistics

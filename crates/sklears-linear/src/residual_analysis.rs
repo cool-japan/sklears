@@ -282,7 +282,7 @@ impl ResidualAnalyzer {
         let mut sorted_residuals = residuals.to_vec();
         sorted_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-        let median = if sorted_residuals.len() % 2 == 0 {
+        let median = if sorted_residuals.len().is_multiple_of(2) {
             let mid = sorted_residuals.len() / 2;
             (sorted_residuals[mid - 1] + sorted_residuals[mid]) / 2.0
         } else {
@@ -349,7 +349,7 @@ impl ResidualAnalyzer {
         let mut sorted = residuals.to_vec();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-        let median = if sorted.len() % 2 == 0 {
+        let median = if sorted.len().is_multiple_of(2) {
             let mid = sorted.len() / 2;
             (sorted[mid - 1] + sorted[mid]) / 2.0
         } else {
@@ -359,7 +359,7 @@ impl ResidualAnalyzer {
         let mut deviations: Vec<f64> = residuals.iter().map(|r| (r - median).abs()).collect();
         deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-        let mad = if deviations.len() % 2 == 0 {
+        let mad = if deviations.len().is_multiple_of(2) {
             let mid = deviations.len() / 2;
             (deviations[mid - 1] + deviations[mid]) / 2.0
         } else {

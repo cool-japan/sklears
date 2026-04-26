@@ -226,6 +226,30 @@ pub struct TaskMetadata {
     pub custom_fields: HashMap<String, String>,
 }
 
+/// Security constraints that a task may require from the execution environment.
+///
+/// These are validated by `ResourceConstraintChecker::validate_security_constraints`
+/// before a task is admitted for scheduling.
+#[derive(Debug, Clone, Default)]
+pub struct TaskSecurityConstraints {
+    /// Whether process-level isolation (e.g. sandboxing or TEE) is required.
+    pub isolation_required: bool,
+    /// Whether a Trusted Execution Environment (TEE) must be available.
+    pub tee_required: bool,
+    /// Whether data-at-rest and data-in-transit encryption is required.
+    pub encryption_required: bool,
+    /// Minimum security level the execution environment must hold.
+    ///
+    /// This mirrors the levels in
+    /// [`crate::resource_management::constraints::SecurityLevel`].
+    /// `0 = Public`, `1 = Internal`, `2 = Confidential`, `3 = Secret`,
+    /// `4 = TopSecret`.
+    pub minimum_security_level: u8,
+    /// Optional list of access-control identities that are allowed to
+    /// observe or interact with the task output.
+    pub allowed_principals: Vec<String>,
+}
+
 /// Resource requirements specification for task execution
 #[derive(Debug, Clone, Default)]
 pub struct TaskRequirements {
@@ -261,6 +285,11 @@ pub struct TaskRequirements {
     pub input_data_size: Option<u64>,
     /// Output data size estimation
     pub output_data_size: Option<u64>,
+    /// Optional security constraints that the execution environment must satisfy.
+    ///
+    /// When `Some`, the constraint checker will validate isolation, TEE, and
+    /// encryption capabilities before the task is admitted.
+    pub security_constraints: Option<TaskSecurityConstraints>,
 }
 
 /// Software dependency specification
@@ -410,6 +439,7 @@ pub enum NetworkProtocol {
     HTTP,
     /// HTTPS
     HTTPS,
+    /// Variant value.
     gRPC,
     /// WebSocket
     WebSocket,
@@ -424,6 +454,7 @@ pub enum NetworkProtocol {
 pub enum SecurityRequirement {
     /// TLS
     TLS,
+    /// Variant value.
     mTLS,
     /// OAuth2
     OAuth2,
@@ -594,13 +625,33 @@ pub struct RetryPolicy {
 #[derive(Debug, Clone)]
 pub enum BackoffStrategy {
     /// Fixed delay between retries
-    Fixed { delay: u64 },
+    Fixed {
+        /// The delay.
+        delay: u64,
+    },
     /// Linear increase in delay
-    Linear { base: u64, increment: u64 },
+    Linear {
+        /// The base.
+        base: u64,
+        /// The increment.
+        increment: u64,
+    },
     /// Exponential backoff
-    Exponential { base: u64, max: u64 },
+    Exponential {
+        /// The base.
+        base: u64,
+        /// The max.
+        max: u64,
+    },
     /// Exponential with jitter
-    ExponentialJitter { base: u64, max: u64, jitter: f64 },
+    ExponentialJitter {
+        /// The base.
+        base: u64,
+        /// The max.
+        max: u64,
+        /// The jitter.
+        jitter: f64,
+    },
 }
 
 /// Conditions that trigger task retries
@@ -755,11 +806,17 @@ pub struct EncryptionRequirements {
 /// Encryption algorithm types
 #[derive(Debug, Clone, PartialEq)]
 pub enum EncryptionAlgorithm {
+    /// Variant value.
     AES256,
+    /// Variant value.
     AES128,
+    /// Variant value.
     RSA2048,
+    /// Variant value.
     RSA4096,
+    /// Variant value.
     ChaCha20,
+    /// Variant value.
     Custom(String),
 }
 
@@ -893,7 +950,12 @@ pub enum ScalingTrigger {
     /// Queue depth threshold
     QueueDepth(usize),
     /// Custom metric threshold
-    CustomMetric { name: String, threshold: f64 },
+    CustomMetric {
+        /// The name.
+        name: String,
+        /// The threshold.
+        threshold: f64,
+    },
 }
 
 /// Task execution status
@@ -1393,7 +1455,7 @@ impl TaskBuilder {
     /// Build the task
     #[must_use]
     pub fn build(self) -> ExecutionTask {
-        /// ExecutionTask
+        // ExecutionTask
         ExecutionTask {
             metadata: self.metadata,
             requirements: self.requirements,

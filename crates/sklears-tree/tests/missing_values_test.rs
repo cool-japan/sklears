@@ -1,7 +1,10 @@
 /// Test missing value handling for Decision Trees and Random Forest
 use scirs2_core::ndarray::array;
 use sklears_core::traits::{Fit, Predict};
-use sklears_tree::{DecisionTreeClassifier, DecisionTreeRegressor, MissingValueStrategy};
+use sklears_tree::{
+    builder::handle_missing_values, DecisionTreeClassifier, DecisionTreeRegressor,
+    MissingValueStrategy,
+};
 
 #[test]
 fn test_decision_tree_classifier_skip_missing() {
@@ -229,11 +232,10 @@ fn test_mixed_missing_patterns() {
 
 #[test]
 fn test_surrogate_fallback() {
-    // Test that Surrogate strategy falls back to Majority for now
+    // Surrogate strategy on small data: verifies fit + predict succeed.
     let x = array![[1.0, 2.0], [f64::NAN, 3.0], [3.0, 4.0],];
     let y = array![0.0, 0.0, 1.0];
 
-    // Surrogate should work (falling back to majority)
     let model = DecisionTreeClassifier::new()
         .missing_values(MissingValueStrategy::Surrogate)
         .fit(&x, &y)
@@ -244,6 +246,113 @@ fn test_surrogate_fallback() {
     let x_test = array![[2.0, 3.0]];
     let predictions = model.predict(&x_test).expect("prediction should succeed");
     assert_eq!(predictions.len(), 1);
+}
+
+#[test]
+fn test_surrogate_imputation_uses_correlated_column() {
+    // col_0 and col_1 are strongly correlated (col_1 ≈ col_0).
+    // When col_0 is missing for the last row, the surrogate should use col_1
+    // to infer a replacement for col_0 (rather than the plain mean).
+    //
+    // Numeric verification:
+    //   col_0 observed (rows 0–7): [1,2,3,4,5,6,7,8]
+    //   column mean        = 4.5
+    //   median             = 4.5
+    //   left-side mean     = (1+2+3+4)/4 = 2.5  (values ≤ 4.5)
+    //   right-side mean    = (5+6+7+8)/4 = 6.5  (values > 4.5)
+    //   col_1 for NaN row  = 9.0  →  surr sends to "right" side
+    //   surrogate imputed value  ≈ 6.5   (not 4.5 from plain mean)
+    let x = array![
+        [1.0, 1.1],
+        [2.0, 2.0],
+        [3.0, 3.1],
+        [4.0, 3.9],
+        [5.0, 5.0],
+        [6.0, 6.1],
+        [7.0, 7.0],
+        [8.0, 7.9],
+        [f64::NAN, 9.0], // Missing col_0; col_1 = 9.0 → surrogate should push imputed value high
+    ];
+    let y_labels = array![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+
+    // Call handle_missing_values directly to inspect the imputed matrix.
+    let (x_surr, _) = handle_missing_values(&x, &y_labels, MissingValueStrategy::Surrogate)
+        .expect("surrogate imputation should succeed");
+
+    // The NaN is in row 8, col 0.
+    let imputed_val = x_surr[[8, 0]];
+
+    // Surrogate should give right-side mean (≈ 6.5), which is clearly above the
+    // column mean (4.5).  Plain mean-imputation would give exactly 4.5.
+    assert!(
+        imputed_val > 5.5,
+        "surrogate imputed value should be right-side mean (~6.5), got {imputed_val}"
+    );
+
+    // Sanity: also verify fit + predict succeed end-to-end.
+    let model = DecisionTreeClassifier::new()
+        .missing_values(MissingValueStrategy::Surrogate)
+        .fit(&x, &y_labels)
+        .expect("surrogate fit should succeed");
+
+    assert_eq!(model.n_features(), 2);
+    let x_test = array![[4.5, 4.5]];
+    let preds = model.predict(&x_test).expect("prediction should succeed");
+    assert_eq!(preds.len(), 1);
+}
+
+#[test]
+fn test_surrogate_multiple_missing_columns() {
+    // Multiple columns have missing values simultaneously.
+    let x = array![
+        [1.0, 10.0, 100.0],
+        [2.0, 20.0, 200.0],
+        [3.0, 30.0, 300.0],
+        [4.0, 40.0, 400.0],
+        [5.0, 50.0, 500.0],
+        [6.0, f64::NAN, 600.0],  // col_1 missing
+        [f64::NAN, 70.0, 700.0], // col_0 missing
+        [8.0, 80.0, 800.0],
+        [9.0, 90.0, 900.0],
+        [10.0, 100.0, 1000.0],
+    ];
+    let y = array![0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+
+    let model = DecisionTreeClassifier::new()
+        .missing_values(MissingValueStrategy::Surrogate)
+        .fit(&x, &y)
+        .expect("surrogate multi-column fit should succeed");
+
+    assert_eq!(model.n_features(), 3);
+    let x_test = array![[5.5, 55.0, 550.0]];
+    let preds = model.predict(&x_test).expect("prediction should succeed");
+    assert_eq!(preds.len(), 1);
+}
+
+#[test]
+fn test_surrogate_regression_with_missing() {
+    // Regression: ensure surrogate imputation works with regressor too.
+    let x = array![
+        [1.0, 1.0],
+        [2.0, 2.0],
+        [3.0, 3.0],
+        [4.0, 4.0],
+        [5.0, 5.0],
+        [f64::NAN, 6.0], // col_0 missing; col_1 = 6.0 is a surrogate
+        [7.0, 7.0],
+    ];
+    let y = array![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0];
+
+    let model = DecisionTreeRegressor::new()
+        .criterion(sklears_tree::SplitCriterion::MSE)
+        .missing_values(MissingValueStrategy::Surrogate)
+        .fit(&x, &y)
+        .expect("surrogate regression fit should succeed");
+
+    assert_eq!(model.n_features(), 2);
+    let x_test = array![[3.5, 3.5]];
+    let preds = model.predict(&x_test).expect("prediction should succeed");
+    assert_eq!(preds.len(), 1);
 }
 
 #[test]

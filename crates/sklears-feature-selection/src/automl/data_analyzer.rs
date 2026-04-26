@@ -17,10 +17,12 @@ type Result<T> = SklResult<T>;
 pub struct DataAnalyzer;
 
 impl DataAnalyzer {
+    /// new
     pub fn new() -> Self {
         Self
     }
 
+    /// analyze_data
     pub fn analyze_data(
         &self,
         X: ArrayView2<f64>,

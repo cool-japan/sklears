@@ -61,8 +61,8 @@ impl StringDistance {
         for (i, row) in matrix.iter_mut().enumerate().take(len1 + 1) {
             row[0] = i;
         }
-        for j in 0..=len2 {
-            matrix[0][j] = j;
+        for (j, cell) in matrix[0].iter_mut().enumerate() {
+            *cell = j;
         }
 
         // Fill the matrix
@@ -906,7 +906,7 @@ mod tests {
 
         let overlap_dist = GraphDistance::OverlapDistance;
         let overlap = overlap_dist.distance(&graph1, &graph2);
-        assert!(overlap >= 0.0 && overlap <= 1.0);
+        assert!((0.0..=1.0).contains(&overlap));
     }
 
     #[test]
@@ -939,11 +939,11 @@ mod tests {
 
         let hellinger = ProbabilisticDistance::Hellinger;
         let h_dist = hellinger.distance(&p.view(), &q.view());
-        assert!(h_dist >= 0.0 && h_dist <= 1.0);
+        assert!((0.0..=1.0).contains(&h_dist));
 
         let tv = ProbabilisticDistance::TotalVariation;
         let tv_dist = tv.distance(&p.view(), &q.view());
-        assert!(tv_dist >= 0.0 && tv_dist <= 1.0);
+        assert!((0.0..=1.0).contains(&tv_dist));
     }
 
     #[test]

@@ -122,6 +122,7 @@ pub struct AcceleratorBuffer<T> {
     pub device: AcceleratorDevice,
     pub alignment: usize,
     pub memory_type: AcceleratorMemoryType,
+    #[allow(dead_code)] // Reserved for native accelerator backend handle (CUDA/OpenCL/custom)
     backend_handle: Option<Box<dyn Any + Send + Sync>>,
 }
 
@@ -150,6 +151,7 @@ pub struct AcceleratorContext {
     pub device: AcceleratorDevice,
     pub command_queues: Vec<AcceleratorQueue>,
     pub memory_pools: HashMap<AcceleratorMemoryType, AcceleratorMemoryPool>,
+    #[allow(dead_code)] // Reserved for native accelerator backend context (CUDA/OpenCL/custom)
     backend_context: Option<Box<dyn Any + Send + Sync>>,
 }
 
@@ -159,6 +161,7 @@ pub struct AcceleratorQueue {
     pub id: u32,
     pub priority: AcceleratorPriority,
     pub device_id: u32,
+    #[allow(dead_code)] // Reserved for native command queue handle (CUDA stream / OpenCL queue)
     backend_queue: Option<Box<dyn Any + Send + Sync>>,
 }
 
@@ -178,6 +181,7 @@ pub struct AcceleratorMemoryPool {
     pub available_size: usize,
     pub allocation_count: usize,
     pub memory_type: AcceleratorMemoryType,
+    #[allow(dead_code)] // Reserved for native memory pool handle (CUDA/OpenCL/custom allocator)
     backend_pool: Option<Box<dyn Any + Send + Sync>>,
 }
 
@@ -525,7 +529,7 @@ pub mod optimization {
         caps: &AcceleratorCapabilities,
     ) -> (usize, usize, usize) {
         let compute_units = caps.compute_units as usize;
-        let optimal_x = (work_size.0 + compute_units - 1) / compute_units * compute_units;
+        let optimal_x = work_size.0.div_ceil(compute_units) * compute_units;
         (optimal_x, work_size.1, work_size.2)
     }
 
@@ -550,7 +554,7 @@ pub mod optimization {
         caps: &AcceleratorCapabilities,
     ) -> (usize, usize, usize) {
         let compute_units = caps.compute_units as usize;
-        let optimal_size = (work_size.0 + compute_units - 1) / compute_units * compute_units;
+        let optimal_size = work_size.0.div_ceil(compute_units) * compute_units;
         (optimal_size, work_size.1, work_size.2)
     }
 

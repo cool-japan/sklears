@@ -422,7 +422,9 @@ pub struct VariationalGPCalibrator {
 
 #[derive(Debug, Clone)]
 struct VariationalParams {
+    #[allow(dead_code)] // intentionally deferred: variational inference readout pending
     inducing_mean: Array1<Float>,
+    #[allow(dead_code)] // intentionally deferred: variational inference readout pending
     inducing_covariance: Array2<Float>,
 }
 

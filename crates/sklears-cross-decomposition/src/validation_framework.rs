@@ -3,10 +3,9 @@
 //! This module provides a systematic validation framework for cross-decomposition algorithms,
 //! including real-world case studies, benchmark datasets, and performance evaluation metrics.
 
-use crate::{MultiOmicsIntegration, PLSCanonical, PLSRegression, TensorCCA, CCA, PLSDA};
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::ndarray_ext::stats;
-use scirs2_core::random::{thread_rng, RandNormal, RandUniform, Random, Rng};
+use crate::{PLSRegression, CCA};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
+use scirs2_core::random::{thread_rng, RandNormal, RandUniform};
 use sklears_core::traits::{Fit, Predict};
 use sklears_core::types::Float;
 use std::collections::HashMap;
@@ -17,7 +16,7 @@ pub struct ValidationFramework {
     /// Benchmark datasets
     benchmark_datasets: Vec<BenchmarkDataset>,
     /// Performance metrics to compute
-    performance_metrics: Vec<PerformanceMetric>,
+    pub performance_metrics: Vec<PerformanceMetric>,
     /// Statistical significance tests
     significance_tests: Vec<SignificanceTest>,
     /// Real-world case studies
@@ -424,7 +423,7 @@ impl ValidationFramework {
 
     fn create_synthetic_datasets(&self) -> Vec<BenchmarkDataset> {
         let mut datasets = Vec::new();
-        let mut rng = thread_rng();
+        let _rng = thread_rng();
 
         // High correlation dataset
         let n_samples = 200;
@@ -897,7 +896,7 @@ impl ValidationFramework {
             let x_train = dataset.x_data.select(Axis(0), &train_indices);
             let y_train = dataset.y_data.select(Axis(0), &train_indices);
             let x_test = dataset.x_data.select(Axis(0), &test_indices);
-            let y_test = dataset.y_data.select(Axis(0), &test_indices);
+            let _y_test = dataset.y_data.select(Axis(0), &test_indices);
 
             // Test algorithms on this fold
             let mut fold_metrics = HashMap::new();
@@ -967,7 +966,7 @@ impl ValidationFramework {
 
     fn analyze_component_recovery(
         &self,
-        dataset: &BenchmarkDataset,
+        _dataset: &BenchmarkDataset,
         cca_result: &CCATestResult,
     ) -> Result<ComponentAnalysis, ValidationError> {
         // Mock component analysis - in practice would compute principal angles
@@ -1008,7 +1007,7 @@ impl ValidationFramework {
 
         // Test robustness to missing data
         for &missing_percent in &[0.05, 0.1, 0.2, 0.3] {
-            let data_with_missing = self.add_missing_data(&dataset.x_data, missing_percent);
+            let _data_with_missing = self.add_missing_data(&dataset.x_data, missing_percent);
             // In practice, would handle missing data appropriately
             missing_data_robustness.insert(format!("{:.3}", missing_percent), 0.8);
             // Mock value
@@ -1016,7 +1015,7 @@ impl ValidationFramework {
 
         // Test robustness to outliers
         for &outlier_percent in &[0.01, 0.05, 0.1, 0.2] {
-            let data_with_outliers = self.add_outliers(&dataset.x_data, outlier_percent);
+            let _data_with_outliers = self.add_outliers(&dataset.x_data, outlier_percent);
             outlier_robustness.insert(format!("{:.3}", outlier_percent), 0.75); // Mock value
         }
 
@@ -1090,7 +1089,7 @@ impl ValidationFramework {
 
     fn run_permutation_test(
         &self,
-        datasets: &[BenchmarkDataset],
+        _datasets: &[BenchmarkDataset],
     ) -> Result<StatisticalTestResult, ValidationError> {
         // Mock permutation test implementation
         Ok(StatisticalTestResult {
@@ -1103,7 +1102,7 @@ impl ValidationFramework {
 
     fn run_bootstrap_test(
         &self,
-        datasets: &[BenchmarkDataset],
+        _datasets: &[BenchmarkDataset],
     ) -> Result<StatisticalTestResult, ValidationError> {
         // Mock bootstrap test implementation
         Ok(StatisticalTestResult {
@@ -1116,7 +1115,7 @@ impl ValidationFramework {
 
     fn run_cv_significance_test(
         &self,
-        datasets: &[BenchmarkDataset],
+        _datasets: &[BenchmarkDataset],
     ) -> Result<StatisticalTestResult, ValidationError> {
         // Mock CV significance test implementation
         Ok(StatisticalTestResult {
@@ -1129,7 +1128,7 @@ impl ValidationFramework {
 
     fn run_comparative_test(
         &self,
-        datasets: &[BenchmarkDataset],
+        _datasets: &[BenchmarkDataset],
     ) -> Result<StatisticalTestResult, ValidationError> {
         // Mock comparative test implementation
         Ok(StatisticalTestResult {
@@ -1314,6 +1313,7 @@ impl ValidationFramework {
 struct CCATestResult {
     correlation_accuracy: Float,
     correlations: Array1<Float>,
+    #[allow(dead_code)] // timing field reserved for future benchmarking reports
     computation_time: Duration,
 }
 
@@ -1321,6 +1321,7 @@ struct CCATestResult {
 #[derive(Debug, Clone)]
 struct PLSTestResult {
     prediction_accuracy: Float,
+    #[allow(dead_code)] // timing field reserved for future benchmarking reports
     computation_time: Duration,
 }
 

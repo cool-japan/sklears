@@ -12,7 +12,6 @@ use crate::{Float, SklResult};
 struct ParallelConfig;
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::Rng;
 use std::marker::PhantomData;
 
 /// Fluent builder for explanation configurations
@@ -344,6 +343,7 @@ pub enum PipelineStep {
 /// Executor for the explanation pipeline
 pub struct ExplanationPipelineExecutor<Input> {
     steps: Vec<PipelineStep>,
+    #[allow(dead_code)] // stored for future parallel execution use
     parallel_config: ParallelConfig,
     _input_type: PhantomData<Input>,
 }
@@ -353,7 +353,7 @@ where
     Input: Send + Sync,
 {
     /// Execute the pipeline
-    pub fn execute(&self, input: &Input) -> SklResult<PipelineExecutionResult> {
+    pub fn execute(&self, _input: &Input) -> SklResult<PipelineExecutionResult> {
         let mut results: Vec<Array1<Float>> = Vec::new();
         let mut metadata: Vec<StepMetadata> = Vec::new();
 
@@ -561,8 +561,6 @@ pub struct ComparisonResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // ✅ SciRS2 Policy Compliant Import
-    use scirs2_core::ndarray::array;
     use sklears_core::prelude::ArrayView1;
 
     #[test]

@@ -328,6 +328,7 @@ impl KernelRidgeRegression<Untrained> {
     }
 
     /// Solve linear system Ax = b using Gaussian elimination with partial pivoting
+    #[allow(dead_code)] // alternative solver for future use
     fn solve_linear_system(&self, a: &Array2<Float>, b: &Array1<Float>) -> Result<Array1<Float>> {
         let n = a.nrows();
         if n != a.ncols() || n != b.len() {
@@ -722,7 +723,7 @@ impl OnlineKernelRidgeRegression<Trained> {
         self.update_count_ += 1;
 
         // Check if it's time to update
-        if self.update_count_ % self.update_frequency == 0 {
+        if self.update_count_.is_multiple_of(self.update_frequency) {
             if let Some((ref x_acc, ref y_acc)) = self.accumulated_data_ {
                 // Refit the model with accumulated data
                 // In practice, you might want to implement a more sophisticated

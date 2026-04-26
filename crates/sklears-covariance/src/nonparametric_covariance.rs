@@ -15,6 +15,17 @@ use crate::utils::{regularize_matrix, validate_data};
 use sklears_core::prelude::*;
 use sklears_core::traits::Fit;
 
+/// Return type for nonparametric fit methods
+type NonparametricFitResult<F> = Result<(
+    Array2<F>,
+    Array2<F>,
+    Option<Array2<F>>,
+    Option<Vec<F>>,
+    Option<Array3<F>>,
+    Option<Array2<F>>,
+    Option<(Array2<F>, Array2<F>)>,
+)>;
+
 /// Non-parametric covariance estimation methods
 #[derive(Debug, Clone, PartialEq)]
 pub enum NonparametricMethod {
@@ -398,7 +409,7 @@ impl<F: NdFloat> NonparametricCovarianceFitted<F> {
     }
 
     /// Compute robust correlation confidence intervals
-    pub fn robust_correlation_ci(&self, alpha: F) -> Result<(Array2<F>, Array2<F>)> {
+    pub fn robust_correlation_ci(&self, _alpha: F) -> Result<(Array2<F>, Array2<F>)> {
         if let Some((lower, upper)) = &self.confidence_intervals_ {
             Ok((lower.clone(), upper.clone()))
         } else {
@@ -474,21 +485,13 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
     fn fit_kde(
         &self,
         x: &Array2<F>,
-        rng: &mut scirs2_core::random::CoreRandom,
-    ) -> Result<(
-        Array2<F>,
-        Array2<F>,
-        Option<Array2<F>>,
-        Option<Vec<F>>,
-        Option<Array3<F>>,
-        Option<Array2<F>>,
-        Option<(Array2<F>, Array2<F>)>,
-    )> {
+        _rng: &mut scirs2_core::random::CoreRandom,
+    ) -> NonparametricFitResult<F> {
         let kde_config =
             self.config.kde_config.as_ref().ok_or_else(|| {
                 SklearsError::InvalidState("KDE config not available".to_string())
             })?;
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         // Estimate marginal densities and joint densities using kernels
         let bandwidth = match kde_config.bandwidth {
@@ -537,16 +540,8 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
     fn fit_copula_based(
         &self,
         x: &Array2<F>,
-        rng: &mut scirs2_core::random::CoreRandom,
-    ) -> Result<(
-        Array2<F>,
-        Array2<F>,
-        Option<Array2<F>>,
-        Option<Vec<F>>,
-        Option<Array3<F>>,
-        Option<Array2<F>>,
-        Option<(Array2<F>, Array2<F>)>,
-    )> {
+        _rng: &mut scirs2_core::random::CoreRandom,
+    ) -> NonparametricFitResult<F> {
         let copula_config =
             self.config.copula_config.as_ref().ok_or_else(|| {
                 SklearsError::InvalidState("Copula config not available".to_string())
@@ -604,18 +599,7 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
     }
 
     /// Fit using rank-based methods
-    fn fit_rank_based(
-        &self,
-        x: &Array2<F>,
-    ) -> Result<(
-        Array2<F>,
-        Array2<F>,
-        Option<Array2<F>>,
-        Option<Vec<F>>,
-        Option<Array3<F>>,
-        Option<Array2<F>>,
-        Option<(Array2<F>, Array2<F>)>,
-    )> {
+    fn fit_rank_based(&self, x: &Array2<F>) -> NonparametricFitResult<F> {
         let rank_config =
             self.config.rank_config.as_ref().ok_or_else(|| {
                 SklearsError::InvalidState("Rank config not available".to_string())
@@ -688,21 +672,13 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
     fn fit_robust_correlation(
         &self,
         x: &Array2<F>,
-        rng: &mut scirs2_core::random::CoreRandom,
-    ) -> Result<(
-        Array2<F>,
-        Array2<F>,
-        Option<Array2<F>>,
-        Option<Vec<F>>,
-        Option<Array3<F>>,
-        Option<Array2<F>>,
-        Option<(Array2<F>, Array2<F>)>,
-    )> {
+        _rng: &mut scirs2_core::random::CoreRandom,
+    ) -> NonparametricFitResult<F> {
         let robust_config =
             self.config.robust_config.as_ref().ok_or_else(|| {
                 SklearsError::InvalidState("Robust config not available".to_string())
             })?;
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         let mut correlation = Array2::zeros((n_features, n_features));
 
@@ -777,15 +753,7 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
         &self,
         x: &Array2<F>,
         rng: &mut scirs2_core::random::CoreRandom,
-    ) -> Result<(
-        Array2<F>,
-        Array2<F>,
-        Option<Array2<F>>,
-        Option<Vec<F>>,
-        Option<Array3<F>>,
-        Option<Array2<F>>,
-        Option<(Array2<F>, Array2<F>)>,
-    )> {
+    ) -> NonparametricFitResult<F> {
         let dist_free_config = self
             .config
             .distribution_free_config
@@ -793,7 +761,7 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
             .ok_or_else(|| {
                 SklearsError::InvalidState("Distribution free config not available".to_string())
             })?;
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         // Use rank-based correlation as base
         let ranks_result = self.fit_rank_based(x)?;
@@ -873,8 +841,8 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
         // Simple kernel correlation estimation
         let mean_x = Self::safe_mean(x)?;
         let mean_y = Self::safe_mean(y)?;
-        let std_x = x.std(F::one());
-        let std_y = y.std(F::one());
+        let _std_x = x.std(F::one());
+        let _std_y = y.std(F::one());
 
         let mut numerator = F::zero();
         let mut denom_x = F::zero();
@@ -884,9 +852,9 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
             let weight_i = self.kernel_weight((x[i] - mean_x) / bandwidth, kernel_type)?
                 * self.kernel_weight((y[i] - mean_y) / bandwidth, kernel_type)?;
 
-            numerator = numerator + weight_i * (x[i] - mean_x) * (y[i] - mean_y);
-            denom_x = denom_x + weight_i * (x[i] - mean_x) * (x[i] - mean_x);
-            denom_y = denom_y + weight_i * (y[i] - mean_y) * (y[i] - mean_y);
+            numerator += weight_i * (x[i] - mean_x) * (y[i] - mean_y);
+            denom_x += weight_i * (x[i] - mean_x) * (x[i] - mean_x);
+            denom_y += weight_i * (y[i] - mean_y) * (y[i] - mean_y);
         }
 
         if denom_x > F::zero() && denom_y > F::zero() {
@@ -979,14 +947,14 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
     fn inverse_normal_cdf(&self, p: F) -> Result<F> {
         // Simple approximation using rational approximation
         if p <= F::zero() {
-            return Ok(Self::safe_from_f64(-6.0)?);
+            return Self::safe_from_f64(-6.0);
         }
         if p >= F::one() {
-            return Ok(Self::safe_from_f64(6.0)?);
+            return Self::safe_from_f64(6.0);
         }
 
         // Use simple linear approximation for demonstration
-        let two = Self::safe_from_f64(2.0)?;
+        let _two = Self::safe_from_f64(2.0)?;
         let half = Self::safe_from_f64(0.5)?;
         let six = Self::safe_from_f64(6.0)?;
         let result = (p - half) * six;
@@ -1028,9 +996,9 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
                         let diff_i = x[[k, i]] - means[i];
                         let diff_j = x[[k, j]] - means[j];
 
-                        numerator = numerator + diff_i * diff_j;
-                        sum_sq_i = sum_sq_i + diff_i * diff_i;
-                        sum_sq_j = sum_sq_j + diff_j * diff_j;
+                        numerator += diff_i * diff_j;
+                        sum_sq_i += diff_i * diff_i;
+                        sum_sq_j += diff_j * diff_j;
                     }
 
                     if sum_sq_i > F::zero() && sum_sq_j > F::zero() {
@@ -1059,9 +1027,9 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
             let diff_x = ranks_x[i] - mean_rank;
             let diff_y = ranks_y[i] - mean_rank;
 
-            numerator = numerator + diff_x * diff_y;
-            sum_sq_x = sum_sq_x + diff_x * diff_x;
-            sum_sq_y = sum_sq_y + diff_y * diff_y;
+            numerator += diff_x * diff_y;
+            sum_sq_x += diff_x * diff_x;
+            sum_sq_y += diff_y * diff_y;
         }
 
         if sum_sq_x > F::zero() && sum_sq_y > F::zero() {
@@ -1104,7 +1072,7 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
         }
 
         let total_pairs = n * (n - 1) / 2;
-        let tau = Self::safe_from_f64((concordant as i32 - discordant as i32) as f64)?
+        let tau = Self::safe_from_f64((concordant - discordant) as f64)?
             / Self::safe_from_usize(total_pairs)?;
 
         Ok(tau)
@@ -1122,11 +1090,11 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
             let mut q_i = F::zero();
             for j in 0..ranks_x.len() {
                 if ranks_x[j] <= r_i && ranks_y[j] <= s_i {
-                    q_i = q_i + F::one();
+                    q_i += F::one();
                 }
             }
 
-            d = d + (q_i - r_i * s_i / n).powi(2);
+            d += (q_i - r_i * s_i / n).powi(2);
         }
 
         Ok(d / (n * n))
@@ -1215,8 +1183,8 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
             }
         }
 
-        let quadrant_corr = Self::safe_from_f64((concordant as i32 - discordant as i32) as f64)?
-            / Self::safe_from_usize(n)?;
+        let quadrant_corr =
+            Self::safe_from_f64((concordant - discordant) as f64)? / Self::safe_from_usize(n)?;
         Ok(quadrant_corr)
     }
 
@@ -1226,7 +1194,7 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
         sorted_data.sort_by(|a, b| Self::safe_partial_cmp(a, b));
 
         let n = sorted_data.len();
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             let two = Self::safe_from_f64(2.0)?;
             Ok((sorted_data[n / 2 - 1] + sorted_data[n / 2]) / two)
         } else {
@@ -1261,7 +1229,7 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
 
     /// Compute Pearson correlation
     fn compute_pearson_correlation(&self, x: &Array1<F>, y: &Array1<F>) -> Result<F> {
-        let n = Self::safe_from_usize(x.len())?;
+        let _n = Self::safe_from_usize(x.len())?;
         let mean_x = Self::safe_mean(x)?;
         let mean_y = Self::safe_mean(y)?;
 
@@ -1273,9 +1241,9 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
             let diff_x = x[i] - mean_x;
             let diff_y = y[i] - mean_y;
 
-            numerator = numerator + diff_x * diff_y;
-            sum_sq_x = sum_sq_x + diff_x * diff_x;
-            sum_sq_y = sum_sq_y + diff_y * diff_y;
+            numerator += diff_x * diff_y;
+            sum_sq_x += diff_x * diff_x;
+            sum_sq_y += diff_y * diff_y;
         }
 
         if sum_sq_x > F::zero() && sum_sq_y > F::zero() {
@@ -1305,9 +1273,9 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovariance<F> {
                 let weight_x = (F::one() - u_i * u_i).powi(2);
                 let weight_y = (F::one() - v_i * v_i).powi(2);
 
-                numerator = numerator + (x[i] - median_x) * weight_x * (y[i] - median_y) * weight_y;
-                sum_sq_x = sum_sq_x + (x[i] - median_x) * (x[i] - median_x) * weight_x * weight_x;
-                sum_sq_y = sum_sq_y + (y[i] - median_y) * (y[i] - median_y) * weight_y * weight_y;
+                numerator += (x[i] - median_x) * weight_x * (y[i] - median_y) * weight_y;
+                sum_sq_x += (x[i] - median_x) * (x[i] - median_x) * weight_x * weight_x;
+                sum_sq_y += (y[i] - median_y) * (y[i] - median_y) * weight_y * weight_y;
             }
         }
 

@@ -1,7 +1,7 @@
 //! Tree-based feature selection methods
 
-use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{rngs::StdRng, thread_rng, Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Axis, Dim, OwnedRepr};
+use scirs2_core::random::{rngs::StdRng, thread_rng, RngExt, SeedableRng};
 use sklears_core::{
     error::{validate, Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Trained, Transform, Untrained},
@@ -10,6 +10,15 @@ use sklears_core::{
 use std::marker::PhantomData;
 
 use crate::base::SelectorMixin;
+
+// ndarray 0.17 adds a 3rd default type parameter `A = <S as RawData>::Elem` to ArrayBase.
+// The Rust trait solver cannot normalize `Array2<Float>` (2-param alias) to
+// `ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>, f64>` (3-param form) in where bounds when
+// any generic type parameters remain. We use the fully expanded form to bypass this.
+type Mat2f64 = ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>, f64>;
+type Vec1f64 = ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>, f64>;
+type Vec1i32 = ArrayBase<OwnedRepr<i32>, Dim<[usize; 1]>, i32>;
+type Vec1usize = ArrayBase<OwnedRepr<usize>, Dim<[usize; 1]>, usize>;
 
 /// Tree-based feature importance selector
 /// Generic tree selector that can work with any tree-based estimator
@@ -20,7 +29,7 @@ pub struct TreeSelector<E, State = Untrained> {
     max_features: Option<usize>,
     state: PhantomData<State>,
     // Trained state
-    estimator_: Option<E>,
+    _estimator_: Option<E>,
     selected_features_: Option<Vec<usize>>,
     n_features_: Option<usize>,
     threshold_: Option<f64>,
@@ -41,7 +50,7 @@ impl<E: Clone> TreeSelector<E, Untrained> {
             threshold: None,
             max_features: None,
             state: PhantomData,
-            estimator_: None,
+            _estimator_: None,
             selected_features_: None,
             n_features_: None,
             threshold_: None,
@@ -72,74 +81,104 @@ impl<E> Estimator for TreeSelector<E, Untrained> {
     }
 }
 
-impl<E, Y> Fit<Array2<Float>, Y> for TreeSelector<E, Untrained>
-where
-    E: Clone + Fit<Array2<Float>, Y> + Send + Sync,
-    E::Fitted: TreeImportance + Send + Sync,
-    Y: Clone + Send + Sync,
-{
-    type Fitted = TreeSelector<E, Trained>;
+macro_rules! impl_fit_for_tree_selector {
+    ($y_type:ty) => {
+        impl<E> Fit<Mat2f64, $y_type> for TreeSelector<E, Untrained>
+        where
+            E: Clone + Fit<Mat2f64, $y_type> + Send + Sync,
+            E::Fitted: TreeImportance + Send + Sync,
+        {
+            type Fitted = TreeSelector<E, Trained>;
 
-    fn fit(self, x: &Array2<Float>, y: &Y) -> SklResult<Self::Fitted> {
-        let n_features = x.ncols();
+            fn fit(self, x: &Mat2f64, y: &$y_type) -> SklResult<Self::Fitted> {
+                let n_features = x.ncols();
 
-        // Fit the tree estimator
-        let fitted_estimator = self.estimator.clone().fit(x, y)?;
+                // Fit the tree estimator
+                let fitted_estimator = self.estimator.clone().fit(x, y)?;
 
-        // Get feature importances
-        let importances = fitted_estimator.feature_importances()?;
+                // Get feature importances
+                let importances = fitted_estimator.feature_importances()?;
 
-        // Determine threshold
-        let threshold = if let Some(thresh) = self.threshold {
-            thresh
-        } else {
-            // Use median as default threshold
-            let mut sorted_importances = importances.to_vec();
-            sorted_importances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
-            sorted_importances[sorted_importances.len() / 2]
-        };
+                // Determine threshold
+                let threshold = if let Some(thresh) = self.threshold {
+                    thresh
+                } else {
+                    // Use median as default threshold
+                    let mut sorted_importances = importances.to_vec();
+                    sorted_importances.sort_by(|a, b| {
+                        a.partial_cmp(b)
+                            .unwrap_or_else(|| match (a.is_nan(), b.is_nan()) {
+                                (true, false) => std::cmp::Ordering::Less,
+                                (false, true) => std::cmp::Ordering::Greater,
+                                _ => std::cmp::Ordering::Equal,
+                            })
+                    });
+                    sorted_importances[sorted_importances.len() / 2]
+                };
 
-        // Select features above threshold
-        let mut selected_features: Vec<usize> = (0..n_features)
-            .filter(|&i| importances[i] > threshold)
-            .collect();
+                // Select features above threshold
+                let mut selected_features: Vec<usize> = (0..n_features)
+                    .filter(|&i| importances[i] > threshold)
+                    .collect();
 
-        // Apply max_features limit if specified
-        if let Some(max_feat) = self.max_features {
-            if selected_features.len() > max_feat {
-                // Sort by importance and take top max_feat
-                selected_features
-                    .sort_by(|&a, &b| importances[b].partial_cmp(&importances[a]).expect("operation should succeed"));
-                selected_features.truncate(max_feat);
-                selected_features.sort(); // Restore original order
+                // Apply max_features limit if specified
+                if let Some(max_feat) = self.max_features {
+                    if selected_features.len() > max_feat {
+                        // Sort by importance and take top max_feat
+                        selected_features.sort_by(|&a, &b| {
+                            importances[b]
+                                .partial_cmp(&importances[a])
+                                .unwrap_or_else(|| {
+                                    match (importances[b].is_nan(), importances[a].is_nan()) {
+                                        (true, false) => std::cmp::Ordering::Less,
+                                        (false, true) => std::cmp::Ordering::Greater,
+                                        _ => std::cmp::Ordering::Equal,
+                                    }
+                                })
+                        });
+                        selected_features.truncate(max_feat);
+                        selected_features.sort(); // Restore original order
+                    }
+                }
+
+                if selected_features.is_empty() {
+                    return Err(SklearsError::InvalidInput(format!(
+                        "No features selected with threshold={}. Try reducing threshold.",
+                        threshold
+                    )));
+                }
+
+                Ok(TreeSelector {
+                    estimator: self.estimator.clone(),
+                    threshold: self.threshold,
+                    max_features: self.max_features,
+                    state: PhantomData,
+                    _estimator_: Some(self.estimator),
+                    selected_features_: Some(selected_features),
+                    n_features_: Some(n_features),
+                    threshold_: Some(threshold),
+                })
             }
         }
-
-        if selected_features.is_empty() {
-            return Err(SklearsError::InvalidInput(format!(
-                "No features selected with threshold={}. Try reducing threshold.",
-                threshold
-            )));
-        }
-
-        Ok(TreeSelector {
-            estimator: self.estimator.clone(),
-            threshold: self.threshold,
-            max_features: self.max_features,
-            state: PhantomData,
-            estimator_: Some(self.estimator),
-            selected_features_: Some(selected_features),
-            n_features_: Some(n_features),
-            threshold_: Some(threshold),
-        })
-    }
+    };
 }
+
+impl_fit_for_tree_selector!(Vec1f64);
+impl_fit_for_tree_selector!(Vec1i32);
+impl_fit_for_tree_selector!(Vec1usize);
 
 impl<E> Transform<Array2<Float>> for TreeSelector<E, Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::FitError("TreeSelector not fitted: n_features_ missing".to_string())
+        })?;
+        validate::check_n_features(x, n_features)?;
 
-        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
+        let selected_features = self.selected_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "TreeSelector not fitted: selected_features_ missing".to_string(),
+            )
+        })?;
         let n_samples = x.nrows();
         let k = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, k));
@@ -154,8 +193,14 @@ impl<E> Transform<Array2<Float>> for TreeSelector<E, Trained> {
 
 impl<E> SelectorMixin for TreeSelector<E, Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.expect("operation should succeed");
-        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::FitError("TreeSelector not fitted: n_features_ missing".to_string())
+        })?;
+        let selected_features = self.selected_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "TreeSelector not fitted: selected_features_ missing".to_string(),
+            )
+        })?;
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -166,7 +211,11 @@ impl<E> SelectorMixin for TreeSelector<E, Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
+        let selected_features = self.selected_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "TreeSelector not fitted: selected_features_ missing".to_string(),
+            )
+        })?;
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -177,8 +226,14 @@ impl<E> SelectorMixin for TreeSelector<E, Trained> {
 impl<E> TreeSelector<E, Trained> {
     /// Get the support mask
     pub fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.expect("operation should succeed");
-        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::FitError("TreeSelector not fitted: n_features_ missing".to_string())
+        })?;
+        let selected_features = self.selected_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "TreeSelector not fitted: selected_features_ missing".to_string(),
+            )
+        })?;
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -189,13 +244,19 @@ impl<E> TreeSelector<E, Trained> {
     }
 
     /// Get the threshold used for selection
-    pub fn threshold(&self) -> f64 {
-        self.threshold_.expect("operation should succeed")
+    pub fn threshold(&self) -> SklResult<f64> {
+        self.threshold_.ok_or_else(|| {
+            SklearsError::FitError("TreeSelector not fitted: threshold_ missing".to_string())
+        })
     }
 
     /// Get selected features
-    pub fn selected_features(&self) -> &[usize] {
-        self.selected_features_.as_ref().expect("operation should succeed")
+    pub fn selected_features(&self) -> SklResult<&[usize]> {
+        self.selected_features_.as_deref().ok_or_else(|| {
+            SklearsError::FitError(
+                "TreeSelector not fitted: selected_features_ missing".to_string(),
+            )
+        })
     }
 }
 
@@ -217,12 +278,12 @@ pub struct GradientBoostingSelector<State = Untrained> {
     feature_importances_: Option<Array1<Float>>,
     selected_features_: Option<Vec<usize>>,
     n_features_: Option<usize>,
-    estimators_: Option<Vec<DecisionStump>>,
+    _estimators_: Option<Vec<DecisionStump>>,
 }
 
 /// Simple decision stump for gradient boosting
 #[derive(Debug, Clone)]
-pub(crate) struct DecisionStump {
+pub struct DecisionStump {
     feature_idx: usize,
     threshold: f64,
     left_value: f64,
@@ -257,7 +318,7 @@ impl GradientBoostingSelector<Untrained> {
             feature_importances_: None,
             selected_features_: None,
             n_features_: None,
-            estimators_: None,
+            _estimators_: None,
         }
     }
 
@@ -401,7 +462,7 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingSelector<Untrained> {
                 let indices: Vec<usize> = (0..n_samples).collect();
                 let mut sampled_indices = indices;
                 for i in 0..sample_size {
-                    let j = rng.gen_range(i..n_samples);
+                    let j = rng.random_range(i..n_samples);
                     sampled_indices.swap(i, j);
                 }
                 sampled_indices.truncate(sample_size);
@@ -420,7 +481,14 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingSelector<Untrained> {
             for feature_idx in 0..n_features {
                 // Get unique values for this feature
                 let mut feature_values: Vec<f64> = x_sample.column(feature_idx).to_vec();
-                feature_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
+                feature_values.sort_by(|a, b| {
+                    a.partial_cmp(b)
+                        .unwrap_or_else(|| match (a.is_nan(), b.is_nan()) {
+                            (true, false) => std::cmp::Ordering::Less,
+                            (false, true) => std::cmp::Ordering::Greater,
+                            _ => std::cmp::Ordering::Equal,
+                        })
+                });
                 feature_values.dedup();
 
                 // Try different thresholds
@@ -524,7 +592,16 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingSelector<Untrained> {
                 selected_features.sort_by(|&a, &b| {
                     feature_importances[b]
                         .partial_cmp(&feature_importances[a])
-                        .expect("operation should succeed")
+                        .unwrap_or_else(|| {
+                            match (
+                                feature_importances[b].is_nan(),
+                                feature_importances[a].is_nan(),
+                            ) {
+                                (true, false) => std::cmp::Ordering::Less,
+                                (false, true) => std::cmp::Ordering::Greater,
+                                _ => std::cmp::Ordering::Equal,
+                            }
+                        })
                 });
                 selected_features.truncate(max_feat);
                 selected_features.sort(); // Restore original order
@@ -551,24 +628,41 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingSelector<Untrained> {
             feature_importances_: Some(feature_importances),
             selected_features_: Some(selected_features),
             n_features_: Some(n_features),
-            estimators_: Some(estimators),
+            _estimators_: Some(estimators),
         })
     }
 }
 
 impl Transform<Array2<Float>> for GradientBoostingSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::FitError(
+                "GradientBoostingSelector not fitted: n_features_ missing".to_string(),
+            )
+        })?;
+        validate::check_n_features(x, n_features)?;
 
-        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
+        let selected_features = self.selected_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "GradientBoostingSelector not fitted: selected_features_ missing".to_string(),
+            )
+        })?;
         extract_features(x, selected_features)
     }
 }
 
 impl SelectorMixin for GradientBoostingSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.expect("operation should succeed");
-        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::FitError(
+                "GradientBoostingSelector not fitted: n_features_ missing".to_string(),
+            )
+        })?;
+        let selected_features = self.selected_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "GradientBoostingSelector not fitted: selected_features_ missing".to_string(),
+            )
+        })?;
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -579,7 +673,11 @@ impl SelectorMixin for GradientBoostingSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
+        let selected_features = self.selected_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "GradientBoostingSelector not fitted: selected_features_ missing".to_string(),
+            )
+        })?;
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -589,18 +687,30 @@ impl SelectorMixin for GradientBoostingSelector<Trained> {
 
 impl GradientBoostingSelector<Trained> {
     /// Get feature importances
-    pub fn feature_importances(&self) -> &Array1<Float> {
-        self.feature_importances_.as_ref().expect("operation should succeed")
+    pub fn feature_importances(&self) -> SklResult<&Array1<Float>> {
+        self.feature_importances_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "GradientBoostingSelector not fitted: feature_importances_ missing".to_string(),
+            )
+        })
     }
 
     /// Get selected features
-    pub fn selected_features(&self) -> &[usize] {
-        self.selected_features_.as_ref().expect("operation should succeed")
+    pub fn selected_features(&self) -> SklResult<&[usize]> {
+        self.selected_features_.as_deref().ok_or_else(|| {
+            SklearsError::FitError(
+                "GradientBoostingSelector not fitted: selected_features_ missing".to_string(),
+            )
+        })
     }
 
     /// Get the trained estimators (decision stumps)
-    pub(crate) fn estimators(&self) -> &[DecisionStump] {
-        self.estimators_.as_ref().expect("operation should succeed")
+    pub fn estimators(&self) -> SklResult<&[DecisionStump]> {
+        self._estimators_.as_deref().ok_or_else(|| {
+            SklearsError::FitError(
+                "GradientBoostingSelector not fitted: estimators_ missing".to_string(),
+            )
+        })
     }
 }
 
@@ -619,6 +729,7 @@ impl Default for TreeImportanceSelector {
 }
 
 impl TreeImportanceSelector {
+    /// new
     pub fn new() -> Self {
         Self {
             n_estimators: 100,
@@ -627,23 +738,26 @@ impl TreeImportanceSelector {
         }
     }
 
+    /// n_estimators
     pub fn n_estimators(mut self, n_estimators: usize) -> Self {
         self.n_estimators = n_estimators;
         self
     }
 
+    /// max_depth
     pub fn max_depth(mut self, max_depth: Option<usize>) -> Self {
         self.max_depth = max_depth;
         self
     }
 
+    /// random_state
     pub fn random_state(mut self, random_state: Option<u64>) -> Self {
         self.random_state = random_state;
         self
     }
 }
 
-impl crate::embedded::SelectorFunction for TreeImportanceSelector {
+impl crate::ensemble_selectors::SelectorFunction for TreeImportanceSelector {
     fn compute_scores(
         &self,
         x: &Array2<f64>,
@@ -694,7 +808,7 @@ impl crate::embedded::SelectorFunction for TreeImportanceSelector {
 
         // Add some randomness to simulate ensemble of trees
         for importance in feature_importance.iter_mut() {
-            *importance += rng.gen::<f64>() * 0.1; // Add small random component
+            *importance += rng.random::<f64>() * 0.1; // Add small random component
         }
 
         Ok(feature_importance)
@@ -704,7 +818,7 @@ impl crate::embedded::SelectorFunction for TreeImportanceSelector {
         "tree_importance"
     }
 
-    fn clone_box(&self) -> Box<dyn crate::embedded::SelectorFunction> {
+    fn clone_box(&self) -> Box<dyn crate::ensemble_selectors::SelectorFunction> {
         Box::new(self.clone())
     }
 }

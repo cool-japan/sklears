@@ -170,7 +170,7 @@ impl PipelineBuilder {
     }
 
     /// Add middleware to the pipeline
-    pub fn add<M: Middleware + 'static>(mut self, middleware: M) -> Self {
+    pub fn with_middleware<M: Middleware + 'static>(mut self, middleware: M) -> Self {
         self.middleware.push(Arc::new(middleware));
         self
     }
@@ -546,8 +546,8 @@ mod tests {
     #[test]
     fn test_pipeline_builder() {
         let pipeline = PipelineBuilder::new("test_pipeline".to_string())
-            .add(NormalizationMiddleware::new(NormType::L2))
-            .add(FilteringMiddleware::new(0.1, 0.9))
+            .with_middleware(NormalizationMiddleware::new(NormType::L2))
+            .with_middleware(FilteringMiddleware::new(0.1, 0.9))
             .fail_fast(false)
             .build();
 

@@ -19,9 +19,8 @@
 //! - Noise injection for privacy protection
 //! - Gradient clipping and perturbation
 
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::numeric::{Float, One, Zero};
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::thread_rng;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -201,9 +200,8 @@ impl FederatedClient {
         });
 
         let mut compressed = Array1::zeros(gradients.len());
-        for i in 0..n_keep {
-            let (idx, val) = indexed_grads[i];
-            compressed[idx] = val;
+        for (idx, val) in indexed_grads.iter().take(n_keep) {
+            compressed[*idx] = *val;
         }
 
         compressed
@@ -320,7 +318,7 @@ impl FederatedServer {
 
             for (_, client_params) in &client_updates {
                 if let Some(client_param) = client_params.get(&param_name) {
-                    aggregated = aggregated + client_param;
+                    aggregated += client_param;
                 }
             }
 
@@ -356,7 +354,7 @@ impl FederatedServer {
                 if let Some(client_param) = client_params.get(&param_name) {
                     let weight =
                         *client_weights.get(client_id).unwrap_or(&1) as f64 / total_samples as f64;
-                    aggregated = aggregated + &(client_param * weight);
+                    aggregated += &(client_param * weight);
                 }
             }
 
@@ -386,7 +384,7 @@ impl FederatedServer {
 
                 if !values.is_empty() {
                     values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                    let median = if values.len() % 2 == 0 {
+                    let median = if values.len().is_multiple_of(2) {
                         (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
                     } else {
                         values[values.len() / 2]
@@ -412,7 +410,7 @@ impl FederatedServer {
         let mut noisy_updates = Vec::new();
 
         for (client_id, mut client_params) in client_updates {
-            for (param_name, param_values) in &mut client_params {
+            for param_values in client_params.values_mut() {
                 // Add differential privacy noise
                 let client_lock = self
                     .clients
@@ -520,13 +518,13 @@ impl FederatedCCA {
 
         let mut convergence_history = Vec::new();
 
-        for round in 0..self.max_rounds {
+        for _round in 0..self.max_rounds {
             // Select participating clients
             let participating_clients: Vec<_> = self
                 .server
                 .clients
                 .iter()
-                .filter(|client_arc| client_arc.lock().map_or(false, |c| c.participates()))
+                .filter(|client_arc| client_arc.lock().is_ok_and(|c| c.participates()))
                 .collect();
 
             if participating_clients.is_empty() {
@@ -703,7 +701,7 @@ impl FederatedPCA {
                 .server
                 .clients
                 .iter()
-                .filter(|client_arc| client_arc.lock().map_or(false, |c| c.participates()))
+                .filter(|client_arc| client_arc.lock().is_ok_and(|c| c.participates()))
                 .collect();
 
             if participating_clients.is_empty() {

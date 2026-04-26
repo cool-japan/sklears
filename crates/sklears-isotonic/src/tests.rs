@@ -2,7 +2,7 @@
 
 #[allow(non_snake_case)]
 #[cfg(test)]
-mod tests {
+mod integration_tests {
     use crate::*;
     use approx::assert_abs_diff_eq;
     use proptest::{

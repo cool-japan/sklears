@@ -45,7 +45,7 @@
 //! ```
 
 use crate::types::Float;
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::error::{Result as SklResult, SklearsError};
 use std::collections::HashMap;
 
@@ -203,6 +203,7 @@ pub struct JsInterop {
     /// Browser capabilities
     capabilities: BrowserCapabilities,
     /// Memory manager
+    #[allow(dead_code)]
     memory_manager: WasmMemoryManager,
 }
 
@@ -356,6 +357,7 @@ impl JsInterop {
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct WasmShapComputer {
     /// Configuration
+    #[allow(dead_code)]
     config: WasmConfig,
     /// JavaScript interoperability
     js_interop: JsInterop,
@@ -458,8 +460,10 @@ impl WasmShapComputer {
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct WasmExplainer {
     /// Configuration
+    #[allow(dead_code)]
     config: WasmConfig,
     /// JavaScript interoperability
+    #[allow(dead_code)]
     js_interop: JsInterop,
 }
 
@@ -549,7 +553,6 @@ impl WasmExplainer {
             ));
         }
 
-        let n = feature.len() as Float;
         let feature_mean = feature.mean().unwrap_or(0.0);
         let pred_mean = predictions.mean().unwrap_or(0.0);
 
@@ -578,8 +581,10 @@ impl WasmExplainer {
 /// WebGL-accelerated visualization for browser environments
 pub struct WasmVisualizer {
     /// Configuration
+    #[allow(dead_code)]
     config: WasmConfig,
     /// JavaScript interoperability
+    #[allow(dead_code)]
     js_interop: JsInterop,
     /// WebGL context (if available)
     #[cfg(target_arch = "wasm32")]
@@ -598,6 +603,9 @@ impl WasmVisualizer {
         } else {
             None
         };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let _ = canvas_id;
 
         Ok(Self {
             config,
@@ -639,7 +647,7 @@ impl WasmVisualizer {
     pub fn render_feature_importance(
         &self,
         importance: &Array1<Float>,
-        feature_names: &[String],
+        _feature_names: &[String],
     ) -> SklResult<()> {
         #[cfg(target_arch = "wasm32")]
         {
@@ -674,7 +682,8 @@ impl WasmVisualizer {
 
 /// WebAssembly utility functions
 pub mod wasm_utils {
-    use super::*;
+    #[cfg(target_arch = "wasm32")]
+    use super::{console, window};
 
     /// Initialize WebAssembly module with panic hook
     #[cfg(target_arch = "wasm32")]
@@ -696,7 +705,9 @@ pub mod wasm_utils {
 
     /// Performance timing for WASM operations
     pub struct WasmTimer {
+        #[allow(dead_code)]
         start: f64,
+        #[allow(dead_code)]
         label: String,
     }
 
@@ -741,8 +752,10 @@ pub mod wasm_utils {
 /// Advanced streaming computation for large datasets
 pub struct WasmStreamingComputer {
     /// Configuration
+    #[allow(dead_code)]
     config: WasmConfig,
     /// JavaScript interoperability
+    #[allow(dead_code)]
     js_interop: JsInterop,
     /// Total chunks processed
     chunks_processed: usize,
@@ -877,11 +890,10 @@ impl WasmStreamingComputer {
         StreamingStatistics {
             chunks_processed: self.chunks_processed,
             samples_processed: self.samples_processed,
-            average_chunk_size: if self.chunks_processed > 0 {
-                self.samples_processed / self.chunks_processed
-            } else {
-                0
-            },
+            average_chunk_size: self
+                .samples_processed
+                .checked_div(self.chunks_processed)
+                .unwrap_or(0),
         }
     }
 }
@@ -900,6 +912,7 @@ pub struct StreamingStatistics {
 /// Progressive explanation computer with chunked processing
 pub struct ProgressiveExplainer {
     /// Configuration
+    #[allow(dead_code)]
     config: WasmConfig,
     /// Current chunk index
     current_chunk: usize,
@@ -929,7 +942,7 @@ impl ProgressiveExplainer {
     pub fn process_next_chunk(
         &mut self,
         chunk_data: &Array2<Float>,
-        chunk_predictions: &Array1<Float>,
+        _chunk_predictions: &Array1<Float>,
     ) -> SklResult<ProgressiveResult> {
         if self.current_chunk >= self.total_chunks {
             return Err(SklearsError::InvalidInput(
@@ -1006,6 +1019,7 @@ pub struct ProgressiveResult {
 /// WebWorker manager for background computation
 pub struct WasmWorkerManager {
     /// Configuration
+    #[allow(dead_code)]
     config: WasmConfig,
     /// Worker task queue
     task_queue: Vec<WorkerTask>,
@@ -1054,7 +1068,7 @@ impl WasmWorkerManager {
         match &task.task_type {
             WorkerTaskType::ComputeShap {
                 features,
-                background,
+                background: _,
             } => {
                 // Simplified SHAP computation
                 let n_features = features.len();
@@ -1068,7 +1082,7 @@ impl WasmWorkerManager {
             }
             WorkerTaskType::ComputeImportance {
                 features,
-                predictions,
+                predictions: _,
             } => {
                 // Simplified importance computation
                 let n_features = features.ncols();

@@ -14,6 +14,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// Browser integration manager
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct BrowserIntegration {
     /// JavaScript bindings generator
     pub(crate) js_bindings: JsBindingsGenerator,
@@ -69,6 +70,7 @@ pub struct WorkerThread {
 }
 /// Performance optimizer for WASM
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct WasmPerformanceOptimizer {
     /// Optimization strategies
     pub(crate) optimization_strategies: Vec<Box<dyn OptimizationStrategy>>,
@@ -146,12 +148,18 @@ pub struct ExecutionProfile {
     pub hot_paths: Vec<String>,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct BrowserIntegrationConfig {
+    /// The enable workers.
     pub enable_workers: bool,
+    /// The max workers.
     pub max_workers: u32,
+    /// The enable shared memory.
     pub enable_shared_memory: bool,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
+#[allow(dead_code)]
 pub struct CachedModule {
     pub(crate) module: CompiledWasmModule,
     pub(crate) access_count: u64,
@@ -221,6 +229,8 @@ pub struct BrowserInfo {
     pub cpu_cores: Option<u32>,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
+#[allow(dead_code)]
 pub struct ModuleRegistration {
     pub(crate) module_id: String,
     pub(crate) metadata: WasmModuleMetadata,
@@ -293,6 +303,7 @@ pub enum TypedArrayType {
 /// Compression types
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum CompressionType {
+    /// Variant value.
     None,
     /// Gzip
     Gzip,
@@ -376,9 +387,13 @@ pub enum TaskType {
     Validation,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct WorkerPoolConfig {
+    /// The min workers.
     pub min_workers: u32,
+    /// The max workers.
     pub max_workers: u32,
+    /// The idle timeout.
     pub idle_timeout: Duration,
 }
 /// Compilation target specification
@@ -413,6 +428,7 @@ pub struct GeneratedBinding {
 }
 /// Browser feature detection
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct BrowserFeatureDetection {
     /// Detected features cache
     pub(crate) detected_features: HashMap<BrowserFeature, bool>,
@@ -460,6 +476,7 @@ pub struct BindingTemplate {
 }
 /// WASM profiler for performance analysis
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct WasmProfiler {
     /// Profiling sessions
     pub(crate) sessions: HashMap<String, ProfilingSession>,
@@ -494,7 +511,7 @@ impl WasmProfiler {
         self.sessions.insert(session_id.clone(), session);
         Ok(session_id)
     }
-    fn get_metrics(&self, module_id: &str) -> Result<PerformanceMetrics> {
+    fn get_metrics(&self, _module_id: &str) -> Result<PerformanceMetrics> {
         Ok(self.metrics.clone())
     }
 }
@@ -509,6 +526,7 @@ pub struct MemoryUsageStats {
     pub active_allocations: u32,
     /// Allocation/deallocation counts
     pub allocation_count: u64,
+    /// The deallocation count.
     pub deallocation_count: u64,
     /// Fragmentation ratio
     pub fragmentation_ratio: f64,
@@ -525,6 +543,7 @@ pub struct MemoryPermissions {
 }
 /// JavaScript bindings generator
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct JsBindingsGenerator {
     /// Binding templates
     pub(crate) binding_templates: HashMap<String, BindingTemplate>,
@@ -618,9 +637,13 @@ pub struct GeneratedModuleSpec {
     pub target_features: Vec<BrowserFeature>,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct ModuleManagerConfig {
+    /// The cache size.
     pub cache_size: usize,
+    /// The preload modules.
     pub preload_modules: Vec<String>,
+    /// The lazy loading.
     pub lazy_loading: bool,
 }
 /// WASM module metadata
@@ -646,21 +669,31 @@ pub struct WasmModuleMetadata {
 pub enum TaskData {
     /// InferenceData
     InferenceData {
+        /// The model.
         model: String,
+        /// The input.
         input: Vec<f32>,
+        /// The config.
         config: HashMap<String, String>,
     },
     /// TrainingData
     TrainingData {
+        /// The model.
         model: String,
+        /// The training data.
         training_data: Vec<Vec<f32>>,
+        /// The labels.
         labels: Vec<f32>,
+        /// The config.
         config: HashMap<String, String>,
     },
     /// ProcessingData
     ProcessingData {
+        /// The operation.
         operation: String,
+        /// The data.
         data: Vec<f32>,
+        /// The parameters.
         parameters: HashMap<String, f32>,
     },
 }
@@ -725,17 +758,27 @@ pub enum WasmExportValue {
     Table(TableHandle),
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct OptimizerConfig {
+    /// The optimization level.
     pub optimization_level: u8,
+    /// The enable simd.
     pub enable_simd: bool,
+    /// The enable multithreading.
     pub enable_multithreading: bool,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct ModuleUsageStats {
+    /// The call count.
     pub call_count: u64,
+    /// The total execution time.
     pub total_execution_time: Duration,
+    /// The average execution time.
     pub average_execution_time: Duration,
+    /// The error count.
     pub error_count: u64,
+    /// The last used.
     pub last_used: SystemTime,
 }
 /// Serialization configuration
@@ -753,17 +796,25 @@ pub struct SerializationConfig {
     pub compression_threshold: usize,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct ProfilerConfig {
+    /// The sample rate.
     pub sample_rate: f64,
+    /// The max samples.
     pub max_samples: usize,
+    /// The enable memory profiling.
     pub enable_memory_profiling: bool,
 }
 /// Garbage collection strategies
 #[derive(Debug, Clone)]
 pub enum GcStrategy {
+    /// Variant value.
     MarkAndSweep,
+    /// Variant value.
     Generational,
+    /// Variant value.
     Incremental,
+    /// Variant value.
     Concurrent,
 }
 /// Compiled WASM module
@@ -838,6 +889,7 @@ pub struct OptimizationResult {
 }
 /// WASM data serialization manager for efficient data transfer
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct WasmSerializationManager {
     /// Serialization formats and their handlers
     pub(crate) format_handlers: HashMap<SerializationFormat, Box<dyn SerializationHandler>>,
@@ -875,6 +927,8 @@ pub struct MemoryRegion {
     pub permissions: MemoryPermissions,
 }
 #[derive(Debug)]
+/// Data structure for this component.
+#[allow(dead_code)]
 pub struct FeatureDetector {
     pub(crate) detection_cache: HashMap<BrowserFeature, bool>,
 }
@@ -925,6 +979,7 @@ pub enum LoadingStrategy {
 }
 /// WASM compiler and optimizer
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct WasmCompiler {
     /// Compilation targets and settings
     pub(crate) compilation_targets: HashMap<String, CompilationTarget>,
@@ -1000,8 +1055,8 @@ impl WasmCompiler {
     }
     fn generate_bytecode(
         &self,
-        pipeline_spec: &str,
-        target: &CompilationTarget,
+        _pipeline_spec: &str,
+        _target: &CompilationTarget,
     ) -> Result<Vec<u8>> {
         let mut bytecode = Vec::new();
         bytecode.extend_from_slice(&[0x00, 0x61, 0x73, 0x6d]);
@@ -1064,14 +1119,20 @@ pub enum TaskPriority {
     Critical,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct WorkerStatistics {
+    /// The active workers.
     pub active_workers: u32,
+    /// The queued tasks.
     pub queued_tasks: u32,
+    /// The completed tasks.
     pub completed_tasks: u64,
+    /// The total processing time.
     pub total_processing_time: Duration,
 }
 /// WASM memory manager for efficient memory allocation and management
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct WasmMemoryManager {
     /// Memory pools for different allocation sizes
     pub(crate) memory_pools: HashMap<u32, MemoryPool>,
@@ -1121,6 +1182,7 @@ pub struct PoolStatistics {
 }
 /// Worker thread manager for WASM
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct WorkerThreadManager {
     /// Active worker threads
     pub(crate) workers: HashMap<String, WorkerThread>,
@@ -1250,9 +1312,13 @@ pub struct FunctionHandle {
     pub address: u32,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct CompilerConfig {
+    /// The optimization level.
     pub optimization_level: u8,
+    /// The target features.
     pub target_features: Vec<BrowserFeature>,
+    /// The memory constraints.
     pub memory_constraints: MemoryConstraints,
 }
 /// Performance metrics collection
@@ -1293,6 +1359,7 @@ pub struct MemoryHandle {
 }
 /// Enhanced WebAssembly integration system for ML pipelines
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct WasmIntegrationManager {
     /// WASM module compiler and optimizer
     pub(crate) compiler: Arc<RwLock<WasmCompiler>>,
@@ -1343,7 +1410,7 @@ impl WasmIntegrationManager {
             enable_simd: config.enable_simd,
             enable_multithreading: config.enable_multithreading,
         };
-        let profiler_config = ProfilerConfig {
+        let _profiler_config = ProfilerConfig {
             sample_rate: 1000.0,
             max_samples: 100_000,
             enable_memory_profiling: config.enable_performance_monitoring,
@@ -1453,7 +1520,7 @@ impl WasmIntegrationManager {
         function_name: &str,
         input: &[f32],
     ) -> Result<Vec<f32>> {
-        if let Some(WasmExportValue::Function(func)) = module.exports.get(function_name) {
+        if let Some(WasmExportValue::Function(_func)) = module.exports.get(function_name) {
             let result = input.iter().map(|x| x * 2.0).collect();
             Ok(result)
         } else {
@@ -1490,6 +1557,8 @@ pub struct MemoryConstraints {
     pub shared_memory: bool,
 }
 #[derive(Debug)]
+/// Data structure for this component.
+#[allow(dead_code)]
 pub struct ModuleCache {
     pub(crate) cache: HashMap<String, CachedModule>,
     pub(crate) max_size: usize,
@@ -1505,10 +1574,15 @@ impl ModuleCache {
     }
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct TableHandle {
+    /// The id.
     pub id: String,
+    /// The element type.
     pub element_type: WasmType,
+    /// The size.
     pub size: u32,
+    /// The max size.
     pub max_size: Option<u32>,
 }
 /// Memory layout information
@@ -1524,9 +1598,13 @@ pub struct MemoryLayout {
     pub dynamic: MemoryRegion,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct GlobalHandle {
+    /// The id.
     pub id: String,
+    /// The value type.
     pub value_type: WasmType,
+    /// The mutable.
     pub mutable: bool,
 }
 /// Profiling session
@@ -1542,6 +1620,8 @@ pub struct ProfilingSession {
     pub status: ProfilingStatus,
 }
 #[derive(Debug)]
+/// Data structure for this component.
+#[allow(dead_code)]
 pub struct ModuleRegistry {
     pub(crate) registered_modules: HashMap<String, ModuleRegistration>,
     pub(crate) dependency_graph: HashMap<String, Vec<String>>,
@@ -1589,10 +1669,15 @@ pub struct AllocationPattern {
     pub lifetime: Duration,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct WorkerMetrics {
+    /// The tasks completed.
     pub tasks_completed: u64,
+    /// The total execution time.
     pub total_execution_time: Duration,
+    /// The average task time.
     pub average_task_time: Duration,
+    /// The error count.
     pub error_count: u64,
 }
 /// Memory pool for efficient allocation
@@ -1637,6 +1722,7 @@ pub struct ScalingProfile {
 }
 /// WASM module manager
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct WasmModuleManager {
     /// Loaded modules
     pub(crate) loaded_modules: HashMap<String, LoadedWasmModule>,
@@ -1659,7 +1745,7 @@ impl WasmModuleManager {
             config,
         }
     }
-    fn load_module(&mut self, source: &ModuleSource) -> Result<String> {
+    fn load_module(&mut self, _source: &ModuleSource) -> Result<String> {
         let module_id = format!(
             "module_{}",
             SystemTime::now()

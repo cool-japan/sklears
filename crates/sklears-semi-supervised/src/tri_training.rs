@@ -74,6 +74,7 @@ impl TriTraining<Untrained> {
         self
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn bootstrap_sample(
         &self,
         X: &Array2<f64>,
@@ -96,6 +97,7 @@ impl TriTraining<Untrained> {
         (bootstrap_X, bootstrap_y)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn simple_classifier_fit_predict(
         &self,
         X_train: &Array2<f64>,
@@ -136,6 +138,7 @@ impl TriTraining<Untrained> {
         predictions
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn estimate_error_rate(
         &self,
         classifier_i: &Array2<f64>,
@@ -411,6 +414,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>> for TriTraining<TriTrainingTrai
 
 impl TriTraining<TriTrainingTrained> {
     /// Static version of the classifier for predictions
+    #[allow(non_snake_case)] // standard ML notation
     fn simple_classifier_fit_predict_static(
         X_train: &Array2<f64>,
         y_train: &Array1<i32>,
@@ -453,6 +457,7 @@ impl TriTraining<TriTrainingTrained> {
 
 /// Trained state for TriTraining
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct TriTrainingTrained {
     /// X_train
     pub X_train: Array2<f64>,

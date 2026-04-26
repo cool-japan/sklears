@@ -89,6 +89,7 @@ pub struct FpgaBuffer<T> {
     pub size: usize,
     pub device: FpgaDevice,
     pub memory_type: FpgaMemoryType,
+    #[allow(dead_code)] // Reserved for native FPGA buffer handle (Xilinx XRT / Intel OpenCL)
     backend_handle: Option<Box<dyn Any + Send + Sync>>,
 }
 
@@ -116,6 +117,7 @@ pub struct FpgaContext {
     pub device: FpgaDevice,
     pub loaded_bitstreams: HashMap<String, FpgaBitstream>,
     pub active_functions: Vec<FpgaFunction>,
+    #[allow(dead_code)] // Reserved for native FPGA context (Xilinx XRT / Intel OpenCL)
     backend_context: Option<Box<dyn Any + Send + Sync>>,
 }
 
@@ -520,18 +522,18 @@ fn fft_fallback(input: &[f32], output: &mut [f32], n: usize) -> Result<(), SimdE
     }
 
     // Simple DFT fallback (not efficient but works)
-    for k in 0..n {
-        let mut real_sum = 0.0;
-        let mut imag_sum = 0.0;
+    for (k, out_k) in output.iter_mut().enumerate() {
+        let mut real_sum = 0.0f32;
+        let mut imag_sum = 0.0f32;
 
-        for j in 0..n {
+        for (j, &inp) in input.iter().enumerate() {
             let angle = -2.0 * PI * (k * j) as f32 / n as f32;
-            real_sum += input[j] * angle.cos();
-            imag_sum += input[j] * angle.sin();
+            real_sum += inp * angle.cos();
+            imag_sum += inp * angle.sin();
         }
 
         // For simplicity, just store the magnitude
-        output[k] = (real_sum * real_sum + imag_sum * imag_sum).sqrt();
+        *out_k = (real_sum * real_sum + imag_sum * imag_sum).sqrt();
     }
 
     Ok(())

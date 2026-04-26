@@ -15,6 +15,17 @@ use std::f64::consts::PI;
 
 use crate::common::{CovarianceType, InitMethod, ModelSelection};
 
+/// Type alias for the complex return type of initialize_parameters
+type InitParamsResult = SklResult<(
+    Array1<f64>,
+    Array1<f64>,
+    Array2<f64>,
+    Array3<f64>,
+    Array1<f64>,
+    Array3<f64>,
+    Array3<f64>,
+)>;
+
 /// Structured variational approximation family
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum StructuredFamily {
@@ -51,11 +62,12 @@ pub enum StructuredFamily {
 ///     .n_components(2)
 ///     .structured_family(StructuredFamily::MeanPrecision)
 ///     .covariance_type(CovarianceType::Full);
-/// let fitted = model.fit(&X.view(), &()).unwrap();
-/// let labels = fitted.predict(&X.view()).unwrap();
+/// let fitted = model.fit(&X.view(), &()).expect("structured variational GMM fitting should succeed with valid data");
+/// let labels = fitted.predict(&X.view()).expect("prediction should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct StructuredVariationalGMM<S = Untrained> {
+    #[allow(dead_code)]
     state: S,
     /// Number of mixture components
     n_components: usize,
@@ -95,10 +107,12 @@ pub struct StructuredVariationalGMMTrained {
     /// Structured approximation family
     structured_family: StructuredFamily,
     /// Covariance type
+    #[allow(dead_code)]
     covariance_type: CovarianceType,
     /// Variational parameters for mixture weights
     weight_concentration: Array1<f64>,
     /// Variational parameters for means
+    #[allow(dead_code)]
     mean_precision: Array1<f64>,
     /// Variational parameters for means
     mean_values: Array2<f64>,
@@ -111,6 +125,7 @@ pub struct StructuredVariationalGMMTrained {
     /// Structured covariance parameters
     structured_cov: Array3<f64>,
     /// Number of data points
+    #[allow(dead_code)]
     n_samples: usize,
     /// Number of features
     n_features: usize,
@@ -245,6 +260,7 @@ impl Estimator<Untrained> for StructuredVariationalGMM<Untrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Fit<ArrayView2<'_, f64>, ()> for StructuredVariationalGMM<Untrained> {
     type Fitted = StructuredVariationalGMMTrained;
 
@@ -306,21 +322,14 @@ impl Fit<ArrayView2<'_, f64>, ()> for StructuredVariationalGMM<Untrained> {
     }
 }
 
+#[allow(non_snake_case, clippy::too_many_arguments)]
 impl StructuredVariationalGMM<Untrained> {
     /// Initialize parameters for structured variational inference
     fn initialize_parameters(
         &self,
         X: &ArrayView2<f64>,
         rng: &mut scirs2_core::random::rngs::StdRng,
-    ) -> SklResult<(
-        Array1<f64>,
-        Array1<f64>,
-        Array2<f64>,
-        Array3<f64>,
-        Array1<f64>,
-        Array3<f64>,
-        Array3<f64>,
-    )> {
+    ) -> InitParamsResult {
         let (_n_samples, n_features) = X.dim();
 
         // Initialize weight concentration parameters
@@ -1294,6 +1303,7 @@ impl Estimator<Trained> for StructuredVariationalGMMTrained {
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<ArrayView2<'_, f64>, Array1<usize>> for StructuredVariationalGMMTrained {
     fn predict(&self, X: &ArrayView2<f64>) -> SklResult<Array1<usize>> {
         let probabilities = self.predict_proba(X)?;
@@ -1317,6 +1327,7 @@ impl Predict<ArrayView2<'_, f64>, Array1<usize>> for StructuredVariationalGMMTra
     }
 }
 
+#[allow(non_snake_case)]
 impl StructuredVariationalGMMTrained {
     /// Predict class probabilities
     pub fn predict_proba(&self, X: &ArrayView2<f64>) -> SklResult<Array2<f64>> {

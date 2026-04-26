@@ -31,7 +31,7 @@ impl NeuralODELayer {
     /// Create a new Neural ODE layer
     pub fn new(
         input_dim: usize,
-        hidden_dim: usize,
+        _hidden_dim: usize,
         integration_steps: usize,
         step_size: f64,
     ) -> Self {
@@ -296,7 +296,8 @@ pub struct NeuralODETrained {
 
 impl<S> NeuralODE<S> {
     /// Forward pass through all layers
-    fn forward(&self, x: &ArrayView1<f64>) -> SklResult<Array1<f64>> {
+    #[allow(dead_code)]
+    pub(crate) fn forward(&self, x: &ArrayView1<f64>) -> SklResult<Array1<f64>> {
         let mut current = x.to_owned();
 
         for layer in &self.layers {
@@ -307,7 +308,8 @@ impl<S> NeuralODE<S> {
     }
 
     /// Classify after feature extraction
-    fn classify(&self, features: &ArrayView1<f64>) -> SklResult<Array1<f64>> {
+    #[allow(dead_code)]
+    pub(crate) fn classify(&self, features: &ArrayView1<f64>) -> SklResult<Array1<f64>> {
         match (&self.classifier_weights, &self.classifier_biases) {
             (Some(weights), Some(biases)) => {
                 let logits = weights.dot(features) + biases;
@@ -320,7 +322,7 @@ impl<S> NeuralODE<S> {
     }
 
     /// Softmax activation
-    fn softmax(&self, x: &ArrayView1<f64>) -> Array1<f64> {
+    pub(crate) fn softmax(&self, x: &ArrayView1<f64>) -> Array1<f64> {
         let max_val = x.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
         let exp_x = x.mapv(|v| (v - max_val).exp());
         let sum_exp = exp_x.sum();
@@ -608,7 +610,7 @@ mod tests {
 
         assert_eq!(probs.len(), 3);
         assert!((probs.sum() - 1.0).abs() < 1e-10);
-        assert!(probs.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(probs.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]

@@ -439,38 +439,669 @@ mod tests {{
         }
     }
 
-    fn import_from_sklearn(&self, _content: &str) -> crate::error::Result<VisualPipelineConfig> {
-        // TODO: Implement sklearn pipeline import
-        Err(crate::error::SklearsError::NotImplemented(
-            "sklearn import not yet implemented".to_string(),
-        ))
+    /// Import a scikit-learn pipeline from its JSON interchange representation.
+    ///
+    /// Expected schema:
+    /// ```json
+    /// {
+    ///   "type": "Pipeline",
+    ///   "name": "my_pipeline",
+    ///   "steps": [
+    ///     { "name": "scaler",  "type": "StandardScaler", "params": {} },
+    ///     { "name": "clf",     "type": "RandomForestClassifier",
+    ///       "params": { "n_estimators": "100", "max_depth": "5" } }
+    ///   ]
+    /// }
+    /// ```
+    fn import_from_sklearn(&self, content: &str) -> crate::error::Result<VisualPipelineConfig> {
+        // Parse the top-level JSON object.
+        let root: serde_json::Value = serde_json::from_str(content)
+            .map_err(|e| crate::error::SklearsError::SerializationError(e.to_string()))?;
+
+        let pipeline_type = root
+            .get("type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Pipeline");
+
+        if pipeline_type != "Pipeline" {
+            return Err(crate::error::SklearsError::InvalidOperation(format!(
+                "sklearn import: expected top-level type 'Pipeline', got '{pipeline_type}'"
+            )));
+        }
+
+        let name = root
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("sklearn_pipeline")
+            .to_string();
+
+        let steps = root
+            .get("steps")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| {
+                crate::error::SklearsError::InvalidOperation(
+                    "sklearn import: 'steps' array is required".to_string(),
+                )
+            })?;
+
+        let mut components = Vec::new();
+        let mut connections: Vec<ComponentConnection> = Vec::new();
+        let layout_x_step = 200.0_f64;
+
+        for (idx, step) in steps.iter().enumerate() {
+            let step_name = step
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("step")
+                .to_string();
+
+            let step_type = step
+                .get("type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown")
+                .to_string();
+
+            // Classify each sklearn estimator into a SkleaRS component category.
+            let component_type = classify_sklearn_type(&step_type);
+
+            // Convert params object into a HashMap<String, String>.
+            let mut properties: HashMap<String, String> = HashMap::new();
+            properties.insert("sklearn_type".to_string(), step_type.clone());
+            if let Some(params) = step.get("params").and_then(|v| v.as_object()) {
+                for (k, v) in params {
+                    let val_str = match v {
+                        serde_json::Value::String(s) => s.clone(),
+                        other => other.to_string(),
+                    };
+                    properties.insert(k.clone(), val_str);
+                }
+            }
+
+            let instance = ComponentInstance {
+                id: format!("step_{idx}"),
+                name: step_name.clone(),
+                component_type,
+                properties,
+                position: ComponentPosition {
+                    x: layout_x_step * idx as f64,
+                    y: 100.0,
+                    width: 160.0,
+                    height: 80.0,
+                },
+                dependencies: vec![],
+                description: format!("sklearn {step_type}"),
+            };
+
+            // Connect each step to the previous one.
+            if idx > 0 {
+                connections.push(ComponentConnection {
+                    from_component: format!("step_{}", idx - 1),
+                    from_port: "output".to_string(),
+                    to_component: format!("step_{idx}"),
+                    to_port: "input".to_string(),
+                    data_type: "array".to_string(),
+                });
+            }
+
+            components.push(instance);
+        }
+
+        Ok(VisualPipelineConfig {
+            name,
+            description: "Imported from scikit-learn pipeline JSON".to_string(),
+            components,
+            connections,
+            layout: CanvasLayout {
+                width: 1920.0,
+                height: 1080.0,
+                zoom_level: 1.0,
+                grid_enabled: true,
+                snap_to_grid: false,
+            },
+            metadata: {
+                let mut m = HashMap::new();
+                m.insert("source".to_string(), "sklearn".to_string());
+                m
+            },
+            settings: PipelineSettings::default(),
+        })
     }
 
-    fn import_from_torch(&self, _content: &str) -> crate::error::Result<VisualPipelineConfig> {
-        // TODO: Implement PyTorch model import
-        Err(crate::error::SklearsError::NotImplemented(
-            "PyTorch import not yet implemented".to_string(),
-        ))
+    /// Import a PyTorch model from its JSON description.
+    ///
+    /// Expected schema (subset of TorchScript JSON export or a custom
+    /// SkleaRS-defined interchange format):
+    /// ```json
+    /// {
+    ///   "type": "Sequential",
+    ///   "name": "my_model",
+    ///   "layers": [
+    ///     { "type": "Linear",   "params": { "in_features": "784", "out_features": "256" } },
+    ///     { "type": "ReLU",     "params": {} },
+    ///     { "type": "Linear",   "params": { "in_features": "256", "out_features": "10"  } },
+    ///     { "type": "Softmax",  "params": { "dim": "1" } }
+    ///   ]
+    /// }
+    /// ```
+    fn import_from_torch(&self, content: &str) -> crate::error::Result<VisualPipelineConfig> {
+        let root: serde_json::Value = serde_json::from_str(content)
+            .map_err(|e| crate::error::SklearsError::SerializationError(e.to_string()))?;
+
+        let model_type = root
+            .get("type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Sequential");
+
+        // We support Sequential and ModuleList at the top level.
+        if !matches!(model_type, "Sequential" | "ModuleList" | "Module") {
+            return Err(crate::error::SklearsError::InvalidOperation(format!(
+                "torch import: unsupported top-level model type '{model_type}'. \
+                 Supported: Sequential, ModuleList, Module"
+            )));
+        }
+
+        let name = root
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("torch_model")
+            .to_string();
+
+        let layers = root
+            .get("layers")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| {
+                crate::error::SklearsError::InvalidOperation(
+                    "torch import: 'layers' array is required".to_string(),
+                )
+            })?;
+
+        let mut components = Vec::new();
+        let mut connections: Vec<ComponentConnection> = Vec::new();
+
+        for (idx, layer) in layers.iter().enumerate() {
+            let layer_type = layer
+                .get("type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown")
+                .to_string();
+
+            let component_type = classify_torch_layer(&layer_type);
+
+            let mut properties: HashMap<String, String> = HashMap::new();
+            properties.insert("torch_layer_type".to_string(), layer_type.clone());
+            if let Some(params) = layer.get("params").and_then(|v| v.as_object()) {
+                for (k, v) in params {
+                    let val_str = match v {
+                        serde_json::Value::String(s) => s.clone(),
+                        other => other.to_string(),
+                    };
+                    properties.insert(k.clone(), val_str);
+                }
+            }
+
+            let instance = ComponentInstance {
+                id: format!("layer_{idx}"),
+                name: format!("{layer_type}_{idx}"),
+                component_type,
+                properties,
+                position: ComponentPosition {
+                    x: 200.0 * idx as f64,
+                    y: 100.0,
+                    width: 160.0,
+                    height: 80.0,
+                },
+                dependencies: vec![],
+                description: format!("PyTorch {layer_type} layer"),
+            };
+
+            if idx > 0 {
+                connections.push(ComponentConnection {
+                    from_component: format!("layer_{}", idx - 1),
+                    from_port: "output".to_string(),
+                    to_component: format!("layer_{idx}"),
+                    to_port: "input".to_string(),
+                    data_type: "tensor".to_string(),
+                });
+            }
+
+            components.push(instance);
+        }
+
+        Ok(VisualPipelineConfig {
+            name,
+            description: format!("Imported from PyTorch {model_type} JSON"),
+            components,
+            connections,
+            layout: CanvasLayout {
+                width: 1920.0,
+                height: 1080.0,
+                zoom_level: 1.0,
+                grid_enabled: true,
+                snap_to_grid: false,
+            },
+            metadata: {
+                let mut m = HashMap::new();
+                m.insert("source".to_string(), "torch".to_string());
+                m.insert("model_type".to_string(), model_type.to_string());
+                m
+            },
+            settings: PipelineSettings::default(),
+        })
     }
 
-    fn import_from_dsl_macro(&self, _content: &str) -> crate::error::Result<VisualPipelineConfig> {
-        // TODO: Implement DSL macro import
-        Err(crate::error::SklearsError::NotImplemented(
-            "DSL macro import not yet implemented".to_string(),
-        ))
+    /// Import a pipeline from its SkleaRS DSL macro text representation.
+    ///
+    /// The DSL macro format is a minimal line-oriented description:
+    /// ```text
+    /// pipeline my_pipeline {
+    ///   step standard_scaler  type=preprocessing
+    ///   step random_forest    type=model  n_estimators=100
+    ///   connect standard_scaler -> random_forest
+    /// }
+    /// ```
+    ///
+    /// Lines beginning with `step` define components; lines beginning with
+    /// `connect` define directed edges.  All other lines (including the outer
+    /// `pipeline { }` braces) are treated as structural delimiters or comments.
+    fn import_from_dsl_macro(&self, content: &str) -> crate::error::Result<VisualPipelineConfig> {
+        let mut name = "dsl_pipeline".to_string();
+        let mut components: Vec<ComponentInstance> = Vec::new();
+        let mut connections: Vec<ComponentConnection> = Vec::new();
+        let mut x_pos = 0.0_f64;
+
+        for raw_line in content.lines() {
+            let line = raw_line.trim();
+
+            // Outer `pipeline <name> {` block opener.
+            if let Some(rest) = line.strip_prefix("pipeline ") {
+                let block_name = rest.trim_end_matches('{').trim().to_string();
+                if !block_name.is_empty() {
+                    name = block_name;
+                }
+                continue;
+            }
+
+            // `step <id>  key=val ...`
+            if let Some(rest) = line.strip_prefix("step ") {
+                let tokens: Vec<&str> = rest.split_whitespace().collect();
+                if tokens.is_empty() {
+                    continue;
+                }
+                let step_id = tokens[0].to_string();
+                let mut properties: HashMap<String, String> = HashMap::new();
+                let mut component_type = "generic".to_string();
+
+                for token in tokens.iter().skip(1) {
+                    if let Some((k, v)) = token.split_once('=') {
+                        if k == "type" {
+                            component_type = v.to_string();
+                        } else {
+                            properties.insert(k.to_string(), v.to_string());
+                        }
+                    }
+                }
+
+                components.push(ComponentInstance {
+                    id: step_id.clone(),
+                    name: step_id,
+                    component_type,
+                    properties,
+                    position: ComponentPosition {
+                        x: x_pos,
+                        y: 100.0,
+                        width: 160.0,
+                        height: 80.0,
+                    },
+                    dependencies: vec![],
+                    description: "Imported from DSL macro".to_string(),
+                });
+                x_pos += 200.0;
+                continue;
+            }
+
+            // `connect <from> -> <to> [data_type=<type>]`
+            if let Some(rest) = line.strip_prefix("connect ") {
+                // Split on '->' to get from and to (with optional trailing params).
+                let parts: Vec<&str> = rest.splitn(2, "->").collect();
+                if parts.len() != 2 {
+                    continue;
+                }
+                let from_id = parts[0].trim().to_string();
+                let to_part = parts[1].trim();
+
+                // The `to` side may contain `data_type=…` after whitespace.
+                let (to_id, data_type) =
+                    if let Some((id_part, kv_part)) = to_part.split_once(char::is_whitespace) {
+                        let dt = kv_part
+                            .split_whitespace()
+                            .find(|t| t.starts_with("data_type="))
+                            .and_then(|t| t.split_once('='))
+                            .map(|(_, v)| v.to_string())
+                            .unwrap_or_else(|| "array".to_string());
+                        (id_part.trim().to_string(), dt)
+                    } else {
+                        (to_part.to_string(), "array".to_string())
+                    };
+
+                connections.push(ComponentConnection {
+                    from_component: from_id,
+                    from_port: "output".to_string(),
+                    to_component: to_id,
+                    to_port: "input".to_string(),
+                    data_type,
+                });
+                continue;
+            }
+
+            // Skip `}`, blank lines, and comment lines (`//`, `#`).
+        }
+
+        if components.is_empty() {
+            return Err(crate::error::SklearsError::InvalidOperation(
+                "dsl_macro import: no 'step' declarations found in input".to_string(),
+            ));
+        }
+
+        Ok(VisualPipelineConfig {
+            name,
+            description: "Imported from SkleaRS DSL macro".to_string(),
+            components,
+            connections,
+            layout: CanvasLayout {
+                width: 1920.0,
+                height: 1080.0,
+                zoom_level: 1.0,
+                grid_enabled: true,
+                snap_to_grid: true,
+            },
+            metadata: {
+                let mut m = HashMap::new();
+                m.insert("source".to_string(), "dsl_macro".to_string());
+                m
+            },
+            settings: PipelineSettings::default(),
+        })
     }
 
-    fn import_from_onnx(&self, _content: &str) -> crate::error::Result<VisualPipelineConfig> {
-        // TODO: Implement ONNX model import
-        Err(crate::error::SklearsError::NotImplemented(
-            "ONNX import not yet implemented".to_string(),
-        ))
+    /// Import a model from the ONNX JSON interchange format.
+    ///
+    /// ONNX has an official JSON representation (produced by `onnx.helper` or
+    /// `protoc --encode=onnx.ModelProto`).  We parse the subset relevant for
+    /// inference graph reconstruction:
+    ///
+    /// ```json
+    /// {
+    ///   "irVersion": 8,
+    ///   "opsetImport": [{ "version": 17 }],
+    ///   "graph": {
+    ///     "name": "my_graph",
+    ///     "node": [
+    ///       { "opType": "Conv",    "name": "conv1", "input": ["X"],     "output": ["Y"] },
+    ///       { "opType": "Relu",    "name": "relu1", "input": ["Y"],     "output": ["Z"] },
+    ///       { "opType": "Flatten", "name": "flat1", "input": ["Z"],     "output": ["W"] },
+    ///       { "opType": "Gemm",    "name": "gemm1", "input": ["W","B"], "output": ["O"] }
+    ///     ]
+    ///   }
+    /// }
+    /// ```
+    fn import_from_onnx(&self, content: &str) -> crate::error::Result<VisualPipelineConfig> {
+        let root: serde_json::Value = serde_json::from_str(content)
+            .map_err(|e| crate::error::SklearsError::SerializationError(e.to_string()))?;
+
+        // Validate this looks like an ONNX ModelProto JSON.
+        if root.get("graph").is_none() {
+            return Err(crate::error::SklearsError::InvalidOperation(
+                "onnx import: top-level 'graph' field is required".to_string(),
+            ));
+        }
+
+        let graph = &root["graph"];
+        let name = graph
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("onnx_graph")
+            .to_string();
+
+        let ir_version = root.get("irVersion").and_then(|v| v.as_u64()).unwrap_or(0);
+
+        let nodes = graph
+            .get("node")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| {
+                crate::error::SklearsError::InvalidOperation(
+                    "onnx import: 'graph.node' array is required".to_string(),
+                )
+            })?;
+
+        // Build a map from ONNX tensor name → component id so we can reconstruct
+        // the dataflow graph from input/output tensor names.
+        let mut output_tensor_to_node: HashMap<String, String> = HashMap::new();
+        let mut components = Vec::new();
+        let mut connections: Vec<ComponentConnection> = Vec::new();
+
+        for (idx, node) in nodes.iter().enumerate() {
+            let op_type = node
+                .get("opType")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown")
+                .to_string();
+
+            let node_name = node
+                .get("name")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| format!("{op_type}_{idx}"));
+
+            let node_id = format!("node_{idx}");
+            let component_type = classify_onnx_op(&op_type);
+
+            // Collect node attributes as component properties.
+            let mut properties: HashMap<String, String> = HashMap::new();
+            properties.insert("onnx_op_type".to_string(), op_type.clone());
+            properties.insert("onnx_ir_version".to_string(), ir_version.to_string());
+            if let Some(attrs) = node.get("attribute").and_then(|v| v.as_array()) {
+                for attr in attrs {
+                    let attr_name = attr.get("name").and_then(|v| v.as_str()).unwrap_or("attr");
+                    let attr_val = attr
+                        .get("f")
+                        .or_else(|| attr.get("i"))
+                        .or_else(|| attr.get("s"))
+                        .map(|v| v.to_string())
+                        .unwrap_or_default();
+                    properties.insert(attr_name.to_string(), attr_val);
+                }
+            }
+
+            // Register every output tensor produced by this node.
+            if let Some(outputs) = node.get("output").and_then(|v| v.as_array()) {
+                for out in outputs {
+                    if let Some(tensor_name) = out.as_str() {
+                        output_tensor_to_node.insert(tensor_name.to_string(), node_id.clone());
+                    }
+                }
+            }
+
+            components.push(ComponentInstance {
+                id: node_id,
+                name: node_name,
+                component_type,
+                properties,
+                position: ComponentPosition {
+                    x: 200.0 * idx as f64,
+                    y: 100.0,
+                    width: 160.0,
+                    height: 80.0,
+                },
+                dependencies: vec![],
+                description: format!("ONNX op: {op_type}"),
+            });
+        }
+
+        // Second pass: resolve input tensor names → source node edges.
+        for (idx, node) in nodes.iter().enumerate() {
+            let to_id = format!("node_{idx}");
+            if let Some(inputs) = node.get("input").and_then(|v| v.as_array()) {
+                for inp in inputs {
+                    if let Some(tensor_name) = inp.as_str() {
+                        if let Some(from_id) = output_tensor_to_node.get(tensor_name) {
+                            connections.push(ComponentConnection {
+                                from_component: from_id.clone(),
+                                from_port: tensor_name.to_string(),
+                                to_component: to_id.clone(),
+                                to_port: tensor_name.to_string(),
+                                data_type: "tensor".to_string(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(VisualPipelineConfig {
+            name,
+            description: "Imported from ONNX model JSON".to_string(),
+            components,
+            connections,
+            layout: CanvasLayout {
+                width: 1920.0,
+                height: 1080.0,
+                zoom_level: 1.0,
+                grid_enabled: true,
+                snap_to_grid: false,
+            },
+            metadata: {
+                let mut m = HashMap::new();
+                m.insert("source".to_string(), "onnx".to_string());
+                m.insert("ir_version".to_string(), ir_version.to_string());
+                m
+            },
+            settings: PipelineSettings::default(),
+        })
     }
 }
 
 impl Default for VisualPipelineBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Classification helpers for the import functions
+// ---------------------------------------------------------------------------
+
+/// Map a scikit-learn estimator class name to a SkleaRS component_type string.
+fn classify_sklearn_type(sklearn_type: &str) -> String {
+    match sklearn_type {
+        // Preprocessing / transformers
+        "StandardScaler"
+        | "MinMaxScaler"
+        | "RobustScaler"
+        | "MaxAbsScaler"
+        | "Normalizer"
+        | "PowerTransformer"
+        | "QuantileTransformer" => "preprocessing".to_string(),
+        "PCA" | "TruncatedSVD" | "FastICA" | "NMF" | "FactorAnalysis" => {
+            "dimensionality_reduction".to_string()
+        }
+        "SimpleImputer" | "KNNImputer" | "IterativeImputer" => "imputer".to_string(),
+        "OneHotEncoder" | "OrdinalEncoder" | "LabelEncoder" | "TargetEncoder" => {
+            "encoder".to_string()
+        }
+        "SelectKBest" | "SelectPercentile" | "VarianceThreshold" | "RFE" => {
+            "feature_selection".to_string()
+        }
+        // Classifiers
+        "LogisticRegression"
+        | "SVC"
+        | "LinearSVC"
+        | "NuSVC"
+        | "RandomForestClassifier"
+        | "GradientBoostingClassifier"
+        | "AdaBoostClassifier"
+        | "BaggingClassifier"
+        | "KNeighborsClassifier"
+        | "DecisionTreeClassifier"
+        | "GaussianNB"
+        | "BernoulliNB"
+        | "MultinomialNB"
+        | "MLPClassifier"
+        | "ExtraTreesClassifier" => "classifier".to_string(),
+        // Regressors
+        "LinearRegression"
+        | "Ridge"
+        | "Lasso"
+        | "ElasticNet"
+        | "SVR"
+        | "NuSVR"
+        | "RandomForestRegressor"
+        | "GradientBoostingRegressor"
+        | "AdaBoostRegressor"
+        | "KNeighborsRegressor"
+        | "DecisionTreeRegressor"
+        | "MLPRegressor"
+        | "ExtraTreesRegressor" => "regressor".to_string(),
+        // Clustering
+        "KMeans"
+        | "MiniBatchKMeans"
+        | "DBSCAN"
+        | "AgglomerativeClustering"
+        | "SpectralClustering"
+        | "MeanShift"
+        | "Birch"
+        | "OPTICS" => "clustering".to_string(),
+        // Pipelines / meta-estimators
+        "Pipeline" | "FeatureUnion" | "ColumnTransformer" => "pipeline".to_string(),
+        // Fallback
+        _ => "model".to_string(),
+    }
+}
+
+/// Map a PyTorch layer type name to a SkleaRS component_type string.
+fn classify_torch_layer(layer_type: &str) -> String {
+    match layer_type {
+        "Linear" | "Bilinear" | "LazyLinear" => "linear".to_string(),
+        "Conv1d" | "Conv2d" | "Conv3d" | "ConvTranspose1d" | "ConvTranspose2d"
+        | "ConvTranspose3d" | "LazyConv2d" => "convolution".to_string(),
+        "RNN" | "LSTM" | "GRU" | "RNNCell" | "LSTMCell" | "GRUCell" => "recurrent".to_string(),
+        "MultiheadAttention" | "Transformer" | "TransformerEncoder" | "TransformerDecoder" => {
+            "attention".to_string()
+        }
+        "ReLU" | "LeakyReLU" | "PReLU" | "ELU" | "SELU" | "GELU" | "Sigmoid" | "Tanh"
+        | "Softmax" | "LogSoftmax" | "Mish" | "SiLU" => "activation".to_string(),
+        "BatchNorm1d" | "BatchNorm2d" | "BatchNorm3d" | "LayerNorm" | "GroupNorm"
+        | "InstanceNorm1d" | "InstanceNorm2d" => "normalization".to_string(),
+        "Dropout" | "Dropout2d" | "AlphaDropout" => "regularization".to_string(),
+        "MaxPool1d" | "MaxPool2d" | "AvgPool1d" | "AvgPool2d" | "AdaptiveAvgPool2d"
+        | "AdaptiveMaxPool2d" => "pooling".to_string(),
+        "Flatten" | "Reshape" | "Permute" | "Embedding" | "EmbeddingBag" => "reshape".to_string(),
+        _ => "layer".to_string(),
+    }
+}
+
+/// Map an ONNX operator type to a SkleaRS component_type string.
+fn classify_onnx_op(op_type: &str) -> String {
+    match op_type {
+        "Gemm" | "MatMul" => "linear".to_string(),
+        "Conv" | "ConvTranspose" | "ConvInteger" => "convolution".to_string(),
+        "LSTM" | "GRU" | "RNN" => "recurrent".to_string(),
+        "Attention" => "attention".to_string(),
+        "Relu" | "LeakyRelu" | "PRelu" | "Elu" | "Selu" | "Gelu" | "Sigmoid" | "Tanh"
+        | "Softmax" | "LogSoftmax" | "Mish" => "activation".to_string(),
+        "BatchNormalization"
+        | "InstanceNormalization"
+        | "LayerNormalization"
+        | "GroupNormalization" => "normalization".to_string(),
+        "Dropout" => "regularization".to_string(),
+        "MaxPool" | "AveragePool" | "GlobalAveragePool" | "GlobalMaxPool" => "pooling".to_string(),
+        "Flatten" | "Reshape" | "Transpose" | "Squeeze" | "Unsqueeze" => "reshape".to_string(),
+        "Add" | "Sub" | "Mul" | "Div" | "Pow" | "Sqrt" | "Exp" | "Log" | "Abs" | "Neg"
+        | "Floor" | "Ceil" | "Round" => "elementwise".to_string(),
+        "Concat" | "Split" | "Slice" | "Gather" | "Scatter" | "Pad" | "Tile" => {
+            "tensor_ops".to_string()
+        }
+        "Constant" | "Identity" => "utility".to_string(),
+        _ => "op".to_string(),
     }
 }
 
@@ -950,5 +1581,309 @@ mod tests {
         assert_eq!(canvas.width, 1920);
         assert_eq!(canvas.height, 1080);
         assert_eq!(canvas.zoom_level, 1.0);
+    }
+
+    // -----------------------------------------------------------------
+    // import_from_sklearn tests
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn test_import_from_sklearn_minimal_pipeline() {
+        let mut builder = VisualPipelineBuilder::new();
+        let json = r#"{
+            "type": "Pipeline",
+            "name": "iris_pipeline",
+            "steps": [
+                { "name": "scaler", "type": "StandardScaler", "params": {} },
+                { "name": "clf",    "type": "LogisticRegression",
+                  "params": { "max_iter": "1000", "C": "1.0" } }
+            ]
+        }"#;
+
+        let config = builder
+            .import_pipeline(&PipelineImportData {
+                format: ImportFormat::SklearnPipeline,
+                content: json.to_string(),
+            })
+            .expect("sklearn import should succeed");
+
+        assert_eq!(config.name, "iris_pipeline");
+        assert_eq!(config.components.len(), 2);
+        assert_eq!(config.connections.len(), 1);
+
+        // scaler is preprocessing
+        assert_eq!(config.components[0].name, "scaler");
+        assert_eq!(config.components[0].component_type, "preprocessing");
+
+        // classifier is a classifier
+        assert_eq!(config.components[1].name, "clf");
+        assert_eq!(config.components[1].component_type, "classifier");
+        assert_eq!(
+            config.components[1]
+                .properties
+                .get("max_iter")
+                .map(|s| s.as_str()),
+            Some("1000")
+        );
+
+        // Connection links step 0 → step 1.
+        assert_eq!(config.connections[0].from_component, "step_0");
+        assert_eq!(config.connections[0].to_component, "step_1");
+
+        assert_eq!(
+            config.metadata.get("source").map(|s| s.as_str()),
+            Some("sklearn")
+        );
+    }
+
+    #[test]
+    fn test_import_from_sklearn_wrong_type_fails() {
+        let mut builder = VisualPipelineBuilder::new();
+        let json = r#"{ "type": "RandomForestClassifier", "steps": [] }"#;
+        let result = builder.import_pipeline(&PipelineImportData {
+            format: ImportFormat::SklearnPipeline,
+            content: json.to_string(),
+        });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_import_from_sklearn_missing_steps_fails() {
+        let mut builder = VisualPipelineBuilder::new();
+        let json = r#"{ "type": "Pipeline", "name": "empty" }"#;
+        let result = builder.import_pipeline(&PipelineImportData {
+            format: ImportFormat::SklearnPipeline,
+            content: json.to_string(),
+        });
+        assert!(result.is_err());
+    }
+
+    // -----------------------------------------------------------------
+    // import_from_torch tests
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn test_import_from_torch_sequential() {
+        let mut builder = VisualPipelineBuilder::new();
+        let json = r#"{
+            "type": "Sequential",
+            "name": "two_layer_net",
+            "layers": [
+                { "type": "Linear",  "params": { "in_features": "784", "out_features": "256" } },
+                { "type": "ReLU",    "params": {} },
+                { "type": "Linear",  "params": { "in_features": "256", "out_features": "10" } },
+                { "type": "Softmax", "params": { "dim": "1" } }
+            ]
+        }"#;
+
+        let config = builder
+            .import_pipeline(&PipelineImportData {
+                format: ImportFormat::TorchScript,
+                content: json.to_string(),
+            })
+            .expect("torch import should succeed");
+
+        assert_eq!(config.name, "two_layer_net");
+        assert_eq!(config.components.len(), 4);
+        // Connections: 3 (each layer connected to next).
+        assert_eq!(config.connections.len(), 3);
+
+        assert_eq!(config.components[0].component_type, "linear");
+        assert_eq!(config.components[1].component_type, "activation");
+
+        assert_eq!(
+            config.metadata.get("source").map(|s| s.as_str()),
+            Some("torch")
+        );
+        assert_eq!(
+            config.metadata.get("model_type").map(|s| s.as_str()),
+            Some("Sequential")
+        );
+    }
+
+    #[test]
+    fn test_import_from_torch_unsupported_type_fails() {
+        let mut builder = VisualPipelineBuilder::new();
+        let json = r#"{ "type": "DataParallel", "layers": [] }"#;
+        let result = builder.import_pipeline(&PipelineImportData {
+            format: ImportFormat::TorchScript,
+            content: json.to_string(),
+        });
+        assert!(result.is_err());
+    }
+
+    // -----------------------------------------------------------------
+    // import_from_dsl_macro tests
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn test_import_from_dsl_macro_basic() {
+        let mut builder = VisualPipelineBuilder::new();
+        let dsl = "
+pipeline iris_dsl {
+    step scaler type=preprocessing
+    step clf    type=classifier n_estimators=100
+    connect scaler -> clf
+}
+";
+        let config = builder
+            .import_pipeline(&PipelineImportData {
+                format: ImportFormat::DslMacro,
+                content: dsl.to_string(),
+            })
+            .expect("dsl_macro import should succeed");
+
+        assert_eq!(config.name, "iris_dsl");
+        assert_eq!(config.components.len(), 2);
+        assert_eq!(config.connections.len(), 1);
+
+        assert_eq!(config.components[0].id, "scaler");
+        assert_eq!(config.components[0].component_type, "preprocessing");
+        assert_eq!(config.components[1].component_type, "classifier");
+        assert_eq!(
+            config.components[1]
+                .properties
+                .get("n_estimators")
+                .map(|s| s.as_str()),
+            Some("100")
+        );
+
+        assert_eq!(config.connections[0].from_component, "scaler");
+        assert_eq!(config.connections[0].to_component, "clf");
+
+        assert_eq!(
+            config.metadata.get("source").map(|s| s.as_str()),
+            Some("dsl_macro")
+        );
+    }
+
+    #[test]
+    fn test_import_from_dsl_macro_empty_fails() {
+        let mut builder = VisualPipelineBuilder::new();
+        let result = builder.import_pipeline(&PipelineImportData {
+            format: ImportFormat::DslMacro,
+            content: "pipeline empty { }".to_string(),
+        });
+        assert!(result.is_err());
+    }
+
+    // -----------------------------------------------------------------
+    // import_from_onnx tests
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn test_import_from_onnx_minimal_graph() {
+        let mut builder = VisualPipelineBuilder::new();
+        let json = r#"{
+            "irVersion": 8,
+            "opsetImport": [{ "version": 17 }],
+            "graph": {
+                "name": "simple_fc",
+                "node": [
+                    {
+                        "opType": "Gemm",
+                        "name": "gemm0",
+                        "input": ["X", "W0", "B0"],
+                        "output": ["Y0"]
+                    },
+                    {
+                        "opType": "Relu",
+                        "name": "relu0",
+                        "input": ["Y0"],
+                        "output": ["Z0"]
+                    },
+                    {
+                        "opType": "Gemm",
+                        "name": "gemm1",
+                        "input": ["Z0", "W1", "B1"],
+                        "output": ["out"]
+                    }
+                ]
+            }
+        }"#;
+
+        let config = builder
+            .import_pipeline(&PipelineImportData {
+                format: ImportFormat::OnnxModel,
+                content: json.to_string(),
+            })
+            .expect("onnx import should succeed");
+
+        assert_eq!(config.name, "simple_fc");
+        assert_eq!(config.components.len(), 3);
+
+        // Gemm → linear, Relu → activation.
+        assert_eq!(config.components[0].component_type, "linear");
+        assert_eq!(config.components[1].component_type, "activation");
+        assert_eq!(config.components[2].component_type, "linear");
+
+        // relu0 receives from gemm0 (Y0 tensor).
+        let relu_conn = config
+            .connections
+            .iter()
+            .find(|c| c.to_component == "node_1")
+            .expect("should have connection to relu0");
+        assert_eq!(relu_conn.from_component, "node_0");
+        assert_eq!(relu_conn.data_type, "tensor");
+
+        assert_eq!(
+            config.metadata.get("source").map(|s| s.as_str()),
+            Some("onnx")
+        );
+        assert_eq!(
+            config.metadata.get("ir_version").map(|s| s.as_str()),
+            Some("8")
+        );
+    }
+
+    #[test]
+    fn test_import_from_onnx_missing_graph_fails() {
+        let mut builder = VisualPipelineBuilder::new();
+        let json = r#"{ "irVersion": 8 }"#;
+        let result = builder.import_pipeline(&PipelineImportData {
+            format: ImportFormat::OnnxModel,
+            content: json.to_string(),
+        });
+        assert!(result.is_err());
+    }
+
+    // -----------------------------------------------------------------
+    // classifier helper tests
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn test_classify_sklearn_type() {
+        assert_eq!(classify_sklearn_type("StandardScaler"), "preprocessing");
+        assert_eq!(
+            classify_sklearn_type("RandomForestClassifier"),
+            "classifier"
+        );
+        assert_eq!(classify_sklearn_type("LinearRegression"), "regressor");
+        assert_eq!(classify_sklearn_type("KMeans"), "clustering");
+        assert_eq!(classify_sklearn_type("PCA"), "dimensionality_reduction");
+        assert_eq!(classify_sklearn_type("UnknownEstimator"), "model");
+    }
+
+    #[test]
+    fn test_classify_torch_layer() {
+        assert_eq!(classify_torch_layer("Linear"), "linear");
+        assert_eq!(classify_torch_layer("ReLU"), "activation");
+        assert_eq!(classify_torch_layer("BatchNorm2d"), "normalization");
+        assert_eq!(classify_torch_layer("Dropout"), "regularization");
+        assert_eq!(classify_torch_layer("MaxPool2d"), "pooling");
+        assert_eq!(classify_torch_layer("Flatten"), "reshape");
+        assert_eq!(classify_torch_layer("SomeUnknownLayer"), "layer");
+    }
+
+    #[test]
+    fn test_classify_onnx_op() {
+        assert_eq!(classify_onnx_op("Gemm"), "linear");
+        assert_eq!(classify_onnx_op("Conv"), "convolution");
+        assert_eq!(classify_onnx_op("Relu"), "activation");
+        assert_eq!(classify_onnx_op("BatchNormalization"), "normalization");
+        assert_eq!(classify_onnx_op("MaxPool"), "pooling");
+        assert_eq!(classify_onnx_op("Add"), "elementwise");
+        assert_eq!(classify_onnx_op("Concat"), "tensor_ops");
+        assert_eq!(classify_onnx_op("UnknownOp"), "op");
     }
 }

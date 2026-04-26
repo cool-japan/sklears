@@ -36,8 +36,8 @@
 //! let X = array![[1.0], [2.0], [3.0], [4.0]];
 //! let Y = array![[1.0, 5.0], [2.0, 4.0], [3.0, 3.0], [4.0, 2.0]]; // Two objectives
 //!
-//! let trained_mobo = mobo.fit(&X, &Y).unwrap();
-//! let next_point = trained_mobo.suggest_next_point(&array![[0.0], [5.0]]).unwrap();
+//! let trained_mobo = mobo.fit(&X, &Y).expect("fit should succeed with valid multi-objective training data");
+//! let next_point = trained_mobo.suggest_next_point(&array![[0.0], [5.0]]).expect("suggest_next_point should succeed with valid bounds");
 //! ```
 
 use crate::kernels::Kernel;

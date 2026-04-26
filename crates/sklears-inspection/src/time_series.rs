@@ -257,13 +257,17 @@ impl TimeSeriesAnalyzer {
     pub fn new(config: TimeSeriesConfig) -> Self {
         Self { config }
     }
+}
 
-    /// Create analyzer with default configuration
-    pub fn default() -> Self {
+impl Default for TimeSeriesAnalyzer {
+    fn default() -> Self {
         Self::new(TimeSeriesConfig::default())
     }
+}
 
+impl TimeSeriesAnalyzer {
     /// Analyze temporal importance of features
+    #[allow(non_snake_case)] // standard ML notation
     pub fn temporal_importance(
         &self,
         X: &ArrayView2<Float>,
@@ -271,7 +275,7 @@ impl TimeSeriesAnalyzer {
         model_fn: &dyn Fn(&ArrayView2<Float>) -> SklResult<Array1<Float>>,
     ) -> SklResult<TemporalImportance> {
         let n_samples = X.nrows();
-        let n_features = X.ncols();
+        let _n_features = X.ncols();
 
         // Compute baseline predictions
         let baseline_predictions = model_fn(X)?;
@@ -329,7 +333,7 @@ impl TimeSeriesAnalyzer {
         &self,
         time_series: &ArrayView1<Float>,
     ) -> SklResult<SeasonalDecomposition> {
-        let n = time_series.len();
+        let _n = time_series.len();
 
         match self.config.decomposition_method {
             DecompositionMethod::STL => self.stl_decomposition(time_series),
@@ -345,7 +349,7 @@ impl TimeSeriesAnalyzer {
 
         // Compute overall trend using linear regression
         let x: Array1<Float> = (0..n).map(|i| i as Float).collect();
-        let (slope, _intercept, r_squared) = self.linear_regression(&x.view(), time_series)?;
+        let (slope, _intercept, _r_squared) = self.linear_regression(&x.view(), time_series)?;
 
         // Determine trend direction
         let trend_direction = if slope.abs() < 1e-6 {
@@ -486,6 +490,7 @@ impl TimeSeriesAnalyzer {
         }
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn permute_time_step(&self, X: &mut Array2<Float>, t: usize) -> SklResult<()> {
         let n_features = X.ncols();
 
@@ -510,6 +515,7 @@ impl TimeSeriesAnalyzer {
         Ok(())
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn bootstrap_temporal_importance(
         &self,
         X: &ArrayView2<Float>,
@@ -574,6 +580,7 @@ impl TimeSeriesAnalyzer {
         0.5 + x * (0.5 + x * x * (-0.125 + x * x * 0.0625))
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_window_importance(
         &self,
         X: &ArrayView2<Float>,
@@ -617,7 +624,7 @@ impl TimeSeriesAnalyzer {
         time_series: &ArrayView1<Float>,
     ) -> SklResult<SeasonalDecomposition> {
         // Simplified STL decomposition
-        let n = time_series.len();
+        let _n = time_series.len();
         let seasonal_period = self.config.seasonal_periods.first().copied().unwrap_or(12);
 
         // Trend component using moving average
@@ -776,7 +783,7 @@ impl TimeSeriesAnalyzer {
         x: &ArrayView1<Float>,
         y: &ArrayView1<Float>,
     ) -> SklResult<(Float, Float, Float)> {
-        let n = x.len() as Float;
+        let _n = x.len() as Float;
         let x_mean = x.mean().expect("operation should succeed");
         let y_mean = y.mean().expect("operation should succeed");
 

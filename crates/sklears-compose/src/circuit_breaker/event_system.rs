@@ -242,6 +242,7 @@ pub struct MemoryPublisherConfig {
 
 /// Event subscription manager for managing event subscribers
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct EventSubscriptionManager {
     /// Subscribers
     subscribers: Arc<RwLock<HashMap<String, EventSubscriber>>>,
@@ -522,9 +523,10 @@ impl CircuitBreakerEventRecorder {
     #[must_use]
     pub fn get_statistics(&self) -> EventStatistics {
         let buffer = self.event_buffer.lock().unwrap_or_else(|e| e.into_inner());
-        let mut stats = EventStatistics::default();
-
-        stats.total_events = buffer.len() as u64;
+        let mut stats = EventStatistics {
+            total_events: buffer.len() as u64,
+            ..EventStatistics::default()
+        };
 
         for event in buffer.iter() {
             *stats

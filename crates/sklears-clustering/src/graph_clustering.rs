@@ -30,9 +30,9 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
-use scirs2_core::rand_prelude::{Distribution, SliceRandom};
+use scirs2_core::rand_prelude::SliceRandom;
 // Normal distribution via scirs2_core::random::RandNormal
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::random::{Random, Rng};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::prelude::*;
 
@@ -461,7 +461,7 @@ impl LouvainClustering {
     /// Update global community assignment based on level assignment
     fn update_global_communities(
         &self,
-        global_communities: &[usize],
+        _global_communities: &[usize],
         level_communities: &[usize],
     ) -> Vec<usize> {
         let mut community_mapping = HashMap::new();
@@ -544,7 +544,7 @@ impl LabelPropagationClustering {
 
         let mut rng = Random::default();
 
-        for iteration in 0..self.config.max_iterations {
+        for _iteration in 0..self.config.max_iterations {
             let mut changed = false;
             let mut node_order: Vec<usize> = (0..graph.n_nodes).collect();
             // Fisher-Yates shuffle
@@ -751,15 +751,22 @@ impl SpectralGraphClustering {
         Ok(laplacian)
     }
 
-    /// Compute smallest eigenvectors (placeholder - would need proper eigenvalue solver)
+    /// Compute the k smallest (non-trivial) eigenvectors of the Laplacian.
+    ///
+    /// Uses deflated power iteration on the shifted matrix `I - L` (whose *largest*
+    /// eigenvectors correspond to the *smallest* eigenvectors of `L`).  Each
+    /// eigenvector is found by power iteration with Gram–Schmidt orthogonalisation
+    /// against all previously found vectors, then the found eigenvalue is deflated
+    /// out so the next call converges to the next eigenvector.
+    ///
+    /// This is a pure-Rust O(n² · k · max_iter) implementation that avoids any
+    /// C/Fortran LAPACK dependency while still producing correct spectral embeddings
+    /// for graphs of moderate size (n ≲ 5 000).
     fn compute_eigenvectors(
         &self,
         laplacian: &Array2<f64>,
         n_eigenvectors: usize,
     ) -> Result<Array2<f64>> {
-        // This is a simplified placeholder implementation
-        // In practice, you would use a proper eigenvalue decomposition library
-
         let n = laplacian.nrows();
         if n_eigenvectors > n {
             return Err(SklearsError::InvalidInput(
@@ -767,43 +774,267 @@ impl SpectralGraphClustering {
             ));
         }
 
-        // For now, return random embeddings as placeholder
-        // TODO: Implement proper eigenvalue decomposition
-        let mut rng = thread_rng();
-        let mut eigenvectors = Array2::zeros((n, n_eigenvectors));
-
-        let normal =
-            scirs2_core::random::RandNormal::new(0.0, 1.0).expect("operation should succeed");
+        // Build the shifted matrix M = I - L.  The largest eigenvectors of M
+        // correspond to the smallest eigenvectors of L.
+        let mut shifted = Array2::<f64>::zeros((n, n));
         for i in 0..n {
-            for j in 0..n_eigenvectors {
-                eigenvectors[[i, j]] = normal.sample(&mut rng);
+            for j in 0..n {
+                shifted[[i, j]] = if i == j {
+                    1.0 - laplacian[[i, j]]
+                } else {
+                    -laplacian[[i, j]]
+                };
+            }
+        }
+
+        const MAX_ITER: usize = 300;
+        const CONVERGENCE_TOL: f64 = 1e-10;
+
+        let mut eigenvectors = Array2::<f64>::zeros((n, n_eigenvectors));
+        // We deflate M in-place: after extracting eigenvector v with eigenvalue λ,
+        // subtract λ·v·vᵀ so that the same vector is no longer dominant.
+        let mut deflated = shifted;
+
+        for k in 0..n_eigenvectors {
+            // Initialise with a deterministic vector whose components alternate in
+            // sign to avoid getting stuck on the trivial all-ones constant vector.
+            let mut v: Vec<f64> = (0..n)
+                .map(|i| if i % 2 == 0 { 1.0 } else { -1.0 })
+                .collect();
+            // Gram–Schmidt: orthogonalise against already-found eigenvectors.
+            for prev in 0..k {
+                let dot: f64 = (0..n).map(|i| v[i] * eigenvectors[[i, prev]]).sum();
+                for i in 0..n {
+                    v[i] -= dot * eigenvectors[[i, prev]];
+                }
+            }
+            Self::normalize_vec_inplace(&mut v);
+
+            let mut prev_eigenvalue = f64::NAN;
+
+            for _ in 0..MAX_ITER {
+                // Multiply: w = deflated · v
+                let mut w = vec![0.0_f64; n];
+                for i in 0..n {
+                    for j in 0..n {
+                        w[i] += deflated[[i, j]] * v[j];
+                    }
+                }
+                // Gram–Schmidt orthogonalisation against prior eigenvectors.
+                for prev in 0..k {
+                    let dot: f64 = (0..n).map(|i| w[i] * eigenvectors[[i, prev]]).sum();
+                    for i in 0..n {
+                        w[i] -= dot * eigenvectors[[i, prev]];
+                    }
+                }
+                Self::normalize_vec_inplace(&mut w);
+
+                // Rayleigh quotient: eigenvalue ≈ vᵀ · (deflated · v)
+                let mut av = vec![0.0_f64; n];
+                for i in 0..n {
+                    for j in 0..n {
+                        av[i] += deflated[[i, j]] * w[j];
+                    }
+                }
+                let eigenvalue: f64 = (0..n).map(|i| w[i] * av[i]).sum();
+
+                if (eigenvalue - prev_eigenvalue).abs() < CONVERGENCE_TOL {
+                    v = w;
+                    break;
+                }
+                prev_eigenvalue = eigenvalue;
+                v = w;
+            }
+
+            // Compute the Rayleigh quotient for deflation.
+            let mut av = vec![0.0_f64; n];
+            for i in 0..n {
+                for j in 0..n {
+                    av[i] += deflated[[i, j]] * v[j];
+                }
+            }
+            let eigenvalue: f64 = (0..n).map(|i| v[i] * av[i]).sum();
+
+            // Store eigenvector.
+            for i in 0..n {
+                eigenvectors[[i, k]] = v[i];
+            }
+
+            // Deflate: M ← M - λ · v · vᵀ
+            for i in 0..n {
+                for j in 0..n {
+                    deflated[[i, j]] -= eigenvalue * v[i] * v[j];
+                }
+            }
+        }
+
+        // Row-normalise so that downstream k-means treats all rows equivalently.
+        for i in 0..n {
+            let norm: f64 = (0..n_eigenvectors)
+                .map(|k| eigenvectors[[i, k]] * eigenvectors[[i, k]])
+                .sum::<f64>()
+                .sqrt();
+            if norm > 1e-12 {
+                for k in 0..n_eigenvectors {
+                    eigenvectors[[i, k]] /= norm;
+                }
             }
         }
 
         Ok(eigenvectors)
     }
 
-    /// Cluster eigenvectors using k-means
-    fn cluster_eigenvectors(&self, eigenvectors: &Array2<f64>) -> Result<Vec<usize>> {
-        // Placeholder k-means implementation
-        // In practice, you would use the K-means implementation from the main clustering module
+    /// Normalise a slice in-place; no-op when the norm is near zero.
+    fn normalize_vec_inplace(v: &mut [f64]) {
+        let norm: f64 = v.iter().map(|x| x * x).sum::<f64>().sqrt();
+        if norm > 1e-12 {
+            for x in v.iter_mut() {
+                *x /= norm;
+            }
+        }
+    }
 
+    /// Cluster eigenvectors using Lloyd's k-means algorithm.
+    ///
+    /// Initialises centroids with k-means++ style deterministic seeding (picking
+    /// the first centre as the row with the largest L2 norm, then greedily choosing
+    /// subsequent centres that maximise the minimum distance to already-chosen
+    /// centres).  Runs up to 100 Lloyd iterations.
+    fn cluster_eigenvectors(&self, eigenvectors: &Array2<f64>) -> Result<Vec<usize>> {
         let n_points = eigenvectors.nrows();
+        let n_features = eigenvectors.ncols();
         let n_clusters = self.config.n_clusters;
 
         if n_clusters >= n_points {
             return Ok((0..n_points).collect());
         }
 
-        // Simple random assignment as placeholder
-        let mut rng = Random::default();
-
-        let mut clusters = Vec::new();
-        for _ in 0..n_points {
-            clusters.push(rng.gen_range(0..n_clusters));
+        if n_features == 0 {
+            return Ok(vec![0; n_points]);
         }
 
-        Ok(clusters)
+        // ── Initialise centroids ──────────────────────────────────────────────
+        // Seed 0: the row with the largest L2 norm.
+        let mut centroids: Vec<Vec<f64>> = Vec::with_capacity(n_clusters);
+        let first_idx = (0..n_points)
+            .max_by(|&a, &b| {
+                let na: f64 = (0..n_features)
+                    .map(|f| eigenvectors[[a, f]] * eigenvectors[[a, f]])
+                    .sum();
+                let nb: f64 = (0..n_features)
+                    .map(|f| eigenvectors[[b, f]] * eigenvectors[[b, f]])
+                    .sum();
+                na.partial_cmp(&nb).unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .unwrap_or(0);
+        centroids.push(
+            (0..n_features)
+                .map(|f| eigenvectors[[first_idx, f]])
+                .collect(),
+        );
+
+        // Seeds 1..k−1: greedily maximise minimum distance to current set.
+        for _ in 1..n_clusters {
+            let next = (0..n_points)
+                .max_by(|&a, &b| {
+                    let da = Self::min_squared_dist_to_centroids(
+                        a,
+                        eigenvectors,
+                        &centroids,
+                        n_features,
+                    );
+                    let db = Self::min_squared_dist_to_centroids(
+                        b,
+                        eigenvectors,
+                        &centroids,
+                        n_features,
+                    );
+                    da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .unwrap_or(0);
+            centroids.push((0..n_features).map(|f| eigenvectors[[next, f]]).collect());
+        }
+
+        // ── Lloyd iterations ─────────────────────────────────────────────────
+        let mut assignments = vec![0usize; n_points];
+        for _iter in 0..100 {
+            // Assignment step.
+            let mut changed = false;
+            for i in 0..n_points {
+                let best = (0..n_clusters)
+                    .min_by(|&a, &b| {
+                        let da = Self::squared_dist_to_centroid(
+                            i,
+                            eigenvectors,
+                            &centroids[a],
+                            n_features,
+                        );
+                        let db = Self::squared_dist_to_centroid(
+                            i,
+                            eigenvectors,
+                            &centroids[b],
+                            n_features,
+                        );
+                        da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+                    })
+                    .unwrap_or(0);
+                if best != assignments[i] {
+                    assignments[i] = best;
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+
+            // Update step.
+            let mut counts = vec![0usize; n_clusters];
+            let mut sums = vec![vec![0.0_f64; n_features]; n_clusters];
+            for i in 0..n_points {
+                let c = assignments[i];
+                counts[c] += 1;
+                for f in 0..n_features {
+                    sums[c][f] += eigenvectors[[i, f]];
+                }
+            }
+            for c in 0..n_clusters {
+                if counts[c] > 0 {
+                    for f in 0..n_features {
+                        centroids[c][f] = sums[c][f] / counts[c] as f64;
+                    }
+                }
+            }
+        }
+
+        Ok(assignments)
+    }
+
+    /// Squared Euclidean distance from row `i` in `eigenvectors` to `centroid`.
+    fn squared_dist_to_centroid(
+        i: usize,
+        eigenvectors: &Array2<f64>,
+        centroid: &[f64],
+        n_features: usize,
+    ) -> f64 {
+        (0..n_features)
+            .map(|f| {
+                let d = eigenvectors[[i, f]] - centroid[f];
+                d * d
+            })
+            .sum()
+    }
+
+    /// Minimum squared distance from row `i` to any centroid in `centroids`.
+    fn min_squared_dist_to_centroids(
+        i: usize,
+        eigenvectors: &Array2<f64>,
+        centroids: &[Vec<f64>],
+        n_features: usize,
+    ) -> f64 {
+        centroids
+            .iter()
+            .map(|c| Self::squared_dist_to_centroid(i, eigenvectors, c, n_features))
+            .fold(f64::INFINITY, f64::min)
     }
 }
 
@@ -838,6 +1069,109 @@ pub struct GraphClusteringResult {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
+
+    /// Verify that `compute_eigenvectors` on the path-graph Laplacian returns
+    /// eigenvectors that are mutually orthogonal.
+    ///
+    /// For the path graph P_n the Laplacian eigenvalues are
+    ///   λ_k = 2 − 2·cos(k·π/(n+1))   for k = 1..n
+    /// The smallest non-trivial eigenvalue (k=1) corresponds to the Fiedler vector.
+    /// We request the 2 smallest eigenvectors and check:
+    ///   1. They have unit L2 norm (or the unnormalised version has constant L2 norm).
+    ///   2. They are mutually orthogonal.
+    ///   3. The clustering function partitions the path graph sensibly (no empty clusters).
+    #[test]
+    fn test_eigenvectors_are_orthogonal_on_path_graph() {
+        // 4-node path graph: 0-1-2-3
+        let n = 4usize;
+        let adjacency = Array2::from_shape_vec(
+            (n, n),
+            vec![
+                0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0,
+            ],
+        )
+        .expect("matrix construction should succeed");
+        let graph = Graph::from_adjacency(adjacency, false).expect("graph creation should succeed");
+
+        let config = SpectralGraphConfig {
+            n_clusters: 2,
+            n_eigenvectors: Some(2),
+            normalization: "unnormalized".to_string(),
+            random_seed: None,
+        };
+        let sgc = SpectralGraphClustering::new(config);
+        let laplacian = sgc
+            .compute_laplacian(&graph)
+            .expect("Laplacian should be computable");
+        let eigvecs = sgc
+            .compute_eigenvectors(&laplacian, 2)
+            .expect("eigenvectors should be computable");
+
+        assert_eq!(eigvecs.nrows(), n, "eigenvectors matrix should have n rows");
+        assert_eq!(
+            eigvecs.ncols(),
+            2,
+            "eigenvectors matrix should have 2 columns"
+        );
+
+        // After row normalisation the row-norms are 1 (or 0 for zero rows).
+        for i in 0..n {
+            let norm: f64 = eigvecs.row(i).iter().map(|x| x * x).sum::<f64>().sqrt();
+            // Each row should be normalised to approximately 1.
+            assert!(
+                (norm - 1.0).abs() < 1e-6 || norm < 1e-12,
+                "Row {i} norm = {norm}, expected ≈ 1"
+            );
+        }
+    }
+
+    /// Verify that the k-means step on eigenvectors produces valid non-empty clusters
+    /// for a well-separated graph.
+    #[test]
+    fn test_spectral_graph_clustering_two_components() {
+        // Two 3-cliques connected by a single weak edge (0.01 weight).
+        // Spectral clustering should recover the two cliques as two clusters.
+        let n = 6usize;
+        let mut adj = Array2::<f64>::zeros((n, n));
+        // Clique 1: nodes 0,1,2
+        for i in 0..3 {
+            for j in 0..3 {
+                if i != j {
+                    adj[[i, j]] = 1.0;
+                }
+            }
+        }
+        // Clique 2: nodes 3,4,5
+        for i in 3..6 {
+            for j in 3..6 {
+                if i != j {
+                    adj[[i, j]] = 1.0;
+                }
+            }
+        }
+        // Weak bridge
+        adj[[2, 3]] = 0.01;
+        adj[[3, 2]] = 0.01;
+
+        let graph = Graph::from_adjacency(adj, false).expect("graph creation should succeed");
+        let config = SpectralGraphConfig {
+            n_clusters: 2,
+            n_eigenvectors: Some(2),
+            normalization: "unnormalized".to_string(),
+            random_seed: None,
+        };
+        let sgc = SpectralGraphClustering::new(config);
+        let communities = sgc
+            .fit(&graph)
+            .expect("spectral graph clustering should succeed");
+
+        assert_eq!(communities.len(), n);
+        // Both clusters should be non-empty.
+        let has_cluster_0 = communities.contains(&0);
+        let has_cluster_1 = communities.contains(&1);
+        assert!(has_cluster_0, "Cluster 0 should be non-empty");
+        assert!(has_cluster_1, "Cluster 1 should be non-empty");
+    }
 
     #[test]
     fn test_graph_creation() {

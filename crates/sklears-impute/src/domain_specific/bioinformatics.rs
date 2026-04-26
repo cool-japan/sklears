@@ -2,6 +2,7 @@
 //!
 //! This module provides specialized imputation methods for biological data types
 //! including single-cell RNA sequencing, genomics, proteomics, and metabolomics.
+#![allow(non_snake_case)]
 
 use crate::core::{ImputationError, ImputationResult};
 use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
@@ -389,7 +390,7 @@ impl SingleCellRNASeqImputer {
         library_sizes.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = library_sizes.len();
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             (library_sizes[n / 2 - 1] + library_sizes[n / 2]) / 2.0
         } else {
             library_sizes[n / 2]

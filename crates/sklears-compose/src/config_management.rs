@@ -3,10 +3,10 @@
 //! This module provides declarative pipeline configuration support with YAML/JSON parsing,
 //! environment-specific configurations, validation, and hot reloading capabilities.
 
-use sklears_core::{error::Result as SklResult, prelude::SklearsError, traits::Estimator};
+use sklears_core::{error::Result as SklResult, prelude::SklearsError};
 use std::collections::HashMap;
 use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread::{self, JoinHandle};
@@ -14,6 +14,11 @@ use std::time::{Duration, SystemTime};
 
 use crate::distributed::{ResourceRequirements, TaskPriority};
 use crate::scheduling::{RetryConfig, SchedulingStrategy};
+
+/// Dynamic template function type
+type TemplateFn = Box<dyn Fn(&[ConfigValue]) -> SklResult<ConfigValue> + Send + Sync>;
+/// Static built-in function type
+type BuiltinFn = fn(&[ConfigValue]) -> SklResult<ConfigValue>;
 
 /// Configuration provider trait for pluggable configuration sources
 pub trait ConfigurationProvider: Send + Sync {
@@ -33,7 +38,7 @@ pub trait ConfigurationProvider: Send + Sync {
     fn validate_configuration(&self, config: &PipelineConfig) -> SklResult<ValidationResult>;
 
     /// Save configuration (if provider supports writing)
-    fn save_configuration(&self, config_id: &str, config: &PipelineConfig) -> SklResult<()> {
+    fn save_configuration(&self, _config_id: &str, _config: &PipelineConfig) -> SklResult<()> {
         Err(SklearsError::InvalidInput(
             "Provider does not support saving configurations".to_string(),
         ))
@@ -910,9 +915,10 @@ impl ConfigValue {
 }
 
 /// Template engine for configuration templating
+#[allow(dead_code)]
 pub struct TemplateEngine {
     /// Registered template functions
-    functions: HashMap<String, Box<dyn Fn(&[ConfigValue]) -> SklResult<ConfigValue> + Send + Sync>>,
+    functions: HashMap<String, TemplateFn>,
     /// Template variables
     variables: HashMap<String, ConfigValue>,
     /// Expression evaluator
@@ -921,13 +927,15 @@ pub struct TemplateEngine {
 
 /// Expression evaluator for template expressions
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ExpressionEvaluator {
     /// Built-in functions
-    builtin_functions: HashMap<String, fn(&[ConfigValue]) -> SklResult<ConfigValue>>,
+    builtin_functions: HashMap<String, BuiltinFn>,
 }
 
 /// Advanced configuration validator
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct AdvancedValidator {
     /// Validation rules registry
     rules: HashMap<String, ValidationRule>,
@@ -1022,6 +1030,7 @@ pub struct ConditionalValidation {
 
 /// Cross-reference validator for configuration relationships
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct CrossReferenceValidator {
     /// Reference mappings
     references: HashMap<String, Vec<String>>,
@@ -1031,6 +1040,7 @@ pub struct CrossReferenceValidator {
 
 /// Dependency graph for detecting circular dependencies
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct DependencyGraph {
     /// Adjacency list representation
     graph: HashMap<String, Vec<String>>,
@@ -1041,6 +1051,7 @@ pub struct DependencyGraph {
 }
 
 /// Configuration loader and manager
+#[allow(dead_code)]
 pub struct ConfigManager {
     /// Current configuration
     config: Arc<RwLock<PipelineConfig>>,
@@ -1084,7 +1095,7 @@ impl ConfigManager {
 
     /// Create default configuration
     fn default_config() -> PipelineConfig {
-        /// PipelineConfig
+        // PipelineConfig
         PipelineConfig {
             metadata: ConfigMetadata {
                 name: "default".to_string(),
@@ -1383,7 +1394,7 @@ impl ConfigManager {
 
                 // Check if file has been modified
                 if let Ok(metadata) = fs::metadata(&path_clone) {
-                    if let Ok(modified) = metadata.modified() {
+                    if let Ok(_modified) = metadata.modified() {
                         // Simplified modification check
                         // In a real implementation, track the last modification time
                         // For now, just continue the loop
@@ -1426,7 +1437,7 @@ impl ConfigManager {
     pub fn apply_environment_overrides(&mut self) -> SklResult<()> {
         let config = self.config.read().unwrap_or_else(|e| e.into_inner());
 
-        if let Some(env_config) = config.environments.get(&self.current_environment) {
+        if let Some(_env_config) = config.environments.get(&self.current_environment) {
             // Apply overrides (simplified)
             drop(config);
 
@@ -1705,7 +1716,7 @@ impl AdvancedValidator {
     }
 
     /// Validate a configuration
-    pub fn validate(&self, config: &PipelineConfig) -> SklResult<ValidationResult> {
+    pub fn validate(&self, _config: &PipelineConfig) -> SklResult<ValidationResult> {
         let errors = Vec::new();
         let warnings = Vec::new();
         let suggestions = Vec::new();
@@ -1765,18 +1776,17 @@ impl Default for ConfigManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
 
     #[test]
     fn test_config_value_types() {
         let string_val = ConfigValue::String("test".to_string());
         let int_val = ConfigValue::Integer(42);
-        let float_val = ConfigValue::Float(3.14);
+        let float_val = ConfigValue::Float(std::f64::consts::PI);
         let bool_val = ConfigValue::Boolean(true);
 
         assert_eq!(string_val.as_string(), Some(&"test".to_string()));
         assert_eq!(int_val.as_integer(), Some(42));
-        assert_eq!(float_val.as_float(), Some(3.14));
+        assert_eq!(float_val.as_float(), Some(std::f64::consts::PI));
         assert_eq!(bool_val.as_boolean(), Some(true));
     }
 
@@ -1791,7 +1801,7 @@ mod tests {
 
     #[test]
     fn test_config_validation() {
-        let mut manager = ConfigManager::new();
+        let manager = ConfigManager::new();
         let mut config = ConfigManager::default_config();
 
         // Test valid config

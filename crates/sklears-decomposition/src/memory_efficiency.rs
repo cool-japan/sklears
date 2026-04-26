@@ -69,7 +69,7 @@ impl OutOfCoreDecomposition {
         };
 
         let chunk_rows = self.chunk_size / (n_cols * 8); // Assuming f64
-        let n_chunks = (n_rows + chunk_rows - 1) / chunk_rows;
+        let n_chunks = n_rows.div_ceil(chunk_rows);
 
         for chunk_idx in 0..n_chunks {
             let start_row = chunk_idx * chunk_rows;
@@ -278,7 +278,7 @@ impl ChunkedProcessor {
         let _n_cols = matrix.ncols();
 
         let effective_chunk_size = self.chunk_size - self.overlap;
-        let n_chunks = (n_rows + effective_chunk_size - 1) / effective_chunk_size;
+        let n_chunks = n_rows.div_ceil(effective_chunk_size);
 
         for chunk_idx in 0..n_chunks {
             let start = chunk_idx * effective_chunk_size;
@@ -305,7 +305,7 @@ impl ChunkedProcessor {
         let n_cols = matrix.ncols();
 
         let effective_chunk_size = self.chunk_size - self.overlap;
-        let n_chunks = (n_cols + effective_chunk_size - 1) / effective_chunk_size;
+        let n_chunks = n_cols.div_ceil(effective_chunk_size);
 
         for chunk_idx in 0..n_chunks {
             let start = chunk_idx * effective_chunk_size;

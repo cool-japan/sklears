@@ -565,6 +565,7 @@ pub struct RobustNystroem {
     gamma: f64,
     config: RobustKernelConfig,
     basis_indices: Option<Vec<usize>>,
+    #[allow(dead_code)] // stored basis kernel for potential reuse in prediction
     basis_kernel: Option<Array2<f64>>,
     normalization: Option<Array2<f64>>,
     robust_weights: Option<Array1<f64>>,
@@ -1114,7 +1115,7 @@ mod tests {
             BreakdownPointAnalysis::new().with_estimator(RobustEstimator::Huber { delta: 1.345 });
 
         let breakdown_point = analysis.analyze(&x).expect("operation should succeed");
-        assert!(breakdown_point >= 0.0 && breakdown_point <= 1.0);
+        assert!((0.0..=1.0).contains(&breakdown_point));
 
         let breakdown_points = analysis.get_breakdown_points();
         assert!(!breakdown_points.is_empty());

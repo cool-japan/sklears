@@ -187,6 +187,7 @@ impl SimdVotingOps {
 
 /// SIMD-accelerated distance calculations
 pub struct SimdDistanceOps {
+    #[allow(dead_code)] // config retained for future SIMD backend selection
     config: SimdConfig,
 }
 

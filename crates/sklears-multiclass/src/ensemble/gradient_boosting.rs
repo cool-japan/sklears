@@ -216,9 +216,10 @@ impl Default for GradientBoostingConfig {
 }
 
 /// Loss functions for gradient boosting
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum GradientBoostingLoss {
     /// Multinomial deviance loss for multiclass classification
+    #[default]
     Deviance,
     /// Exponential loss (equivalent to AdaBoost)
     Exponential,
@@ -226,12 +227,6 @@ pub enum GradientBoostingLoss {
     Multinomial,
     /// Huber loss for robust classification
     Huber { delta: f64 },
-}
-
-impl Default for GradientBoostingLoss {
-    fn default() -> Self {
-        Self::Deviance
-    }
 }
 
 /// Gradient Boosting Multiclass Classifier
@@ -470,12 +465,12 @@ impl<C> Estimator for GradientBoostingClassifier<C, Untrained> {
 type TrainedGradientBoosting<T> =
     GradientBoostingClassifier<GradientBoostingTrainedData<T>, Trained>;
 
-impl<C> Fit<Array2<f64>, Array1<i32>> for GradientBoostingClassifier<C, Untrained>
+impl<C, CF> Fit<Array2<f64>, Array1<i32>> for GradientBoostingClassifier<C, Untrained>
 where
-    C: Clone + Fit<Array2<f64>, Array1<f64>> + Send + Sync,
-    C::Fitted: Predict<Array2<f64>, Array1<f64>> + Clone + Send + Sync,
+    C: Clone + Fit<Array2<f64>, Array1<f64>, Fitted = CF> + Send + Sync,
+    CF: Predict<Array2<f64>, Array1<f64>> + Clone + Send + Sync,
 {
-    type Fitted = TrainedGradientBoosting<C::Fitted>;
+    type Fitted = TrainedGradientBoosting<CF>;
 
     #[allow(non_snake_case)]
     fn fit(self, X: &Array2<f64>, y: &Array1<i32>) -> SklResult<Self::Fitted> {
@@ -683,10 +678,10 @@ where
     }
 }
 
-impl<C> GradientBoostingClassifier<C, Untrained>
+impl<C, CF> GradientBoostingClassifier<C, Untrained>
 where
-    C: Clone + Fit<Array2<f64>, Array1<f64>> + Send + Sync,
-    C::Fitted: Predict<Array2<f64>, Array1<f64>> + Clone + Send + Sync,
+    C: Clone + Fit<Array2<f64>, Array1<f64>, Fitted = CF> + Send + Sync,
+    CF: Predict<Array2<f64>, Array1<f64>> + Clone + Send + Sync,
 {
     fn compute_residuals(&self, y_true: &Array1<f64>, y_pred: &Array1<f64>) -> Array1<f64> {
         compute_residuals_for_loss(&self.config.loss, y_true, y_pred)
@@ -702,6 +697,7 @@ impl<T> Predict<Array2<f64>, Array1<i32>>
 where
     T: Predict<Array2<f64>, Array1<f64>> + Clone + Send + Sync,
 {
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     fn predict(&self, X: &Array2<f64>) -> SklResult<Array1<i32>> {
         let probabilities = self.predict_proba(X)?;
         let (n_samples, _) = probabilities.dim();
@@ -799,6 +795,7 @@ impl<T> PredictProba<Array2<f64>, Array2<f64>>
 where
     T: Predict<Array2<f64>, Array1<f64>> + Clone + Send + Sync,
 {
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     fn predict_proba(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         let (n_samples, _) = X.dim();
         let trained_data = &self.base_estimator;
@@ -1292,7 +1289,7 @@ mod tests {
 
         // Check that early stopping info is present
         let trained_data = &trained.base_estimator;
-        assert!(trained_data.validation_scores.len() > 0);
+        assert!(!trained_data.validation_scores.is_empty());
 
         // Verify that the model was trained
         let predictions = trained.predict(&X).expect("Failed to predict");
@@ -1365,7 +1362,7 @@ mod tests {
     fn test_gradient_boosting_config_with_new_fields() {
         let config = GradientBoostingConfig::default();
         assert_eq!(config.early_stopping, None);
-        assert_eq!(config.warm_start, false);
+        assert!(!config.warm_start);
         assert_eq!(config.validation_fraction, 0.1);
     }
 
@@ -1423,7 +1420,7 @@ mod tests {
 
         // Test accessor methods
         assert_eq!(trained.n_estimators_trained(), 10);
-        assert!(trained.train_scores().len() > 0);
+        assert!(!trained.train_scores().is_empty());
         assert_eq!(trained.validation_scores().len(), 0); // No early stopping
         assert!(trained.early_stopping_info().is_none());
     }
@@ -1469,7 +1466,7 @@ mod tests {
         assert!(trained.config.early_stopping.is_some());
 
         // Check that validation scores were recorded
-        assert!(trained.validation_scores().len() > 0);
+        assert!(!trained.validation_scores().is_empty());
 
         // Verify predictions still work
         let predictions = trained.predict(&X).expect("Failed to predict");
@@ -1561,7 +1558,9 @@ mod tests {
         let custom_importances = array![0.7, 0.3];
         trained_mut.set_feature_importances(custom_importances.clone());
 
-        let retrieved_importances = trained_mut.feature_importances().expect("operation should succeed");
+        let retrieved_importances = trained_mut
+            .feature_importances()
+            .expect("operation should succeed");
         assert_eq!(retrieved_importances[0], 0.7);
         assert_eq!(retrieved_importances[1], 0.3);
     }
@@ -1590,10 +1589,10 @@ mod tests {
 
             let trained = gb
                 .fit(&X, &y)
-                .expect(&format!("Failed to fit with loss: {:?}", loss));
+                .unwrap_or_else(|_| panic!("Failed to fit with loss: {:?}", loss));
             let predictions = trained
                 .predict(&X)
-                .expect(&format!("Failed to predict with loss: {:?}", loss));
+                .unwrap_or_else(|_| panic!("Failed to predict with loss: {:?}", loss));
             assert_eq!(predictions.len(), 4);
         }
     }

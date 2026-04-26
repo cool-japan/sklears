@@ -1,10 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
 //! Gaussian Process models for regression and classification
 //!
 //! This module is part of sklears, providing scikit-learn compatible

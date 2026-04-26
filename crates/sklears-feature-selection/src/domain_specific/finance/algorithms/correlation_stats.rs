@@ -12,7 +12,7 @@ type Float = f64;
 use super::utilities::compute_pearson_correlation;
 
 /// Compute correlation matrix for features
-pub(crate) fn compute_correlation_matrix(x: &Array2<Float>) -> Result<Array2<Float>> {
+pub fn compute_correlation_matrix(x: &Array2<Float>) -> Result<Array2<Float>> {
     let n_features = x.ncols();
     let mut corr_matrix = Array2::zeros((n_features, n_features));
 
@@ -29,7 +29,7 @@ pub(crate) fn compute_correlation_matrix(x: &Array2<Float>) -> Result<Array2<Flo
 }
 
 /// Compute covariance matrix for features
-pub(crate) fn compute_covariance_matrix(x: &Array2<Float>) -> Result<Array2<Float>> {
+pub fn compute_covariance_matrix(x: &Array2<Float>) -> Result<Array2<Float>> {
     let n_features = x.ncols();
     let n_samples = x.nrows();
 
@@ -62,7 +62,7 @@ pub(crate) fn compute_covariance_matrix(x: &Array2<Float>) -> Result<Array2<Floa
 }
 
 /// Compute correlation-based feature scores
-pub(crate) fn compute_correlation_based_scores(
+pub fn compute_correlation_based_scores(
     x: &Array2<Float>,
     y: &Array1<Float>,
 ) -> Result<Array1<Float>> {

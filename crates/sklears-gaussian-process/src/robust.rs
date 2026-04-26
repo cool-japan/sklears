@@ -30,8 +30,8 @@
 //! let X = array![[1.0], [2.0], [3.0], [4.0], [5.0]];
 //! let y = array![1.0, 2.0, 10.0, 4.0, 5.0]; // Contains outlier at index 2
 //!
-//! let trained_model = robust_gp.fit(&X, &y).unwrap();
-//! let predictions = trained_model.predict(&X).unwrap();
+//! let trained_model = robust_gp.fit(&X, &y).expect("fit should succeed with valid training data");
+//! let predictions = trained_model.predict(&X).expect("predict should succeed on trained model");
 //! ```
 
 use crate::kernels::Kernel;
@@ -418,7 +418,7 @@ impl OutlierDetectionMethod {
                     .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
                 let n = sorted_residuals.len();
-                let median = if n % 2 == 0 {
+                let median = if n.is_multiple_of(2) {
                     (sorted_residuals[n / 2 - 1] + sorted_residuals[n / 2]) / 2.0
                 } else {
                     sorted_residuals[n / 2]
@@ -429,7 +429,7 @@ impl OutlierDetectionMethod {
                     residuals.iter().map(|&r| (r - median).abs()).collect();
                 deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-                let mad = if n % 2 == 0 {
+                let mad = if n.is_multiple_of(2) {
                     (deviations[n / 2 - 1] + deviations[n / 2]) / 2.0
                 } else {
                     deviations[n / 2]
@@ -669,6 +669,7 @@ impl Estimator for RobustGaussianProcessRegressor<Trained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Fit<Array2<f64>, Array1<f64>> for RobustGaussianProcessRegressor<Untrained> {
     type Fitted = RobustGaussianProcessRegressor<Trained>;
 
@@ -780,6 +781,7 @@ impl Fit<Array2<f64>, Array1<f64>> for RobustGaussianProcessRegressor<Untrained>
     }
 }
 
+#[allow(non_snake_case)]
 impl RobustGaussianProcessRegressor<Trained> {
     /// Access the trained state
     pub fn trained_state(&self) -> &Trained {
@@ -918,7 +920,7 @@ impl RobustGaussianProcessRegressor<Trained> {
                         .collect();
 
                     errors.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                    let median_error = if errors.len() % 2 == 0 {
+                    let median_error = if errors.len().is_multiple_of(2) {
                         (errors[errors.len() / 2 - 1] + errors[errors.len() / 2]) / 2.0
                     } else {
                         errors[errors.len() / 2]
@@ -947,6 +949,7 @@ impl RobustGaussianProcessRegressor<Trained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<Array2<f64>, Array1<f64>> for RobustGaussianProcessRegressor<Trained> {
     fn predict(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
         let (predictions, _) = self.predict_with_robust_uncertainty(X)?;
@@ -1063,7 +1066,7 @@ mod tests {
         let weights = likelihood.compute_weights(&residuals);
 
         // Weights should be between 0 and 1
-        assert!(weights.iter().all(|&w| w >= 0.0 && w <= 1.0));
+        assert!(weights.iter().all(|&w| (0.0..=1.0).contains(&w)));
 
         // Large residual should get lower weight
         assert!(weights[2] > weights[1]); // Small residual gets higher weight than large
@@ -1163,7 +1166,7 @@ mod tests {
         for method in &methods {
             let outliers = method.detect_outliers(&residuals, &predictions, &training_data);
             // Should detect outlier at index 2
-            assert!(!outliers.is_empty() || true); // Some methods might not detect with this simple example
+            let _ = outliers; // Some methods might not detect with this simple example
         }
     }
 

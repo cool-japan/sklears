@@ -1,6 +1,3 @@
-#![allow(missing_docs)]
-#![allow(clippy::too_many_arguments)]
-#![allow(clippy::type_complexity)]
 //! Python bindings for the sklears machine learning library
 //!
 //! This crate provides PyO3-based Python bindings for sklears, enabling

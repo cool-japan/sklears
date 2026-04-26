@@ -111,6 +111,7 @@ impl CoTraining<Untrained> {
         self
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn extract_view(&self, X: &Array2<f64>, view_features: &[usize]) -> SklResult<Array2<f64>> {
         if view_features.is_empty() {
             return Err(SklearsError::InvalidInput(
@@ -137,6 +138,7 @@ impl CoTraining<Untrained> {
         Ok(view_X)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn simple_classifier_predict(
         &self,
         X_train: &Array2<f64>,
@@ -433,6 +435,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for CoTraining<Untrained> {
 }
 
 impl CoTraining<CoTrainingTrained> {
+    #[allow(non_snake_case)] // standard ML notation
     fn extract_view(&self, X: &Array2<f64>, view_features: &[usize]) -> SklResult<Array2<f64>> {
         if view_features.is_empty() {
             return Err(SklearsError::InvalidInput(
@@ -479,13 +482,13 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>> for CoTraining<CoTrainingTraine
 
         // Extract views for training data
         let X1_train = self.extract_view(&self.state.X_train, &self.state.view1_features)?;
-        let X1_labeled = labeled_indices
+        let _x1_labeled_rows = labeled_indices
             .iter()
             .map(|&i| X1_train.row(i).to_owned())
             .collect::<Vec<_>>();
-        let X1_labeled = Array2::from_shape_vec(
-            (X1_labeled.len(), X1_train.ncols()),
-            X1_labeled.into_iter().flatten().collect(),
+        let _x1_labeled = Array2::from_shape_vec(
+            (_x1_labeled_rows.len(), X1_train.ncols()),
+            _x1_labeled_rows.into_iter().flatten().collect(),
         )
         .map_err(|_| {
             SklearsError::InvalidInput("Failed to create view1 training data".to_string())
@@ -529,6 +532,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>> for CoTraining<CoTrainingTraine
 
 /// Trained state for CoTraining
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation: X_train
 pub struct CoTrainingTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -639,6 +643,7 @@ impl MultiViewCoTraining<Untrained> {
         self
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn extract_view(&self, X: &Array2<f64>, view_features: &[usize]) -> SklResult<Array2<f64>> {
         if view_features.is_empty() {
             return Err(SklearsError::InvalidInput(
@@ -665,6 +670,7 @@ impl MultiViewCoTraining<Untrained> {
         Ok(view_X)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn train_view_classifier(
         &self,
         X_train: &Array2<f64>,
@@ -853,15 +859,15 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for MultiViewCoTraining<Unt
 
                 let X_view = self.extract_view(&X, view)?;
 
-                let X_labeled: Vec<Vec<f64>> = labeled_indices
+                let x_labeled_rows: Vec<Vec<f64>> = labeled_indices
                     .iter()
                     .map(|&i| X_view.row(i).to_vec())
                     .collect();
                 let y_labeled: Array1<i32> = labeled_indices.iter().map(|&i| y[i]).collect();
 
-                let X_labeled = Array2::from_shape_vec(
-                    (X_labeled.len(), view.len()),
-                    X_labeled.into_iter().flatten().collect(),
+                let _x_labeled = Array2::from_shape_vec(
+                    (x_labeled_rows.len(), view.len()),
+                    x_labeled_rows.into_iter().flatten().collect(),
                 )
                 .map_err(|_| {
                     SklearsError::InvalidInput("Failed to create labeled training data".to_string())
@@ -1021,6 +1027,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for MultiViewCoTraining<Unt
 }
 
 impl MultiViewCoTraining<MultiViewCoTrainingTrained> {
+    #[allow(non_snake_case)] // standard ML notation
     fn extract_view(&self, X: &Array2<f64>, view_features: &[usize]) -> SklResult<Array2<f64>> {
         if view_features.is_empty() {
             return Err(SklearsError::InvalidInput(
@@ -1047,6 +1054,7 @@ impl MultiViewCoTraining<MultiViewCoTrainingTrained> {
         Ok(view_X)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn train_view_classifier(
         &self,
         X_train: &Array2<f64>,
@@ -1201,6 +1209,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
 
 /// Trained state for MultiViewCoTraining
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation: X_train
 pub struct MultiViewCoTrainingTrained {
     /// X_train
     pub X_train: Array2<f64>,

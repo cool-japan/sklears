@@ -186,7 +186,11 @@ enum ConstraintSpec {
     },
     Convex,
     Concave,
+    #[allow(dead_code)]
+    // intentionally deferred: convex/concave-decreasing constraints not yet wired
     ConvexDecreasing,
+    #[allow(dead_code)]
+    // intentionally deferred: convex/concave-decreasing constraints not yet wired
     ConcaveDecreasing,
 }
 
@@ -613,7 +617,7 @@ mod tests {
 
         // Check bounds
         for &pred in predictions.iter() {
-            assert!(pred >= 0.0 && pred <= 10.0);
+            assert!((0.0..=10.0).contains(&pred));
         }
 
         Ok(())
@@ -631,7 +635,7 @@ mod tests {
 
         // Check probability bounds
         for &pred in predictions.iter() {
-            assert!(pred >= 0.0 && pred <= 1.0);
+            assert!((0.0..=1.0).contains(&pred));
         }
 
         Ok(())

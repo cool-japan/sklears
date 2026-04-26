@@ -9,7 +9,6 @@ use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 /// Configuration for stable eigenvalue algorithms
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
-    traits::Estimator,
     types::Float,
 };
 #[derive(Debug, Clone)]
@@ -86,6 +85,7 @@ impl StableEigen {
     }
 
     /// Create with default configuration
+    #[allow(clippy::should_implement_trait)] // intentional non-trait default method
     pub fn default() -> Self {
         Self::new(EigenConfig::default())
     }
@@ -334,7 +334,7 @@ impl StableEigen {
             (matrix.nrows(), eigen_pairs.len()),
             eigen_pairs
                 .into_iter()
-                .flat_map(|(_, vec)| vec.into_raw_vec())
+                .flat_map(|(_, vec)| vec.into_raw_vec_and_offset().0)
                 .collect(),
         )
         .map_err(|e| SklearsError::InvalidParameter {
@@ -602,8 +602,8 @@ impl StableEigen {
         let max_eigenval = sorted_eigenvals[0].abs();
         let threshold = max_eigenval * 1e-8; // More reasonable relative threshold
 
-        for i in 0..sorted_eigenvals.len() {
-            if sorted_eigenvals[i].abs() < threshold {
+        for (i, &val) in sorted_eigenvals.iter().enumerate() {
+            if val.abs() < threshold {
                 return i;
             }
         }
@@ -727,7 +727,7 @@ impl ManifoldEigen {
             (laplacian.nrows(), selected_pairs.len()),
             selected_pairs
                 .into_iter()
-                .flat_map(|(_, vec)| vec.into_raw_vec())
+                .flat_map(|(_, vec)| vec.into_raw_vec_and_offset().0)
                 .collect(),
         )
         .map_err(|e| SklearsError::InvalidParameter {
@@ -772,7 +772,6 @@ impl ManifoldEigen {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::array;
 
     #[test]

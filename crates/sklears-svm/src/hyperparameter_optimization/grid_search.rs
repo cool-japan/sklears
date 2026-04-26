@@ -20,6 +20,7 @@ use super::{
 pub struct GridSearchCV {
     config: OptimizationConfig,
     search_space: SearchSpace,
+    #[allow(dead_code)] // intentionally deferred: randomized grid search not yet called
     rng: Random<scirs2_core::random::rngs::StdRng>,
 }
 

@@ -70,7 +70,7 @@ impl PropertyTestGenerator {
     #[must_use]
     pub fn generate_matrix(&self, n_samples: usize, n_features: usize) -> Array2<f64> {
         use scirs2_core::random::rngs::StdRng;
-        use scirs2_core::random::{Rng, RngExt, SeedableRng};
+        use scirs2_core::random::{RngExt, SeedableRng};
 
         let mut rng = StdRng::seed_from_u64(self.seed);
         let (min_val, max_val) = self.value_range;
@@ -84,7 +84,7 @@ impl PropertyTestGenerator {
     #[must_use]
     pub fn generate_targets(&self, n_samples: usize) -> Array1<f64> {
         use scirs2_core::random::rngs::StdRng;
-        use scirs2_core::random::{Rng, RngExt, SeedableRng};
+        use scirs2_core::random::{RngExt, SeedableRng};
 
         let mut rng = StdRng::seed_from_u64(self.seed + 1);
         let (min_val, max_val) = self.value_range;
@@ -100,7 +100,7 @@ impl PropertyTestGenerator {
         n_classes: usize,
     ) -> Array1<usize> {
         use scirs2_core::random::rngs::StdRng;
-        use scirs2_core::random::{Rng, RngExt, SeedableRng};
+        use scirs2_core::random::{RngExt, SeedableRng};
 
         let mut rng = StdRng::seed_from_u64(self.seed + 2);
 
@@ -187,7 +187,7 @@ impl PipelinePropertyTester {
     {
         let mut results = Vec::new();
 
-        for i in 0..n_tests {
+        for _i in 0..n_tests {
             let n_samples = 50;
             let n_features = 5;
 

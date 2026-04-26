@@ -3,11 +3,11 @@
 //! This module provides a flexible Multi-Layer Perceptron implementation that can handle
 //! both regression and classification tasks with multiple outputs. It supports configurable
 //! architecture, activation functions, and training parameters.
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
 use scirs2_core::random::RandNormal;
-use scirs2_core::random::Rng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -66,6 +66,7 @@ pub struct MultiOutputMLP<S = Untrained> {
 
 /// Trained state for MultiOutputMLP
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fields retained for model introspection and serialization
 pub struct MultiOutputMLPTrained {
     /// Weights for each layer
     weights: Vec<Array2<Float>>,
@@ -197,6 +198,7 @@ impl Estimator for MultiOutputMLP<Untrained> {
 impl Fit<ArrayView2<'_, Float>, Array2<Float>> for MultiOutputMLP<Untrained> {
     type Fitted = MultiOutputMLP<MultiOutputMLPTrained>;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &ArrayView2<'_, Float>, y: &Array2<Float>) -> SklResult<Self::Fitted> {
         let (n_samples, n_features) = X.dim();
         let (n_samples_y, n_outputs) = y.dim();
@@ -303,6 +305,7 @@ impl Fit<ArrayView2<'_, Float>, Array2<Float>> for MultiOutputMLP<Untrained> {
 impl MultiOutputMLP<Untrained> {
     /// Forward pass through the network
     #[allow(clippy::type_complexity)]
+    #[allow(non_snake_case)] // standard ML notation
     fn forward_pass(
         &self,
         X: &Array2<Float>,
@@ -398,9 +401,9 @@ impl MultiOutputMLP<Untrained> {
 }
 
 impl Predict<ArrayView2<'_, Float>, Array2<Float>> for MultiOutputMLP<MultiOutputMLPTrained> {
-    #[allow(non_snake_case)]
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features {
             return Err(SklearsError::InvalidInput(
@@ -422,6 +425,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>> for MultiOutputMLP<MultiOutpu
 impl MultiOutputMLP<MultiOutputMLPTrained> {
     /// Forward pass for trained model
     #[allow(clippy::type_complexity)]
+    #[allow(non_snake_case)] // standard ML notation
     fn forward_pass_trained(
         &self,
         X: &Array2<Float>,

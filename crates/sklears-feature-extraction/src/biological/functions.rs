@@ -63,7 +63,7 @@ mod tests {
         let features = kmer_counter
             .extract_features(sequence)
             .expect("operation should succeed");
-        assert!(features.len() > 0);
+        assert!(!features.is_empty());
         let sum: f64 = features.sum();
         assert!((sum - 1.0).abs() < 1e-10);
     }
@@ -77,7 +77,7 @@ mod tests {
         let features = kmer_counter
             .extract_features(sequence)
             .expect("operation should succeed");
-        assert!(features.len() > 0);
+        assert!(!features.is_empty());
     }
     #[test]
     fn test_sequence_motif_extractor() {

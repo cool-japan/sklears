@@ -13,10 +13,12 @@ type Result<T> = SklResult<T>;
 pub struct MethodSelector;
 
 impl MethodSelector {
+    /// new
     pub fn new() -> Self {
         Self
     }
 
+    /// select_methods
     pub fn select_methods(
         &self,
         characteristics: &DataCharacteristics,

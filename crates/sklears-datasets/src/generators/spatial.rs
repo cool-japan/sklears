@@ -9,6 +9,9 @@ use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{Normal, RngExt};
 use sklears_core::error::{Result, SklearsError};
 
+/// Result type for geographic information dataset: (coordinates, features, region_ids, densities)
+type GeographicDatasetResult = (Array2<f64>, Array2<f64>, Array1<usize>, Array1<f64>);
+
 /// Generate spatial point process data
 pub fn make_spatial_point_process(
     n_points: usize,
@@ -236,7 +239,7 @@ pub fn make_geographic_information_dataset(
     config: GeographicConfig,
     include_demographics: bool,
     random_state: Option<u64>,
-) -> Result<(Array2<f64>, Array2<f64>, Array1<usize>, Array1<f64>)> {
+) -> Result<GeographicDatasetResult> {
     if n_locations == 0 {
         return Err(SklearsError::InvalidInput(
             "n_locations must be positive".to_string(),
@@ -512,10 +515,9 @@ pub fn make_spatial_clustering_dataset(
     let mut point_idx = 0;
 
     // Generate points for each cluster
-    for cluster_id in 0..n_clusters {
+    for (cluster_id, &(center_x, center_y)) in cluster_centers.iter().enumerate() {
         let n_points_in_cluster =
             points_per_cluster + if cluster_id < extra_points { 1 } else { 0 };
-        let (center_x, center_y) = cluster_centers[cluster_id];
 
         // Cluster size based on separation
         let cluster_size = cluster_separation / 4.0;
@@ -810,11 +812,11 @@ mod tests {
             let vegetation_index = geographic_features[[i, 6]];
 
             assert!(
-                slope >= 0.0 && slope <= 45.0,
+                (0.0..=45.0).contains(&slope),
                 "Slope should be in [0, 45] degrees"
             );
             assert!(
-                aspect >= 0.0 && aspect <= 360.0,
+                (0.0..=360.0).contains(&aspect),
                 "Aspect should be in [0, 360] degrees"
             );
             assert!(
@@ -822,7 +824,7 @@ mod tests {
                 "Distance to water should be positive"
             );
             assert!(
-                vegetation_index >= 0.0 && vegetation_index <= 1.0,
+                (0.0..=1.0).contains(&vegetation_index),
                 "Vegetation index should be in [0, 1]"
             );
         }
@@ -870,7 +872,7 @@ mod tests {
         // Check that we have approximately the right number of noise points
         let noise_count = labels.iter().filter(|&&l| l == 4).count();
         assert!(
-            noise_count >= 8 && noise_count <= 12,
+            (8..=12).contains(&noise_count),
             "Should have ~10% noise points"
         );
     }

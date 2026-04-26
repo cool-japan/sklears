@@ -4,13 +4,11 @@
 //! search and similarity estimation. LSH is particularly useful for high-dimensional
 //! data where exact distance computation becomes prohibitively expensive.
 
-use std::collections::{HashMap, HashSet};
-use std::hash::Hasher;
-
 use sklears_core::{
     error::{Result, SklearsError},
     types::{Array1, Array2, Float},
 };
+use std::collections::{HashMap, HashSet};
 
 use scirs2_core::random::{thread_rng, CoreRandom, Rng, RngExt};
 
@@ -152,6 +150,7 @@ pub struct LSHTable {
     /// Buckets mapping hash signatures to point indices
     buckets: HashMap<Vec<u64>, Vec<usize>>,
     /// Configuration
+    #[allow(dead_code)] // Config stored for future table-level parameter access
     config: LSHConfig,
 }
 
@@ -219,10 +218,15 @@ impl LSHTable {
 /// Statistics for an LSH table
 #[derive(Debug, Clone)]
 pub struct TableStats {
+    /// Total number of non-empty buckets
     pub num_buckets: usize,
+    /// Total number of indexed points across all buckets
     pub total_points: usize,
+    /// Mean number of points per bucket
     pub avg_bucket_size: f64,
+    /// Maximum number of points in any single bucket
     pub max_bucket_size: usize,
+    /// Number of hash functions used to generate bucket keys
     pub num_hash_functions: usize,
 }
 
@@ -236,6 +240,7 @@ pub struct LSHIndex {
     /// Configuration
     config: LSHConfig,
     /// Random number generator state
+    #[allow(dead_code)] // RNG stored for future online index updates
     rng: CoreRandom,
 }
 
@@ -515,23 +520,36 @@ impl LSHIndex {
 /// Statistics for LSH index
 #[derive(Debug, Clone)]
 pub struct LSHIndexStats {
+    /// Number of hash tables in the index
     pub num_tables: usize,
+    /// Total number of indexed vectors
     pub num_vectors: usize,
+    /// Total number of buckets across all tables
     pub total_buckets: usize,
+    /// Average number of buckets per table
     pub avg_buckets_per_table: f64,
+    /// Total number of points across all buckets (with duplicates)
     pub total_points: usize,
+    /// Average number of points per table
     pub avg_points_per_table: f64,
+    /// Per-table statistics
     pub table_stats: Vec<TableStats>,
+    /// Index configuration
     pub config: LSHConfig,
 }
 
 /// Memory usage information
 #[derive(Debug, Clone)]
 pub struct MemoryUsage {
+    /// Bytes used for storing vectors
     pub vector_memory_bytes: usize,
+    /// Bytes used for hash tables and bucket structures
     pub table_memory_bytes: usize,
+    /// Total memory usage in bytes
     pub total_memory_bytes: usize,
+    /// Total memory usage in megabytes
     pub memory_mb: f64,
+    /// Total memory usage in gigabytes
     pub memory_gb: f64,
 }
 

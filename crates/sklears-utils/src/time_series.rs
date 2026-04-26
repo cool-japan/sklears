@@ -110,7 +110,7 @@ impl<T: Clone> TimeSeries<T> {
         }
 
         let mut ts = Self::new();
-        for (timestamp, value) in timestamps.into_iter().zip(values.into_iter()) {
+        for (timestamp, value) in timestamps.into_iter().zip(values) {
             ts.insert(timestamp, value);
         }
         Ok(ts)

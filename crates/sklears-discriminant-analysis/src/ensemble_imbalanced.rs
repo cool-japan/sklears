@@ -136,7 +136,9 @@ pub struct EnsembleImbalancedDiscriminantAnalysis {
 
 /// Trained ensemble discriminant analysis model
 pub struct TrainedEnsembleImbalancedDiscriminantAnalysis {
+    #[allow(dead_code)] // retained for future serialisation / re-fit support
     config: EnsembleImbalancedConfig,
+    #[allow(dead_code)] // retained for future serialisation / re-fit support
     base_classifier: BaseClassifier,
     classes: Vec<i32>,
     class_weights: HashMap<i32, Float>,

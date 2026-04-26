@@ -30,8 +30,8 @@ use std::marker::PhantomData;
 /// let X = array![[1.0, 2.0], [3.0, 4.0]];
 ///
 /// let poly = PolynomialFeatures::new(2);
-/// let fitted_poly = poly.fit(&X, &()).unwrap();
-/// let X_transformed = fitted_poly.transform(&X).unwrap();
+/// let fitted_poly = poly.fit(&X, &()).expect("fit should succeed with valid polynomial features input");
+/// let X_transformed = fitted_poly.transform(&X).expect("transform should succeed after polynomial features fitting");
 /// // Features: [1, a, b, a^2, ab, b^2] = 6 features
 /// assert_eq!(X_transformed.shape(), &[2, 6]);
 /// ```

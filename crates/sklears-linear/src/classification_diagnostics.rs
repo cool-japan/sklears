@@ -311,7 +311,7 @@ impl ClassificationDiagnostics {
         });
 
         // Reshape to grid format
-        let pred_grid = predictions.into_shape((resolution, resolution))?;
+        let pred_grid = predictions.into_shape_with_order((resolution, resolution))?;
 
         Ok(DecisionBoundaryResult {
             x_grid,

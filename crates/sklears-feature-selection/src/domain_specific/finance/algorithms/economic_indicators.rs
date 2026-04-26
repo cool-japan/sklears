@@ -10,7 +10,7 @@ type Result<T> = SklResult<T>;
 type Float = f64;
 
 /// Compute economic indicator scores
-pub(crate) fn compute_economic_indicator_scores(
+pub fn compute_economic_indicator_scores(
     x: &Array2<Float>,
     y: &Array1<Float>,
 ) -> Result<Array1<Float>> {
@@ -49,7 +49,7 @@ pub(crate) fn compute_economic_indicator_scores(
 }
 
 /// Simulate GDP growth from features
-pub(crate) fn simulate_gdp_growth(x: &Array2<Float>) -> Result<Array1<Float>> {
+pub fn simulate_gdp_growth(x: &Array2<Float>) -> Result<Array1<Float>> {
     let n_samples = x.nrows();
 
     // Simple simulation: GDP growth as average of positive returns
@@ -69,7 +69,7 @@ pub(crate) fn simulate_gdp_growth(x: &Array2<Float>) -> Result<Array1<Float>> {
 }
 
 /// Simulate inflation from features
-pub(crate) fn simulate_inflation(x: &Array2<Float>) -> Result<Array1<Float>> {
+pub fn simulate_inflation(x: &Array2<Float>) -> Result<Array1<Float>> {
     let n_samples = x.nrows();
 
     // Inflation as moving average of price changes
@@ -94,7 +94,7 @@ pub(crate) fn simulate_inflation(x: &Array2<Float>) -> Result<Array1<Float>> {
 }
 
 /// Simulate interest rate from features
-pub(crate) fn simulate_interest_rate(x: &Array2<Float>) -> Result<Array1<Float>> {
+pub fn simulate_interest_rate(x: &Array2<Float>) -> Result<Array1<Float>> {
     let n_samples = x.nrows();
 
     // Interest rate as function of volatility (higher volatility → higher rates)
@@ -115,7 +115,7 @@ pub(crate) fn simulate_interest_rate(x: &Array2<Float>) -> Result<Array1<Float>>
 }
 
 /// Simulate unemployment from features
-pub(crate) fn simulate_unemployment(x: &Array2<Float>) -> Result<Array1<Float>> {
+pub fn simulate_unemployment(x: &Array2<Float>) -> Result<Array1<Float>> {
     let n_samples = x.nrows();
 
     // Unemployment inversely related to economic activity

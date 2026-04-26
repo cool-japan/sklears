@@ -1,6 +1,5 @@
 //! Cache-friendly algorithms and data structures for high-performance dummy estimator operations
 
-use rayon::prelude::*;
 use scirs2_core::ndarray::{Array2, ArrayView2};
 
 /// Cache-aligned data structure for frequent access patterns

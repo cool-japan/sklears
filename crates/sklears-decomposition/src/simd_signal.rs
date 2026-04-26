@@ -12,8 +12,10 @@ use scirs2_core::ndarray::Array1;
 use sklears_core::{error::Result, types::Float};
 
 /// SIMD-optimized signal processing operations
+#[allow(dead_code)]
 pub struct SimdSignalOps;
 
+#[allow(dead_code)]
 impl SimdSignalOps {
     /// Fast correlation using SIMD
     pub fn simd_correlate(

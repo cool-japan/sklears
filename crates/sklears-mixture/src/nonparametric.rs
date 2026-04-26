@@ -16,7 +16,11 @@ use std::f64::consts::PI;
 
 use crate::common::CovarianceType;
 
+/// Type alias for component parameters result
+type ComponentParamsResult = SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)>;
+
 /// Utility function for log-sum-exp
+#[allow(dead_code)]
 fn log_sum_exp(a: f64, b: f64) -> f64 {
     let max_val = a.max(b);
     if max_val.is_finite() {
@@ -46,8 +50,8 @@ fn log_sum_exp(a: f64, b: f64) -> f64 {
 ///     .alpha(1.0)
 ///     .max_components(10)
 ///     .covariance_type(CovarianceType::Diagonal);
-/// let fitted = model.fit(&X.view(), &()).unwrap();
-/// let labels = fitted.predict(&X.view()).unwrap();
+/// let fitted = model.fit(&X.view(), &()).expect("CRP fitting should succeed with valid data");
+/// let labels = fitted.predict(&X.view()).expect("prediction should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct ChineseRestaurantProcess<S = Untrained> {
@@ -68,6 +72,7 @@ pub struct ChineseRestaurantProcess<S = Untrained> {
     reg_covar: f64,
 }
 
+#[allow(non_snake_case, clippy::too_many_arguments)]
 impl ChineseRestaurantProcess<Untrained> {
     /// Create a new Chinese Restaurant Process
     pub fn new() -> Self {
@@ -188,7 +193,7 @@ impl ChineseRestaurantProcess<Untrained> {
         X: &Array2<f64>,
         table_assignments: &Array1<usize>,
         n_tables: usize,
-    ) -> SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)> {
+    ) -> ComponentParamsResult {
         let (n_samples, n_features) = X.dim();
 
         // Compute weights (normalized table sizes)
@@ -688,9 +693,9 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
     }
 }
 
+#[allow(non_snake_case)]
 impl ChineseRestaurantProcess<ChineseRestaurantProcessTrained> {
     /// Predict class probabilities
-    #[allow(non_snake_case)]
     pub fn predict_proba(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         let X = X.to_owned();
         let (n_samples, _) = X.dim();
@@ -1140,6 +1145,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for DirichletProcessGaussianMixture<Untraine
     }
 }
 
+#[allow(non_snake_case, clippy::too_many_arguments)]
 impl DirichletProcessGaussianMixture<Untrained> {
     fn compute_sample_covariance(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         let (n_samples, n_features) = X.dim();
@@ -1511,9 +1517,9 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
     }
 }
 
+#[allow(non_snake_case)]
 impl DirichletProcessGaussianMixture<DirichletProcessGaussianMixtureTrained> {
     /// Predict class probabilities
-    #[allow(non_snake_case)]
     pub fn predict_proba(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         let X = X.to_owned();
         let (n_samples, _) = X.dim();

@@ -12,44 +12,68 @@ use std::fmt;
 pub enum PipelineError {
     /// Configuration errors with suggestions
     ConfigurationError {
+        /// The message.
         message: String,
+        /// The suggestions.
         suggestions: Vec<String>,
+        /// The context.
         context: ErrorContext,
     },
     /// Data compatibility issues
     DataCompatibilityError {
+        /// The expected.
         expected: DataShape,
+        /// The actual.
         actual: DataShape,
+        /// The stage.
         stage: String,
+        /// The suggestions.
         suggestions: Vec<String>,
     },
     /// Pipeline structure errors
     StructureError {
+        /// The error type.
         error_type: StructureErrorType,
+        /// The affected components.
         affected_components: Vec<String>,
+        /// The suggestions.
         suggestions: Vec<String>,
     },
     /// Performance warnings that may impact execution
     PerformanceWarning {
+        /// The warning type.
         warning_type: PerformanceWarningType,
+        /// The impact level.
         impact_level: ImpactLevel,
+        /// The suggestions.
         suggestions: Vec<String>,
+        /// The metrics.
         metrics: Option<PerformanceMetrics>,
     },
     /// Resource constraint violations
     ResourceError {
+        /// The resource type.
         resource_type: ResourceType,
+        /// The limit.
         limit: f64,
+        /// The current.
         current: f64,
+        /// The component.
         component: String,
+        /// The suggestions.
         suggestions: Vec<String>,
     },
     /// Type safety violations in pipeline composition
     TypeSafetyError {
+        /// The violation type.
         violation_type: TypeViolationType,
+        /// The expected type.
         expected_type: String,
+        /// The actual type.
         actual_type: String,
+        /// The stage.
         stage: String,
+        /// The suggestions.
         suggestions: Vec<String>,
     },
 }
@@ -57,19 +81,28 @@ pub enum PipelineError {
 /// Error context information for debugging
 #[derive(Debug, Clone)]
 pub struct ErrorContext {
+    /// The pipeline stage.
     pub pipeline_stage: String,
+    /// The component name.
     pub component_name: String,
+    /// The input shape.
     pub input_shape: Option<(usize, usize)>,
+    /// The parameters.
     pub parameters: HashMap<String, String>,
+    /// The stack trace.
     pub stack_trace: Vec<String>,
 }
 
 /// Data shape information for compatibility checking
 #[derive(Debug, Clone, PartialEq)]
 pub struct DataShape {
+    /// The samples.
     pub samples: usize,
+    /// The features.
     pub features: usize,
+    /// The data type.
     pub data_type: String,
+    /// The missing values.
     pub missing_values: bool,
 }
 
@@ -134,9 +167,13 @@ pub enum ResourceType {
 /// Performance metrics for context
 #[derive(Debug, Clone)]
 pub struct PerformanceMetrics {
+    /// The execution time ms.
     pub execution_time_ms: f64,
+    /// The memory usage mb.
     pub memory_usage_mb: f64,
+    /// The cpu utilization.
     pub cpu_utilization: f64,
+    /// The cache hit ratio.
     pub cache_hit_ratio: f64,
 }
 
@@ -168,6 +205,7 @@ impl Default for EnhancedErrorBuilder {
 
 impl EnhancedErrorBuilder {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             error_type: None,

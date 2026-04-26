@@ -277,7 +277,7 @@ impl<'a> BatchIterator<'a> {
 
     /// Get the total number of batches
     pub fn n_batches(&self) -> usize {
-        (self.data.nrows() + self.batch_size - 1) / self.batch_size
+        self.data.nrows().div_ceil(self.batch_size)
     }
 
     /// Get the remaining number of samples

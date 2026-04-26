@@ -132,8 +132,8 @@ pub fn simd_aggregate_predictions(
 /// # Returns
 /// Result matrix \[m, n\]
 pub fn simd_batch_matmul(a: &ArrayView2<Float>, b: &ArrayView2<Float>) -> Result<Array2<Float>> {
-    let (m, k1) = a.dim();
-    let (k2, n) = b.dim();
+    let (_m, k1) = a.dim();
+    let (k2, _n) = b.dim();
 
     if k1 != k2 {
         return Err(SklearsError::ShapeMismatch {

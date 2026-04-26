@@ -6,14 +6,19 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use sklears_core::{
     error::Result as SklResult,
-    prelude::{Predict, SklearsError},
+    prelude::SklearsError,
     traits::{Estimator, Fit, Untrained},
     types::Float,
 };
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant, SystemTime};
 
-use crate::{PipelinePredictor, PipelineStep};
+use crate::PipelinePredictor;
+
+/// Windowing trigger function for data point arrays
+type DataTriggerFn = Box<dyn Fn(&[StreamDataPoint]) -> bool + Send + Sync>;
+/// Windowing trigger function for window/stats pairs
+type WindowTriggerFn = Box<dyn Fn(&StreamWindow, &StreamStats) -> bool + Send + Sync>;
 
 /// Data point in a stream
 #[derive(Debug, Clone)]
@@ -174,7 +179,7 @@ pub enum WindowingStrategy {
     /// Custom windowing
     Custom {
         /// Custom window trigger function
-        trigger_fn: Box<dyn Fn(&[StreamDataPoint]) -> bool + Send + Sync>,
+        trigger_fn: DataTriggerFn,
     },
 }
 
@@ -262,7 +267,7 @@ pub enum UpdateStrategy {
     /// Custom update trigger
     Custom {
         /// Update trigger function
-        trigger_fn: Box<dyn Fn(&StreamWindow, &StreamStats) -> bool + Send + Sync>,
+        trigger_fn: WindowTriggerFn,
     },
 }
 
@@ -318,6 +323,7 @@ pub struct StreamingPipeline<S = Untrained> {
 }
 
 /// Trained state for `StreamingPipeline`
+#[allow(dead_code)]
 pub struct StreamingPipelineTrained {
     fitted_estimator: Box<dyn PipelinePredictor>,
     config: StreamConfig,
@@ -597,7 +603,7 @@ impl StreamingPipeline<StreamingPipelineTrained> {
     fn process_sliding_time_windows(
         &mut self,
         duration: Duration,
-        slide: Duration,
+        _slide: Duration,
     ) -> SklResult<()> {
         // Simplified implementation
         self.process_tumbling_time_windows(duration)
@@ -621,7 +627,7 @@ impl StreamingPipeline<StreamingPipelineTrained> {
     }
 
     /// Process sliding count windows
-    fn process_sliding_count_windows(&mut self, size: usize, step: usize) -> SklResult<()> {
+    fn process_sliding_count_windows(&mut self, _size: usize, step: usize) -> SklResult<()> {
         // Simplified implementation - just use tumbling for now
         self.process_tumbling_count_windows(step)
     }
@@ -629,7 +635,7 @@ impl StreamingPipeline<StreamingPipelineTrained> {
     /// Process session windows
     fn process_session_windows(&mut self, gap: Duration) -> SklResult<()> {
         // Simplified implementation
-        let now = SystemTime::now();
+        let _now = SystemTime::now();
 
         if let Some(mut current_window) = self.state.windows.pop() {
             while let Some(point) = self.state.data_buffer.pop_front() {
@@ -685,10 +691,8 @@ impl StreamingPipeline<StreamingPipelineTrained> {
     }
 
     /// Process custom windows
-    fn process_custom_windows(
-        &mut self,
-        trigger_fn: &Box<dyn Fn(&[StreamDataPoint]) -> bool + Send + Sync>,
-    ) -> SklResult<()> {
+    #[allow(dead_code, clippy::borrowed_box)]
+    fn process_custom_windows(&mut self, trigger_fn: &DataTriggerFn) -> SklResult<()> {
         let buffer_vec: Vec<StreamDataPoint> = self.state.data_buffer.iter().cloned().collect();
 
         if trigger_fn(&buffer_vec) {

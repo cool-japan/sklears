@@ -1,3 +1,6 @@
+// Reliability analysis utilities — not yet wired into the public API but kept for completeness
+#![allow(dead_code)]
+
 use super::uncertainty_types::*;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Float;

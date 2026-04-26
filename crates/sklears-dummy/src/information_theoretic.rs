@@ -8,7 +8,7 @@
 //! - Information gain baselines
 
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::{prelude::*, RngExt};
+use scirs2_core::random::prelude::*;
 // Note: SliceRandom not available, will implement manually where needed
 use sklears_core::error::Result;
 use sklears_core::types::{Features, Float, Int};
@@ -78,7 +78,6 @@ impl MaximumEntropyEstimator {
         let mut classes: Vec<Int> = class_counts.keys().copied().collect();
         classes.sort();
         let n_classes = classes.len();
-        let n_samples = y.len() as Float;
 
         // If no constraints provided, use uniform distribution (max entropy)
         let distribution = if let Some(constraints) = self.constraints.clone() {
@@ -376,7 +375,7 @@ impl MutualInformationEstimator {
         target: &Array1<Int>,
     ) -> Result<Float> {
         // Discretize continuous feature into bins
-        let (feature_bins, target_bins) = self.discretize_feature_target(feature, target)?;
+        let (feature_bins, _target_bins) = self.discretize_feature_target(feature, target)?;
 
         // Compute joint and marginal distributions
         let mut joint_counts: HashMap<(usize, Int), usize> = HashMap::new();
@@ -934,7 +933,7 @@ mod tests {
 
         // All samples should be valid class labels
         for &sample in samples.iter() {
-            assert!(sample >= 0 && sample <= 2);
+            assert!((0..=2).contains(&sample));
         }
     }
 

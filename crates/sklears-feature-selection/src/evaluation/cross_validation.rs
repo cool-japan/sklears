@@ -421,7 +421,7 @@ impl NestedCrossValidation {
 pub struct StratifiedKFold {
     n_splits: usize,
     shuffle: bool,
-    random_state: Option<u64>,
+    _random_state: Option<u64>,
 }
 
 impl StratifiedKFold {
@@ -430,7 +430,7 @@ impl StratifiedKFold {
         Self {
             n_splits,
             shuffle,
-            random_state,
+            _random_state: random_state,
         }
     }
 
@@ -717,13 +717,21 @@ impl RepeatedKFold {
 /// Results from nested cross-validation
 #[derive(Debug, Clone)]
 pub struct NestedCVResults {
+    /// outer_scores
     pub outer_scores: Vec<f64>,
+    /// outer_mean_score
     pub outer_mean_score: f64,
+    /// outer_std_score
     pub outer_std_score: f64,
+    /// inner_cv_results
     pub inner_cv_results: Vec<InnerCVResult>,
+    /// inner_mean_score
     pub inner_mean_score: f64,
+    /// feature_stability
     pub feature_stability: FeatureStabilityMetrics,
+    /// n_outer_folds
     pub n_outer_folds: usize,
+    /// n_inner_folds
     pub n_inner_folds: usize,
 }
 
@@ -800,13 +808,18 @@ impl NestedCVResults {
 /// Inner cross-validation result for one outer fold
 #[derive(Debug, Clone)]
 pub struct InnerCVResult {
+    /// outer_fold
     pub outer_fold: usize,
+    /// inner_scores
     pub inner_scores: Vec<f64>,
+    /// mean_score
     pub mean_score: f64,
+    /// selected_features
     pub selected_features: Vec<Vec<usize>>,
 }
 
 impl InnerCVResult {
+    /// std_score
     pub fn std_score(&self) -> f64 {
         if self.inner_scores.len() <= 1 {
             return 0.0;
@@ -825,10 +838,15 @@ impl InnerCVResult {
 /// Feature stability metrics from cross-validation
 #[derive(Debug, Clone)]
 pub struct FeatureStabilityMetrics {
+    /// jaccard_similarity
     pub jaccard_similarity: f64,
+    /// intersection_stability
     pub intersection_stability: f64,
+    /// average_selection_size
     pub average_selection_size: f64,
+    /// unique_features_selected
     pub unique_features_selected: usize,
+    /// feature_frequencies
     pub feature_frequencies: Vec<(usize, f64)>,
 }
 

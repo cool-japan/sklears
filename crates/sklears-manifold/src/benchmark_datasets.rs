@@ -727,7 +727,7 @@ mod tests {
         assert_eq!(colors.len(), 100);
 
         // Check that colors are reasonable (between ~4.71 and ~14.14 for swiss roll)
-        assert!(colors.iter().all(|&x| x >= 4.0 && x <= 15.0));
+        assert!(colors.iter().all(|&x| (4.0..=15.0).contains(&x)));
     }
 
     #[test]
@@ -744,7 +744,7 @@ mod tests {
         assert_eq!(colors.len(), 200);
 
         // Check that colors are angles (between 0 and 2π)
-        assert!(colors.iter().all(|&x| x >= 0.0 && x <= 2.0 * PI));
+        assert!(colors.iter().all(|&x| (0.0..=2.0 * PI).contains(&x)));
     }
 
     #[test]

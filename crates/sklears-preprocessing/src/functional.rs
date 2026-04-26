@@ -10,7 +10,10 @@ use sklears_core::{
     types::Float,
 };
 
-use crate::{Binarizer, LabelBinarizer, NormType, Normalizer};
+use crate::{
+    Binarizer, LabelBinarizer, NormType, Normalizer, PowerMethod, PowerTransformer, QuantileOutput,
+    QuantileTransformer,
+};
 
 /// Standardize a dataset along any axis
 ///
@@ -255,52 +258,58 @@ pub fn robust_scale(
     Ok(result)
 }
 
-// FIXME: Commenting out complex transformations until proper implementations are available
+/// Transform features to uniform or normal distribution.
+///
+/// Maps each feature to a target distribution (uniform or normal) using the
+/// empirical quantile function of the training data.
+///
+/// # Arguments
+/// * `x` - The data to transform
+/// * `n_quantiles` - Number of quantiles to estimate (more = finer approximation)
+/// * `output_distribution` - Target marginal distribution for the transformed data
+/// * `subsample` - Maximum number of samples used for quantile estimation (None = all)
+///
+/// # Returns
+/// Transformed data with features mapped to the target distribution
+pub fn quantile_transform(
+    x: &Array2<Float>,
+    n_quantiles: usize,
+    output_distribution: QuantileOutput,
+    subsample: Option<usize>,
+) -> Result<Array2<Float>> {
+    let mut transformer = QuantileTransformer::new()
+        .n_quantiles(n_quantiles)?
+        .output_distribution(output_distribution);
+    if let Some(s) = subsample {
+        transformer = transformer.subsample(Some(s));
+    }
+    let fitted = transformer.fit(x, &())?;
+    fitted.transform(x)
+}
 
-// /// Transform features to uniform or normal distribution
-// ///
-// /// # Arguments
-// /// * `x` - The data to transform
-// /// * `n_quantiles` - Number of quantiles to estimate
-// /// * `output_distribution` - Marginal distribution for transformed data
-// /// * `subsample` - Maximum number of samples to use for quantile estimation
-// ///
-// /// # Returns
-// /// Transformed data
-// pub fn quantile_transform(
-//     x: &Array2<Float>,
-//     n_quantiles: usize,
-//     output_distribution: QuantileOutput,
-//     subsample: Option<usize>,
-// ) -> Result<Array2<Float>> {
-//     let transformer = QuantileTransformer::new()
-//         .n_quantiles(n_quantiles)
-//         .output_distribution(output_distribution)
-//         .subsample(subsample);
-//     let fitted = transformer.fit(x, &())?;
-//     fitted.transform(x)
-// }
-
-// /// Apply a power transform to make data more Gaussian-like
-// ///
-// /// # Arguments
-// /// * `x` - The data to transform
-// /// * `method` - The power transform method ('yeo-johnson' or 'box-cox')
-// /// * `standardize` - Apply zero-mean, unit-variance normalization
-// ///
-// /// # Returns
-// /// Transformed data
-// pub fn power_transform(
-//     x: &Array2<Float>,
-//     method: PowerMethod,
-//     standardize: bool,
-// ) -> Result<Array2<Float>> {
-//     let transformer = PowerTransformer::new()
-//         .method(method)
-//         .standardize(standardize);
-//     let fitted = transformer.fit(x, &())?;
-//     fitted.transform(x)
-// }
+/// Apply a power transform to make data more Gaussian-like.
+///
+/// Applies either the Box-Cox or Yeo-Johnson power transformation to
+/// stabilise variance and make data more Gaussian-distributed.
+///
+/// # Arguments
+/// * `x` - The data to transform
+/// * `method` - The power transform method (BoxCox requires positive data; YeoJohnson works for any real)
+/// * `standardize` - If `true`, applies zero-mean, unit-variance normalisation after transformation
+///
+/// # Returns
+/// Transformed data with features closer to a Gaussian distribution
+pub fn power_transform(
+    x: &Array2<Float>,
+    method: PowerMethod,
+    standardize: bool,
+) -> Result<Array2<Float>> {
+    let transformer = PowerTransformer::new()
+        .method(method)
+        .standardize(standardize);
+    let fitted = transformer.fit(x, &())?;
+    fitted.transform(x)
+}
 
 /// Add a dummy feature to the data
 ///

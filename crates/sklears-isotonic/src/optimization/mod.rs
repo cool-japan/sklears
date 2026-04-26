@@ -198,6 +198,7 @@ pub enum OptimizationAlgorithm {
     DualDecomposition,
 }
 
+#[allow(clippy::derivable_impls)] // explicit Default to document the choice
 impl Default for OptimizationAlgorithm {
     fn default() -> Self {
         Self::PoolAdjacentViolators

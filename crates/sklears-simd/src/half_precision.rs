@@ -398,7 +398,7 @@ mod tests {
 
     #[test]
     fn test_f16_conversion() {
-        let val = 3.14159f32;
+        let val = std::f32::consts::PI;
         let f16_val = F16::from_f32(val);
         let back_to_f32 = f16_val.to_f32();
 
@@ -408,7 +408,7 @@ mod tests {
 
     #[test]
     fn test_bf16_conversion() {
-        let val = 3.14159f32;
+        let val = std::f32::consts::PI;
         let bf16_val = BF16::from_f32(val);
         let back_to_f32 = bf16_val.to_f32();
 
@@ -488,7 +488,7 @@ mod tests {
 
         simd::add_f16(&a, &b, &mut result);
 
-        let expected = vec![5.0, 7.0, 9.0];
+        let expected = [5.0, 7.0, 9.0];
         for i in 0..3 {
             assert!((result[i].to_f32() - expected[i]).abs() < 0.01);
         }
@@ -510,7 +510,7 @@ mod tests {
 
         simd::add_bf16(&a, &b, &mut result);
 
-        let expected = vec![5.0, 7.0, 9.0];
+        let expected = [5.0, 7.0, 9.0];
         for i in 0..3 {
             assert!((result[i].to_f32() - expected[i]).abs() < 0.01);
         }
@@ -566,7 +566,7 @@ mod tests {
         simd::matmul_f16(&a, &b, &mut c, 2, 2, 2);
 
         // Expected result: [[19, 22], [43, 50]]
-        let expected = vec![19.0, 22.0, 43.0, 50.0];
+        let expected = [19.0, 22.0, 43.0, 50.0];
         for i in 0..4 {
             assert!((c[i].to_f32() - expected[i]).abs() < 0.1);
         }
@@ -592,7 +592,7 @@ mod tests {
         simd::matmul_bf16(&a, &b, &mut c, 2, 2, 2);
 
         // Expected result: [[19, 22], [43, 50]]
-        let expected = vec![19.0, 22.0, 43.0, 50.0];
+        let expected = [19.0, 22.0, 43.0, 50.0];
         for i in 0..4 {
             assert!((c[i].to_f32() - expected[i]).abs() < 0.1);
         }
@@ -639,7 +639,19 @@ mod tests {
     #[test]
     fn test_precision_comparison() {
         let test_values = vec![
-            0.0, 1.0, -1.0, 0.5, -0.5, 3.14159, 2.71828, 1.41421, 1.73205, 0.1, 0.01, 0.001, 0.0001,
+            0.0,
+            1.0,
+            -1.0,
+            0.5,
+            -0.5,
+            std::f32::consts::PI,
+            std::f32::consts::E,
+            std::f32::consts::SQRT_2,
+            1.73205,
+            0.1,
+            0.01,
+            0.001,
+            0.0001,
         ];
 
         for &val in &test_values {

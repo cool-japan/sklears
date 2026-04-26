@@ -76,6 +76,7 @@ pub struct DecompositionSolver {
     config: DecompositionConfig,
     kernel: Box<dyn Kernel>,
     working_sets: Vec<WorkingSet>,
+    #[allow(dead_code)] // intentionally deferred: kernel cache lookup not yet implemented
     kernel_cache: HashMap<(usize, usize), Float>,
     convergence_history: Vec<Float>,
 }
@@ -233,6 +234,7 @@ impl DecompositionSolver {
     }
 
     /// Solve a single working set using SMO
+    #[allow(dead_code)] // intentionally deferred: working set solver not yet called
     fn solve_working_set(
         &mut self,
         working_set: &mut WorkingSet,
@@ -289,6 +291,7 @@ impl DecompositionSolver {
     }
 
     /// Compute cached kernel matrix for working set
+    #[allow(dead_code)] // intentionally deferred: cached kernel matrix computation pending
     fn compute_cached_kernel_matrix(
         &mut self,
         x: &Array2<Float>,
@@ -581,10 +584,15 @@ impl HierarchicalDecomposer {
 /// Single level in hierarchical decomposition
 #[derive(Debug, Clone)]
 struct DecompositionLevel {
+    #[allow(dead_code)] // intentionally deferred: level index readout pending
     level: usize,
+    #[allow(dead_code)] // intentionally deferred: size tracking pending
     original_size: usize,
+    #[allow(dead_code)] // intentionally deferred: size tracking pending
     reduced_size: usize,
+    #[allow(dead_code)] // intentionally deferred: reduction metrics pending
     reduction_factor: Float,
+    #[allow(dead_code)] // intentionally deferred: index mapping readout pending
     mapping: Vec<Vec<usize>>,
 }
 

@@ -24,27 +24,27 @@ use alloc::{format, vec};
 // Mock types for no-std compatibility
 #[cfg(feature = "no-std")]
 #[derive(Debug, Clone, Copy)]
-pub struct Instant(u64);
+pub struct Instant;
 
 #[cfg(feature = "no-std")]
 #[derive(Debug, Clone, Copy)]
-pub struct Duration(u64);
+pub struct Duration;
 
 #[cfg(feature = "no-std")]
 impl Instant {
     pub fn now() -> Self {
-        Instant(0) // Mock implementation for no-std
+        Instant // Mock implementation for no-std
     }
 
     pub fn elapsed(&self) -> Duration {
-        Duration(0) // Mock implementation
+        Duration // Mock implementation
     }
 }
 
 #[cfg(feature = "no-std")]
 impl Duration {
     pub fn as_nanos(&self) -> u128 {
-        0 // Mock implementation
+        0 // Mock implementation for no-std
     }
 }
 

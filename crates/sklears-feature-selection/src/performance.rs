@@ -528,14 +528,15 @@ impl ParallelSelector {
 /// Memory-efficient feature selection with streaming algorithms
 pub struct MemoryEfficientSelector {
     chunk_size: usize,
-    use_memory_mapping: bool,
+    _use_memory_mapping: bool,
 }
 
 impl MemoryEfficientSelector {
+    /// new
     pub fn new(chunk_size: usize, use_memory_mapping: bool) -> Self {
         Self {
             chunk_size,
-            use_memory_mapping,
+            _use_memory_mapping: use_memory_mapping,
         }
     }
 
@@ -700,16 +701,21 @@ pub struct CacheFriendlyMatrix<T> {
 }
 
 #[derive(Debug, Clone, Copy)]
+/// MatrixLayout
 pub enum MatrixLayout {
     /// RowMajor
     RowMajor,
     /// ColumnMajor
     ColumnMajor,
     /// Blocked
-    Blocked { block_size: usize },
+    Blocked {
+        /// block_size
+        block_size: usize,
+    },
 }
 
 impl<T: Clone> CacheFriendlyMatrix<T> {
+    /// new
     pub fn new(data: Vec<T>, n_rows: usize, n_cols: usize, layout: MatrixLayout) -> Self {
         assert_eq!(data.len(), n_rows * n_cols);
 
@@ -721,10 +727,11 @@ impl<T: Clone> CacheFriendlyMatrix<T> {
         }
     }
 
+    /// from_array2
     pub fn from_array2(array: Array2<T>, layout: MatrixLayout) -> Self {
         let (n_rows, n_cols) = array.dim();
         let data = match layout {
-            MatrixLayout::RowMajor => array.into_raw_vec(),
+            MatrixLayout::RowMajor => array.into_raw_vec_and_offset().0,
             MatrixLayout::ColumnMajor => {
                 // Transpose data for column-major layout
                 let mut col_major_data = Vec::with_capacity(n_rows * n_cols);
@@ -750,8 +757,8 @@ impl<T: Clone> CacheFriendlyMatrix<T> {
         let (n_rows, n_cols) = array.dim();
         let mut blocked_data = Vec::with_capacity(n_rows * n_cols);
 
-        let row_blocks = (n_rows + block_size - 1) / block_size;
-        let col_blocks = (n_cols + block_size - 1) / block_size;
+        let row_blocks = n_rows.div_ceil(block_size);
+        let col_blocks = n_cols.div_ceil(block_size);
 
         for row_block in 0..row_blocks {
             for col_block in 0..col_blocks {
@@ -771,6 +778,7 @@ impl<T: Clone> CacheFriendlyMatrix<T> {
         blocked_data
     }
 
+    /// get
     pub fn get(&self, row: usize, col: usize) -> Option<&T> {
         if row >= self.n_rows || col >= self.n_cols {
             return None;
@@ -791,7 +799,7 @@ impl<T: Clone> CacheFriendlyMatrix<T> {
         let row_in_block = row % block_size;
         let col_in_block = col % block_size;
 
-        let col_blocks = (self.n_cols + block_size - 1) / block_size;
+        let col_blocks = self.n_cols.div_ceil(block_size);
         let block_index = row_block * col_blocks + col_block;
         let block_offset = block_index * block_size * block_size;
         let in_block_index = row_in_block * block_size + col_in_block;
@@ -799,11 +807,13 @@ impl<T: Clone> CacheFriendlyMatrix<T> {
         block_offset + in_block_index
     }
 
+    /// column_iter
     pub fn column_iter(&self, col: usize) -> ColumnIterator<'_, T> {
         ColumnIterator::new(self, col)
     }
 }
 
+/// ColumnIterator
 pub struct ColumnIterator<'a, T> {
     matrix: &'a CacheFriendlyMatrix<T>,
     col: usize,
@@ -847,6 +857,7 @@ impl Default for PerformanceProfiler {
 }
 
 impl PerformanceProfiler {
+    /// new
     pub fn new() -> Self {
         Self {
             timings: Arc::new(Mutex::new(Vec::new())),
@@ -854,6 +865,7 @@ impl PerformanceProfiler {
         }
     }
 
+    /// time_operation
     pub fn time_operation<F, R>(&self, name: &str, operation: F) -> R
     where
         F: FnOnce() -> R,
@@ -869,12 +881,14 @@ impl PerformanceProfiler {
         result
     }
 
+    /// record_memory_usage
     pub fn record_memory_usage(&self, name: &str, bytes: usize) {
         if let Ok(mut memory) = self.memory_usage.lock() {
             memory.push((name.to_string(), bytes));
         }
     }
 
+    /// get_report
     pub fn get_report(&self) -> PerformanceReport {
         let timings = self
             .timings
@@ -901,14 +915,20 @@ impl PerformanceProfiler {
 }
 
 #[derive(Debug, Clone)]
+/// PerformanceReport
 pub struct PerformanceReport {
+    /// timings
     pub timings: Vec<(String, std::time::Duration)>,
+    /// memory_usage
     pub memory_usage: Vec<(String, usize)>,
+    /// total_time
     pub total_time: std::time::Duration,
+    /// peak_memory
     pub peak_memory: usize,
 }
 
 impl PerformanceReport {
+    /// print_summary
     pub fn print_summary(&self) {
         println!("=== Performance Report ===");
         println!("Total execution time: {:?}", self.total_time);

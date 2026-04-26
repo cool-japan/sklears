@@ -18,7 +18,11 @@ pub enum SklearsComposeError {
 
     /// Invalid data
     #[error("Invalid data: {reason}")]
-    InvalidData { reason: String },
+    /// Field value.
+    InvalidData {
+        /// The reason.
+        reason: String,
+    },
 
     /// Invalid operation
     #[error("Invalid operation: {0}")]

@@ -29,8 +29,8 @@ use crate::utils;
 ///
 /// let kernel = RBF::new(1.0);
 /// let gpc = GaussianProcessClassifier::new().kernel(Box::new(kernel));
-/// let fitted = gpc.fit(&X.view(), &y.view()).unwrap();
-/// let predictions = fitted.predict(&X.view()).unwrap();
+/// let fitted = gpc.fit(&X.view(), &y.view()).expect("fit should succeed with valid training data");
+/// let predictions = fitted.predict(&X.view()).expect("predict should succeed on trained model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct GaussianProcessClassifier<S = Untrained> {
@@ -47,6 +47,7 @@ pub struct GaussianProcessClassifier<S = Untrained> {
 
 /// Trained state for Gaussian Process Classifier
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct GpcTrained {
     /// X_train
     pub X_train: Option<Array2<f64>>, // Training inputs
@@ -182,6 +183,7 @@ impl Estimator for GaussianProcessClassifier<GpcTrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for GaussianProcessClassifier<Untrained> {
     type Fitted = GaussianProcessClassifier<GpcTrained>;
 
@@ -257,6 +259,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for GaussianProcessClassifier
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<ArrayView2<'_, f64>, Array1<i32>> for GaussianProcessClassifier<GpcTrained> {
     fn predict(&self, X: &ArrayView2<f64>) -> SklResult<Array1<i32>> {
         let probabilities = self.predict_proba(X)?;
@@ -276,6 +279,7 @@ impl Predict<ArrayView2<'_, f64>, Array1<i32>> for GaussianProcessClassifier<Gpc
     }
 }
 
+#[allow(non_snake_case)]
 impl PredictProba<ArrayView2<'_, f64>, Array2<f64>> for GaussianProcessClassifier<GpcTrained> {
     #[allow(non_snake_case)]
     fn predict_proba(&self, X: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
@@ -307,6 +311,7 @@ impl PredictProba<ArrayView2<'_, f64>, Array2<f64>> for GaussianProcessClassifie
     }
 }
 
+#[allow(non_snake_case)]
 impl GaussianProcessClassifier<GpcTrained> {
     /// Get the log marginal likelihood
     pub fn log_marginal_likelihood(&self) -> f64 {
@@ -330,13 +335,12 @@ pub fn sigmoid_derivative(x: f64) -> f64 {
     s * (1.0 - s)
 }
 
+/// Return type for laplace_approximation: (f, pi, W_sr, L, log_marginal_likelihood)
+type LaplaceResult = SklResult<(Array1<f64>, Array1<f64>, Array1<f64>, Array2<f64>, f64)>;
+
 /// Laplace approximation for binary classification
 #[allow(non_snake_case)]
-fn laplace_approximation(
-    K: &Array2<f64>,
-    y: &Array1<f64>,
-    max_iter: usize,
-) -> SklResult<(Array1<f64>, Array1<f64>, Array1<f64>, Array2<f64>, f64)> {
+fn laplace_approximation(K: &Array2<f64>, y: &Array1<f64>, max_iter: usize) -> LaplaceResult {
     let n = K.nrows();
     let mut f = Array1::<f64>::zeros(n);
     let tol = 1e-6;
@@ -398,6 +402,7 @@ fn laplace_approximation(
 }
 
 /// Predict latent function values
+#[allow(non_snake_case)]
 fn predict_latent_function(
     K_star: &Array2<f64>,
     f_train: &Array1<f64>,
@@ -435,8 +440,8 @@ impl Default for GaussianProcessClassifier<Untrained> {
 /// let kernel = RBF::new(1.0);
 /// let mc_gpc = MultiClassGaussianProcessClassifier::new()
 ///     .kernel(Box::new(kernel));
-/// let fitted = mc_gpc.fit(&X.view(), &y.view()).unwrap();
-/// let predictions = fitted.predict(&X.view()).unwrap();
+/// let fitted = mc_gpc.fit(&X.view(), &y.view()).expect("fit should succeed with valid training data");
+/// let predictions = fitted.predict(&X.view()).expect("predict should succeed on trained model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct MultiClassGaussianProcessClassifier<S = Untrained> {
@@ -453,6 +458,7 @@ pub struct MultiClassGaussianProcessClassifier<S = Untrained> {
 
 /// Trained state for Multi-class Gaussian Process Classifier
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct McGpcTrained {
     /// X_train
     pub X_train: Option<Array2<f64>>, // Training inputs
@@ -545,6 +551,7 @@ impl Estimator for MultiClassGaussianProcessClassifier<McGpcTrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>>
     for MultiClassGaussianProcessClassifier<Untrained>
 {
@@ -660,6 +667,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>>
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<ArrayView2<'_, f64>, Array1<i32>>
     for MultiClassGaussianProcessClassifier<McGpcTrained>
 {
@@ -681,6 +689,7 @@ impl Predict<ArrayView2<'_, f64>, Array1<i32>>
     }
 }
 
+#[allow(non_snake_case)]
 impl PredictProba<ArrayView2<'_, f64>, Array2<f64>>
     for MultiClassGaussianProcessClassifier<McGpcTrained>
 {
@@ -723,6 +732,7 @@ impl PredictProba<ArrayView2<'_, f64>, Array2<f64>>
     }
 }
 
+#[allow(non_snake_case)]
 impl MultiClassGaussianProcessClassifier<McGpcTrained> {
     /// Get the unique classes
     pub fn classes(&self) -> &Array1<i32> {
@@ -789,8 +799,8 @@ impl Default for MultiClassGaussianProcessClassifier<Untrained> {
 /// let kernel = RBF::new(1.0);
 /// let ep_gpc = ExpectationPropagationGaussianProcessClassifier::new()
 ///     .kernel(Box::new(kernel));
-/// let fitted = ep_gpc.fit(&X.view(), &y.view()).unwrap();
-/// let predictions = fitted.predict(&X.view()).unwrap();
+/// let fitted = ep_gpc.fit(&X.view(), &y.view()).expect("fit should succeed with valid training data");
+/// let predictions = fitted.predict(&X.view()).expect("predict should succeed on trained model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct ExpectationPropagationGaussianProcessClassifier<S = Untrained> {
@@ -807,6 +817,7 @@ pub struct ExpectationPropagationGaussianProcessClassifier<S = Untrained> {
 
 /// Trained state for Expectation Propagation Gaussian Process Classifier
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct EpGpcTrained {
     /// X_train
     pub X_train: Option<Array2<f64>>, // Training inputs
@@ -866,7 +877,7 @@ impl ExpectationPropagationGaussianProcessClassifier<Untrained> {
 
     /// Set damping factor for updates
     pub fn damping(mut self, damping: f64) -> Self {
-        self.damping = damping.max(0.0).min(1.0);
+        self.damping = damping.clamp(0.0, 1.0);
         self
     }
 
@@ -909,6 +920,7 @@ impl Estimator for ExpectationPropagationGaussianProcessClassifier<EpGpcTrained>
     }
 }
 
+#[allow(non_snake_case)]
 impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>>
     for ExpectationPropagationGaussianProcessClassifier<Untrained>
 {
@@ -990,6 +1002,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>>
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<ArrayView2<'_, f64>, Array1<i32>>
     for ExpectationPropagationGaussianProcessClassifier<EpGpcTrained>
 {
@@ -1080,7 +1093,18 @@ impl Default for ExpectationPropagationGaussianProcessClassifier<Untrained> {
 
 // Helper functions for Expectation Propagation
 
+/// Return type for expectation_propagation: (mu, Sigma, tau, nu, log_marginal_likelihood, n_iter)
+type EpResult = SklResult<(
+    Array1<f64>,
+    Array2<f64>,
+    Array1<f64>,
+    Array1<f64>,
+    f64,
+    usize,
+)>;
+
 /// Run Expectation Propagation algorithm
+#[allow(non_snake_case)]
 fn expectation_propagation(
     K: &Array2<f64>,
     y: &Array1<f64>,
@@ -1089,14 +1113,7 @@ fn expectation_propagation(
     damping: f64,
     min_variance: f64,
     verbose: bool,
-) -> SklResult<(
-    Array1<f64>,
-    Array2<f64>,
-    Array1<f64>,
-    Array1<f64>,
-    f64,
-    usize,
-)> {
+) -> EpResult {
     let n = K.nrows();
 
     // Initialize site parameters
@@ -1245,6 +1262,7 @@ fn min_variance_global() -> f64 {
 }
 
 /// Predict with EP posterior
+#[allow(non_snake_case)]
 fn ep_predict(
     K_star: &Array2<f64>,
     mu: &Array1<f64>,
@@ -1267,6 +1285,7 @@ fn ep_predict(
 }
 
 /// Compute log marginal likelihood for EP
+#[allow(non_snake_case)]
 fn compute_ep_log_marginal_likelihood(
     K: &Array2<f64>,
     tau: &Array1<f64>,

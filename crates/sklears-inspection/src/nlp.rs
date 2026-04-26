@@ -7,7 +7,6 @@
 use crate::{types::Float, SklResult, SklearsError};
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::Rng;
 use std::collections::HashMap;
 
 /// Configuration for NLP interpretability methods
@@ -253,7 +252,7 @@ where
 pub fn analyze_text_attention(
     attention_weights: &ArrayView2<Float>,
     tokens: &[Token],
-    config: &NLPConfig,
+    _config: &NLPConfig,
 ) -> SklResult<AttentionExplanation> {
     if attention_weights.is_empty() {
         return Err(SklearsError::InvalidInput(
@@ -288,14 +287,14 @@ pub fn analyze_text_attention(
 /// Visualize word importance
 pub fn visualize_word_importance(
     result: &WordImportanceResult,
-    config: &NLPConfig,
+    _config: &NLPConfig,
 ) -> SklResult<String> {
     let mut html = String::new();
     html.push_str("<div class=\"word-importance-visualization\">\n");
 
     for (i, token) in result.tokens.iter().enumerate() {
         let importance = result.importance_scores[i];
-        let color_intensity = (importance.abs() * 255.0) as u8;
+        let _color_intensity = (importance.abs() * 255.0) as u8;
         let color = if importance >= 0.0 {
             format!("rgba(0, 255, 0, {})", importance.abs())
         } else {
@@ -442,6 +441,7 @@ fn compute_text_lime_weights(
 }
 
 /// Solve linear regression for LIME weights
+#[allow(non_snake_case)] // standard ML notation
 fn solve_lime_regression(
     X: &Array2<Float>,
     y: &[Array1<Float>],

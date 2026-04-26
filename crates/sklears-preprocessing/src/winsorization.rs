@@ -537,8 +537,8 @@ mod tests {
         let lower = winsorizer.lower_bounds()[0];
         let upper = winsorizer.upper_bounds()[0];
 
-        assert!(lower >= 2.0 && lower <= 3.5);
-        assert!(upper >= 7.5 && upper <= 9.0);
+        assert!((2.0..=3.5).contains(&lower));
+        assert!((7.5..=9.0).contains(&upper));
     }
 
     #[test]

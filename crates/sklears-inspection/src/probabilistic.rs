@@ -116,6 +116,7 @@ pub struct BayesianModelAveragingResult {
 }
 
 /// Generate Bayesian explanations using posterior inference
+#[allow(non_snake_case)] // standard ML notation
 pub fn generate_bayesian_explanation<F>(
     explain_fn: F,
     X: &ArrayView2<Float>,
@@ -325,11 +326,12 @@ where
 }
 
 /// Perform Bayesian model averaging for explanations
+#[allow(non_snake_case)] // standard ML notation
 pub fn bayesian_model_averaging<F>(
     models: Vec<F>,
     X: &ArrayView2<Float>,
     y: &ArrayView1<Float>,
-    config: &ProbabilisticConfig,
+    _config: &ProbabilisticConfig,
 ) -> SklResult<BayesianModelAveragingResult>
 where
     F: Fn(&ArrayView2<Float>, &ArrayView1<Float>) -> SklResult<Array1<Float>>,
@@ -393,7 +395,7 @@ where
     let mut sigma = Array1::ones(n_features);
 
     // Variational optimization (simplified)
-    for epoch in 0..100 {
+    for _epoch in 0..100 {
         let mut gradient_mu = Array1::<Float>::zeros(n_features);
         let mut gradient_sigma = Array1::<Float>::zeros(n_features);
 
@@ -431,8 +433,9 @@ where
     Ok(())
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn generate_mcmc_samples<F>(
-    explain_fn: F,
+    _explain_fn: F,
     X: &ArrayView2<Float>,
     y: &ArrayView1<Float>,
     config: &ProbabilisticConfig,
@@ -450,7 +453,7 @@ where
     let mut current_state = Array1::zeros(n_features);
     let mut current_log_likelihood = compute_log_likelihood(&current_state, X, y)?;
 
-    let mut accepted = 0;
+    let mut _accepted = 0; // acceptance rate counter, reserved for diagnostics
     let proposal_scale = 0.1;
 
     for i in 0..total_samples {
@@ -467,7 +470,7 @@ where
         if rng.random::<Float>() < alpha {
             current_state = proposal;
             current_log_likelihood = proposal_log_likelihood;
-            accepted += 1;
+            _accepted += 1;
         }
 
         // Store sample after burn-in
@@ -685,6 +688,7 @@ fn sample_gaussian(
     sample
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn add_noise_to_features(
     X: &ArrayView2<Float>,
     noise: &Array1<Float>,
@@ -700,6 +704,7 @@ fn add_noise_to_features(
     X_noisy
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn add_gaussian_noise(
     X: &ArrayView2<Float>,
     noise_scale: Float,
@@ -717,6 +722,7 @@ fn add_gaussian_noise(
     X_noisy
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_log_likelihood(
     params: &Array1<Float>,
     X: &ArrayView2<Float>,
@@ -764,6 +770,7 @@ fn compute_autocorrelation(series: &ArrayView1<Float>, lag: usize) -> Float {
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn stack_rows(X: &ArrayView2<Float>, indices: &[usize]) -> SklResult<Array2<Float>> {
     let n_rows = indices.len();
     let n_cols = X.ncols();
@@ -785,6 +792,7 @@ fn select_elements(arr: &ArrayView1<Float>, indices: &[usize]) -> Array1<Float> 
     Array1::from_vec(indices.iter().map(|&i| arr[i]).collect())
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_model_likelihood(
     importance: &Array1<Float>,
     X: &ArrayView2<Float>,
@@ -795,6 +803,7 @@ fn compute_model_likelihood(
     Ok(prediction_quality.ln())
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_prediction_quality(
     importance: &Array1<Float>,
     X: &ArrayView2<Float>,
@@ -807,7 +816,7 @@ fn compute_prediction_quality(
 }
 
 fn compute_correlation(x: &Array1<Float>, y: &ArrayView1<Float>) -> Float {
-    let n = x.len() as Float;
+    let _n = x.len() as Float;
     let mean_x = x.mean().unwrap_or(0.0);
     let mean_y = y.mean().unwrap_or(0.0);
 
@@ -895,7 +904,7 @@ mod tests {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
         let y = array![1.0, 2.0, 3.0];
 
-        let explain_fn = |X: &ArrayView2<Float>, y: &ArrayView1<Float>| {
+        let explain_fn = |_X: &ArrayView2<Float>, _y: &ArrayView1<Float>| {
             Ok(array![0.5, 0.3]) // Mock explanation
         };
 
@@ -918,9 +927,9 @@ mod tests {
         let instance = array![1.0, 2.0];
         let target_class = 1;
 
-        let model = |X: &ArrayView2<Float>| {
-            let n_samples = X.nrows();
-            Ok(Array2::from_shape_fn((n_samples, 2), |(i, j)| {
+        let model = |xv: &ArrayView2<Float>| {
+            let n_samples = xv.nrows();
+            Ok(Array2::from_shape_fn((n_samples, 2), |(_i, j)| {
                 if j == 0 {
                     0.6
                 } else {
@@ -949,7 +958,7 @@ mod tests {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
         let y = array![1.0, 2.0, 3.0];
 
-        let explain_fn = |X: &ArrayView2<Float>, y: &ArrayView1<Float>| {
+        let explain_fn = |_X: &ArrayView2<Float>, _y: &ArrayView1<Float>| {
             Ok(array![0.5, 0.3]) // Mock explanation
         };
 
@@ -973,8 +982,8 @@ mod tests {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
         let y = array![1.0, 2.0, 3.0];
 
-        let model1 = |X: &ArrayView2<Float>, y: &ArrayView1<Float>| Ok(array![0.5, 0.3]);
-        let model2 = |X: &ArrayView2<Float>, y: &ArrayView1<Float>| Ok(array![0.4, 0.6]);
+        let model1 = |_X: &ArrayView2<Float>, _y: &ArrayView1<Float>| Ok(array![0.5, 0.3]);
+        let model2 = |_X: &ArrayView2<Float>, _y: &ArrayView1<Float>| Ok(array![0.4, 0.6]);
         let models = vec![model1, model2];
 
         let config = ProbabilisticConfig::default();

@@ -5,13 +5,20 @@
 
 use chrono::{DateTime, Utc};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use serde::{Deserialize, Serialize};
 use sklears_core::{error::Result as SklResult, traits::Estimator};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
+
+/// Time-stamped u64 samples
+type TimestampedU64 = Arc<Mutex<Vec<(DateTime<Utc>, u64)>>>;
+/// Time-stamped f64 samples
+type TimestampedF64 = Arc<Mutex<Vec<(DateTime<Utc>, f64)>>>;
+/// Time-stamped usize samples
+type TimestampedUsize = Arc<Mutex<Vec<(DateTime<Utc>, usize)>>>;
 
 /// Stress testing framework for complex machine learning pipelines
 pub struct StressTester {
@@ -72,36 +79,51 @@ impl Default for StressTestConfig {
 pub enum StressTestScenario {
     /// High volume data processing
     HighVolumeData {
+        /// The scale factor.
         scale_factor: f64,
+        /// The batch size.
         batch_size: usize,
     },
     /// Concurrent pipeline execution
     ConcurrentExecution {
+        /// The num threads.
         num_threads: usize,
+        /// The num pipelines.
         num_pipelines: usize,
     },
     /// Memory pressure testing
     MemoryPressure {
+        /// The target memory mb.
         target_memory_mb: u64,
+        /// The allocation pattern.
         allocation_pattern: MemoryPattern,
     },
     /// CPU intensive operations
     CpuIntensive {
+        /// The complexity level.
         complexity_level: usize,
+        /// The computation type.
         computation_type: ComputationType,
     },
     /// Long running stability test
     LongRunning {
+        /// The duration.
         duration: Duration,
+        /// The operation interval.
         operation_interval: Duration,
     },
     /// Resource starvation
     ResourceStarvation {
+        /// The memory limit mb.
         memory_limit_mb: u64,
+        /// The cpu limit percent.
         cpu_limit_percent: f64,
     },
     /// Edge case handling
-    EdgeCaseHandling { edge_cases: Vec<EdgeCase> },
+    EdgeCaseHandling {
+        /// The edge cases.
+        edge_cases: Vec<EdgeCase>,
+    },
 }
 
 /// Memory allocation patterns for testing
@@ -138,15 +160,27 @@ pub enum EdgeCase {
     /// Single sample datasets
     SingleSample,
     /// Extremely large feature dimensions
-    HighDimensional { dimensions: usize },
+    HighDimensional {
+        /// The dimensions.
+        dimensions: usize,
+    },
     /// Datasets with all identical values
     IdenticalValues,
     /// Datasets with extreme outliers
-    ExtremeOutliers { outlier_magnitude: f64 },
+    ExtremeOutliers {
+        /// The outlier magnitude.
+        outlier_magnitude: f64,
+    },
     /// Datasets with missing values
-    MissingValues { missing_ratio: f64 },
+    MissingValues {
+        /// The missing ratio.
+        missing_ratio: f64,
+    },
     /// Highly correlated features
-    HighlyCorrelated { correlation: f64 },
+    HighlyCorrelated {
+        /// The correlation.
+        correlation: f64,
+    },
     /// Numerical precision edge cases
     NumericalEdges,
 }
@@ -155,17 +189,18 @@ pub enum EdgeCase {
 #[derive(Debug, Clone)]
 pub struct ResourceMonitor {
     /// Memory usage samples
-    pub memory_usage: Arc<Mutex<Vec<(DateTime<Utc>, u64)>>>,
+    pub memory_usage: TimestampedU64,
     /// CPU usage samples
-    pub cpu_usage: Arc<Mutex<Vec<(DateTime<Utc>, f64)>>>,
+    pub cpu_usage: TimestampedF64,
     /// Thread count samples
-    pub thread_count: Arc<Mutex<Vec<(DateTime<Utc>, usize)>>>,
+    pub thread_count: TimestampedUsize,
     /// Monitoring active flag
     pub monitoring_active: Arc<Mutex<bool>>,
 }
 
 impl ResourceMonitor {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             memory_usage: Arc::new(Mutex::new(Vec::new())),
@@ -271,11 +306,17 @@ impl Default for ResourceMonitor {
 /// Resource usage statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceStats {
+    /// The min.
     pub min: f64,
+    /// The max.
     pub max: f64,
+    /// The mean.
     pub mean: f64,
+    /// The std dev.
     pub std_dev: f64,
+    /// The percentile 95.
     pub percentile_95: f64,
+    /// The percentile 99.
     pub percentile_99: f64,
 }
 
@@ -354,9 +395,13 @@ pub struct StressTestResult {
 /// Resource usage statistics for stress test
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceUsageStats {
+    /// The memory.
     pub memory: ResourceStats,
+    /// The cpu.
     pub cpu: ResourceStats,
+    /// The max threads.
     pub max_threads: usize,
+    /// The io operations.
     pub io_operations: u64,
 }
 
@@ -365,36 +410,52 @@ pub struct ResourceUsageStats {
 pub enum StressTestIssue {
     /// Memory leak detected
     MemoryLeak {
+        /// The initial memory.
         initial_memory: u64,
+        /// The final memory.
         final_memory: u64,
+        /// The leak rate mb per sec.
         leak_rate_mb_per_sec: f64,
     },
     /// Deadlock detected
     Deadlock {
+        /// The thread ids.
         thread_ids: Vec<usize>,
+        /// The duration.
         duration: Duration,
     },
     /// Performance degradation
     PerformanceDegradation {
+        /// The baseline time.
         baseline_time: Duration,
+        /// The actual time.
         actual_time: Duration,
+        /// The degradation factor.
         degradation_factor: f64,
     },
     /// Resource exhaustion
     ResourceExhaustion {
+        /// The resource type.
         resource_type: String,
+        /// The limit.
         limit: f64,
+        /// The peak usage.
         peak_usage: f64,
     },
     /// Error rate spike
     ErrorRateSpike {
+        /// The baseline error rate.
         baseline_error_rate: f64,
+        /// The actual error rate.
         actual_error_rate: f64,
+        /// The spike factor.
         spike_factor: f64,
     },
     /// Timeout
     Timeout {
+        /// The expected duration.
         expected_duration: Duration,
+        /// The actual duration.
         actual_duration: Duration,
     },
 }
@@ -492,7 +553,7 @@ impl StressTester {
         let n_samples = (10000.0 * scale_factor) as usize;
         let n_features = 100;
 
-        let data = Array2::<f64>::zeros((n_samples, n_features));
+        let _data = Array2::<f64>::zeros((n_samples, n_features));
         let _targets = Array1::<f64>::zeros(n_samples);
 
         // Mock processing
@@ -910,15 +971,25 @@ impl Default for ResourceUsageStats {
 /// Comprehensive stress test report
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StressTestReport {
+    /// The timestamp.
     pub timestamp: DateTime<Utc>,
+    /// The config.
     pub config: StressTestConfig,
+    /// The total tests.
     pub total_tests: usize,
+    /// The successful tests.
     pub successful_tests: usize,
+    /// The failed tests.
     pub failed_tests: usize,
+    /// The avg execution time.
     pub avg_execution_time: Duration,
+    /// The peak memory usage.
     pub peak_memory_usage: u64,
+    /// The detected issues.
     pub detected_issues: Vec<StressTestIssue>,
+    /// The results.
     pub results: Vec<StressTestResult>,
+    /// The recommendations.
     pub recommendations: Vec<String>,
 }
 
@@ -926,7 +997,6 @@ pub struct StressTestReport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::Array2;
     use sklears_core::error::SklearsError;
 
     // Mock estimator for testing

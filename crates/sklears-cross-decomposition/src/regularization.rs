@@ -87,6 +87,7 @@ impl ElasticNet {
     }
 
     /// Fit elastic net to data using coordinate descent
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(&self, X: &Array2<Float>, y: &Array1<Float>) -> Result<Array1<Float>> {
         let (n_samples, n_features) = X.dim();
 
@@ -99,7 +100,7 @@ impl ElasticNet {
         }
 
         // Normalize features if requested
-        let (X_norm, feature_means, feature_stds) = if self.normalize {
+        let (X_norm, _feature_means, feature_stds) = if self.normalize {
             self.normalize_features(X)?
         } else {
             (
@@ -110,7 +111,7 @@ impl ElasticNet {
         };
 
         // Center target if fitting intercept
-        let (y_centered, y_mean) = if self.fit_intercept {
+        let (y_centered, _y_mean) = if self.fit_intercept {
             let mean = y.mean().unwrap_or_default();
             (y - mean, mean)
         } else {
@@ -121,7 +122,7 @@ impl ElasticNet {
         let mut coef = Array1::zeros(n_features);
 
         // Coordinate descent algorithm
-        for iter in 0..self.max_iter {
+        for _iter in 0..self.max_iter {
             let old_coef = coef.clone();
 
             for j in 0..n_features {
@@ -181,6 +182,7 @@ impl ElasticNet {
     }
 
     /// Normalize features to zero mean and unit variance
+    #[allow(non_snake_case)] // standard ML notation
     fn normalize_features(
         &self,
         X: &Array2<Float>,
@@ -209,6 +211,7 @@ impl ElasticNet {
     }
 
     /// Compute elastic net regularization path for different alpha values
+    #[allow(non_snake_case)] // standard ML notation
     pub fn path(
         &self,
         X: &Array2<Float>,
@@ -268,6 +271,7 @@ impl GroupLasso {
     }
 
     /// Fit group lasso using block coordinate descent
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(&self, X: &Array2<Float>, y: &Array1<Float>) -> Result<Array1<Float>> {
         let (n_samples, n_features) = X.dim();
         let mut coef = Array1::zeros(n_features);
@@ -362,9 +366,10 @@ impl GroupLasso {
     }
 
     /// Solve within-group optimization problem
+    #[allow(non_snake_case)] // standard ML notation
     fn solve_within_group(
         &self,
-        XtX: &Array2<Float>,
+        _XtX: &Array2<Float>,
         gradient: &Array1<Float>,
         shrinkage: Float,
     ) -> Result<Array1<Float>> {
@@ -417,6 +422,7 @@ impl FusedLasso {
     }
 
     /// Fit fused lasso using proximal gradient method
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(&self, X: &Array2<Float>, y: &Array1<Float>) -> Result<Array1<Float>> {
         let (n_samples, n_features) = X.dim();
         let mut coef = Array1::zeros(n_features);
@@ -512,6 +518,7 @@ pub struct AdaptiveLasso {
 
 impl AdaptiveLasso {
     /// Create adaptive lasso with weights based on initial OLS estimates
+    #[allow(non_snake_case)] // standard ML notation
     pub fn from_ols(
         alpha: Float,
         X: &Array2<Float>,
@@ -547,6 +554,7 @@ impl AdaptiveLasso {
     }
 
     /// Fit adaptive lasso using coordinate descent
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(&self, X: &Array2<Float>, y: &Array1<Float>) -> Result<Array1<Float>> {
         let (n_samples, n_features) = X.dim();
         let mut coef = Array1::zeros(n_features);
@@ -598,6 +606,7 @@ impl AdaptiveLasso {
     }
 
     /// Simple normal equations solver (for weights computation)
+    #[allow(non_snake_case)] // standard ML notation
     fn solve_normal_equations(XtX: &Array2<Float>, Xty: &Array1<Float>) -> Result<Array1<Float>> {
         // Simplified solver - in practice use proper matrix inversion/Cholesky
         let n = XtX.nrows();
@@ -696,6 +705,7 @@ impl SCAD {
     }
 
     /// Fit SCAD regularized regression using coordinate descent
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(&self, X: &Array2<Float>, y: &Array1<Float>) -> Result<Array1<Float>> {
         let (n_samples, n_features) = X.dim();
 
@@ -882,6 +892,7 @@ impl MCP {
     }
 
     /// Fit MCP regularized regression using coordinate descent
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(&self, X: &Array2<Float>, y: &Array1<Float>) -> Result<Array1<Float>> {
         let (n_samples, n_features) = X.dim();
 
@@ -1198,7 +1209,7 @@ mod tests {
 
         assert_eq!(scad.max_iter, 500);
         assert_eq!(scad.tol, 1e-6);
-        assert_eq!(scad.fit_intercept, false);
+        assert!(!scad.fit_intercept);
         assert_eq!(scad.step_size, 0.02);
 
         // Test MCP builder pattern
@@ -1211,7 +1222,7 @@ mod tests {
 
         assert_eq!(mcp.max_iter, 800);
         assert_eq!(mcp.tol, 1e-5);
-        assert_eq!(mcp.fit_intercept, true);
+        assert!(mcp.fit_intercept);
         assert_eq!(mcp.step_size, 0.05);
     }
 }

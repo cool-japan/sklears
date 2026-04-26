@@ -552,6 +552,7 @@ pub enum MemoryOperation {
 
 /// Memory-efficient coordinate descent implementation
 pub struct MemoryEfficientCoordinateDescent {
+    #[allow(dead_code)] // memory-efficient ops handle used by solve methods added in future
     ops: MemoryEfficientOps,
 }
 

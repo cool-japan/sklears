@@ -23,11 +23,65 @@ impl MultiViewDiscriminantAnalysisUntrained {
         }
     }
 
-    // Builder pattern methods
-    // TODO: Extract from original multi_view_discriminant.rs
-    // pub fn fusion_strategy(mut self, strategy: FusionStrategy) -> Self { ... }
-    // pub fn view_regularization(mut self, reg: Float) -> Self { ... }
-    // ... other builder methods
+    /// Set the fusion strategy for combining views
+    pub fn fusion_strategy(mut self, strategy: super::types::FusionStrategy) -> Self {
+        self.config.fusion_strategy = strategy;
+        self
+    }
+
+    /// Set the regularization parameter for view weighting
+    pub fn view_regularization(mut self, reg: Float) -> Self {
+        self.config.view_regularization = reg;
+        self
+    }
+
+    /// Set the number of components per view
+    pub fn n_components_per_view(mut self, n: Option<usize>) -> Self {
+        self.config.n_components_per_view = n;
+        self
+    }
+
+    /// Set the total number of components for the final representation
+    pub fn n_components(mut self, n: Option<usize>) -> Self {
+        self.config.n_components = n;
+        self
+    }
+
+    /// Set whether to standardize each view independently
+    pub fn standardize_views(mut self, standardize: bool) -> Self {
+        self.config.standardize_views = standardize;
+        self
+    }
+
+    /// Set the convergence tolerance
+    pub fn tol(mut self, tol: Float) -> Self {
+        self.config.tol = tol;
+        self
+    }
+
+    /// Set the maximum number of iterations
+    pub fn max_iter(mut self, max_iter: usize) -> Self {
+        self.config.max_iter = max_iter;
+        self
+    }
+
+    /// Set the random state for reproducibility
+    pub fn random_state(mut self, seed: Option<u64>) -> Self {
+        self.config.random_state = seed;
+        self
+    }
+
+    /// Enable heterogeneous feature integration
+    pub fn enable_heterogeneous(mut self, enable: bool) -> Self {
+        self.config.enable_heterogeneous = enable;
+        self
+    }
+
+    /// Set the global distance metric for heterogeneous features
+    pub fn heterogeneous_distance(mut self, distance: super::types::HeterogeneousDistance) -> Self {
+        self.config.heterogeneous_distance = distance;
+        self
+    }
 }
 
 impl Estimator for MultiViewDiscriminantAnalysisUntrained {

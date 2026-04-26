@@ -263,7 +263,7 @@ pub fn softmax_1d(x: &Array1<f64>) -> Array1<f64> {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::{array, Array1, Array2};
+    use scirs2_core::ndarray::array;
 
     /// Helper to compare arrays element-by-element since approx doesn't implement AbsDiffEq for Array
     fn assert_arrays_close<D: scirs2_core::ndarray::Dimension>(

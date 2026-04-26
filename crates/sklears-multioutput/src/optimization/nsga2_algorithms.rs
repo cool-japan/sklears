@@ -12,6 +12,7 @@
 //! - **Advanced Operators**: Simulated binary crossover (SBX) and polynomial mutation
 //! - **Elitism**: Preserves good solutions across generations
 //! - **Hypervolume Tracking**: Monitors convergence quality over generations
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{array, s, Array1, Array2, ArrayView2};
@@ -178,7 +179,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView2<'_, Float>> for NSGA2Optimizer<Untrai
             ));
         }
 
-        let n_samples = X.nrows();
+        let _n_samples = X.nrows();
         let n_features = X.ncols();
         let n_outputs = y.ncols();
         let n_objectives = 2; // Default: accuracy and complexity
@@ -273,7 +274,7 @@ impl NSGA2Optimizer<Untrained> {
     }
 
     /// NSGA-II Non-dominated sorting
-    fn nsga2_non_dominated_sort(&self, population: &mut Vec<ParetoSolution>) -> SklResult<()> {
+    fn nsga2_non_dominated_sort(&self, population: &mut [ParetoSolution]) -> SklResult<()> {
         let n = population.len();
         let mut domination_counts = vec![0; n];
         let mut dominated_solutions = vec![Vec::new(); n];
@@ -339,7 +340,7 @@ impl NSGA2Optimizer<Untrained> {
     }
 
     /// Calculate crowding distance for NSGA-II
-    fn nsga2_crowding_distance(&self, population: &mut Vec<ParetoSolution>) -> SklResult<()> {
+    fn nsga2_crowding_distance(&self, population: &mut [ParetoSolution]) -> SklResult<()> {
         let n = population.len();
         if n == 0 {
             return Ok(());
@@ -553,7 +554,10 @@ impl NSGA2Optimizer<Untrained> {
                 .parameters
                 .slice(s![..n_features * n_outputs])
                 .to_owned()
-                .into_shape((n_features, n_outputs))
+                .into_shape_with_order((
+                    (n_features, n_outputs),
+                    scirs2_core::ndarray::Order::RowMajor,
+                ))
                 .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
 
             let bias = solution
@@ -694,8 +698,9 @@ impl NSGA2Optimizer<Untrained> {
 }
 
 impl Predict<ArrayView2<'_, Float>, Array2<Float>> for NSGA2Optimizer<NSGA2OptimizerTrained> {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let n_samples = X.nrows();
+        let _n_samples = X.nrows();
         let n_features = X.ncols();
         let n_outputs = self.state.best_solution.parameters.len() / (n_features + 1);
 
@@ -706,7 +711,10 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>> for NSGA2Optimizer<NSGA2Optim
             .parameters
             .slice(s![..n_features * n_outputs])
             .to_owned()
-            .into_shape((n_features, n_outputs))
+            .into_shape_with_order((
+                (n_features, n_outputs),
+                scirs2_core::ndarray::Order::RowMajor,
+            ))
             .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
 
         let bias = self

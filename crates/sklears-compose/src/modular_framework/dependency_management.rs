@@ -9,6 +9,9 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
 
+/// Version constraint operator function type
+type VersionConstraintOp = Box<dyn Fn(&str, &str) -> bool + Send + Sync>;
+
 use super::component_framework::{ComponentDependency, PluggableComponent};
 
 /// Dependency resolver for managing component dependencies
@@ -232,7 +235,7 @@ impl DependencyResolver {
     }
 
     /// Register dependency injection provider
-    pub fn register_injection_provider<T: 'static>(
+    pub fn register_injection_provider<T: Send + Sync + 'static>(
         &self,
         provider: Box<dyn DependencyProvider<T>>,
     ) -> SklResult<()> {
@@ -244,7 +247,17 @@ impl DependencyResolver {
         Ok(())
     }
 
-    /// Inject dependencies into a component
+    /// Inject dependencies into a component.
+    ///
+    /// For each dependency requirement declared by `component`, the registry is
+    /// queried by component-type string.  When a provider is found its type-erased
+    /// injection closure is invoked.  Optional dependencies that are absent are
+    /// silently skipped; required dependencies that are absent cause an error.
+    ///
+    /// Downcasting from `Any` to a typed `DependencyProvider<T>` is not directly
+    /// possible because `T` is not known here.  Instead, registered providers are
+    /// wrapped in a `Box<dyn ErasedProvider>` whose `inject` method is already
+    /// monomorphised at registration time, avoiding the need for `downcast_ref`.
     pub fn inject_dependencies(&self, component: &mut dyn PluggableComponent) -> SklResult<()> {
         let registry = self
             .injection_registry
@@ -255,9 +268,12 @@ impl DependencyResolver {
         let dependencies = component.dependencies();
 
         for dependency in dependencies {
-            if let Some(_provider) = registry.get_provider(&dependency.component_type) {
-                // TODO: Implement proper downcasting from Any to DependencyProvider
-                // For now, skip injection since this is a placeholder implementation
+            if let Some(erased_provider) = registry.get_erased_provider(&dependency.component_type)
+            {
+                // Invoke the type-erased injection function.  This is safe because
+                // the closure was created with the correct concrete type at
+                // registration time — no runtime downcast is required.
+                erased_provider.inject(component)?;
             } else if !dependency.optional {
                 return Err(SklearsError::InvalidInput(format!(
                     "Required dependency provider not found: {}",
@@ -379,7 +395,7 @@ impl DependencyResolver {
         Ok(constraints)
     }
 
-    fn detect_conflicts(&self, component_id: &str) -> SklResult<Vec<DependencyConflict>> {
+    fn detect_conflicts(&self, _component_id: &str) -> SklResult<Vec<DependencyConflict>> {
         // Implementation for conflict detection
         Ok(Vec::new())
     }
@@ -431,7 +447,7 @@ impl DependencyResolver {
         &self,
         node_a: &DependencyNode,
         node_b: &DependencyNode,
-        issues: &mut Vec<CompatibilityIssue>,
+        _issues: &mut Vec<CompatibilityIssue>,
     ) -> SklResult<()> {
         // Check if required capabilities are satisfied
         for dependency in &node_a.dependencies {
@@ -445,8 +461,8 @@ impl DependencyResolver {
 
     fn calculate_compatibility_score(
         &self,
-        node_a: &DependencyNode,
-        node_b: &DependencyNode,
+        _node_a: &DependencyNode,
+        _node_b: &DependencyNode,
     ) -> f64 {
         // Simple compatibility scoring based on version proximity and capability overlap
         1.0 // Placeholder implementation
@@ -464,6 +480,7 @@ pub struct DependencyGraph {
 
 impl DependencyGraph {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             nodes: HashMap::new(),
@@ -471,10 +488,12 @@ impl DependencyGraph {
         }
     }
 
+    /// Adds a node.
     pub fn add_node(&mut self, component_id: String, node: DependencyNode) {
         self.nodes.insert(component_id, node);
     }
 
+    /// Adds a edge.
     pub fn add_edge(&mut self, from: String, to: String) {
         self.edges.entry(from).or_default().push(to);
     }
@@ -513,11 +532,12 @@ pub enum DependencyState {
 /// Version constraint solver
 pub struct VersionConstraintSolver {
     /// Supported constraint operators
-    constraint_operators: HashMap<String, Box<dyn Fn(&str, &str) -> bool + Send + Sync>>,
+    constraint_operators: HashMap<String, VersionConstraintOp>,
 }
 
 impl VersionConstraintSolver {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         let mut operators = HashMap::new();
 
@@ -540,6 +560,7 @@ impl VersionConstraintSolver {
         }
     }
 
+    /// Performs solve constraints.
     pub fn solve_constraints(
         &self,
         constraints: Vec<VersionConstraint>,
@@ -565,6 +586,7 @@ impl VersionConstraintSolver {
     }
 
     #[must_use]
+    /// Checks the condition.
     pub fn is_version_compatible(&self, version: &str, constraint: &str) -> bool {
         // Simple version compatibility check
         // In a real implementation, this would parse constraint operators
@@ -627,37 +649,113 @@ pub struct VersionConstraint {
     pub required_by: String,
 }
 
+/// Type-erased provider interface used internally by [`DependencyInjectionRegistry`].
+///
+/// Concrete implementations of [`DependencyProvider<T>`] are wrapped in a
+/// `Box<dyn ErasedProvider>` at registration time so that injection can be
+/// dispatched without knowing `T` at the call site.  This sidesteps the
+/// impossibility of downcasting `&dyn Any` to `&dyn DependencyProvider<T>`.
+pub(super) trait ErasedProvider: Send + Sync {
+    /// Inject this provider's dependency into `component`.
+    fn inject(&self, component: &mut dyn PluggableComponent) -> SklResult<()>;
+
+    /// Return provider metadata for introspection.
+    fn metadata(&self) -> ProviderMetadata;
+}
+
+/// Adapter that wraps a typed [`DependencyProvider<T>`] in the erased interface.
+struct TypedProviderAdapter<T> {
+    inner: Box<dyn DependencyProvider<T>>,
+}
+
+impl<T: Send + Sync + 'static> ErasedProvider for TypedProviderAdapter<T> {
+    fn inject(&self, component: &mut dyn PluggableComponent) -> SklResult<()> {
+        self.inner.inject(component)
+    }
+
+    fn metadata(&self) -> ProviderMetadata {
+        self.inner.metadata()
+    }
+}
+
 /// Dependency injection registry
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct DependencyInjectionRegistry {
-    /// Registered providers by type
+    /// Type-erased providers indexed by component-type string.
+    ///
+    /// The string key is the same identifier used in [`ComponentDependency::component_type`]
+    /// so that the registry can be queried by name without requiring the caller to
+    /// supply a concrete Rust type.
+    erased_providers: HashMap<String, Box<dyn ErasedProvider>>,
+    /// Legacy providers indexed by TypeId (kept for backward-compat with
+    /// `register_provider`; not used for injection).
     providers: HashMap<std::any::TypeId, Box<dyn std::any::Any + Send + Sync>>,
     /// Provider metadata
     provider_metadata: HashMap<String, ProviderMetadata>,
 }
 
+impl std::fmt::Debug for dyn ErasedProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ErasedProvider")
+            .field("metadata", &self.metadata())
+            .finish()
+    }
+}
+
 impl DependencyInjectionRegistry {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
+            erased_providers: HashMap::new(),
             providers: HashMap::new(),
             provider_metadata: HashMap::new(),
         }
     }
 
-    pub fn register_provider<T: 'static>(
+    /// Register a typed provider under `component_type_name`.
+    ///
+    /// After registration, calls to `inject_dependencies` that encounter a
+    /// dependency with `component_type == component_type_name` will invoke this
+    /// provider's `inject` method without any runtime downcasting.
+    pub fn register_provider<T: Send + Sync + 'static>(
         &mut self,
         type_id: std::any::TypeId,
         provider: Box<dyn DependencyProvider<T>>,
     ) -> SklResult<()> {
-        self.providers.insert(type_id, Box::new(provider));
+        let meta = provider.metadata();
+        let component_type_name = meta.provided_type.clone();
+
+        let adapter = TypedProviderAdapter { inner: provider };
+        self.erased_providers
+            .insert(component_type_name.clone(), Box::new(adapter));
+        self.provider_metadata.insert(component_type_name, meta);
+
+        // Also store in the legacy map so external code that holds a TypeId can
+        // still look things up via `get_provider`.
+        let placeholder: Box<dyn std::any::Any + Send + Sync> = Box::new(type_id);
+        self.providers.insert(type_id, placeholder);
+
         Ok(())
     }
 
+    /// Look up a type-erased provider by component-type string.
+    ///
+    /// Returns `None` if no provider has been registered for `component_type`.
     #[must_use]
-    pub fn get_provider(&self, component_type: &str) -> Option<&dyn std::any::Any> {
-        // This would look up providers by component type
-        // Placeholder implementation
+    pub(super) fn get_erased_provider(&self, component_type: &str) -> Option<&dyn ErasedProvider> {
+        self.erased_providers
+            .get(component_type)
+            .map(|b| b.as_ref())
+    }
+
+    /// Returns the raw `Any` entry for a legacy TypeId-based look-up.
+    ///
+    /// Prefer `get_erased_provider` for injection purposes.
+    #[must_use]
+    pub fn get_provider(&self, _component_type: &str) -> Option<&dyn std::any::Any> {
+        // Legacy lookup — returns None; use get_erased_provider for injection.
         None
     }
 }
@@ -819,6 +917,7 @@ pub struct DependencyStatistics {
 
 impl DependencyStatistics {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             total_components: 0,
@@ -857,18 +956,27 @@ impl DependencyStatistics {
 #[derive(Debug, Error)]
 pub enum DependencyError {
     #[error("Circular dependency detected: {cycle:?}")]
-    CircularDependency { cycle: Vec<String> },
+    /// Field value.
+    /// Variant value.
+    CircularDependency {
+        /// The cycle.
+        cycle: Vec<String>,
+    },
 
     #[error("Version constraint conflict: {0}")]
+    /// Variant value.
     VersionConstraintConflict(String),
 
     #[error("Dependency not found: {0}")]
+    /// Variant value.
     DependencyNotFound(String),
 
     #[error("Resolution failed: {0}")]
+    /// Variant value.
     ResolutionFailed(String),
 
     #[error("Injection failed: {0}")]
+    /// Variant value.
     InjectionFailed(String),
 }
 

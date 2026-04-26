@@ -143,7 +143,12 @@ impl SimdAllocator {
         }
     }
 
-    /// Deallocate SIMD memory
+    /// Deallocate SIMD-aligned memory previously allocated by `allocate_simd`.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must have been allocated by this allocator with `count` elements of type `T`, and
+    /// must not be used after this call.
     pub unsafe fn deallocate_simd<T>(&self, ptr: NonNull<T>, count: usize) {
         let size = count * mem::size_of::<T>();
         let align = self.default_alignment.max(mem::align_of::<T>());
@@ -180,7 +185,12 @@ impl SimdAllocator {
         }
     }
 
-    /// Reallocate SIMD memory with preserved alignment
+    /// Reallocate SIMD memory with preserved alignment.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must have been allocated by this allocator with `old_count` elements of type `T`.
+    /// The returned pointer (if `Some`) replaces `ptr`, which must not be used after this call.
     pub unsafe fn reallocate_simd<T>(
         &self,
         ptr: NonNull<T>,
@@ -419,7 +429,7 @@ impl<T> SimdVec<T> {
     pub fn is_simd_aligned(&self) -> bool {
         if let Some(ptr) = self.ptr {
             let addr = ptr.as_ptr() as usize;
-            addr % self.allocator.default_alignment == 0
+            addr.is_multiple_of(self.allocator.default_alignment)
         } else {
             true // Empty vector is considered aligned
         }

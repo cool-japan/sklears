@@ -34,16 +34,16 @@ use spin::{Mutex, RwLock};
 #[cfg(feature = "no-std")]
 pub type ThreadId = u64; // Mock thread ID for no-std
 #[cfg(feature = "no-std")]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Duration(u64); // Mock duration in microseconds
 #[cfg(feature = "no-std")]
 #[derive(Debug, Clone, Copy)]
-pub struct Instant(u64); // Mock instant as counter
+pub struct Instant; // Mock instant stub for no-std
 
 #[cfg(feature = "no-std")]
 impl Instant {
     pub fn now() -> Self {
-        Instant(0) // Mock implementation
+        Instant // Mock implementation
     }
 }
 
@@ -72,13 +72,6 @@ impl core::ops::Div<u32> for Duration {
         } else {
             self.0 / rhs as u64
         })
-    }
-}
-
-#[cfg(feature = "no-std")]
-impl Default for Duration {
-    fn default() -> Self {
-        Duration(0)
     }
 }
 

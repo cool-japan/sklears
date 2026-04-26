@@ -53,10 +53,11 @@ use sklears_core::{
 use serde::{Deserialize, Serialize};
 
 /// Interpolation methods for time series data
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum InterpolationMethod {
     /// Linear interpolation between adjacent points
+    #[default]
     Linear,
     /// Polynomial interpolation of specified degree
     Polynomial(usize),
@@ -72,17 +73,12 @@ pub enum InterpolationMethod {
     Seasonal(usize), // period parameter
 }
 
-impl Default for InterpolationMethod {
-    fn default() -> Self {
-        Self::Linear
-    }
-}
-
 /// Resampling methods for time series aggregation
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ResamplingMethod {
     /// Take mean of values in each period
+    #[default]
     Mean,
     /// Take sum of values in each period
     Sum,
@@ -98,12 +94,6 @@ pub enum ResamplingMethod {
     Median,
     /// Count number of observations in each period
     Count,
-}
-
-impl Default for ResamplingMethod {
-    fn default() -> Self {
-        Self::Mean
-    }
 }
 
 /// Time series interpolator for filling missing values and irregular grids
@@ -650,7 +640,7 @@ impl TimeSeriesResampler {
         sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let len = sorted_values.len();
-        if len % 2 == 0 {
+        if len.is_multiple_of(2) {
             (sorted_values[len / 2 - 1] + sorted_values[len / 2]) / 2.0
         } else {
             sorted_values[len / 2]
@@ -917,7 +907,7 @@ mod tests {
             let resampler = TimeSeriesResampler::new(0.5).with_method(method);
             let (resampled_times, resampled_values) = resampler.resample(&times, &values)?;
 
-            assert!(resampled_times.len() > 0);
+            assert!(!resampled_times.is_empty());
             assert_eq!(resampled_times.len(), resampled_values.len());
 
             // All values should be finite (not NaN)

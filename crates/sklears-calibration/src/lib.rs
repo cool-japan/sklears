@@ -1,8 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::needless_range_loop)]
 //! Probability calibration for classifiers
 //!
 //! This module provides methods to calibrate classifier probabilities,

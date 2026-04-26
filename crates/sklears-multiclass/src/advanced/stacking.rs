@@ -59,9 +59,10 @@ pub enum MetaLearnerStrategy {
 }
 
 /// Scoring metrics for dynamic meta-learner selection
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum DynamicSelectionScoring {
     /// Accuracy-based selection
+    #[default]
     Accuracy,
     /// F1-score based selection
     F1Score,
@@ -84,15 +85,10 @@ pub struct AdaptiveSelectionRules {
     pub imbalance_threshold: f64,
 }
 
+#[allow(clippy::derivable_impls)] // MetaLearnerStrategy has non-unit variants; explicit default documents choice
 impl Default for MetaLearnerStrategy {
     fn default() -> Self {
         Self::LogisticRegression
-    }
-}
-
-impl Default for DynamicSelectionScoring {
-    fn default() -> Self {
-        Self::Accuracy
     }
 }
 
@@ -465,19 +461,19 @@ impl<T, U, M> Estimator for MulticlassStackingClassifier<StackingTrainedData<T, 
     }
 }
 
-impl<C, M> Fit<Array2<f64>, Array1<i32>> for MulticlassStackingClassifier<Vec<C>, M, Untrained>
+impl<C, CF, M, MF> Fit<Array2<f64>, Array1<i32>>
+    for MulticlassStackingClassifier<Vec<C>, M, Untrained>
 where
-    C: Clone + Fit<Array2<f64>, Array1<i32>> + Send + Sync,
-    C::Fitted: Predict<Array2<f64>, Array1<i32>>
+    C: Clone + Fit<Array2<f64>, Array1<i32>, Fitted = CF> + Send + Sync,
+    CF: Predict<Array2<f64>, Array1<i32>>
         + PredictProba<Array2<f64>, Array2<f64>>
         + Clone
         + Send
         + Sync,
-    M: Clone + Fit<Array2<f64>, Array1<i32>> + Send + Sync,
-    M::Fitted: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
+    M: Clone + Fit<Array2<f64>, Array1<i32>, Fitted = MF> + Send + Sync,
+    MF: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
 {
-    type Fitted =
-        MulticlassStackingClassifier<StackingTrainedData<C::Fitted, M::Fitted>, M, Trained>;
+    type Fitted = MulticlassStackingClassifier<StackingTrainedData<CF, MF>, M, Trained>;
 
     fn fit(self, x: &Array2<f64>, y: &Array1<i32>) -> SklResult<Self::Fitted> {
         if x.nrows() != y.len() {
@@ -532,7 +528,8 @@ where
 
         // Add original features if passthrough is enabled
         let final_meta_features = if self.config.passthrough {
-            let mut combined = Array2::zeros((n_samples, x.ncols() + meta_features.ncols()));
+            let mut combined: Array2<f64> =
+                Array2::zeros((n_samples, x.ncols() + meta_features.ncols()));
             combined.slice_mut(s![.., ..x.ncols()]).assign(x);
             combined
                 .slice_mut(s![.., x.ncols()..])
@@ -565,10 +562,10 @@ where
     }
 }
 
-impl<C, M> MulticlassStackingClassifier<Vec<C>, M, Untrained>
+impl<C, CF, M> MulticlassStackingClassifier<Vec<C>, M, Untrained>
 where
-    C: Clone + Fit<Array2<f64>, Array1<i32>> + Send + Sync,
-    C::Fitted: Predict<Array2<f64>, Array1<i32>>
+    C: Clone + Fit<Array2<f64>, Array1<i32>, Fitted = CF> + Send + Sync,
+    CF: Predict<Array2<f64>, Array1<i32>>
         + PredictProba<Array2<f64>, Array2<f64>>
         + Clone
         + Send
@@ -580,7 +577,7 @@ where
         y: &Array1<i32>,
         cv_folds: usize,
         rng: &mut CoreRandom<StdRng>,
-    ) -> SklResult<(Array2<f64>, Vec<C::Fitted>)> {
+    ) -> SklResult<(Array2<f64>, Vec<CF>)> {
         let n_samples = x.nrows();
         let n_base_estimators = self.base_estimators.len();
 
@@ -622,7 +619,10 @@ where
             // Generate predictions for validation fold
             for val_idx in val_indices {
                 let sample_idx = *val_idx;
-                let row_idx = val_indices.iter().position(|&x| x == sample_idx).expect("operation should succeed");
+                let row_idx = val_indices
+                    .iter()
+                    .position(|&x| x == sample_idx)
+                    .expect("operation should succeed");
                 let x_sample = x_val.slice(s![row_idx..row_idx + 1, ..]).to_owned();
 
                 let mut feature_offset = 0;
@@ -665,7 +665,7 @@ where
         y: &Array1<i32>,
         test_size: f64,
         rng: &mut CoreRandom<StdRng>,
-    ) -> SklResult<(Array2<f64>, Vec<C::Fitted>)> {
+    ) -> SklResult<(Array2<f64>, Vec<CF>)> {
         let n_samples = x.nrows();
         let split_point = ((1.0 - test_size) * n_samples as f64) as usize;
 
@@ -753,7 +753,7 @@ where
         y: &Array1<i32>,
         blend_ratio: f64,
         rng: &mut CoreRandom<StdRng>,
-    ) -> SklResult<(Array2<f64>, Vec<C::Fitted>)> {
+    ) -> SklResult<(Array2<f64>, Vec<CF>)> {
         // Similar to holdout but uses a fixed blending set
         self.generate_holdout_meta_features(x, y, blend_ratio, rng)
     }
@@ -1038,8 +1038,8 @@ mod tests {
             stacking.config.meta_learner_strategy,
             MetaLearnerStrategy::Average
         ));
-        assert_eq!(stacking.config.passthrough, true);
-        assert_eq!(stacking.config.stack_probabilities, false);
+        assert!(stacking.config.passthrough);
+        assert!(!stacking.config.stack_probabilities);
         assert_eq!(stacking.config.random_state, Some(42));
     }
 

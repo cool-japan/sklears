@@ -198,12 +198,7 @@ impl MultiViewKMeans {
         let mut labels = vec![0; n_samples];
         let mut prev_labels = vec![-1; n_samples];
 
-        let rng = match self.config.random_seed {
-            Some(seed) => Random::seed(seed),
-            None => Random::seed(42),
-        };
-
-        for iteration in 0..self.config.max_iter {
+        for _iteration in 0..self.config.max_iter {
             // E-step: Assign points to clusters
             for i in 0..n_samples {
                 let mut min_distance = f64::INFINITY;
@@ -410,7 +405,12 @@ impl MultiViewKMeans {
     }
 
     /// Compute entropy for a view (for entropy-based weight learning)
-    fn compute_view_entropy(&self, data: &MultiViewData, labels: &[i32], view_index: usize) -> f64 {
+    fn compute_view_entropy(
+        &self,
+        _data: &MultiViewData,
+        labels: &[i32],
+        _view_index: usize,
+    ) -> f64 {
         // Simplified entropy computation based on cluster sizes
         let mut cluster_counts = HashMap::new();
         for &label in labels {
@@ -533,7 +533,6 @@ impl ConsensusClustering {
     /// Fit consensus clustering to multi-view data
     pub fn fit(&self, data: &MultiViewData) -> Result<ConsensusClusteringFitted> {
         let n_views = data.n_views();
-        let n_samples = data.n_samples;
 
         // Run clustering on each view with each algorithm
         let mut individual_results = Vec::new();

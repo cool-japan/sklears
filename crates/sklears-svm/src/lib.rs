@@ -1,11 +1,4 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
 #![recursion_limit = "1048576"]
-#![allow(deprecated)]
-#![allow(ambiguous_glob_reexports)]
-#![allow(clippy::needless_range_loop)]
-#![allow(clippy::needless_borrow)]
 //! Support Vector Machines for classification and regression
 //!
 //! This module provides Support Vector Machine implementations including:
@@ -44,6 +37,8 @@
 //! - SMO algorithm for training
 
 // Re-export common types for all modules to use
+// Local SVM types shadow core types of the same name (intentional)
+#[allow(ambiguous_glob_reexports)]
 pub use sklears_core::prelude::*;
 
 pub mod adaptive_regularization;

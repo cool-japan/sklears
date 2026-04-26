@@ -89,13 +89,13 @@ impl ExternalMemoryKNN {
     }
 
     /// Fit the model to training data by storing it externally
-    pub fn fit(&mut self, X: &ArrayView2<Float>) -> NeighborsResult<()> {
-        if X.is_empty() {
+    pub fn fit(&mut self, x: &ArrayView2<Float>) -> NeighborsResult<()> {
+        if x.is_empty() {
             return Err(NeighborsError::EmptyInput);
         }
 
-        self.n_samples = X.nrows();
-        self.n_features = X.ncols();
+        self.n_samples = x.nrows();
+        self.n_features = x.ncols();
 
         // Create temporary directory if it doesn't exist
         std::fs::create_dir_all(&self.temp_dir).map_err(|e| {
@@ -106,7 +106,7 @@ impl ExternalMemoryKNN {
         let data_file = self.temp_dir.join("training_data.bin");
         let index_file = self.temp_dir.join("data_index.bin");
 
-        self.store_data_to_disk(X, &data_file, &index_file)?;
+        self.store_data_to_disk(x, &data_file, &index_file)?;
         self.data_file = Some(data_file);
         self.index_file = Some(index_file);
 
@@ -116,7 +116,7 @@ impl ExternalMemoryKNN {
     /// Store training data to disk in binary format
     fn store_data_to_disk(
         &self,
-        X: &ArrayView2<Float>,
+        x: &ArrayView2<Float>,
         data_file: &Path,
         index_file: &Path,
     ) -> NeighborsResult<()> {
@@ -134,7 +134,7 @@ impl ExternalMemoryKNN {
             .map_err(|e| NeighborsError::InvalidInput(format!("Write error: {}", e)))?;
 
         // Write data row by row
-        for row in X.axis_iter(Axis(0)) {
+        for row in x.axis_iter(Axis(0)) {
             for &value in row.iter() {
                 data_writer
                     .write_all(&value.to_le_bytes())
@@ -151,7 +151,7 @@ impl ExternalMemoryKNN {
             NeighborsError::InvalidInput(format!("Failed to create index file: {}", e))
         })?);
 
-        let n_blocks = (self.n_samples + self.block_size - 1) / self.block_size;
+        let n_blocks = self.n_samples.div_ceil(self.block_size);
         index_writer
             .write_all(&n_blocks.to_le_bytes())
             .map_err(|e| NeighborsError::InvalidInput(format!("Write error: {}", e)))?;
@@ -367,8 +367,10 @@ pub struct CacheObliviousNeighbors {
 struct CacheObliviousTree {
     /// Indices of points in this node
     point_indices: Vec<usize>,
-    /// Bounding box of this node
+    /// Bounding box of this node (reserved for future range queries)
+    #[allow(dead_code)]
     bbox_min: Array1<Float>,
+    #[allow(dead_code)]
     bbox_max: Array1<Float>,
     /// Left child
     left: Option<Box<CacheObliviousTree>>,
@@ -398,22 +400,22 @@ impl CacheObliviousNeighbors {
     }
 
     /// Fit the model to training data
-    pub fn fit(&mut self, X: &ArrayView2<Float>) -> NeighborsResult<()> {
-        if X.is_empty() {
+    pub fn fit(&mut self, x: &ArrayView2<Float>) -> NeighborsResult<()> {
+        if x.is_empty() {
             return Err(NeighborsError::EmptyInput);
         }
 
-        self.data = X.to_owned();
+        self.data = x.to_owned();
 
         // Build cache-oblivious subdivision
-        let indices: Vec<usize> = (0..X.nrows()).collect();
-        let bbox_min = X
+        let indices: Vec<usize> = (0..x.nrows()).collect();
+        let bbox_min = x
             .axis_iter(Axis(0))
-            .fold(Array1::from_elem(X.ncols(), Float::INFINITY), |acc, row| {
+            .fold(Array1::from_elem(x.ncols(), Float::INFINITY), |acc, row| {
                 Array1::from_iter(acc.iter().zip(row.iter()).map(|(a, b)| a.min(*b)))
             });
-        let bbox_max = X.axis_iter(Axis(0)).fold(
-            Array1::from_elem(X.ncols(), Float::NEG_INFINITY),
+        let bbox_max = x.axis_iter(Axis(0)).fold(
+            Array1::from_elem(x.ncols(), Float::NEG_INFINITY),
             |acc, row| Array1::from_iter(acc.iter().zip(row.iter()).map(|(a, b)| a.max(*b))),
         );
 
@@ -630,13 +632,13 @@ impl MemoryBoundedApproximateNeighbors {
     }
 
     /// Fit the model with memory constraints
-    pub fn fit(&mut self, X: &ArrayView2<Float>) -> NeighborsResult<()> {
-        if X.is_empty() {
+    pub fn fit(&mut self, x: &ArrayView2<Float>) -> NeighborsResult<()> {
+        if x.is_empty() {
             return Err(NeighborsError::EmptyInput);
         }
 
-        let n_samples = X.nrows();
-        let n_features = X.ncols();
+        let n_samples = x.nrows();
+        let n_features = x.ncols();
 
         // Estimate memory usage and determine sampling rate
         let data_size = n_samples * n_features * std::mem::size_of::<Float>();
@@ -645,16 +647,12 @@ impl MemoryBoundedApproximateNeighbors {
 
         if total_estimated > self.memory_budget {
             self.sampling_rate = (self.memory_budget as Float * 0.8) / total_estimated as Float;
-            self.sampling_rate = self.sampling_rate.max(0.1).min(1.0);
+            self.sampling_rate = self.sampling_rate.clamp(0.1, 1.0);
         }
 
         // Sample data points to fit memory budget
         let n_samples_to_keep = (n_samples as Float * self.sampling_rate) as usize;
-        let step = if n_samples_to_keep > 0 {
-            n_samples / n_samples_to_keep
-        } else {
-            1
-        };
+        let step = n_samples.checked_div(n_samples_to_keep).unwrap_or(1);
 
         self.stored_indices.clear();
         for i in (0..n_samples).step_by(step.max(1)) {
@@ -684,7 +682,7 @@ impl MemoryBoundedApproximateNeighbors {
             // Project sampled data
             let mut projected = Array2::zeros((self.stored_indices.len(), projection_dim));
             for (new_idx, &orig_idx) in self.stored_indices.iter().enumerate() {
-                let row = X.row(orig_idx);
+                let row = x.row(orig_idx);
                 let projected_row = projection.dot(&row);
                 projected.row_mut(new_idx).assign(&projected_row);
             }

@@ -49,8 +49,8 @@ pub mod synthetic_data {
 
             // Generate cluster center
             let mut center = vec![0.0; n_features];
-            for j in 0..n_features {
-                center[j] = rng.random_range(-5.0..5.0);
+            for c in &mut center {
+                *c = rng.random_range(-5.0..5.0);
             }
 
             // Generate samples around cluster center
@@ -134,14 +134,14 @@ pub mod synthetic_data {
         for i in 0..n_samples {
             // Generate point on unit sphere in intrinsic_dim space
             let mut sphere_point = vec![0.0; intrinsic_dim + 1];
-            for j in 0..=intrinsic_dim {
-                sphere_point[j] = rng.sample(scirs2_core::StandardNormal);
+            for sp in &mut sphere_point {
+                *sp = rng.sample(scirs2_core::StandardNormal);
             }
 
             // Normalize to unit sphere
             let norm: f64 = sphere_point.iter().map(|x| x * x).sum::<f64>().sqrt();
-            for j in 0..=intrinsic_dim {
-                sphere_point[j] /= norm;
+            for sp in &mut sphere_point {
+                *sp /= norm;
             }
 
             // Embed in higher dimensional space and add noise
@@ -264,6 +264,7 @@ impl ScalabilityTester {
     }
 
     /// Test algorithm performance across different dataset sizes
+    #[allow(clippy::too_many_arguments)] // stress-test API requires explicit control of all dataset dimensions
     pub fn scale_test<F>(
         &self,
         algorithm_name: &str,
@@ -316,6 +317,7 @@ impl ScalabilityTester {
     }
 
     /// Test algorithm performance across different feature dimensions
+    #[allow(clippy::too_many_arguments)] // stress-test API requires explicit control of all dataset dimensions
     pub fn dimensionality_test<F>(
         &self,
         algorithm_name: &str,

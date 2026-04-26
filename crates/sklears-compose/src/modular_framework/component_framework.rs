@@ -265,6 +265,7 @@ pub struct ComponentMetrics {
 
 impl ComponentMetrics {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             uptime: std::time::Duration::from_secs(0),
@@ -484,21 +485,34 @@ impl Default for RegistryConfig {
 #[derive(Debug, Error)]
 pub enum ComponentError {
     #[error("Component initialization failed: {0}")]
+    /// Variant value.
     InitializationFailed(String),
 
     #[error("Component state transition invalid: {from} -> {to}")]
-    InvalidStateTransition { from: String, to: String },
+    /// Field value.
+    /// Field value.
+    /// Variant value.
+    InvalidStateTransition {
+        /// The from.
+        from: String,
+        /// The to.
+        to: String,
+    },
 
     #[error("Component configuration invalid: {0}")]
+    /// Variant value.
     InvalidConfiguration(String),
 
     #[error("Component dependency not satisfied: {0}")]
+    /// Variant value.
     DependencyNotSatisfied(String),
 
     #[error("Component health check failed: {0}")]
+    /// Variant value.
     HealthCheckFailed(String),
 
     #[error("Component capability not supported: {0}")]
+    /// Variant value.
     CapabilityNotSupported(String),
 }
 
@@ -549,9 +563,10 @@ pub struct ComponentMetadata {
 }
 
 /// Component status
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ComponentStatus {
     /// Component is inactive
+    #[default]
     Inactive,
     /// Component is initializing
     Initializing,
@@ -596,9 +611,10 @@ pub struct CapabilityMismatch {
 }
 
 /// Capability mismatch severity
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CapabilityMismatchSeverity {
     /// Warning level mismatch
+    #[default]
     Warning,
     /// Error level mismatch
     Error,
@@ -661,9 +677,10 @@ pub struct ExecutionCondition {
 }
 
 /// Execution condition types
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ExecutionConditionType {
     /// Always execute
+    #[default]
     Always,
     /// Never execute
     Never,
@@ -693,9 +710,10 @@ pub struct ExecutionMetadata {
 }
 
 /// Execution status
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ExecutionStatus {
     /// Execution is pending
+    #[default]
     Pending,
     /// Execution is running
     Running,
@@ -723,13 +741,14 @@ pub struct ResourceUsage {
 }
 
 /// Log level for component logging
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub enum LogLevel {
     /// Trace level
     Trace,
     /// Debug level
     Debug,
     /// Info level
+    #[default]
     Info,
     /// Warning level
     Warn,
@@ -778,36 +797,6 @@ pub struct ResourceLimits {
     pub max_network_mbps: Option<f32>,
     /// Execution timeout in seconds
     pub timeout_sec: Option<u64>,
-}
-
-impl Default for ComponentStatus {
-    fn default() -> Self {
-        Self::Inactive
-    }
-}
-
-impl Default for CapabilityMismatchSeverity {
-    fn default() -> Self {
-        Self::Warning
-    }
-}
-
-impl Default for ExecutionConditionType {
-    fn default() -> Self {
-        Self::Always
-    }
-}
-
-impl Default for ExecutionStatus {
-    fn default() -> Self {
-        Self::Pending
-    }
-}
-
-impl Default for LogLevel {
-    fn default() -> Self {
-        Self::Info
-    }
 }
 
 #[allow(non_snake_case)]
@@ -942,7 +931,7 @@ mod tests {
         }
 
         fn factory_metadata(&self) -> FactoryMetadata {
-            /// FactoryMetadata
+            // FactoryMetadata
             FactoryMetadata {
                 name: "MockFactory".to_string(),
                 version: "1.0.0".to_string(),

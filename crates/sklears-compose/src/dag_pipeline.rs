@@ -14,6 +14,9 @@ use std::fmt::Debug;
 
 use crate::{PipelinePredictor, PipelineStep};
 
+/// A custom node function that processes node outputs
+type NodeFn = Box<dyn Fn(&[NodeOutput]) -> SklResult<NodeOutput> + Send + Sync>;
+
 /// Node in a DAG pipeline
 #[derive(Debug)]
 pub struct DAGNode {
@@ -41,22 +44,31 @@ pub enum NodeComponent {
     Estimator(Box<dyn PipelinePredictor>),
     /// Data source
     DataSource {
+        /// The data.
         data: Option<Array2<f64>>,
+        /// The targets.
         targets: Option<Array1<f64>>,
     },
     /// Data sink/output
     DataSink,
     /// Conditional branch
     ConditionalBranch {
+        /// The condition.
         condition: BranchCondition,
+        /// The true path.
         true_path: String,
+        /// The false path.
         false_path: String,
     },
     /// Data merger
-    DataMerger { merge_strategy: MergeStrategy },
+    DataMerger {
+        /// The merge strategy.
+        merge_strategy: MergeStrategy,
+    },
     /// Custom function
     CustomFunction {
-        function: Box<dyn Fn(&[NodeOutput]) -> SklResult<NodeOutput> + Send + Sync>,
+        /// The function.
+        function: NodeFn,
     },
 }
 
@@ -113,17 +125,23 @@ impl Debug for NodeComponent {
 pub enum BranchCondition {
     /// Feature threshold condition
     FeatureThreshold {
+        /// The feature idx.
         feature_idx: usize,
+        /// The threshold.
         threshold: f64,
+        /// The comparison.
         comparison: ComparisonOp,
     },
     /// Data size condition
     DataSize {
+        /// The min samples.
         min_samples: Option<usize>,
+        /// The max samples.
         max_samples: Option<usize>,
     },
     /// Custom condition
     Custom {
+        /// The condition fn.
         condition_fn: fn(&NodeOutput) -> bool,
     },
 }
@@ -155,13 +173,17 @@ pub enum MergeStrategy {
     /// Average outputs
     Average,
     /// Weighted average
-    WeightedAverage { weights: Vec<f64> },
+    WeightedAverage {
+        /// The weights.
+        weights: Vec<f64>,
+    },
     /// Maximum values
     Maximum,
     /// Minimum values
     Minimum,
     /// Custom merge function
     Custom {
+        /// The merge fn.
         merge_fn: fn(&[NodeOutput]) -> SklResult<NodeOutput>,
     },
 }
@@ -254,6 +276,7 @@ pub struct DAGPipeline<S = Untrained> {
 
 /// Trained state for `DAGPipeline`
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct DAGPipelineTrained {
     fitted_nodes: HashMap<String, DAGNode>,
     edges: HashMap<String, HashSet<String>>,
@@ -707,7 +730,7 @@ impl DAGPipeline<Untrained> {
                 false_path,
             } => self.execute_conditional_branch(&inputs, condition, true_path, false_path),
             NodeComponent::DataSource { data, targets } => {
-                if let Some(ref source_data) = data {
+                if let Some(source_data) = data {
                     Ok(NodeOutput {
                         data: source_data.clone(),
                         targets: targets.clone(),
@@ -894,8 +917,8 @@ impl DAGPipeline<Untrained> {
                 max_samples,
             } => {
                 let n_samples = input.data.nrows();
-                let min_ok = min_samples.map_or(true, |min| n_samples >= min);
-                let max_ok = max_samples.map_or(true, |max| n_samples <= max);
+                let min_ok = min_samples.is_none_or(|min| n_samples >= min);
+                let max_ok = max_samples.is_none_or(|max| n_samples <= max);
                 min_ok && max_ok
             }
             BranchCondition::Custom { condition_fn } => condition_fn(input),

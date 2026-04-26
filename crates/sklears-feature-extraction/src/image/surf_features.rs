@@ -77,13 +77,13 @@ pub struct SURFKeypoint {
 /// use sklears_feature_extraction::image::surf_features::SURFExtractor;
 /// use scirs2_core::ndarray::Array2;
 ///
-/// let image = Array2::from_shape_vec((64, 64), (0..4096).map(|x| x as f64 / 4096.0).collect()).unwrap();
+/// let image = Array2::from_shape_vec((64, 64), (0..4096).map(|x| x as f64 / 4096.0).collect()).expect("shape and data length match");
 /// let surf = SURFExtractor::new()
 ///     .hessian_threshold(400.0)
 ///     .n_octaves(4)
 ///     .extended_descriptors(true);
-/// let keypoints = surf.detect_keypoints(&image.view()).unwrap();
-/// let descriptors = surf.extract_descriptors(&image.view(), &keypoints).unwrap();
+/// let keypoints = surf.detect_keypoints(&image.view()).expect("valid image produces SURF keypoints");
+/// let descriptors = surf.extract_descriptors(&image.view(), &keypoints).expect("valid image and keypoints produce SURF descriptors");
 /// ```
 #[derive(Debug, Clone)]
 pub struct SURFExtractor {
@@ -125,7 +125,7 @@ impl SURFExtractor {
     /// Higher values result in fewer, stronger keypoints.
     /// Typical range: 100-1000.
     pub fn hessian_threshold(mut self, threshold: f64) -> Self {
-        self.hessian_threshold = threshold.max(50.0).min(5000.0);
+        self.hessian_threshold = threshold.clamp(50.0, 5000.0);
         self
     }
 
@@ -134,7 +134,7 @@ impl SURFExtractor {
     /// More octaves allow detection at larger scales.
     /// Typical range: 3-6 octaves.
     pub fn n_octaves(mut self, n_octaves: usize) -> Self {
-        self.n_octaves = n_octaves.max(1).min(8);
+        self.n_octaves = n_octaves.clamp(1, 8);
         self
     }
 
@@ -143,7 +143,7 @@ impl SURFExtractor {
     /// More layers provide finer scale sampling.
     /// Typical range: 3-6 layers.
     pub fn n_octave_layers(mut self, n_layers: usize) -> Self {
-        self.n_octave_layers = n_layers.max(2).min(8);
+        self.n_octave_layers = n_layers.clamp(2, 8);
         self
     }
 

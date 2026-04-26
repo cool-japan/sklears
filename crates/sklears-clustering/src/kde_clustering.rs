@@ -446,7 +446,7 @@ impl<X: Send + Sync, Y: Send + Sync> Fit<ArrayView2<'_, Float>, ArrayView1<'_, F
 impl<X, Y> Predict<ArrayView2<'_, Float>, Array1<i32>> for KDEClustering<X, Y> {
     fn predict(&self, x: &ArrayView2<Float>) -> Result<Array1<i32>> {
         let centers = self.cluster_centers()?;
-        let densities = self.density_values()?;
+        let _densities = self.density_values()?;
 
         // For new data, we need to estimate densities first
         let bandwidth = self

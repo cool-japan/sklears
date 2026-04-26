@@ -957,7 +957,7 @@ impl AdaptivePrecisionArithmetic {
     pub fn adaptive_matrix_inverse(&self, matrix: &Array2<f64>) -> SklResult<Array2<f64>> {
         let mut current_precision = self.base_precision;
 
-        for level in 0..self.max_precision_level {
+        for _level in 0..self.max_precision_level {
             // Try matrix inversion at current precision
             if let Ok(inverse) = self.matrix_inverse_at_precision(matrix, current_precision) {
                 // Verify inversion quality

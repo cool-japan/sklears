@@ -15,7 +15,7 @@ impl Default for BackupSettings {
         Self {
             backup_enabled: false,
             backup_frequency: Duration::from_secs(24 * 3600),
-            backup_location: "/tmp/metrics_backup".to_string(),
+            backup_location: std::env::temp_dir().join("metrics_backup").display().to_string(),
             max_backups: 7,
             compression_enabled: true,
         }

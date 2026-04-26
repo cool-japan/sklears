@@ -47,8 +47,8 @@ use sklears_core::{
 ///     .with_l1_ratio(0.5)
 ///     .with_max_iter(1000);
 ///
-/// let trained_model = model.fit(&X, &y).unwrap();
-/// let predictions = trained_model.predict(&X).unwrap();
+/// let trained_model = model.fit(&X, &y).expect("LinearSVC fit should succeed on valid input");
+/// let predictions = trained_model.predict(&X).expect("LinearSVC predict should succeed on valid input");
 /// ```
 #[derive(Debug, Clone)]
 pub struct LinearSVC {
@@ -474,15 +474,11 @@ impl LinearSVC {
                     let margin = yi * (prediction + *intercept);
 
                     match self.loss.as_str() {
-                        "hinge" => {
-                            if margin < 1.0 {
-                                intercept_gradient += yi;
-                            }
+                        "hinge" if margin < 1.0 => {
+                            intercept_gradient += yi;
                         }
-                        "squared_hinge" => {
-                            if margin < 1.0 {
-                                intercept_gradient += 2.0 * (1.0 - margin) * yi;
-                            }
+                        "squared_hinge" if margin < 1.0 => {
+                            intercept_gradient += 2.0 * (1.0 - margin) * yi;
                         }
                         _ => {}
                     }

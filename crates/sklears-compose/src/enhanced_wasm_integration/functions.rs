@@ -3,11 +3,7 @@
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
 use super::types::*;
-use crate::error::{Result, SklearsComposeError};
-use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, RwLock};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use crate::error::Result;
 
 /// Web API integration trait
 pub trait WebApiIntegration: std::fmt::Debug + Send + Sync {
@@ -29,8 +25,11 @@ pub trait FeatureDetectionStrategy: std::fmt::Debug + Send + Sync {
 }
 /// Module loader trait
 pub trait ModuleLoader: std::fmt::Debug + Send + Sync {
+    /// Performs load module.
     fn load_module(&self, module_id: &str, source: &ModuleSource) -> Result<LoadedWasmModule>;
+    /// Performs can load.
     fn can_load(&self, source: &ModuleSource) -> bool;
+    /// Performs loader name.
     fn loader_name(&self) -> &str;
 }
 /// Optimization strategy trait
@@ -42,8 +41,11 @@ pub trait OptimizationStrategy: std::fmt::Debug + Send + Sync {
     /// Get optimization level required
     fn required_optimization_level(&self) -> u8;
 }
+/// Represents a single optimization pass applied to a compiled WASM module.
 pub trait OptimizationPass: std::fmt::Debug + Send + Sync {
+    /// Performs apply.
     fn apply(&self, module: &mut CompiledWasmModule) -> Result<()>;
+    /// Performs pass name.
     fn pass_name(&self) -> &str;
 }
 /// Serialization handler trait
@@ -68,6 +70,8 @@ pub trait CompressionStrategy: std::fmt::Debug + Send + Sync {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
+    use std::time::{Duration, SystemTime};
     #[test]
     fn test_wasm_integration_manager_creation() {
         let manager = WasmIntegrationManager::new();
@@ -234,7 +238,7 @@ mod tests {
     #[test]
     fn test_wasm_value_types() {
         let i32_value = WasmValue::I32(42);
-        let f64_value = WasmValue::F64(3.14);
+        let f64_value = WasmValue::F64(std::f64::consts::PI);
         assert!(matches!(i32_value, WasmValue::I32(42)));
         assert!(matches!(f64_value, WasmValue::F64(_)));
     }

@@ -40,6 +40,7 @@ use std::collections::HashMap;
 /// ```
 #[derive(Debug, Clone)]
 pub struct NuclearNormRegression<S = Untrained> {
+    #[allow(dead_code)]
     pub(crate) state: S,
     /// Regularization strength
     pub(crate) alpha: Float,
@@ -68,10 +69,12 @@ pub struct NuclearNormRegressionTrained {
     pub(crate) intercepts: HashMap<String, Array1<Float>>,
     /// Number of input features
     pub(crate) n_features: usize,
+    #[allow(dead_code)]
     /// Task configurations
     pub(crate) task_outputs: HashMap<String, usize>,
     /// Training iterations performed
     pub(crate) n_iter: usize,
+    #[allow(dead_code)]
     /// Regularization strength used
     pub(crate) alpha: Float,
     /// Singular values from SVD
@@ -217,9 +220,9 @@ impl Fit<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
 
             // Add intercepts
             let mut predictions_with_intercept = predictions.clone();
-            current_col = 0;
+            let _current_col_reset = 0; // marker: iteration resets are tracked via task_coefficients
             for task_name in y.keys() {
-                let (start_col, end_col) = task_coefficients[task_name];
+                let (start_col, _end_col) = task_coefficients[task_name];
                 let task_intercepts = &intercepts[task_name];
                 for i in 0..predictions_with_intercept.nrows() {
                     for (j, &intercept) in task_intercepts.iter().enumerate() {
@@ -234,8 +237,7 @@ impl Fit<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
             // Compute gradients
             let grad_coefs = x.t().dot(&residuals) / (n_samples as Float);
 
-            // Update intercepts
-            current_col = 0;
+            // Update intercepts (position tracked via task_coefficients)
             for task_name in y.keys() {
                 let (start_col, end_col) = task_coefficients[task_name];
                 let task_residuals = residuals.slice(s![.., start_col..end_col]);

@@ -628,6 +628,7 @@ impl Default for CanvasConfig {
 
 impl ValidationState {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             is_valid: true,
@@ -845,7 +846,7 @@ impl Default for UndoRedoManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::workflow_language::workflow_definitions::{DataType, StepType};
+    use crate::workflow_language::workflow_definitions::StepType;
 
     #[test]
     fn test_visual_pipeline_builder_creation() {

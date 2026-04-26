@@ -1,4 +1,6 @@
 //! Parallel imputation algorithms for high-performance missing data processing
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides parallel implementations of imputation algorithms that can
 //! leverage multiple CPU cores for significant performance improvements on large datasets.

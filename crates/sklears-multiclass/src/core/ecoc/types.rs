@@ -3,7 +3,7 @@
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{rngs::StdRng, CoreRandom, Rng};
+use scirs2_core::random::{rngs::StdRng, CoreRandom};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::Untrained,
@@ -250,54 +250,52 @@ impl CompressedCodeMatrix {
     /// Decompress back to original code matrix
     pub fn decompress(&self) -> CodeMatrix {
         let decompressed = Self::decompress_bytes(&self.data);
-        if self.original_sparsity > 0.3 {
-            if decompressed.len() >= 9 {
-                let default_value = Self::u8_to_i32(decompressed[0]);
-                let num_entries = usize::from_le_bytes([
-                    decompressed[1],
-                    decompressed[2],
-                    decompressed[3],
-                    decompressed[4],
-                    decompressed[5],
-                    decompressed[6],
-                    decompressed[7],
-                    decompressed[8],
-                ]);
-                let mut entries = Vec::new();
-                let mut pos = 9;
-                for _ in 0..num_entries {
-                    if pos + 9 <= decompressed.len() {
-                        let row = usize::from_le_bytes([
-                            decompressed[pos],
-                            decompressed[pos + 1],
-                            decompressed[pos + 2],
-                            decompressed[pos + 3],
-                            decompressed[pos + 4],
-                            decompressed[pos + 5],
-                            decompressed[pos + 6],
-                            decompressed[pos + 7],
-                        ]);
-                        pos += 8;
-                        let col = usize::from_le_bytes([
-                            decompressed[pos],
-                            decompressed[pos + 1],
-                            decompressed[pos + 2],
-                            decompressed[pos + 3],
-                            decompressed[pos + 4],
-                            decompressed[pos + 5],
-                            decompressed[pos + 6],
-                            decompressed[pos + 7],
-                        ]);
-                        pos += 8;
-                        let val = Self::u8_to_i32(decompressed[pos]);
-                        pos += 1;
-                        entries.push((row, col, val));
-                    }
+        if self.original_sparsity > 0.3 && decompressed.len() >= 9 {
+            let default_value = Self::u8_to_i32(decompressed[0]);
+            let num_entries = usize::from_le_bytes([
+                decompressed[1],
+                decompressed[2],
+                decompressed[3],
+                decompressed[4],
+                decompressed[5],
+                decompressed[6],
+                decompressed[7],
+                decompressed[8],
+            ]);
+            let mut entries = Vec::new();
+            let mut pos = 9;
+            for _ in 0..num_entries {
+                if pos + 9 <= decompressed.len() {
+                    let row = usize::from_le_bytes([
+                        decompressed[pos],
+                        decompressed[pos + 1],
+                        decompressed[pos + 2],
+                        decompressed[pos + 3],
+                        decompressed[pos + 4],
+                        decompressed[pos + 5],
+                        decompressed[pos + 6],
+                        decompressed[pos + 7],
+                    ]);
+                    pos += 8;
+                    let col = usize::from_le_bytes([
+                        decompressed[pos],
+                        decompressed[pos + 1],
+                        decompressed[pos + 2],
+                        decompressed[pos + 3],
+                        decompressed[pos + 4],
+                        decompressed[pos + 5],
+                        decompressed[pos + 6],
+                        decompressed[pos + 7],
+                    ]);
+                    pos += 8;
+                    let val = Self::u8_to_i32(decompressed[pos]);
+                    pos += 1;
+                    entries.push((row, col, val));
                 }
-                let mut sparse = SparseMatrix::new(self.n_rows, self.n_cols, default_value);
-                sparse.entries = entries;
-                return CodeMatrix::Sparse(sparse);
             }
+            let mut sparse = SparseMatrix::new(self.n_rows, self.n_cols, default_value);
+            sparse.entries = entries;
+            return CodeMatrix::Sparse(sparse);
         }
         let values: Vec<i32> = decompressed.iter().map(|&x| Self::u8_to_i32(x)).collect();
         let matrix = Array2::from_shape_vec((self.n_rows, self.n_cols), values)
@@ -473,7 +471,7 @@ impl<C> ECOCClassifier<C, Untrained> {
         let mut code_matrix = Array2::zeros((n_classes, code_length));
         for i in 0..n_classes {
             for j in 0..code_length {
-                code_matrix[[i, j]] = if rng.gen::<f64>() > 0.5 { 1 } else { -1 };
+                code_matrix[[i, j]] = if rng.random::<f64>() > 0.5 { 1 } else { -1 };
             }
         }
         Ok(code_matrix)
@@ -585,7 +583,7 @@ impl<C> ECOCClassifier<C, Untrained> {
             for _ in 0..50 {
                 let mut code_matrix = Array2::zeros((n_classes, code_length));
                 for j in 0..code_length {
-                    code_matrix[[0, j]] = if rng.gen::<f64>() > 0.5 { 1 } else { -1 };
+                    code_matrix[[0, j]] = if rng.random::<f64>() > 0.5 { 1 } else { -1 };
                 }
                 for i in 1..n_classes {
                     self.generate_optimal_row(&mut code_matrix, i, code_length, rng)?;
@@ -619,7 +617,7 @@ impl<C> ECOCClassifier<C, Untrained> {
         for _ in 0..20 {
             let mut candidate_row = Array1::zeros(code_length);
             for j in 0..code_length {
-                candidate_row[j] = if rng.gen::<f64>() > 0.5 { 1 } else { -1 };
+                candidate_row[j] = if rng.random::<f64>() > 0.5 { 1 } else { -1 };
             }
             let mut min_distance = code_length;
             for i in 0..row_index {
@@ -649,6 +647,7 @@ impl<C> ECOCClassifier<C, Untrained> {
         min_distance
     }
     /// Calculate minimum distance between all pairs of codewords (CodeMatrix version)
+    #[allow(dead_code)] // intentionally deferred: min-distance validation not yet called
     fn calculate_minimum_distance_code_matrix(&self, code_matrix: &CodeMatrix) -> usize {
         let n_classes = code_matrix.nrows();
         let mut min_distance = code_matrix.ncols();
@@ -663,6 +662,7 @@ impl<C> ECOCClassifier<C, Untrained> {
         min_distance
     }
     /// Calculate Hamming distance between two vectors
+    #[allow(dead_code)] // intentionally deferred: vec-based hamming not yet called
     fn hamming_distance_vec(&self, code1: &[i32], code2: &[i32]) -> usize {
         code1
             .iter()
@@ -695,11 +695,13 @@ impl<C> ECOCClassifier<C, Untrained> {
             .sum()
     }
     /// Verify that the code matrix satisfies minimum distance property
+    #[allow(dead_code)] // intentionally deferred: min-distance verification not yet called
     fn verify_minimum_distance(&self, code_matrix: &Array2<i32>, min_distance: usize) -> bool {
         let actual_min_distance = self.calculate_minimum_distance(code_matrix);
         actual_min_distance >= min_distance
     }
     /// Verify that the code matrix satisfies minimum distance property (CodeMatrix version)
+    #[allow(dead_code)] // intentionally deferred: CodeMatrix min-distance verification not yet called
     fn verify_minimum_distance_code_matrix(
         &self,
         code_matrix: &CodeMatrix,
@@ -728,7 +730,7 @@ impl<C> ECOCClassifier<C, Untrained> {
                 let row = idx / code_length;
                 let col = idx % code_length;
                 if row < n_classes && col < code_length {
-                    code_matrix[[row, col]] = if rng.gen::<f64>() > 0.5 { 1 } else { -1 };
+                    code_matrix[[row, col]] = if rng.random::<f64>() > 0.5 { 1 } else { -1 };
                 }
             }
         }

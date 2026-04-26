@@ -104,12 +104,14 @@ pub struct CalibrationMetrics {
 /// Trait for models that can provide uncertainty estimates
 pub trait UncertaintyEstimator {
     /// Predict with uncertainty quantification
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_with_uncertainty(&self, X: &ArrayView2<Float>) -> SklResult<Array1<Float>>;
 
     /// Get model parameters for uncertainty estimation
     fn get_parameters(&self) -> SklResult<Vec<Float>>;
 
     /// Predict with specific parameters (for parameter uncertainty)
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_with_parameters(
         &self,
         X: &ArrayView2<Float>,
@@ -122,10 +124,11 @@ pub trait UncertaintyEstimator {
     }
 
     /// Predict with dropout enabled (for neural networks)
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_with_dropout(
         &self,
         X: &ArrayView2<Float>,
-        dropout_rate: Float,
+        _dropout_rate: Float,
     ) -> SklResult<Array1<Float>> {
         // Default implementation falls back to regular prediction
         self.predict_with_uncertainty(X)
@@ -133,6 +136,7 @@ pub trait UncertaintyEstimator {
 }
 
 /// Quantify prediction uncertainty
+#[allow(non_snake_case)] // standard ML notation
 pub fn quantify_uncertainty<M: UncertaintyEstimator>(
     model: &M,
     X: &ArrayView2<Float>,
@@ -204,11 +208,12 @@ pub fn quantify_uncertainty<M: UncertaintyEstimator>(
 }
 
 /// Estimate epistemic uncertainty using Monte Carlo dropout
+#[allow(non_snake_case)] // standard ML notation
 fn estimate_epistemic_uncertainty_dropout<M: UncertaintyEstimator>(
     model: &M,
     X: &ArrayView2<Float>,
     config: &UncertaintyConfig,
-    rng: &mut StdRng,
+    _rng: &mut StdRng,
 ) -> SklResult<Array2<Float>> {
     let n_samples = X.nrows();
     let mut samples = Array2::zeros((n_samples, config.n_mc_samples));
@@ -222,6 +227,7 @@ fn estimate_epistemic_uncertainty_dropout<M: UncertaintyEstimator>(
 }
 
 /// Estimate epistemic uncertainty using bootstrap sampling
+#[allow(non_snake_case)] // standard ML notation
 fn estimate_epistemic_uncertainty_bootstrap<M: UncertaintyEstimator>(
     model: &M,
     X: &ArrayView2<Float>,
@@ -249,6 +255,7 @@ fn estimate_epistemic_uncertainty_bootstrap<M: UncertaintyEstimator>(
 }
 
 /// Estimate aleatoric uncertainty using prediction variance
+#[allow(non_snake_case)] // standard ML notation
 fn estimate_aleatoric_uncertainty<M: UncertaintyEstimator>(
     model: &M,
     X: &ArrayView2<Float>,
@@ -275,7 +282,7 @@ fn estimate_aleatoric_uncertainty<M: UncertaintyEstimator>(
 
 /// Compute uncertainty (standard deviation) from prediction samples
 fn compute_uncertainty_from_samples(samples: &Array2<Float>) -> Array1<Float> {
-    let mean = samples
+    let _mean = samples
         .mean_axis(Axis(1))
         .expect("operation should succeed");
     let variance = samples
@@ -609,9 +616,9 @@ mod tests {
     }
 
     impl UncertaintyEstimator for MockEstimator {
-        fn predict_with_uncertainty(&self, X: &ArrayView2<Float>) -> SklResult<Array1<Float>> {
-            let mut predictions = Array1::zeros(X.nrows());
-            for (i, row) in X.axis_iter(Axis(0)).enumerate() {
+        fn predict_with_uncertainty(&self, xv: &ArrayView2<Float>) -> SklResult<Array1<Float>> {
+            let mut predictions = Array1::zeros(xv.nrows());
+            for (i, row) in xv.axis_iter(Axis(0)).enumerate() {
                 predictions[i] = row
                     .iter()
                     .zip(&self.coefficients)
@@ -627,11 +634,11 @@ mod tests {
 
         fn predict_with_parameters(
             &self,
-            X: &ArrayView2<Float>,
+            xv: &ArrayView2<Float>,
             params: &[Float],
         ) -> SklResult<Array1<Float>> {
-            let mut predictions = Array1::zeros(X.nrows());
-            for (i, row) in X.axis_iter(Axis(0)).enumerate() {
+            let mut predictions = Array1::zeros(xv.nrows());
+            for (i, row) in xv.axis_iter(Axis(0)).enumerate() {
                 predictions[i] = row.iter().zip(params).map(|(&x, &c)| x * c).sum();
             }
             Ok(predictions)

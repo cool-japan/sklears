@@ -78,7 +78,7 @@ impl<E> FixedThresholdClassifier<E> {
 
     /// Set the threshold value
     pub fn threshold(mut self, threshold: f64) -> Self {
-        if threshold < 0.0 || threshold > 1.0 {
+        if !(0.0..=1.0).contains(&threshold) {
             panic!("Threshold must be between 0.0 and 1.0");
         }
         self.threshold = threshold;
@@ -163,8 +163,10 @@ use scirs2_core::ndarray::Axis;
 #[derive(Debug)]
 pub struct TunedThresholdClassifierCV<E, C> {
     /// Base estimator
+    #[allow(dead_code)] // estimator retained for future CV-based threshold tuning training
     estimator: E,
     /// Cross-validation splitter
+    #[allow(dead_code)] // cv retained for future CV-based threshold tuning splits
     cv: C,
     /// Metric to optimize
     scoring: OptimizationMetric,
@@ -175,6 +177,7 @@ pub struct TunedThresholdClassifierCV<E, C> {
     /// Maximum threshold to consider
     max_threshold: f64,
     /// Positive label index
+    #[allow(dead_code)] // pos_label_idx retained for future multiclass threshold support
     pos_label_idx: usize,
 }
 

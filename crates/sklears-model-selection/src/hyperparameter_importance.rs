@@ -360,6 +360,7 @@ impl Default for FANOVAConfig {
 
 /// Functional ANOVA analyzer
 pub struct FANOVAAnalyzer {
+    #[allow(dead_code)] // config retained for future FANOVA configuration extensions
     config: FANOVAConfig,
 }
 
@@ -533,6 +534,7 @@ impl Default for SensitivityConfig {
 /// Sensitivity analyzer using various methods
 pub struct SensitivityAnalyzer {
     config: SensitivityConfig,
+    #[allow(dead_code)] // rng retained for future stochastic sensitivity analysis
     rng: StdRng,
 }
 

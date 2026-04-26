@@ -712,7 +712,7 @@ impl UnsafeAuditor {
         }
 
         // Sort files by unsafe count
-        file_counts.sort_by(|a, b| b.1.cmp(&a.1));
+        file_counts.sort_by_key(|item| std::cmp::Reverse(item.1));
         let top_unsafe_files = file_counts.into_iter().take(10).collect();
 
         UnsafeSummary {

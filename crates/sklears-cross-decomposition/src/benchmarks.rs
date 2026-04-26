@@ -4,7 +4,7 @@
 //! sklears cross-decomposition implementations against scikit-learn and other
 //! reference implementations for performance, accuracy, and scalability.
 
-use scirs2_core::ndarray::{s, Array1, Array2, Array3};
+use scirs2_core::ndarray::{s, Array1, Array2};
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -492,19 +492,19 @@ impl BenchmarkSuite {
         sklears_result: &DecompositionResult,
         reference_result: &DecompositionResult,
     ) -> Result<AccuracyResults, SklearsError> {
-        let mut results = AccuracyResults::default();
-
-        // Compare weights
-        results.x_weights_rmse =
+        let x_weights_rmse =
             self.compute_rmse(&sklears_result.x_weights, &reference_result.x_weights);
-        results.y_weights_rmse =
+        let y_weights_rmse =
             self.compute_rmse(&sklears_result.y_weights, &reference_result.y_weights);
-
-        // Compare scores
-        results.x_scores_rmse =
-            self.compute_rmse(&sklears_result.x_scores, &reference_result.x_scores);
-        results.y_scores_rmse =
-            self.compute_rmse(&sklears_result.y_scores, &reference_result.y_scores);
+        let x_scores_rmse = self.compute_rmse(&sklears_result.x_scores, &reference_result.x_scores);
+        let y_scores_rmse = self.compute_rmse(&sklears_result.y_scores, &reference_result.y_scores);
+        let mut results = AccuracyResults {
+            x_weights_rmse,
+            y_weights_rmse,
+            x_scores_rmse,
+            y_scores_rmse,
+            ..Default::default()
+        };
 
         // Compare canonical correlations if available
         if let (Some(sk_corr), Some(ref_corr)) = (

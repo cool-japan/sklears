@@ -2,10 +2,10 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2};
+use scirs2_core::random::thread_rng;
 use sklears_core::types::Float;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashSet;
 
 /// Cross-modal alignment strategies
 #[derive(Debug, Clone)]
@@ -158,7 +158,7 @@ impl AdvancedManifoldLearning {
         min_grad_norm: Float,
     ) -> Result<ManifoldResults, ManifoldError> {
         let n_samples = data.nrows();
-        let n_features = data.ncols();
+        let _n_features = data.ncols();
         let distances = self.compute_pairwise_distances(&data)?;
         let p_conditional =
             self.compute_perplexity_conditional_probabilities(&distances, perplexity)?;
@@ -173,7 +173,7 @@ impl AdvancedManifoldLearning {
         let mut embedding = Array2::zeros((n_samples, self.embedding_dimension));
         for i in 0..n_samples {
             for j in 0..self.embedding_dimension {
-                use scirs2_core::random::{Distribution, RandNormal as Normal, Rng};
+                use scirs2_core::random::{Distribution, RandNormal as Normal};
                 let normal = Normal::new(0.0, 1e-4).map_err(|e| {
                     ManifoldError::InvalidParameters(format!("invalid Normal params: {}", e))
                 })?;
@@ -253,7 +253,7 @@ impl AdvancedManifoldLearning {
             }
         }
         let mut loss_history = Vec::new();
-        for epoch in 0..n_epochs {
+        for _epoch in 0..n_epochs {
             let mut epoch_loss = 0.0;
             for _ in 0..(n_samples * n_neighbors) {
                 let i = rng.gen_range(0..n_samples);
@@ -322,7 +322,7 @@ impl AdvancedManifoldLearning {
         for i in 0..n_samples {
             regularized_laplacian[[i, i]] += reg_parameter;
         }
-        let (eigenvalues, eigenvectors) = self
+        let (_eigenvalues, eigenvectors) = self
             .compute_smallest_eigenvectors(&regularized_laplacian, self.embedding_dimension + 1)?;
         let embedding = eigenvectors
             .slice(s![.., 1..self.embedding_dimension + 1])
@@ -353,7 +353,7 @@ impl AdvancedManifoldLearning {
         data: ArrayView2<Float>,
         n_neighbors: usize,
         geodesic_method: &GeodesicMethod,
-        path_method: &PathMethod,
+        _path_method: &PathMethod,
     ) -> Result<ManifoldResults, ManifoldError> {
         let n_samples = data.nrows();
         let neighbors = self.compute_nearest_neighbors(&data, n_neighbors)?;
@@ -426,7 +426,7 @@ impl AdvancedManifoldLearning {
                 }
             }
         }
-        let (eigenvalues, eigenvectors) = match eigen_solver {
+        let (_eigenvalues, eigenvectors) = match eigen_solver {
             EigenSolver::Standard => {
                 self.compute_smallest_eigenvectors(&m_matrix, self.embedding_dimension + 1)?
             }
@@ -459,7 +459,7 @@ impl AdvancedManifoldLearning {
     fn fit_diffusion_maps(
         &self,
         data: ArrayView2<Float>,
-        n_neighbors: usize,
+        _n_neighbors: usize,
         alpha: Float,
         diffusion_time: usize,
         epsilon: Float,
@@ -645,8 +645,8 @@ impl AdvancedManifoldLearning {
         original_data: &ArrayView2<Float>,
         embedding: &Array2<Float>,
     ) -> Result<ManifoldProperties, ManifoldError> {
-        let n_samples = original_data.nrows();
-        let n_features = original_data.ncols();
+        let _n_samples = original_data.nrows();
+        let _n_features = original_data.ncols();
         let intrinsic_dimension = self.estimate_intrinsic_dimension(original_data)?;
         let curvature_estimates = self.compute_local_curvature(original_data, embedding)?;
         let density_estimates = self.compute_density_estimates(original_data)?;
@@ -713,7 +713,7 @@ impl AdvancedManifoldLearning {
     fn compute_local_curvature(
         &self,
         original_data: &ArrayView2<Float>,
-        embedding: &Array2<Float>,
+        _embedding: &Array2<Float>,
     ) -> Result<Array1<Float>, ManifoldError> {
         let n_samples = original_data.nrows();
         let mut curvatures = Array1::zeros(n_samples);
@@ -839,7 +839,7 @@ impl AdvancedManifoldLearning {
                 covariance[[i, j]] = cov_val / n_samples;
             }
         }
-        let (eigenvalues, eigenvectors) =
+        let (_eigenvalues, eigenvectors) =
             self.compute_largest_eigenvectors(&covariance, n_components)?;
         Ok(eigenvectors)
     }
@@ -976,15 +976,15 @@ impl AdvancedManifoldLearning {
     fn compute_local_connectivity(
         &self,
         data: &ArrayView2<Float>,
-        neighbors: &[Vec<usize>],
+        _neighbors: &[Vec<usize>],
     ) -> Result<Array1<Float>, ManifoldError> {
         Ok(Array1::ones(data.nrows()))
     }
     fn build_fuzzy_simplicial_set(
         &self,
         data: &ArrayView2<Float>,
-        neighbors: &[Vec<usize>],
-        local_connectivity: &Array1<Float>,
+        _neighbors: &[Vec<usize>],
+        _local_connectivity: &Array1<Float>,
     ) -> Result<Array2<Float>, ManifoldError> {
         let n_samples = data.nrows();
         Ok(Array2::zeros((n_samples, n_samples)))
@@ -1009,14 +1009,14 @@ impl AdvancedManifoldLearning {
         }
         Ok(dist_sq.sqrt())
     }
-    fn umap_attractive_gradient(&self, distance: Float, spread: Float, min_dist: Float) -> Float {
+    fn umap_attractive_gradient(&self, distance: Float, _spread: Float, _min_dist: Float) -> Float {
         let a = 1.0 / (1.0 + distance * distance);
         a * (2.0 * distance)
     }
     fn umap_repulsive_gradient(
         &self,
         distance: Float,
-        spread: Float,
+        _spread: Float,
         repulsion_strength: Float,
     ) -> Float {
         let b = 1.0 / (1.0 + distance * distance);
@@ -1167,7 +1167,7 @@ impl AdvancedManifoldLearning {
         &self,
         data: &ArrayView2<Float>,
         neighbors: &[Vec<usize>],
-        reg_param: Float,
+        _reg_param: Float,
     ) -> Result<Array2<Float>, ManifoldError> {
         let n_samples = data.nrows();
         let n_neighbors = neighbors[0].len();
@@ -1239,8 +1239,8 @@ impl AdvancedManifoldLearning {
     }
     fn compute_reconstruction_error(
         &self,
-        original: &ArrayView2<Float>,
-        embedding: &Array2<Float>,
+        _original: &ArrayView2<Float>,
+        _embedding: &Array2<Float>,
     ) -> Result<Float, ManifoldError> {
         Ok(0.1)
     }
@@ -1267,13 +1267,13 @@ impl AdvancedManifoldLearning {
 /// Manifold-aware cross-decomposition
 pub struct ManifoldCCA {
     /// Base manifold learning configuration
-    manifold_config: AdvancedManifoldLearning,
+    pub manifold_config: AdvancedManifoldLearning,
     /// Number of canonical components
-    n_components: usize,
+    pub n_components: usize,
     /// Regularization parameters
-    regularization: ManifoldRegularization,
+    pub regularization: ManifoldRegularization,
     /// Cross-modal alignment strategy
-    alignment_strategy: CrossModalAlignment,
+    pub alignment_strategy: CrossModalAlignment,
 }
 /// Path computation methods
 #[derive(Debug, Clone)]
@@ -1288,18 +1288,19 @@ pub enum PathMethod {
 /// Fitted manifold CCA model
 pub struct FittedManifoldCCA {
     /// Learned manifold embeddings for X
-    x_embedding: Array2<Float>,
+    pub x_embedding: Array2<Float>,
     /// Learned manifold embeddings for Y
-    y_embedding: Array2<Float>,
+    pub y_embedding: Array2<Float>,
     /// Canonical vectors in embedding space
-    x_canonical: Array2<Float>,
-    y_canonical: Array2<Float>,
+    pub x_canonical: Array2<Float>,
+    /// Canonical vectors in embedding space for Y
+    pub y_canonical: Array2<Float>,
     /// Canonical correlations
-    canonical_correlations: Array1<Float>,
+    pub canonical_correlations: Array1<Float>,
     /// Manifold properties
-    manifold_properties: (ManifoldProperties, ManifoldProperties),
+    pub manifold_properties: (ManifoldProperties, ManifoldProperties),
     /// Alignment transformation
-    alignment_transform: Array2<Float>,
+    pub alignment_transform: Array2<Float>,
 }
 /// Properties of the learned manifold
 #[derive(Debug, Clone)]

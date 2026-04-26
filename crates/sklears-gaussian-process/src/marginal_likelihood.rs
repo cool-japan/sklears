@@ -25,7 +25,7 @@ use std::f64::consts::PI;
 ///
 /// let result = optimizer.optimize(
 ///     &X.view(), &y.view(), &mut kernel, 0.1
-/// ).unwrap();
+/// ).expect("optimization should succeed with valid inputs");
 ///
 /// let optimized_params = result.optimal_params;
 /// let final_lml = result.optimal_log_marginal_likelihood;
@@ -59,6 +59,7 @@ pub struct OptimizationResult {
     pub gradient_norm_history: Vec<f64>,
 }
 
+#[allow(non_snake_case)]
 impl MarginalLikelihoodOptimizer {
     /// Create a new marginal likelihood optimizer
     pub fn new() -> Self {
@@ -117,7 +118,7 @@ impl MarginalLikelihoodOptimizer {
         &self,
         X: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
-        kernel: &mut Box<dyn Kernel>,
+        kernel: &mut dyn Kernel,
         sigma_n: f64,
     ) -> SklResult<OptimizationResult> {
         let n_params = kernel.get_params().len() + 1; // +1 for noise parameter
@@ -243,7 +244,7 @@ impl MarginalLikelihoodOptimizer {
         &self,
         X: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
-        kernel: &Box<dyn Kernel>,
+        kernel: &dyn Kernel,
         sigma_n: f64,
     ) -> SklResult<(f64, Array1<f64>)> {
         let n = X.nrows();
@@ -296,7 +297,7 @@ impl MarginalLikelihoodOptimizer {
     fn compute_kernel_gradient(
         &self,
         X: &ArrayView2<f64>,
-        kernel: &Box<dyn Kernel>,
+        kernel: &dyn Kernel,
         param_idx: usize,
     ) -> SklResult<Array2<f64>> {
         // Finite difference approximation
@@ -360,10 +361,11 @@ impl Default for MarginalLikelihoodOptimizer {
 }
 
 /// Optimize hyperparameters using maximum likelihood estimation
+#[allow(non_snake_case)]
 pub fn optimize_hyperparameters(
     X: &ArrayView2<f64>,
     y: &ArrayView1<f64>,
-    kernel: &mut Box<dyn Kernel>,
+    kernel: &mut dyn Kernel,
     sigma_n: f64,
     max_iter: usize,
     tol: f64,
@@ -382,7 +384,7 @@ pub fn optimize_hyperparameters(
 pub fn log_marginal_likelihood(
     X: &ArrayView2<f64>,
     y: &ArrayView1<f64>,
-    kernel: &Box<dyn Kernel>,
+    kernel: &dyn Kernel,
     sigma_n: f64,
 ) -> SklResult<f64> {
     let n = X.nrows();
@@ -438,13 +440,13 @@ pub fn log_marginal_likelihood(
 /// let y = array![1.0, 4.0, 9.0, 16.0];
 /// let kernel: Box<dyn sklears_gaussian_process::kernels::Kernel> = Box::new(RBF::new(1.0));
 ///
-/// let lml = log_marginal_likelihood_stable(&X.view(), &y.view(), &kernel, 0.1).unwrap();
+/// let lml = log_marginal_likelihood_stable(&X.view(), &y.view(), kernel.as_ref(), 0.1).expect("log marginal likelihood should succeed with valid inputs");
 /// ```
 #[allow(non_snake_case)]
 pub fn log_marginal_likelihood_stable(
     X: &ArrayView2<f64>,
     y: &ArrayView1<f64>,
-    kernel: &Box<dyn Kernel>,
+    kernel: &dyn Kernel,
     sigma_n: f64,
 ) -> SklResult<f64> {
     let n = X.nrows();
@@ -523,10 +525,11 @@ pub fn log_marginal_likelihood_stable(
 }
 
 /// Cross-validation for hyperparameter selection
+#[allow(non_snake_case)]
 pub fn cross_validate_hyperparameters(
     X: &ArrayView2<f64>,
     y: &ArrayView1<f64>,
-    kernel: &mut Box<dyn Kernel>,
+    kernel: &mut dyn Kernel,
     sigma_n_values: &[f64],
     n_folds: usize,
     random_state: Option<u64>,
@@ -605,7 +608,7 @@ mod tests {
         let y = array![1.0, 4.0, 9.0, 16.0];
         let kernel: Box<dyn Kernel> = Box::new(RBF::new(1.0));
 
-        let lml = log_marginal_likelihood_stable(&X.view(), &y.view(), &kernel, 0.1)
+        let lml = log_marginal_likelihood_stable(&X.view(), &y.view(), kernel.as_ref(), 0.1)
             .expect("operation should succeed");
         assert!(lml.is_finite());
         assert!(lml < 0.0); // Log marginal likelihood is typically negative
@@ -618,9 +621,9 @@ mod tests {
         let y = array![1.0, 4.0, 9.0, 16.0];
         let kernel: Box<dyn Kernel> = Box::new(RBF::new(1.0));
 
-        let lml_stable = log_marginal_likelihood_stable(&X.view(), &y.view(), &kernel, 0.1)
+        let lml_stable = log_marginal_likelihood_stable(&X.view(), &y.view(), kernel.as_ref(), 0.1)
             .expect("operation should succeed");
-        let lml_standard = log_marginal_likelihood(&X.view(), &y.view(), &kernel, 0.1)
+        let lml_standard = log_marginal_likelihood(&X.view(), &y.view(), kernel.as_ref(), 0.1)
             .expect("operation should succeed");
 
         // Both methods should give similar results for well-conditioned problems
@@ -635,17 +638,18 @@ mod tests {
         let kernel: Box<dyn Kernel> = Box::new(RBF::new(1.0));
 
         // Test with negative noise
-        let result = log_marginal_likelihood_stable(&X.view(), &y.view(), &kernel, -0.1);
+        let result = log_marginal_likelihood_stable(&X.view(), &y.view(), kernel.as_ref(), -0.1);
         assert!(result.is_err());
 
         // Test with zero noise
-        let result = log_marginal_likelihood_stable(&X.view(), &y.view(), &kernel, 0.0);
+        let result = log_marginal_likelihood_stable(&X.view(), &y.view(), kernel.as_ref(), 0.0);
         assert!(result.is_err());
 
         // Test with empty arrays
         let X_empty = Array2::<f64>::zeros((0, 1));
         let y_empty = Array1::<f64>::zeros(0);
-        let result = log_marginal_likelihood_stable(&X_empty.view(), &y_empty.view(), &kernel, 0.1);
+        let result =
+            log_marginal_likelihood_stable(&X_empty.view(), &y_empty.view(), kernel.as_ref(), 0.1);
         assert!(result.is_err());
     }
 
@@ -657,7 +661,7 @@ mod tests {
         let y = array![1e-10, 2e-10, 3e-10];
         let kernel: Box<dyn Kernel> = Box::new(RBF::new(1e-20)); // Very small length scale
 
-        let result = log_marginal_likelihood_stable(&X.view(), &y.view(), &kernel, 1e-12);
+        let result = log_marginal_likelihood_stable(&X.view(), &y.view(), kernel.as_ref(), 1e-12);
         // Should either succeed or fail gracefully with a clear error
         match result {
             Ok(lml) => {

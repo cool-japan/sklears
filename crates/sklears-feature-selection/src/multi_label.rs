@@ -585,6 +585,7 @@ impl Default for LabelSpecificSelector<Untrained> {
 }
 
 impl LabelSpecificSelector<Untrained> {
+    /// new
     pub fn new() -> Self {
         Self {
             n_features_per_label: None,
@@ -598,16 +599,19 @@ impl LabelSpecificSelector<Untrained> {
         }
     }
 
+    /// n_features_per_label
     pub fn n_features_per_label(mut self, n_features: usize) -> Self {
         self.n_features_per_label = Some(n_features);
         self
     }
 
+    /// threshold
     pub fn threshold(mut self, threshold: Float) -> Self {
         self.threshold = threshold;
         self
     }
 
+    /// aggregate_method
     pub fn aggregate_method(mut self, method: AggregateMethod) -> Self {
         self.aggregate_method = method;
         self
@@ -703,7 +707,7 @@ impl LabelSpecificSelector<Untrained> {
                         *feature_counts.entry(feature).or_insert(0) += 1;
                     }
                 }
-                let majority_threshold = (label_selections.len() + 1) / 2;
+                let majority_threshold = label_selections.len().div_ceil(2);
                 feature_counts
                     .into_iter()
                     .filter(|(_, count)| *count >= majority_threshold)
@@ -834,6 +838,7 @@ impl FeatureSelector for LabelSpecificSelector<Trained> {
 }
 
 impl LabelSpecificSelector<Trained> {
+    /// features_for_label
     pub fn features_for_label(&self, label_idx: usize) -> Option<&[usize]> {
         self.label_selections_
             .as_ref()?
@@ -841,6 +846,7 @@ impl LabelSpecificSelector<Trained> {
             .map(|v| v.as_slice())
     }
 
+    /// n_features_out
     pub fn n_features_out(&self) -> usize {
         self.selected_features_
             .as_ref()
@@ -848,6 +854,7 @@ impl LabelSpecificSelector<Trained> {
             .len()
     }
 
+    /// n_labels
     pub fn n_labels(&self) -> usize {
         self.n_labels_.expect("operation should succeed")
     }
@@ -992,16 +999,6 @@ mod tests {
                     Array2::from_shape_vec((n_rows, n_cols), values)
                         .expect("operation should succeed")
                 })
-            })
-        }
-
-        fn valid_multilabel_target(
-            n_samples: usize,
-            n_labels: usize,
-        ) -> impl Strategy<Value = MultiLabelTarget> {
-            prop::collection::vec(0.0..1.0f64, n_samples * n_labels).prop_map(move |values| {
-                Array2::from_shape_vec((n_samples, n_labels), values)
-                    .expect("operation should succeed")
             })
         }
 

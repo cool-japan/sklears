@@ -76,8 +76,8 @@ impl LocallyLinearEmbedding {
     }
 
     /// Find k nearest neighbors for each point
-    fn find_neighbors(&self, X: &ArrayView2<Float>) -> Array2<usize> {
-        let n_samples = X.nrows();
+    fn find_neighbors(&self, x: &ArrayView2<Float>) -> Array2<usize> {
+        let n_samples = x.nrows();
         let mut neighbors = Array2::zeros((n_samples, self.n_neighbors));
 
         for i in 0..n_samples {
@@ -85,7 +85,7 @@ impl LocallyLinearEmbedding {
 
             for j in 0..n_samples {
                 if i != j {
-                    let dist = self.euclidean_distance(&X.row(i), &X.row(j));
+                    let dist = self.euclidean_distance(&x.row(i), &x.row(j));
                     distances.push((j, dist));
                 }
             }
@@ -111,15 +111,15 @@ impl LocallyLinearEmbedding {
     }
 
     /// Compute reconstruction weights for LLE
-    fn compute_weights(&self, X: &ArrayView2<Float>, neighbors: &Array2<usize>) -> Array2<Float> {
-        let n_samples = X.nrows();
+    fn compute_weights(&self, x: &ArrayView2<Float>, neighbors: &Array2<usize>) -> Array2<Float> {
+        let n_samples = x.nrows();
         let mut weights = Array2::zeros((n_samples, self.n_neighbors));
 
         for i in 0..n_samples {
             // Get neighbor matrix
-            let mut neighbor_matrix = Array2::zeros((self.n_neighbors, X.ncols()));
+            let mut neighbor_matrix = Array2::zeros((self.n_neighbors, x.ncols()));
             for (k, &j) in neighbors.row(i).iter().enumerate() {
-                neighbor_matrix.row_mut(k).assign(&X.row(j));
+                neighbor_matrix.row_mut(k).assign(&x.row(j));
             }
 
             // Center the neighbors
@@ -159,9 +159,9 @@ impl LocallyLinearEmbedding {
     }
 
     /// Simplified linear system solver (placeholder - use proper solver in production)
-    fn solve_linear_system(&self, A: &Array2<Float>, b: &Array1<Float>) -> Array1<Float> {
+    fn solve_linear_system(&self, a_mat: &Array2<Float>, b: &Array1<Float>) -> Array1<Float> {
         // This is a simplified version - in practice, use proper linear algebra library
-        let n = A.nrows();
+        let n = a_mat.nrows();
         let mut x = Array1::zeros(n);
 
         // Simple iterative solver (Jacobi method)
@@ -171,11 +171,11 @@ impl LocallyLinearEmbedding {
                 let mut sum = 0.0;
                 for j in 0..n {
                     if i != j {
-                        sum += A[[i, j]] * x[j];
+                        sum += a_mat[[i, j]] * x[j];
                     }
                 }
-                if A[[i, i]] != 0.0 {
-                    x_new[i] = (b[i] - sum) / A[[i, i]];
+                if a_mat[[i, i]] != 0.0 {
+                    x_new[i] = (b[i] - sum) / a_mat[[i, i]];
                 }
             }
             x = x_new;
@@ -192,20 +192,20 @@ impl LocallyLinearEmbedding {
     ) -> Array2<Float> {
         let n_samples = weights.nrows();
 
-        // Construct weight matrix W
-        let mut W = Array2::zeros((n_samples, n_samples));
+        // Construct weight matrix w_mat
+        let mut w_mat = Array2::zeros((n_samples, n_samples));
         for i in 0..n_samples {
             for (k, &neighbor_idx) in neighbors.row(i).iter().enumerate() {
                 if neighbor_idx < n_samples && k < weights.ncols() {
-                    W[[i, neighbor_idx]] = weights[[i, k]];
+                    w_mat[[i, neighbor_idx]] = weights[[i, k]];
                 }
             }
         }
 
-        // Compute M = (I - W)^T(I - W)
-        let I: Array2<Float> = Array2::eye(n_samples);
-        let I_minus_W = &I - &W;
-        let _M = I_minus_W.t().dot(&I_minus_W);
+        // Compute M = (identity - w_mat)^T(identity - w_mat)
+        let identity: Array2<Float> = Array2::eye(n_samples);
+        let i_minus_w = &identity - &w_mat;
+        let _m = i_minus_w.t().dot(&i_minus_w);
 
         // Find smallest eigenvalues and eigenvectors (simplified)
         // In practice, use proper eigenvalue solver
@@ -230,12 +230,12 @@ impl LocallyLinearEmbedding {
 impl Fit<Features, ()> for LocallyLinearEmbedding {
     type Fitted = LocallyLinearEmbedding;
 
-    fn fit(self, X: &Features, _y: &()) -> Result<Self::Fitted> {
-        if X.is_empty() {
+    fn fit(self, x: &Features, _y: &()) -> Result<Self::Fitted> {
+        if x.is_empty() {
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        if X.nrows() <= self.n_neighbors {
+        if x.nrows() <= self.n_neighbors {
             return Err(NeighborsError::InvalidInput(
                 "Number of neighbors must be less than number of samples".to_string(),
             )
@@ -243,10 +243,10 @@ impl Fit<Features, ()> for LocallyLinearEmbedding {
         }
 
         // Find neighbors
-        let neighbors = self.find_neighbors(&X.view());
+        let neighbors = self.find_neighbors(&x.view());
 
         // Compute reconstruction weights
-        let weights = self.compute_weights(&X.view(), &neighbors);
+        let weights = self.compute_weights(&x.view(), &neighbors);
 
         // Compute embedding
         let embedding = self.compute_embedding(&neighbors, &weights);
@@ -260,7 +260,7 @@ impl Fit<Features, ()> for LocallyLinearEmbedding {
 }
 
 impl Transform<Features, Array2<Float>> for LocallyLinearEmbedding {
-    fn transform(&self, _X: &Features) -> Result<Array2<Float>> {
+    fn transform(&self, _x: &Features) -> Result<Array2<Float>> {
         if let Some(ref components) = self.components {
             // For LLE, transformation is typically done during fit
             // This is a simplified version
@@ -316,8 +316,8 @@ impl Isomap {
     }
 
     /// Build neighborhood graph
-    fn build_graph(&self, X: &ArrayView2<Float>) -> Array2<Float> {
-        let n_samples = X.nrows();
+    fn build_graph(&self, x: &ArrayView2<Float>) -> Array2<Float> {
+        let n_samples = x.nrows();
         let mut graph = Array2::from_elem((n_samples, n_samples), Float::infinity());
 
         // Set diagonal to zero
@@ -331,7 +331,7 @@ impl Isomap {
 
             for j in 0..n_samples {
                 if i != j {
-                    let dist = self.euclidean_distance(&X.row(i), &X.row(j));
+                    let dist = self.euclidean_distance(&x.row(i), &x.row(j));
                     distances.push((j, dist));
                 }
             }
@@ -423,12 +423,12 @@ impl Isomap {
 impl Fit<Features, ()> for Isomap {
     type Fitted = Isomap;
 
-    fn fit(self, X: &Features, _y: &()) -> Result<Self::Fitted> {
-        if X.is_empty() {
+    fn fit(self, x: &Features, _y: &()) -> Result<Self::Fitted> {
+        if x.is_empty() {
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        if X.nrows() <= self.n_neighbors {
+        if x.nrows() <= self.n_neighbors {
             return Err(NeighborsError::InvalidInput(
                 "Number of neighbors must be less than number of samples".to_string(),
             )
@@ -436,7 +436,7 @@ impl Fit<Features, ()> for Isomap {
         }
 
         // Build neighborhood graph
-        let graph = self.build_graph(&X.view());
+        let graph = self.build_graph(&x.view());
 
         // Compute shortest path distances
         let geodesic_distances = self.compute_shortest_paths(&graph);
@@ -453,7 +453,7 @@ impl Fit<Features, ()> for Isomap {
 }
 
 impl Transform<Features, Array2<Float>> for Isomap {
-    fn transform(&self, _X: &Features) -> Result<Array2<Float>> {
+    fn transform(&self, _x: &Features) -> Result<Array2<Float>> {
         if let Some(ref components) = self.components {
             // For Isomap, transformation is typically done during fit
             // This is a simplified version
@@ -517,8 +517,8 @@ impl LaplacianEigenmaps {
     }
 
     /// Build affinity matrix
-    fn build_affinity_matrix(&self, X: &ArrayView2<Float>) -> Array2<Float> {
-        let n_samples = X.nrows();
+    fn build_affinity_matrix(&self, x: &ArrayView2<Float>) -> Array2<Float> {
+        let n_samples = x.nrows();
         let mut affinity = Array2::zeros((n_samples, n_samples));
 
         match self.affinity.as_str() {
@@ -529,7 +529,7 @@ impl LaplacianEigenmaps {
 
                     for j in 0..n_samples {
                         if i != j {
-                            let dist = self.euclidean_distance(&X.row(i), &X.row(j));
+                            let dist = self.euclidean_distance(&x.row(i), &x.row(j));
                             distances.push((j, dist));
                         }
                     }
@@ -550,7 +550,7 @@ impl LaplacianEigenmaps {
                 for i in 0..n_samples {
                     for j in 0..n_samples {
                         if i != j {
-                            let dist_sq = self.euclidean_distance_squared(&X.row(i), &X.row(j));
+                            let dist_sq = self.euclidean_distance_squared(&x.row(i), &x.row(j));
                             affinity[[i, j]] = (-gamma * dist_sq).exp();
                         }
                     }
@@ -563,7 +563,7 @@ impl LaplacianEigenmaps {
 
                     for j in 0..n_samples {
                         if i != j {
-                            let dist = self.euclidean_distance(&X.row(i), &X.row(j));
+                            let dist = self.euclidean_distance(&x.row(i), &x.row(j));
                             distances.push((j, dist));
                         }
                     }
@@ -610,7 +610,7 @@ impl LaplacianEigenmaps {
             degree[[i, i]] = d;
         }
 
-        // Compute normalized Laplacian: L = D^(-1/2) * (D - A) * D^(-1/2)
+        // Compute normalized Laplacian: L = D^(-1/2) * (D - a_mat) * D^(-1/2)
         let mut laplacian = &degree - affinity;
 
         // Normalize
@@ -653,12 +653,12 @@ impl LaplacianEigenmaps {
 impl Fit<Features, ()> for LaplacianEigenmaps {
     type Fitted = LaplacianEigenmaps;
 
-    fn fit(self, X: &Features, _y: &()) -> Result<Self::Fitted> {
-        if X.is_empty() {
+    fn fit(self, x: &Features, _y: &()) -> Result<Self::Fitted> {
+        if x.is_empty() {
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        if X.nrows() <= self.n_neighbors {
+        if x.nrows() <= self.n_neighbors {
             return Err(NeighborsError::InvalidInput(
                 "Number of neighbors must be less than number of samples".to_string(),
             )
@@ -666,7 +666,7 @@ impl Fit<Features, ()> for LaplacianEigenmaps {
         }
 
         // Build affinity matrix
-        let affinity = self.build_affinity_matrix(&X.view());
+        let affinity = self.build_affinity_matrix(&x.view());
 
         // Compute graph Laplacian
         let laplacian = self.compute_laplacian(&affinity);
@@ -683,7 +683,7 @@ impl Fit<Features, ()> for LaplacianEigenmaps {
 }
 
 impl Transform<Features, Array2<Float>> for LaplacianEigenmaps {
-    fn transform(&self, _X: &Features) -> Result<Array2<Float>> {
+    fn transform(&self, _x: &Features) -> Result<Array2<Float>> {
         if let Some(ref components) = self.components {
             // For Laplacian Eigenmaps, transformation is typically done during fit
             // This is a simplified version
@@ -748,16 +748,16 @@ impl TSNENeighbors {
     }
 
     /// Compute pairwise squared distances
-    fn compute_pairwise_distances(&self, X: &ArrayView2<Float>) -> Array2<Float> {
-        let n_samples = X.nrows();
+    fn compute_pairwise_distances(&self, x: &ArrayView2<Float>) -> Array2<Float> {
+        let n_samples = x.nrows();
         let mut distances = Array2::zeros((n_samples, n_samples));
 
         for i in 0..n_samples {
             for j in i + 1..n_samples {
-                let dist_sq = X
+                let dist_sq = x
                     .row(i)
                     .iter()
-                    .zip(X.row(j).iter())
+                    .zip(x.row(j).iter())
                     .map(|(a, b)| (a - b).powi(2))
                     .sum::<Float>();
                 distances[[i, j]] = dist_sq;
@@ -851,8 +851,8 @@ impl TSNENeighbors {
 
         // Gradient descent optimization (simplified)
         for _iter in 0..self.n_iter {
-            // Compute Q matrix (low-dimensional probabilities)
-            let mut Q = Array2::zeros((n_samples, n_samples));
+            // Compute q_mat matrix (low-dimensional probabilities)
+            let mut q_mat = Array2::zeros((n_samples, n_samples));
             let mut sum_q = 0.0;
 
             for i in 0..n_samples {
@@ -865,15 +865,15 @@ impl TSNENeighbors {
                         .sum::<Float>();
 
                     let q = 1.0 / (1.0 + dist_sq);
-                    Q[[i, j]] = q;
-                    Q[[j, i]] = q;
+                    q_mat[[i, j]] = q;
+                    q_mat[[j, i]] = q;
                     sum_q += 2.0 * q;
                 }
             }
 
-            // Normalize Q
+            // Normalize q_mat
             if sum_q > 0.0 {
-                Q /= sum_q;
+                q_mat /= sum_q;
             }
 
             // Compute gradient (simplified)
@@ -881,8 +881,8 @@ impl TSNENeighbors {
             for i in 0..n_samples {
                 for j in 0..n_samples {
                     if i != j {
-                        let p_q_diff = probabilities[[i, j]] - Q[[i, j]];
-                        let mult = 4.0 * p_q_diff * Q[[i, j]];
+                        let p_q_diff = probabilities[[i, j]] - q_mat[[i, j]];
+                        let mult = 4.0 * p_q_diff * q_mat[[i, j]];
 
                         for k in 0..self.n_components {
                             gradient[[i, k]] += mult * (embedding[[i, k]] - embedding[[j, k]]);
@@ -906,13 +906,13 @@ impl TSNENeighbors {
 impl Fit<Features, ()> for TSNENeighbors {
     type Fitted = TSNENeighbors;
 
-    fn fit(self, X: &Features, _y: &()) -> Result<Self::Fitted> {
-        if X.is_empty() {
+    fn fit(self, x: &Features, _y: &()) -> Result<Self::Fitted> {
+        if x.is_empty() {
             return Err(NeighborsError::EmptyInput.into());
         }
 
         // Compute pairwise distances
-        let distances = self.compute_pairwise_distances(&X.view());
+        let distances = self.compute_pairwise_distances(&x.view());
 
         // Compute probabilities
         let probabilities = self.compute_probabilities(&distances);
@@ -929,7 +929,7 @@ impl Fit<Features, ()> for TSNENeighbors {
 }
 
 impl Transform<Features, Array2<Float>> for TSNENeighbors {
-    fn transform(&self, _X: &Features) -> Result<Array2<Float>> {
+    fn transform(&self, _x: &Features) -> Result<Array2<Float>> {
         if let Some(ref embedding) = self.embedding {
             // For t-SNE, transformation is typically done during fit
             Ok(embedding.clone())
@@ -947,7 +947,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_lle_basic() {
-        let X = Array2::from_shape_vec(
+        let x = Array2::from_shape_vec(
             (6, 3),
             vec![
                 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0,
@@ -958,67 +958,67 @@ mod tests {
 
         let lle = LocallyLinearEmbedding::new(3, 2).with_random_state(42);
 
-        let fitted = lle.fit(&X, &()).expect("operation should succeed");
+        let fitted = lle.fit(&x, &()).expect("operation should succeed");
         assert!(fitted.components.is_some());
 
-        let transformed = fitted.transform(&X).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[6, 2]);
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn test_isomap_basic() {
-        let X = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0])
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0])
             .expect("operation should succeed");
 
         let isomap = Isomap::new(2, 2).with_random_state(42);
 
-        let fitted = isomap.fit(&X, &()).expect("operation should succeed");
+        let fitted = isomap.fit(&x, &()).expect("operation should succeed");
         assert!(fitted.components.is_some());
         assert!(fitted.geodesic_distances.is_some());
 
-        let transformed = fitted.transform(&X).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn test_laplacian_eigenmaps_basic() {
-        let X = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0])
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0])
             .expect("operation should succeed");
 
         let le = LaplacianEigenmaps::new(2, 2).with_random_state(42);
 
-        let fitted = le.fit(&X, &()).expect("operation should succeed");
+        let fitted = le.fit(&x, &()).expect("operation should succeed");
         assert!(fitted.components.is_some());
         assert!(fitted.affinity_matrix.is_some());
 
-        let transformed = fitted.transform(&X).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn test_tsne_neighbors_basic() {
-        let X = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0])
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0])
             .expect("operation should succeed");
 
         let tsne = TSNENeighbors::new(1.0, 2)
             .with_n_iter(10)
             .with_random_state(42);
 
-        let fitted = tsne.fit(&X, &()).expect("operation should succeed");
+        let fitted = tsne.fit(&x, &()).expect("operation should succeed");
         assert!(fitted.probabilities.is_some());
         assert!(fitted.embedding.is_some());
 
-        let transformed = fitted.transform(&X).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn test_laplacian_eigenmaps_rbf() {
-        let X = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0])
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0])
             .expect("operation should succeed");
 
         let le = LaplacianEigenmaps::new(2, 2)
@@ -1026,11 +1026,11 @@ mod tests {
             .with_gamma(1.0)
             .with_random_state(42);
 
-        let fitted = le.fit(&X, &()).expect("operation should succeed");
+        let fitted = le.fit(&x, &()).expect("operation should succeed");
         assert!(fitted.components.is_some());
         assert!(fitted.affinity_matrix.is_some());
 
-        let transformed = fitted.transform(&X).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
     }
 }

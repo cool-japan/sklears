@@ -256,9 +256,9 @@ impl MultiLabelCrossValidator {
             let test_indices = folds[test_fold].clone();
             let mut train_indices = Vec::new();
 
-            for fold_idx in 0..self.config.n_folds {
+            for (fold_idx, fold) in folds.iter().enumerate() {
                 if fold_idx != test_fold {
-                    train_indices.extend(&folds[fold_idx]);
+                    train_indices.extend(fold);
                 }
             }
 
@@ -332,9 +332,9 @@ impl MultiLabelCrossValidator {
             let test_indices = folds[test_fold].clone();
             let mut train_indices = Vec::new();
 
-            for fold_idx in 0..self.config.n_folds {
+            for (fold_idx, fold) in folds.iter().enumerate() {
                 if fold_idx != test_fold {
-                    train_indices.extend(&folds[fold_idx]);
+                    train_indices.extend(fold);
                 }
             }
 
@@ -447,9 +447,9 @@ impl MultiLabelCrossValidator {
             let test_indices = folds[test_fold].clone();
             let mut train_indices = Vec::new();
 
-            for fold_idx in 0..self.config.n_folds {
+            for (fold_idx, fold) in folds.iter().enumerate() {
                 if fold_idx != test_fold {
-                    train_indices.extend(&folds[fold_idx]);
+                    train_indices.extend(fold);
                 }
             }
 
@@ -523,9 +523,9 @@ impl MultiLabelCrossValidator {
             let test_indices = folds[test_fold].clone();
             let mut train_indices = Vec::new();
 
-            for fold_idx in 0..self.config.n_folds {
+            for (fold_idx, fold) in folds.iter().enumerate() {
                 if fold_idx != test_fold {
-                    train_indices.extend(&folds[fold_idx]);
+                    train_indices.extend(fold);
                 }
             }
 

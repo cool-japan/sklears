@@ -101,7 +101,7 @@ pub fn median_absolute_error(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> Metr
     errors.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let n = errors.len();
-    let median = if n % 2 == 0 {
+    let median = if n.is_multiple_of(2) {
         (errors[n / 2 - 1] + errors[n / 2]) / 2.0
     } else {
         errors[n / 2]
@@ -170,7 +170,7 @@ pub fn median_absolute_percentage_error(
     errors.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let n = errors.len();
-    let median = if n % 2 == 0 {
+    let median = if n.is_multiple_of(2) {
         (errors[n / 2 - 1] + errors[n / 2]) / 2.0
     } else {
         errors[n / 2]

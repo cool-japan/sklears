@@ -7,11 +7,31 @@ use crate::modular_framework::{
     Objective, ObjectiveData, OptimizationSolver, SolverInfo, SolverRecommendations,
 };
 use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::prelude::{seeded_rng, thread_rng, SliceRandom};
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
 };
 use std::collections::HashMap;
+
+/// Generate a shuffled permutation of indices 0..n.
+///
+/// When `seed` is `Some(s)`, the permutation is deterministic and reproducible.
+/// When `seed` is `None`, the system thread-local RNG is used.
+fn random_permutation(n: usize, seed: Option<u64>) -> Vec<usize> {
+    let mut indices: Vec<usize> = (0..n).collect();
+    match seed {
+        Some(s) => {
+            let mut rng = seeded_rng(s);
+            indices.shuffle(&mut rng);
+        }
+        None => {
+            let mut rng = thread_rng();
+            indices.shuffle(&mut rng);
+        }
+    }
+    indices
+}
 
 /// Configuration for gradient descent solvers
 #[derive(Debug, Clone)]
@@ -305,8 +325,7 @@ impl OptimizationSolver for CoordinateDescentSolver {
 
         // Create coordinate selection order
         let coord_order: Vec<usize> = if config.random_selection {
-            // TODO: Implement random permutation using random_seed
-            (0..n_features).collect()
+            random_permutation(n_features, config.random_seed)
         } else {
             (0..n_features).collect()
         };
@@ -569,18 +588,6 @@ pub fn convert_solver_result_to_standard(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::loss_functions::SquaredLoss;
-    use crate::modular_framework::CompositeObjective;
-    use crate::regularization_schemes::L2Regularization;
-
-    // Test helper: create a simple quadratic objective
-    fn create_test_objective() -> CompositeObjective<'static> {
-        let loss = Box::leak(Box::new(SquaredLoss));
-        let reg = Box::leak(Box::new(
-            L2Regularization::new(0.1).expect("operation should succeed"),
-        ));
-        CompositeObjective::new(loss, Some(reg))
-    }
 
     #[test]
     fn test_gradient_descent_config() {

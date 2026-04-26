@@ -6,7 +6,6 @@ use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::{seq::SliceRandom, SeedableRng};
 use scirs2_core::RngExt;
-use scirs2_core::SliceRandomExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -228,7 +227,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MiniBatchTSNE<Untrained> {
                 }
 
                 // Update embeddings for this batch
-                let momentum = if iter < 250 { 0.5 } else { 0.8 };
+                let _momentum = if iter < 250 { 0.5 } else { 0.8 }; // deferred: momentum-based update not yet implemented
                 for (i, &idx) in batch_indices.iter().enumerate() {
                     for d in 0..self.n_components {
                         embedding[[idx, d]] -= self.learning_rate * gradients[[i, d]];
@@ -250,7 +249,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MiniBatchTSNE<Untrained> {
 }
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for MiniBatchTSNE<MBTSNETrained> {
-    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
+    fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         // For fitted data, return the stored embedding
         // For new data, this would require out-of-sample extension (not implemented here)
         Ok(self.state.embedding.clone())

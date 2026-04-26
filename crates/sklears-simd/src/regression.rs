@@ -49,10 +49,7 @@ fn least_squares_scalar(x: &[&[f32]], y: &[f32], xtx: &mut [Vec<f32>], xty: &mut
     // Compute X^T * X
     for i in 0..n_features {
         for j in 0..n_features {
-            let mut sum = 0.0;
-            for k in 0..n_samples {
-                sum += x[k][i] * x[k][j];
-            }
+            let sum: f32 = x.iter().map(|row| row[i] * row[j]).sum();
             xtx[i][j] = sum;
         }
     }
@@ -226,9 +223,8 @@ pub fn ridge_regression_normal_equation(
     let (mut xtx, xty) = least_squares_normal_equation(x, y);
 
     // Add ridge regularization: X^T * X + alpha * I
-    let n_features = xtx.len();
-    for i in 0..n_features {
-        xtx[i][i] += alpha;
+    for (i, row) in xtx.iter_mut().enumerate() {
+        row[i] += alpha;
     }
 
     (xtx, xty)

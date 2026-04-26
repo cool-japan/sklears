@@ -207,7 +207,7 @@ pub trait FeatureEngineeringTransformer<T> {
     fn transform_features(&self, x: &ArrayView2<T>) -> Result<Array2<T>>;
 
     /// Inverse transform features (if applicable)
-    fn inverse_transform(&self, x: &ArrayView2<T>) -> Result<Array2<T>> {
+    fn inverse_transform(&self, _x: &ArrayView2<T>) -> Result<Array2<T>> {
         Err(SklearsError::NotImplemented(
             "Inverse transform not implemented".to_string(),
         ))

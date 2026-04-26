@@ -263,7 +263,7 @@ impl MemoryOptimizedOps {
     /// Compute feature statistics in chunks to reduce memory usage
     pub fn chunked_feature_stats(
         x: &Array2<f64>,
-        y: &Array1<i32>,
+        _y: &Array1<i32>,
         chunk_size: usize,
     ) -> (f64, f64) {
         let n_samples = x.nrows();
@@ -434,7 +434,7 @@ impl CompressedNBModel {
         // For efficiency, decompress only when needed or cache decompressed version
         let feature_log_prob = self.decompress_feature_log_prob();
 
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let log_prob = x.dot(&feature_log_prob.t()) + &self.class_log_prior;
 
         // Convert to probabilities
@@ -794,8 +794,12 @@ mod tests {
     #[test]
     fn test_lazy_loaded_model() {
         // This test would require file I/O, so we'll just test the structure
-        let lazy_model = LazyLoadedModel::new("/tmp/test_model.bin".to_string(), true);
-        assert_eq!(lazy_model.model_path, "/tmp/test_model.bin");
+        let lazy_model_path = std::env::temp_dir()
+            .join("test_model.bin")
+            .display()
+            .to_string();
+        let lazy_model = LazyLoadedModel::new(lazy_model_path.clone(), true);
+        assert_eq!(lazy_model.model_path, lazy_model_path);
         assert!(lazy_model.keep_in_memory);
         assert!(lazy_model.cached_model.is_none());
     }

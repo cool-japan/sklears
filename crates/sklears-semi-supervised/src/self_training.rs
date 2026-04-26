@@ -335,6 +335,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
 
 /// Trained state for EnhancedSelfTraining
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct EnhancedSelfTrainingTrained {
     /// X_train
     pub X_train: Array2<f64>,

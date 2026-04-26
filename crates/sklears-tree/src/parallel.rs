@@ -156,7 +156,7 @@ impl ParallelUtils {
             result = result + pred_matrix;
         }
 
-        result = result / n_estimators;
+        result /= n_estimators;
         Ok(result)
     }
 
@@ -753,7 +753,7 @@ impl ParallelUtils {
         let std_dev = variance.sqrt();
         let min = sorted_values[0];
         let max = sorted_values[n - 1];
-        let median = if n % 2 == 0 {
+        let median = if n.is_multiple_of(2) {
             (sorted_values[n / 2 - 1] + sorted_values[n / 2]) / 2.0
         } else {
             sorted_values[n / 2]

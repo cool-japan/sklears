@@ -9,7 +9,7 @@
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
 use crate::error::{Result, SklearsComposeError};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use super::functions::{DurationExt, SuggestionGenerator};
 use super::types::{
@@ -20,11 +20,10 @@ use super::types::{
 impl SuggestionGenerator for ConfigurationErrorSuggestionGenerator {
     fn generate_suggestions(
         &self,
-        error: &SklearsComposeError,
+        _error: &SklearsComposeError,
         _context: &EnhancedErrorContext,
     ) -> Result<Vec<ActionableSuggestion>> {
-        let mut suggestions = Vec::new();
-        suggestions.push(ActionableSuggestion {
+        let suggestions = vec![ActionableSuggestion {
             suggestion_id: "check_configuration".to_string(),
             title: "Review Configuration Settings".to_string(),
             description: "Check your configuration parameters for correct values and types."
@@ -45,7 +44,7 @@ impl SuggestionGenerator for ConfigurationErrorSuggestionGenerator {
             prerequisites: Vec::new(),
             validation_method: None,
             follow_up_suggestions: Vec::new(),
-        });
+        }];
         Ok(suggestions)
     }
     fn error_types(&self) -> Vec<String> {

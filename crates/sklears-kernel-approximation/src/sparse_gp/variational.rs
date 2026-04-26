@@ -17,6 +17,7 @@ pub struct VariationalFreeEnergy;
 
 impl VariationalFreeEnergy {
     /// Fit sparse GP using Variational Free Energy approximation
+    #[allow(clippy::too_many_arguments)] // all 9 args are distinct VFE configuration parameters
     pub fn fit<K: SparseKernel>(
         x: &Array2<f64>,
         y: &Array1<f64>,
@@ -123,6 +124,7 @@ impl VariationalFreeEnergy {
     }
 
     /// Compute ELBO and its gradients
+    #[allow(clippy::too_many_arguments)] // all 9 args are distinct ELBO computation inputs
     fn compute_elbo_and_gradients(
         y: &Array1<f64>,
         k_nm: &Array2<f64>,
@@ -359,6 +361,7 @@ pub struct StochasticVariationalInference;
 
 impl StochasticVariationalInference {
     /// Fit sparse GP using stochastic variational inference with mini-batches
+    #[allow(clippy::too_many_arguments)] // all 8 args are distinct SVI training parameters
     pub fn fit<K: SparseKernel>(
         x: &Array2<f64>,
         y: &Array1<f64>,

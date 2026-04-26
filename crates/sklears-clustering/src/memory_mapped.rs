@@ -6,7 +6,6 @@
 
 use memmap2::{MmapMut, MmapOptions};
 use std::fs::{File, OpenOptions};
-use std::io::Write;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -137,7 +136,7 @@ impl MemoryMappedDistanceMatrix {
         self.initialize_mmap()?;
 
         let chunk_size = self.config.chunk_size;
-        let n_chunks = (self.n_samples + chunk_size - 1) / chunk_size;
+        let n_chunks = self.n_samples.div_ceil(chunk_size);
 
         // Process data in chunks to manage memory usage
         for i_chunk in 0..n_chunks {

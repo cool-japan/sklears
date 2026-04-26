@@ -9,6 +9,9 @@ use scirs2_core::random::{seeded_rng, Distribution};
 use sklears_core::prelude::SklearsError;
 use std::collections::HashMap;
 
+/// Type alias for cross-validation split output: a list of (train_indices, test_indices) pairs.
+type SplitResult = Result<Vec<(Vec<usize>, Vec<usize>)>, SklearsError>;
+
 /// K-Fold cross-validation splitter
 #[derive(Debug, Clone)]
 pub struct KFold {
@@ -31,7 +34,7 @@ impl KFold {
     }
 
     /// Generate train/test splits
-    pub fn split(&self, n_samples: usize) -> Result<Vec<(Vec<usize>, Vec<usize>)>, SklearsError> {
+    pub fn split(&self, n_samples: usize) -> SplitResult {
         if n_samples < self.n_splits {
             return Err(SklearsError::InvalidInput(format!(
                 "Cannot split {} samples into {} folds",
@@ -108,7 +111,7 @@ impl StratifiedKFold {
     }
 
     /// Generate stratified train/test splits
-    pub fn split(&self, y: &Array1<i32>) -> Result<Vec<(Vec<usize>, Vec<usize>)>, SklearsError> {
+    pub fn split(&self, y: &Array1<i32>) -> SplitResult {
         let n_samples = y.len();
 
         if n_samples < self.n_splits {
@@ -438,8 +441,8 @@ mod tests {
         assert_eq!(splits.len(), 5);
 
         for (train, test) in &splits {
-            assert!(train.len() > 0);
-            assert!(test.len() > 0);
+            assert!(!train.is_empty());
+            assert!(!test.is_empty());
             assert_eq!(train.len() + test.len(), 100);
         }
     }

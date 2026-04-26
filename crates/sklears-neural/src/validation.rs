@@ -373,6 +373,7 @@ pub struct HyperparameterValidator {
     /// Validation rules for each parameter
     rules: HashMap<String, ValidationRule>,
     /// Model type this validator is for
+    #[allow(dead_code)]
     model_type: String,
 }
 
@@ -508,19 +509,27 @@ impl HyperparameterValidator {
 /// Parameter information for documentation
 #[derive(Debug, Clone)]
 pub struct ParameterInfo {
+    /// Canonical parameter name used in the model configuration
     pub name: String,
+    /// Human-readable description of what the parameter controls
     pub description: String,
+    /// Whether this parameter must be explicitly provided by the user
     pub required: bool,
     #[cfg(feature = "serde")]
+    /// Default value encoded as a JSON value; `None` if no default exists
     pub default_value: Option<serde_json::Value>,
+    /// List of constraint descriptions (e.g., `"must be in (0, 1)"`)
     pub constraints: Vec<String>,
 }
 
 /// Validation summary for documentation
 #[derive(Debug, Clone)]
 pub struct ValidationSummary {
+    /// String identifier of the model type whose parameters are described
     pub model_type: String,
+    /// Parameters that the user must explicitly provide
     pub required_params: Vec<ParameterInfo>,
+    /// Parameters that have a default value and may be omitted
     pub optional_params: Vec<ParameterInfo>,
 }
 
@@ -747,7 +756,7 @@ impl ParameterTuner {
 
     fn suggest_range_for_rule(
         rule: &ValidationRule,
-        current_value: Option<&serde_json::Value>,
+        _current_value: Option<&serde_json::Value>,
     ) -> Option<ParameterRange> {
         match rule.name.as_str() {
             "learning_rate" => Some(ParameterRange::LogUniform(1e-6, 1e-1)),

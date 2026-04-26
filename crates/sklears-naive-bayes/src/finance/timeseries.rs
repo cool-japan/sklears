@@ -231,10 +231,22 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
         };
 
         let technical_stats = TechnicalStatistics {
-            rsi_stats: (T::from(50.0).expect("operation should succeed"), T::from(100.0).expect("operation should succeed")),
-            macd_stats: (T::from(0.0).expect("operation should succeed"), T::from(1.0).expect("operation should succeed")),
-            bb_stats: (T::from(0.5).expect("operation should succeed"), T::from(0.1).expect("operation should succeed")),
-            stoch_stats: (T::from(50.0).expect("operation should succeed"), T::from(100.0).expect("operation should succeed")),
+            rsi_stats: (
+                T::from(50.0).expect("operation should succeed"),
+                T::from(100.0).expect("operation should succeed"),
+            ),
+            macd_stats: (
+                T::from(0.0).expect("operation should succeed"),
+                T::from(1.0).expect("operation should succeed"),
+            ),
+            bb_stats: (
+                T::from(0.5).expect("operation should succeed"),
+                T::from(0.1).expect("operation should succeed"),
+            ),
+            stoch_stats: (
+                T::from(50.0).expect("operation should succeed"),
+                T::from(100.0).expect("operation should succeed"),
+            ),
         };
 
         Ok(FeatureStatistics {
@@ -266,7 +278,8 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
         }
 
         let volatility = self.calculate_std_dev(&returns);
-        Ok(volatility * T::from(252.0).expect("operation should succeed").sqrt()) // Annualized volatility
+        Ok(volatility * T::from(252.0).expect("operation should succeed").sqrt())
+        // Annualized volatility
     }
 
     /// Calculate volume-price correlation
@@ -395,7 +408,8 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
         }
 
         let rs = avg_gain / avg_loss;
-        let rsi = T::from(100.0).expect("operation should succeed") - (T::from(100.0).expect("operation should succeed") / (T::one() + rs));
+        let rsi = T::from(100.0).expect("operation should succeed")
+            - (T::from(100.0).expect("operation should succeed") / (T::one() + rs));
         Ok(rsi)
     }
 
@@ -427,7 +441,8 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
             ));
         }
 
-        let alpha = T::from(2.0).expect("operation should succeed") / T::from(period + 1).expect("operation should succeed");
+        let alpha = T::from(2.0).expect("operation should succeed")
+            / T::from(period + 1).expect("operation should succeed");
         let mut ema = prices[(current_idx - period + 1, 0)];
 
         for i in (current_idx - period + 2)..=current_idx {
@@ -484,7 +499,8 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
     fn gaussian_pdf(&self, x: T, mean: T, variance: T) -> T {
         let two_pi = T::from(2.0 * std::f64::consts::PI).expect("operation should succeed");
         let coefficient = T::one() / (two_pi * variance).sqrt();
-        let exponent = -((x - mean).powi(2)) / (T::from(2.0).expect("operation should succeed") * variance);
+        let exponent =
+            -((x - mean).powi(2)) / (T::from(2.0).expect("operation should succeed") * variance);
         coefficient * exponent.exp()
     }
 
@@ -598,8 +614,8 @@ mod tests {
         let mut classifier = FinancialTimeSeriesNB::<f64>::new(10);
 
         // Create sample data
-        let prices =
-            Array2::from_shape_vec((20, 1), (0..20).map(|i| 100.0 + i as f64).collect()).expect("operation should succeed");
+        let prices = Array2::from_shape_vec((20, 1), (0..20).map(|i| 100.0 + i as f64).collect())
+            .expect("operation should succeed");
         let volumes =
             Array2::from_shape_vec((20, 1), (0..20).map(|i| 1000.0 + i as f64 * 10.0).collect())
                 .expect("operation should succeed");
@@ -612,7 +628,8 @@ mod tests {
 
         // Test prediction
         let test_prices =
-            Array2::from_shape_vec((15, 1), (0..15).map(|i| 120.0 + i as f64).collect()).expect("operation should succeed");
+            Array2::from_shape_vec((15, 1), (0..15).map(|i| 120.0 + i as f64).collect())
+                .expect("operation should succeed");
         let test_volumes =
             Array2::from_shape_vec((15, 1), (0..15).map(|i| 1200.0 + i as f64 * 10.0).collect())
                 .expect("operation should succeed");

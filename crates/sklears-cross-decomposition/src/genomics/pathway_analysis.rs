@@ -279,8 +279,7 @@ impl PathwayAnalysis {
 
         let n_significant = (sorted_scores.len() as Float * (1.0 - threshold_percentile)) as usize;
 
-        for i in 0..n_significant.min(sorted_scores.len()) {
-            let gene_idx = sorted_scores[i].0;
+        for (gene_idx, _) in sorted_scores.iter().take(n_significant) {
             significant_genes.push(format!("Gene_{}", gene_idx));
         }
 
@@ -348,7 +347,7 @@ impl PathwayAnalysis {
         let p_value = if z_score <= 0.0 {
             1.0
         } else {
-            (1.0 - z_score / 5.0).max(0.001).min(1.0) // Simplified p-value calculation
+            (1.0 - z_score / 5.0).clamp(0.001, 1.0) // Simplified p-value calculation
         };
 
         Ok(p_value)
@@ -381,7 +380,6 @@ impl PathwayAnalysis {
 
         // Calculate enrichment score
         let n_genes = gene_rankings.len();
-        let mut enrichment_score: Float = 0.0;
         let mut max_enrichment: Float = 0.0;
         let mut current_enrichment: Float = 0.0;
 
@@ -395,7 +393,7 @@ impl PathwayAnalysis {
             })
             .collect();
 
-        for (rank, (gene_idx, _)) in gene_rankings.iter().enumerate() {
+        for (gene_idx, _) in gene_rankings.iter() {
             if pathway_gene_indices.contains(gene_idx) {
                 current_enrichment += 1.0 / pathway_gene_indices.len() as Float;
             } else {
@@ -407,10 +405,10 @@ impl PathwayAnalysis {
             }
         }
 
-        enrichment_score = max_enrichment;
+        let enrichment_score = max_enrichment;
 
         // Convert enrichment score to p-value (simplified)
-        let p_value = (1.0 - enrichment_score.abs()).max(0.001).min(1.0);
+        let p_value = (1.0 - enrichment_score.abs()).clamp(0.001, 1.0);
 
         Ok(p_value)
     }
@@ -448,7 +446,7 @@ impl PathwayAnalysis {
         }
 
         // Convert pathway score to p-value (simplified)
-        let p_value = (1.0 - pathway_score.abs()).max(0.001).min(1.0);
+        let p_value = (1.0 - pathway_score.abs()).clamp(0.001, 1.0);
 
         Ok(p_value)
     }

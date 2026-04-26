@@ -30,23 +30,13 @@ use std::time::Instant;
 // No-std compatible time implementation
 #[cfg(feature = "no-std")]
 #[derive(Debug, Clone, Copy)]
-pub struct Instant {
-    // Mock timestamp for no-std compatibility
-    mock_time: u64,
-}
+pub struct Instant;
 
 #[cfg(feature = "no-std")]
 impl Instant {
     pub fn now() -> Self {
-        // In no-std, we can't get actual time, so we use a mock
-        // This could be replaced with platform-specific time sources
-        static mut MOCK_TIME: u64 = 0;
-        unsafe {
-            MOCK_TIME += 1;
-            Self {
-                mock_time: MOCK_TIME,
-            }
-        }
+        // In no-std, we can't get actual time; use a unit stub
+        Self
     }
 
     pub fn elapsed(&self) -> Duration {
@@ -237,10 +227,7 @@ impl ComprehensiveBenchmarkSuite {
             size as u64,
             || {
                 // Scalar implementation
-                let mut _sum = 0.0f32;
-                for i in 0..size {
-                    _sum += data[i] * data[i];
-                }
+                let _sum: f32 = data.iter().map(|&x| x * x).sum();
             },
             || {
                 // SIMD implementation
@@ -458,10 +445,12 @@ impl ComprehensiveBenchmarkSuite {
                     &input,
                     &kernel,
                     &mut output,
-                    (in_channels, in_height, in_width),
-                    (out_channels, k_height, k_width),
-                    stride,
-                    padding,
+                    &crate::advanced_optimizations::ConvolutionParams {
+                        input_shape: (in_channels, in_height, in_width),
+                        kernel_shape: (out_channels, k_height, k_width),
+                        stride,
+                        padding,
+                    },
                 );
             },
         );
@@ -658,13 +647,15 @@ pub struct QuickBenchmark;
 impl QuickBenchmark {
     /// Run quick benchmarks suitable for CI
     pub fn run_ci_benchmarks() -> Result<ComprehensiveBenchmarkResults, SimdError> {
-        let mut config = BenchmarkConfig::default();
-        config.test_sizes = vec![64, 128]; // Minimal sizes for CI
-        config.iterations = 10; // Minimal iterations for CI
-        config.warmup_iterations = 2;
-        config.enable_detailed_reporting = false;
-        config.enable_energy_tests = false; // Skip energy tests in CI
-        config.enable_scaling_tests = false; // Skip scaling tests in CI
+        let config = BenchmarkConfig {
+            test_sizes: vec![64, 128],
+            iterations: 10,
+            warmup_iterations: 2,
+            enable_detailed_reporting: false,
+            enable_energy_tests: false,
+            enable_scaling_tests: false,
+            ..BenchmarkConfig::default()
+        };
 
         let mut suite = ComprehensiveBenchmarkSuite::new(config);
         suite.run_comprehensive_benchmarks()

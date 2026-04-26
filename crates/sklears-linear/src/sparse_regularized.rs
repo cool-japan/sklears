@@ -127,6 +127,7 @@ pub struct SparseLasso<State = Untrained> {
     intercept_: Option<Float>,
     is_sparse_fitted_: Option<bool>,
     n_features_: Option<usize>,
+    #[allow(dead_code)] // sklearn-compatible iteration counter; populated during fit
     n_iter_: Option<usize>,
 }
 

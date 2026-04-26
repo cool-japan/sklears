@@ -168,9 +168,22 @@ impl HardwareDetector {
 
     /// Detect CPU information
     fn detect_cpu_info() -> CpuInfo {
+        // `num_cpus::get()` is cgroup/quota-aware: it returns the number of logical CPUs
+        // that this process can actually use (respects Kubernetes CPU limits, docker
+        // --cpus, etc.). `num_cpus::get_physical()` reads the raw host physical-core
+        // count from /proc/cpuinfo and is NOT quota-aware, so in a container with a CPU
+        // quota it can exceed the quota-limited logical count. We therefore clamp the
+        // reported physical-core count to at most the quota-aware logical count so that
+        // the invariant `logical_cores >= cores` always holds from the caller's
+        // perspective.
+        let logical_cores = num_cpus::get();
+        let raw_physical = num_cpus::get_physical();
+        // Physical cores visible to this process cannot exceed logical slots available.
+        let cores = raw_physical.min(logical_cores);
+
         let mut cpu_info = CpuInfo {
-            logical_cores: num_cpus::get(),
-            cores: num_cpus::get_physical(),
+            logical_cores,
+            cores,
             architecture: std::env::consts::ARCH.to_string(),
             ..Default::default()
         };

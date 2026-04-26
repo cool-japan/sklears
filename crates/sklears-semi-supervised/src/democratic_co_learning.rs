@@ -113,6 +113,7 @@ impl DemocraticCoLearning<Untrained> {
         self
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn extract_view(&self, X: &Array2<f64>, view_features: &[usize]) -> SklResult<Array2<f64>> {
         if view_features.is_empty() {
             return Err(SklearsError::InvalidInput(
@@ -139,6 +140,7 @@ impl DemocraticCoLearning<Untrained> {
         Ok(view_X)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn train_classifier(
         &self,
         X_train: &Array2<f64>,
@@ -196,10 +198,9 @@ impl DemocraticCoLearning<Untrained> {
         &self,
         predictions: &[Array1<i32>],
         confidences: &[Array1<f64>],
-        classes: &[i32],
+        _classes: &[i32],
     ) -> Vec<(usize, i32, f64)> {
         let n_samples = predictions[0].len();
-        let n_classifiers = predictions.len();
         let mut candidates = Vec::new();
 
         for i in 0..n_samples {
@@ -208,9 +209,7 @@ impl DemocraticCoLearning<Untrained> {
             let mut total_confidence = 0.0;
             let mut voting_classifiers = 0;
 
-            for (classifier_idx, (pred, conf)) in
-                predictions.iter().zip(confidences.iter()).enumerate()
-            {
+            for (pred, conf) in predictions.iter().zip(confidences.iter()) {
                 if conf[i] >= self.confidence_threshold {
                     *class_votes.entry(pred[i]).or_insert(0) += 1;
                     total_confidence += conf[i];
@@ -449,6 +448,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for DemocraticCoLearning<Un
 }
 
 impl DemocraticCoLearning<DemocraticCoLearningTrained> {
+    #[allow(non_snake_case)] // standard ML notation
     fn extract_view(&self, X: &Array2<f64>, view_features: &[usize]) -> SklResult<Array2<f64>> {
         if view_features.is_empty() {
             return Err(SklearsError::InvalidInput(
@@ -517,7 +517,6 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
 
             if !found_exact_match {
                 let mut class_votes: HashMap<i32, f64> = HashMap::new();
-                let mut total_weight = 0.0;
 
                 // Get prediction from each view
                 for view in &self.state.views {
@@ -574,7 +573,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
                         let normalized_vote = vote / view_weight;
                         *class_votes.entry(class).or_insert(0.0) += normalized_vote;
                     }
-                    total_weight += 1.0; // Each view gets equal weight
+                    // Each view gets equal weight in voting
                 }
 
                 // Find majority vote
@@ -594,6 +593,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
 
 /// Trained state for DemocraticCoLearning
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation: X_train
 pub struct DemocraticCoLearningTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -659,7 +659,7 @@ mod tests {
         assert_eq!(dcl.max_iter, 10);
         assert_eq!(dcl.confidence_threshold, 0.8);
         assert_eq!(dcl.min_agreement, 1);
-        assert_eq!(dcl.verbose, true);
+        assert!(dcl.verbose);
         assert_eq!(dcl.selection_strategy, "confidence");
     }
 
@@ -802,7 +802,7 @@ mod tests {
         let candidates = dcl.democratic_vote(&predictions, &confidences, &classes);
 
         // Should have candidates for samples 0 and 2 (sample 1 has disagreement)
-        assert!(candidates.len() >= 1);
+        assert!(!candidates.is_empty());
 
         // First candidate should be sample 0 with class 0 (all agree)
         let (sample_idx, predicted_class, _score) = candidates[0];
@@ -833,7 +833,7 @@ mod tests {
 
         // All confidences should be in [0, 1]
         for &conf in confidences.iter() {
-            assert!(conf >= 0.0 && conf <= 1.0);
+            assert!((0.0..=1.0).contains(&conf));
         }
     }
 

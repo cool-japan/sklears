@@ -25,6 +25,7 @@ fn create_normal_distribution() -> Result<Normal<Float>> {
 }
 
 #[inline]
+#[allow(dead_code)] // NaN-safe float comparison used in sorting routines added in future
 fn compare_floats(a: &Float, b: &Float) -> Result<std::cmp::Ordering> {
     a.partial_cmp(b).ok_or_else(|| {
         SklearsError::InvalidInput("Cannot compare values: NaN encountered".to_string())

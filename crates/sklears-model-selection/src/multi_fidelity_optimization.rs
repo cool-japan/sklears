@@ -215,6 +215,7 @@ pub struct MultiFidelityOptimizer {
 
 /// Multi-fidelity Gaussian Process
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // MultiFidelityGP observations/hyperparameters/trained retained for future GP surrogate implementation
 pub struct MultiFidelityGP {
     observations: Vec<(Array1<Float>, Float, Float)>, // (hyperparams, fidelity, score)
     hyperparameters: GPHyperparameters,
@@ -223,6 +224,7 @@ pub struct MultiFidelityGP {
 
 /// Gaussian Process hyperparameters
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // GPHyperparameters length_scales/signal_variance/noise_variance/fidelity_correlation retained for future GP kernel configuration
 pub struct GPHyperparameters {
     pub length_scales: Array1<Float>,
     pub signal_variance: Float,
@@ -532,7 +534,7 @@ impl MultiFidelityOptimizer {
             }
 
             // Update Gaussian Process periodically
-            if self.evaluation_history.len() % 5 == 0 {
+            if self.evaluation_history.len().is_multiple_of(5) {
                 self.gaussian_process.update(&self.evaluation_history)?;
             }
         }

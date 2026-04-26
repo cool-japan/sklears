@@ -7,6 +7,7 @@
 //! - Variance: Error due to sensitivity to small fluctuations in training data
 //! - Noise: Irreducible error inherent in the problem
 
+use scirs2_core::rand_prelude::SliceRandom;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Predict},
@@ -518,8 +519,3 @@ mod tests {
         assert_eq!(result.n_bootstrap, 20);
     }
 }
-
-// Add additional imports that might be needed
-use scirs2_core::rand_prelude::SliceRandom;
-// use scirs2_core::random::{SeedableRng};
-// use scirs2_core::SliceRandomExt;

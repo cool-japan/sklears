@@ -588,7 +588,10 @@ pub enum MultiModalError {
     /// No modalities configured
     NoModalities,
     /// Invalid modality weights
-    InvalidWeights { total: f64 },
+    InvalidWeights {
+        /// The total.
+        total: f64,
+    },
     /// Missing required modality
     MissingModality(Modality),
     /// Synchronization failure

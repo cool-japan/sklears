@@ -152,7 +152,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MinCovDet<Untrained> {
         let h = ((support_fraction * n_samples as f64).ceil() as usize).min(n_samples);
 
         // Choose algorithm based on use_fast_mcd flag
-        let (best_indices, best_det) = if self.use_fast_mcd {
+        let (best_indices, _best_det) = if self.use_fast_mcd {
             fast_mcd_algorithm(
                 &x,
                 h,
@@ -344,7 +344,7 @@ fn fast_mcd_algorithm(
     random_state: Option<u64>,
 ) -> SklResult<(Vec<usize>, f64)> {
     let n_samples = x.nrows();
-    let n_features = x.ncols();
+    let _n_features = x.ncols();
 
     if n_samples < 2 * h {
         return basic_mcd_algorithm(x, h, n_trials, assume_centered);
@@ -374,7 +374,6 @@ fn fast_mcd_algorithm(
 
         // Concentration steps (C-steps)
         let max_c_steps = 10;
-        let mut converged = false;
 
         for _c_step in 0..max_c_steps {
             // Compute covariance and mean for current subset
@@ -415,7 +414,6 @@ fn fast_mcd_algorithm(
 
             // Check for convergence
             if new_indices == current_indices {
-                converged = true;
                 break;
             }
 

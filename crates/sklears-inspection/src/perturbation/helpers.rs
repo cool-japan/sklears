@@ -460,7 +460,7 @@ pub fn calculate_consistency_metrics(
     };
 
     let consistency_score = 1.0 / (1.0 + variance_across_runs); // Higher is more consistent
-    let inter_run_correlation = (1.0 - variance_across_runs).max(0.0).min(1.0);
+    let inter_run_correlation = (1.0 - variance_across_runs).clamp(0.0, 1.0);
 
     ConsistencyMetrics {
         inter_run_correlation,

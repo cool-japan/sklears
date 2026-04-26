@@ -197,6 +197,7 @@ pub struct DomainClassifier {
 
 /// Trained domain-specific classifier
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct TrainedDomainClassifier {
     strategy: DomainStrategy,
     classes: Vec<i32>,
@@ -492,26 +493,22 @@ impl DomainClassifier {
         let mut moving_averages = HashMap::new();
 
         match strategy {
-            TimeSeriesStrategy::SeasonalPattern { period } => {
+            TimeSeriesStrategy::SeasonalPattern { period } if x.ncols() > 0 => {
                 // Extract seasonal patterns from the first feature
-                if x.ncols() > 0 {
-                    let series = x.column(0);
-                    let pattern = self.compute_seasonal_pattern(&series, *period)?;
-                    seasonal_patterns.insert(*period, pattern);
-                }
+                let series = x.column(0);
+                let pattern = self.compute_seasonal_pattern(&series, *period)?;
+                seasonal_patterns.insert(*period, pattern);
             }
-            TimeSeriesStrategy::MovingAverage { windows } => {
+            TimeSeriesStrategy::MovingAverage { windows } if x.ncols() > 0 => {
                 // Compute moving averages for different window sizes
-                if x.ncols() > 0 {
-                    let series = x.column(0);
-                    for &window in windows {
-                        let ma = self.compute_moving_average(&series, window)?;
-                        moving_averages.insert(window, ma);
-                    }
+                let series = x.column(0);
+                for &window in windows {
+                    let ma = self.compute_moving_average(&series, window)?;
+                    moving_averages.insert(window, ma);
                 }
             }
             _ => {
-                // Basic time series features
+                // Basic time series features or no columns available
             }
         }
 
@@ -645,7 +642,7 @@ impl DomainClassifier {
                 let mut values: Vec<f64> = x.iter().cloned().collect();
                 values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let mid = values.len() / 2;
-                Ok(if values.len() % 2 == 0 {
+                Ok(if values.len().is_multiple_of(2) {
                     (values[mid - 1] + values[mid]) / 2.0
                 } else {
                     values[mid]
@@ -867,7 +864,7 @@ impl TrainedDomainClassifier {
 
     fn predict_ts(
         &self,
-        x: &Array2<f64>,
+        _x: &Array2<f64>,
         strategy: &TimeSeriesStrategy,
         predictions: &mut Array1<i32>,
     ) -> Result<(), SklearsError> {
@@ -1031,7 +1028,7 @@ impl DomainPreprocessor {
         let (n_images, height, width) = images.dim();
         let features = images
             .clone()
-            .into_shape((n_images, height * width))
+            .into_shape_with_order((n_images, height * width))
             .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
         Ok(features)
     }

@@ -7,16 +7,7 @@
 // ✅ Using SciRS2 dependencies following SciRS2 policy
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 
-use crate::{
-    lda::{LinearDiscriminantAnalysis, LinearDiscriminantAnalysisConfig},
-    qda::{QuadraticDiscriminantAnalysis, QuadraticDiscriminantAnalysisConfig},
-};
-
-use sklears_core::{
-    error::Result,
-    traits::{Estimator, Fit, Predict, PredictProba, Trained, Transform, Untrained},
-    types::Float,
-};
+use sklears_core::{error::Result, types::Float};
 use std::marker::PhantomData;
 
 /// Phantom type markers for discriminant analysis methods
@@ -378,6 +369,12 @@ pub struct DiscriminantAnalysisBuilder<Method, Solver, Regularization, Data> {
     _data: PhantomData<Data>,
 }
 
+impl Default for DiscriminantAnalysisBuilder<(), (), (), ()> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DiscriminantAnalysisBuilder<(), (), (), ()> {
     /// Start building a discriminant analysis with type safety
     pub fn new() -> Self {
@@ -469,6 +466,31 @@ impl<Method, Regularization, Data> DiscriminantAnalysisBuilder<Method, (), Regul
         }
     }
 
+    /// Set solver to LDLT decomposition
+    pub fn ldlt_solver(
+        self,
+    ) -> DiscriminantAnalysisBuilder<Method, solver_markers::LDLTSolver, Regularization, Data> {
+        DiscriminantAnalysisBuilder {
+            _method: PhantomData,
+            _solver: PhantomData,
+            _regularization: PhantomData,
+            _data: PhantomData,
+        }
+    }
+
+    /// Set solver to Iterative solver
+    pub fn iterative_solver(
+        self,
+    ) -> DiscriminantAnalysisBuilder<Method, solver_markers::IterativeSolver, Regularization, Data>
+    {
+        DiscriminantAnalysisBuilder {
+            _method: PhantomData,
+            _solver: PhantomData,
+            _regularization: PhantomData,
+            _data: PhantomData,
+        }
+    }
+
     /// Set solver to GPU acceleration
     pub fn gpu_solver(
         self,
@@ -506,8 +528,8 @@ impl<Method, Solver, Data> DiscriminantAnalysisBuilder<Method, Solver, (), Data>
     where
         Method: DiscriminantMethod,
     {
-        // Compile-time assertion that method supports regularization
-        const _: () = assert!(
+        // Runtime assertion that method supports regularization
+        assert!(
             Method::SUPPORTS_REGULARIZATION,
             "Method does not support regularization"
         );
@@ -527,7 +549,7 @@ impl<Method, Solver, Data> DiscriminantAnalysisBuilder<Method, Solver, (), Data>
     where
         Method: DiscriminantMethod,
     {
-        const _: () = assert!(
+        assert!(
             Method::SUPPORTS_REGULARIZATION,
             "Method does not support regularization"
         );
@@ -552,7 +574,7 @@ impl<Method, Solver, Data> DiscriminantAnalysisBuilder<Method, Solver, (), Data>
     where
         Method: DiscriminantMethod,
     {
-        const _: () = assert!(
+        assert!(
             Method::SUPPORTS_REGULARIZATION,
             "Method does not support regularization"
         );
@@ -588,7 +610,7 @@ impl<Method, Solver, Regularization>
     where
         Solver: SolverType,
     {
-        const _: () = assert!(
+        assert!(
             Solver::SUPPORTS_SPARSE,
             "Solver does not support sparse data"
         );
@@ -608,7 +630,7 @@ impl<Method, Solver, Regularization>
     where
         Solver: SolverType,
     {
-        const _: () = assert!(Solver::SUPPORTS_GPU, "Solver does not support GPU data");
+        assert!(Solver::SUPPORTS_GPU, "Solver does not support GPU data");
 
         DiscriminantAnalysisBuilder {
             _method: PhantomData,
@@ -670,19 +692,19 @@ where
     /// Fit the model (state transition from Untrained to Trained)
     pub fn fit(
         self,
-        X: &ArrayView2<Float>,
+        x_data: &ArrayView2<Float>, // standard ML notation: feature matrix
         y: &ArrayView1<usize>,
     ) -> Result<
         TypeSafeDiscriminantAnalysis<Method, state_markers::Trained, Solver, Regularization, Data>,
     > {
-        // Compile-time validation
-        const _: () = assert!(
+        // Runtime validation
+        assert!(
             Solver::IS_NUMERICALLY_STABLE || Regularization::SUPPORTS_AUTO_PARAMETER,
             "Numerically unstable solver requires automatic regularization"
         );
 
         // Perform actual fitting (delegated to appropriate implementation)
-        self.fit_impl(X, y)?;
+        self.fit_impl(x_data, y)?;
 
         Ok(TypeSafeDiscriminantAnalysis {
             _method: PhantomData,
@@ -694,12 +716,12 @@ where
     }
 
     /// Internal fitting implementation
-    fn fit_impl(&self, X: &ArrayView2<Float>, y: &ArrayView1<usize>) -> Result<()> {
+    fn fit_impl(&self, x_data: &ArrayView2<Float>, y: &ArrayView1<usize>) -> Result<()> {
         // This would delegate to the appropriate concrete implementation
         // based on the phantom types - for now, just validate dimensions
-        if X.nrows() != y.len() {
+        if x_data.nrows() != y.len() {
             return Err(sklears_core::prelude::SklearsError::InvalidInput(
-                "Number of samples in X and y must match".to_string(),
+                "Number of samples in x_data and y must match".to_string(),
             ));
         }
         Ok(())
@@ -716,38 +738,38 @@ where
     Data: DataType,
 {
     /// Predict class labels
-    pub fn predict(&self, X: &ArrayView2<Float>) -> Result<Array1<usize>> {
-        self.predict_impl(X)
+    pub fn predict(&self, x_data: &ArrayView2<Float>) -> Result<Array1<usize>> {
+        self.predict_impl(x_data)
     }
 
     /// Predict class probabilities (only for methods that support it)
-    pub fn predict_proba(&self, X: &ArrayView2<Float>) -> Result<Array2<Float>>
+    pub fn predict_proba(&self, x_data: &ArrayView2<Float>) -> Result<Array2<Float>>
     where
         Method: DiscriminantMethod,
     {
-        const _: () = assert!(
+        assert!(
             Method::SUPPORTS_PREDICT_PROBA,
             "Method does not support probability predictions"
         );
-        self.predict_proba_impl(X)
+        self.predict_proba_impl(x_data)
     }
 
     /// Transform data to discriminant space (only for methods that support it)
-    pub fn transform(&self, X: &ArrayView2<Float>) -> Result<Array2<Float>>
+    pub fn transform(&self, x_data: &ArrayView2<Float>) -> Result<Array2<Float>>
     where
         Method: DiscriminantMethod,
     {
-        const _: () = assert!(
+        assert!(
             Method::SUPPORTS_TRANSFORM,
             "Method does not support dimensionality reduction"
         );
-        self.transform_impl(X)
+        self.transform_impl(x_data)
     }
 
     /// Cross-validate the model (state transition to Validated)
     pub fn cross_validate(
         self,
-        X: &ArrayView2<Float>,
+        x_data: &ArrayView2<Float>, // standard ML notation: feature matrix
         y: &ArrayView1<usize>,
         cv_folds: usize,
     ) -> Result<
@@ -759,7 +781,7 @@ where
             Data,
         >,
     > {
-        self.cross_validate_impl(X, y, cv_folds)?;
+        self.cross_validate_impl(x_data, y, cv_folds)?;
 
         Ok(TypeSafeDiscriminantAnalysis {
             _method: PhantomData,
@@ -771,24 +793,24 @@ where
     }
 
     // Internal implementation methods
-    fn predict_impl(&self, _X: &ArrayView2<Float>) -> Result<Array1<usize>> {
+    fn predict_impl(&self, _x_data: &ArrayView2<Float>) -> Result<Array1<usize>> {
         // Placeholder - would delegate to concrete implementation
         Ok(Array1::zeros(0))
     }
 
-    fn predict_proba_impl(&self, _X: &ArrayView2<Float>) -> Result<Array2<Float>> {
+    fn predict_proba_impl(&self, _x_data: &ArrayView2<Float>) -> Result<Array2<Float>> {
         // Placeholder - would delegate to concrete implementation
         Ok(Array2::zeros((0, 0)))
     }
 
-    fn transform_impl(&self, _X: &ArrayView2<Float>) -> Result<Array2<Float>> {
+    fn transform_impl(&self, _x_data: &ArrayView2<Float>) -> Result<Array2<Float>> {
         // Placeholder - would delegate to concrete implementation
         Ok(Array2::zeros((0, 0)))
     }
 
     fn cross_validate_impl(
         &self,
-        _X: &ArrayView2<Float>,
+        _x_data: &ArrayView2<Float>,
         _y: &ArrayView1<usize>,
         _cv_folds: usize,
     ) -> Result<()> {
@@ -835,6 +857,12 @@ pub type GPULDA = UntrainedLinearDA<
 >;
 
 /// Factory functions for common configurations
+impl Default for StandardLDA {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StandardLDA {
     /// Create standard LDA configuration
     pub fn new() -> Self {
@@ -844,6 +872,12 @@ impl StandardLDA {
             .no_regularization()
             .dense_data()
             .build()
+    }
+}
+
+impl Default for RegularizedLDA {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -859,6 +893,12 @@ impl RegularizedLDA {
     }
 }
 
+impl Default for SparseLDA {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SparseLDA {
     /// Create sparse LDA configuration
     pub fn new() -> Self {
@@ -871,15 +911,27 @@ impl SparseLDA {
     }
 }
 
+impl Default for StandardQDA {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StandardQDA {
     /// Create standard QDA configuration
     pub fn new() -> Self {
         DiscriminantAnalysisBuilder::new()
             .quadratic()
-            .eigen_solver() // Updated from LDLT to avoid solver compatibility issues
+            .ldlt_solver()
             .no_regularization()
             .dense_data()
             .build()
+    }
+}
+
+impl Default for GPULDA {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -895,13 +947,13 @@ impl GPULDA {
     }
 }
 
-/// Compile-time configuration validation
+/// Configuration validation (runtime, not compile-time, since const trait bounds are unstable)
 pub struct ConfigurationValidator;
 
 impl ConfigurationValidator {
-    /// Validate method-solver compatibility at compile time
-    pub const fn validate_method_solver<Method: DiscriminantMethod, Solver: SolverType>() -> bool {
-        // Example validation rules
+    /// Validate method-solver compatibility
+    pub fn validate_method_solver<Method: DiscriminantMethod, Solver: SolverType>() -> bool {
+        // Example validation rules using runtime string comparison
         match (Method::METHOD_NAME, Solver::SOLVER_NAME) {
             ("Linear Discriminant Analysis", "Iterative Solver") => true,
             ("Quadratic Discriminant Analysis", "SVD Solver") => false, // QDA doesn't use SVD typically
@@ -909,14 +961,13 @@ impl ConfigurationValidator {
         }
     }
 
-    /// Validate regularization-method compatibility at compile time
-    pub const fn validate_regularization<Method: DiscriminantMethod, Reg: RegularizationType>(
-    ) -> bool {
+    /// Validate regularization-method compatibility
+    pub fn validate_regularization<Method: DiscriminantMethod, Reg: RegularizationType>() -> bool {
         Method::SUPPORTS_REGULARIZATION || Reg::REGULARIZATION_NAME == "No Regularization"
     }
 
-    /// Validate data-solver compatibility at compile time
-    pub const fn validate_data_solver<Solver: SolverType, Data: DataType>() -> bool {
+    /// Validate data-solver compatibility
+    pub fn validate_data_solver<Solver: SolverType, Data: DataType>() -> bool {
         match (Data::DATA_TYPE_NAME, Solver::SOLVER_NAME) {
             ("Sparse Data", solver_name) => {
                 // Only certain solvers support sparse data
@@ -945,8 +996,11 @@ pub trait TypeErasedDiscriminant {
 
 /// Trait for runtime discriminant prediction
 pub trait DiscriminantPredictor: Send + Sync {
-    fn predict(&self, X: &ArrayView2<Float>) -> Result<Array1<usize>>;
-    fn predict_proba(&self, X: &ArrayView2<Float>) -> Result<Array2<Float>>;
+    /// Predict class labels for feature matrix
+    fn predict(&self, x_data: &ArrayView2<Float>) -> Result<Array1<usize>>;
+    /// Predict class probabilities for feature matrix
+    fn predict_proba(&self, x_data: &ArrayView2<Float>) -> Result<Array2<Float>>;
+    /// Human-readable method name
     fn method_name(&self) -> &'static str;
 }
 
@@ -977,13 +1031,13 @@ where
     Regularization: RegularizationType + Send + Sync,
     Data: DataType + Send + Sync,
 {
-    fn predict(&self, X: &ArrayView2<Float>) -> Result<Array1<usize>> {
-        self.inner.predict(X)
+    fn predict(&self, x_data: &ArrayView2<Float>) -> Result<Array1<usize>> {
+        self.inner.predict(x_data)
     }
 
-    fn predict_proba(&self, X: &ArrayView2<Float>) -> Result<Array2<Float>> {
+    fn predict_proba(&self, x_data: &ArrayView2<Float>) -> Result<Array2<Float>> {
         if Method::SUPPORTS_PREDICT_PROBA {
-            self.inner.predict_proba_impl(X)
+            self.inner.predict_proba_impl(x_data)
         } else {
             Err(sklears_core::prelude::SklearsError::InvalidOperation(
                 format!(
@@ -1027,22 +1081,22 @@ mod tests {
     fn test_method_capabilities() {
         use discriminant_markers::*;
 
-        // Test compile-time constants
-        assert!(LinearDiscriminant::SUPPORTS_TRANSFORM);
-        assert!(!QuadraticDiscriminant::SUPPORTS_TRANSFORM);
-        assert!(LinearDiscriminant::SUPPORTS_PREDICT_PROBA);
-        assert!(QuadraticDiscriminant::SUPPORTS_PREDICT_PROBA);
+        // Verify compile-time constants via const assertions
+        const _: () = assert!(LinearDiscriminant::SUPPORTS_TRANSFORM);
+        const _: () = assert!(!QuadraticDiscriminant::SUPPORTS_TRANSFORM);
+        const _: () = assert!(LinearDiscriminant::SUPPORTS_PREDICT_PROBA);
+        const _: () = assert!(QuadraticDiscriminant::SUPPORTS_PREDICT_PROBA);
     }
 
     #[test]
     fn test_solver_capabilities() {
         use solver_markers::*;
 
-        // Test compile-time constants
-        assert!(EigenSolver::SUPPORTS_SPARSE);
-        assert!(!SVDSolver::SUPPORTS_SPARSE);
-        assert!(GPUSolver::SUPPORTS_GPU);
-        assert!(!LDLTSolver::SUPPORTS_GPU);
+        // Verify compile-time constants via const assertions
+        const _: () = assert!(EigenSolver::SUPPORTS_SPARSE);
+        const _: () = assert!(!SVDSolver::SUPPORTS_SPARSE);
+        const _: () = assert!(GPUSolver::SUPPORTS_GPU);
+        const _: () = assert!(!LDLTSolver::SUPPORTS_GPU);
     }
 
     #[test]

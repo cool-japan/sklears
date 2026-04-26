@@ -283,19 +283,15 @@ pub mod utils {
 
         // Validate processing mode compatibility
         match config.processing_mode {
-            ProcessingMode::RealTime => {
-                if !config.realtime.enabled {
-                    return Err(CVError::Configuration(
-                        "Real-time mode requires real-time config to be enabled".to_string(),
-                    ));
-                }
+            ProcessingMode::RealTime if !config.realtime.enabled => {
+                return Err(CVError::Configuration(
+                    "Real-time mode requires real-time config to be enabled".to_string(),
+                ));
             }
-            ProcessingMode::Streaming => {
-                if !config.realtime.streaming.enabled {
-                    return Err(CVError::Configuration(
-                        "Streaming mode requires streaming config to be enabled".to_string(),
-                    ));
-                }
+            ProcessingMode::Streaming if !config.realtime.streaming.enabled => {
+                return Err(CVError::Configuration(
+                    "Streaming mode requires streaming config to be enabled".to_string(),
+                ));
             }
             _ => {}
         }
@@ -518,7 +514,7 @@ pub mod simd_cv {
     /// SIMD-accelerated image convolution
     pub fn simd_convolution(
         image: &Array3<f32>,
-        kernel: &Array2<f32>,
+        _kernel: &Array2<f32>,
     ) -> Result<Array3<f32>, String> {
         // Placeholder for SIMD convolution implementation
         // In a real implementation, this would use SIMD instructions
@@ -548,9 +544,9 @@ pub mod simd_cv {
 
     /// SIMD-accelerated normalization
     pub fn simd_normalize(
-        image: &mut Array3<f32>,
-        mean: &Array1<f32>,
-        std: &Array1<f32>,
+        _image: &mut Array3<f32>,
+        _mean: &Array1<f32>,
+        _std: &Array1<f32>,
     ) -> Result<(), String> {
         // Placeholder for SIMD normalization implementation
         Ok(())

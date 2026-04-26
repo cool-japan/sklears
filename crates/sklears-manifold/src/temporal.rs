@@ -69,6 +69,7 @@ pub struct TemporalManifold<S = Untrained> {
 
 /// Trained state for TemporalManifold
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedTemporalManifold {
     temporal_embeddings: Vec<Array2<f64>>,
     temporal_transforms: Vec<Array2<f64>>,
@@ -136,19 +137,19 @@ impl TemporalManifold<Untrained> {
 
     /// Set the temporal weight
     pub fn temporal_weight(mut self, temporal_weight: f64) -> Self {
-        self.temporal_weight = temporal_weight.max(0.0).min(1.0);
+        self.temporal_weight = temporal_weight.clamp(0.0, 1.0);
         self
     }
 
     /// Set the adaptation rate
     pub fn adaptation_rate(mut self, adaptation_rate: f64) -> Self {
-        self.adaptation_rate = adaptation_rate.max(0.0).min(1.0);
+        self.adaptation_rate = adaptation_rate.clamp(0.0, 1.0);
         self
     }
 
     /// Set the smoothing factor
     pub fn smoothing_factor(mut self, smoothing_factor: f64) -> Self {
-        self.smoothing_factor = smoothing_factor.max(0.0).min(1.0);
+        self.smoothing_factor = smoothing_factor.clamp(0.0, 1.0);
         self
     }
 
@@ -215,7 +216,7 @@ impl TemporalManifold<Untrained> {
     }
 
     /// Apply simplified Isomap to data
-    fn apply_isomap(&self, x: &ArrayView2<f64>, rng: &mut StdRng) -> SklResult<Array2<f64>> {
+    fn apply_isomap(&self, x: &ArrayView2<f64>, _rng: &mut StdRng) -> SklResult<Array2<f64>> {
         let n_samples = x.nrows();
         let k = (n_samples as f64).sqrt() as usize + 1;
 
@@ -231,7 +232,7 @@ impl TemporalManifold<Untrained> {
     }
 
     /// Apply simplified LLE to data
-    fn apply_lle(&self, x: &ArrayView2<f64>, rng: &mut StdRng) -> SklResult<Array2<f64>> {
+    fn apply_lle(&self, x: &ArrayView2<f64>, _rng: &mut StdRng) -> SklResult<Array2<f64>> {
         let n_samples = x.nrows();
         let k = (n_samples as f64).sqrt() as usize + 1;
 
@@ -258,6 +259,7 @@ impl TemporalManifold<Untrained> {
     }
 
     /// Compute temporal consistency penalty
+    #[allow(dead_code)]
     fn compute_temporal_consistency_loss(
         &self,
         embedding1: &Array2<f64>,
@@ -280,7 +282,7 @@ impl TemporalManifold<Untrained> {
         &self,
         current_embedding: &Array2<f64>,
         previous_embedding: &Option<Array2<f64>>,
-        data: &ArrayView2<f64>,
+        _data: &ArrayView2<f64>,
     ) -> SklResult<Array2<f64>> {
         let mut optimized = current_embedding.clone();
 
@@ -593,7 +595,7 @@ impl Fit<ArrayView3<'_, f64>, ArrayView1<'_, ()>> for TemporalManifold<Untrained
         }
 
         let n_timesteps = x.shape()[0];
-        let n_samples = x.shape()[1];
+        let _n_samples = x.shape()[1];
         let n_features = x.shape()[2];
 
         let mut rng = if let Some(seed) = self.random_state {
@@ -741,6 +743,7 @@ pub struct StreamingTemporalManifold<S = Untrained> {
 
 /// Trained state for StreamingTemporalManifold
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedStreamingTemporalManifold {
     current_embedding: Array2<f64>,
     current_transform: Array2<f64>,
@@ -1026,7 +1029,6 @@ impl Transform<ArrayView2<'_, f64>, Array2<f64>>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::array;
 
     #[test]

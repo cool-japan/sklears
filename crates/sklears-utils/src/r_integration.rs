@@ -112,17 +112,18 @@ impl RIntegration {
     /// Execute R script
     pub fn execute_script(&mut self, script: &str) -> Result<String, RError> {
         // Write script to temporary file
-        let temp_file = "/tmp/sklears_r_script.R";
-        fs::write(temp_file, script).map_err(|e| RError::IoError(e.to_string()))?;
+        let temp_path = std::env::temp_dir().join("sklears_r_script.R");
+        let temp_file = temp_path.to_string_lossy().into_owned();
+        fs::write(&temp_file, script).map_err(|e| RError::IoError(e.to_string()))?;
 
         // Execute R script
         let output = Command::new("Rscript")
-            .arg(temp_file)
+            .arg(&temp_file)
             .output()
             .map_err(|e| RError::ExecutionError(e.to_string()))?;
 
         // Clean up
-        let _ = fs::remove_file(temp_file);
+        let _ = fs::remove_file(&temp_file);
 
         if output.status.success() {
             String::from_utf8(output.stdout).map_err(|_| RError::InvalidOutput)

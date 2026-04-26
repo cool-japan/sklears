@@ -2,17 +2,13 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::Array1;
 use serde::{Deserialize, Serialize};
-use sklears_core::{
-    error::{Result as SklResult, SklearsError},
-    traits::Estimator,
-    types::Float,
-};
+use sklears_core::error::{Result as SklResult, SklearsError};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 
 use super::functions::{ComponentFactory, Plugin, PluginComponent};
 
@@ -41,9 +37,11 @@ pub struct ParameterSchema {
 /// Example transformer plugin implementation
 #[derive(Debug)]
 pub struct ExampleTransformerPlugin {
+    /// The metadata.
     pub metadata: PluginMetadata,
 }
 impl ExampleTransformerPlugin {
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             metadata: PluginMetadata {
@@ -61,11 +59,18 @@ impl ExampleTransformerPlugin {
             },
         }
     }
+    /// Performs with metadata.
     pub fn with_metadata(metadata: PluginMetadata) -> Self {
         Self { metadata }
     }
 }
+impl Default for ExampleTransformerPlugin {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 /// Plugin loading and management system
+#[allow(dead_code)]
 pub struct PluginLoader {
     /// Plugin configuration
     config: PluginConfig,
@@ -131,8 +136,14 @@ pub enum ConfigValue {
 #[derive(Debug)]
 pub struct ExampleEstimatorFactory;
 impl ExampleEstimatorFactory {
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self
+    }
+}
+impl Default for ExampleEstimatorFactory {
+    fn default() -> Self {
+        Self::new()
     }
 }
 /// Component execution context
@@ -170,6 +181,7 @@ pub enum PluginCapability {
     Custom(String),
 }
 /// Plugin registry for managing custom components
+#[allow(dead_code)]
 pub struct PluginRegistry {
     /// Registered plugins
     plugins: RwLock<HashMap<String, Box<dyn Plugin>>>,
@@ -184,6 +196,7 @@ pub struct PluginRegistry {
 }
 impl PluginRegistry {
     #[must_use]
+    /// Creates a new instance.
     pub fn new(config: PluginConfig) -> Self {
         Self {
             plugins: RwLock::new(HashMap::new()),
@@ -416,6 +429,7 @@ pub struct ComponentSchema {
 }
 /// Loaded plugin library information
 #[derive(Debug)]
+#[allow(dead_code)]
 struct PluginLibrary {
     /// Library path
     path: PathBuf,
@@ -441,12 +455,17 @@ pub struct PluginConfig {
 /// Example regressor component
 #[derive(Debug, Clone)]
 pub struct ExampleRegressor {
+    /// The config.
     pub config: ComponentConfig,
+    /// The learning rate.
     pub learning_rate: f64,
+    /// The fitted.
     pub fitted: bool,
+    /// The coefficients.
     pub coefficients: Option<Array1<f64>>,
 }
 impl ExampleRegressor {
+    /// Creates a new instance.
     pub fn new(config: ComponentConfig) -> Self {
         let learning_rate = config
             .parameters
@@ -465,9 +484,10 @@ impl ExampleRegressor {
     }
 }
 /// Example transformer factory
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ExampleTransformerFactory;
 impl ExampleTransformerFactory {
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self
     }
@@ -477,40 +497,59 @@ impl ExampleTransformerFactory {
 pub enum ParameterType {
     /// String parameter
     String {
+        /// The min length.
         min_length: Option<usize>,
+        /// The max length.
         max_length: Option<usize>,
     },
     /// Integer parameter
     Integer {
+        /// The min value.
         min_value: Option<i64>,
+        /// The max value.
         max_value: Option<i64>,
     },
     /// Float parameter
     Float {
+        /// The min value.
         min_value: Option<f64>,
+        /// The max value.
         max_value: Option<f64>,
     },
     /// Boolean parameter
     Boolean,
     /// Enum parameter
-    Enum { values: Vec<String> },
+    Enum {
+        /// The values.
+        values: Vec<String>,
+    },
     /// Array parameter
     Array {
+        /// The item type.
         item_type: Box<ParameterType>,
+        /// The min items.
         min_items: Option<usize>,
+        /// The max items.
         max_items: Option<usize>,
     },
     /// Object parameter
-    Object { schema: ComponentSchema },
+    Object {
+        /// The schema.
+        schema: ComponentSchema,
+    },
 }
 /// Example scaler component
 #[derive(Debug, Clone)]
 pub struct ExampleScaler {
+    /// The config.
     pub config: ComponentConfig,
+    /// The scale factor.
     pub scale_factor: f64,
+    /// The fitted.
     pub fitted: bool,
 }
 impl ExampleScaler {
+    /// Creates a new instance.
     pub fn new(config: ComponentConfig) -> Self {
         let scale_factor = config
             .parameters
@@ -542,9 +581,11 @@ pub struct PluginContext {
 /// Example estimator plugin
 #[derive(Debug)]
 pub struct ExampleEstimatorPlugin {
+    /// The metadata.
     pub metadata: PluginMetadata,
 }
 impl ExampleEstimatorPlugin {
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             metadata: PluginMetadata {
@@ -561,6 +602,11 @@ impl ExampleEstimatorPlugin {
                 source_url: None,
             },
         }
+    }
+}
+impl Default for ExampleEstimatorPlugin {
+    fn default() -> Self {
+        Self::new()
     }
 }
 /// Parameter constraints

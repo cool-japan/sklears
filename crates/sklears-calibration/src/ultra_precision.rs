@@ -712,6 +712,7 @@ impl fmt::Display for UltraPrecisionFloat {
 #[derive(Debug, Clone)]
 pub struct UltraPrecisionCalibrator {
     /// Ultra-precision calibration parameters
+    #[allow(dead_code)] // intentionally deferred: parameter retrieval not yet implemented
     parameters: Vec<UltraPrecisionFloat>,
     /// Precision level for all computations
     precision: usize,

@@ -451,11 +451,11 @@ impl MatrixBuilder {
         let mut result = vec![0.0; self.rows];
 
         // y[i] = sum_j A[i][j] * x[j]
-        for i in 0..self.rows {
+        for (i, res) in result.iter_mut().enumerate() {
+            let row_start = i * self.cols;
             let mut sum = 0.0;
-            for j in 0..self.cols {
-                let a_val = self.data[i * self.cols + j];
-                let x_val = vector[j];
+            for (j, &x_val) in vector.iter().enumerate().take(self.cols) {
+                let a_val = self.data[row_start + j];
 
                 if self.safe_mode {
                     sum += SafeSimdOps::safe_mul_f32(a_val, x_val).unwrap_or(0.0);
@@ -463,7 +463,7 @@ impl MatrixBuilder {
                     sum += a_val * x_val;
                 }
             }
-            result[i] = sum;
+            *res = sum;
         }
 
         Ok(result)

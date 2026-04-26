@@ -780,12 +780,13 @@ mod tests {
 
     #[test]
     fn test_compile_time_constants() {
-        // These should be available at compile time
+        // Constant assertions moved to const context to satisfy clippy::assertions_on_constants
+        const _: () = assert!(RBFKernel::SUPPORTS_PARAMETER_LEARNING);
+        const _: () = assert!(RandomFourierFeatures::SUPPORTS_INCREMENTAL);
+        const _: () = assert!(RandomFourierFeatures::HAS_ERROR_BOUNDS);
+        // Name assertions are runtime checks (string equality)
         assert_eq!(RBFKernel::NAME, "RBF");
-        assert!(RBFKernel::SUPPORTS_PARAMETER_LEARNING);
         assert_eq!(RandomFourierFeatures::NAME, "RandomFourierFeatures");
-        assert!(RandomFourierFeatures::SUPPORTS_INCREMENTAL);
-        assert!(RandomFourierFeatures::HAS_ERROR_BOUNDS);
     }
 
     // This test demonstrates compile-time type safety
@@ -946,6 +947,7 @@ where
     M: ApproximationMethod,
     (): KernelMethodCompatibility<K, M>,
 {
+    #[allow(dead_code)] // wrapper holds inner for future delegate methods
     inner: TypeSafeKernelApproximation<Untrained, K, M, N>,
     _validation: ValidatedComponents<N>,
 }
@@ -1005,6 +1007,7 @@ where
 pub struct BoundedQualityMetrics<const MIN_ALIGNMENT: u32, const MAX_ERROR: u32> {
     kernel_alignment: f64,
     approximation_error: f64,
+    #[allow(dead_code)] // quality metric stored for future rank-based filtering
     effective_rank: f64,
 }
 
@@ -1075,11 +1078,19 @@ mod advanced_type_safety_tests {
 
     #[test]
     fn test_kernel_method_compatibility() {
-        // Test compile-time compatibility checks
-        assert!(<() as KernelMethodCompatibility<RBFKernel, RandomFourierFeatures>>::IS_COMPATIBLE);
-        assert!(!<() as KernelMethodCompatibility<ArcCosineKernel, NystromMethod>>::IS_COMPATIBLE);
+        // Constant assertions moved to const context to satisfy clippy::assertions_on_constants
+        const _: () = {
+            assert!(
+                <() as KernelMethodCompatibility<RBFKernel, RandomFourierFeatures>>::IS_COMPATIBLE
+            )
+        };
+        const _: () = {
+            assert!(
+                !<() as KernelMethodCompatibility<ArcCosineKernel, NystromMethod>>::IS_COMPATIBLE
+            )
+        };
 
-        // Test performance tiers
+        // Test performance tiers (runtime check)
         assert_eq!(
             <() as KernelMethodCompatibility<RBFKernel, RandomFourierFeatures>>::PERFORMANCE_TIER,
             PerformanceTier::Optimal
@@ -1288,6 +1299,7 @@ where
 {
     kernel_type: PhantomData<K>,
     method_type: PhantomData<M>,
+    #[allow(dead_code)] // compile-time validated feature configuration for future use
     features: ValidatedFeatures<N>,
     bandwidth: f64,
     quality_threshold: f64,
@@ -1643,9 +1655,7 @@ impl ProfileGuidedConfig {
             1.0
         };
 
-        ((scaled_features as f64 * data_adjustment * dimension_adjustment) as usize)
-            .max(32)
-            .min(1024)
+        ((scaled_features as f64 * data_adjustment * dimension_adjustment) as usize).clamp(32, 1024)
     }
 }
 
@@ -1817,7 +1827,7 @@ mod preset_tests {
 
         // Test feature count recommendation
         let features = pgo_config.recommended_feature_count(5000, 50);
-        assert!(features >= 32 && features <= 1024);
+        assert!((32..=1024).contains(&features));
     }
 
     #[test]

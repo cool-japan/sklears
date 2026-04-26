@@ -802,7 +802,7 @@ pub struct MemoryAlignment;
 impl MemoryAlignment {
     /// Check if a pointer is aligned to the specified boundary
     pub fn is_aligned<T>(ptr: *const T, alignment: usize) -> bool {
-        (ptr as usize) % alignment == 0
+        (ptr as usize).is_multiple_of(alignment)
     }
 
     /// Get the alignment of a type

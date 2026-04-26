@@ -11,6 +11,7 @@
 //! - **Gradient-Based Optimization**: Efficient gradient computation for joint loss minimization
 //! - **Regularization**: L2 regularization to prevent overfitting
 //! - **Configurable Training**: Customizable learning rate, iterations, and convergence criteria
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
@@ -222,7 +223,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView2<'_, Float>> for JointLossOptimizer<Un
         let mut loss_history = Vec::new();
         let mut prev_loss = Float::INFINITY;
 
-        for iteration in 0..self.config.max_iter {
+        for _iteration in 0..self.config.max_iter {
             // Forward pass
             let predictions = X.dot(&weights) + &bias;
 
@@ -476,7 +477,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>>
     for JointLossOptimizer<JointLossOptimizerTrained>
 {
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features {
             return Err(SklearsError::InvalidInput(format!(

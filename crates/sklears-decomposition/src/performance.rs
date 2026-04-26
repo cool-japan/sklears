@@ -16,9 +16,11 @@ use std::alloc::{alloc, dealloc, Layout};
 use std::ptr;
 
 /// Cache line size for modern CPUs (typically 64 bytes)
+#[allow(dead_code)]
 const CACHE_LINE_SIZE: usize = 64;
 
 /// Alignment for SIMD operations (32 bytes for AVX)
+#[allow(dead_code)]
 const SIMD_ALIGNMENT: usize = 32;
 
 /// Cache-friendly matrix configuration
@@ -76,7 +78,7 @@ impl CacheFriendlyMatrix {
         let (nrows, ncols) = array.dim();
 
         let data = match layout {
-            MatrixLayout::RowMajor => array.into_raw_vec(),
+            MatrixLayout::RowMajor => array.into_raw_vec_and_offset().0,
             MatrixLayout::ColumnMajor => {
                 // Transpose to column-major
                 let mut data = Vec::with_capacity(nrows * ncols);
@@ -107,8 +109,8 @@ impl CacheFriendlyMatrix {
         let (nrows, ncols) = array.dim();
         let mut blocked = Vec::with_capacity(nrows * ncols);
 
-        let n_row_blocks = (nrows + block_size - 1) / block_size;
-        let n_col_blocks = (ncols + block_size - 1) / block_size;
+        let n_row_blocks = nrows.div_ceil(block_size);
+        let n_col_blocks = ncols.div_ceil(block_size);
 
         for block_i in 0..n_row_blocks {
             for block_j in 0..n_col_blocks {
@@ -126,8 +128,8 @@ impl CacheFriendlyMatrix {
                 // Pad to full block size
                 let block_elements = (row_end - row_start) * (col_end - col_start);
                 let full_block = block_size * block_size;
-                for _ in block_elements..full_block {
-                    blocked.push(0.0);
+                if full_block > block_elements {
+                    blocked.resize(blocked.len() + (full_block - block_elements), 0.0);
                 }
             }
         }
@@ -147,7 +149,7 @@ impl CacheFriendlyMatrix {
                 let local_i = i % block_size;
                 let local_j = j % block_size;
 
-                let n_col_blocks = (self.ncols + block_size - 1) / block_size;
+                let n_col_blocks = self.ncols.div_ceil(block_size);
                 let block_idx = block_i * n_col_blocks + block_j;
                 let block_start = block_idx * block_size * block_size;
                 let offset = local_i * block_size + local_j;
@@ -309,6 +311,11 @@ impl AlignedAllocator {
     }
 
     /// Deallocate aligned memory
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must have been allocated by `AlignedMemory::allocate` with the same `size` and
+    /// `alignment`, and must not have been freed already.
     pub unsafe fn deallocate(ptr: *mut Float, size: usize, alignment: usize) {
         if ptr.is_null() || size == 0 {
             return;

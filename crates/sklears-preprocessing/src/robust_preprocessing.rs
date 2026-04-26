@@ -360,29 +360,12 @@ impl Fit<Array2<Float>, ()> for RobustPreprocessor<Untrained> {
         if self.config.enable_outlier_imputation {
             let threshold = self.get_adaptive_threshold(&current_data, 0.5)?;
 
-            let _imputer = OutlierAwareImputer::exclude_outliers(threshold, "mad")?
-                .base_strategy(crate::imputation::ImputationStrategy::Median);
+            let imputer = OutlierAwareImputer::exclude_outliers(threshold, "mad")?
+                .base_strategy(crate::imputation::ImputationStrategy::Median)
+                .fit(&current_data)?;
 
-            // TODO: Implement fit/transform for OutlierAwareImputer
-            // For now, implement simple median imputation directly
-            for j in 0..current_data.ncols() {
-                let mut column: Vec<Float> = current_data.column(j).to_vec();
-                column.retain(|x| !x.is_nan()); // Remove NaN values
-                if !column.is_empty() {
-                    column
-                        .sort_by(|a, b| a.partial_cmp(b).expect("matrix indexing should be valid"));
-                    let median = column[column.len() / 2];
-
-                    // Replace NaN values with median
-                    for i in 0..current_data.nrows() {
-                        if current_data[[i, j]].is_nan() {
-                            current_data[[i, j]] = median;
-                        }
-                    }
-                }
-            }
-
-            // self.outlier_imputer_ = Some(fitted_imputer);
+            current_data = imputer.transform(&current_data)?;
+            self.outlier_imputer_ = Some(imputer);
 
             // Update missing value statistics
             stats.missing_stats.missing_after = current_data.iter().filter(|x| x.is_nan()).count();
@@ -452,13 +435,14 @@ impl Fit<Array2<Float>, ()> for RobustPreprocessor<Untrained> {
 
         // Step 4: Robust scaling (if enabled)
         if self.config.enable_robust_scaling {
-            let _scaler = RobustScaler::new();
-            // Note: quantile_range, with_centering, and with_scaling methods not available on placeholder
-            // TODO: Implement proper RobustScaler with these methods
+            let (q_lo, q_hi) = self.config.quantile_range;
+            let scaler = RobustScaler::new()
+                .quantile_range(q_lo, q_hi)
+                .with_centering(self.config.with_centering)
+                .with_scaling(self.config.with_scaling);
 
-            // TODO: Implement fit for RobustScaler
-            // let fitted_scaler = scaler.fit(&current_data, &())?;
-            // self.robust_scaler_ = Some(fitted_scaler);
+            let fitted_scaler = scaler.fit(&current_data, &())?;
+            self.robust_scaler_ = Some(fitted_scaler);
         }
 
         // Compute overall robustness score
@@ -499,7 +483,7 @@ impl RobustPreprocessor<Untrained> {
         let mut sorted_values = valid_values.clone();
         sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
-        let median = if sorted_values.len() % 2 == 0 {
+        let median = if sorted_values.len().is_multiple_of(2) {
             let mid = sorted_values.len() / 2;
             (sorted_values[mid - 1] + sorted_values[mid]) / 2.0
         } else {
@@ -511,7 +495,7 @@ impl RobustPreprocessor<Untrained> {
         let mut sorted_deviations = deviations;
         sorted_deviations.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
-        let _mad = if sorted_deviations.len() % 2 == 0 {
+        let _mad = if sorted_deviations.len().is_multiple_of(2) {
             let mid = sorted_deviations.len() / 2;
             (sorted_deviations[mid - 1] + sorted_deviations[mid]) / 2.0
         } else {
@@ -993,7 +977,7 @@ mod tests {
             .get_adaptive_threshold(&data, 0.1)
             .expect("operation should succeed");
 
-        assert!(threshold >= 1.5 && threshold <= 4.0);
+        assert!((1.5..=4.0).contains(&threshold));
     }
 
     #[test]

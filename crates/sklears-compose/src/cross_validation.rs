@@ -3,21 +3,40 @@
 //! This module provides comprehensive cross-validation capabilities specifically designed
 //! for complex composed models including pipelines, ensembles, and meta-learners.
 
-use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
-use scirs2_core::random::{thread_rng, SeedableRng};
+use scirs2_core::random::{thread_rng, RngExt, SeedableRng};
 use scirs2_core::SliceRandomExt;
-use sklears_core::{
-    error::Result as SklResult,
-    prelude::{Fit, Predict, SklearsError},
-    traits::Estimator,
-    types::Float,
-};
+use sklears_core::{error::Result as SklResult, prelude::SklearsError, types::Float};
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use crate::{Pipeline, PipelinePredictor, PipelineStep, PipelineTrained};
+use crate::{Pipeline, PipelineTrained};
+
+/// Adapter trait for cross-validation. Takes owned arrays — no HRTB required.
+///
+/// Implement this trait for any estimator you want to use with the cross-validation
+/// framework. For `Pipeline<Untrained>`, an implementation is provided in `pipeline.rs`.
+///
+/// # Design
+///
+/// This trait uses owned `Array2<Float>` / `Array1<Float>` instead of
+/// `ArrayView2<'b, Float>` / `ArrayView1<'b, Float>`, which completely eliminates
+/// the HRTB (`for<'b>`) bounds that ndarray 0.17 cannot satisfy with associated-type
+/// projections.
+pub trait FitCV: Clone + Send + Sync {
+    /// The fitted estimator type produced by this trait
+    type Fitted: Clone + Send + Sync;
+    /// Fit using owned arrays (no lifetime parameters needed)
+    fn fit_cv(self, x: Array2<Float>, y: Option<Array1<Float>>) -> SklResult<Self::Fitted>;
+}
+
+/// Prediction adapter for cross-validation — takes a reference to an owned `Array2`,
+/// no lifetime parameters needed.
+pub trait PredictCV: Send + Sync {
+    /// Predict on owned data
+    fn predict_cv(&self, x: &Array2<Float>) -> SklResult<Array1<Float>>;
+}
 
 /// Cross-validation framework for complex composed models
 pub struct ComposedModelCrossValidator {
@@ -73,21 +92,38 @@ pub enum CVStrategy {
     /// Leave-one-out cross-validation
     LeaveOneOut,
     /// Leave-P-out cross-validation
-    LeavePOut { p: usize },
+    LeavePOut {
+        /// Number of samples to leave out per fold
+        p: usize,
+    },
     /// Time series cross-validation
     TimeSeriesSplit,
     /// Group-based cross-validation
-    GroupKFold { groups: Vec<usize> },
-    /// Monte Carlo cross-validation
-    ShuffleSplit { n_splits: usize },
+    GroupKFold {
+        /// Group labels for each sample
+        groups: Vec<usize>,
+    },
+    /// Monte Carlo (shuffle) cross-validation
+    ShuffleSplit {
+        /// Number of splits to generate
+        n_splits: usize,
+    },
     /// Bootstrap cross-validation
-    Bootstrap { n_bootstrap: usize },
+    Bootstrap {
+        /// Number of bootstrap iterations
+        n_bootstrap: usize,
+    },
     /// Nested cross-validation
     Nested {
+        /// Inner cross-validation strategy (for hyperparameter tuning)
         inner_cv: Box<CVStrategy>,
+        /// Outer cross-validation strategy (for performance estimation)
         outer_cv: Box<CVStrategy>,
     },
 }
+
+/// Type alias for a custom scoring function used in cross-validation.
+pub type CustomScorerFn = fn(&Array1<f64>, &Array1<f64>) -> f64;
 
 /// Scoring configuration for cross-validation
 #[derive(Debug, Clone)]
@@ -99,23 +135,37 @@ pub struct ScoringConfig {
     /// Whether to use scoring for model selection
     pub use_for_selection: bool,
     /// Custom scoring function
-    pub custom_scorer: Option<fn(&Array1<f64>, &Array1<f64>) -> f64>,
+    pub custom_scorer: Option<CustomScorerFn>,
 }
 
 /// Available scoring metrics
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScoringMetric {
+    /// Mean squared error (negated for maximization)
     MeanSquaredError,
+    /// Root mean squared error (negated for maximization)
     RootMeanSquaredError,
+    /// Mean absolute error (negated for maximization)
     MeanAbsoluteError,
+    /// R² coefficient of determination
     R2Score,
+    /// Classification accuracy
     Accuracy,
+    /// Precision for binary classification
     Precision,
+    /// Recall for binary classification
     Recall,
+    /// F1 score (harmonic mean of precision and recall)
     F1Score,
+    /// Area under the ROC curve
     AUC,
+    /// Logarithmic loss
     LogLoss,
-    Custom { name: String },
+    /// Custom metric identified by name
+    Custom {
+        /// Name of the custom metric
+        name: String,
+    },
 }
 
 /// Cross-validation results
@@ -211,18 +261,15 @@ impl ComposedModelCrossValidator {
     }
 
     /// Perform cross-validation on a pipeline
-    pub fn cross_validate_pipeline<'a, S>(
+    pub fn cross_validate_pipeline<'a>(
         &self,
-        pipeline: Pipeline<S>,
+        pipeline: Pipeline<sklears_core::traits::Untrained>,
         x: &ArrayView2<'a, Float>,
         y: &ArrayView1<'a, Float>,
     ) -> SklResult<CrossValidationResults>
     where
-        S: Clone,
-        Pipeline<S>:
-            for<'c, 'b> Fit<ArrayView2<'b, Float>, Option<&'c ArrayView1<'b, Float>>> + Clone,
-        for<'c, 'b> <Pipeline<S> as Fit<ArrayView2<'b, Float>, Option<&'c ArrayView1<'b, Float>>>>::Fitted:
-            Into<Pipeline<PipelineTrained>>,
+        Pipeline<sklears_core::traits::Untrained>: FitCV<Fitted = Pipeline<PipelineTrained>>,
+        Pipeline<PipelineTrained>: PredictCV,
     {
         let splits = self.generate_splits(x.nrows(), Some(y))?;
         let mut results = CrossValidationResults::new();
@@ -244,19 +291,15 @@ impl ComposedModelCrossValidator {
     }
 
     /// Perform cross-validation on any estimator
-    pub fn cross_validate<'a, E, S>(
+    pub fn cross_validate<'a, E>(
         &self,
         estimator: E,
         x: &ArrayView2<'a, Float>,
         y: &ArrayView1<'a, Float>,
     ) -> SklResult<CrossValidationResults>
     where
-        E: for<'c, 'b> Fit<ArrayView2<'b, Float>, Option<&'c ArrayView1<'b, Float>>> + Clone,
-        for<'b> <E as sklears_core::traits::Fit<
-            ArrayView2<'b, Float>,
-            Option<&'b ArrayView1<'b, Float>>,
-        >>::Fitted: Clone,
-        S: Clone,
+        E: FitCV,
+        <E as FitCV>::Fitted: PredictCV,
     {
         let splits = self.generate_splits(x.nrows(), Some(y))?;
         let mut results = CrossValidationResults::new();
@@ -278,7 +321,7 @@ impl ComposedModelCrossValidator {
     }
 
     /// Perform nested cross-validation for hyperparameter tuning
-    pub fn nested_cross_validate<'a, E, S>(
+    pub fn nested_cross_validate<'a, E>(
         &self,
         estimator: E,
         x: &ArrayView2<'a, Float>,
@@ -286,12 +329,8 @@ impl ComposedModelCrossValidator {
         param_grid: HashMap<String, Vec<f64>>,
     ) -> SklResult<NestedCVResults>
     where
-        E: for<'c, 'b> Fit<ArrayView2<'b, Float>, Option<&'c ArrayView1<'b, Float>>> + Clone,
-        for<'b> <E as sklears_core::traits::Fit<
-            ArrayView2<'b, Float>,
-            Option<&'b ArrayView1<'b, Float>>,
-        >>::Fitted: Clone,
-        S: Clone,
+        E: FitCV,
+        <E as FitCV>::Fitted: PredictCV,
     {
         if let CVStrategy::Nested { inner_cv, outer_cv } = &self.config.strategy {
             let outer_splits = self.generate_splits_strategy(outer_cv, x.nrows(), Some(y))?;
@@ -321,15 +360,14 @@ impl ComposedModelCrossValidator {
                 // Train model with best parameters on outer training set
                 let best_model = estimator.clone();
                 // Apply best parameters (simplified - in practice would need parameter setting)
-                let y_outer_train_view = y_outer_train.view();
                 let fitted_model =
-                    best_model.fit(&x_outer_train.view(), &Some(&y_outer_train_view))?;
+                    best_model.fit_cv(x_outer_train.clone(), Some(y_outer_train.clone()))?;
 
                 // Evaluate on outer test set
                 let x_outer_test = x.select(Axis(0), &outer_test);
                 let y_outer_test = y.select(Axis(0), &outer_test);
 
-                let predictions = self.predict_fitted(&fitted_model, &x_outer_test.view())?;
+                let predictions = self.predict_fitted(&fitted_model, &x_outer_test)?;
                 let test_score = self.score(&predictions.view(), &y_outer_test.view())?;
 
                 nested_results.add_outer_fold_result(OuterFoldResult {
@@ -434,7 +472,7 @@ impl ComposedModelCrossValidator {
     /// Stratified K-fold cross-validation split
     fn stratified_k_fold_split(
         &self,
-        n_samples: usize,
+        _n_samples: usize,
         y: &ArrayView1<'_, Float>,
         rng: &mut StdRng,
     ) -> SklResult<Vec<(Vec<usize>, Vec<usize>)>> {
@@ -650,7 +688,7 @@ impl ComposedModelCrossValidator {
 
             // Bootstrap sampling for training set
             for _ in 0..n_samples {
-                let idx = rng.gen_range(0..n_samples);
+                let idx = rng.random_range(0..n_samples);
                 train_indices.push(idx);
             }
 
@@ -669,9 +707,9 @@ impl ComposedModelCrossValidator {
     }
 
     /// Evaluate a single fold for pipeline
-    fn evaluate_fold_pipeline<'a, S>(
+    fn evaluate_fold_pipeline<'a>(
         &self,
-        pipeline: Pipeline<S>,
+        pipeline: Pipeline<sklears_core::traits::Untrained>,
         x: &ArrayView2<'a, Float>,
         y: &ArrayView1<'a, Float>,
         train_indices: &[usize],
@@ -679,11 +717,8 @@ impl ComposedModelCrossValidator {
         fold_index: usize,
     ) -> SklResult<FoldResult>
     where
-        S: Clone,
-        Pipeline<S>:
-            for<'c, 'b> Fit<ArrayView2<'b, Float>, Option<&'c ArrayView1<'b, Float>>> + Clone,
-        for<'c, 'b> <Pipeline<S> as Fit<ArrayView2<'b, Float>, Option<&'c ArrayView1<'b, Float>>>>::Fitted:
-            Into<Pipeline<PipelineTrained>>,
+        Pipeline<sklears_core::traits::Untrained>: FitCV<Fitted = Pipeline<PipelineTrained>>,
+        Pipeline<PipelineTrained>: PredictCV,
     {
         let x_train = x.select(Axis(0), train_indices);
         let y_train = y.select(Axis(0), train_indices);
@@ -692,22 +727,18 @@ impl ComposedModelCrossValidator {
 
         // Fit timing
         let fit_start = Instant::now();
-        let y_train_view = y_train.view();
-        let fitted_pipeline = pipeline.fit(&x_train.view(), &Some(&y_train_view))?;
+        let trained_pipeline = pipeline.fit_cv(x_train.clone(), Some(y_train.clone()))?;
         let fit_time = fit_start.elapsed();
-
-        // Convert to trained pipeline
-        let trained_pipeline: Pipeline<PipelineTrained> = fitted_pipeline.into();
 
         // Score timing
         let score_start = Instant::now();
-        let predictions = trained_pipeline.predict(&x_test.view())?;
+        let predictions = trained_pipeline.predict_cv(&x_test)?;
         let test_score = self.score(&predictions.view(), &y_test.view())?;
         let score_time = score_start.elapsed();
 
         // Training score (optional)
         let train_score = if self.scoring.use_for_selection {
-            let train_predictions = trained_pipeline.predict(&x_train.view())?;
+            let train_predictions = trained_pipeline.predict_cv(&x_train)?;
             Some(self.score(&train_predictions.view(), &y_train.view())?)
         } else {
             None
@@ -740,32 +771,28 @@ impl ComposedModelCrossValidator {
         fold_index: usize,
     ) -> SklResult<FoldResult>
     where
-        E: for<'a> Fit<ArrayView2<'a, Float>, Option<&'a ArrayView1<'a, Float>>> + Clone,
-        for<'b> <E as sklears_core::traits::Fit<
-            ArrayView2<'b, Float>,
-            Option<&'b ArrayView1<'b, Float>>,
-        >>::Fitted: Clone,
+        E: FitCV,
+        <E as FitCV>::Fitted: PredictCV,
     {
         let x_train = x.select(Axis(0), train_indices);
         let y_train = y.select(Axis(0), train_indices);
         let x_test = x.select(Axis(0), test_indices);
         let y_test = y.select(Axis(0), test_indices);
 
-        // Fit timing
+        // Fit timing — clone arrays since fit_cv consumes them and we need them for train scoring
         let fit_start = Instant::now();
-        let y_train_view = y_train.view();
-        let fitted_estimator = estimator.fit(&x_train.view(), &Some(&y_train_view))?;
+        let fitted_estimator = estimator.fit_cv(x_train.clone(), Some(y_train.clone()))?;
         let fit_time = fit_start.elapsed();
 
         // Score timing
         let score_start = Instant::now();
-        let predictions = self.predict_fitted(&fitted_estimator, &x_test.view())?;
+        let predictions = self.predict_fitted(&fitted_estimator, &x_test)?;
         let test_score = self.score(&predictions.view(), &y_test.view())?;
         let score_time = score_start.elapsed();
 
         // Training score (optional)
         let train_score = if self.scoring.use_for_selection {
-            let train_predictions = self.predict_fitted(&fitted_estimator, &x_train.view())?;
+            let train_predictions = self.predict_fitted(&fitted_estimator, &x_train)?;
             Some(self.score(&train_predictions.view(), &y_train.view())?)
         } else {
             None
@@ -787,28 +814,12 @@ impl ComposedModelCrossValidator {
         })
     }
 
-    /// Predict using fitted pipeline
-    fn predict_pipeline<F>(
-        &self,
-        fitted_pipeline: &F,
-        x: &ArrayView2<'_, Float>,
-    ) -> SklResult<Array1<f64>>
+    /// Predict using a fitted estimator that implements `PredictCV`
+    fn predict_fitted<F>(&self, fitted_estimator: &F, x: &Array2<Float>) -> SklResult<Array1<f64>>
     where
-        F: ?Sized,
-        for<'a> F: Predict<ArrayView2<'a, Float>, Array1<f64>>,
+        F: PredictCV,
     {
-        fitted_pipeline.predict(x)
-    }
-
-    /// Predict using fitted estimator
-    fn predict_fitted<F>(
-        &self,
-        fitted_estimator: &F,
-        x: &ArrayView2<'_, Float>,
-    ) -> SklResult<Array1<f64>> {
-        // This would need to be implemented based on the actual fitted estimator interface
-        // For now, we'll use a placeholder
-        Ok(Array1::zeros(x.nrows()))
+        fitted_estimator.predict_cv(x)
     }
 
     /// Compute score using the configured metric
@@ -942,10 +953,10 @@ impl ComposedModelCrossValidator {
     /// Perform grid search cross-validation
     fn grid_search_cv<E>(
         &self,
-        inner_cv: &ComposedModelCrossValidator,
-        estimator: E,
-        x: &ArrayView2<'_, Float>,
-        y: &ArrayView1<'_, Float>,
+        _inner_cv: &ComposedModelCrossValidator,
+        _estimator: E,
+        _x: &ArrayView2<'_, Float>,
+        _y: &ArrayView1<'_, Float>,
         param_grid: &HashMap<String, Vec<f64>>,
     ) -> SklResult<HashMap<String, f64>>
     where
@@ -953,7 +964,6 @@ impl ComposedModelCrossValidator {
     {
         // Simplified implementation - would need proper parameter setting
         let mut best_params = HashMap::new();
-        let best_score = f64::NEG_INFINITY;
 
         // For now, just return the first parameter combination
         for (param_name, param_values) in param_grid {
@@ -1013,10 +1023,9 @@ impl CrossValidationResults {
         self.score_times.push(fold_result.score_time);
 
         if let Some(train_score) = fold_result.train_score {
-            if self.train_scores.is_none() {
-                self.train_scores = Some(Vec::new());
-            }
-            self.train_scores.as_mut().unwrap_or_default().push(train_score);
+            self.train_scores
+                .get_or_insert_with(Vec::new)
+                .push(train_score);
         }
 
         // Collect additional metrics
@@ -1225,7 +1234,9 @@ mod tests {
         let config = CrossValidationConfig::default();
         let cv = ComposedModelCrossValidator::new(config);
 
-        let splits = cv.k_fold_split(10, &mut StdRng::seed_from_u64(42)).unwrap_or_default();
+        let splits = cv
+            .k_fold_split(10, &mut StdRng::seed_from_u64(42))
+            .unwrap_or_default();
 
         assert_eq!(splits.len(), 5);
         for (train_indices, test_indices) in &splits {
@@ -1266,14 +1277,16 @@ mod tests {
 
     #[test]
     fn test_time_series_split() {
-        let mut config = CrossValidationConfig::default();
-        config.strategy = CVStrategy::TimeSeriesSplit;
-        config.time_series_config = Some(TimeSeriesConfig {
-            max_train_size: None,
-            gap: 0,
-            test_size: 2,
-            expanding_window: true,
-        });
+        let config = CrossValidationConfig {
+            strategy: CVStrategy::TimeSeriesSplit,
+            time_series_config: Some(TimeSeriesConfig {
+                max_train_size: None,
+                gap: 0,
+                test_size: 2,
+                expanding_window: true,
+            }),
+            ..CrossValidationConfig::default()
+        };
 
         let cv = ComposedModelCrossValidator::new(config);
         let splits = cv.time_series_split(10).unwrap_or_default();
@@ -1306,9 +1319,11 @@ mod tests {
     #[test]
     fn test_scoring_metrics() {
         let config = CrossValidationConfig::default();
-        let mut scoring = ScoringConfig::default();
-        scoring.primary_metric = ScoringMetric::R2Score;
-        scoring.additional_metrics = vec![ScoringMetric::MeanAbsoluteError];
+        let scoring = ScoringConfig {
+            primary_metric: ScoringMetric::R2Score,
+            additional_metrics: vec![ScoringMetric::MeanAbsoluteError],
+            ..ScoringConfig::default()
+        };
 
         let cv = ComposedModelCrossValidator::new(config).with_scoring(scoring);
 

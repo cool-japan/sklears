@@ -1,3 +1,6 @@
+[lints]
+workspace = true
+
 [package]
 name = "sklears-neural"
 version.workspace = true
@@ -28,7 +31,7 @@ serde_json = { workspace = true, optional = true }
 serde_yaml = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 oxicode = { workspace = true, optional = true }
-flate2 = { workspace = true, optional = true }
+oxiarc-deflate = { workspace = true, optional = true }
 thiserror = { workspace = true }
 log = { workspace = true }
 rayon = { workspace = true, optional = true }
@@ -47,7 +50,7 @@ proptest = { workspace = true }
 default = []
 parallel = ["rayon"]
 # gpu = ["cudarc", "bytemuck", "half"]  # Disabled for macOS compatibility
-serde = ["dep:serde", "dep:serde_json", "dep:serde_yaml", "dep:chrono", "dep:oxicode", "dep:flate2"]
+serde = ["dep:serde", "dep:serde_json", "dep:serde_yaml", "dep:chrono", "dep:oxicode", "dep:oxiarc-deflate"]
 mmap = ["memmap2"]
 
 [[example]]

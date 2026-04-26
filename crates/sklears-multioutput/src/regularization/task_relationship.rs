@@ -3,6 +3,7 @@
 //! This method learns explicit relationships between tasks and uses this information
 //! to regularize the learning process. Tasks that are determined to be related
 //! are encouraged to have similar parameters.
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
@@ -89,11 +90,14 @@ pub struct TaskRelationshipLearningTrained {
     pub(crate) task_names: Vec<String>,
     /// Number of input features
     pub(crate) n_features: usize,
+    #[allow(dead_code)]
     /// Task configurations
     pub(crate) task_outputs: HashMap<String, usize>,
+    #[allow(dead_code)]
     /// Training parameters
     pub(crate) relationship_strength: Float,
     pub(crate) similarity_threshold: Float,
+    #[allow(dead_code)]
     pub(crate) similarity_method: TaskSimilarityMethod,
     /// Training iterations performed
     pub(crate) n_iter: usize,
@@ -415,7 +419,7 @@ impl Predict<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
 {
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<HashMap<String, Array2<Float>>> {
         let x = X.to_owned();
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         if n_features != self.state.n_features {
             return Err(SklearsError::InvalidInput(

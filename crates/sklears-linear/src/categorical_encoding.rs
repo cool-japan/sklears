@@ -484,17 +484,14 @@ impl CategoricalEncoder {
 
         match &self.config.strategy {
             CategoricalEncodingStrategy::LabelEncoding {
-                sort_by_frequency, ..
+                sort_by_frequency: true,
+                ..
             } => {
-                if *sort_by_frequency {
-                    categories.sort_by(|a, b| {
-                        let freq_a = frequencies.get(a).copied().unwrap_or(0);
-                        let freq_b = frequencies.get(b).copied().unwrap_or(0);
-                        freq_b.cmp(&freq_a)
-                    });
-                } else {
-                    categories.sort();
-                }
+                categories.sort_by(|a, b| {
+                    let freq_a = frequencies.get(a).copied().unwrap_or(0);
+                    let freq_b = frequencies.get(b).copied().unwrap_or(0);
+                    freq_b.cmp(&freq_a)
+                });
             }
             _ => {
                 categories.sort();

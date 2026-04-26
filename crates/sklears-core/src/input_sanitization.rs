@@ -584,7 +584,7 @@ pub fn is_ml_data_safe<T>(features: &Array2<T>, targets: Option<&Array1<T>>) -> 
 where
     T: FloatBounds + Copy,
 {
-    features.is_safe() && targets.map_or(true, |t| t.is_safe())
+    features.is_safe() && targets.is_none_or(|t| t.is_safe())
 }
 
 #[allow(non_snake_case)]

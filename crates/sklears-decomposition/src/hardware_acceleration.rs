@@ -565,9 +565,9 @@ impl ParallelDecomposition {
         let _result = Array2::<Float>::zeros((m, n));
 
         // Parallel tiled multiplication
-        let m_tiles = (m + tile_size - 1) / tile_size;
-        let n_tiles = (n + tile_size - 1) / tile_size;
-        let k_tiles = (k + tile_size - 1) / tile_size;
+        let m_tiles = m.div_ceil(tile_size);
+        let n_tiles = n.div_ceil(tile_size);
+        let k_tiles = k.div_ceil(tile_size);
 
         #[cfg(feature = "parallel")]
         {
@@ -765,7 +765,7 @@ impl AlignedMemoryOps {
     /// Check if array is properly aligned
     pub fn is_aligned(&self, data: &[Float]) -> bool {
         let ptr = data.as_ptr() as usize;
-        ptr % self.alignment == 0
+        ptr.is_multiple_of(self.alignment)
     }
 
     /// Copy data to aligned buffer if necessary
@@ -867,6 +867,9 @@ impl Drop for AlignedBuffer {
 /// GPU acceleration for matrix operations using CUDA
 #[cfg(feature = "gpu")]
 pub struct GpuAcceleration {
+    /// Configuration controlling GPU kernel launch parameters, memory pool limits, and
+    /// thread counts.  The config is consulted when logging the requested setup and when
+    /// choosing parallelism for CPU fallback paths.
     config: AccelerationConfig,
     device: Device,
     #[cfg(not(target_os = "macos"))]
@@ -880,9 +883,21 @@ impl GpuAcceleration {
         Self::with_config(AccelerationConfig::default())
     }
 
-    /// Create GPU acceleration with specific configuration
+    /// Create GPU acceleration with specific configuration.
+    ///
+    /// The config is stored and used to:
+    /// - Gate GPU initialisation (`enable_gpu`).
+    /// - Select the CUDA device (`gpu_device_id`).
+    /// - Bound memory allocations (`gpu_memory_limit`).
+    /// - Set parallel thread count for CPU fallback paths (`num_threads`).
     pub fn with_config(config: AccelerationConfig) -> Result<Self> {
         if !config.enable_gpu {
+            // Log the configuration that was requested but not used
+            eprintln!(
+                "[GpuAcceleration] GPU disabled by config (enable_gpu=false). \
+                 Running on CPU. num_threads={:?}, alignment={} bytes.",
+                config.num_threads, config.memory_alignment
+            );
             return Ok(Self {
                 config,
                 device: Device::Cpu,
@@ -891,14 +906,20 @@ impl GpuAcceleration {
             });
         }
 
+        eprintln!(
+            "[GpuAcceleration] Requesting GPU device {} with memory_limit={:?}.",
+            config.gpu_device_id, config.gpu_memory_limit
+        );
+
         // Initialize CUDA device (only on non-macOS platforms)
         #[cfg(not(target_os = "macos"))]
         let cuda_device = match CudaContext::new(config.gpu_device_id as usize) {
             Ok(device) => Some(device),
             Err(_) => {
-                return Err(SklearsError::InvalidInput(
-                    "Failed to initialize CUDA device".to_string(),
-                ));
+                return Err(SklearsError::InvalidInput(format!(
+                    "Failed to initialize CUDA device {}",
+                    config.gpu_device_id
+                )));
             }
         };
 
@@ -916,8 +937,16 @@ impl GpuAcceleration {
         })
     }
 
+    /// Return the active acceleration configuration.
+    pub fn config(&self) -> &AccelerationConfig {
+        &self.config
+    }
+
     /// Check if GPU is available and properly initialized
     pub fn is_gpu_available(&self) -> bool {
+        if !self.config.enable_gpu {
+            return false;
+        }
         #[cfg(not(target_os = "macos"))]
         return self.cuda_device.is_some() && matches!(self.device, Device::Cuda(_));
 
@@ -925,14 +954,17 @@ impl GpuAcceleration {
         return matches!(self.device, Device::Cuda(_));
     }
 
-    /// Get GPU memory information
+    /// Get GPU memory information, constrained by `config.gpu_memory_limit` when set.
     pub fn gpu_memory_info(&self) -> Result<(usize, usize)> {
         #[cfg(not(target_os = "macos"))]
         {
             if let Some(ref _cuda_device) = self.cuda_device {
                 // CudaContext in cudarc 0.17 uses attribute() for device queries
                 // For now, return default values (actual implementation would query CUDA)
-                let total = 8 * 1024 * 1024 * 1024; // Default 8GB
+                let total = self
+                    .config
+                    .gpu_memory_limit
+                    .unwrap_or(8 * 1024 * 1024 * 1024); // Default 8 GB
                 let free = total / 2; // Conservative estimate
                 Ok((free, total))
             } else {
@@ -973,17 +1005,7 @@ impl GpuAcceleration {
 
         match tensor.to_vec2::<f32>() {
             Ok(data) => {
-                let flat_data: Vec<Float> = data
-                    .into_iter()
-                    .flatten()
-                    .map(|x| {
-                        if std::mem::size_of::<Float>() == 8 {
-                            x as f64
-                        } else {
-                            x as f64
-                        }
-                    })
-                    .collect();
+                let flat_data: Vec<Float> = data.into_iter().flatten().map(|x| x as f64).collect();
 
                 match Array2::from_shape_vec((dims[0], dims[1]), flat_data) {
                     Ok(array) => Ok(array),
@@ -1480,7 +1502,7 @@ mod tests {
         // Test creation without GPU (should fallback gracefully)
         let _gpu_acc = GpuAcceleration::default();
         // This test just ensures the default creation works
-        assert!(true);
+        let _ = _gpu_acc;
     }
 
     #[cfg(feature = "gpu")]
@@ -1494,7 +1516,7 @@ mod tests {
         };
 
         // Test that config is properly set
-        assert_eq!(config.enable_gpu, true);
+        assert!(config.enable_gpu);
         assert_eq!(config.gpu_device_id, 0);
         assert_eq!(config.gpu_memory_limit, Some(1024 * 1024 * 1024));
     }

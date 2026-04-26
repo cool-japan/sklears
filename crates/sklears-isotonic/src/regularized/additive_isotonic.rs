@@ -613,7 +613,7 @@ mod tests {
         let model = AdditiveIsotonicRegression::new(3);
         assert_eq!(model.n_features, 3);
         assert_eq!(model.constraints.len(), 3);
-        assert_eq!(model.fit_intercept, true);
+        assert!(model.fit_intercept);
     }
 
     #[test]
@@ -631,7 +631,7 @@ mod tests {
         assert_eq!(model.n_features, 2);
         assert_eq!(model.constraints.len(), 2);
         assert_eq!(model.alpha, 0.1);
-        assert_eq!(model.fit_intercept, false);
+        assert!(!model.fit_intercept);
     }
 
     #[test]

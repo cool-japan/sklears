@@ -240,10 +240,11 @@ impl Pipeline {
         let start_time = Instant::now();
         self.state = PipelineState::Running;
 
-        let mut metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
-        metrics.execution_count += 1;
-        metrics.last_execution_start = Some(start_time);
-        drop(metrics);
+        {
+            let mut metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
+            metrics.execution_count += 1;
+            metrics.last_execution_start = Some(start_time);
+        }
 
         // Initialize execution context
         {
@@ -403,7 +404,7 @@ impl Pipeline {
         input_data: &PipelineData,
     ) -> SklResult<StageResult> {
         // Get or create component instance
-        let component_key = format!("{}_{}", stage.component_type, stage.stage_id);
+        let _component_key = format!("{}_{}", stage.component_type, stage.stage_id);
 
         // For now, return a placeholder result
         // In a real implementation, this would:
@@ -453,7 +454,7 @@ impl Pipeline {
     /// Execute a parallel branch
     async fn execute_parallel_branch(
         &mut self,
-        branch: &ParallelBranch,
+        _branch: &ParallelBranch,
         input_data: &PipelineData,
     ) -> SklResult<PipelineData> {
         // Placeholder for branch execution
@@ -473,7 +474,7 @@ impl Pipeline {
     /// Handle stage execution error
     fn handle_stage_error(
         &self,
-        stage_index: usize,
+        _stage_index: usize,
         error: SklearsError,
     ) -> SklResult<PipelineResult> {
         match self.error_strategy {
@@ -727,6 +728,7 @@ pub struct StageMetrics {
 
 impl StageMetrics {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             memory_usage: 0,
@@ -796,6 +798,7 @@ pub struct PipelineMetadata {
 
 impl PipelineMetadata {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             name: None,
@@ -825,6 +828,7 @@ pub struct ExecutionContext {
 
 impl ExecutionContext {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             execution_id: String::new(),
@@ -880,6 +884,7 @@ pub struct PipelineMetrics {
 
 impl PipelineMetrics {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             execution_count: 0,
@@ -914,18 +919,30 @@ impl PipelineMetrics {
 #[derive(Debug, Error)]
 pub enum PipelineError {
     #[error("Pipeline validation failed: {0}")]
+    /// Variant value.
     ValidationFailed(String),
 
     #[error("Stage execution failed: {stage_id}: {error}")]
-    StageExecutionFailed { stage_id: String, error: String },
+    /// Field value.
+    /// Field value.
+    /// Variant value.
+    StageExecutionFailed {
+        /// The stage id.
+        stage_id: String,
+        /// The error.
+        error: String,
+    },
 
     #[error("Pipeline timeout exceeded: {0:?}")]
+    /// Variant value.
     TimeoutExceeded(Duration),
 
     #[error("Invalid pipeline state: {0}")]
+    /// Variant value.
     InvalidState(String),
 
     #[error("Component not found: {0}")]
+    /// Variant value.
     ComponentNotFound(String),
 }
 
@@ -1044,9 +1061,10 @@ pub struct TimeoutConfig {
 }
 
 /// Timeout actions
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum TimeoutAction {
     /// Fail the pipeline
+    #[default]
     Fail,
     /// Skip the step
     Skip,
@@ -1070,13 +1088,14 @@ pub struct RetryConfig {
 }
 
 /// Backoff strategies for retries
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum BackoffStrategy {
     /// Fixed delay
     Fixed,
     /// Linear backoff
     Linear,
     /// Exponential backoff
+    #[default]
     Exponential,
     /// Custom backoff
     Custom(String),
@@ -1131,7 +1150,7 @@ impl ModularPipeline {
             .iter()
             .find(|stage| stage.stage_id == step_id)
             .map(|stage| {
-                /// PipelineStep
+                // PipelineStep
                 PipelineStep {
                     id: stage.stage_id.clone(),
                     name: stage.stage_id.clone(), // Use stage_id as name for simplicity
@@ -1156,18 +1175,6 @@ impl Default for PipelineConfig {
             timeout_config: None,
             retry_config: None,
         }
-    }
-}
-
-impl Default for TimeoutAction {
-    fn default() -> Self {
-        Self::Fail
-    }
-}
-
-impl Default for BackoffStrategy {
-    fn default() -> Self {
-        Self::Exponential
     }
 }
 

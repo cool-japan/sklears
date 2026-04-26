@@ -150,6 +150,7 @@ impl Estimator for SpatiallyConstrainedGMM<Untrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Fit<Array2<f64>, ()> for SpatiallyConstrainedGMM<Untrained> {
     type Fitted = SpatiallyConstrainedGMM<SpatiallyConstrainedGMMTrained>;
 
@@ -209,6 +210,7 @@ impl Fit<Array2<f64>, ()> for SpatiallyConstrainedGMM<Untrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl SpatiallyConstrainedGMM<Untrained> {
     fn initialize_spatial_parameters(
         &self,
@@ -244,7 +246,7 @@ impl SpatiallyConstrainedGMM<Untrained> {
 
                     // Add spatial component to distance calculation
                     let spatial_dist = euclidean_distance(
-                        &coords.row(k).to_owned().into_raw_vec(),
+                        &coords.row(k).to_owned().into_raw_vec_and_offset().0,
                         &(0..coords.ncols())
                             .map(|j| {
                                 // Use spatial coordinate of the mean's closest sample
@@ -299,8 +301,8 @@ impl SpatiallyConstrainedGMM<Untrained> {
                     for j in 0..n_samples {
                         if i != j {
                             let dist = euclidean_distance(
-                                &coords.row(i).to_owned().into_raw_vec(),
-                                &coords.row(j).to_owned().into_raw_vec(),
+                                &coords.row(i).to_owned().into_raw_vec_and_offset().0,
+                                &coords.row(j).to_owned().into_raw_vec_and_offset().0,
                             );
                             if dist <= *radius {
                                 smoothness[[i, j]] = (-dist / radius).exp();
@@ -317,8 +319,8 @@ impl SpatiallyConstrainedGMM<Untrained> {
                         .filter(|&j| j != i)
                         .map(|j| {
                             let dist = euclidean_distance(
-                                &coords.row(i).to_owned().into_raw_vec(),
-                                &coords.row(j).to_owned().into_raw_vec(),
+                                &coords.row(i).to_owned().into_raw_vec_and_offset().0,
+                                &coords.row(j).to_owned().into_raw_vec_and_offset().0,
                             );
                             (dist, j)
                         })
@@ -474,7 +476,13 @@ impl SpatiallyConstrainedGMM<Untrained> {
 
         // Normalize responsibilities using log-sum-exp for numerical stability
         for i in 0..n_samples {
-            let log_sum = self.log_sum_exp(&responsibilities.row(i).to_owned().into_raw_vec());
+            let log_sum = self.log_sum_exp(
+                &responsibilities
+                    .row(i)
+                    .to_owned()
+                    .into_raw_vec_and_offset()
+                    .0,
+            );
             for k in 0..n_components {
                 responsibilities[[i, k]] = (responsibilities[[i, k]] - log_sum).exp();
             }
@@ -680,6 +688,7 @@ impl SpatiallyConstrainedGMM<Untrained> {
 
 impl SpatiallyConstrainedGMM<SpatiallyConstrainedGMMTrained> {
     /// Simple matrix inversion for prediction
+    #[allow(dead_code)]
     fn invert_covariance_simple(&self, cov: &Array2<f64>) -> SklResult<Array2<f64>> {
         let n = cov.nrows();
         let mut inv_cov = Array2::zeros((n, n));
@@ -697,6 +706,7 @@ impl SpatiallyConstrainedGMM<SpatiallyConstrainedGMMTrained> {
     }
 
     /// Simple determinant computation for prediction
+    #[allow(dead_code)]
     fn compute_determinant_simple(&self, cov: &Array2<f64>) -> SklResult<f64> {
         let n = cov.nrows();
         let det = (0..n).map(|i| cov[[i, i]].max(1e-8)).product::<f64>();
@@ -704,6 +714,7 @@ impl SpatiallyConstrainedGMM<SpatiallyConstrainedGMMTrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<Array2<f64>, Array1<usize>>
     for SpatiallyConstrainedGMM<SpatiallyConstrainedGMMTrained>
 {

@@ -4,16 +4,8 @@
 //! including factor analysis for financial data, portfolio optimization integration,
 //! macroeconomic factor analysis, risk factor decomposition, and regime-switching models.
 
-use crate::cca::CCA;
-use crate::pls::PLSRegression;
-use crate::time_series::{RegimeSwitchingModel, VectorAutoregression};
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use scirs2_core::numeric::{Float, FromPrimitive, One};
-use scirs2_core::random::{thread_rng, Random, Rng};
-use sklears_core::{
-    error::SklearsError,
-    traits::{Fit, Transform},
-};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -148,6 +140,7 @@ impl<F: Float + 'static + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
         Ok(excess_returns)
     }
 
+    #[allow(clippy::type_complexity)] // returns tuple of factor matrices with eigenvalues
     fn extract_factors(
         &self,
         data: &Array2<F>,
@@ -310,7 +303,7 @@ impl<F: Float + 'static + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
 
     fn economic_rotation(&self, loadings: &Array2<F>) -> Result<Array2<F>, FinanceError> {
         // Economic interpretation rotation (simplified)
-        let mut rotated = loadings.clone();
+        let rotated = loadings.clone();
 
         // Sort factors by economic interpretability
         let mut factor_scores: Vec<(usize, F)> = (0..rotated.ncols())
@@ -399,7 +392,7 @@ impl<F: Float + 'static + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
     fn compute_factor_statistics(
         &self,
         factor_scores: &Array2<F>,
-        returns: &Array2<F>,
+        _returns: &Array2<F>,
     ) -> Result<FactorStatistics<F>, FinanceError> {
         let mut factor_returns = Array1::zeros(self.n_factors);
         let mut factor_volatilities = Array1::zeros(self.n_factors);
@@ -537,7 +530,8 @@ pub struct FittedFinancialFactorAnalysis<F: Float> {
     factor_stats: FactorStatistics<F>,
     factor_interpretation: HashMap<usize, String>,
     n_factors: usize,
-    risk_free_rate: F,
+    /// Risk-free rate used during model fitting
+    pub risk_free_rate: F,
 }
 
 impl<F: Float + 'static + FromPrimitive + ScalarOperand> FittedFinancialFactorAnalysis<F> {
@@ -622,7 +616,7 @@ impl<F: Float + 'static + FromPrimitive + ScalarOperand> FittedFinancialFactorAn
 
     fn compute_portfolio_variance(&self, weights: &ArrayView1<F>) -> Result<F, FinanceError> {
         // Simplified portfolio variance computation
-        let portfolio_factor_exposure = self.portfolio_exposure(weights.clone())?;
+        let portfolio_factor_exposure = self.portfolio_exposure(*weights)?;
 
         let mut variance = F::zero();
         for i in 0..self.n_factors {
@@ -656,7 +650,7 @@ pub struct FactorConstrainedOptimization<F: Float> {
     /// Expected returns
     expected_returns: Array1<F>,
     /// Risk aversion parameter
-    risk_aversion: F,
+    pub risk_aversion: F,
     /// Factor exposure constraints
     factor_constraints: HashMap<usize, (F, F)>, // (min_exposure, max_exposure)
     /// Maximum weight per asset
@@ -804,9 +798,9 @@ pub struct MacroeconomicFactorAnalysis<F: Float> {
     /// Lag periods for economic indicators
     lags: Vec<usize>,
     /// Maximum number of iterations
-    max_iter: usize,
+    pub max_iter: usize,
     /// Convergence tolerance
-    tol: F,
+    pub tol: F,
     /// Whether to seasonally adjust the data
     seasonal_adjust: bool,
     /// Forecasting horizon
@@ -1011,6 +1005,7 @@ impl<F: Float + 'static + FromPrimitive + ScalarOperand> MacroeconomicFactorAnal
         Ok(lagged_features)
     }
 
+    #[allow(clippy::type_complexity)] // returns tuple of macro factor matrices with eigenvalues
     fn extract_macro_factors(
         &self,
         data: &Array2<F>,
@@ -1329,10 +1324,14 @@ pub struct FittedMacroeconomicFactorAnalysis<F: Float> {
     factor_interpretation: HashMap<usize, String>,
     forecasting_models: Vec<ForecastingModel<F>>,
     factor_statistics: MacroFactorStatistics<F>,
-    indicators: Vec<String>,
-    lags: Vec<usize>,
-    n_factors: usize,
-    forecast_horizon: usize,
+    /// Economic indicators used
+    pub indicators: Vec<String>,
+    /// Lag periods used
+    pub lags: Vec<usize>,
+    /// Number of factors extracted
+    pub n_factors: usize,
+    /// Forecast horizon
+    pub forecast_horizon: usize,
 }
 
 impl<F: Float + 'static + FromPrimitive + ScalarOperand> FittedMacroeconomicFactorAnalysis<F> {
@@ -1391,7 +1390,7 @@ impl<F: Float + 'static + FromPrimitive + ScalarOperand> FittedMacroeconomicFact
     /// Forecast asset returns based on macroeconomic factors
     pub fn forecast_asset_returns(&self, n_periods: usize) -> Result<Array2<F>, FinanceError> {
         let factor_forecasts = self.forecast_factors(n_periods)?;
-        let n_assets = self.asset_sensitivities.nrows();
+        let _n_assets = self.asset_sensitivities.nrows();
 
         // Multiply factor forecasts by asset sensitivities
         let return_forecasts = factor_forecasts.dot(&self.asset_sensitivities.t());
@@ -1440,7 +1439,6 @@ pub struct MacroFactorStatistics<F: Float> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::array;
 
     #[test]
@@ -1567,7 +1565,7 @@ mod tests {
         let portfolio = result.expect("operation should succeed");
         assert_eq!(portfolio.weights.len(), 3);
         assert!((portfolio.weights.sum() - 1.0).abs() < 1e-6);
-        assert!(portfolio.weights.iter().all(|&w| w >= 0.1 && w <= 0.6));
+        assert!(portfolio.weights.iter().all(|&w| (0.1..=0.6).contains(&w)));
     }
 
     #[test]

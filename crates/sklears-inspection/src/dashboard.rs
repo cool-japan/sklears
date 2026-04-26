@@ -194,12 +194,15 @@ impl Default for DashboardTheme {
     }
 }
 
+/// Type alias for dashboard update listener callbacks
+type UpdateListenerFn = Box<dyn Fn(&DashboardUpdate) + Send + Sync>;
+
 /// Main dashboard struct
 pub struct Dashboard {
     config: DashboardConfig,
     data_store: Arc<Mutex<DashboardDataStore>>,
     alert_manager: AlertManager,
-    update_listeners: Vec<Box<dyn Fn(&DashboardUpdate) + Send + Sync>>,
+    update_listeners: Vec<UpdateListenerFn>,
 }
 
 impl Dashboard {

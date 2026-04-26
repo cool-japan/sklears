@@ -22,16 +22,12 @@ pub struct CreditScoringNB<T: Float> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CreditRisk {
     /// Low
-
     Low,
     /// Medium
-
     Medium,
     /// High
-
     High,
     /// Default
-
     Default,
 }
 
@@ -71,7 +67,19 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
             _phantom: PhantomData,
         }
     }
+}
 
+impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std::iter::Sum> Default
+    for CreditScoringNB<T>
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std::iter::Sum>
+    CreditScoringNB<T>
+{
     /// Fit the credit scoring model
     pub fn fit(
         &mut self,
@@ -268,7 +276,8 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
     fn gaussian_pdf(&self, x: T, mean: T, variance: T) -> T {
         let two_pi = T::from(2.0 * std::f64::consts::PI).expect("operation should succeed");
         let coefficient = T::one() / (two_pi * variance).sqrt();
-        let exponent = -((x - mean).powi(2)) / (T::from(2.0).expect("operation should succeed") * variance);
+        let exponent =
+            -((x - mean).powi(2)) / (T::from(2.0).expect("operation should succeed") * variance);
         coefficient * exponent.exp()
     }
 

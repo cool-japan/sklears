@@ -16,12 +16,14 @@ use sklears_core::{
 
 // Helper functions for safe operations
 #[inline]
+#[allow(dead_code)] // NaN-safe mean helper used by perceptron training routines
 fn safe_mean(arr: &Array1<f64>) -> Result<f64> {
     arr.mean()
         .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean".to_string()))
 }
 
 #[inline]
+#[allow(dead_code)] // NaN-safe axis-mean helper used by perceptron feature normalization
 fn safe_mean_axis(arr: &Array2<f64>, axis: Axis) -> Result<Array1<f64>> {
     arr.mean_axis(axis).ok_or_else(|| {
         SklearsError::NumericalError("Failed to compute mean along axis".to_string())

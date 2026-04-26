@@ -1,27 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(unused_mut)]
-#![allow(unused_assignments)]
-#![allow(unused_doc_comments)]
-#![allow(unused_parens)]
-#![allow(unused_comparisons)]
-#![allow(clippy::needless_range_loop)]
-#![allow(clippy::type_complexity)]
-#![allow(clippy::should_implement_trait)]
-#![allow(clippy::ptr_arg)]
-#![allow(clippy::uninit_assumed_init)]
-#![allow(clippy::non_canonical_partial_ord_impl)]
-#![allow(clippy::manual_clamp)]
-#![allow(clippy::legacy_numeric_constants)]
-#![allow(clippy::needless_option_as_deref)]
-#![allow(clippy::ifs_same_cond)]
 //! Clustering algorithms for sklears
 //!
 //! This crate provides implementations of clustering algorithms including:
@@ -186,14 +162,19 @@ pub use time_series::{
 };
 pub use validation::{
     ClusteringValidator,
+    // The following types do not exist in the validation submodules and have been removed:
+    // AccuracyMetrics, FoldResult, ParameterAgreement, ParameterResult,
+    // StabilityMetrics, StabilityResult, ValidationMetrics (use ClusteringValidator instead)
+    CrossValidationStabilityResult,
+    ExternalValidationMetrics,
+    GapStatisticAnalyzer,
     GapStatisticResult,
+    NoiseStabilityResult,
+    ParameterSensitivityResult,
+    PerturbationStabilityResult,
     SilhouetteResult,
+    SubsampleStabilityResult,
     ValidationMetric,
-    // TODO: Fix these imports
-    // AccuracyMetrics, CrossValidationStabilityResult,
-    // ExternalValidationMetrics, FoldResult, NoiseStabilityResult,
-    // ParameterAgreement, ParameterResult, ParameterSensitivityResult, PerturbationStabilityResult,
-    // StabilityMetrics, StabilityResult, SubsampleStabilityResult, ValidationMetrics,
 };
 
 #[cfg(feature = "parallel")]
@@ -275,12 +256,18 @@ pub mod prelude {
         ShapeDistanceMetric, TemporalSegmentationClustering,
     };
     pub use crate::validation::{
+        // The following types do not exist in the validation submodules and have been removed:
+        // AccuracyMetrics, StabilityResult (use ClusteringValidator instead)
+        BootstrapStabilityResult,
         ClusteringValidator,
+        ConsensusStabilityResult,
+        CrossValidationStabilityResult,
+        GapStatisticAnalyzer,
+        NoiseStabilityResult,
+        ParameterSensitivityResult,
+        PerturbationStabilityResult,
+        SubsampleStabilityResult,
         ValidationMetric,
-        // TODO: Fix these imports
-        // AccuracyMetrics, ConsensusStabilityResult, BootstrapStabilityResult,
-        // CrossValidationStabilityResult, NoiseStabilityResult, ParameterSensitivityResult,
-        // PerturbationStabilityResult, StabilityResult, SubsampleStabilityResult,
     };
 
     #[cfg(feature = "parallel")]

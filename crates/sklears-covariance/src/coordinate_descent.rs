@@ -10,6 +10,18 @@ use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
 };
+/// Return type for coordinate descent methods
+type CoordDescentResult = SklResult<(
+    Array2<f64>,
+    Option<Array2<f64>>,
+    usize,
+    Vec<f64>,
+    f64,
+    Vec<(usize, usize)>,
+    Option<Array2<f64>>,
+    Option<Array2<f64>>,
+    Option<Array2<f64>>,
+)>;
 
 /// Coordinate descent covariance estimator
 ///
@@ -254,7 +266,7 @@ impl Fit<ArrayView2<'_, f64>, ()> for CoordinateDescentCovariance {
     type Fitted = CoordinateDescentCovariance<CoordinateDescentCovarianceTrained>;
 
     fn fit(self, x: &ArrayView2<'_, f64>, _y: &()) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
 
         if n_samples < 2 {
             return Err(SklearsError::InvalidInput(
@@ -348,17 +360,7 @@ impl CoordinateDescentCovariance {
         &self,
         empirical_cov: &Array2<f64>,
         _x: &Array2<f64>,
-    ) -> SklResult<(
-        Array2<f64>,
-        Option<Array2<f64>>,
-        usize,
-        Vec<f64>,
-        f64,
-        Vec<(usize, usize)>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-    )> {
+    ) -> CoordDescentResult {
         let n = empirical_cov.nrows();
         let mut covariance = empirical_cov.clone();
         let mut convergence_history = Vec::new();
@@ -450,17 +452,7 @@ impl CoordinateDescentCovariance {
         &self,
         empirical_cov: &Array2<f64>,
         _x: &Array2<f64>,
-    ) -> SklResult<(
-        Array2<f64>,
-        Option<Array2<f64>>,
-        usize,
-        Vec<f64>,
-        f64,
-        Vec<(usize, usize)>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-    )> {
+    ) -> CoordDescentResult {
         let n = empirical_cov.nrows();
 
         // Add regularization to empirical covariance for numerical stability
@@ -565,17 +557,7 @@ impl CoordinateDescentCovariance {
         &self,
         empirical_cov: &Array2<f64>,
         x: &Array2<f64>,
-    ) -> SklResult<(
-        Array2<f64>,
-        Option<Array2<f64>>,
-        usize,
-        Vec<f64>,
-        f64,
-        Vec<(usize, usize)>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-    )> {
+    ) -> CoordDescentResult {
         // For simplicity, alternate between covariance and precision updates
         let (cov, prec, n_iter, conv_hist, obj, active_set, _, _, _) =
             self.coordinate_descent_precision(empirical_cov, x)?;
@@ -589,17 +571,7 @@ impl CoordinateDescentCovariance {
         &self,
         x: &Array2<f64>,
         n_factors: usize,
-    ) -> SklResult<(
-        Array2<f64>,
-        Option<Array2<f64>>,
-        usize,
-        Vec<f64>,
-        f64,
-        Vec<(usize, usize)>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-    )> {
+    ) -> CoordDescentResult {
         let (n_samples, n_features) = x.dim();
         let mut rng_state = self.random_state.unwrap_or(42);
 
@@ -722,17 +694,7 @@ impl CoordinateDescentCovariance {
         &self,
         empirical_cov: &Array2<f64>,
         rank: usize,
-    ) -> SklResult<(
-        Array2<f64>,
-        Option<Array2<f64>>,
-        usize,
-        Vec<f64>,
-        f64,
-        Vec<(usize, usize)>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-    )> {
+    ) -> CoordDescentResult {
         let n = empirical_cov.nrows();
         let mut low_rank = Array2::zeros((n, n));
         let mut sparse = empirical_cov.clone();
@@ -1094,7 +1056,7 @@ impl CoordinateDescentCovariance<CoordinateDescentCovarianceTrained> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
+
     use scirs2_core::ndarray::array;
 
     #[test]
@@ -1212,7 +1174,7 @@ mod tests {
             .expect("operation should succeed");
 
         let history = fitted.get_convergence_history();
-        assert!(history.len() > 0);
+        assert!(!history.is_empty());
 
         // Convergence should generally decrease
         if history.len() > 1 {
@@ -1244,7 +1206,7 @@ mod tests {
         assert!(fitted.get_sparsity_ratio() >= 0.0);
 
         let active_set = fitted.get_active_set();
-        assert!(active_set.len() > 0);
+        assert!(!active_set.is_empty());
     }
 
     #[test]

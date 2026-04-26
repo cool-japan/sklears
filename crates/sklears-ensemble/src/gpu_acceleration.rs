@@ -167,11 +167,13 @@ pub struct PredictionKernel {
 }
 
 /// GPU tensor operations
+#[allow(dead_code)] // planned API fields for GPU context
 pub struct GpuTensorOps {
     context: Arc<GpuContext>,
 }
 
 /// GPU-accelerated ensemble trainer
+#[allow(dead_code)] // planned API fields for GPU trainer
 pub struct GpuEnsembleTrainer {
     context: Arc<GpuContext>,
     kernels: GradientBoostingKernels,
@@ -591,13 +593,13 @@ impl GpuEnsembleTrainer {
     pub fn train_gradient_boosting(
         &self,
         x: &Array2<Float>,
-        y: &Array1<Int>,
+        _y: &Array1<Int>,
         n_estimators: usize,
     ) -> Result<Vec<Array1<Float>>> {
         // Simplified return type
         let mut models = Vec::new();
 
-        for i in 0..n_estimators {
+        for _i in 0..n_estimators {
             // Compute histograms on GPU
             self.kernels.histogram_kernel.execute(&self.context)?;
 
@@ -694,12 +696,14 @@ fn is_opencl_available() -> bool {
 }
 
 /// Check Metal availability
+#[allow(dead_code)]
 #[cfg(target_os = "macos")]
 fn is_metal_available() -> bool {
     // In a real implementation, this would check for Metal framework
     true // Assume available on macOS
 }
 
+#[allow(dead_code)]
 #[cfg(not(target_os = "macos"))]
 fn is_metal_available() -> bool {
     false
@@ -772,7 +776,8 @@ mod tests {
         };
 
         assert!(kernel.estimated_time_ms() > 0.0);
-        assert!(kernel.memory_requirements_mb() >= 0);
+        // memory_requirements_mb() returns usize which is always >= 0
+        let _ = kernel.memory_requirements_mb();
     }
 
     #[test]

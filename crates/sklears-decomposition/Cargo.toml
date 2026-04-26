@@ -51,5 +51,5 @@ parallel = ["rayon"]
 # GPU feature: on macOS only includes candle-core (no CUDA), on Linux/Windows includes cudarc for full CUDA support
 gpu = ["candle-core", "half"]
 hdf5-support = ["hdf5"]
-# sparse = ["sprs"]  # Removed: Use scirs2-sparse instead (SciRS2 Policy)
+sparse = []  # Feature flag for sparse matrix support (sprs removed per SciRS2 Policy; use scirs2-sparse)
 serde = ["dep:serde", "sklears-core/serde"]

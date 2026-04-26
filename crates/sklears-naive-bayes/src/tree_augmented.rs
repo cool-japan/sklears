@@ -5,7 +5,6 @@
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2, Array3};
-use scirs2_core::numeric::Float;
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;
 
@@ -103,6 +102,7 @@ pub struct TreeAugmentedNB {
     feature_counts: HashMap<usize, usize>,
 }
 
+#[allow(non_snake_case)]
 impl TreeAugmentedNB {
     pub fn new(config: TANConfig) -> Self {
         Self {
@@ -227,7 +227,7 @@ impl TreeAugmentedNB {
     }
 
     fn compute_class_priors(&mut self, y: &Array1<i32>) -> Result<(), TANError> {
-        let n_samples = y.len() as f64;
+        let _n_samples = y.len() as f64;
         let mut class_counts = Array1::zeros(self.n_classes);
 
         for &label in y.iter() {
@@ -437,7 +437,7 @@ impl TreeAugmentedNB {
         // Estimate probabilities for root features (no parents)
         for feature_idx in 0..self.n_features {
             if self.dependency_tree.get_parent(feature_idx).is_none() {
-                for (class_idx, &class) in self.classes.iter().enumerate() {
+                for &class in self.classes.iter() {
                     let class_mask: Vec<bool> = y.iter().map(|&label| label == class).collect();
                     let class_count = class_mask.iter().filter(|&&mask| mask).count() as f64;
 
@@ -501,7 +501,6 @@ impl TreeAugmentedNB {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
 
     #[test]
     #[allow(non_snake_case)]

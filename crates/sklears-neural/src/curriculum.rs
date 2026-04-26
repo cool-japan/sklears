@@ -6,9 +6,6 @@
 
 use crate::NeuralResult;
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
-use scirs2_core::random::thread_rng;
-use scirs2_core::random::RngExt;
-use scirs2_core::SliceRandomExt;
 use sklears_core::error::SklearsError;
 
 /// Strategies for determining the difficulty of training examples
@@ -26,8 +23,11 @@ pub enum DifficultyStrategy {
     Random,
     /// Self-paced learning based on adaptive threshold
     SelfPaced {
+        /// Difficulty threshold at the beginning of training
         initial_threshold: f64,
+        /// Rate at which the difficulty threshold is raised each epoch
         growth_rate: f64,
+        /// Upper bound on the difficulty threshold
         max_threshold: f64,
     },
 }
@@ -37,25 +37,39 @@ pub enum DifficultyStrategy {
 pub enum PacingStrategy {
     /// Linear increase in the number of examples
     Linear {
+        /// Number of examples to start with
         initial_size: usize,
+        /// Additional examples added each epoch
         growth_rate: usize,
     },
     /// Exponential increase in the number of examples
     Exponential {
+        /// Number of examples to start with
         initial_size: usize,
+        /// Multiplicative growth factor applied each epoch
         growth_factor: f64,
     },
     /// Step-wise increase at fixed epochs
     Stepwise {
+        /// Number of examples added at each step
         step_size: usize,
+        /// Epoch indices at which the dataset size is increased
         step_epochs: Vec<usize>,
     },
     /// Polynomial pacing
-    Polynomial { initial_size: usize, power: f64 },
+    Polynomial {
+        /// Number of examples to start with
+        initial_size: usize,
+        /// Exponent controlling the curvature of the growth schedule
+        power: f64,
+    },
     /// Sigmoid-based pacing for smooth transitions
     Sigmoid {
+        /// Maximum dataset size (upper plateau of the sigmoid)
         max_size: usize,
+        /// Steepness of the sigmoid transition
         steepness: f64,
+        /// Epoch at which the sigmoid is centered
         midpoint: f64,
     },
     /// Custom pacing function
@@ -342,7 +356,8 @@ impl CurriculumScheduler {
 
     /// Check if difficulty scores should be updated
     pub fn should_update_difficulty(&self) -> bool {
-        self.current_epoch % self.config.update_frequency == 0
+        self.current_epoch
+            .is_multiple_of(self.config.update_frequency)
     }
 
     /// Get curriculum statistics
@@ -423,11 +438,17 @@ impl CurriculumScheduler {
 /// Statistics about the current curriculum state
 #[derive(Debug, Clone)]
 pub struct CurriculumStatistics {
+    /// The epoch index these statistics were captured at
     pub current_epoch: usize,
+    /// Number of training examples included in the current curriculum subset
     pub current_subset_size: usize,
+    /// Total number of training examples in the full dataset
     pub total_examples: usize,
+    /// Current difficulty threshold used to select the training subset
     pub current_threshold: f64,
+    /// Mean difficulty score across the current subset, if available
     pub average_difficulty: Option<f64>,
+    /// Trend of the training loss over recent epochs, if available (positive = increasing)
     pub training_loss_trend: Option<f64>,
 }
 

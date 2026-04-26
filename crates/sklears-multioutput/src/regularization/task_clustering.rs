@@ -4,6 +4,7 @@
 //! regularization strengths within and across clusters. Tasks in the same cluster
 //! are encouraged to have similar parameters, while tasks in different clusters
 //! are allowed to be more different.
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
@@ -80,11 +81,15 @@ pub struct TaskClusteringRegressionTrained {
     pub(crate) cluster_centroids: Array2<Float>,
     /// Number of input features
     pub(crate) n_features: usize,
+    #[allow(dead_code)]
     /// Task configurations
     pub(crate) task_outputs: HashMap<String, usize>,
+    #[allow(dead_code)]
     /// Training parameters
     pub(crate) n_clusters: usize,
+    #[allow(dead_code)]
     pub(crate) intra_cluster_alpha: Float,
+    #[allow(dead_code)]
     pub(crate) inter_cluster_alpha: Float,
     /// Training iterations performed
     pub(crate) n_iter: usize,
@@ -220,7 +225,7 @@ impl Fit<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
 
         // Simple k-means clustering of task parameters for initial clustering
         let task_names: Vec<String> = y.keys().cloned().collect();
-        let n_tasks = task_names.len();
+        let _n_tasks = task_names.len();
 
         // Flatten coefficients for clustering
         let mut task_vectors = Vec::new();
@@ -346,7 +351,7 @@ impl Predict<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
 {
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<HashMap<String, Array2<Float>>> {
         let x = X.to_owned();
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         if n_features != self.state.n_features {
             return Err(SklearsError::InvalidInput(

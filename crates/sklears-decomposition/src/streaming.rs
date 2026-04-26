@@ -107,7 +107,9 @@ impl StreamingPCA {
 
         // Update decomposition if enough samples
         if self.n_samples_seen >= self.config.min_samples
-            && self.n_samples_seen % self.config.update_frequency == 0
+            && self
+                .n_samples_seen
+                .is_multiple_of(self.config.update_frequency)
         {
             self.update_decomposition()?;
         }
@@ -363,7 +365,9 @@ impl StreamingICA {
 
         // Update ICA decomposition
         if self.n_samples_seen >= self.config.min_samples
-            && self.n_samples_seen % self.config.update_frequency == 0
+            && self
+                .n_samples_seen
+                .is_multiple_of(self.config.update_frequency)
         {
             self.update_decomposition()?;
         }

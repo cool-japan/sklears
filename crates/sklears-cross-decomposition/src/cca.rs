@@ -432,6 +432,11 @@ impl CCA<Trained> {
                 operation: "canonical_correlations".to_string(),
             })
     }
+
+    /// Get the number of iterations per component (sklearn-style fitted attribute)
+    pub fn n_iter(&self) -> Option<&[usize]> {
+        self.n_iter_.as_deref()
+    }
 }
 
 /// Regularized Canonical Correlation Analysis (Ridge CCA)
@@ -941,6 +946,11 @@ impl RidgeCCA<Trained> {
                 operation: "y_scores".to_string(),
             })
     }
+
+    /// Get the number of iterations per component (sklearn-style fitted attribute)
+    pub fn n_iter(&self) -> Option<&[usize]> {
+        self.n_iter_.as_deref()
+    }
 }
 
 /// Sparse Canonical Correlation Analysis with L1 regularization
@@ -1082,6 +1092,7 @@ impl Estimator for SparseCCA<Untrained> {
 impl Fit<Array2<Float>, Array2<Float>> for SparseCCA<Untrained> {
     type Fitted = SparseCCA<Trained>;
 
+    #[allow(unused_assignments)] // w and c initialized before loop; initial values overwritten on first iteration
     fn fit(self, x: &Array2<Float>, y: &Array2<Float>) -> Result<Self::Fitted> {
         let (n_samples, n_features_x) = x.dim();
         let (_, n_features_y) = y.dim();
@@ -1176,7 +1187,7 @@ impl Fit<Array2<Float>, Array2<Float>> for SparseCCA<Untrained> {
                 c = if c_norm > 0.0 { c / c_norm } else { c };
 
                 // 4. Update Y scores
-                let y_score = y_k.dot(&c);
+                let _y_score = y_k.dot(&c);
 
                 // Store weights
                 x_weights.column_mut(k).assign(&w);
@@ -1417,6 +1428,11 @@ impl SparseCCA<Trained> {
             })?;
         Ok(y_weights.iter().filter(|&&x| x.abs() > 1e-10).count())
     }
+
+    /// Get the number of iterations per component (sklearn-style fitted attribute)
+    pub fn n_iter(&self) -> Option<&[usize]> {
+        self.n_iter_.as_deref()
+    }
 }
 
 #[allow(non_snake_case)]
@@ -1514,7 +1530,7 @@ mod tests {
             .expect("operation should succeed");
         assert_eq!(correlations.len(), 2);
         for &corr in correlations.iter() {
-            assert!(corr >= -1.0 && corr <= 1.0);
+            assert!((-1.0..=1.0).contains(&corr));
         }
     }
 
@@ -1553,8 +1569,8 @@ mod tests {
             .expect("operation should succeed")[0];
 
         // Both should be valid correlations
-        assert!(corr_low >= -1.0 && corr_low <= 1.0);
-        assert!(corr_high >= -1.0 && corr_high <= 1.0);
+        assert!((-1.0..=1.0).contains(&corr_low));
+        assert!((-1.0..=1.0).contains(&corr_high));
 
         // High regularization typically produces lower correlations
         assert!(corr_high.abs() <= corr_low.abs() + 0.1); // Allow some tolerance
@@ -1720,8 +1736,8 @@ mod tests {
                 let corr_high = fitted_high.canonical_correlations().expect("operation should succeed")[0];
 
                 // Both should be valid correlations
-                prop_assert!(corr_low >= -1.0 && corr_low <= 1.0);
-                prop_assert!(corr_high >= -1.0 && corr_high <= 1.0);
+                prop_assert!((-1.0..=1.0).contains(&corr_low));
+                prop_assert!((-1.0..=1.0).contains(&corr_high));
 
                 // Higher regularization should generally produce lower correlations
                 // (though this is not always guaranteed, so we use a loose bound)
@@ -1898,7 +1914,7 @@ mod tests {
             .expect("operation should succeed");
         assert_eq!(correlations.len(), 2);
         for &corr in correlations.iter() {
-            assert!(corr >= -1.0 && corr <= 1.0);
+            assert!((-1.0..=1.0).contains(&corr));
         }
     }
 

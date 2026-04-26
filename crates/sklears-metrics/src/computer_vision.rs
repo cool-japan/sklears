@@ -103,7 +103,7 @@ where
         });
     }
 
-    if window_size % 2 == 0 {
+    if window_size.is_multiple_of(2) {
         return Err(MetricsError::InvalidParameter(
             "Window size must be odd".to_string(),
         ));

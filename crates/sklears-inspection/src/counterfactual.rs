@@ -128,15 +128,16 @@ impl Default for CounterfactualConfig {
 ///     &instance.view(),
 ///     &X_train.view(),
 ///     &config,
-/// ).unwrap();
+/// ).expect("counterfactual generation should succeed with valid inputs");
 ///
 /// // Note: Counterfactual may not always be valid for simple test cases
 /// assert!(result.counterfactual_prediction >= 0.0);
 /// ```
+#[allow(non_snake_case)] // standard ML notation
 pub fn generate_counterfactual<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
-    X_train: &ArrayView2<Float>,
+    _X_train: &ArrayView2<Float>,
     config: &CounterfactualConfig,
 ) -> SklResult<CounterfactualResult>
 where
@@ -278,6 +279,7 @@ where
 ///
 /// Generates multiple counterfactual explanations with different characteristics
 /// to provide a more comprehensive understanding of model behavior.
+#[allow(non_snake_case)] // standard ML notation
 pub fn generate_diverse_counterfactuals<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -385,7 +387,7 @@ fn apply_constraints(counterfactual: &mut Array1<Float>, config: &Counterfactual
 fn compute_finite_difference_gradient<F>(
     predict_fn: &F,
     counterfactual: &Array1<Float>,
-    target_pred: Float,
+    _target_pred: Float,
 ) -> Array1<Float>
 where
     F: Fn(&ArrayView2<Float>) -> Vec<Float>,
@@ -484,6 +486,7 @@ fn compute_distance(
 ///
 /// Finds the closest instance from training data that produces a different prediction.
 /// This provides a simple and interpretable counterfactual explanation.
+#[allow(non_snake_case)] // standard ML notation
 pub fn generate_nearest_counterfactual<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -563,6 +566,7 @@ where
 ///
 /// Generates counterfactuals that only modify actionable features.
 /// Actionable features are those that can be realistically changed by the user.
+#[allow(non_snake_case)] // standard ML notation
 pub fn generate_actionable_counterfactual<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -616,6 +620,7 @@ impl Default for FeasibilityConfig {
 ///
 /// Generates counterfactuals that are likely to exist in the real world
 /// by ensuring they lie in high-density regions of the training data.
+#[allow(non_snake_case)] // standard ML notation
 pub fn generate_feasible_counterfactual<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -658,6 +663,7 @@ where
 }
 
 /// Compute feasibility score for an instance
+#[allow(non_snake_case)] // standard ML notation
 fn compute_feasibility_score(
     instance: &ArrayView1<Float>,
     X_train: &ArrayView2<Float>,
@@ -671,6 +677,7 @@ fn compute_feasibility_score(
 }
 
 /// Compute density using kernel density estimation
+#[allow(non_snake_case)] // standard ML notation
 fn compute_kde_density(
     instance: &ArrayView1<Float>,
     X_train: &ArrayView2<Float>,
@@ -703,6 +710,7 @@ fn compute_kde_density(
 }
 
 /// Compute density using k-nearest neighbors
+#[allow(non_snake_case)] // standard ML notation
 fn compute_knn_density(
     instance: &ArrayView1<Float>,
     X_train: &ArrayView2<Float>,
@@ -731,6 +739,7 @@ fn compute_knn_density(
 }
 
 /// Compute standard deviation of dataset
+#[allow(non_snake_case)] // standard ML notation
 fn compute_dataset_std(X: &ArrayView2<Float>) -> Float {
     let mut total_variance = 0.0;
     let n_features = X.ncols() as Float;
@@ -761,6 +770,7 @@ pub struct CausalConfig {
 ///
 /// Generates counterfactuals that respect causal relationships between features.
 /// Only allows changes that follow the causal graph structure.
+#[allow(non_snake_case)] // standard ML notation
 pub fn generate_causal_counterfactual<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -781,7 +791,7 @@ where
     }
 
     // Create a modified config that respects causal constraints
-    let causal_counterfactual_config = config.clone();
+    let _causal_counterfactual_config = config.clone();
 
     // Start with basic counterfactual generation
     let mut base_result = generate_counterfactual(predict_fn, instance, X_train, config)?;
@@ -887,9 +897,11 @@ mod tests {
         let instance = array![1.0, 2.0]; // sum = 3, prediction = 0
         let X_train = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
-        let mut config = CounterfactualConfig::default();
-        config.target_prediction = Some(1.0); // Want prediction to be 1
-        config.max_iterations = 100;
+        let config = CounterfactualConfig {
+            target_prediction: Some(1.0), // Want prediction to be 1
+            max_iterations: 100,
+            ..Default::default()
+        };
 
         let result =
             generate_counterfactual(&predict_fn, &instance.view(), &X_train.view(), &config)
@@ -899,7 +911,8 @@ mod tests {
         // The counterfactual might not reach exactly 1.0 with the discrete model
         // but it should change the prediction or at least try
         assert!(result.counterfactual_prediction >= 0.0);
-        assert!(result.sparsity >= 0);
+        // sparsity is usize, always >= 0 — just verify it was computed
+        let _ = result.sparsity;
     }
 
     #[test]
@@ -915,10 +928,12 @@ mod tests {
         let instance = array![1.0, 2.0, 3.0];
         let X_train = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
-        let mut config = CounterfactualConfig::default();
-        config.target_prediction = Some(10.0); // Target sum of 10
-        config.max_iterations = 200; // More iterations
-        config.tolerance = 2.0; // More lenient tolerance
+        let config = CounterfactualConfig {
+            target_prediction: Some(10.0), // Target sum of 10
+            max_iterations: 200,           // More iterations
+            tolerance: 2.0,                // More lenient tolerance
+            ..Default::default()
+        };
 
         match generate_diverse_counterfactuals(
             &predict_fn,
@@ -937,7 +952,7 @@ mod tests {
             Err(_) => {
                 // It's okay if diverse counterfactuals can't be generated for this simple test
                 // The algorithm tried but couldn't find diverse solutions
-                assert!(true);
+                // It's acceptable if no solution is found for this simple test
             }
         }
     }
@@ -1032,9 +1047,11 @@ mod tests {
         let instance = array![1.0, 2.0]; // prediction = 1 + 2*2 = 5
         let X_train = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
-        let mut config = CounterfactualConfig::default();
-        config.target_prediction = Some(7.0); // Want prediction = 7
-        config.max_iterations = 100;
+        let config = CounterfactualConfig {
+            target_prediction: Some(7.0), // Want prediction = 7
+            max_iterations: 100,
+            ..Default::default()
+        };
 
         let actionable_features = vec![1]; // Only feature 1 can be changed
 
@@ -1075,10 +1092,12 @@ mod tests {
             [4.9, 5.9], // Cluster around (5, 6)
         ];
 
-        let mut config = CounterfactualConfig::default();
-        config.target_prediction = Some(10.0); // Want sum = 10
-        config.max_iterations = 200;
-        config.tolerance = 1.0; // More lenient
+        let config = CounterfactualConfig {
+            target_prediction: Some(10.0), // Want sum = 10
+            max_iterations: 200,
+            tolerance: 1.0, // More lenient
+            ..Default::default()
+        };
 
         let feasibility_config = FeasibilityConfig::default();
 
@@ -1095,7 +1114,7 @@ mod tests {
             }
             Err(_) => {
                 // It's okay if no feasible counterfactual is found for this simple test
-                assert!(true);
+                // It's acceptable if no solution is found for this simple test
             }
         }
     }
@@ -1124,9 +1143,11 @@ mod tests {
             enforce_causal_ordering: true,
         };
 
-        let mut config = CounterfactualConfig::default();
-        config.target_prediction = Some(9.0); // Want sum = 9
-        config.max_iterations = 100;
+        let config = CounterfactualConfig {
+            target_prediction: Some(9.0), // Want sum = 9
+            max_iterations: 100,
+            ..Default::default()
+        };
 
         let result = generate_causal_counterfactual(
             &predict_fn,

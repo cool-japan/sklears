@@ -5,13 +5,16 @@
 //! interpretability of the factors is important.
 
 use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
     types::Float,
 };
+
+/// Type alias for NMF algorithm output: (W matrix, H matrix, error, iterations, convergence history)
+type NmfRunResult = Result<(Array2<f64>, Array2<f64>, f64, usize, Vec<f64>), SklearsError>;
 
 /// NMF algorithm variants
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -124,6 +127,12 @@ pub struct NMFCovarianceTrained {
     n_iter: usize,
     /// Convergence history
     convergence_history: Vec<f64>,
+}
+
+impl Default for NMFCovariance<Untrained> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NMFCovariance<Untrained> {
@@ -352,7 +361,7 @@ impl NMFCovariance<Untrained> {
         matrix: &Array2<f64>,
         mut w: Array2<f64>,
         mut h: Array2<f64>,
-    ) -> Result<(Array2<f64>, Array2<f64>, f64, usize, Vec<f64>), SklearsError> {
+    ) -> NmfRunResult {
         let mut convergence_history = Vec::new();
         let mut prev_error = f64::INFINITY;
 

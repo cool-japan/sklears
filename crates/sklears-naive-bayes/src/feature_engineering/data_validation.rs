@@ -90,7 +90,7 @@ impl DataValidator {
         Ok(missing_ratio <= self.config.missing_threshold)
     }
 
-    fn check_duplicates<T>(&mut self, x: &ArrayView2<T>) -> Result<bool>
+    fn check_duplicates<T>(&mut self, _x: &ArrayView2<T>) -> Result<bool>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
     {
@@ -148,7 +148,7 @@ impl QualityAssessment {
         }
     }
 
-    pub fn assess_quality<T>(&mut self, x: &ArrayView2<T>) -> Result<f64>
+    pub fn assess_quality<T>(&mut self, _x: &ArrayView2<T>) -> Result<f64>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
     {
@@ -190,7 +190,7 @@ impl DataQualityChecker {
         }
     }
 
-    pub fn check_quality<T>(&mut self, x: &ArrayView2<T>) -> Result<()>
+    pub fn check_quality<T>(&mut self, _x: &ArrayView2<T>) -> Result<()>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
     {
@@ -225,7 +225,7 @@ impl ConsistencyValidator {
         }
     }
 
-    pub fn validate_consistency<T>(&self, x: &ArrayView2<T>) -> Result<bool>
+    pub fn validate_consistency<T>(&self, _x: &ArrayView2<T>) -> Result<bool>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
     {
@@ -257,7 +257,7 @@ impl IntegrityChecker {
         }
     }
 
-    pub fn check_integrity<T>(&mut self, x: &ArrayView2<T>) -> Result<bool>
+    pub fn check_integrity<T>(&mut self, _x: &ArrayView2<T>) -> Result<bool>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
     {
@@ -319,7 +319,7 @@ impl QualityMetrics {
         }
     }
 
-    pub fn compute_metrics<T>(&mut self, x: &ArrayView2<T>) -> Result<()>
+    pub fn compute_metrics<T>(&mut self, _x: &ArrayView2<T>) -> Result<()>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
     {
@@ -353,7 +353,7 @@ impl ValidationOptimizer {
         }
     }
 
-    pub fn optimize_validation<T>(&mut self, x: &ArrayView2<T>) -> Result<()>
+    pub fn optimize_validation<T>(&mut self, _x: &ArrayView2<T>) -> Result<()>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
     {
@@ -423,7 +423,7 @@ impl ValidationAnalyzer {
         }
     }
 
-    pub fn analyze_validation<T>(&mut self, x: &ArrayView2<T>) -> Result<()>
+    pub fn analyze_validation<T>(&mut self, _x: &ArrayView2<T>) -> Result<()>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
     {

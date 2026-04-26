@@ -34,6 +34,7 @@ impl Estimator<Untrained> for ADVIGaussianMixture<Untrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Fit<ArrayView2<'_, f64>, ()> for ADVIGaussianMixture<Untrained> {
     type Fitted = ADVIGaussianMixtureTrained;
     fn fit(self, X: &ArrayView2<f64>, _y: &()) -> SklResult<Self::Fitted> {

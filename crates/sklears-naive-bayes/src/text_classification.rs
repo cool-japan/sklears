@@ -4,14 +4,13 @@
 //! TF-IDF integration, n-gram support, and document preprocessing.
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
-use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use sklears_core::{
     error::{Result, SklearsError},
-    traits::{Estimator, FitTransform, Predict, PredictProba, Transform},
+    traits::{FitTransform, Predict, PredictProba, Transform},
 };
 use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 use crate::MultinomialNB;
 use sklears_core::traits::{Fit, Trained};
@@ -320,7 +319,7 @@ impl NGramExtractor {
             .collect();
 
         // Sort by frequency and limit vocabulary size
-        vocabulary.sort_by(|a, b| b.1.cmp(&a.1));
+        vocabulary.sort_by_key(|b| std::cmp::Reverse(b.1));
         if let Some(max_features) = self.max_features {
             vocabulary.truncate(max_features);
         }

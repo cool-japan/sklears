@@ -113,7 +113,7 @@ impl UncertaintyQuantification for StandardUncertainty {
         let n_classes = probabilities.ncols();
         let mut intervals = Array2::zeros((n_samples, 2));
 
-        let alpha = 1.0 - confidence_level;
+        let _alpha = 1.0 - confidence_level;
         let z_score = 1.96; // Approximate 95% confidence interval
 
         for i in 0..n_samples {
@@ -216,6 +216,7 @@ pub struct EnsembleUncertainty {
     pub sample_ratio: f64,
 }
 
+#[allow(dead_code)]
 impl EnsembleUncertainty {
     pub fn new(n_models: usize, sample_ratio: f64) -> Self {
         Self {
@@ -453,8 +454,8 @@ impl ModelUncertaintyPropagation {
         base_probabilities: &Array2<f64>,
         parameter_covariance: Option<&Array2<f64>>,
     ) -> Result<EnsemblePredictions> {
-        let n_samples = base_probabilities.nrows();
-        let n_classes = base_probabilities.ncols();
+        let _n_samples = base_probabilities.nrows();
+        let _n_classes = base_probabilities.ncols();
 
         // Initialize ensemble predictions
         let mut ensemble_probs = Vec::new();
@@ -838,7 +839,7 @@ mod tests {
         // Check that mappings are reasonable
         for (score, prob) in result {
             assert!(score.is_finite());
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 

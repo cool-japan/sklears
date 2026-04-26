@@ -35,7 +35,7 @@ lazy_static = { workspace = true }
 sysinfo = { workspace = true, optional = true }
 
 # Optional compression support
-flate2 = { workspace = true, optional = true }
+oxiarc-deflate = { workspace = true, optional = true }
 
 # Optional format support
 serde_yaml = { workspace = true, optional = true }
@@ -60,7 +60,7 @@ tempfile = { workspace = true }
 default = ["std", "simd"]
 std = ["sklears-core/std"]
 simd = []  # Enable SIMD optimizations
-compression = ["flate2"]
+compression = ["oxiarc-deflate"]
 sysinfo = ["dep:sysinfo"]
 yaml = ["serde_yaml"]
 toml_support = ["toml", "serde_with"]

@@ -6,10 +6,7 @@
 //! and custom integrations.
 
 use serde::{Deserialize, Serialize};
-use sklears_core::{
-    error::{Result as SklResult, SklearsError},
-    traits::Estimator,
-};
+use sklears_core::error::{Result as SklResult, SklearsError};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::sync::Arc;
@@ -132,16 +129,33 @@ pub enum AuthType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AuthCredentials {
     /// Basic username/password
-    Basic { username: String, password: String },
+    Basic {
+        /// The username.
+        username: String,
+        /// The password.
+        password: String,
+    },
     /// Bearer token
-    Bearer { token: String },
+    Bearer {
+        /// The token.
+        token: String,
+    },
     /// API key
-    ApiKey { key: String, header: String },
+    ApiKey {
+        /// The key.
+        key: String,
+        /// The header.
+        header: String,
+    },
     /// OAuth 2.0 credentials
     OAuth2 {
+        /// The client id.
         client_id: String,
+        /// The client secret.
         client_secret: String,
+        /// The access token.
         access_token: Option<String>,
+        /// The refresh token.
         refresh_token: Option<String>,
     },
     /// Custom credentials
@@ -187,10 +201,17 @@ pub enum BackoffStrategy {
     /// Fixed delay
     Fixed(Duration),
     /// Exponential backoff
-    Exponential { initial: Duration, max: Duration },
+    Exponential {
+        /// The initial.
+        initial: Duration,
+        /// The max.
+        max: Duration,
+    },
     /// Linear backoff
     Linear {
+        /// The initial.
         initial: Duration,
+        /// The increment.
         increment: Duration,
     },
 }
@@ -747,7 +768,7 @@ impl ExternalIntegration for RestApiIntegration {
         })
     }
 
-    fn send_data(&self, data: &IntegrationData) -> SklResult<IntegrationResponse> {
+    fn send_data(&self, _data: &IntegrationData) -> SklResult<IntegrationResponse> {
         let start_time = Instant::now();
 
         // Simulate sending HTTP request
@@ -763,7 +784,7 @@ impl ExternalIntegration for RestApiIntegration {
         })
     }
 
-    fn receive_data(&self, request: &IntegrationRequest) -> SklResult<IntegrationData> {
+    fn receive_data(&self, _request: &IntegrationRequest) -> SklResult<IntegrationData> {
         // Simulate receiving HTTP response
         // In real implementation, would make actual HTTP request
 
@@ -852,7 +873,7 @@ impl ExternalIntegration for DatabaseIntegration {
         })
     }
 
-    fn send_data(&self, data: &IntegrationData) -> SklResult<IntegrationResponse> {
+    fn send_data(&self, _data: &IntegrationData) -> SklResult<IntegrationResponse> {
         let start_time = Instant::now();
 
         // Simulate database insert/update
@@ -867,7 +888,7 @@ impl ExternalIntegration for DatabaseIntegration {
         })
     }
 
-    fn receive_data(&self, request: &IntegrationRequest) -> SklResult<IntegrationData> {
+    fn receive_data(&self, _request: &IntegrationRequest) -> SklResult<IntegrationData> {
         // Simulate database query
 
         Ok(IntegrationData {

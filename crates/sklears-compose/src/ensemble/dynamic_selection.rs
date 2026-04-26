@@ -16,13 +16,22 @@ use sklears_core::{
 #[derive(Debug, Clone)]
 pub enum SelectionStrategy {
     /// Select k best classifiers for each sample
-    KBest { k: usize },
+    KBest {
+        /// The k.
+        k: usize,
+    },
     /// Select classifiers based on competence threshold
-    Threshold { threshold: f64 },
+    Threshold {
+        /// The threshold.
+        threshold: f64,
+    },
     /// Select all classifiers above median performance
     AboveMedian,
     /// Select based on local competence estimation
-    LocalCompetence { k_neighbors: usize },
+    LocalCompetence {
+        /// The k neighbors.
+        k_neighbors: usize,
+    },
 }
 
 /// Competence estimation method
@@ -65,6 +74,7 @@ pub struct DynamicEnsembleSelector<S = Untrained> {
 }
 
 /// Trained state for `DynamicEnsembleSelector`
+#[allow(dead_code)]
 pub struct DynamicEnsembleSelectorTrained {
     fitted_estimators: Vec<(String, Box<dyn PipelinePredictor>)>,
     validation_data: Array2<f64>,

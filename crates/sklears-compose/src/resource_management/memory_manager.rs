@@ -9,6 +9,7 @@ use std::collections::HashMap;
 
 /// Memory resource manager
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct MemoryResourceManager {
     /// Memory pools
     pools: HashMap<String, MemoryPool>,
@@ -86,7 +87,7 @@ impl MemoryResourceManager {
     }
 
     /// Release memory allocation
-    pub fn release_memory(&mut self, allocation: &MemoryAllocation) -> SklResult<()> {
+    pub fn release_memory(&mut self, _allocation: &MemoryAllocation) -> SklResult<()> {
         // Implementation placeholder
         Ok(())
     }

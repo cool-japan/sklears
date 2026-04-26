@@ -1,4 +1,5 @@
 //! Mixed-type data imputation methods
+#![allow(non_snake_case)]
 //!
 //! This module provides imputation strategies for datasets containing heterogeneous data types,
 //! including ordinal variables, semi-continuous data, and bounded variables.
@@ -1082,13 +1083,8 @@ impl MixedTypeMICEImputer<MixedTypeMICEImputerTrained> {
                             (
                                 VariableType::Binary,
                                 VariableParameters::BinaryParams { probability },
-                            ) => {
-                                if rng.random::<f64>() < *probability {
-                                    1.0
-                                } else {
-                                    0.0
-                                }
-                            }
+                            ) if rng.random::<f64>() < *probability => 1.0,
+                            (VariableType::Binary, VariableParameters::BinaryParams { .. }) => 0.0,
                             _ => 0.0,
                         };
                         X_imputed[[i, j]] = initial_value;

@@ -13,6 +13,9 @@ use sklears_core::{
 };
 use std::f64::consts::PI;
 
+/// Type alias for online mixture component parameters result
+type OnlineComponentsResult = SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)>;
+
 /// Utility function for log-sum-exp computation
 fn log_sum_exp(a: f64, b: f64) -> f64 {
     let max_val = a.max(b);
@@ -57,9 +60,9 @@ fn log_sum_exp(a: f64, b: f64) -> f64 {
 ///     .learning_rate(0.1)
 ///     .max_iter(50);
 ///
-/// let mut fitted = ogmm.fit(&X_initial.view(), &()).unwrap();
-/// fitted = fitted.partial_fit(&X_new.view()).unwrap(); // Update with new data
-/// let labels = fitted.predict(&X_new.view()).unwrap();
+/// let mut fitted = ogmm.fit(&X_initial.view(), &()).expect("Online GMM fitting should succeed with valid data");
+/// fitted = fitted.partial_fit(&X_new.view()).expect("partial_fit should succeed with valid update data"); // Update with new data
+/// let labels = fitted.predict(&X_new.view()).expect("prediction should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct OnlineGaussianMixture<S = Untrained> {
@@ -254,12 +257,10 @@ impl Fit<ArrayView2<'_, Float>, ()> for OnlineGaussianMixture<Untrained> {
     }
 }
 
+#[allow(non_snake_case, clippy::too_many_arguments)]
 impl OnlineGaussianMixture<Untrained> {
     /// Initialize parameters for EM algorithm
-    fn initialize_parameters(
-        &self,
-        X: &Array2<f64>,
-    ) -> SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)> {
+    fn initialize_parameters(&self, X: &Array2<f64>) -> OnlineComponentsResult {
         // Initialize weights (uniform)
         let weights = Array1::from_elem(self.n_components, 1.0 / self.n_components as f64);
 
@@ -381,7 +382,7 @@ impl OnlineGaussianMixture<Untrained> {
         &self,
         X: &Array2<f64>,
         responsibilities: &Array2<f64>,
-    ) -> SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)> {
+    ) -> OnlineComponentsResult {
         let (n_samples, n_features) = X.dim();
 
         // Update weights
@@ -697,9 +698,9 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
     }
 }
 
+#[allow(non_snake_case)]
 impl OnlineGaussianMixture<OnlineGaussianMixtureTrained> {
     /// Partial fit - update the model with new data
-    #[allow(non_snake_case)]
     pub fn partial_fit(mut self, X: &ArrayView2<'_, Float>) -> SklResult<Self> {
         let X = X.to_owned();
         let (n_samples, _) = X.dim();
@@ -757,7 +758,8 @@ impl OnlineGaussianMixture<OnlineGaussianMixtureTrained> {
             }
         }
 
-        // Update covariances
+        // Update covariances — k indexes into both covariances and batch_covariances
+        #[allow(clippy::needless_range_loop)]
         for k in 0..self.n_components {
             let n_features = self.state.covariances[k].nrows();
             for i in 0..n_features {
@@ -787,7 +789,7 @@ impl OnlineGaussianMixture<OnlineGaussianMixtureTrained> {
         &self,
         batch_X: &Array2<f64>,
         responsibilities: &Array2<f64>,
-    ) -> SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)> {
+    ) -> OnlineComponentsResult {
         let (batch_size, n_features) = batch_X.dim();
 
         // Compute batch weights

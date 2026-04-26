@@ -134,6 +134,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for VirtualAdversarialTrain
 impl Predict<ArrayView2<'_, Float>, Array1<i32>>
     for VirtualAdversarialTraining<VirtualAdversarialTrainingTrained>
 {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array1<i32>> {
         let n_test = X.nrows();
         let n_classes = self.state.classes.len();
@@ -150,6 +151,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
 impl PredictProba<ArrayView2<'_, Float>, Array2<f64>>
     for VirtualAdversarialTraining<VirtualAdversarialTrainingTrained>
 {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_proba(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         let n_test = X.nrows();
         let n_classes = self.state.classes.len();

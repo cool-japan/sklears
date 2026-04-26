@@ -1,8 +1,8 @@
 #[allow(non_snake_case)]
 #[cfg(test)]
-mod tests {
+mod validation_tests {
+    use super::super::validation_core;
     use super::super::*;
-    use super::*;
     use crate::{DummyClassifier, DummyRegressor};
     use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::array;
@@ -218,7 +218,7 @@ mod tests {
             let precision = precision_score(&predictions, &y_true);
             assert!(precision.is_ok());
             let precision = precision.expect("operation should succeed");
-            assert!(precision >= 0.0 && precision <= 1.0);
+            assert!((0.0..=1.0).contains(&precision));
         }
 
         #[test]
@@ -228,7 +228,7 @@ mod tests {
             let recall = recall_score(&predictions, &y_true);
             assert!(recall.is_ok());
             let recall = recall.expect("operation should succeed");
-            assert!(recall >= 0.0 && recall <= 1.0);
+            assert!((0.0..=1.0).contains(&recall));
         }
 
         #[test]
@@ -238,7 +238,7 @@ mod tests {
             let f1 = f1_score(&predictions, &y_true);
             assert!(f1.is_ok());
             let f1 = f1.expect("operation should succeed");
-            assert!(f1 >= 0.0 && f1 <= 1.0);
+            assert!((0.0..=1.0).contains(&f1));
         }
 
         #[test]

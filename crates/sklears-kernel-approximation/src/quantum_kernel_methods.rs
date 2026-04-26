@@ -108,8 +108,8 @@ pub enum EntanglementPattern {
 /// let qkernel = QuantumKernelApproximation::new(config);
 ///
 /// let X = array![[1.0, 2.0], [3.0, 4.0]];
-/// let fitted = qkernel.fit(&X, &()).unwrap();
-/// let features = fitted.transform(&X).unwrap();
+/// let fitted = qkernel.fit(&X, &()).expect("fit should succeed with valid quantum kernel input");
+/// let features = fitted.transform(&X).expect("transform should succeed after quantum kernel fitting");
 /// ```
 #[derive(Debug, Clone)]
 pub struct QuantumKernelApproximation<State = Untrained> {
@@ -153,13 +153,13 @@ impl<State> QuantumKernelApproximation<State> {
                 let angle = x[feature_idx];
 
                 // Apply Z rotation: diagonal in computational basis
-                for state in 0..dim {
+                for (state, amp) in new_amplitudes.iter_mut().enumerate().take(dim) {
                     if (state >> qubit) & 1 == 1 {
                         // Qubit is in |1⟩ state
-                        new_amplitudes[state] *= (-angle).cos();
+                        *amp *= (-angle).cos();
                     } else {
                         // Qubit is in |0⟩ state
-                        new_amplitudes[state] *= angle.cos();
+                        *amp *= angle.cos();
                     }
                 }
             }
@@ -184,14 +184,13 @@ impl<State> QuantumKernelApproximation<State> {
             for (q1, q2) in pairs {
                 if q1 < x.len() && q2 < x.len() {
                     let angle = (PI - x[q1]) * (PI - x[q2]);
-
-                    for state in 0..dim {
+                    for (state, amp) in new_amplitudes.iter_mut().enumerate().take(dim) {
                         let bit1 = (state >> q1) & 1;
                         let bit2 = (state >> q2) & 1;
 
                         // ZZ interaction: phase depends on both qubits
                         let phase = if bit1 == bit2 { 1.0 } else { -1.0 };
-                        new_amplitudes[state] *= phase * angle.cos();
+                        *amp *= phase * angle.cos();
                     }
                 }
             }
@@ -269,7 +268,7 @@ impl<State> QuantumKernelApproximation<State> {
 
         let evolution_time = 1.0;
 
-        for state in 0..dim {
+        for (state, amp) in amplitudes.iter_mut().enumerate().take(dim) {
             let mut energy = 0.0;
 
             // Single-qubit terms
@@ -291,7 +290,7 @@ impl<State> QuantumKernelApproximation<State> {
                 }
             }
 
-            amplitudes[state] = (-energy * evolution_time).exp();
+            *amp = (-energy * evolution_time).exp();
         }
 
         // Normalize
@@ -633,7 +632,7 @@ mod tests {
         let features = qkernel.simulate_feature_map(&x);
 
         // Should return amplitudes for 2^4 = 16 basis states
-        assert!(features.len() > 0);
+        assert!(!features.is_empty());
         assert!(features.iter().all(|&a| a.is_finite()));
     }
 }

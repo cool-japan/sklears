@@ -13,9 +13,13 @@ use scirs2_cluster::gmm::{CovarianceType as ScirsCovType, GMMInit};
 /// Type of covariance parameters to use
 #[derive(Debug, Clone, Copy)]
 pub enum CovarianceType {
+    /// Full covariance matrix per component
     Full,
+    /// Diagonal covariance matrix per component
     Diagonal,
+    /// Single covariance matrix shared across all components
     Tied,
+    /// Scalar variance per component (isotropic Gaussian)
     Spherical,
 }
 

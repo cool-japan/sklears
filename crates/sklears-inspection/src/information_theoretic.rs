@@ -7,7 +7,6 @@
 use crate::{Float, SklResult};
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -275,7 +274,7 @@ pub fn generate_entropy_explanations<F>(
     model: F,
     X: &ArrayView2<Float>,
     y: &ArrayView1<Float>,
-    config: &InformationTheoreticConfig,
+    _config: &InformationTheoreticConfig,
 ) -> SklResult<EntropyExplanationResult>
 where
     F: Fn(&ArrayView2<Float>) -> SklResult<Array2<Float>>,
@@ -357,7 +356,7 @@ pub fn analyze_information_bottleneck(
     let mut best_representation = T.clone();
     let mut best_objective = Float::NEG_INFINITY;
 
-    for iteration in 0..config.max_iterations {
+    for _iteration in 0..config.max_iterations {
         // Update representation using information bottleneck principle
         let (new_T, objective) =
             optimize_information_bottleneck_step(&X_discrete, &y_discrete, &T, config)?;
@@ -426,7 +425,6 @@ pub fn apply_minimum_description_length(
     // Compute MDL for different feature subsets
     let mut subset_mdl_scores = HashMap::new();
     let mut best_mdl = Float::INFINITY;
-    let mut selected_features = Vec::new();
 
     // Forward selection based on MDL principle
     let mut current_features = Vec::new();
@@ -460,7 +458,7 @@ pub fn apply_minimum_description_length(
         }
     }
 
-    selected_features = current_features;
+    let selected_features = current_features;
 
     // Compute model complexity and data description length
     let model_complexity = compute_model_complexity(&selected_features, config);
@@ -503,6 +501,7 @@ pub fn apply_minimum_description_length(
 
 // Helper functions
 
+#[allow(non_snake_case)] // standard ML notation
 fn discretize_features(
     X: &ArrayView2<Float>,
     config: &InformationTheoreticConfig,
@@ -662,7 +661,6 @@ fn compute_conditional_entropy(
     let mut conditional_entropy = 0.0;
     for (x_val, x_prob) in x_dist.iter() {
         let mut h_y_given_x = 0.0;
-        let mut total_prob_y_given_x = 0.0;
 
         for (joint_key, joint_prob) in joint_dist.iter() {
             if joint_key.0 == *x_val {
@@ -670,7 +668,6 @@ fn compute_conditional_entropy(
                 if prob_y_given_x > 0.0 {
                     h_y_given_x -= prob_y_given_x * prob_y_given_x.ln();
                 }
-                total_prob_y_given_x += prob_y_given_x;
             }
         }
 
@@ -705,15 +702,18 @@ fn compute_conditional_joint_entropy(
     compute_conditional_entropy(&xy_joint.view(), z, config)
 }
 
+/// Type alias for joint distribution result (joint, x marginal, y marginal)
+type JointDistribution = (
+    HashMap<(usize, usize), Float>,
+    HashMap<usize, Float>,
+    HashMap<usize, Float>,
+);
+
 fn compute_joint_distribution(
     x: &ArrayView1<usize>,
     y: &ArrayView1<usize>,
     config: &InformationTheoreticConfig,
-) -> SklResult<(
-    HashMap<(usize, usize), Float>,
-    HashMap<usize, Float>,
-    HashMap<usize, Float>,
-)> {
+) -> SklResult<JointDistribution> {
     let n_samples = x.len() as Float;
     let mut joint_counts = HashMap::new();
     let mut x_counts = HashMap::new();
@@ -787,6 +787,7 @@ fn compute_distribution(
     Ok(dist)
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn normalize_mutual_information(
     mi_values: &Array1<Float>,
     X_discrete: &Array2<usize>,
@@ -823,13 +824,13 @@ fn test_mi_significance(
     let chi_square = 2.0 * n_samples as Float * mi_value;
 
     // Degrees of freedom approximation (simplified)
-    let df = 1.0;
+    let _df = 1.0;
 
     // P-value approximation using chi-square distribution
     // This is a very simplified approximation
     let p_value = (-chi_square / 2.0).exp();
 
-    p_value.min(1.0).max(0.0)
+    p_value.clamp(0.0, 1.0)
 }
 
 fn compute_mi_confidence_intervals(
@@ -854,6 +855,7 @@ fn compute_mi_confidence_intervals(
     intervals
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_interaction_information_gains(
     X_discrete: &Array2<usize>,
     y_discrete: &Array1<usize>,
@@ -908,6 +910,7 @@ fn compute_entropy_from_probabilities(probabilities: &ArrayView1<Float>) -> Floa
     entropy
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn mask_feature(X: &ArrayView2<Float>, feature_idx: usize) -> Array2<Float> {
     let mut X_masked = X.to_owned();
 
@@ -992,6 +995,7 @@ fn compute_kl_divergence_arrays(p: &ArrayView1<Float>, q: &ArrayView1<Float>) ->
     kl_div
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn optimize_information_bottleneck_step(
     X_discrete: &Array2<usize>,
     y_discrete: &Array1<usize>,
@@ -1024,9 +1028,10 @@ fn optimize_information_bottleneck_step(
     Ok((new_T, objective))
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_ib_objective(
-    X_discrete: &Array2<usize>,
-    y_discrete: &Array1<usize>,
+    _X_discrete: &Array2<usize>,
+    _y_discrete: &Array1<usize>,
     T: &Array2<Float>,
     config: &InformationTheoreticConfig,
 ) -> SklResult<Float> {
@@ -1041,6 +1046,7 @@ fn compute_ib_objective(
     Ok(objective)
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_mutual_information_matrices(
     T: &Array2<Float>,
     Y: &Array2<usize>,
@@ -1051,6 +1057,7 @@ fn compute_mutual_information_matrices(
     Ok(correlation.abs())
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_matrix_correlation(A: &Array2<Float>, B: &Array2<usize>) -> Float {
     // Simplified correlation computation
     let a_flat: Vec<Float> = A.iter().cloned().collect();
@@ -1088,11 +1095,13 @@ fn compute_matrix_frobenius_norm(matrix: &Array2<Float>) -> Float {
     matrix.iter().map(|&x| x * x).sum::<Float>().sqrt()
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_matrix_frobenius_norm_diff(A: &Array2<Float>, B: &Array2<Float>) -> Float {
     let diff = A - B;
     compute_matrix_frobenius_norm(&diff)
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_feature_relevance_from_ib(
     T: &Array2<Float>,
     X_discrete: &Array2<usize>,
@@ -1146,6 +1155,7 @@ fn compute_vector_correlation(a: &[Float], b: &[Float]) -> Float {
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_mdl_score(
     X_discrete: &Array2<usize>,
     y_discrete: &Array1<usize>,
@@ -1180,6 +1190,7 @@ fn compute_model_complexity(features: &[usize], config: &InformationTheoreticCon
     features.len() as Float * (config.n_bins as Float).ln()
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_data_description_length(
     X_discrete: &Array2<usize>,
     y_discrete: &Array1<usize>,
@@ -1258,7 +1269,7 @@ mod tests {
 
         let model = |X: &ArrayView2<Float>| {
             let n_samples = X.nrows();
-            Ok(Array2::from_shape_fn((n_samples, 2), |(i, j)| {
+            Ok(Array2::from_shape_fn((n_samples, 2), |(_i, j)| {
                 if j == 0 {
                     0.6
                 } else {

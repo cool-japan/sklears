@@ -3,6 +3,7 @@
 //! This module provides algorithms for hierarchical multi-label classification and
 //! graph-based structured prediction tasks. It includes ontology-aware classifiers,
 //! cost-sensitive hierarchical methods, and graph neural networks.
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
@@ -411,11 +412,14 @@ pub struct CostSensitiveHierarchicalClassifierTrained {
     weights: Array2<Float>,
     /// Hierarchical structure
     hierarchy: HashMap<usize, Vec<usize>>,
+    #[allow(dead_code)]
     cost_strategy: CostStrategy,
     cost_matrix: Option<Array2<Float>>,
     n_features: usize,
     n_labels: usize,
+    #[allow(dead_code)]
     lambda_hierarchy: Float,
+    #[allow(dead_code)]
     lambda_cost: Float,
 }
 
@@ -806,9 +810,12 @@ pub struct GraphNeuralNetworkTrained {
     hidden_dim: usize,
     num_layers: usize,
     message_passing_variant: MessagePassingVariant,
+    #[allow(dead_code)]
     aggregation_function: AggregationFunction,
     n_features: usize,
+    #[allow(dead_code)]
     n_outputs: usize,
+    #[allow(dead_code)]
     dropout_rate: Float,
 }
 
@@ -938,7 +945,7 @@ impl GraphNeuralNetwork<Untrained> {
             )?;
 
             // Compute loss and gradients (simplified)
-            let predictions = node_embeddings.mapv(|x| if x > 0.0 { 1 } else { 0 });
+            let _predictions = node_embeddings.mapv(|x| if x > 0.0 { 1 } else { 0 });
 
             // Simple gradient update (in practice, would use backpropagation)
             for weight in &mut weights {
@@ -1059,7 +1066,7 @@ impl GraphNeuralNetwork<Untrained> {
         biases: &[Array1<Float>],
         attention_weights: &Option<Vec<Array2<Float>>>,
     ) -> SklResult<(Array2<Float>, Vec<Array2<Float>>)> {
-        let n_nodes = node_features.nrows();
+        let _n_nodes = node_features.nrows();
         let mut current_embeddings = node_features.to_owned();
         let mut layer_outputs = Vec::new();
 
@@ -1335,7 +1342,7 @@ impl GraphNeuralNetwork<GraphNeuralNetworkTrained> {
         adjacency: &ArrayView2<'_, i32>,
         node_features: &ArrayView2<'_, Float>,
     ) -> SklResult<(Array2<Float>, Vec<Array2<Float>>)> {
-        let n_nodes = node_features.nrows();
+        let _n_nodes = node_features.nrows();
         let mut current_embeddings = node_features.to_owned();
         let mut layer_outputs = Vec::new();
 

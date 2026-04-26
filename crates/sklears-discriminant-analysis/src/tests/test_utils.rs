@@ -27,6 +27,7 @@ pub fn create_simple_3d_data() -> (Array2<Float>, Array1<i32>) {
 }
 
 /// Helper function to create test data with outliers
+#[allow(dead_code)] // Available for test helpers across test modules
 pub fn create_data_with_outliers() -> (Array2<Float>, Array1<i32>) {
     let x = array![
         [1.0, 1.0],

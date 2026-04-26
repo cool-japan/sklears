@@ -1128,8 +1128,6 @@ impl<F: Float + 'static> RKHSFeatureSelector<F> {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-    use scirs2_core::random::CoreRandom;
     use scirs2_core::random::SeedableRng;
 
     #[test]
@@ -1387,7 +1385,7 @@ mod tests {
         let alignment = rkhs
             .kernel_alignment(&kernel2)
             .expect("operation should succeed");
-        assert!(alignment >= -1.0 && alignment <= 1.0);
+        assert!((-1.0..=1.0).contains(&alignment));
         assert!(alignment.is_finite());
     }
 

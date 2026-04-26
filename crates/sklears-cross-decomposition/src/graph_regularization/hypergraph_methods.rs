@@ -12,11 +12,11 @@
 //! - Tensor-based hypergraph representations
 //! - Spectral hypergraph methods for dimensionality reduction
 
-use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Random, Rng, RngExt};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::SklearsError;
 use sklears_core::types::Float;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 /// Hypergraph structure representation
 #[derive(Debug, Clone)]
@@ -228,7 +228,7 @@ impl Hypergraph {
     /// Simple spectral clustering (placeholder implementation)
     fn simple_spectral_clustering(
         &self,
-        laplacian: &Array2<Float>,
+        _laplacian: &Array2<Float>,
         n_communities: usize,
     ) -> Result<Array1<usize>, SklearsError> {
         // Simplified clustering - in practice would use proper spectral clustering
@@ -500,15 +500,14 @@ impl HypergraphCCA {
             let laplacian = hg.compute_laplacian(self.config.laplacian_type);
 
             // Add regularization: C_reg = C + λ * L
-            regularized_cov = regularized_cov + &(laplacian * self.config.lambda);
+            regularized_cov += &(laplacian * self.config.lambda);
 
             // Add community regularization if available
             if self.config.community_weight > 0.0 {
                 if let Some(ref communities) = hg.communities {
                     let community_regularization =
                         self.compute_community_regularization(communities, hg.n_vertices);
-                    regularized_cov = regularized_cov
-                        + &(community_regularization * self.config.community_weight);
+                    regularized_cov += &(community_regularization * self.config.community_weight);
                 }
             }
         }
@@ -543,11 +542,12 @@ impl HypergraphCCA {
     }
 
     /// Solve hypergraph-regularized CCA eigenvalue problem
+    #[allow(clippy::type_complexity)] // returns tuple of canonical weight matrices with correlations
     fn solve_hypergraph_cca(
         &self,
         cxx: &Array2<Float>,
         cyy: &Array2<Float>,
-        cxy: &Array2<Float>,
+        _cxy: &Array2<Float>,
     ) -> Result<(Array2<Float>, Array2<Float>, Array1<Float>), SklearsError> {
         // Simplified eigenvalue problem solution
         // In practice, would use proper generalized eigenvalue decomposition
@@ -579,7 +579,7 @@ impl HypergraphCCA {
 
     /// Orthogonalize columns of a matrix (simplified Gram-Schmidt)
     fn orthogonalize_columns(&self, matrix: &mut Array2<Float>) {
-        let (n_rows, n_cols) = matrix.dim();
+        let (_n_rows, n_cols) = matrix.dim();
 
         for j in 0..n_cols {
             // Collect previous columns data before mutable borrow
@@ -594,7 +594,7 @@ impl HypergraphCCA {
             }
 
             // Orthogonalize against previous columns
-            for (k, prev_col) in prev_columns.iter().enumerate() {
+            for prev_col in prev_columns.iter() {
                 let dot_product = col.dot(prev_col);
                 col -= &(prev_col * dot_product);
 
@@ -687,7 +687,7 @@ impl MultiWayInteractionAnalyzer {
 
     /// Detect multi-way interactions from data
     pub fn detect_interactions(&self, data: &Array2<Float>) -> Result<Hypergraph, SklearsError> {
-        let (n_samples, n_features) = data.dim();
+        let (_n_samples, n_features) = data.dim();
         let mut hyperedges = Vec::new();
 
         // Detect interactions of different orders
@@ -823,7 +823,7 @@ mod tests {
     use super::*;
     use scirs2_core::essentials::Normal;
     use scirs2_core::ndarray::Array2;
-    use scirs2_core::random::{thread_rng, RngExt};
+    use scirs2_core::random::thread_rng;
 
     #[test]
     fn test_hypergraph_creation() {
@@ -913,11 +913,11 @@ mod tests {
 
         let x = Array2::from_shape_fn((50, 3), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_fn((50, 3), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let result = hcca.fit(&x, &y);
@@ -936,7 +936,7 @@ mod tests {
         // Create data with some structure
         let mut data = Array2::from_shape_fn((100, 5), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         // Make variables 0 and 1 correlated
         let mut rng = thread_rng();
@@ -944,7 +944,7 @@ mod tests {
             data[[i, 1]] = data[[i, 0]]
                 + 0.1
                     * rng.sample(
-                        &Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"),
+                        Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"),
                     );
         }
 
@@ -998,19 +998,19 @@ mod tests {
 
         let x_train = Array2::from_shape_fn((30, 3), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y_train = Array2::from_shape_fn((30, 2), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let x_test = Array2::from_shape_fn((10, 3), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y_test = Array2::from_shape_fn((10, 2), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let results = hcca.fit(&x_train, &y_train).expect("fit should succeed");

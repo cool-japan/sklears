@@ -3,9 +3,9 @@
 //! This module provides various attention mechanisms including scaled dot-product
 //! attention, multi-head attention, and self-attention for transformer architectures.
 
-use crate::layers::{Layer, LayerConfig, ParameterizedLayer};
+use crate::layers::{Layer, LayerConfig};
 use crate::NeuralResult;
-use scirs2_core::ndarray::{Array1, Array2, Array3, Axis};
+use scirs2_core::ndarray::{Array2, Array3, Axis};
 use sklears_core::error::SklearsError;
 use sklears_core::types::FloatBounds;
 use std::marker::PhantomData;
@@ -22,6 +22,7 @@ use std::marker::PhantomData;
 /// - V: Value matrix
 /// - d_k: Dimension of key vectors
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // config and dropout_rate retained for layer parameter access and future regularization
 pub struct ScaledDotProductAttention<T: FloatBounds> {
     /// Dimension of key vectors
     d_k: usize,
@@ -129,11 +130,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> ScaledDotProductAtten
     fn softmax_2d(&self, x: &Array2<T>) -> Array2<T> {
         let mut result = Array2::zeros(x.dim());
 
-        for (i, (input_row, mut output_row)) in x
-            .axis_iter(Axis(0))
-            .zip(result.axis_iter_mut(Axis(0)))
-            .enumerate()
-        {
+        for (input_row, mut output_row) in x.axis_iter(Axis(0)).zip(result.axis_iter_mut(Axis(0))) {
             // Find max for numerical stability
             let max_val = input_row.fold(
                 T::from(-f64::INFINITY).unwrap_or(-T::one() * T::from(1e10).unwrap_or(T::one())),
@@ -148,17 +145,15 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> ScaledDotProductAtten
 
             // Compute exp values
             let mut sum = T::zero();
-            for (j, (&input_val, output_val)) in
-                input_row.iter().zip(output_row.iter_mut()).enumerate()
-            {
+            for (&input_val, output_val) in input_row.iter().zip(output_row.iter_mut()) {
                 let exp_val = (input_val - max_val).exp();
                 *output_val = exp_val;
-                sum = sum + exp_val;
+                sum += exp_val;
             }
 
             // Normalize
             for output_val in output_row.iter_mut() {
-                *output_val = *output_val / sum;
+                *output_val /= sum;
             }
         }
 
@@ -181,6 +176,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> ScaledDotProductAtten
 /// MultiHead(Q, K, V) = Concat(head_1, ..., head_h)W^O
 /// where head_i = Attention(QW_i^Q, KW_i^K, VW_i^V)
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // config field retained for layer parameter access and future serialization
 pub struct MultiHeadAttention<T: FloatBounds> {
     /// Number of attention heads
     num_heads: usize,
@@ -215,7 +211,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> MultiHeadAttention<T>
     /// * `d_model` - Dimension of the model
     /// * `dropout_rate` - Optional dropout rate
     pub fn new(num_heads: usize, d_model: usize, dropout_rate: Option<T>) -> NeuralResult<Self> {
-        if d_model % num_heads != 0 {
+        if !d_model.is_multiple_of(num_heads) {
             return Err(SklearsError::InvalidInput(format!(
                 "d_model ({}) must be divisible by num_heads ({})",
                 d_model, num_heads
@@ -304,7 +300,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> MultiHeadAttention<T>
         let mut concatenated = Array3::zeros((batch_size, seq_len, self.d_model));
         for (h, head_output) in head_outputs.iter().enumerate() {
             let start_idx = h * self.d_v;
-            let end_idx = start_idx + self.d_v;
+            let _end_idx = start_idx + self.d_v;
 
             for b in 0..batch_size {
                 for s in 0..seq_len {
@@ -323,7 +319,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> MultiHeadAttention<T>
 
     /// Project a sequence through a weight matrix.
     fn project_sequence(&self, input: &Array3<T>, weights: &Array2<T>) -> NeuralResult<Array3<T>> {
-        let (batch_size, seq_len, input_dim) = input.dim();
+        let (batch_size, seq_len, _input_dim) = input.dim();
         let output_dim = weights.dim().1;
 
         let mut output = Array3::zeros((batch_size, seq_len, output_dim));
@@ -360,7 +356,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Layer<T> for MultiHea
 
         let input_3d = input
             .clone()
-            .into_shape((batch_size, seq_len, features))
+            .into_shape_with_order((batch_size, seq_len, features))
             .map_err(|_| SklearsError::InvalidInput("Failed to reshape input".to_string()))?;
 
         // Self-attention: Q = K = V = input
@@ -368,7 +364,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Layer<T> for MultiHea
 
         // Convert back to 2D
         let output = output_3d
-            .into_shape((batch_size, features))
+            .into_shape_with_order((batch_size, features))
             .map_err(|_| SklearsError::InvalidInput("Failed to reshape output".to_string()))?;
 
         Ok(output)

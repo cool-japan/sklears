@@ -33,6 +33,7 @@ pub use super::config_types::{Plot3D, Plot3DType};
 /// # Returns
 ///
 /// Result containing 3D plot data
+#[allow(clippy::too_many_arguments)]
 pub fn create_3d_plot(
     x_values: &ArrayView1<Float>,
     y_values: &ArrayView1<Float>,
@@ -201,7 +202,7 @@ pub fn create_3d_shap_plot(
     axis_labels: (String, String, String),
     config: &PlotConfig,
 ) -> SklResult<Plot3D> {
-    let n_samples = shap_values.nrows();
+    let _n_samples = shap_values.nrows();
     let n_features = shap_values.ncols();
 
     // Validate feature indices

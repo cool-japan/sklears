@@ -168,7 +168,7 @@ impl MVU<Untrained> {
         let n_samples = x.nrows();
         let mut neighbors = vec![Vec::new(); n_samples];
 
-        for i in 0..n_samples {
+        for (i, neighbor_list) in neighbors.iter_mut().enumerate() {
             let mut distances: Vec<(f64, usize)> = Vec::new();
 
             for j in 0..n_samples {
@@ -180,7 +180,7 @@ impl MVU<Untrained> {
 
             // Sort by distance and take k nearest
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
-            neighbors[i] = distances
+            *neighbor_list = distances
                 .iter()
                 .take(self.n_neighbors)
                 .map(|(_, idx)| *idx)
@@ -206,7 +206,7 @@ impl MVU<Untrained> {
         }
 
         // Apply distance constraints using iterative optimization
-        for iter in 0..self.max_iter {
+        for _iter in 0..self.max_iter {
             let mut kernel_new = kernel.clone();
             let mut max_change: f64 = 0.0;
 

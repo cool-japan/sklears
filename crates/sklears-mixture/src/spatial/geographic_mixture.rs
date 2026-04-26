@@ -136,6 +136,7 @@ impl Estimator for GeographicMixture<Untrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Fit<Array2<f64>, ()> for GeographicMixture<Untrained> {
     type Fitted = GeographicMixture<GeographicMixtureTrained>;
 
@@ -184,6 +185,7 @@ impl Fit<Array2<f64>, ()> for GeographicMixture<Untrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl GeographicMixture<Untrained> {
     pub fn extract_geographic_features(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         let (n_samples, n_features) = X.dim();
@@ -397,8 +399,13 @@ impl GeographicMixture<Untrained> {
 
         // Normalize responsibilities using log-sum-exp
         for i in 0..n_samples {
-            let log_sum =
-                self.geographic_log_sum_exp(&responsibilities.row(i).to_owned().into_raw_vec());
+            let log_sum = self.geographic_log_sum_exp(
+                &responsibilities
+                    .row(i)
+                    .to_owned()
+                    .into_raw_vec_and_offset()
+                    .0,
+            );
             for k in 0..n_components {
                 responsibilities[[i, k]] = (responsibilities[[i, k]] - log_sum).exp();
             }
@@ -554,6 +561,7 @@ impl GeographicMixture<Untrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<Array2<f64>, Array1<usize>> for GeographicMixture<GeographicMixtureTrained> {
     fn predict(&self, X: &Array2<f64>) -> SklResult<Array1<usize>> {
         let n_samples = X.nrows();

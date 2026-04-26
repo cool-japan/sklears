@@ -5,7 +5,6 @@
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::numeric::Float;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 use scirs2_core::random::{Rng, SeedableRng};
 // SciRS2 Policy Compliance - Use scirs2-core for random distributions

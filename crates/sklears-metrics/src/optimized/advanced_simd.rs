@@ -242,11 +242,11 @@ pub fn amx_confusion_matrix(
 /// - Expected speedup: 20-30x for matrices > 1000x1000
 #[cfg(all(target_arch = "x86_64", feature = "disabled-for-stability"))]
 pub fn amx_pairwise_distances(
-    X: &scirs2_core::ndarray::Array2<f64>,
+    data: &scirs2_core::ndarray::Array2<f64>,
 ) -> MetricsResult<scirs2_core::ndarray::Array2<f64>> {
     use scirs2_core::ndarray::Array2;
 
-    let n_samples = X.nrows();
+    let n_samples = data.nrows();
 
     // AMX implementation would:
     // 1. Configure tiles for BF16 or FP32
@@ -258,8 +258,8 @@ pub fn amx_pairwise_distances(
     let mut distances = Array2::zeros((n_samples, n_samples));
     for i in 0..n_samples {
         for j in i + 1..n_samples {
-            let row_i = X.row(i);
-            let row_j = X.row(j);
+            let row_i = data.row(i);
+            let row_j = data.row(j);
             let dist: f64 = row_i
                 .iter()
                 .zip(row_j.iter())

@@ -9,12 +9,5 @@ pub mod poseestimationmanifold_traits;
 pub mod types;
 pub mod videomanifoldanalysis_traits;
 
-// Re-export all types
-pub use facemanifoldlearning_traits::*;
-pub use functions::*;
-pub use imagepatchembedding_traits::*;
-pub use manifoldimagedenoising_traits::*;
-pub use objectrecognitionembedding_traits::*;
-pub use poseestimationmanifold_traits::*;
+// Re-export all public types from types module
 pub use types::*;
-pub use videomanifoldanalysis_traits::*;

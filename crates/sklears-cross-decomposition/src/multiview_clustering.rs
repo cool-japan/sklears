@@ -5,10 +5,10 @@
 //! respecting the structure within each view.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result, SklearsError},
-    traits::{Estimator, Fit, Predict, Transform},
+    traits::{Estimator, Fit, Transform},
     types::Float,
 };
 use std::marker::PhantomData;
@@ -434,7 +434,7 @@ impl MultiViewClustering<Untrained> {
         individual_labels: &[Array1<usize>],
     ) -> Result<Array1<usize>> {
         let n_samples = individual_labels[0].len();
-        let n_views = individual_labels.len();
+        let _n_views = individual_labels.len();
         let mut consensus_labels = Array1::zeros(n_samples);
 
         for i in 0..n_samples {
@@ -487,7 +487,7 @@ impl MultiViewClustering<Untrained> {
                     // Compute centroid
                     let mut centroid = Array1::zeros(n_features);
                     for point in &cluster_points {
-                        centroid = centroid + point;
+                        centroid += point;
                     }
                     centroid /= cluster_points.len() as Float;
                     view_centers.row_mut(k).assign(&centroid);
@@ -528,7 +528,7 @@ impl MultiViewClustering<Untrained> {
                 // Compute centroid
                 let mut centroid = Array1::zeros(n_features);
                 for point in &cluster_points {
-                    centroid = centroid + point;
+                    centroid += point;
                 }
                 centroid /= cluster_points.len() as Float;
                 consensus_centers.row_mut(k).assign(&centroid);

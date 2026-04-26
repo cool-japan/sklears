@@ -13,9 +13,9 @@
 
 use crate::NeuralResult;
 use scirs2_core::ndarray::{Array1, Array2, Axis, ScalarOperand};
-use scirs2_core::random::{thread_rng, CoreRandom, Normal, Rng};
+use scirs2_core::random::{thread_rng, Normal};
 use sklears_core::{error::SklearsError, types::FloatBounds};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -145,6 +145,7 @@ pub enum AggregationType {
 /// Implements the GCN propagation rule:
 /// H^(l+1) = σ(D^(-1/2) A D^(-1/2) H^(l) W^(l))
 #[derive(Debug)]
+#[allow(dead_code)] // Dimension and flag fields retained for shape validation and serialization
 pub struct GCNLayer<T: FloatBounds> {
     /// Weight matrix
     weight: Array2<T>,
@@ -199,7 +200,7 @@ impl<T: FloatBounds + ScalarOperand> GCNLayer<T> {
 
         // Add self-loops
         for i in 0..graph.num_nodes {
-            adj[[i, i]] = adj[[i, i]] + T::one();
+            adj[[i, i]] += T::one();
         }
 
         // Compute degree matrix D^(-1/2)
@@ -243,6 +244,7 @@ impl<T: FloatBounds + ScalarOperand> GCNLayer<T> {
 /// α_ij = softmax_j(LeakyReLU(a^T [Wh_i || Wh_j]))
 /// h_i' = σ(Σ_j α_ij W h_j)
 #[derive(Debug)]
+#[allow(dead_code)] // in_features and dropout retained for shape validation and future regularization
 pub struct GATLayer<T: FloatBounds> {
     /// Weight matrix for features
     weight: Array2<T>,
@@ -384,8 +386,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> GATLayer<T> {
             for j in 0..num_nodes {
                 if attention_weights[[i, j]] > T::zero() {
                     for k in 0..output.ncols() {
-                        output[[i, k]] =
-                            output[[i, k]] + attention_weights[[i, j]] * h_prime[[j, k]];
+                        output[[i, k]] += attention_weights[[i, j]] * h_prime[[j, k]];
                     }
                 }
             }
@@ -479,19 +480,19 @@ impl<T: FloatBounds + ScalarOperand> GraphSAGELayer<T> {
                     // Mean aggregation
                     for &neighbor in &neighbors {
                         for j in 0..self.in_features {
-                            aggregated[[i, j]] = aggregated[[i, j]] + x[[neighbor, j]];
+                            aggregated[[i, j]] += x[[neighbor, j]];
                         }
                     }
                     let n_neighbors = T::from(neighbors.len() as f64).unwrap_or_else(|| T::zero());
                     for j in 0..self.in_features {
-                        aggregated[[i, j]] = aggregated[[i, j]] / n_neighbors;
+                        aggregated[[i, j]] /= n_neighbors;
                     }
                 }
                 AggregationType::Sum => {
                     // Sum aggregation
                     for &neighbor in &neighbors {
                         for j in 0..self.in_features {
-                            aggregated[[i, j]] = aggregated[[i, j]] + x[[neighbor, j]];
+                            aggregated[[i, j]] += x[[neighbor, j]];
                         }
                     }
                 }
@@ -515,12 +516,12 @@ impl<T: FloatBounds + ScalarOperand> GraphSAGELayer<T> {
                     // Simplified attention aggregation
                     for &neighbor in &neighbors {
                         for j in 0..self.in_features {
-                            aggregated[[i, j]] = aggregated[[i, j]] + x[[neighbor, j]];
+                            aggregated[[i, j]] += x[[neighbor, j]];
                         }
                     }
                     let n_neighbors = T::from(neighbors.len() as f64).unwrap_or_else(|| T::zero());
                     for j in 0..self.in_features {
-                        aggregated[[i, j]] = aggregated[[i, j]] / n_neighbors;
+                        aggregated[[i, j]] /= n_neighbors;
                     }
                 }
             }
@@ -544,7 +545,7 @@ impl<T: FloatBounds + ScalarOperand> GraphSAGELayer<T> {
                     .sqrt()
                     .max(T::from(1e-12).unwrap_or_else(|| T::zero()));
                 for j in 0..self.out_features {
-                    output[[i, j]] = output[[i, j]] / norm;
+                    output[[i, j]] /= norm;
                 }
             }
         }
@@ -562,6 +563,7 @@ impl<T: FloatBounds + ScalarOperand> GraphSAGELayer<T> {
 ///
 /// More expressive than GCN by using injective aggregation
 #[derive(Debug)]
+#[allow(dead_code)] // Dimension fields retained for shape validation and future serialization
 pub struct GINLayer<T: FloatBounds> {
     /// Epsilon (learnable parameter)
     epsilon: T,
@@ -639,7 +641,7 @@ impl<T: FloatBounds + ScalarOperand> GINLayer<T> {
             let neighbors = graph.neighbors(i);
             for &neighbor in &neighbors {
                 for j in 0..self.in_features {
-                    aggregated[[i, j]] = aggregated[[i, j]] + x[[neighbor, j]];
+                    aggregated[[i, j]] += x[[neighbor, j]];
                 }
             }
         }

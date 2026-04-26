@@ -10,7 +10,7 @@ use sklears_core::error::SklearsError;
 use sklears_core::traits::{Fit, Transform};
 use std::any::Any;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, OnceLock, RwLock};
 use thiserror::Error;
 
 /// Errors that can occur in the plugin system
@@ -287,15 +287,18 @@ impl Transform<Array2<f64>, Array2<f64>> for FittedPluginWrapper {
     }
 }
 
-/// Global plugin registry
-static GLOBAL_FACTORY: std::sync::LazyLock<PluginFactory> =
-    std::sync::LazyLock::new(PluginFactory::new);
+/// Global plugin registry (uses OnceLock for MSRV 1.70.0 compatibility)
+static GLOBAL_FACTORY: OnceLock<PluginFactory> = OnceLock::new();
+
+fn global_factory() -> &'static PluginFactory {
+    GLOBAL_FACTORY.get_or_init(PluginFactory::new)
+}
 
 /// Register a plugin globally
 pub fn register_global_plugin(
     plugin: Box<dyn KernelApproximationPlugin>,
 ) -> std::result::Result<(), PluginError> {
-    GLOBAL_FACTORY.register_plugin(plugin)
+    global_factory().register_plugin(plugin)
 }
 
 /// Create an instance from the global registry
@@ -303,14 +306,14 @@ pub fn create_global_plugin_instance(
     name: &str,
     config: PluginConfig,
 ) -> std::result::Result<PluginWrapper, PluginError> {
-    let instance = GLOBAL_FACTORY.create_instance(name, config)?;
-    let metadata = GLOBAL_FACTORY.get_plugin_metadata(name)?;
+    let instance = global_factory().create_instance(name, config)?;
+    let metadata = global_factory().get_plugin_metadata(name)?;
     Ok(PluginWrapper::new(instance, metadata))
 }
 
 /// List all globally registered plugins
 pub fn list_global_plugins() -> Vec<PluginMetadata> {
-    GLOBAL_FACTORY.list_plugins()
+    global_factory().list_plugins()
 }
 
 /// Example plugin implementing a simple linear kernel approximation

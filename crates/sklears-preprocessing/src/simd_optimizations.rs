@@ -1052,7 +1052,7 @@ mod tests {
         let original = array.clone();
         ndarray_ops::add_scalar_array(&mut array, 5.0, &config);
 
-        for (_i, (&new_val, &old_val)) in array.iter().zip(original.iter()).enumerate() {
+        for (&new_val, &old_val) in array.iter().zip(original.iter()) {
             assert_relative_eq!(new_val, old_val + 5.0, epsilon = 1e-14);
         }
 

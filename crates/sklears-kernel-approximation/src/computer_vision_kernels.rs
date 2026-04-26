@@ -60,6 +60,7 @@ impl SpatialPyramidFeatures {
         self
     }
 
+    #[allow(dead_code)] // internal helper for potential future use
     fn spatial_pool(&self, features: &ArrayView2<f64>, grid_size: usize) -> Result<Array1<f64>> {
         let (height, width) = features.dim();
         let cell_h = height / grid_size;
@@ -189,7 +190,10 @@ impl Transform<Array2<f64>, Array2<f64>> for FittedSpatialPyramidFeatures {
         let mut all_features = Vec::new();
 
         for i in 0..n_samples {
-            let sample = x.row(i).to_owned().into_shape((img_size, img_size))?;
+            let sample = x
+                .row(i)
+                .to_owned()
+                .into_shape_with_order((img_size, img_size))?;
             let mut pyramid_features = Vec::new();
 
             for level in 0..self.levels {
@@ -276,6 +280,7 @@ impl TextureKernelApproximation {
         self
     }
 
+    #[allow(dead_code)] // internal helper for potential future use
     fn compute_lbp(&self, image: &ArrayView2<f64>) -> Result<Array1<f64>> {
         let (height, width) = image.dim();
         let mut lbp_histogram = Array1::zeros(256);
@@ -316,6 +321,7 @@ impl TextureKernelApproximation {
         Ok(lbp_histogram)
     }
 
+    #[allow(dead_code)] // internal helper for potential future use
     fn compute_gabor_features(&self, image: &ArrayView2<f64>) -> Result<Array1<f64>> {
         let mut gabor_features = Vec::new();
 
@@ -335,6 +341,7 @@ impl TextureKernelApproximation {
         Ok(Array1::from_vec(gabor_features))
     }
 
+    #[allow(dead_code)] // called by compute_gabor_features
     fn apply_gabor_filter(
         &self,
         image: &ArrayView2<f64>,
@@ -571,7 +578,10 @@ impl Transform<Array2<f64>, Array2<f64>> for FittedTextureKernelApproximation {
         let mut all_features = Vec::new();
 
         for i in 0..n_samples {
-            let sample = x.row(i).to_owned().into_shape((img_size, img_size))?;
+            let sample = x
+                .row(i)
+                .to_owned()
+                .into_shape_with_order((img_size, img_size))?;
             let mut texture_features = Vec::new();
 
             if self.use_lbp {
@@ -638,6 +648,7 @@ impl ScaleInvariantFeatures {
         self
     }
 
+    #[allow(dead_code)] // internal helper for potential future use
     fn detect_keypoints(&self, image: &ArrayView2<f64>) -> Result<Vec<(usize, usize, f64)>> {
         let (height, width) = image.dim();
         let mut keypoints = Vec::new();
@@ -670,6 +681,7 @@ impl ScaleInvariantFeatures {
         Ok(keypoints)
     }
 
+    #[allow(dead_code)] // internal helper for potential future use
     fn compute_descriptor(
         &self,
         image: &ArrayView2<f64>,
@@ -821,7 +833,10 @@ impl Transform<Array2<f64>, Array2<f64>> for FittedScaleInvariantFeatures {
         let mut all_features = Vec::new();
 
         for i in 0..n_samples {
-            let sample = x.row(i).to_owned().into_shape((img_size, img_size))?;
+            let sample = x
+                .row(i)
+                .to_owned()
+                .into_shape_with_order((img_size, img_size))?;
 
             let keypoints = self.detect_keypoints(&sample.view())?;
             let mut descriptors = Vec::new();
@@ -910,6 +925,7 @@ impl ConvolutionalKernelFeatures {
         self
     }
 
+    #[allow(dead_code)] // internal helper for potential future use
     fn apply_activation(&self, x: f64) -> f64 {
         match self.activation {
             ActivationFunction::ReLU => x.max(0.0),
@@ -999,7 +1015,7 @@ impl Transform<Array2<f64>, Array2<f64>> for FittedConvolutionalKernelFeatures {
             let image = x
                 .row(sample_idx)
                 .to_owned()
-                .into_shape((img_size, img_size))?;
+                .into_shape_with_order((img_size, img_size))?;
             let mut feature_idx = 0;
 
             for kernel_idx in 0..self.n_components {
@@ -1007,7 +1023,7 @@ impl Transform<Array2<f64>, Array2<f64>> for FittedConvolutionalKernelFeatures {
                     .conv_kernels
                     .row(kernel_idx)
                     .to_owned()
-                    .into_shape((self.kernel_size, self.kernel_size))?;
+                    .into_shape_with_order((self.kernel_size, self.kernel_size))?;
 
                 for i in 0..output_size {
                     for j in 0..output_size {
@@ -1053,7 +1069,7 @@ mod tests {
     fn test_spatial_pyramid_features() {
         let x: Array2<f64> = Array::from_shape_fn((10, 64), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let pyramid = SpatialPyramidFeatures::new(3, 64);
 
@@ -1068,7 +1084,7 @@ mod tests {
     fn test_texture_kernel_approximation() {
         let x: Array2<f64> = Array::from_shape_fn((5, 64), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let texture = TextureKernelApproximation::new(50);
 
@@ -1083,7 +1099,7 @@ mod tests {
     fn test_scale_invariant_features() {
         let x: Array2<f64> = Array::from_shape_fn((8, 64), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let sift = ScaleInvariantFeatures::new(10);
 
@@ -1098,7 +1114,7 @@ mod tests {
     fn test_convolutional_kernel_features() {
         let x: Array2<f64> = Array::from_shape_fn((6, 64), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let conv = ConvolutionalKernelFeatures::new(16, 3);
 

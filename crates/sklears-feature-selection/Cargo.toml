@@ -12,6 +12,9 @@ keywords = ["machine-learning", "feature-selection", "scikit-learn"]
 categories = ["science", "mathematics"]
 description = "Feature selection algorithms for sklears - scikit-learn compatible ML in Rust"
 
+[lints]
+workspace = true
+
 [dependencies]
 sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
@@ -26,6 +29,8 @@ thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
 oxicode = { workspace = true, optional = true }
+parquet = { workspace = true, optional = true }
+arrow = { workspace = true, optional = true }
 num_cpus = { workspace = true }
 rayon = { workspace = true }
 statrs = { workspace = true }
@@ -39,6 +44,7 @@ criterion = { workspace = true }
 [features]
 default = []
 serde = ["dep:serde", "dep:serde_json", "dep:oxicode", "sklears-core/serde"]
+parquet = ["dep:parquet", "dep:arrow"]
 
 [[bench]]
 name = "feature_selection_benchmarks"

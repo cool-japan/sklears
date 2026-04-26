@@ -6,7 +6,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive};
-use sklears_core::{error::SklearsError, traits::Estimator};
+use sklears_core::error::SklearsError;
 use std::marker::PhantomData;
 
 // Type-Safe Matrix Operations with Phantom Types
@@ -117,7 +117,7 @@ impl<T: Float + 'static> TypedMatrix<T, PositiveDefinite> {
 
     /// Convert to symmetric matrix (upcast)
     pub fn into_symmetric(self) -> TypedMatrix<T, Symmetric> {
-        /// TypedMatrix
+        // TypedMatrix
         TypedMatrix {
             data: self.data,
             _structure: PhantomData,
@@ -169,6 +169,15 @@ pub enum PivotingStrategy {
     Complete,
     /// Rook
     Rook,
+}
+
+impl<T> Default for NumericallyStableCovariance<T>
+where
+    T: Float + FromPrimitive + ScalarOperand,
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<T> NumericallyStableCovariance<T>
@@ -229,7 +238,7 @@ where
         )
         .or_else(|_| {
             // Fallback: add more regularization
-            let mut regularized = stable_cov;
+            let regularized = stable_cov;
             let reg_diag = Array2::from_diag(&Array1::from_elem(
                 n_features,
                 self.regularization
@@ -237,7 +246,7 @@ where
                         SklearsError::NumericalError("numeric conversion failed".into())
                     })?,
             ));
-            regularized = regularized + reg_diag;
+            let _regularized = regularized + reg_diag;
             TypedMatrix::from_eigendecomposition(Array1::ones(n_features), Array2::eye(n_features))
         })
     }
@@ -329,6 +338,15 @@ where
     _phantom: PhantomData<T>,
 }
 
+impl<T, const N: usize> Default for ZeroCostCovariance<T, N>
+where
+    T: Float + FromPrimitive,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T, const N: usize> ZeroCostCovariance<T, N>
 where
     T: Float + FromPrimitive,
@@ -346,8 +364,8 @@ where
         // Compute means
         let mut means = [T::zero(); N];
         for i in 0..N {
-            for j in 0..N {
-                means[i] = means[i] + data[j][i];
+            for row in data.iter() {
+                means[i] = means[i] + row[i];
             }
             means[i] = means[i] / T::from_usize(N).expect("operation should succeed");
         }
@@ -356,9 +374,9 @@ where
         for i in 0..N {
             for j in 0..N {
                 let mut sum = T::zero();
-                for k in 0..N {
-                    let centered_i = data[k][i] - means[i];
-                    let centered_j = data[k][j] - means[j];
+                for row in data.iter() {
+                    let centered_i = row[i] - means[i];
+                    let centered_j = row[j] - means[j];
                     sum = sum + centered_i * centered_j;
                 }
                 result[i][j] = sum / T::from_usize(N - 1).expect("operation should succeed");
@@ -512,7 +530,7 @@ where
 
     /// Create a view that can be safely shared across threads
     pub fn threadsafe_view(&self) -> ThreadSafeCovarianceView<T> {
-        /// ThreadSafeCovarianceView
+        // ThreadSafeCovarianceView
         ThreadSafeCovarianceView {
             data: Arc::clone(&self.data),
         }
@@ -689,6 +707,15 @@ where
 {
     regularization: Option<T>,
     _phantom: PhantomData<T>,
+}
+
+impl<T> Default for GenericEmpiricalCovariance<T>
+where
+    T: Float + FromPrimitive,
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<T> GenericEmpiricalCovariance<T>

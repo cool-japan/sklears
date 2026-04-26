@@ -13,7 +13,6 @@ use crate::{
     NeuralResult,
 };
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::prelude::*;
 use scirs2_core::random::ChaCha8Rng;
 use scirs2_core::random::SeedableRng;
 use sklears_core::{error::SklearsError, traits::Fit, traits::Predict};
@@ -25,34 +24,58 @@ type WeightsAndBiases = (Vec<Array2<f64>>, Vec<Array1<f64>>);
 /// Multi-layer Perceptron classifier
 #[derive(Debug, Clone)]
 pub struct MLPClassifier<State = sklears_core::traits::Untrained> {
-    // Hyperparameters
+    /// Number of neurons in each hidden layer
     pub hidden_layer_sizes: Vec<usize>,
+    /// Activation function applied to each hidden layer
     pub activation: Activation,
+    /// Optimization algorithm used for weight updates
     pub solver: Solver,
-    pub alpha: f64, // L2 regularization term
+    /// L2 regularization coefficient applied to all weight matrices
+    pub alpha: f64,
+    /// Mini-batch size; `None` uses the full training set
     pub batch_size: Option<usize>,
+    /// Initial learning rate passed to the solver
     pub learning_rate_init: f64,
+    /// Maximum number of training epochs
     pub max_iter: usize,
+    /// Whether to shuffle the training data at the start of each epoch
     pub shuffle: bool,
+    /// Optional random seed for reproducibility; `None` uses a random seed
     pub random_state: Option<u64>,
+    /// Tolerance for the optimization convergence criterion
     pub tol: f64,
+    /// Whether to print progress messages during training
     pub verbose: bool,
+    /// Whether to reuse the solution of the previous `fit` call as the starting point
     pub warm_start: bool,
+    /// Momentum coefficient for SGD and variants
     pub momentum: f64,
+    /// Whether to use Nesterov's momentum with SGD
     pub nesterovs_momentum: bool,
+    /// Whether to stop training early based on a held-out validation set
     pub early_stopping: bool,
+    /// Fraction of training data held out for early stopping validation
     pub validation_fraction: f64,
-    pub beta_1: f64,  // Adam parameter
-    pub beta_2: f64,  // Adam parameter
-    pub epsilon: f64, // Adam parameter
+    /// Exponential decay rate for Adam's first moment estimates
+    pub beta_1: f64,
+    /// Exponential decay rate for Adam's second moment estimates
+    pub beta_2: f64,
+    /// Numerical stability constant added to Adam's denominator
+    pub epsilon: f64,
+    /// Number of consecutive epochs with no improvement before triggering early stopping
     pub n_iter_no_change: usize,
+    /// Maximum number of loss function evaluations (used by L-BFGS)
     pub max_fun: usize,
+    /// Learning rate schedule strategy
     pub learning_rate: LearningRateSchedule,
+    /// Exponent for the inverse scaling learning rate schedule
     pub power_t: f64,
+    /// Weight initialization strategy
     pub weight_init: WeightInit,
 
-    // Model versioning
+    /// Optional semantic version attached to this model for change tracking
     pub model_version: Option<ModelVersion>,
+    /// Optional version manager for recording and querying model history
     pub version_manager: Option<ModelVersionManager>,
 
     // Trained state
@@ -63,19 +86,30 @@ pub struct MLPClassifier<State = sklears_core::traits::Untrained> {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TrainedMLPClassifier {
+    /// Weight matrices for each layer, ordered from input to output
     pub weights: Vec<Array2<f64>>,
+    /// Bias vectors for each layer, ordered from input to output
     pub biases: Vec<Array1<f64>>,
+    /// Unique class labels observed during training
     pub classes: Vec<usize>,
+    /// Number of input features seen during `fit`
     pub n_features_in: usize,
+    /// Number of distinct output classes
     pub n_classes: usize,
+    /// Total number of layers including input, hidden, and output
     pub n_layers: usize,
+    /// Number of output units
     pub n_outputs: usize,
+    /// Activation function applied to hidden layers
     pub activation: Activation,
+    /// Final training loss after the last epoch
     pub loss: f64,
+    /// Number of training epochs completed
     pub n_iter: usize,
 
-    // Model versioning
+    /// Semantic model version recorded at training time
     pub model_version: ModelVersion,
+    /// Training metadata snapshot (dataset hash, timestamp, etc.)
     pub training_metadata: ModelMetadata,
 }
 

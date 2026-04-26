@@ -61,11 +61,13 @@ pub struct DictionaryLearning {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // DictionaryLearningTrained dictionary/n_iter retained for future serialization/introspection
 pub struct DictionaryLearningTrained {
     dictionary: Array2<f64>,
     n_iter: usize,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl DictionaryLearningTrained {
     pub fn transform(&self, X: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
         let (_, n_features) = X.dim();
@@ -85,6 +87,7 @@ impl DictionaryLearningTrained {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl DictionaryLearning {
     pub fn new() -> Self {
         Self {
@@ -154,11 +157,13 @@ impl Default for DictionaryLearning {
 // Placeholder implementations for missing components
 #[derive(Debug, Clone)]
 pub struct OnlineDictionaryLearning {
+    #[allow(dead_code)] // config retained for future online learning configuration
     config: DictLearningConfig,
 }
 
 #[derive(Debug, Clone)]
 pub struct OnlineDictionaryLearningTrained {
+    #[allow(dead_code)] // dictionary retained for future online dictionary retrieval
     dictionary: Array2<f64>,
 }
 
@@ -186,6 +191,7 @@ pub struct MiniBatchDictionaryLearningTrained {
     dictionary: Array2<f64>,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl MiniBatchDictionaryLearningTrained {
     pub fn transform(&self, X: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
         let (_, n_features) = X.dim();
@@ -205,6 +211,7 @@ impl MiniBatchDictionaryLearningTrained {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl MiniBatchDictionaryLearning {
     pub fn new() -> Self {
         Self {
@@ -287,6 +294,7 @@ pub struct NMFTrained {
     components: Array2<f64>,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl NMFTrained {
     pub fn components(&self) -> &Array2<f64> {
         &self.components
@@ -327,6 +335,7 @@ impl NMFTrained {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl NMF {
     pub fn new() -> Self {
         Self {
@@ -395,7 +404,7 @@ impl NMF {
         }
 
         let epsilon = 1e-9;
-        let iterations = self.config.max_iter.max(1).min(200);
+        let iterations = self.config.max_iter.clamp(1, 200);
 
         for _ in 0..iterations {
             let x_hat = W.dot(&H);
@@ -436,6 +445,7 @@ pub struct ICATrained {
     whitening_scales: Array1<f64>,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl ICATrained {
     pub fn components(&self) -> &Array2<f64> {
         &self.components
@@ -470,6 +480,7 @@ impl ICATrained {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl ICA {
     pub fn new() -> Self {
         Self {
@@ -587,6 +598,7 @@ pub struct PCATrained {
     whitening_scales: Array1<f64>,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl PCATrained {
     pub fn components(&self) -> &Array2<f64> {
         &self.components
@@ -669,6 +681,7 @@ impl PCATrained {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl PCA {
     pub fn new() -> Self {
         Self {
@@ -753,6 +766,7 @@ pub struct FactorAnalysisTrained {
     mean: Array1<f64>,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl FactorAnalysisTrained {
     pub fn loadings(&self) -> &Array2<f64> {
         &self.components
@@ -806,6 +820,7 @@ impl FactorAnalysisTrained {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl FactorAnalysis {
     pub fn new() -> Self {
         Self {
@@ -934,6 +949,7 @@ pub struct PMFTrained {
     training_loss: f64,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl PMFTrained {
     pub fn predict(&self, user_idx: usize, item_idx: usize) -> SklResult<f64> {
         if user_idx >= self.user_features.nrows() {
@@ -1015,6 +1031,7 @@ impl PMFTrained {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl ProbabilisticMatrixFactorization {
     pub fn new() -> Self {
         Self {
@@ -1084,7 +1101,7 @@ impl ProbabilisticMatrixFactorization {
         let mut item_features = initialize_features(n_items, k, self.random_state.unwrap_or(0) + 1);
 
         let learning_rate = self.learning_rate;
-        let iterations = self.config.max_iter.max(1).min(500);
+        let iterations = self.config.max_iter.clamp(1, 500);
 
         for _ in 0..iterations {
             for user_idx in 0..n_users {
@@ -1187,6 +1204,7 @@ impl Default for CPDecomposition {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 fn center_data(X: &ArrayView2<f64>) -> (Array2<f64>, Array1<f64>) {
     let mean = X
         .mean_axis(Axis(0))

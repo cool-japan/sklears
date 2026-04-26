@@ -70,6 +70,16 @@ pub struct AdversarialAutoencoder<S = Untrained> {
     random_state: Option<u64>,
 }
 
+/// Type alias for initialize_networks return: (encoder weights, encoder biases, decoder weights, decoder biases, discriminator weights, discriminator biases)
+type NetworkTriple = (
+    Vec<Array2<f64>>,
+    Vec<Array1<f64>>,
+    Vec<Array2<f64>>,
+    Vec<Array1<f64>>,
+    Vec<Array2<f64>>,
+    Vec<Array1<f64>>,
+);
+
 /// Trained state for AdversarialAutoencoder
 #[derive(Debug, Clone)]
 pub struct AdversarialAETrained {
@@ -77,7 +87,9 @@ pub struct AdversarialAETrained {
     encoder_biases: Vec<Array1<f64>>,
     decoder_weights: Vec<Array2<f64>>,
     decoder_biases: Vec<Array1<f64>>,
+    #[allow(dead_code)] // deferred: used in future adversarial transform/generate API
     discriminator_weights: Vec<Array2<f64>>,
+    #[allow(dead_code)] // deferred: used in future adversarial transform/generate API
     discriminator_biases: Vec<Array1<f64>>,
     final_loss: f64,
 }
@@ -154,17 +166,7 @@ impl AdversarialAutoencoder<Untrained> {
     }
 
     /// Initialize network weights
-    fn initialize_networks(
-        &self,
-        input_dim: usize,
-    ) -> SklResult<(
-        Vec<Array2<f64>>,
-        Vec<Array1<f64>>, // encoder
-        Vec<Array2<f64>>,
-        Vec<Array1<f64>>, // decoder
-        Vec<Array2<f64>>,
-        Vec<Array1<f64>>, // discriminator
-    )> {
+    fn initialize_networks(&self, input_dim: usize) -> SklResult<NetworkTriple> {
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
@@ -434,8 +436,8 @@ impl Fit<ArrayView2<'_, Float>, ()> for AdversarialAutoencoder<Untrained> {
                 let z_prior = self.sample_prior(batch_x.nrows());
                 let z_fake_score =
                     self.discriminate(&z, &discriminator_weights, &discriminator_biases);
-                let z_real_score =
-                    self.discriminate(&z_prior, &discriminator_weights, &discriminator_biases);
+                let _z_real_score =
+                    self.discriminate(&z_prior, &discriminator_weights, &discriminator_biases); // deferred: used in discriminator loss
 
                 // Adversarial loss (generator wants high fake scores)
                 let adversarial_loss = -z_fake_score.mapv(|x| x.ln()).mean().unwrap_or(0.0);
@@ -754,7 +756,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for AdversarialTSNE<Untrained> {
         let x_f64 = x.mapv(|v| v);
 
         // Compute robust pairwise distances
-        let distances = self.compute_robust_distances(&x_f64);
+        let _distances = self.compute_robust_distances(&x_f64); // deferred: used in future robust gradient computation
 
         // Initialize embedding
         let mut rng = if let Some(seed) = self.random_state {

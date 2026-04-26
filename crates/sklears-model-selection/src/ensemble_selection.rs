@@ -613,6 +613,7 @@ impl EnsembleSelector {
     }
 
     /// Make ensemble predictions
+    #[allow(dead_code)] // intentionally deferred: ensemble prediction not yet in the call path
     fn make_ensemble_predictions<T, X>(
         &self,
         trained_models: &[T],
@@ -794,6 +795,7 @@ impl EnsembleSelector {
     }
 
     /// Calculate correlation between two prediction vectors
+    #[allow(dead_code)] // intentionally deferred: correlation not yet in the call path
     fn calculate_correlation(&self, pred1: &[f64], pred2: &[f64]) -> f64 {
         if pred1.len() != pred2.len() || pred1.is_empty() {
             return 0.0;

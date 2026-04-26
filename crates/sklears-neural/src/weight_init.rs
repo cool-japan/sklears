@@ -5,23 +5,33 @@
 //! optimal for different activation functions and architectures.
 
 use crate::NeuralResult;
-use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::FromPrimitive;
 use scirs2_core::random::essentials::{Normal, Uniform};
-use scirs2_core::random::prelude::StdRng;
-use scirs2_core::random::{Distribution, Rng, SeedableRng};
+use scirs2_core::random::{Distribution, Rng};
 use sklears_core::{error::SklearsError, types::FloatBounds};
 
 /// Weight initialization strategies
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum InitStrategy {
     /// Zero initialization (not recommended for hidden layers)
     Zeros,
     /// Uniform initialization with given range
-    Uniform { low: f64, high: f64 },
+    Uniform {
+        /// Lower bound of uniform range
+        low: f64,
+        /// Upper bound of uniform range
+        high: f64,
+    },
     /// Normal/Gaussian initialization
-    Normal { mean: f64, std: f64 },
+    Normal {
+        /// Mean of normal distribution
+        mean: f64,
+        /// Standard deviation of normal distribution
+        std: f64,
+    },
     /// Xavier/Glorot uniform initialization
+    #[default]
     XavierUniform,
     /// Xavier/Glorot normal initialization  
     XavierNormal,
@@ -34,18 +44,28 @@ pub enum InitStrategy {
     /// LeCun normal initialization
     LeCunNormal,
     /// Orthogonal initialization
-    Orthogonal { gain: f64 },
+    Orthogonal {
+        /// Multiplicative gain factor
+        gain: f64,
+    },
     /// Truncated normal initialization
     TruncatedNormal {
+        /// Mean of the normal distribution
         mean: f64,
+        /// Standard deviation of the normal distribution
         std: f64,
+        /// Lower truncation bound
         low: f64,
+        /// Upper truncation bound
         high: f64,
     },
     /// Variance scaling initialization (general form)
     VarianceScaling {
+        /// Scale factor for variance
         scale: f64,
+        /// Scaling mode (fan-in, fan-out, or average)
         mode: ScalingMode,
+        /// Distribution to use for sampling
         distribution: ScalingDistribution,
     },
 }
@@ -70,12 +90,6 @@ pub enum ScalingDistribution {
     Normal,
     /// Truncated normal distribution
     TruncatedNormal,
-}
-
-impl Default for InitStrategy {
-    fn default() -> Self {
-        InitStrategy::XavierUniform
-    }
 }
 
 /// Weight initializer
@@ -461,6 +475,7 @@ mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
     use scirs2_core::random::rngs::StdRng;
+    use scirs2_core::random::SeedableRng;
 
     #[test]
     fn test_xavier_uniform_initialization() {
@@ -568,7 +583,7 @@ mod tests {
 
         // Check that all values are within bounds
         for &val in weights.iter() {
-            assert!(val >= -2.0 && val <= 2.0);
+            assert!((-2.0..=2.0).contains(&val));
         }
 
         // Check approximate mean
@@ -609,7 +624,7 @@ mod tests {
 
         // Check that all values are within bounds
         for &val in weights.iter() {
-            assert!(val >= -0.5 && val <= 0.5);
+            assert!((-0.5..=0.5).contains(&val));
         }
 
         // Check approximate mean (should be close to 0 for symmetric range)
@@ -665,7 +680,7 @@ mod tests {
             .expect("operation should succeed");
 
         for &val in biases.iter() {
-            assert!(val >= -0.1 && val <= 0.1);
+            assert!((-0.1..=0.1).contains(&val));
         }
     }
 }

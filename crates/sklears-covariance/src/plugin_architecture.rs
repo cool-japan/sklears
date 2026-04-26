@@ -6,7 +6,6 @@
 
 use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
 use sklears_core::error::SklearsError;
-use sklears_core::traits::Estimator;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -42,7 +41,7 @@ pub trait EstimatorFactory: Send + Sync + Debug {
 /// Trait for custom covariance estimators
 pub trait CustomCovarianceEstimator: Send + Sync + Debug {
     /// Fit the estimator to data
-    fn fit(&mut self, X: ArrayView2<f64>) -> Result<(), SklearsError>;
+    fn fit(&mut self, x: ArrayView2<f64>) -> Result<(), SklearsError>;
 
     /// Get the estimated covariance matrix
     fn covariance(&self) -> Result<Array2<f64>, SklearsError>;
@@ -217,6 +216,12 @@ pub struct PerformanceMetrics {
     pub converged: bool,
 }
 
+impl Default for CovariancePluginRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CovariancePluginRegistry {
     /// Create a new plugin registry
     pub fn new() -> Self {
@@ -273,7 +278,7 @@ impl CovariancePluginRegistry {
 
         // Sort by priority (descending)
         if let Some(hook_list) = hooks.get_mut(&hook_type) {
-            hook_list.sort_by(|a, b| b.priority().cmp(&a.priority()));
+            hook_list.sort_by_key(|b| std::cmp::Reverse(b.priority()));
         }
 
         Ok(())
@@ -289,7 +294,7 @@ impl CovariancePluginRegistry {
         middleware_list.push(middleware);
 
         // Sort by priority (descending)
-        middleware_list.sort_by(|a, b| b.priority().cmp(&a.priority()));
+        middleware_list.sort_by_key(|b| std::cmp::Reverse(b.priority()));
 
         Ok(())
     }
@@ -315,7 +320,7 @@ impl CovariancePluginRegistry {
         &self,
         name: &str,
     ) -> Result<Box<dyn RegularizationFunction>, SklearsError> {
-        let functions = self
+        let _functions = self
             .regularization_functions
             .read()
             .map_err(|_| SklearsError::InvalidInput("Failed to acquire read lock".to_string()))?;
@@ -457,7 +462,7 @@ impl CovariancePluginRegistry {
     }
 }
 
-/// Global plugin registry instance
+// Global plugin registry instance
 lazy_static::lazy_static! {
     pub static ref GLOBAL_REGISTRY: CovariancePluginRegistry = CovariancePluginRegistry::new();
 }
@@ -493,6 +498,7 @@ macro_rules! register_hook {
 /// Example implementations
 /// Example custom estimator: Simple empirical covariance
 #[derive(Debug)]
+#[allow(dead_code)] // Example plugin implementation for documentation purposes
 pub struct SimpleEmpiricalEstimator {
     covariance: Option<Array2<f64>>,
     parameters: Arc<Mutex<HashMap<String, String>>>, // Simplified to just String values
@@ -508,20 +514,20 @@ impl SimpleEmpiricalEstimator {
 }
 
 impl CustomCovarianceEstimator for SimpleEmpiricalEstimator {
-    fn fit(&mut self, X: ArrayView2<f64>) -> Result<(), SklearsError> {
-        let (n_samples, n_features) = X.dim();
+    fn fit(&mut self, x: ArrayView2<f64>) -> Result<(), SklearsError> {
+        let (n_samples, _n_features) = x.dim();
         if n_samples < 2 {
             return Err(SklearsError::InvalidInput(
                 "Need at least 2 samples".to_string(),
             ));
         }
 
-        let mean = X.mean_axis(Axis(0)).ok_or_else(|| {
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
             SklearsError::NumericalError(
                 "mean computation should succeed for non-empty array".into(),
             )
         })?;
-        let centered = &X - &mean;
+        let centered = &x - &mean;
         let covariance = centered.t().dot(&centered) / (n_samples - 1) as f64;
 
         self.covariance = Some(covariance);
@@ -582,6 +588,7 @@ impl CustomCovarianceEstimator for SimpleEmpiricalEstimator {
 
 /// Example factory for simple empirical estimator
 #[derive(Debug)]
+#[allow(dead_code)] // Example plugin factory for documentation purposes
 pub struct SimpleEmpiricalFactory;
 
 impl EstimatorFactory for SimpleEmpiricalFactory {
@@ -604,11 +611,13 @@ impl EstimatorFactory for SimpleEmpiricalFactory {
 
 /// Example L2 regularization
 #[derive(Debug)]
+#[allow(dead_code)] // Example regularization implementation for documentation purposes
 pub struct L2Regularization {
     name: String,
 }
 
 impl L2Regularization {
+    #[allow(dead_code)] // Constructor for example plugin, used in documentation/examples
     pub fn new() -> Self {
         Self {
             name: "l2".to_string(),
@@ -641,11 +650,13 @@ impl RegularizationFunction for L2Regularization {
 
 /// Example logging hook
 #[derive(Debug)]
+#[allow(dead_code)] // Example hook implementation for documentation purposes
 pub struct LoggingHook {
     name: String,
 }
 
 impl LoggingHook {
+    #[allow(dead_code)] // Constructor for example plugin, used in documentation/examples
     pub fn new(name: String) -> Self {
         Self { name }
     }
@@ -663,6 +674,7 @@ impl Hook for LoggingHook {
 
 /// Example timing middleware
 #[derive(Debug)]
+#[allow(dead_code)] // Example middleware implementation for documentation purposes
 pub struct TimingMiddleware;
 
 impl Middleware for TimingMiddleware {
@@ -749,9 +761,9 @@ mod tests {
         let mut estimator = SimpleEmpiricalEstimator::new();
         let mut local_rng = thread_rng();
         let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
-        let X = Array2::from_shape_fn((10, 3), |_| dist.sample(&mut local_rng));
+        let x = Array2::from_shape_fn((10, 3), |_| dist.sample(&mut local_rng));
 
-        let result = estimator.fit(X.view());
+        let result = estimator.fit(x.view());
         assert!(result.is_ok());
 
         let covariance = estimator.covariance();
@@ -775,9 +787,9 @@ mod tests {
 
         let mut local_rng = thread_rng();
         let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
-        let X = Array2::from_shape_fn((20, 2), |_| dist.sample(&mut local_rng));
+        let x = Array2::from_shape_fn((20, 2), |_| dist.sample(&mut local_rng));
         let request = EstimationRequest {
-            data: X,
+            data: x,
             estimator_name: "simple_empirical".to_string(),
             parameters: HashMap::new(),
             metadata: HashMap::new(),

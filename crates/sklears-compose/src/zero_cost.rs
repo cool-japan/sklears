@@ -306,6 +306,7 @@ impl<F, G> ZeroCostComposition<F, G> {
 
 /// Trait for zero-cost composable operations
 pub trait ZeroCostCompose<Other> {
+    /// The Output type.
     type Output;
 
     /// Compose with another operation at zero cost
@@ -977,22 +978,23 @@ impl MemoryLeakDetector {
 
     /// Get current allocation statistics
     pub fn get_stats(&self) -> MemoryStats {
-        if let Ok(allocations) = self.allocations.lock() {
-            let total_allocations = allocations.len();
-            let total_size = allocations.values().map(|info| info.size).sum();
-            let oldest_age = allocations
-                .values()
-                .map(|info| info.timestamp.elapsed())
-                .max()
-                .unwrap_or_default();
+        match self.allocations.lock() {
+            Ok(allocations) => {
+                let total_allocations = allocations.len();
+                let total_size = allocations.values().map(|info| info.size).sum();
+                let oldest_age = allocations
+                    .values()
+                    .map(|info| info.timestamp.elapsed())
+                    .max()
+                    .unwrap_or_default();
 
-            MemoryStats {
-                total_allocations,
-                total_size,
-                oldest_age,
+                MemoryStats {
+                    total_allocations,
+                    total_size,
+                    oldest_age,
+                }
             }
-        } else {
-            MemoryStats::default()
+            _ => MemoryStats::default(),
         }
     }
 
@@ -1063,12 +1065,15 @@ impl<T> SafeConcurrentData<T> {
     {
         let start = Instant::now();
 
-        if let Ok(guard) = self.data.read() {
-            self.update_stats(true, start.elapsed(), false);
-            Ok(f(&*guard))
-        } else {
-            self.update_stats(true, start.elapsed(), true);
-            Err(SklearsError::InvalidOperation("Lock poisoned".to_string()))
+        match self.data.read() {
+            Ok(guard) => {
+                self.update_stats(true, start.elapsed(), false);
+                Ok(f(&*guard))
+            }
+            _ => {
+                self.update_stats(true, start.elapsed(), true);
+                Err(SklearsError::InvalidOperation("Lock poisoned".to_string()))
+            }
         }
     }
 
@@ -1079,12 +1084,15 @@ impl<T> SafeConcurrentData<T> {
     {
         let start = Instant::now();
 
-        if let Ok(mut guard) = self.data.write() {
-            self.update_stats(false, start.elapsed(), false);
-            Ok(f(&mut *guard))
-        } else {
-            self.update_stats(false, start.elapsed(), true);
-            Err(SklearsError::InvalidOperation("Lock poisoned".to_string()))
+        match self.data.write() {
+            Ok(mut guard) => {
+                self.update_stats(false, start.elapsed(), false);
+                Ok(f(&mut *guard))
+            }
+            _ => {
+                self.update_stats(false, start.elapsed(), true);
+                Err(SklearsError::InvalidOperation("Lock poisoned".to_string()))
+            }
         }
     }
 
@@ -1259,10 +1267,15 @@ pub struct LockFreeQueue<T> {
 /// Statistics for queue operations
 #[derive(Debug, Default, Clone)]
 pub struct QueueStats {
+    /// The enqueues.
     pub enqueues: u64,
+    /// The dequeues.
     pub dequeues: u64,
+    /// The current size.
     pub current_size: usize,
+    /// The max size.
     pub max_size: usize,
+    /// The contentions.
     pub contentions: u64,
 }
 

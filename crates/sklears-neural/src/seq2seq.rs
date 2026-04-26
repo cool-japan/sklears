@@ -7,7 +7,7 @@
 use crate::{
     layers::attention::MultiHeadAttention,
     layers::rnn::{GRUCell, LSTMCell},
-    layers::{Layer, ParameterizedLayer},
+    layers::Layer,
     NeuralResult,
 };
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, Axis};
@@ -24,15 +24,25 @@ pub struct Seq2SeqModel<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> {
 /// Configuration for sequence-to-sequence models
 #[derive(Debug, Clone)]
 pub struct Seq2SeqConfig<T: FloatBounds> {
+    /// Number of tokens in the input vocabulary (source language)
     pub input_vocab_size: usize,
+    /// Number of tokens in the output vocabulary (target language)
     pub output_vocab_size: usize,
+    /// Dimensionality of hidden RNN states and embeddings
     pub hidden_size: usize,
+    /// Number of stacked RNN layers in both encoder and decoder
     pub num_layers: usize,
+    /// Dropout probability applied between RNN layers
     pub dropout_rate: T,
+    /// Whether to add an attention mechanism between encoder and decoder
     pub use_attention: bool,
+    /// Number of attention heads when using multi-head attention
     pub attention_heads: usize,
+    /// Whether the encoder processes sequences in both directions
     pub bidirectional: bool,
+    /// Type of recurrent cell used in encoder and decoder
     pub cell_type: RNNCellType,
+    /// Maximum number of decoding steps (output tokens)
     pub max_length: usize,
 }
 
@@ -57,11 +67,14 @@ impl<T: FloatBounds> Default for Seq2SeqConfig<T> {
 /// RNN cell types for sequence-to-sequence models
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RNNCellType {
+    /// Long Short-Term Memory cell with forget, input, and output gates
     LSTM,
+    /// Gated Recurrent Unit cell with update and reset gates
     GRU,
 }
 
 /// Encoder component of the sequence-to-sequence model
+#[allow(dead_code)] // Architecture config fields (hidden_size, num_layers, bidirectional, cell_type) retained for model inspection
 pub struct Encoder<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> {
     embedding: EmbeddingLayer<T>,
     rnn_layers: Vec<Box<dyn Layer<T>>>,
@@ -72,6 +85,7 @@ pub struct Encoder<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> {
 }
 
 impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Encoder<T> {
+    /// Build a new encoder from the given Seq2Seq configuration
     pub fn new(config: &Seq2SeqConfig<T>) -> NeuralResult<Self> {
         let embedding = EmbeddingLayer::new(config.input_vocab_size, config.hidden_size);
         let mut rnn_layers = Vec::new();
@@ -128,14 +142,14 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Encoder<T> {
         }
 
         // Forward pass through RNN layers
-        let mut layer_input = embedded;
+        let layer_input = embedded;
         let mut all_outputs = Vec::new();
 
         for time_step in 0..seq_len {
             let step_input = layer_input.slice(s![.., time_step, ..]).to_owned();
             let mut step_output = step_input;
 
-            for (layer_idx, layer) in self.rnn_layers.iter_mut().enumerate() {
+            for layer in self.rnn_layers.iter_mut() {
                 // Forward through the RNN layer - LSTM/GRU cells expect 2D input
                 step_output = layer.forward(&step_output, true)?;
             }
@@ -163,6 +177,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Encoder<T> {
 }
 
 /// Decoder component of the sequence-to-sequence model
+#[allow(dead_code)] // Architecture config fields retained for decoder shape validation and serialization
 pub struct Decoder<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> {
     embedding: EmbeddingLayer<T>,
     rnn_layers: Vec<Box<dyn Layer<T>>>,
@@ -174,17 +189,14 @@ pub struct Decoder<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> {
 }
 
 impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Decoder<T> {
+    /// Build a new decoder from the given Seq2Seq configuration
     pub fn new(config: &Seq2SeqConfig<T>) -> NeuralResult<Self> {
         let embedding = EmbeddingLayer::new(config.output_vocab_size, config.hidden_size);
         let output_projection = LinearLayer::new(config.hidden_size, config.output_vocab_size);
         let mut rnn_layers = Vec::new();
 
-        for layer_idx in 0..config.num_layers {
-            let input_size = if layer_idx == 0 {
-                config.hidden_size
-            } else {
-                config.hidden_size
-            };
+        for _layer_idx in 0..config.num_layers {
+            let input_size = config.hidden_size;
 
             match config.cell_type {
                 RNNCellType::LSTM => {
@@ -213,12 +225,12 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Decoder<T> {
     pub fn decode_step(
         &mut self,
         input_token: &Array1<usize>,
-        hidden_states: &mut Vec<Array2<T>>,
-        cell_states: &mut Vec<Array2<T>>,
+        _hidden_states: &mut Vec<Array2<T>>,
+        _cell_states: &mut Vec<Array2<T>>,
         encoder_output: Option<&EncoderOutput<T>>,
         attention: Option<&mut AttentionMechanism<T>>,
     ) -> NeuralResult<Array2<T>> {
-        let batch_size = input_token.len();
+        let _batch_size = input_token.len();
 
         // Embedding lookup
         let embedded = self.embedding.forward_token(input_token)?;
@@ -226,7 +238,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Decoder<T> {
         // Forward pass through RNN layers
         let mut layer_input = embedded;
 
-        for (layer_idx, layer) in self.rnn_layers.iter_mut().enumerate() {
+        for layer in self.rnn_layers.iter_mut() {
             // Forward through the RNN layer - LSTM/GRU cells expect 2D input
             layer_input = layer.forward(&layer_input, true)?;
         }
@@ -270,7 +282,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Decoder<T> {
                 &mut hidden_states,
                 &mut cell_states,
                 Some(encoder_output),
-                attention.as_mut().map(|a| &mut **a),
+                attention.as_deref_mut(),
             )?;
 
             // Greedy selection (argmax)
@@ -309,14 +321,19 @@ pub struct AttentionMechanism<T: FloatBounds + scirs2_core::ndarray::ScalarOpera
     linear_attention: Option<LinearAttention<T>>,
 }
 
+/// Type of attention mechanism used in the Seq2Seq decoder
 #[derive(Debug, Clone, Copy)]
 pub enum AttentionType {
+    /// Scaled dot-product multi-head attention
     MultiHead,
+    /// Linear (additive) attention approximation
     Linear,
+    /// Simple dot-product (Luong-style) attention
     Dot,
 }
 
 impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> AttentionMechanism<T> {
+    /// Create a new attention mechanism of the given type, configured for `hidden_size` and `num_heads`
     pub fn new(
         attention_type: AttentionType,
         hidden_size: usize,
@@ -348,6 +365,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> AttentionMechanism<T>
         }
     }
 
+    /// Compute the context vector by attending over `encoder_outputs` with the given `query`
     pub fn apply_attention(
         &mut self,
         query: &Array2<T>,
@@ -371,21 +389,21 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> AttentionMechanism<T>
                     let seq_len = 1; // Single timestep
                     let query_3d = query
                         .clone()
-                        .into_shape((batch_size, seq_len, query.ncols()))
+                        .into_shape_with_order((batch_size, seq_len, query.ncols()))
                         .map_err(|_| sklears_core::error::SklearsError::InvalidParameter {
                             name: "shape_conversion".to_string(),
                             reason: "Failed to reshape query".to_string(),
                         })?;
                     let key_3d = key_value
                         .clone()
-                        .into_shape((batch_size, seq_len, key_value.ncols()))
+                        .into_shape_with_order((batch_size, seq_len, key_value.ncols()))
                         .map_err(|_| sklears_core::error::SklearsError::InvalidParameter {
                             name: "shape_conversion".to_string(),
                             reason: "Failed to reshape key".to_string(),
                         })?;
                     let value_3d = key_value
                         .clone()
-                        .into_shape((batch_size, seq_len, key_value.ncols()))
+                        .into_shape_with_order((batch_size, seq_len, key_value.ncols()))
                         .map_err(|_| sklears_core::error::SklearsError::InvalidParameter {
                             name: "shape_conversion".to_string(),
                             reason: "Failed to reshape value".to_string(),
@@ -395,7 +413,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> AttentionMechanism<T>
                     // Convert back to 2D
                     let total_elements = result_3d.len();
                     result_3d
-                        .into_shape((batch_size, total_elements / batch_size))
+                        .into_shape_with_order((batch_size, total_elements / batch_size))
                         .map_err(|_| sklears_core::error::SklearsError::InvalidParameter {
                             name: "attention_reshape".to_string(),
                             reason: "Failed to reshape attention output".to_string(),
@@ -460,7 +478,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> AttentionMechanism<T>
                 let encoder_hidden = encoder_outputs.slice(s![b, t, ..]);
 
                 for h in 0..hidden_size {
-                    context[[b, h]] = context[[b, h]] + weight * encoder_hidden[h];
+                    context[[b, h]] += weight * encoder_hidden[h];
                 }
             }
         }
@@ -479,6 +497,7 @@ pub struct LinearAttention<T: FloatBounds> {
 }
 
 impl<T: FloatBounds> LinearAttention<T> {
+    /// Create a new linear attention layer with the given hidden dimensionality
     pub fn new(hidden_size: usize) -> Self {
         Self {
             query_projection: LinearLayer::new(hidden_size, hidden_size),
@@ -488,6 +507,7 @@ impl<T: FloatBounds> LinearAttention<T> {
         }
     }
 
+    /// Compute the attended context vector from a decoder `query` and the full `encoder_outputs`
     pub fn forward(
         &mut self,
         query: &Array2<T>,
@@ -533,7 +553,7 @@ impl<T: FloatBounds> LinearAttention<T> {
                 let value = projected_values.slice(s![b, t, ..]);
 
                 for h in 0..hidden_size {
-                    context[[b, h]] = context[[b, h]] + weight * value[h];
+                    context[[b, h]] += weight * value[h];
                 }
             }
         }
@@ -546,9 +566,12 @@ impl<T: FloatBounds> LinearAttention<T> {
 /// Output of the encoder
 #[derive(Debug)]
 pub struct EncoderOutput<T: FloatBounds> {
-    pub outputs: Array3<T>,           // (batch_size, seq_len, hidden_size)
-    pub final_hidden: Vec<Array2<T>>, // Per layer hidden states
-    pub final_cell: Vec<Array2<T>>,   // Per layer cell states (LSTM only)
+    /// Hidden state at every time step: shape `(batch_size, seq_len, hidden_size)`
+    pub outputs: Array3<T>,
+    /// Final hidden state for each RNN layer, used to initialize the decoder
+    pub final_hidden: Vec<Array2<T>>,
+    /// Final cell state for each RNN layer (LSTM only); empty for GRU
+    pub final_cell: Vec<Array2<T>>,
 }
 
 /// Simplified embedding layer
@@ -560,8 +583,8 @@ pub struct EmbeddingLayer<T: FloatBounds> {
 }
 
 impl<T: FloatBounds> EmbeddingLayer<T> {
+    /// Create a new embedding layer mapping `vocab_size` tokens to dense vectors of size `embedding_dim`
     pub fn new(vocab_size: usize, embedding_dim: usize) -> Self {
-        use scirs2_core::random::Rng;
         let mut rng = scirs2_core::random::thread_rng();
 
         // Xavier initialization
@@ -577,6 +600,7 @@ impl<T: FloatBounds> EmbeddingLayer<T> {
         }
     }
 
+    /// Look up embeddings for a batch of token sequences; returns shape `(batch, seq_len, embedding_dim)`
     pub fn forward(&self, input_tokens: &Array2<usize>) -> NeuralResult<Array3<T>> {
         let (batch_size, seq_len) = input_tokens.dim();
         let mut output = Array3::zeros((batch_size, seq_len, self.embedding_dim));
@@ -602,6 +626,7 @@ impl<T: FloatBounds> EmbeddingLayer<T> {
         Ok(output)
     }
 
+    /// Look up embeddings for a single batch of token IDs; returns shape `(batch, embedding_dim)`
     pub fn forward_token(&self, input_tokens: &Array1<usize>) -> NeuralResult<Array2<T>> {
         let batch_size = input_tokens.len();
         let mut output = Array2::zeros((batch_size, self.embedding_dim));
@@ -628,6 +653,7 @@ impl<T: FloatBounds> EmbeddingLayer<T> {
 
 /// Simplified linear layer
 #[derive(Debug)]
+#[allow(dead_code)] // Dimension fields retained for layer shape validation and future serialization
 pub struct LinearLayer<T: FloatBounds> {
     weights: Array2<T>,
     bias: Array1<T>,
@@ -636,8 +662,8 @@ pub struct LinearLayer<T: FloatBounds> {
 }
 
 impl<T: FloatBounds> LinearLayer<T> {
+    /// Create a new linear (fully-connected) layer from `input_size` to `output_size` neurons
     pub fn new(input_size: usize, output_size: usize) -> Self {
-        use scirs2_core::random::Rng;
         let mut rng = scirs2_core::random::thread_rng();
 
         // Xavier initialization
@@ -656,6 +682,7 @@ impl<T: FloatBounds> LinearLayer<T> {
         }
     }
 
+    /// Compute the affine transformation `W * input + b`
     pub fn forward(&self, input: &Array2<T>) -> NeuralResult<Array2<T>> {
         let output = input.dot(&self.weights);
         let mut result = output;

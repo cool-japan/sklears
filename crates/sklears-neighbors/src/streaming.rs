@@ -468,6 +468,7 @@ impl IncrementalKNeighborsClassifier<sklears_core::traits::Trained> {
     }
 
     /// Apply the memory strategy when buffer overflows
+    #[allow(dead_code)] // reserved for memory management implementation
     fn apply_memory_strategy(
         &self,
         x_buffer: &mut VecDeque<Array1<Float>>,
@@ -640,6 +641,7 @@ impl IncrementalKNeighborsRegressor<sklears_core::traits::Trained> {
     }
 
     /// Apply the memory strategy when buffer overflows (regression version)
+    #[allow(dead_code)] // reserved for memory management implementation
     fn apply_memory_strategy(
         &self,
         x_buffer: &mut VecDeque<Array1<Float>>,

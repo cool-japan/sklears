@@ -11,7 +11,8 @@
 //!   IEEE Transactions on Knowledge and Data Engineering.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
-use scirs2_core::random::{thread_rng, CoreRandom};
+use scirs2_core::random::{seeded_rng, thread_rng};
+use scirs2_core::random::{Rng, RngExt};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::{Estimator, Fit, Predict, Trained, Untrained};
 use sklears_core::types::Float;
@@ -330,22 +331,37 @@ impl Fit<Array2<Float>, Array1<Float>> for IsolationForest<Untrained> {
             .max_depth
             .unwrap_or_else(|| ((max_samples as Float).log2().ceil() as usize).min(100));
 
-        // TODO: Proper seeded RNG support when scirs2 provides compatible API
-        let mut rng = thread_rng();
-        let _ = self.config.random_state; // Acknowledge parameter for future use
-
-        // Build trees
+        // Use seeded RNG when random_state is set, otherwise use thread_rng.
+        // Both paths delegate to the same generic builder so tree construction
+        // is fully reproducible given the same seed.
         if self.config.extended {
-            // Build Extended Isolation Trees
             let extension_level = self.config.extension_level.unwrap_or(n_features);
+            if let Some(seed) = self.config.random_state {
+                let mut rng = seeded_rng(seed);
+                for _ in 0..self.config.n_estimators {
+                    let indices = sample_indices(n_samples, max_samples, &mut rng)?;
+                    let tree =
+                        build_extended_tree(x, &indices, 0, max_depth, extension_level, &mut rng)?;
+                    self.extended_trees.push(tree);
+                }
+            } else {
+                let mut rng = thread_rng();
+                for _ in 0..self.config.n_estimators {
+                    let indices = sample_indices(n_samples, max_samples, &mut rng)?;
+                    let tree =
+                        build_extended_tree(x, &indices, 0, max_depth, extension_level, &mut rng)?;
+                    self.extended_trees.push(tree);
+                }
+            }
+        } else if let Some(seed) = self.config.random_state {
+            let mut rng = seeded_rng(seed);
             for _ in 0..self.config.n_estimators {
                 let indices = sample_indices(n_samples, max_samples, &mut rng)?;
-                let tree =
-                    build_extended_tree(x, &indices, 0, max_depth, extension_level, &mut rng)?;
-                self.extended_trees.push(tree);
+                let tree = build_isolation_tree(x, &indices, 0, max_depth, &mut rng)?;
+                self.trees.push(tree);
             }
         } else {
-            // Build standard Isolation Trees
+            let mut rng = thread_rng();
             for _ in 0..self.config.n_estimators {
                 let indices = sample_indices(n_samples, max_samples, &mut rng)?;
                 let tree = build_isolation_tree(x, &indices, 0, max_depth, &mut rng)?;
@@ -431,6 +447,16 @@ impl IsolationForest<Trained> {
     pub fn threshold(&self) -> Float {
         self.threshold.unwrap_or(0.5)
     }
+
+    /// Get the number of features the model was trained on (sklearn-compatible `n_features_in_`)
+    pub fn n_features(&self) -> Option<usize> {
+        self.n_features
+    }
+
+    /// Get the score offset applied to the anomaly decision boundary (sklearn-compatible `offset_`)
+    pub fn offset(&self) -> Option<Float> {
+        self.offset
+    }
 }
 
 impl Predict<Array2<Float>, Array1<i32>> for IsolationForest<Trained> {
@@ -451,11 +477,7 @@ impl Predict<Array2<Float>, Array1<i32>> for IsolationForest<Trained> {
 }
 
 /// Sample random indices without replacement
-fn sample_indices(
-    n_samples: usize,
-    n_to_sample: usize,
-    rng: &mut CoreRandom,
-) -> Result<Vec<usize>> {
+fn sample_indices<R: Rng>(n_samples: usize, n_to_sample: usize, rng: &mut R) -> Result<Vec<usize>> {
     use scirs2_core::random::essentials::Uniform;
 
     let mut indices: Vec<usize> = (0..n_samples).collect();
@@ -477,12 +499,12 @@ fn sample_indices(
 }
 
 /// Build a standard Isolation Tree
-fn build_isolation_tree(
+fn build_isolation_tree<R: Rng>(
     x: &Array2<Float>,
     indices: &[usize],
     depth: usize,
     max_depth: usize,
-    rng: &mut CoreRandom,
+    rng: &mut R,
 ) -> Result<IsolationNode> {
     use scirs2_core::random::essentials::Uniform;
 
@@ -561,13 +583,13 @@ fn build_isolation_tree(
 }
 
 /// Build an Extended Isolation Tree using hyperplane splits
-fn build_extended_tree(
+fn build_extended_tree<R: Rng>(
     x: &Array2<Float>,
     indices: &[usize],
     depth: usize,
     max_depth: usize,
     extension_level: usize,
-    rng: &mut CoreRandom,
+    rng: &mut R,
 ) -> Result<ExtendedIsolationNode> {
     use scirs2_core::random::essentials::Uniform;
 
@@ -703,7 +725,7 @@ impl StreamingIsolationForest {
         }
 
         // Rebuild trees periodically
-        if self.samples_seen % self.update_frequency == 0 && self.buffer.len() >= 32 {
+        if self.samples_seen.is_multiple_of(self.update_frequency) && self.buffer.len() >= 32 {
             self.rebuild_trees()?;
         }
 
@@ -744,16 +766,22 @@ impl StreamingIsolationForest {
         let max_samples = n_samples.min(256);
         let max_depth = ((max_samples as Float).log2().ceil() as usize).min(100);
 
-        // TODO: Proper seeded RNG support when scirs2 provides compatible API
-        let mut rng = thread_rng();
-        let _ = self.config.random_state; // Acknowledge parameter for future use
-
-        // Clear and rebuild trees
+        // Use seeded RNG for reproducible streaming forests when random_state is set.
         self.trees.clear();
-        for _ in 0..self.config.n_estimators {
-            let indices = sample_indices(n_samples, max_samples, &mut rng)?;
-            let tree = build_isolation_tree(&x, &indices, 0, max_depth, &mut rng)?;
-            self.trees.push(tree);
+        if let Some(seed) = self.config.random_state {
+            let mut rng = seeded_rng(seed);
+            for _ in 0..self.config.n_estimators {
+                let indices = sample_indices(n_samples, max_samples, &mut rng)?;
+                let tree = build_isolation_tree(&x, &indices, 0, max_depth, &mut rng)?;
+                self.trees.push(tree);
+            }
+        } else {
+            let mut rng = thread_rng();
+            for _ in 0..self.config.n_estimators {
+                let indices = sample_indices(n_samples, max_samples, &mut rng)?;
+                let tree = build_isolation_tree(&x, &indices, 0, max_depth, &mut rng)?;
+                self.trees.push(tree);
+            }
         }
 
         Ok(())
@@ -881,7 +909,7 @@ mod tests {
             .expect("sampling should succeed");
 
         // Outlier should have higher score (after trees are built)
-        if streaming_if.trees.len() > 0 {
+        if !streaming_if.trees.is_empty() {
             assert!(
                 outlier_score > normal_score,
                 "Outlier should have higher score than normal sample"

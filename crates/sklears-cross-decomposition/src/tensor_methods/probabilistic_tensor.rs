@@ -10,9 +10,9 @@
 //! - Robust probabilistic tensor decomposition with outlier handling
 //! - Hierarchical Bayesian models for multi-level tensor analysis
 
-use scirs2_core::ndarray::{Array1, Array2, Array3, Array4, ArrayView3, Axis, Dim, Ix2, Ix3};
+use scirs2_core::ndarray::{Array2, Array3, Ix2, Ix3};
 use scirs2_core::ndarray_ext::random::RandomExt;
-use scirs2_core::random::{thread_rng, RandUniform, Random, Rng};
+use scirs2_core::random::{thread_rng, RandUniform};
 use scirs2_linalg::compat::Inverse;
 use sklears_core::error::SklearsError;
 use sklears_core::types::Float;
@@ -361,7 +361,7 @@ impl BayesianParafac {
         &self,
         tensor: &Array3<Float>,
         factors: &[Array2<Float>],
-        uncertainties: &[Array2<Float>],
+        _uncertainties: &[Array2<Float>],
     ) -> Result<Float, SklearsError> {
         let log_likelihood = self.compute_log_likelihood(tensor, factors)?;
 
@@ -516,14 +516,14 @@ impl ProbabilisticTucker {
         &self,
         tensor: &Array3<Float>,
         factors: &mut [Array2<Float>],
-        core: &Array3<Float>,
+        _core: &Array3<Float>,
         uncertainties: &mut [Array2<Float>],
         mode: usize,
     ) -> Result<(), SklearsError> {
         // Implementation would involve Tucker-specific factor updates
         // This is a simplified placeholder
         let (n1, n2, n3) = tensor.dim();
-        let dims = [n1, n2, n3];
+        let _dims = [n1, n2, n3];
 
         // Placeholder implementation - would need full Tucker algebra
         let factor_size = factors[mode].dim();
@@ -540,8 +540,8 @@ impl ProbabilisticTucker {
     /// Update core tensor
     fn update_core_tensor(
         &self,
-        tensor: &Array3<Float>,
-        factors: &[Array2<Float>],
+        _tensor: &Array3<Float>,
+        _factors: &[Array2<Float>],
         core: &mut Array3<Float>,
     ) -> Result<(), SklearsError> {
         // Placeholder implementation - would need tensor mode products
@@ -559,9 +559,9 @@ impl ProbabilisticTucker {
     /// Compute Tucker likelihood
     fn compute_tucker_likelihood(
         &self,
-        tensor: &Array3<Float>,
-        factors: &[Array2<Float>],
-        core: &Array3<Float>,
+        _tensor: &Array3<Float>,
+        _factors: &[Array2<Float>],
+        _core: &Array3<Float>,
     ) -> Result<Float, SklearsError> {
         // Placeholder - would compute actual Tucker reconstruction error
         Ok(-1.0) // Simplified
@@ -573,7 +573,7 @@ impl ProbabilisticTucker {
         tensor: &Array3<Float>,
         factors: &[Array2<Float>],
         core: &Array3<Float>,
-        uncertainties: &[Array2<Float>],
+        _uncertainties: &[Array2<Float>],
     ) -> Result<Float, SklearsError> {
         let log_likelihood = self.compute_tucker_likelihood(tensor, factors, core)?;
 
@@ -595,8 +595,8 @@ pub struct RobustProbabilisticTensor {
     base_method: String,
     /// Outlier threshold
     outlier_threshold: Float,
-    /// Configuration parameters
-    config: ProbabilisticConfig,
+    /// Configuration parameters for the probabilistic model
+    pub config: ProbabilisticConfig,
 }
 
 impl RobustProbabilisticTensor {
@@ -783,9 +783,11 @@ mod tests {
     #[test]
     fn test_convergence_detection() {
         let tensor = Array3::<Float>::ones((5, 5, 5));
-        let mut config = ProbabilisticConfig::default();
-        config.max_iterations = 10;
-        config.tolerance = 1e-3;
+        let config = ProbabilisticConfig {
+            max_iterations: 10,
+            tolerance: 1e-3,
+            ..Default::default()
+        };
 
         let mut parafac = BayesianParafac::new(2).with_config(config);
         let result = parafac.fit(&tensor).expect("fit should succeed");

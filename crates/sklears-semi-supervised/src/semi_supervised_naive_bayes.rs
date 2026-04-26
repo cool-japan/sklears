@@ -104,6 +104,7 @@ impl SemiSupervisedNaiveBayes<Untrained> {
         log_priors
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_feature_log_likelihoods(
         &self,
         X: &Array2<f64>,
@@ -111,7 +112,6 @@ impl SemiSupervisedNaiveBayes<Untrained> {
         classes: &[i32],
     ) -> HashMap<i32, Array2<f64>> {
         let (n_samples, n_features) = X.dim();
-        let n_classes = classes.len();
         let mut feature_likelihoods = HashMap::new();
 
         for (class_idx, &class) in classes.iter().enumerate() {
@@ -171,6 +171,7 @@ impl SemiSupervisedNaiveBayes<Untrained> {
         feature_likelihoods
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_log_likelihood(
         &self,
         X: &Array2<f64>,
@@ -386,6 +387,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for SemiSupervisedNaiveBaye
 impl Predict<ArrayView2<'_, Float>, Array1<i32>>
     for SemiSupervisedNaiveBayes<SemiSupervisedNaiveBayesTrained>
 {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array1<i32>> {
         let probas = self.predict_proba(X)?;
         let n_test = probas.nrows();
@@ -427,6 +429,7 @@ impl PredictProba<ArrayView2<'_, Float>, Array2<f64>>
 }
 
 impl SemiSupervisedNaiveBayes<SemiSupervisedNaiveBayesTrained> {
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_log_likelihood(
         &self,
         X: &Array2<f64>,
@@ -499,6 +502,7 @@ impl SemiSupervisedNaiveBayes<SemiSupervisedNaiveBayesTrained> {
 
 /// Trained state for SemiSupervisedNaiveBayes
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct SemiSupervisedNaiveBayesTrained {
     /// X_train
     pub X_train: Array2<f64>,

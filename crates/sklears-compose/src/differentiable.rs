@@ -5,10 +5,11 @@
 //! controllers for adaptive and learnable data processing workflows.
 
 use scirs2_core::ndarray::{Array2, Axis};
-use sklears_core::{
-    error::Result as SklResult, prelude::SklearsError, traits::Estimator, types::Float,
-};
+use sklears_core::{error::Result as SklResult, prelude::SklearsError, types::Float};
 use std::collections::HashMap;
+
+/// Gradient function type: computes input gradients from output gradient and inputs
+type GradientFn = fn(&Array2<Float>, &[Array2<Float>]) -> Vec<Array2<Float>>;
 
 /// Differentiable computation graph node
 #[derive(Debug, Clone)]
@@ -43,38 +44,67 @@ pub enum DifferentiableOperation {
     /// Element-wise division
     Div,
     /// Activation functions
-    Activation { function: ActivationFunction },
+    Activation {
+        /// Field value.
+        function: ActivationFunction,
+    },
     /// Loss functions
-    Loss { function: LossFunction },
+    Loss {
+        /// Field value.
+        function: LossFunction,
+    },
     /// Normalization
-    Normalization { method: NormalizationMethod },
+    Normalization {
+        /// Field value.
+        method: NormalizationMethod,
+    },
     /// Convolution
     Convolution {
+        /// Field value.
         kernel_size: usize,
+        /// Field value.
         stride: usize,
+        /// Field value.
         padding: usize,
     },
     /// Pooling
     Pooling {
+        /// Field value.
         pool_type: PoolingType,
+        /// Field value.
         kernel_size: usize,
+        /// Field value.
         stride: usize,
     },
     /// Dropout
-    Dropout { rate: f64 },
+    Dropout {
+        /// Field value.
+        rate: f64,
+    },
     /// Reshape
-    Reshape { shape: Vec<usize> },
+    Reshape {
+        /// Field value.
+        shape: Vec<usize>,
+    },
     /// Concatenation
-    Concatenate { axis: usize },
+    Concatenate {
+        /// Field value.
+        axis: usize,
+    },
     /// Slice
     Slice {
+        /// Field value.
         start: usize,
+        /// Field value.
         end: usize,
+        /// Field value.
         axis: usize,
     },
     /// Custom operation
     Custom {
+        /// Field value.
         name: String,
+        /// Field value.
         forward: fn(&[Array2<Float>]) -> Array2<Float>,
     },
 }
@@ -91,9 +121,15 @@ pub enum ActivationFunction {
     /// Softmax
     Softmax,
     /// LeakyReLU
-    LeakyReLU { alpha: f64 },
+    LeakyReLU {
+        /// Field value.
+        alpha: f64,
+    },
     /// ELU
-    ELU { alpha: f64 },
+    ELU {
+        /// Field value.
+        alpha: f64,
+    },
     /// Swish
     Swish,
     /// GELU
@@ -112,7 +148,10 @@ pub enum LossFunction {
     /// BinaryCrossEntropy
     BinaryCrossEntropy,
     /// Huber
-    Huber { delta: f64 },
+    Huber {
+        /// Field value.
+        delta: f64,
+    },
     /// Hinge
     Hinge,
     /// KLDivergence
@@ -127,13 +166,29 @@ pub enum LossFunction {
 #[derive(Debug, Clone)]
 pub enum NormalizationMethod {
     /// BatchNorm
-    BatchNorm { momentum: f64, epsilon: f64 },
+    BatchNorm {
+        /// Field value.
+        momentum: f64,
+        /// Field value.
+        epsilon: f64,
+    },
     /// LayerNorm
-    LayerNorm { epsilon: f64 },
+    LayerNorm {
+        /// Field value.
+        epsilon: f64,
+    },
     /// GroupNorm
-    GroupNorm { num_groups: usize, epsilon: f64 },
+    GroupNorm {
+        /// Field value.
+        num_groups: usize,
+        /// Field value.
+        epsilon: f64,
+    },
     /// InstanceNorm
-    InstanceNorm { epsilon: f64 },
+    InstanceNorm {
+        /// Field value.
+        epsilon: f64,
+    },
     /// StandardScaler
     StandardScaler,
     /// MinMaxScaler
@@ -154,6 +209,7 @@ pub enum PoolingType {
 }
 
 /// Differentiable computation graph
+#[allow(dead_code)]
 pub struct ComputationGraph {
     /// Graph nodes
     nodes: HashMap<String, ComputationNode>,
@@ -187,6 +243,7 @@ pub struct GraphMetadata {
 }
 
 /// Gradient computation context
+#[allow(dead_code)]
 pub struct GradientContext {
     /// Computation graph
     graph: ComputationGraph,
@@ -212,6 +269,7 @@ pub struct GradientRecord {
 }
 
 /// Differentiable pipeline component
+#[allow(dead_code)]
 pub struct DifferentiablePipeline {
     /// Pipeline stages
     stages: Vec<DifferentiableStage>,
@@ -277,9 +335,19 @@ pub enum InitializationMethod {
     /// Zero
     Zero,
     /// Uniform
-    Uniform { min: f64, max: f64 },
+    Uniform {
+        /// Field value.
+        min: f64,
+        /// Field value.
+        max: f64,
+    },
     /// Normal
-    Normal { mean: f64, std: f64 },
+    Normal {
+        /// Field value.
+        mean: f64,
+        /// Field value.
+        std: f64,
+    },
     /// Xavier
     Xavier,
     /// He
@@ -287,7 +355,10 @@ pub enum InitializationMethod {
     /// Orthogonal
     Orthogonal,
     /// Custom
-    Custom { method: String },
+    Custom {
+        /// Field value.
+        method: String,
+    },
 }
 
 /// Optimization configuration
@@ -318,20 +389,42 @@ pub enum OptimizerType {
     SGD,
     /// Adam
     Adam {
+        /// Field value.
         beta1: f64,
+        /// Field value.
         beta2: f64,
+        /// Field value.
         epsilon: f64,
     },
     /// RMSprop
-    RMSprop { alpha: f64, epsilon: f64 },
+    RMSprop {
+        /// Field value.
+        alpha: f64,
+        /// Field value.
+        epsilon: f64,
+    },
     /// AdaGrad
-    AdaGrad { epsilon: f64 },
+    AdaGrad {
+        /// Field value.
+        epsilon: f64,
+    },
     /// AdaDelta
-    AdaDelta { rho: f64, epsilon: f64 },
+    AdaDelta {
+        /// Field value.
+        rho: f64,
+        /// Field value.
+        epsilon: f64,
+    },
     /// LBfgs
-    LBfgs { history_size: usize },
+    LBfgs {
+        /// Field value.
+        history_size: usize,
+    },
     /// Custom
-    Custom { name: String },
+    Custom {
+        /// Field value.
+        name: String,
+    },
 }
 
 /// Gradient clipping configuration
@@ -386,19 +479,46 @@ pub enum ScheduleType {
     /// Constant
     Constant,
     /// Linear
-    Linear { final_lr: f64 },
+    Linear {
+        /// Field value.
+        final_lr: f64,
+    },
     /// Exponential
-    Exponential { decay_rate: f64 },
+    Exponential {
+        /// Field value.
+        decay_rate: f64,
+    },
     /// StepLR
-    StepLR { step_size: usize, gamma: f64 },
+    StepLR {
+        /// Field value.
+        step_size: usize,
+        /// Field value.
+        gamma: f64,
+    },
     /// CosineAnnealing
-    CosineAnnealing { t_max: usize },
+    CosineAnnealing {
+        /// Field value.
+        t_max: usize,
+    },
     /// ReduceOnPlateau
-    ReduceOnPlateau { factor: f64, patience: usize },
+    ReduceOnPlateau {
+        /// Field value.
+        factor: f64,
+        /// Field value.
+        patience: usize,
+    },
     /// Polynomial
-    Polynomial { power: f64, final_lr: f64 },
+    Polynomial {
+        /// Field value.
+        power: f64,
+        /// Field value.
+        final_lr: f64,
+    },
     /// Custom
-    Custom { name: String },
+    Custom {
+        /// Field value.
+        name: String,
+    },
 }
 
 /// Gradient accumulation configuration
@@ -516,6 +636,7 @@ pub struct BatchProcessingConfig {
 }
 
 /// Neural pipeline controller
+#[allow(dead_code)]
 pub struct NeuralPipelineController {
     /// Controller network
     controller_network: DifferentiablePipeline,
@@ -551,18 +672,30 @@ pub trait PipelineComponent: Send + Sync {
 #[derive(Debug, Clone)]
 pub enum ControlStrategy {
     /// Reinforcement
-    Reinforcement { reward_function: RewardFunction },
+    Reinforcement {
+        /// Field value.
+        reward_function: RewardFunction,
+    },
     /// Supervised
-    Supervised { target_performance: f64 },
+    Supervised {
+        /// Field value.
+        target_performance: f64,
+    },
     /// MetaLearning
-    MetaLearning { adaptation_steps: usize },
+    MetaLearning {
+        /// Field value.
+        adaptation_steps: usize,
+    },
     /// Evolutionary
     Evolutionary {
+        /// Field value.
         population_size: usize,
+        /// Field value.
         mutation_rate: f64,
     },
     /// Bayesian
     Bayesian {
+        /// Field value.
         prior_distribution: PriorDistribution,
     },
 }
@@ -571,29 +704,60 @@ pub enum ControlStrategy {
 #[derive(Debug, Clone)]
 pub enum RewardFunction {
     /// Performance
-    Performance { metric: String },
+    Performance {
+        /// Field value.
+        metric: String,
+    },
     /// Efficiency
     Efficiency {
+        /// Field value.
         latency_weight: f64,
+        /// Field value.
         accuracy_weight: f64,
     },
     /// ResourceUsage
-    ResourceUsage { cpu_weight: f64, memory_weight: f64 },
+    ResourceUsage {
+        /// Field value.
+        cpu_weight: f64,
+        /// Field value.
+        memory_weight: f64,
+    },
     /// Custom
-    Custom { function: String },
+    Custom {
+        /// Field value.
+        function: String,
+    },
 }
 
 /// Prior distribution for Bayesian optimization
 #[derive(Debug, Clone)]
 pub enum PriorDistribution {
     /// Normal
-    Normal { mean: f64, std: f64 },
+    Normal {
+        /// Field value.
+        mean: f64,
+        /// Field value.
+        std: f64,
+    },
     /// Uniform
-    Uniform { min: f64, max: f64 },
+    Uniform {
+        /// Field value.
+        min: f64,
+        /// Field value.
+        max: f64,
+    },
     /// Beta
-    Beta { alpha: f64, beta: f64 },
+    Beta {
+        /// Field value.
+        alpha: f64,
+        /// Field value.
+        beta: f64,
+    },
     /// Custom
-    Custom { distribution: String },
+    Custom {
+        /// Field value.
+        distribution: String,
+    },
 }
 
 /// Adaptation record
@@ -617,11 +781,20 @@ pub struct AdaptationRecord {
 #[derive(Debug, Clone)]
 pub enum AdaptationTrigger {
     /// PerformanceDrop
-    PerformanceDrop { threshold: f64 },
+    PerformanceDrop {
+        /// Field value.
+        threshold: f64,
+    },
     /// DataDrift
-    DataDrift { magnitude: f64 },
+    DataDrift {
+        /// Field value.
+        magnitude: f64,
+    },
     /// ResourceConstraint
-    ResourceConstraint { constraint: String },
+    ResourceConstraint {
+        /// Field value.
+        constraint: String,
+    },
     /// ScheduledUpdate
     ScheduledUpdate,
     /// Manual
@@ -644,6 +817,7 @@ pub struct ControllerMetrics {
 }
 
 /// Automatic differentiation engine
+#[allow(dead_code)]
 pub struct AutoDiffEngine {
     /// Computation graph
     graph: ComputationGraph,
@@ -658,6 +832,7 @@ pub struct AutoDiffEngine {
 }
 
 /// Forward mode automatic differentiation
+#[allow(dead_code)]
 pub struct ForwardModeAD {
     /// Dual numbers
     dual_numbers: HashMap<String, DualNumber>,
@@ -666,6 +841,7 @@ pub struct ForwardModeAD {
 }
 
 /// Reverse mode automatic differentiation
+#[allow(dead_code)]
 pub struct ReverseModeAD {
     /// Adjoint variables
     adjoint_variables: HashMap<String, Array2<Float>>,
@@ -674,6 +850,7 @@ pub struct ReverseModeAD {
 }
 
 /// Mixed mode automatic differentiation
+#[allow(dead_code)]
 pub struct MixedModeAD {
     /// Forward pass nodes
     forward_nodes: Vec<String>,
@@ -704,23 +881,27 @@ pub struct TapeEntry {
     /// Output value
     pub output_value: Array2<Float>,
     /// Gradient function
-    pub gradient_function: fn(&Array2<Float>, &[Array2<Float>]) -> Vec<Array2<Float>>,
+    pub gradient_function: GradientFn,
 }
 
 /// Checkpointing strategy
 #[derive(Debug, Clone)]
 pub enum CheckpointingStrategy {
+    /// Variant value.
     None,
     /// Uniform
     Uniform {
+        /// Field value.
         interval: usize,
     },
     /// Adaptive
     Adaptive {
+        /// Field value.
         memory_threshold: usize,
     },
     /// Custom
     Custom {
+        /// Field value.
         strategy: String,
     },
 }
@@ -734,8 +915,10 @@ pub struct AutoDiffConfig {
     pub precision: f64,
     /// Memory optimization
     pub memory_optimization: MemoryOptimization,
+    /// Variant value.
     /// Parallel computation
     pub parallel: bool,
+    /// The checkpointing.
     /// Checkpointing
     pub checkpointing: CheckpointingStrategy,
 }
@@ -756,17 +939,21 @@ pub enum DifferentiationMode {
 /// Memory optimization strategies
 #[derive(Debug, Clone)]
 pub enum MemoryOptimization {
+    /// Variant value.
     None,
     /// Gradient
     Gradient {
+        /// Field value.
         release_intermediate: bool,
     },
     /// Checkpointing
     Checkpointing {
+        /// Field value.
         max_checkpoints: usize,
     },
     /// Streaming
     Streaming {
+        /// Field value.
         chunk_size: usize,
     },
 }
@@ -974,7 +1161,7 @@ impl ComputationGraph {
     }
 
     /// Backpropagate gradients through a node
-    fn backpropagate_node(&mut self, node_id: &str) -> SklResult<()> {
+    fn backpropagate_node(&mut self, _node_id: &str) -> SklResult<()> {
         // This is a simplified version - full implementation would compute gradients
         // based on the specific operation and chain rule
         Ok(())
@@ -1148,7 +1335,7 @@ impl DifferentiablePipeline {
         match &self.optimization_config.optimizer {
             OptimizerType::SGD => {
                 for stage in &mut self.stages {
-                    for (param_name, param) in &mut stage.parameters {
+                    for param in stage.parameters.values_mut() {
                         let lr = self.lr_schedule.current_lr;
                         param.values = &param.values - &(lr * &param.gradients);
                     }
@@ -1160,7 +1347,7 @@ impl DifferentiablePipeline {
                 epsilon,
             } => {
                 for stage in &mut self.stages {
-                    for (param_name, param) in &mut stage.parameters {
+                    for param in stage.parameters.values_mut() {
                         // Adam optimizer update
                         let lr = self.lr_schedule.current_lr;
                         let step = self.training_state.step as f64 + 1.0;
@@ -1219,7 +1406,9 @@ impl DifferentiablePipeline {
                     self.lr_schedule.initial_lr * decay_rate.powf(self.training_state.epoch as f64);
             }
             ScheduleType::StepLR { step_size, gamma } => {
-                if self.training_state.epoch % step_size == 0 && self.training_state.epoch > 0 {
+                if self.training_state.epoch.is_multiple_of(*step_size)
+                    && self.training_state.epoch > 0
+                {
                     self.lr_schedule.current_lr *= gamma;
                 }
             }

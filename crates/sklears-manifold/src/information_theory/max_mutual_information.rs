@@ -36,7 +36,9 @@ pub struct MaxMutualInformation<S = Untrained> {
 #[derive(Debug, Clone)]
 pub struct MMITrained {
     embedding: Array2<f64>,
+    #[allow(dead_code)] // deferred: exposed in future introspection API
     mutual_information: f64,
+    #[allow(dead_code)] // deferred: used in future out-of-sample extension
     bandwidth: f64,
 }
 
@@ -195,7 +197,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MaxMutualInformation<Untrained> {
 }
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for MaxMutualInformation<MMITrained> {
-    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
+    fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         // For fitted data, return the stored embedding
         // For new data, this would require out-of-sample extension
         Ok(self.state.embedding.clone())

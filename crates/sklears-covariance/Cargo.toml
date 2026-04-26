@@ -25,6 +25,7 @@ scirs2-linalg = { workspace = true }  # For linear algebra operations
 # ❌ ndarray-linalg - use scirs2-linalg instead (SciRS2 Policy)
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
+oxiarc-deflate = { workspace = true }
 rayon = { workspace = true }
 lazy_static = { workspace = true }
 

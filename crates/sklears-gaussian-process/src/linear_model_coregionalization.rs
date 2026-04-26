@@ -23,8 +23,8 @@
 //!     .kernels(kernels)
 //!     .n_outputs(2)
 //!     .alpha(1e-6);
-//! let fitted = lmc.fit(&X.view(), &Y.view()).unwrap();
-//! let predictions = fitted.predict(&X.view()).unwrap();
+//! let fitted = lmc.fit(&X.view(), &Y.view()).expect("fit should succeed with valid training data");
+//! let predictions = fitted.predict(&X.view()).expect("predict should succeed on trained model");
 //! ```
 
 use crate::classification::GpcConfig;
@@ -57,14 +57,18 @@ pub struct LinearModelCoregionalization<S = Untrained> {
 
 /// Trained state for Linear Model of Coregionalization
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct LmcTrained {
     pub(crate) X_train: Array2<f64>,
+    #[allow(dead_code)]
     pub(crate) Y_train: Array2<f64>,
     pub(crate) kernels: Vec<Box<dyn Kernel>>,
     pub(crate) mixing_matrices: Vec<Array2<f64>>,
+    #[allow(dead_code)]
     pub(crate) alpha: f64,
     pub(crate) n_outputs: usize,
     pub(crate) n_latent: usize,
+    #[allow(dead_code)]
     pub(crate) gram_matrices: Vec<Array2<f64>>, // Gram matrices for each kernel
     pub(crate) alpha_vectors: Vec<Array1<f64>>, // Alpha vectors for each latent function
     pub(crate) log_marginal_likelihood_value: f64,
@@ -76,6 +80,7 @@ impl Default for LinearModelCoregionalization<Untrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl LinearModelCoregionalization<Untrained> {
     /// Create a new Linear Model of Coregionalization instance
     pub fn new() -> Self {
@@ -203,6 +208,7 @@ impl LinearModelCoregionalization<Untrained> {
     }
 
     /// Devectorize predictions back to matrix form
+    #[allow(dead_code)]
     fn devectorize_predictions(&self, y_vec: &Array1<f64>, n_samples: usize) -> Array2<f64> {
         let mut Y = Array2::<f64>::zeros((n_samples, self.n_outputs));
 
@@ -345,6 +351,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView2<'_, f64>> for LinearModelCoregionalizat
     }
 }
 
+#[allow(non_snake_case)]
 impl LinearModelCoregionalization<LmcTrained> {
     /// Access the trained state
     pub fn trained_state(&self) -> &LmcTrained {

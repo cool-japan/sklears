@@ -31,7 +31,7 @@
 //!     None,
 //!     &config,
 //!     FeatureImportanceType::Bar
-//! ).unwrap();
+//! ).expect("feature importance plot creation should succeed with valid inputs");
 //!
 //! // SHAP plot
 //! let shap_values = array![[0.1, 0.2, -0.1], [0.3, -0.1, 0.2]];
@@ -44,7 +44,7 @@
 //!     None,
 //!     &config,
 //!     ShapPlotType::Summary,
-//! ).unwrap();
+//! ).expect("SHAP visualization creation should succeed with valid inputs");
 //! ```
 
 use crate::{Float, SklResult};
@@ -100,7 +100,7 @@ use super::config_types::{
 ///     None,
 ///     &config,
 ///     FeatureImportanceType::Bar
-/// ).unwrap();
+/// ).expect("feature importance plot creation should succeed with valid inputs");
 ///
 /// assert_eq!(plot.feature_names.len(), 3);
 /// assert_eq!(plot.importance_values.len(), 3);
@@ -301,7 +301,7 @@ pub fn create_ranked_feature_importance_plot(
 ///     None,
 ///     &config,
 ///     ShapPlotType::Summary,
-/// ).unwrap();
+/// ).expect("SHAP visualization creation should succeed with valid inputs");
 ///
 /// assert_eq!(plot.shap_values.shape(), &[2, 3]);
 /// assert_eq!(plot.feature_names.len(), 3);
@@ -485,7 +485,7 @@ pub fn create_shap_summary_plot(
 ///     "feature_1",
 ///     &config,
 ///     false,
-/// ).unwrap();
+/// ).expect("partial dependence plot creation should succeed with valid inputs");
 ///
 /// assert_eq!(plot.feature_name, "feature_1");
 /// assert_eq!(plot.feature_values.len(), 6);
@@ -655,7 +655,7 @@ pub fn create_2d_partial_dependence_plot(
 ///     labels,
 ///     &config,
 ///     ComparisonType::SideBySide
-/// ).unwrap();
+/// ).expect("comparative plot creation should succeed with valid inputs");
 ///
 /// assert_eq!(plot.model_data.len(), 2);
 /// assert_eq!(plot.labels.len(), 2);

@@ -8,7 +8,7 @@ use sklears_core::traits::{Estimator, Fit, Predict};
 
 use super::bayesian_gmm::BayesianGaussianMixture;
 use super::classical_gmm::{GaussianMixture, PredictProba};
-use super::em_algorithm::{EMAlgorithm, EMResult};
+use super::em_algorithm::EMAlgorithm;
 use super::model_selection::{
     calculate_aic_simd, calculate_bic_simd, select_model, GridSearch, GridSearchParams,
     ModelSelector,
@@ -49,13 +49,13 @@ mod test_data {
         array![[1.0, 2.0]]
     }
 
+    #[allow(dead_code)]
     pub fn collinear_data() -> Array2<f64> {
         array![[1.0, 2.0], [2.0, 4.0], [3.0, 6.0], [4.0, 8.0]]
     }
 }
 
 /// Classical GMM tests
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod classical_gmm_tests {
     use super::*;
@@ -237,7 +237,6 @@ mod classical_gmm_tests {
 }
 
 /// Bayesian GMM tests
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod bayesian_gmm_tests {
     use super::*;
@@ -369,7 +368,6 @@ mod bayesian_gmm_tests {
 }
 
 /// SIMD operations tests
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod simd_tests {
     use super::*;
@@ -445,7 +443,6 @@ mod simd_tests {
 }
 
 /// Model selection tests
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod model_selection_tests {
     use super::*;
@@ -513,12 +510,11 @@ mod model_selection_tests {
 
         assert!(result.best_score.is_finite());
         assert!(!result.cv_results.is_empty());
-        assert_eq!(result.cv_results.len(), 1 * 2 * 2 * 2); // 8 combinations
+        assert_eq!(result.cv_results.len(), 8); // 1 × 2 × 2 × 2 combinations
     }
 }
 
 /// EM algorithm tests
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod em_algorithm_tests {
     use super::*;
@@ -603,7 +599,6 @@ mod em_algorithm_tests {
 }
 
 /// Integration tests
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod integration_tests {
     use super::*;
@@ -724,7 +719,6 @@ mod integration_tests {
 }
 
 /// Edge case tests
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod edge_case_tests {
     use super::*;
@@ -818,7 +812,6 @@ mod edge_case_tests {
 }
 
 /// Performance and benchmarking tests
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod performance_tests {
     use super::*;

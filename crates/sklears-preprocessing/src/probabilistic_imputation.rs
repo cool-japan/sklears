@@ -63,9 +63,11 @@ struct PosteriorParams {
     mean: f64,
     /// Posterior standard deviation
     std: f64,
-    /// Posterior variance shape
+    /// Posterior variance shape; retained for future Gamma-distributed variance sampling
+    #[allow(dead_code)]
     variance_shape: f64,
-    /// Posterior variance rate
+    /// Posterior variance rate; retained for future Gamma-distributed variance sampling
+    #[allow(dead_code)]
     variance_rate: f64,
 }
 
@@ -89,6 +91,7 @@ impl Estimator for BayesianImputer {
 impl Fit<Array2<f64>, ()> for BayesianImputer {
     type Fitted = BayesianImputerFitted;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &Array2<f64>, _y: &()) -> Result<Self::Fitted> {
         let n_features = X.ncols();
         let mut posterior_params = Vec::with_capacity(n_features);
@@ -157,6 +160,7 @@ impl Fit<Array2<f64>, ()> for BayesianImputer {
 }
 
 impl Transform<Array2<f64>, Array2<f64>> for BayesianImputerFitted {
+    #[allow(non_snake_case)] // standard ML notation
     fn transform(&self, X: &Array2<f64>) -> Result<Array2<f64>> {
         let mut result = X.clone();
         let mut rng = seeded_rng(self.config.random_state);
@@ -213,6 +217,8 @@ pub struct EMImputer {
 
 /// Fitted EM imputer
 pub struct EMImputerFitted {
+    /// Config retained for future `.get_params()` introspection API
+    #[allow(dead_code)]
     config: EMImputerConfig,
     /// Estimated mean vector
     mean: Array1<f64>,
@@ -240,6 +246,7 @@ impl Estimator for EMImputer {
 impl Fit<Array2<f64>, ()> for EMImputer {
     type Fitted = EMImputerFitted;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &Array2<f64>, _y: &()) -> Result<Self::Fitted> {
         let n_features = X.ncols();
 
@@ -303,6 +310,7 @@ impl Fit<Array2<f64>, ()> for EMImputer {
 }
 
 impl Transform<Array2<f64>, Array2<f64>> for EMImputerFitted {
+    #[allow(non_snake_case)] // standard ML notation
     fn transform(&self, X: &Array2<f64>) -> Result<Array2<f64>> {
         let mut result = X.clone();
 
@@ -433,6 +441,7 @@ impl Estimator for GaussianProcessImputer {
 impl Fit<Array2<f64>, ()> for GaussianProcessImputer {
     type Fitted = GaussianProcessImputerFitted;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &Array2<f64>, _y: &()) -> Result<Self::Fitted> {
         let n_features = X.ncols();
         let mut training_data = Vec::with_capacity(n_features);
@@ -490,6 +499,7 @@ impl Fit<Array2<f64>, ()> for GaussianProcessImputer {
 }
 
 impl Transform<Array2<f64>, Array2<f64>> for GaussianProcessImputerFitted {
+    #[allow(non_snake_case)] // standard ML notation
     fn transform(&self, X: &Array2<f64>) -> Result<Array2<f64>> {
         let mut result = X.clone();
 
@@ -602,6 +612,7 @@ impl Estimator for MonteCarloImputer {
 impl Fit<Array2<f64>, ()> for MonteCarloImputer {
     type Fitted = MonteCarloImputerFitted;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &Array2<f64>, _y: &()) -> Result<Self::Fitted> {
         let n_features = X.ncols();
         let mut column_stats = Vec::with_capacity(n_features);
@@ -635,6 +646,7 @@ impl Fit<Array2<f64>, ()> for MonteCarloImputer {
 }
 
 impl Transform<Array2<f64>, Array2<f64>> for MonteCarloImputerFitted {
+    #[allow(non_snake_case)] // standard ML notation
     fn transform(&self, X: &Array2<f64>) -> Result<Array2<f64>> {
         let mut rng = seeded_rng(self.config.random_state);
         let mut result = X.clone();
@@ -683,6 +695,7 @@ impl Transform<Array2<f64>, Array2<f64>> for MonteCarloImputerFitted {
 // ================================================================================================
 
 /// Compute pseudo-inverse of a matrix using SVD (simplified)
+#[allow(non_snake_case)] // standard ML notation: A is a matrix variable
 fn pseudo_inverse(A: &Array2<f64>) -> Result<Array2<f64>> {
     let n = A.nrows();
     if n != A.ncols() {
@@ -749,6 +762,7 @@ mod tests {
     use scirs2_core::ndarray::array;
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_bayesian_imputer() {
         let X = array![[1.0, 2.0], [3.0, f64::NAN], [5.0, 6.0]];
 
@@ -763,6 +777,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_em_imputer() {
         let X = array![[1.0, 2.0], [3.0, f64::NAN], [5.0, 6.0], [7.0, 8.0]];
 
@@ -781,6 +796,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_gp_imputer() {
         let X = array![[1.0, 2.0], [3.0, f64::NAN], [5.0, 6.0], [7.0, 8.0]];
 
@@ -795,6 +811,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_monte_carlo_imputer() {
         let X = array![[1.0, 2.0], [3.0, f64::NAN], [5.0, 6.0], [7.0, 8.0]];
 
@@ -818,6 +835,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_bayesian_imputer_all_missing() {
         let X = array![[f64::NAN, 2.0], [f64::NAN, 4.0], [f64::NAN, 6.0]];
 
@@ -833,6 +851,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_em_convergence() {
         let X = array![
             [1.0, 2.0, 3.0],
@@ -857,6 +876,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_pseudo_inverse() {
         let A = array![[2.0, 1.0], [1.0, 2.0]];
         let inv = pseudo_inverse(&A).expect("operation should succeed");

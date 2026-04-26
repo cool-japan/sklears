@@ -73,9 +73,9 @@ impl BudgetUsage {
                 max_bytes,
                 max_operations,
             } => {
-                let time_ok = max_seconds.map_or(true, |max| self.time_used <= max);
-                let memory_ok = max_bytes.map_or(true, |max| self.memory_used <= max);
-                let ops_ok = max_operations.map_or(true, |max| self.operations_used <= max);
+                let time_ok = max_seconds.is_none_or(|max| self.time_used <= max);
+                let memory_ok = max_bytes.is_none_or(|max| self.memory_used <= max);
+                let ops_ok = max_operations.is_none_or(|max| self.operations_used <= max);
                 time_ok && memory_ok && ops_ok
             }
         }

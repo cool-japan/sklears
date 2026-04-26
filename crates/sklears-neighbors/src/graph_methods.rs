@@ -623,7 +623,7 @@ mod tests {
             .expect("operation should succeed");
 
         assert_eq!(graph.nodes, 5);
-        assert!(graph.edges.len() > 0);
+        assert!(!graph.edges.is_empty());
 
         // Each node should have at most 2 outgoing edges
         for i in 0..graph.nodes {
@@ -704,7 +704,7 @@ mod tests {
 
         // Test finding neighbors
         let neighbors = search.find_neighbors(0);
-        assert!(neighbors.len() > 0);
+        assert!(!neighbors.is_empty());
 
         // Test shortest path
         let path = search.shortest_path(0, 4);
@@ -712,7 +712,7 @@ mod tests {
 
         // Test connected components
         let components = search.connected_components();
-        assert!(components.len() > 0);
+        assert!(!components.is_empty());
     }
 
     #[test]

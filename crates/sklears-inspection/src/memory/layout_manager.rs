@@ -187,9 +187,9 @@ impl MemoryLayoutManager {
             if std::mem::size_of::<Float>() == 8 && is_x86_feature_detected!("avx2") {
                 // Process 4 f64 values at a time with AVX2
                 let chunks = len / 4;
-                let a_ptr = a as *const f64;
-                let b_ptr = b as *const f64;
-                let result_ptr = result as *mut f64;
+                let a_ptr = a;
+                let b_ptr = b;
+                let result_ptr = result;
 
                 for i in 0..chunks {
                     let a_vec = _mm256_loadu_pd(a_ptr.add(i * 4));
@@ -255,8 +255,8 @@ impl MemoryLayoutManager {
             if std::mem::size_of::<Float>() == 8 && is_x86_feature_detected!("avx2") {
                 // Process 4 f64 values at a time with AVX2
                 let chunks = len / 4;
-                let a_ptr = a as *const f64;
-                let b_ptr = b as *const f64;
+                let a_ptr = a;
+                let b_ptr = b;
 
                 let mut sum_vec = _mm256_setzero_pd();
 
@@ -401,8 +401,8 @@ mod tests {
         let manager = MemoryLayoutManager::new(layout);
 
         // Test with properly aligned memory
-        let mut vec_a = vec![1.0, 2.0, 3.0, 4.0];
-        let mut vec_b = vec![5.0, 6.0, 7.0, 8.0];
+        let vec_a = [1.0, 2.0, 3.0, 4.0];
+        let vec_b = [5.0, 6.0, 7.0, 8.0];
         let mut result = vec![0.0; 4];
 
         unsafe {

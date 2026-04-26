@@ -257,6 +257,7 @@ impl InteriorPointIsotonicRegressor {
     }
 
     /// Solve the Newton system using LU decomposition
+    #[allow(dead_code)] // intentionally deferred: Newton system solver not yet integrated
     fn solve_newton_system(
         &self,
         hessian: &Array2<Float>,
@@ -294,6 +295,7 @@ impl InteriorPointIsotonicRegressor {
     }
 
     /// Line search to maintain feasibility
+    #[allow(dead_code)] // intentionally deferred: line search not yet integrated
     fn line_search(&self, x: &Array1<Float>, delta: &Array1<Float>) -> Result<Float> {
         let mut step_size = 1.0;
         let backtrack_factor = 0.5;
@@ -313,6 +315,7 @@ impl InteriorPointIsotonicRegressor {
     }
 
     /// Check if a point is feasible
+    #[allow(dead_code)] // intentionally deferred: feasibility check not yet integrated
     fn is_feasible(&self, x: &Array1<Float>) -> bool {
         let n = x.len();
 
@@ -402,7 +405,7 @@ mod tests {
             .convergence(1e-10, 1000)
             .barrier_parameters(0.5, 0.2, 1e-15);
 
-        assert_eq!(regressor.increasing, false);
+        assert!(!regressor.increasing);
         assert!((regressor.tolerance - 1e-10).abs() < 1e-15);
         assert!((regressor.barrier_parameter - 0.5).abs() < 1e-10);
         assert!((regressor.barrier_reduction_factor - 0.2).abs() < 1e-10);

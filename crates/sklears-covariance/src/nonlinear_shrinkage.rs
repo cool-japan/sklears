@@ -5,7 +5,7 @@
 //! providing more sophisticated shrinkage than constant linear shrinkage.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
-use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
@@ -347,7 +347,7 @@ fn optimal_shrinkage_function(lambda: f64, c: f64) -> f64 {
     let gamma = (lambda_plus - lambda) * (lambda - lambda_minus);
     let shrinkage = 1.0 - c * gamma / (2.0 * PI * lambda.powi(2));
 
-    shrinkage.max(0.1).min(1.0) // Ensure reasonable bounds
+    shrinkage.clamp(0.1, 1.0) // Ensure reasonable bounds
 }
 
 #[allow(non_snake_case)]

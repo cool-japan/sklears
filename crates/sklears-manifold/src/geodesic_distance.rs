@@ -359,8 +359,8 @@ pub fn landmark_geodesic(
     }
 
     // Select landmark points (random sampling for simplicity)
+    use scirs2_core::random::seq::SliceRandom;
     use scirs2_core::random::SeedableRng;
-    use scirs2_core::SliceRandomExt;
     let mut rng = if let Some(s) = seed {
         StdRng::seed_from_u64(s)
     } else {
@@ -370,7 +370,6 @@ pub fn landmark_geodesic(
     let mut landmarks = Vec::new();
     let mut available: Vec<usize> = (0..n).collect();
 
-    use scirs2_core::random::seq::SliceRandom;
     available.shuffle(&mut rng);
     landmarks.extend(available.iter().take(n_landmarks));
     landmarks.sort();
@@ -414,7 +413,7 @@ pub fn landmark_geodesic(
 pub fn fast_marching_geodesic(
     data: &ArrayView2<Float>,
     source: usize,
-    grid_resolution: usize,
+    _grid_resolution: usize,
 ) -> Result<Array1<Float>, String> {
     let n = data.nrows();
     if source >= n {

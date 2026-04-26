@@ -94,15 +94,15 @@ impl VotingClassifier<Untrained> {
     pub fn optimize_ensemble_size(
         &self,
         x: &Array2<Float>,
-        y: &Array1<Float>,
+        _y: &Array1<Float>,
     ) -> Result<EnsembleSizeRecommendations> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
 
         // Simple heuristics for ensemble size recommendations
         let min_size = if n_features > 100 { 5 } else { 3 };
-        let max_size = (n_samples / 10).min(50).max(10);
-        let sweet_spot = (n_features / 5).max(5).min(20);
+        let max_size = (n_samples / 10).clamp(10, 50);
+        let sweet_spot = (n_features / 5).clamp(5, 20);
         let diminishing_returns_threshold = sweet_spot + (sweet_spot / 2);
 
         Ok(EnsembleSizeRecommendations {
@@ -117,10 +117,10 @@ impl VotingClassifier<Untrained> {
     pub fn analyze_ensemble_size(
         &self,
         x: &Array2<Float>,
-        y: &Array1<Float>,
+        _y: &Array1<Float>,
     ) -> Result<EnsembleSizeAnalysis> {
-        let n_samples = x.nrows();
-        let n_features = x.ncols();
+        let _n_samples = x.nrows();
+        let _n_features = x.ncols();
 
         // Generate synthetic performance and diversity curves
         let sizes: Vec<usize> = (1..=20).collect();
@@ -264,7 +264,7 @@ impl VotingClassifier<Trained> {
     }
 
     /// Get confidence scores for individual estimators
-    pub fn estimator_confidence_scores(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
+    pub fn estimator_confidence_scores(&self, _x: &Array2<Float>) -> Result<Array1<Float>> {
         let mut confidence_scores = Array1::zeros(self.estimators_.len());
 
         for (i, estimator) in self.estimators_.iter().enumerate() {

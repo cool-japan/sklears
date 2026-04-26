@@ -491,6 +491,7 @@ impl IRLSEstimator {
             // Eliminate
             for k in i + 1..n {
                 let factor = aug_matrix[k][i] / aug_matrix[i][i];
+                #[allow(clippy::needless_range_loop)] // j indexes two rows simultaneously
                 for j in i..n + 1 {
                     aug_matrix[k][j] -= factor * aug_matrix[i][j];
                 }

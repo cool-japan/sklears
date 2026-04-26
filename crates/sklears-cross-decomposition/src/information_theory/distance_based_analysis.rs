@@ -16,10 +16,9 @@
 //! - Robust to outliers
 //! - Works with arbitrary data types
 
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, CoreRandom, Rng};
+use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::random::thread_rng;
 use sklears_core::types::Float;
-use std::collections::HashMap;
 
 /// Distance metric type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

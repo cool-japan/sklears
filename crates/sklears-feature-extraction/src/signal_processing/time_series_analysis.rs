@@ -83,6 +83,7 @@ impl AutoregressiveExtractor {
     }
 
     /// Yule-Walker estimation
+    #[allow(non_snake_case)]
     fn yule_walker(&self, signal: &ArrayView1<f64>) -> SklResult<Vec<f64>> {
         // Compute autocorrelation
         let autocorr = self.autocorrelation(signal, self.order + 1);
@@ -105,6 +106,7 @@ impl AutoregressiveExtractor {
     }
 
     /// Least squares estimation
+    #[allow(non_snake_case)]
     fn least_squares(&self, signal: &ArrayView1<f64>) -> SklResult<Vec<f64>> {
         let n = signal.len();
         let p = self.order;
@@ -156,6 +158,7 @@ impl AutoregressiveExtractor {
     }
 
     /// Simple linear system solver using Gaussian elimination
+    #[allow(non_snake_case)]
     fn solve_linear_system(&self, A: &Array2<f64>, b: &Array1<f64>) -> SklResult<Array1<f64>> {
         let n = A.nrows();
         if A.ncols() != n || b.len() != n {

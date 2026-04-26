@@ -56,9 +56,13 @@ pub enum SuggestionPriority {
 /// Code example to help with debugging
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodeExample {
+    /// The title.
     pub title: String,
+    /// The description.
     pub description: String,
+    /// The code.
     pub code: String,
+    /// The expected output.
     pub expected_output: String,
 }
 
@@ -86,13 +90,21 @@ pub enum DebugState {
     Running,
     /// Paused at a breakpoint
     Paused {
+        /// The breakpoint id.
         breakpoint_id: String,
+        /// The context.
         context: ExecutionContext,
     },
     /// Stepping through execution
-    Stepping { step_type: StepType },
+    Stepping {
+        /// The step type.
+        step_type: StepType,
+    },
     /// Error occurred during debugging
-    Error { error: String },
+    Error {
+        /// The error.
+        error: String,
+    },
 }
 
 /// Types of stepping through execution
@@ -300,12 +312,19 @@ impl PipelineDebugger {
 /// Summary of debugging session
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DebugSummary {
+    /// The session id.
     pub session_id: String,
+    /// The total trace entries.
     pub total_trace_entries: usize,
+    /// The active breakpoints.
     pub active_breakpoints: usize,
+    /// The active watches.
     pub active_watches: usize,
+    /// The current state.
     pub current_state: String,
+    /// The total execution time ms.
     pub total_execution_time_ms: f64,
+    /// The peak memory usage mb.
     pub peak_memory_usage_mb: f64,
 }
 

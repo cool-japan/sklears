@@ -1,3 +1,6 @@
+// Calibration utilities — public API surface not yet wired into callers
+#![allow(dead_code)]
+
 use scirs2_core::ndarray::Array1;
 // use scirs2_core::numeric::Float;
 

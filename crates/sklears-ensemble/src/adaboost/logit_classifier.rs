@@ -1,6 +1,5 @@
 //! LogitBoost Classifier implementation
 
-use super::helpers::*;
 use super::types::*;
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::{
@@ -97,7 +96,7 @@ impl LogitBoostClassifier<Untrained> {
         &self,
         x: &Array2<Float>,
         z: &Array1<Float>,
-        w: &Array1<Float>,
+        _w: &Array1<Float>,
     ) -> Result<DecisionTreeRegressor<Trained>> {
         // Create a regression tree
         let base_estimator =

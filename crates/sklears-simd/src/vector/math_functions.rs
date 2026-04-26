@@ -1079,6 +1079,7 @@ unsafe fn reciprocal_vec_avx512(input: &[f32], result: &mut [f32]) {
 // ============================================================================
 
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn sin_vec_neon(input: &[f32], result: &mut [f32]) {
     let mut i = 0;
@@ -1090,6 +1091,7 @@ unsafe fn sin_vec_neon(input: &[f32], result: &mut [f32]) {
 }
 
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn cos_vec_neon(input: &[f32], result: &mut [f32]) {
     let mut i = 0;
@@ -1101,6 +1103,7 @@ unsafe fn cos_vec_neon(input: &[f32], result: &mut [f32]) {
 }
 
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn tan_vec_neon(input: &[f32], result: &mut [f32]) {
     let mut i = 0;
@@ -1112,6 +1115,7 @@ unsafe fn tan_vec_neon(input: &[f32], result: &mut [f32]) {
 }
 
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn exp_vec_neon(input: &[f32], result: &mut [f32]) {
     let mut i = 0;
@@ -1123,6 +1127,7 @@ unsafe fn exp_vec_neon(input: &[f32], result: &mut [f32]) {
 }
 
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn ln_vec_neon(input: &[f32], result: &mut [f32]) {
     let mut i = 0;
@@ -1134,6 +1139,7 @@ unsafe fn ln_vec_neon(input: &[f32], result: &mut [f32]) {
 }
 
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn sqrt_vec_neon(input: &[f32], result: &mut [f32]) {
     use core::arch::aarch64::*;
@@ -1156,6 +1162,7 @@ unsafe fn sqrt_vec_neon(input: &[f32], result: &mut [f32]) {
 }
 
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn pow_vec_neon(base: &[f32], exponent: &[f32], result: &mut [f32]) {
     let mut i = 0;
@@ -1167,6 +1174,7 @@ unsafe fn pow_vec_neon(base: &[f32], exponent: &[f32], result: &mut [f32]) {
 }
 
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn square_vec_neon(input: &[f32], result: &mut [f32]) {
     use core::arch::aarch64::*;
@@ -1189,6 +1197,7 @@ unsafe fn square_vec_neon(input: &[f32], result: &mut [f32]) {
 }
 
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn reciprocal_vec_neon(input: &[f32], result: &mut [f32]) {
     use core::arch::aarch64::*;
@@ -1427,9 +1436,9 @@ mod tests {
 
         sqrt_vec(&input, &mut result);
 
-        for i in 0..size {
+        for (i, &val) in result.iter().enumerate().take(size) {
             let expected = ((i as f32) / 10.0).sqrt();
-            assert!((result[i] - expected).abs() < 1e-6);
+            assert!((val - expected).abs() < 1e-6);
         }
     }
 

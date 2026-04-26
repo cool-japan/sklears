@@ -111,6 +111,7 @@ impl TextKernelApproximation {
         ngrams
     }
 
+    #[allow(dead_code)] // internal helper for potential future use
     fn hash_feature(&self, feature: &str) -> usize {
         let mut hasher = DefaultHasher::new();
         feature.hash(&mut hasher);
@@ -376,6 +377,7 @@ impl SemanticKernelApproximation {
         self
     }
 
+    #[allow(dead_code)] // internal helper for potential future use
     fn compute_similarity(&self, vec1: &ArrayView1<f64>, vec2: &ArrayView1<f64>) -> f64 {
         match self.similarity_measure {
             SimilarityMeasure::Cosine => {
@@ -400,6 +402,7 @@ impl SemanticKernelApproximation {
         }
     }
 
+    #[allow(dead_code)] // internal helper for potential future use
     fn aggregate_embeddings(&self, embeddings: &Array2<f64>) -> Array1<f64> {
         match self.aggregation_method {
             AggregationMethod::Mean => embeddings
@@ -992,8 +995,8 @@ impl DocumentKernelApproximation {
             text.hash(&mut hasher);
             let hash = hasher.finish();
 
-            for i in 0..self.n_topics {
-                topic_features[i] = ((hash + i as u64) % 1000) as f64 / 1000.0;
+            for (i, feat) in topic_features.iter_mut().enumerate().take(self.n_topics) {
+                *feat = ((hash + i as u64) % 1000) as f64 / 1000.0;
             }
 
             features.extend(topic_features);
@@ -1111,8 +1114,8 @@ impl FittedDocumentKernelApproximation {
             text.hash(&mut hasher);
             let hash = hasher.finish();
 
-            for i in 0..self.n_topics {
-                topic_features[i] = ((hash + i as u64) % 1000) as f64 / 1000.0;
+            for (i, feat) in topic_features.iter_mut().enumerate().take(self.n_topics) {
+                *feat = ((hash + i as u64) % 1000) as f64 / 1000.0;
             }
 
             features.extend(topic_features);

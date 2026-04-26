@@ -1265,7 +1265,7 @@ impl DockerComposeManager {
         let deployment_name = format!("sklears-deploy-{}", deployment_id);
         
         // Create temporary compose file
-        let compose_file = format!("/tmp/{}.yml", deployment_name);
+        let compose_file = std::env::temp_dir().join(format!("{}.yml", deployment_name)).display().to_string();
         let compose_content = serde_yaml::to_string(&config)
             .map_err(|e| ContainerError::Serialization(serde_json::Error::custom(e.to_string())))?;
         
@@ -1481,7 +1481,7 @@ impl SecretsManager {
 
         if !output.status.success() {
             // Fallback to local storage
-            let secret_file = format!("/tmp/sklears-secret-{}", name);
+            let secret_file = std::env::temp_dir().join(format!("sklears-secret-{}", name)).display().to_string();
             fs::write(&secret_file, data)?;
         }
 
@@ -1528,7 +1528,7 @@ impl SecretsManager {
 
         if !output.status.success() {
             // Try local storage
-            let secret_file = format!("/tmp/sklears-secret-{}", name);
+            let secret_file = std::env::temp_dir().join(format!("sklears-secret-{}", name)).display().to_string();
             fs::remove_file(&secret_file).ok();
         }
 

@@ -144,6 +144,7 @@ impl ManifoldRegularization<Untrained> {
         self
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_kernel_matrix(&self, X1: &Array2<f64>, X2: &Array2<f64>) -> SklResult<Array2<f64>> {
         let n1 = X1.nrows();
         let n2 = X2.nrows();
@@ -182,6 +183,7 @@ impl ManifoldRegularization<Untrained> {
         Ok(K)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn build_manifold_graph(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         match self.graph_kernel.as_str() {
             "knn" => knn_graph(X, self.n_neighbors, "connectivity"),
@@ -206,6 +208,7 @@ impl ManifoldRegularization<Untrained> {
         }
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn solve_manifold_regularized_problem(
         &self,
         K: &Array2<f64>,
@@ -220,7 +223,7 @@ impl ManifoldRegularization<Untrained> {
 
         // Create labeled data matrix Y_l
         let mut Y_l = Array2::zeros((n_labeled, n_classes));
-        for (i, &idx) in labeled_indices.iter().enumerate() {
+        for (i, &_idx) in labeled_indices.iter().enumerate() {
             if let Some(class_idx) = classes.iter().position(|&c| c == y_labeled[i]) {
                 Y_l[[i, class_idx]] = 1.0;
             }
@@ -421,6 +424,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
 }
 
 impl ManifoldRegularization<ManifoldRegularizationTrained> {
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_kernel_matrix(&self, X1: &Array2<f64>, X2: &Array2<f64>) -> SklResult<Array2<f64>> {
         let n1 = X1.nrows();
         let n2 = X2.nrows();
@@ -462,6 +466,7 @@ impl ManifoldRegularization<ManifoldRegularizationTrained> {
 
 /// Trained state for ManifoldRegularization
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct ManifoldRegularizationTrained {
     /// X_train
     pub X_train: Array2<f64>,

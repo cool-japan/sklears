@@ -711,7 +711,7 @@ mod tests {
     fn test_type_safe_rbf_rff() {
         let x: Array2<f64> = Array::from_shape_fn((50, 8), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let kernel_approx =
             TypeSafeRBFRandomFourierFeatures::<100>::new(1.0).expect("operation should succeed");
@@ -731,7 +731,7 @@ mod tests {
     fn test_type_safe_laplacian_rff() {
         let x: Array2<f64> = Array::from_shape_fn((30, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let kernel_approx = TypeSafeLaplacianRandomFourierFeatures::<50>::new(0.5)
             .expect("operation should succeed");
@@ -750,7 +750,7 @@ mod tests {
     fn test_type_safe_nystrom() {
         let x: Array2<f64> = Array::from_shape_fn((40, 6), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let kernel_approx = TypeSafeRBFNystrom::<64>::new(1.0).expect("operation should succeed");
 
@@ -768,7 +768,7 @@ mod tests {
     fn test_fastfood_power_of_two_requirement() {
         let x: Array2<f64> = Array::from_shape_fn((20, 8), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         }); // 8 is power of 2
         let kernel_approx = TypeSafeRBFFastfood::<32>::new(1.0).expect("operation should succeed");
 
@@ -783,7 +783,7 @@ mod tests {
         // Test with non-power-of-2 dimension
         let x_invalid: Array2<f64> = Array::from_shape_fn((20, 7), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         }); // 7 is not power of 2
         let kernel_approx_invalid =
             TypeSafeRBFFastfood::<32>::new(1.0).expect("operation should succeed");
@@ -796,7 +796,7 @@ mod tests {
     fn test_quality_metrics() {
         let x: Array2<f64> = Array::from_shape_fn((25, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let kernel_approx =
             TypeSafeRBFRandomFourierFeatures::<50>::new(1.0).expect("operation should succeed");

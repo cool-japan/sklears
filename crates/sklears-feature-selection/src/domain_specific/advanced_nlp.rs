@@ -97,16 +97,19 @@ type Result<T> = SklResult<T>;
 
 type Float = f64;
 
-/// Complex return type for NLP analysis methods
-type NLPAnalysisResult = (
+/// Analysis result type for NLP feature analysis methods:
+/// (feature_scores, syntactic, semantic, discourse, pragmatic, contextual, similarity_matrix, attention, topic_distribution)
+pub type NLPAnalysisResult = Result<(
     Array1<Float>,
     Option<HashMap<String, Array1<Float>>>,
     Option<HashMap<String, Array1<Float>>>,
     Option<HashMap<String, Array1<Float>>>,
-    Option<HashMap<String, Float>>,
-    Option<HashMap<String, Float>>,
+    Option<HashMap<String, Array1<Float>>>,
+    Option<HashMap<String, Array1<Float>>>,
     Option<Array2<Float>>,
-);
+    Option<Array2<Float>>,
+    Option<Array2<Float>>,
+)>;
 
 /// Strategy for NLP feature selection
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -126,22 +129,24 @@ pub enum NLPStrategy {
 }
 
 #[derive(Debug, Clone)]
+/// Untrained
 pub struct Untrained;
 
 #[derive(Debug, Clone)]
+/// Trained
 pub struct Trained {
     selected_features: Vec<usize>,
-    feature_scores: Array1<Float>,
-    syntactic_scores: Option<HashMap<String, Array1<Float>>>,
-    semantic_scores: Option<HashMap<String, Array1<Float>>>,
-    discourse_scores: Option<HashMap<String, Array1<Float>>>,
-    pragmatic_scores: Option<HashMap<String, Array1<Float>>>,
-    contextual_scores: Option<HashMap<String, Array1<Float>>>,
-    attention_weights: Option<Array2<Float>>,
-    topic_distributions: Option<Array2<Float>>,
-    semantic_similarity_matrix: Option<Array2<Float>>,
+    _feature_scores: Array1<Float>,
+    _syntactic_scores: Option<HashMap<String, Array1<Float>>>,
+    _semantic_scores: Option<HashMap<String, Array1<Float>>>,
+    _discourse_scores: Option<HashMap<String, Array1<Float>>>,
+    _pragmatic_scores: Option<HashMap<String, Array1<Float>>>,
+    _contextual_scores: Option<HashMap<String, Array1<Float>>>,
+    _attention_weights: Option<Array2<Float>>,
+    _topic_distributions: Option<Array2<Float>>,
+    _semantic_similarity_matrix: Option<Array2<Float>>,
     n_features: usize,
-    feature_type: String,
+    _feature_type: String,
 }
 
 /// Advanced NLP feature selector for sophisticated text analysis.
@@ -180,6 +185,7 @@ pub struct AdvancedNLPFeatureSelector<State = Untrained> {
     cross_lingual_features: bool,
     language_transfer_weight: Float,
     discourse_marker_weight: Float,
+    /// k
     pub k: usize,
     score_threshold: Float,
     strategy: NLPStrategy,
@@ -294,6 +300,7 @@ impl Default for AdvancedNLPFeatureSelectorBuilder {
 }
 
 impl AdvancedNLPFeatureSelectorBuilder {
+    /// new
     pub fn new() -> Self {
         Self {
             feature_type: "syntactic".to_string(),
@@ -616,17 +623,17 @@ impl Fit<Array2<Float>, Array1<Float>> for AdvancedNLPFeatureSelector<Untrained>
 
         let trained_state = Trained {
             selected_features,
-            feature_scores,
-            syntactic_scores,
-            semantic_scores,
-            discourse_scores,
-            pragmatic_scores,
-            contextual_scores,
-            attention_weights,
-            topic_distributions,
-            semantic_similarity_matrix,
+            _feature_scores: feature_scores,
+            _syntactic_scores: syntactic_scores,
+            _semantic_scores: semantic_scores,
+            _discourse_scores: discourse_scores,
+            _pragmatic_scores: pragmatic_scores,
+            _contextual_scores: contextual_scores,
+            _attention_weights: attention_weights,
+            _topic_distributions: topic_distributions,
+            _semantic_similarity_matrix: semantic_similarity_matrix,
             n_features,
-            feature_type: self.feature_type.clone(),
+            _feature_type: self.feature_type.clone(),
         };
 
         Ok(AdvancedNLPFeatureSelector {
@@ -740,17 +747,7 @@ impl AdvancedNLPFeatureSelector<Untrained> {
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-    )> {
+    ) -> NLPAnalysisResult {
         let (_, n_features) = x.dim();
         let mut feature_scores = Array1::zeros(n_features);
         let mut syntactic_scores = HashMap::new();
@@ -789,21 +786,7 @@ impl AdvancedNLPFeatureSelector<Untrained> {
         ))
     }
 
-    fn analyze_semantic_features(
-        &self,
-        x: &Array2<Float>,
-        y: &Array1<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-    )> {
+    fn analyze_semantic_features(&self, x: &Array2<Float>, y: &Array1<Float>) -> NLPAnalysisResult {
         let (_, n_features) = x.dim();
         let mut feature_scores = Array1::zeros(n_features);
         let mut semantic_scores = HashMap::new();
@@ -856,17 +839,7 @@ impl AdvancedNLPFeatureSelector<Untrained> {
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-    )> {
+    ) -> NLPAnalysisResult {
         let (_, n_features) = x.dim();
         let mut feature_scores = Array1::zeros(n_features);
         let mut discourse_scores = HashMap::new();
@@ -914,17 +887,7 @@ impl AdvancedNLPFeatureSelector<Untrained> {
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-    )> {
+    ) -> NLPAnalysisResult {
         let (_, n_features) = x.dim();
         let mut feature_scores = Array1::zeros(n_features);
         let mut pragmatic_scores = HashMap::new();
@@ -968,17 +931,7 @@ impl AdvancedNLPFeatureSelector<Untrained> {
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<HashMap<String, Array1<Float>>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-        Option<Array2<Float>>,
-    )> {
+    ) -> NLPAnalysisResult {
         let (_, n_features) = x.dim();
         let mut feature_scores = Array1::zeros(n_features);
         let mut contextual_scores = HashMap::new();

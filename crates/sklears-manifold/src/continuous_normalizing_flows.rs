@@ -22,9 +22,7 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::SeedableRng;
-use scirs2_core::Distribution;
 use scirs2_core::RngExt;
-use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -155,6 +153,9 @@ impl ODESolver {
         Ok(trajectory)
     }
 }
+
+/// Type alias for neural network parameters (weights, biases)
+type NetworkParams = (Vec<Array2<f64>>, Vec<Array1<f64>>);
 
 /// Continuous Normalizing Flow using Neural ODEs
 ///
@@ -287,10 +288,7 @@ impl ContinuousNormalizingFlow<Untrained> {
     }
 
     /// Initialize neural network weights
-    fn initialize_network(
-        &self,
-        input_dim: usize,
-    ) -> SklResult<(Vec<Array2<f64>>, Vec<Array1<f64>>)> {
+    fn initialize_network(&self, input_dim: usize) -> SklResult<NetworkParams> {
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
@@ -332,7 +330,7 @@ impl ContinuousNormalizingFlow<Untrained> {
     /// Neural network forward pass (computes vector field)
     pub fn vector_field(
         &self,
-        t: f64,
+        _t: f64,
         z: &Array1<f64>,
         weights: &[Array2<f64>],
         biases: &[Array1<f64>],
@@ -477,9 +475,11 @@ impl Fit<ArrayView2<'_, Float>, ()> for ContinuousNormalizingFlow<Untrained> {
         let (mut weights, biases) = self.initialize_network(total_dim)?;
 
         // Initialize ODE solver
-        let mut solver = ODESolver::default();
-        solver.atol = self.solver_tolerance;
-        solver.rtol = self.solver_tolerance;
+        let solver = ODESolver {
+            atol: self.solver_tolerance,
+            rtol: self.solver_tolerance,
+            ..ODESolver::default()
+        };
 
         // Training loop (simplified)
         let mut final_loss = f64::INFINITY;
@@ -678,7 +678,7 @@ impl ContinuousNormalizingFlow<CNFTrained> {
     /// Neural network forward pass (computes vector field)
     pub fn vector_field(
         &self,
-        t: f64,
+        _t: f64,
         z: &Array1<f64>,
         weights: &[Array2<f64>],
         biases: &[Array1<f64>],

@@ -144,6 +144,7 @@ impl Fit<ArrayView2<'_, Float>, Array2<i32>> for BinaryRelevance<Untrained> {
 }
 
 /// Simple binary classifier training using logistic regression approximation
+#[allow(non_snake_case)] // standard ML notation
 fn train_binary_classifier(
     X: &Array2<Float>,
     y: &scirs2_core::ndarray::ArrayView1<i32>,
@@ -152,13 +153,12 @@ fn train_binary_classifier(
 
     // Simple approach: use correlation-based weights similar to linear regression
     let mut weights = Array1::<Float>::zeros(n_features);
-    let mut bias = 0.0;
 
     // Compute mean of labels (proportion of positive class)
     let y_mean: f64 = y.iter().map(|&label| label as f64).sum::<f64>() / n_samples as f64;
 
     // Use logit of the mean as initial bias
-    bias = if y_mean > 0.0 && y_mean < 1.0 {
+    let bias = if y_mean > 0.0 && y_mean < 1.0 {
         (y_mean / (1.0 - y_mean)).ln()
     } else if y_mean >= 1.0 {
         2.0 // Large positive value
@@ -1023,6 +1023,7 @@ impl Estimator for OneVsRestClassifier<Untrained> {
 impl Fit<ArrayView2<'_, Float>, Array2<i32>> for OneVsRestClassifier<Untrained> {
     type Fitted = OneVsRestClassifier<OneVsRestClassifierTrained>;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &ArrayView2<'_, Float>, y: &Array2<i32>) -> SklResult<Self::Fitted> {
         // Delegate to BinaryRelevance implementation
         let br = BinaryRelevance::new().n_jobs(self.n_jobs);
@@ -1052,6 +1053,7 @@ impl OneVsRestClassifier<OneVsRestClassifierTrained> {
 impl Predict<ArrayView2<'_, Float>, Array2<i32>>
     for OneVsRestClassifier<OneVsRestClassifierTrained>
 {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<i32>> {
         self.state.binary_relevance.predict(X)
     }
@@ -1059,6 +1061,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<i32>>
 
 impl OneVsRestClassifier<OneVsRestClassifierTrained> {
     /// Predict class probabilities for each label
+    #[allow(non_snake_case)] // standard ML notation
     pub fn predict_proba(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         self.state.binary_relevance.predict_proba(X)
     }

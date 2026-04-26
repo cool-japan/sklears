@@ -394,6 +394,7 @@ pub mod ensemble_utils {
     use super::*;
 
     /// Calculate ensemble diversity using prediction disagreement
+    #[allow(clippy::needless_range_loop)] // multi-dimensional indexing needs sample_idx
     pub fn calculate_ensemble_diversity(
         estimators: &[Box<dyn EnsembleMember + Send + Sync>],
         x: &Array2<Float>,

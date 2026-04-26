@@ -4,9 +4,7 @@
 //! execution, bottleneck identification, error tracking, and performance analysis.
 
 use scirs2_core::ndarray::Array2;
-use sklears_core::{
-    error::Result as SklResult, prelude::SklearsError, traits::Estimator, types::Float,
-};
+use sklears_core::{error::Result as SklResult, prelude::SklearsError, types::Float};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -193,18 +191,27 @@ pub enum BreakpointCondition {
     OnError,
     /// Break on data condition
     OnDataCondition {
+        /// Field value.
         field: String,
+        /// Field value.
         operator: ComparisonOperator,
+        /// Field value.
         value: f64,
     },
     /// Break on performance condition
     OnPerformanceCondition {
+        /// Field value.
         metric: PerformanceMetric,
+        /// Field value.
         operator: ComparisonOperator,
+        /// Field value.
         value: f64,
     },
     /// Custom condition
-    Custom { expression: String },
+    Custom {
+        /// Field value.
+        expression: String,
+    },
 }
 
 /// Comparison operators for conditions
@@ -317,6 +324,7 @@ pub struct ErrorStatistics {
 }
 
 /// Performance profiler
+#[allow(dead_code)]
 pub struct PerformanceProfiler {
     /// Performance measurements
     measurements: Vec<PerformanceMeasurement>,
@@ -361,6 +369,7 @@ pub struct IoStatistics {
 }
 
 /// Bottleneck detector
+#[allow(dead_code)]
 pub struct BottleneckDetector {
     /// Detected bottlenecks
     bottlenecks: Vec<Bottleneck>,
@@ -479,13 +488,21 @@ pub enum ExecutionState {
     /// Running normally
     Running,
     /// Paused at breakpoint
-    Paused { component: String, reason: String },
+    Paused {
+        /// Field value.
+        component: String,
+        /// Field value.
+        reason: String,
+    },
     /// Stepping through execution
     Stepping,
     /// Execution completed
     Completed,
     /// Execution failed
-    Failed { error: String },
+    Failed {
+        /// Field value.
+        error: String,
+    },
 }
 
 impl Default for DebugConfig {
@@ -707,7 +724,7 @@ impl PipelineDebugger {
             None
         };
 
-        /// DataSummary
+        // DataSummary
         DataSummary {
             shape,
             data_type,
@@ -744,7 +761,7 @@ impl PipelineDebugger {
             .iter()
             .fold(Float::NEG_INFINITY, |a, &b| a.max(b));
 
-        /// StatisticalSummary
+        // StatisticalSummary
         StatisticalSummary {
             mean: vec![mean],
             std: vec![std],
@@ -777,7 +794,7 @@ impl PipelineDebugger {
             })
             .collect();
 
-        /// DataSnapshot
+        // DataSnapshot
         DataSnapshot {
             sample_values,
             sample_indices,
@@ -789,7 +806,7 @@ impl PipelineDebugger {
     fn measure_memory_usage(&self) -> MemoryUsage {
         // In a real implementation, this would use system APIs
         // to measure actual memory usage
-        /// MemoryUsage
+        // MemoryUsage
         MemoryUsage {
             component_memory: 1024 * 1024, // 1MB placeholder
             heap_memory: 10 * 1024 * 1024, // 10MB placeholder
@@ -808,7 +825,7 @@ impl PipelineDebugger {
     /// Measure I/O statistics
     fn measure_io_statistics(&self) -> IoStatistics {
         // Placeholder implementation
-        /// IoStatistics
+        // IoStatistics
         IoStatistics {
             bytes_read: 1024,
             bytes_written: 512,
@@ -1032,6 +1049,7 @@ impl Default for ErrorTracker {
 
 impl ErrorTracker {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             errors: Vec::new(),
@@ -1040,12 +1058,14 @@ impl ErrorTracker {
                 total_errors: 0,
                 errors_by_type: HashMap::new(),
                 errors_by_component: HashMap::new(),
+                // The mean resolution time.
                 resolution_rate: 0.0,
                 mean_resolution_time: Duration::from_secs(0),
             },
         }
     }
 
+    /// Performs the operation.
     pub fn record_error(&mut self, component: &str, error: StepError) {
         let tracked_error = TrackedError {
             timestamp: SystemTime::now(),
@@ -1092,8 +1112,9 @@ impl ErrorTracker {
     }
 
     #[must_use]
+    /// Performs the operation.
     pub fn analyze_errors(&self) -> ErrorAnalysis {
-        /// ErrorAnalysis
+        // ErrorAnalysis
         ErrorAnalysis {
             total_errors: self.statistics.total_errors,
             error_patterns: self.patterns.values().cloned().collect(),
@@ -1124,14 +1145,17 @@ impl ErrorTracker {
 
 impl PerformanceProfiler {
     #[must_use]
+    /// Creates a new instance.
     pub fn new(config: ProfilerConfig) -> Self {
         Self {
+            // The bottleneck detector.
             measurements: Vec::new(),
             bottleneck_detector: BottleneckDetector::new(),
             config,
         }
     }
 
+    /// Performs the operation.
     pub fn record_measurement(&mut self, measurement: PerformanceMeasurement) {
         self.measurements.push(measurement);
         self.bottleneck_detector
@@ -1139,6 +1163,7 @@ impl PerformanceProfiler {
     }
 
     #[must_use]
+    /// Performs the operation.
     pub fn analyze_performance(&self) -> PerformanceAnalysis {
         let total_time = self.measurements.iter().map(|m| m.execution_time).sum();
 
@@ -1152,7 +1177,7 @@ impl PerformanceProfiler {
         let performance_score = self.calculate_performance_score();
         let recommendations = self.generate_recommendations();
 
-        /// PerformanceAnalysis
+        // PerformanceAnalysis
         PerformanceAnalysis {
             total_execution_time: total_time,
             average_step_time: average_time,
@@ -1194,14 +1219,17 @@ impl Default for BottleneckDetector {
 
 impl BottleneckDetector {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
+            // The thresholds.
             bottlenecks: Vec::new(),
             thresholds: BottleneckThresholds::default(),
             analysis_history: Vec::new(),
         }
     }
 
+    /// Performs the operation.
     pub fn analyze_measurement(&mut self, measurement: &PerformanceMeasurement) {
         // Check for CPU bottleneck
         if measurement.cpu_usage > self.thresholds.cpu_threshold {
@@ -1239,7 +1267,7 @@ impl BottleneckDetector {
         bottleneck_type: BottleneckType,
         component: &str,
         severity: BottleneckSeverity,
-        description: &str,
+        _description: &str,
     ) {
         let optimizations = match bottleneck_type {
             BottleneckType::Cpu => vec![
@@ -1275,6 +1303,7 @@ impl BottleneckDetector {
     }
 
     #[must_use]
+    /// Performs the operation.
     pub fn get_bottlenecks(&self) -> Vec<Bottleneck> {
         self.bottlenecks.clone()
     }
@@ -1282,6 +1311,7 @@ impl BottleneckDetector {
 
 impl DebugSession {
     #[must_use]
+    /// Creates a new instance.
     pub fn new(config: DebugConfig) -> Self {
         Self {
             session_id: format!(
@@ -1297,18 +1327,22 @@ impl DebugSession {
         }
     }
 
+    /// Performs the operation.
     pub fn pause(&mut self) {
         self.state = SessionState::Paused;
     }
 
+    /// Performs the operation.
     pub fn resume(&mut self) {
         self.state = SessionState::Active;
     }
 
+    /// Performs the operation.
     pub fn complete(&mut self) {
         self.state = SessionState::Completed;
     }
 
+    /// Performs the operation.
     pub fn abort(&mut self) {
         self.state = SessionState::Aborted;
     }
@@ -1317,12 +1351,14 @@ impl DebugSession {
 /// Interactive debugging interface
 pub struct InteractiveDebugger {
     debugger: PipelineDebugger,
+    /// The command history.
     session: Option<DebugSession>,
     command_history: Vec<String>,
 }
 
 impl InteractiveDebugger {
     #[must_use]
+    /// Creates a new instance.
     pub fn new(config: DebugConfig) -> Self {
         Self {
             debugger: PipelineDebugger::new(config),
@@ -1661,7 +1697,7 @@ mod tests {
         let bottlenecks = detector.get_bottlenecks();
 
         // Should detect multiple bottlenecks
-        assert!(bottlenecks.len() > 0);
+        assert!(!bottlenecks.is_empty());
     }
 
     #[test]

@@ -29,16 +29,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Analyze sparsity
-    // TODO: Re-enable when analyze_sparsity function is implemented
-    // let analysis = sklears_linear::sparse::utils::analyze_sparsity(&x_dense, 1e-10);
-    // println!(
-    //     "   Sparsity: {:.1}% non-zero elements",
-    //     analysis.sparsity_ratio * 100.0
-    // );
-    // println!(
-    //     "   Memory savings with sparse: {:.1}%",
-    //     analysis.memory_savings_ratio(x_dense.nrows(), x_dense.ncols()) * 100.0
-    // );
+    let analysis = sklears_linear::sparse::utils::analyze_sparsity(&x_dense, 1e-10);
+    println!(
+        "   Sparsity: {:.1}% non-zero elements",
+        analysis.sparsity_ratio * 100.0
+    );
+    println!(
+        "   Memory savings with sparse: {:.1}%",
+        analysis.memory_savings_ratio(x_dense.nrows(), x_dense.ncols()) * 100.0
+    );
 
     // 2. Convert to sparse format
     println!("\n2. Converting to sparse format...");
@@ -179,10 +178,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .min_sparsity_ratio(0.1) // Use sparse if <10% elements are non-zero
         .fit(&x_very_sparse, &y_sparse)?;
 
-    // TODO: Re-enable when analyze_sparsity function is implemented
-    // let sparse_analysis = sklears_linear::sparse::utils::analyze_sparsity(&x_very_sparse, 1e-10);
+    let sparse_analysis = sklears_linear::sparse::utils::analyze_sparsity(&x_very_sparse, 1e-10);
     println!(
-        "   Sparse data (very sparse) → Uses sparse algorithms: {}",
+        "   Sparse data (sparsity ratio {:.1}%) → Uses sparse algorithms: {}",
+        sparse_analysis.sparsity_ratio * 100.0,
         sparse_auto_model.is_sparse_fitted()
     );
 

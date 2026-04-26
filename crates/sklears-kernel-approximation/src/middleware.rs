@@ -248,7 +248,9 @@ impl Hook for LoggingHook {
 
 /// Normalization middleware
 pub struct NormalizationMiddleware {
+    #[allow(dead_code)] // stored normalization statistics for future use
     mean: Option<Array2<f64>>,
+    #[allow(dead_code)] // stored normalization statistics for future use
     std: Option<Array2<f64>>,
 }
 

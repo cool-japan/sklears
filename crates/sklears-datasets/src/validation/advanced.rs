@@ -302,7 +302,7 @@ pub fn detect_anomalies(data: &[Vec<f64>], _config: &ValidationConfig) -> Anomal
         // Use average distance as anomaly score
         if !distances.is_empty() {
             distances.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-            let k = (distances.len() / 10).max(1).min(10); // Use top 10% or at least 1
+            let k = (distances.len() / 10).clamp(1, 10); // Use top 10% or at least 1
             let avg_distance = distances.iter().take(k).sum::<f64>() / k as f64;
             anomaly_scores[sample_idx] = avg_distance;
         }

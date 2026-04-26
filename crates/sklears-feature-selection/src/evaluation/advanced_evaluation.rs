@@ -10,12 +10,14 @@ use sklears_core::error::{Result as SklResult, SklearsError};
 pub struct BayesianEvaluation;
 
 impl BayesianEvaluation {
+    /// bayesian_model_comparison
     pub fn bayesian_model_comparison(_features1: &[usize], _features2: &[usize]) -> SklResult<f64> {
         Err(SklearsError::NotImplemented(
             "BayesianEvaluation::bayesian_model_comparison is not yet implemented".to_string(),
         ))
     }
 
+    /// posterior_feature_probability
     pub fn posterior_feature_probability(_features: &[usize]) -> SklResult<Vec<f64>> {
         Err(SklearsError::NotImplemented(
             "BayesianEvaluation::posterior_feature_probability is not yet implemented".to_string(),
@@ -28,12 +30,14 @@ impl BayesianEvaluation {
 pub struct CausalFeatureEvaluation;
 
 impl CausalFeatureEvaluation {
+    /// causal_importance
     pub fn causal_importance(_features: &[usize]) -> SklResult<Vec<f64>> {
         Err(SklearsError::NotImplemented(
             "CausalFeatureEvaluation::causal_importance is not yet implemented".to_string(),
         ))
     }
 
+    /// confounding_analysis
     pub fn confounding_analysis(_features: &[usize]) -> SklResult<f64> {
         Err(SklearsError::NotImplemented(
             "CausalFeatureEvaluation::confounding_analysis is not yet implemented".to_string(),
@@ -46,6 +50,7 @@ impl CausalFeatureEvaluation {
 pub struct DomainSpecificEvaluation;
 
 impl DomainSpecificEvaluation {
+    /// evaluate_for_domain
     pub fn evaluate_for_domain(_features: &[usize], _domain: &str) -> SklResult<f64> {
         Err(SklearsError::NotImplemented(
             "DomainSpecificEvaluation::evaluate_for_domain is not yet implemented".to_string(),
@@ -58,6 +63,7 @@ impl DomainSpecificEvaluation {
 pub struct TransferLearningEvaluation;
 
 impl TransferLearningEvaluation {
+    /// evaluate_transferability
     pub fn evaluate_transferability(
         _source_features: &[usize],
         _target_features: &[usize],
@@ -74,12 +80,14 @@ impl TransferLearningEvaluation {
 pub struct OnlineEvaluation;
 
 impl OnlineEvaluation {
+    /// incremental_evaluation
     pub fn incremental_evaluation(_features: &[usize], _batch_size: usize) -> SklResult<Vec<f64>> {
         Err(SklearsError::NotImplemented(
             "OnlineEvaluation::incremental_evaluation is not yet implemented".to_string(),
         ))
     }
 
+    /// streaming_performance
     pub fn streaming_performance(_features: &[usize], _window_size: usize) -> SklResult<Vec<f64>> {
         Err(SklearsError::NotImplemented(
             "OnlineEvaluation::streaming_performance is not yet implemented".to_string(),

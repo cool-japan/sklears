@@ -3,6 +3,7 @@
 //! This module provides optimized data structures and algorithms for scenarios where
 //! multi-output predictions are sparse (most outputs are zero or inactive).
 //! Common in multi-label classification where each instance typically has only a few active labels.
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};

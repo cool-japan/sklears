@@ -2,20 +2,21 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
-use std::collections::HashMap;
-
-use super::types::{BiasVarianceAnalyzer, BiasVarianceConfig, BiasVarianceDecomposition, BiasVarianceEnsembleSizeAnalysis, DiversityAnalyzer, DiversityMetrics, EnsembleCVStrategy, EnsembleConstructionConfig, EnsembleCrossValidator, InterraterReliability, ModelSelectionLossFunction, SampleBiasVariance};
-
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::{
+        BiasVarianceAnalyzer, BiasVarianceConfig, BiasVarianceDecomposition,
+        BiasVarianceEnsembleSizeAnalysis, DiversityAnalyzer, DiversityMetrics, EnsembleCVStrategy,
+        EnsembleConstructionConfig, EnsembleCrossValidator, InterraterReliability,
+        ModelSelectionLossFunction, SampleBiasVariance,
+    };
     use scirs2_core::ndarray::array;
+    use std::collections::HashMap;
     #[test]
     fn test_ensemble_cv_config_creation() {
         let config = EnsembleConstructionConfig::default();
-        let cv = EnsembleCrossValidator::new(config);
-        assert!(true);
+        let _cv = EnsembleCrossValidator::new(config);
     }
     #[test]
     fn test_kfold_creation() {
@@ -28,14 +29,19 @@ mod tests {
         };
         let cv = EnsembleCrossValidator::new(config);
         let x = array![
-            [1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0], [9.0, 10.0], [11.0, 12.0]
+            [1.0, 2.0],
+            [3.0, 4.0],
+            [5.0, 6.0],
+            [7.0, 8.0],
+            [9.0, 10.0],
+            [11.0, 12.0]
         ];
         let y = array![1.0, 0.0, 1.0, 0.0, 1.0, 0.0];
         let folds = cv.create_folds(&x, &y).expect("operation should succeed");
         assert_eq!(folds.len(), 3);
         for (train_indices, val_indices) in &folds {
-            assert!(! train_indices.is_empty());
-            assert!(! val_indices.is_empty());
+            assert!(!train_indices.is_empty());
+            assert!(!val_indices.is_empty());
             assert_eq!(train_indices.len() + val_indices.len(), 6);
         }
     }
@@ -61,7 +67,7 @@ mod tests {
         let predictions = array![0.0, 1.0, 1.0, 0.0];
         let y_true = array![0.0, 1.0, 0.0, 0.0];
         let accuracy = cv.compute_score(&predictions, &y_true);
-        assert!(accuracy >= 0.0 && accuracy <= 1.0);
+        assert!((0.0..=1.0).contains(&accuracy));
     }
     #[test]
     fn test_parameter_combinations() {
@@ -108,9 +114,8 @@ mod tests {
         let config = BiasVarianceConfig::default();
         assert_eq!(config.n_bootstrap_samples, 100);
         assert_eq!(config.bootstrap_size, 1.0);
-        assert!(! config.compute_sample_level);
-        let analyzer = BiasVarianceAnalyzer::new(config);
-        assert!(true);
+        assert!(!config.compute_sample_level);
+        let _analyzer = BiasVarianceAnalyzer::new(config);
     }
     #[test]
     fn test_bias_variance_convenience_constructors() {
@@ -200,7 +205,10 @@ mod tests {
         assert_eq!(analysis.variance_reduction, 0.2);
         assert_eq!(analysis.bias_curve.len(), analysis.ensemble_sizes.len());
         assert_eq!(analysis.variance_curve.len(), analysis.ensemble_sizes.len());
-        assert_eq!(analysis.total_error_curve.len(), analysis.ensemble_sizes.len());
+        assert_eq!(
+            analysis.total_error_curve.len(),
+            analysis.ensemble_sizes.len()
+        );
     }
     #[test]
     fn test_diversity_analyzer_creation() {
@@ -210,21 +218,22 @@ mod tests {
     fn test_cohens_kappa_calculation() {
         let pred1 = vec![0, 1, 0, 1, 1, 0];
         let pred2 = vec![0, 1, 1, 1, 0, 0];
-        let kappa = DiversityAnalyzer::compute_pairwise_kappa(&pred1, &pred2).expect("operation should succeed");
-        assert!(kappa >= - 1.0 && kappa <= 1.0);
+        let kappa = DiversityAnalyzer::compute_pairwise_kappa(&pred1, &pred2)
+            .expect("operation should succeed");
+        assert!((-1.0..=1.0).contains(&kappa));
     }
     #[test]
     fn test_fleiss_kappa_calculation() {
         let predictions = vec![vec![0, 1, 0, 1], vec![0, 1, 1, 1], vec![1, 1, 0, 0]];
         let fleiss_kappa = DiversityAnalyzer::compute_fleiss_kappa(&predictions)
             .expect("operation should succeed");
-        assert!(fleiss_kappa >= - 1.0 && fleiss_kappa <= 1.0);
+        assert!((-1.0..=1.0).contains(&fleiss_kappa));
     }
     #[test]
     fn test_disagreement_calculation() {
         let predictions = vec![vec![0, 1, 0, 1], vec![0, 1, 1, 0], vec![1, 0, 0, 1]];
         let disagreement = DiversityAnalyzer::compute_disagreement(&predictions);
-        assert!(disagreement >= 0.0 && disagreement <= 1.0);
+        assert!((0.0..=1.0).contains(&disagreement));
     }
     #[test]
     fn test_pearson_correlation() {
@@ -261,32 +270,19 @@ mod tests {
     #[test]
     fn test_comprehensive_diversity_metrics() {
         let predictions = vec![
-            array![0.0, 1.0, 0.0, 1.0], array![0.0, 1.0, 1.0, 1.0], array![1.0, 0.0, 0.0,
-            1.0],
+            array![0.0, 1.0, 0.0, 1.0],
+            array![0.0, 1.0, 1.0, 1.0],
+            array![1.0, 0.0, 0.0, 1.0],
         ];
         let ground_truth = array![0.0, 1.0, 0.0, 1.0];
-        let diversity_metrics = DiversityAnalyzer::compute_diversity_metrics(
-                &predictions,
-                &ground_truth,
-            )
-            .expect("operation should succeed");
-        assert!(
-            diversity_metrics.disagreement >= 0.0 && diversity_metrics.disagreement <=
-            1.0
-        );
-        assert!(
-            diversity_metrics.double_fault >= 0.0 && diversity_metrics.double_fault <=
-            1.0
-        );
-        assert!(diversity_metrics.kappa >= - 1.0 && diversity_metrics.kappa <= 1.0);
-        assert!(
-            diversity_metrics.fleiss_kappa >= - 1.0 && diversity_metrics.fleiss_kappa <=
-            1.0
-        );
-        assert!(
-            diversity_metrics.interrater_reliability.overall_agreement >= 0.0 &&
-            diversity_metrics.interrater_reliability.overall_agreement <= 1.0
-        );
+        let diversity_metrics =
+            DiversityAnalyzer::compute_diversity_metrics(&predictions, &ground_truth)
+                .expect("operation should succeed");
+        assert!((0.0..=1.0).contains(&diversity_metrics.disagreement));
+        assert!((0.0..=1.0).contains(&diversity_metrics.double_fault));
+        assert!((-1.0..=1.0).contains(&diversity_metrics.kappa));
+        assert!((-1.0..=1.0).contains(&diversity_metrics.fleiss_kappa));
+        assert!((0.0..=1.0).contains(&diversity_metrics.interrater_reliability.overall_agreement));
     }
     #[test]
     fn test_perfect_agreement_kappa() {

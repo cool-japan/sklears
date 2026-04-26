@@ -28,7 +28,7 @@ fn test_simd_add_vectors() {
     let result =
         simd_ops::simd_add_vectors(&a.view(), &b.view()).expect("operation should succeed");
 
-    let expected = vec![6.0, 8.0, 10.0, 12.0];
+    let expected = [6.0, 8.0, 10.0, 12.0];
     assert_eq!(result.len(), expected.len());
 
     for (i, (&res, &exp)) in result.iter().zip(expected.iter()).enumerate() {
@@ -52,7 +52,7 @@ fn test_simd_matrix_vector_multiply() {
         .expect("operation should succeed");
 
     // Expected: [1*1+2*2+3*3, 4*1+5*2+6*3, 7*1+8*2+9*3] = [14, 32, 50]
-    let expected = vec![14.0, 32.0, 50.0];
+    let expected = [14.0, 32.0, 50.0];
     assert_eq!(result.len(), expected.len());
 
     for (i, (&res, &exp)) in result.iter().zip(expected.iter()).enumerate() {
@@ -124,7 +124,7 @@ fn test_simd_subtract_vectors() {
     let result =
         simd_ops::simd_subtract_vectors(&a.view(), &b.view()).expect("operation should succeed");
 
-    let expected = vec![9.0, 6.0, 3.0, 0.0];
+    let expected = [9.0, 6.0, 3.0, 0.0];
     assert_eq!(result.len(), expected.len());
 
     for (i, (&res, &exp)) in result.iter().zip(expected.iter()).enumerate() {
@@ -146,7 +146,7 @@ fn test_simd_multiply_vectors() {
     let result =
         simd_ops::simd_multiply_vectors(&a.view(), &b.view()).expect("operation should succeed");
 
-    let expected = vec![2.0, 6.0, 12.0, 20.0];
+    let expected = [2.0, 6.0, 12.0, 20.0];
     assert_eq!(result.len(), expected.len());
 
     for (i, (&res, &exp)) in result.iter().zip(expected.iter()).enumerate() {
@@ -217,7 +217,7 @@ fn test_simd_batch_dot_product() {
     let results = simd_ops::simd_batch_dot_product(&vectors.view(), &query.view())
         .expect("operation should succeed");
 
-    let expected = vec![6.0, 15.0, 24.0]; // 1+2+3, 4+5+6, 7+8+9
+    let expected = [6.0, 15.0, 24.0]; // 1+2+3, 4+5+6, 7+8+9
     assert_eq!(results.len(), expected.len());
 
     for (i, (&res, &exp)) in results.iter().zip(expected.iter()).enumerate() {

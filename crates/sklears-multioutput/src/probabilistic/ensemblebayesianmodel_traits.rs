@@ -11,6 +11,7 @@
 //! - `Estimator`
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 use super::*;
 
@@ -103,7 +104,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>>
                         config: self.state.config.base_config.clone(),
                     };
                     let pred = model_wrapper.predict(X)?;
-                    ensemble_pred = ensemble_pred + &(pred * weight);
+                    ensemble_pred += &(pred * weight);
                 }
                 Ok(ensemble_pred)
             }
@@ -115,7 +116,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>>
                         config: self.state.config.base_config.clone(),
                     };
                     let pred = model_wrapper.predict(X)?;
-                    log_ensemble_pred = log_ensemble_pred + &pred.mapv(|x| x.abs().max(1e-10).ln());
+                    log_ensemble_pred += &pred.mapv(|x| x.abs().max(1e-10).ln());
                 }
                 let n_models_f = self.state.models.len() as Float;
                 let ensemble_pred = log_ensemble_pred.mapv(|x: Float| (x / n_models_f).exp());
@@ -136,7 +137,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>>
                         let mut values: Vec<Float> =
                             all_predictions.iter().map(|pred| pred[[i, j]]).collect();
                         values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
-                        let median = if values.len() % 2 == 0 {
+                        let median = if values.len().is_multiple_of(2) {
                             (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
                         } else {
                             values[values.len() / 2]
@@ -159,7 +160,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>>
                         config: self.state.config.base_config.clone(),
                     };
                     let pred = model_wrapper.predict(X)?;
-                    ensemble_pred = ensemble_pred + &(pred * weight);
+                    ensemble_pred += &(pred * weight);
                 }
                 Ok(ensemble_pred)
             }

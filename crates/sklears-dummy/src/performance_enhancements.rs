@@ -284,6 +284,7 @@ pub mod dummy_optimization {
     }
 
     /// Optimized batch prediction for dummy estimators
+    #[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
     pub struct BatchPredictor {
         cache: PredictionLookupCache,
         dispatcher: cpu_optimization::FastPathDispatcher,
@@ -351,6 +352,7 @@ pub mod dummy_optimization {
     }
 
     /// Memory-efficient storage for dummy estimator results
+    #[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
     pub struct CompactPredictionStorage {
         data: Vec<u8>,
         prediction_type: PredictionType,
@@ -381,7 +383,7 @@ pub mod dummy_optimization {
         pub fn store_binary_predictions(&mut self, predictions: &[bool]) {
             self.length = predictions.len();
             self.data.clear();
-            self.data.reserve((predictions.len() + 7) / 8);
+            self.data.reserve(predictions.len().div_ceil(8));
 
             let mut current_byte = 0u8;
             for (i, &pred) in predictions.iter().enumerate() {
@@ -482,12 +484,12 @@ mod tests {
         let mut cache = dummy_optimization::PredictionLookupCache::new();
 
         // Test caching
-        let result = cache.get_or_compute(42, || 3.14);
-        assert_eq!(result, 3.14);
+        let result = cache.get_or_compute(42, || 1.23);
+        assert_eq!(result, 1.23);
 
         // Test cache hit
         let result2 = cache.get_or_compute(42, || 999.0); // Should return cached value
-        assert_eq!(result2, 3.14);
+        assert_eq!(result2, 1.23);
 
         // Test strategy caching
         cache.cache_strategy_result(1, 42.0);
@@ -502,7 +504,7 @@ mod tests {
         assert_eq!(predictions.len(), 10);
         assert!(predictions.iter().all(|&p| p == 1));
 
-        let predictions = predictor.predict_regression_batch(0, &x, 3.14);
+        let predictions = predictor.predict_regression_batch(0, &x, 1.23);
         assert_eq!(predictions.len(), 10);
         assert!(!predictions.is_empty());
     }

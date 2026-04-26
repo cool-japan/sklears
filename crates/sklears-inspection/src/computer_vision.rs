@@ -7,7 +7,6 @@
 use crate::{types::Float, SklResult, SklearsError};
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, Array3};
-use scirs2_core::random::Rng;
 use std::collections::HashMap;
 
 /// Configuration for computer vision interpretability methods
@@ -746,7 +745,7 @@ where
 fn compute_integrated_gradients<F>(
     image: &Image,
     model_fn: F,
-    config: &ComputerVisionConfig,
+    _config: &ComputerVisionConfig,
 ) -> SklResult<Array2<Float>>
 where
     F: Fn(&Array3<Float>) -> SklResult<Array1<Float>>,
@@ -835,7 +834,7 @@ where
 fn generate_detection_explanation(
     image: &Image,
     bbox: &(Float, Float, Float, Float),
-    config: &ComputerVisionConfig,
+    _config: &ComputerVisionConfig,
 ) -> SklResult<Array2<Float>> {
     let (x, y, w, h) = *bbox;
     let mut explanation = Array2::zeros((image.height, image.width));
@@ -857,9 +856,9 @@ fn generate_detection_explanation(
 
 /// Extract key features from bounding box region
 fn extract_key_features(
-    image: &Image,
+    _image: &Image,
     bbox: &(Float, Float, Float, Float),
-    explanation: &Array2<Float>,
+    _explanation: &Array2<Float>,
 ) -> SklResult<Vec<KeyFeature>> {
     let mut features = Vec::new();
 
@@ -944,7 +943,7 @@ fn compute_detection_feature_importance(
 fn generate_pixel_explanations(
     image: &Image,
     segmentation: &Array2<usize>,
-    config: &ComputerVisionConfig,
+    _config: &ComputerVisionConfig,
 ) -> SklResult<Array2<Float>> {
     let mut explanations = Array2::zeros((image.height, image.width));
 

@@ -11,8 +11,8 @@
 //! - Independent Component Analysis (ICA) using higher-order statistics
 //! - Blind Source Separation with higher-order moments
 
-use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Random, Rng, RngExt};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, Axis};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::SklearsError;
 use sklears_core::types::Float;
 use std::collections::HashMap;
@@ -94,7 +94,7 @@ impl HigherOrderAnalyzer {
 
     /// Compute comprehensive higher-order statistics
     pub fn analyze(&self, data: &Array2<Float>) -> Result<HigherOrderResults, SklearsError> {
-        let (n_samples, n_features) = data.dim();
+        let (n_samples, _n_features) = data.dim();
 
         if n_samples < 10 {
             return Err(SklearsError::InvalidInput(
@@ -153,7 +153,7 @@ impl HigherOrderAnalyzer {
         &self,
         data: &Array2<Float>,
     ) -> Result<HashMap<usize, Array2<Float>>, SklearsError> {
-        let (n_samples, n_features) = data.dim();
+        let (_n_samples, n_features) = data.dim();
         let mut moments = HashMap::new();
 
         for order in 1..=self.config.max_order {
@@ -236,7 +236,7 @@ impl HigherOrderAnalyzer {
 
         // Higher-order cumulants can be computed recursively
         for order in 5..=self.config.max_order {
-            if let Some(moment) = moments.get(&order) {
+            if let Some(_moment) = moments.get(&order) {
                 let cumulant = self.compute_cumulant_recursive(order, moments)?;
                 cumulants.insert(order, cumulant);
             }
@@ -349,7 +349,7 @@ impl HigherOrderAnalyzer {
         &self,
         data: &Array2<Float>,
     ) -> Result<HashMap<(usize, usize), Array2<Float>>, SklearsError> {
-        let (n_samples, n_features) = data.dim();
+        let (_n_samples, n_features) = data.dim();
         let mut cross_moments = HashMap::new();
 
         for i in 0..n_features {
@@ -450,6 +450,7 @@ impl HigherOrderAnalyzer {
     }
 
     /// Bootstrap confidence intervals for statistics
+    #[allow(clippy::type_complexity)] // HashMap value is (lower_bound, upper_bound) pair of Arrays
     fn bootstrap_confidence_intervals(
         &self,
         data: &Array2<Float>,
@@ -593,7 +594,8 @@ pub struct PolyspectralCCA {
     polyspectrum_order: usize,
     /// Number of components
     n_components: usize,
-    config: HigherOrderConfig,
+    /// Higher-order statistics configuration
+    pub config: HigherOrderConfig,
 }
 
 impl PolyspectralCCA {
@@ -635,7 +637,7 @@ impl PolyspectralCCA {
 
     /// Compute polyspectrum of given order
     fn compute_polyspectrum(&self, data: &Array2<Float>) -> Result<Array3<Float>, SklearsError> {
-        let (n_samples, n_features) = data.dim();
+        let (_n_samples, n_features) = data.dim();
 
         // Simplified polyspectrum computation (placeholder)
         // In practice, would involve FFT and higher-order spectral analysis
@@ -672,7 +674,7 @@ impl PolyspectralCCA {
         &self,
         x_poly: &Array3<Float>,
         y_poly: &Array3<Float>,
-        cross_poly: &Array3<Float>,
+        _cross_poly: &Array3<Float>,
     ) -> Result<(Array2<Float>, Array2<Float>), SklearsError> {
         let (n_features_x, _, _) = x_poly.dim();
         let (n_features_y, _, _) = y_poly.dim();
@@ -715,13 +717,13 @@ mod tests {
     use super::*;
     use scirs2_core::essentials::Normal;
     use scirs2_core::ndarray::Array2;
-    use scirs2_core::random::{thread_rng, RngExt};
+    use scirs2_core::random::thread_rng;
 
     #[test]
     fn test_higher_order_analysis() {
         let data = Array2::from_shape_fn((100, 5), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let analyzer = HigherOrderAnalyzer::new();
 
@@ -754,7 +756,7 @@ mod tests {
     fn test_cumulant_computation() {
         let data = Array2::from_shape_fn((75, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let analyzer = HigherOrderAnalyzer::new();
         let centered = analyzer
@@ -777,7 +779,7 @@ mod tests {
         // Create data with known skewness/kurtosis properties
         let mut data = Array2::from_shape_fn((200, 3), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         // Make one column highly skewed
@@ -797,7 +799,7 @@ mod tests {
     fn test_non_gaussian_analysis() {
         let data = Array2::from_shape_fn((150, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let ng_analyzer = NonGaussianComponentAnalysis::new();
 
@@ -814,11 +816,11 @@ mod tests {
     fn test_polyspectral_cca() {
         let x = Array2::from_shape_fn((100, 6), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_fn((100, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let poly_cca = PolyspectralCCA::new(3, 2);
 
@@ -834,7 +836,7 @@ mod tests {
     fn test_independence_measures() {
         let data = Array2::from_shape_fn((80, 5), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let analyzer = HigherOrderAnalyzer::new();
         let result = analyzer.analyze(&data).expect("operation should succeed");
@@ -851,10 +853,12 @@ mod tests {
     fn test_bootstrap_confidence_intervals() {
         let data = Array2::from_shape_fn((60, 3), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
-        let mut config = HigherOrderConfig::default();
-        config.n_bootstrap = 100; // Smaller for test speed
+        let config = HigherOrderConfig {
+            n_bootstrap: 100, // Smaller for test speed
+            ..Default::default()
+        };
 
         let analyzer = HigherOrderAnalyzer::new().with_config(config);
         let result = analyzer.analyze(&data).expect("operation should succeed");

@@ -71,7 +71,8 @@ impl<T: Clone> TransformationCache<T> {
         }
     }
 
-    /// Generate cache key from input data
+    /// Generate cache key from input data; retained for future cache keying by content
+    #[allow(dead_code)]
     fn generate_key<U: Hash>(&self, input: U) -> u64 {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         input.hash(&mut hasher);
@@ -187,6 +188,8 @@ impl<T: std::fmt::Debug> std::fmt::Debug for ConditionalStepConfig<T> {
 /// A conditional preprocessing step
 pub struct ConditionalStep<T> {
     config: ConditionalStepConfig<T>,
+    /// Fit state flag retained for future stateful conditional logic
+    #[allow(dead_code)]
     fitted: bool,
 }
 
@@ -262,6 +265,11 @@ impl<T> ParallelBranches<T>
 where
     T: Transform<Array2<f64>, Array2<f64>> + Clone + Send + Sync,
 {
+    /// Return `true` if the branches have been fitted.
+    pub fn is_fitted(&self) -> bool {
+        self.fitted
+    }
+
     pub fn new(config: ParallelBranchConfig<T>) -> Result<Self> {
         if config.transformers.len() != config.branch_names.len() {
             return Err(SklearsError::InvalidInput(
@@ -607,6 +615,16 @@ where
         self
     }
 
+    /// Get the number of steps in the pipeline.
+    pub fn len(&self) -> usize {
+        self.steps.len()
+    }
+
+    /// Return `true` if the pipeline has no steps.
+    pub fn is_empty(&self) -> bool {
+        self.steps.is_empty()
+    }
+
     /// Get cache statistics
     pub fn cache_stats(&self) -> CacheStats {
         self.cache.stats()
@@ -808,6 +826,8 @@ where
 /// Dynamic pipeline that can be modified at runtime
 pub struct DynamicPipeline<T> {
     steps: Arc<RwLock<Vec<PipelineStep<T>>>>,
+    /// Cache retained for future content-addressed caching support
+    #[allow(dead_code)]
     cache: TransformationCache<Array2<f64>>,
     config: AdvancedPipelineConfig,
 }
@@ -1035,56 +1055,62 @@ mod tests {
         assert!(stats.enabled);
     }
 
-    // TODO: Fix this test - requires properly fitted transformers
-    // #[test]
-    // fn test_parallel_branches_concatenate() {
-    //     let scaler1 = StandardScaler::default();
-    //     let scaler2 = StandardScaler::default();
+    #[test]
+    fn test_parallel_branches_concatenate() {
+        use crate::scaling::StandardScaler;
 
-    //     let config = ParallelBranchConfig {
-    //         transformers: vec![scaler1, scaler2],
-    //         branch_names: vec!["branch1".to_string(), "branch2".to_string()],
-    //         combination_strategy: BranchCombinationStrategy::Concatenate,
-    //     };
+        let scaler1 = StandardScaler::default();
+        let scaler2 = StandardScaler::default();
 
-    //     let branches = ParallelBranches::new(config).unwrap();
-    //     let data = arr2(&[[1.0, 2.0], [3.0, 4.0]]);
+        let config = ParallelBranchConfig {
+            transformers: vec![scaler1, scaler2],
+            branch_names: vec!["branch1".to_string(), "branch2".to_string()],
+            combination_strategy: BranchCombinationStrategy::Concatenate,
+        };
 
-    //     // This test would require proper fitted transformers
-    //     // For now, just test the construction
-    //     assert!(!branches.fitted);
-    // }
+        let branches = ParallelBranches::new(config).expect("construction should succeed");
 
-    // TODO: Fix this test - requires properly fitted transformers
-    // #[test]
-    // fn test_advanced_pipeline_builder() {
-    //     let scaler = StandardScaler::default();
+        // StandardScaler::transform is a passthrough, so the branches are never
+        // "fitted" in the training sense — the flag starts false.
+        assert!(!branches.is_fitted());
+    }
 
-    //     let pipeline = AdvancedPipelineBuilder::new()
-    //         .add_step(scaler)
-    //         .with_error_strategy(ErrorHandlingStrategy::SkipOnError)
-    //         .build();
+    #[test]
+    fn test_advanced_pipeline_builder() {
+        use crate::scaling::StandardScaler;
 
-    //     assert_eq!(pipeline.steps.len(), 1);
-    // }
+        let scaler = StandardScaler::default();
 
-    // TODO: Fix this test - requires properly fitted transformers
-    // #[test]
-    // fn test_dynamic_pipeline() {
-    //     let config = AdvancedPipelineConfig::default();
-    //     let pipeline = DynamicPipeline::new(config);
+        let pipeline = AdvancedPipelineBuilder::new()
+            .add_step(scaler)
+            .with_error_strategy(ErrorHandlingStrategy::SkipOnError)
+            .build();
 
-    //     assert!(pipeline.is_empty());
+        assert_eq!(pipeline.len(), 1);
+    }
 
-    //     let scaler = StandardScaler::default();
-    //     pipeline.add_step_runtime(scaler).unwrap();
+    #[test]
+    fn test_dynamic_pipeline() {
+        use crate::scaling::StandardScaler;
 
-    //     assert_eq!(pipeline.len(), 1);
-    //     assert!(!pipeline.is_empty());
+        let config = AdvancedPipelineConfig::default();
+        let pipeline = DynamicPipeline::new(config);
 
-    //     pipeline.remove_step(0).unwrap();
-    //     assert!(pipeline.is_empty());
-    // }
+        assert!(pipeline.is_empty());
+
+        let scaler = StandardScaler::default();
+        pipeline
+            .add_step_runtime(scaler)
+            .expect("adding step should succeed");
+
+        assert_eq!(pipeline.len(), 1);
+        assert!(!pipeline.is_empty());
+
+        pipeline
+            .remove_step(0)
+            .expect("removing step should succeed");
+        assert!(pipeline.is_empty());
+    }
 
     #[test]
     fn test_streaming_transformer_wrapper() {

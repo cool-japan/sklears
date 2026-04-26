@@ -315,11 +315,11 @@ impl LocallyLinearEmbedding<Untrained> {
         Ok(weights)
     }
 
-    fn solve_linear_system(&self, a: &Array2<f64>, b: &Array2<f64>) -> SklResult<Array2<f64>> {
+    fn solve_linear_system(&self, a: &Array2<f64>, _b: &Array2<f64>) -> SklResult<Array2<f64>> {
         // Simple pseudo-inverse solution for small systems
         // In a full implementation, would use proper linear system solver
         let n = a.nrows();
-        let a_inv: Array2<f64> = Array2::eye(n);
+        let _a_inv: Array2<f64> = Array2::eye(n); // deferred: used in future proper solver
 
         // Simple diagonal regularization for numerical stability
         let mut a_reg = a.clone();

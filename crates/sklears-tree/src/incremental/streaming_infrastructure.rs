@@ -14,11 +14,10 @@
 //! - **AdaptiveConceptDriftDetector**: Enhanced drift detection combining multiple approaches
 
 use super::simd_operations as simd_tree;
-use crate::{DecisionTreeConfig, Untrained};
+use crate::DecisionTreeConfig;
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::error::{Result, SklearsError};
-use std::collections::{HashMap, VecDeque};
-use std::marker::PhantomData;
+use std::collections::VecDeque;
 
 /// Configuration for incremental tree building
 #[derive(Debug, Clone)]
@@ -392,7 +391,8 @@ impl AdwinDetector {
     /// Calculate the statistical bound for the ADWIN test using SIMD acceleration
     fn calculate_bound(&self, n0: usize, n1: usize, var0: f64, var1: f64) -> f64 {
         let alpha = 1.0 - self.confidence;
-        simd_tree::simd_adwin_bound_calculation(n0, n1, var0, var1, alpha)
+        let n = (n0 + n1) as f64;
+        simd_tree::simd_adwin_bound_calculation(n0 as f64, n1 as f64, var0, var1, alpha, n)
     }
 
     /// Perform the cut by removing the old part of the window

@@ -6,7 +6,7 @@ use super::functions::*;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -14,8 +14,12 @@ use sklears_core::{
 };
 use std::marker::PhantomData;
 
+/// Multi-objective optimization result: (pareto_front_individuals, feature_subsets, objective_values)
+pub type MultiObjectiveResult = SklResult<(Vec<Individual>, Vec<Vec<usize>>, Array2<f64>)>;
+
 /// Simple cross-validator trait replacement
 pub trait CrossValidator {
+    /// n_samples
     fn split(&self, n_samples: usize) -> Vec<(Vec<usize>, Vec<usize>)>;
 }
 
@@ -136,12 +140,16 @@ impl<E: Clone> GeneticSelector<E, Untrained> {
 }
 impl<E> GeneticSelector<E, Trained> {
     /// Get the best feature subset found
-    pub fn best_features(&self) -> &[usize] {
-        self.best_features_.as_ref().expect("operation should succeed")
+    pub fn best_features(&self) -> SklResult<&[usize]> {
+        self.best_features_.as_deref().ok_or_else(|| {
+            SklearsError::FitError("GeneticSelector not fitted: best_features_ missing".to_string())
+        })
     }
     /// Get the best cross-validation score achieved
-    pub fn best_score(&self) -> f64 {
-        self.best_score_.expect("operation should succeed")
+    pub fn best_score(&self) -> SklResult<f64> {
+        self.best_score_.ok_or_else(|| {
+            SklearsError::FitError("GeneticSelector not fitted: best_score_ missing".to_string())
+        })
     }
 }
 /// Objective to maximize feature importance (using a given importance score)
@@ -150,6 +158,7 @@ pub struct FeatureImportanceObjective {
     pub(crate) importance_scores: Array1<f64>,
 }
 impl FeatureImportanceObjective {
+    /// new
     pub fn new(importance_scores: Array1<f64>) -> Self {
         Self { importance_scores }
     }
@@ -175,6 +184,7 @@ impl CostSensitiveObjective {
     }
 }
 #[derive(Debug, Clone)]
+/// FairnessMetric
 pub enum FairnessMetric {
     /// Demographic parity - equal representation across groups
     DemographicParity,
@@ -278,7 +288,7 @@ impl MultiObjectiveFeatureSelector<Untrained> {
         y_classif: Option<&Array1<i32>>,
         y_regression: Option<&Array1<f64>>,
         n_features: usize,
-    ) -> SklResult<(Vec<Individual>, Vec<Vec<usize>>, Array2<f64>)> {
+    ) -> MultiObjectiveResult {
         match &self.optimization_method {
             MultiObjectiveMethod::NSGAII => self.nsga_ii(x, y_classif, y_regression, n_features),
             MultiObjectiveMethod::WeightedSum(weights) => {
@@ -294,7 +304,7 @@ impl MultiObjectiveFeatureSelector<Untrained> {
         y_classif: Option<&Array1<i32>>,
         y_regression: Option<&Array1<f64>>,
         n_features: usize,
-    ) -> SklResult<(Vec<Individual>, Vec<Vec<usize>>, Array2<f64>)> {
+    ) -> MultiObjectiveResult {
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
@@ -343,7 +353,7 @@ impl MultiObjectiveFeatureSelector<Untrained> {
         y_regression: Option<&Array1<f64>>,
         n_features: usize,
         weights: &[f64],
-    ) -> SklResult<(Vec<Individual>, Vec<Vec<usize>>, Array2<f64>)> {
+    ) -> MultiObjectiveResult {
         if weights.len() != self.objectives.len() {
             return Err(SklearsError::InvalidInput(
                 "Number of weights must match number of objectives".to_string(),
@@ -389,7 +399,7 @@ impl MultiObjectiveFeatureSelector<Untrained> {
         let mut population = Vec::with_capacity(self.population_size);
         for _ in 0..self.population_size {
             let mut features = vec![false; n_features];
-            let n_selected = rng.gen_range((n_features / 10).max(1)..=(n_features / 2).max(1));
+            let n_selected = rng.random_range((n_features / 10).max(1)..=(n_features / 2).max(1));
             let mut indices: Vec<usize> = (0..n_features).collect();
             indices.shuffle(rng);
             for &idx in indices.iter().take(n_selected) {
@@ -433,12 +443,12 @@ impl MultiObjectiveFeatureSelector<Untrained> {
         for _ in 0..self.population_size {
             let parent1 = self.tournament_selection(population, rng);
             let parent2 = self.tournament_selection(population, rng);
-            let mut child = if rng.gen::<f64>() < self.crossover_prob {
+            let mut child = if rng.random::<f64>() < self.crossover_prob {
                 self.uniform_crossover(&parent1.features, &parent2.features, rng)
             } else {
                 parent1.features.clone()
             };
-            if rng.gen::<f64>() < self.mutation_prob {
+            if rng.random::<f64>() < self.mutation_prob {
                 self.bit_flip_mutation(&mut child, rng);
             }
             offspring.push(Individual {
@@ -457,9 +467,9 @@ impl MultiObjectiveFeatureSelector<Untrained> {
         rng: &mut StdRng,
     ) -> &'a Individual {
         let tournament_size = 3;
-        let mut best = &population[rng.gen_range(0..population.len())];
+        let mut best = &population[rng.random_range(0..population.len())];
         for _ in 1..tournament_size {
-            let candidate = &population[rng.gen_range(0..population.len())];
+            let candidate = &population[rng.random_range(0..population.len())];
             if self.dominates(&candidate.objectives, &best.objectives) {
                 best = candidate;
             }
@@ -471,13 +481,13 @@ impl MultiObjectiveFeatureSelector<Untrained> {
         parent1
             .iter()
             .zip(parent2.iter())
-            .map(|(&p1, &p2)| if rng.gen::<f64>() < 0.5 { p1 } else { p2 })
+            .map(|(&p1, &p2)| if rng.random::<f64>() < 0.5 { p1 } else { p2 })
             .collect()
     }
     /// Bit flip mutation
     fn bit_flip_mutation(&self, individual: &mut [bool], rng: &mut StdRng) {
         for gene in individual.iter_mut() {
-            if rng.gen::<f64>() < 0.1 {
+            if rng.random::<f64>() < 0.1 {
                 *gene = !*gene;
             }
         }
@@ -570,15 +580,17 @@ impl MultiObjectiveFeatureSelector<Untrained> {
 impl MultiObjectiveFeatureSelector<Trained> {
     /// Get the Pareto front solutions
     pub fn pareto_front(&self) -> &[Individual] {
-        self.pareto_front_.as_ref().expect("operation should succeed")
+        self.pareto_front_.as_deref().unwrap_or(&[])
     }
     /// Get all Pareto-optimal feature selections
     pub fn pareto_optimal_features(&self) -> &[Vec<usize>] {
-        self.best_solutions_.as_ref().expect("operation should succeed")
+        self.best_solutions_.as_deref().unwrap_or(&[])
     }
     /// Get objective values for all Pareto-optimal solutions
     pub fn objective_values(&self) -> &Array2<f64> {
-        self.objective_values_.as_ref().expect("operation should succeed")
+        self.objective_values_
+            .as_ref()
+            .expect("operation should succeed")
     }
     /// Select a specific solution from the Pareto front by index
     pub fn select_solution(&self, index: usize) -> Option<&[usize]> {
@@ -595,7 +607,10 @@ impl MultiObjectiveFeatureSelector<Trained> {
                 "Number of weights must match number of objectives".to_string(),
             ));
         }
-        let objective_values = self.objective_values_.as_ref().expect("operation should succeed");
+        let objective_values = self
+            .objective_values_
+            .as_ref()
+            .expect("operation should succeed");
         let mut best_score = f64::NEG_INFINITY;
         let mut best_index = 0;
         for i in 0..objective_values.nrows() {
@@ -607,7 +622,11 @@ impl MultiObjectiveFeatureSelector<Trained> {
                 best_index = i;
             }
         }
-        Ok(self.best_solutions_.as_ref().expect("operation should succeed")[best_index].as_slice())
+        Ok(self
+            .best_solutions_
+            .as_ref()
+            .expect("operation should succeed")[best_index]
+            .as_slice())
     }
     /// Get a balanced solution (equal weights for all objectives)
     pub fn balanced_solution(&self) -> SklResult<&[usize]> {
@@ -617,8 +636,14 @@ impl MultiObjectiveFeatureSelector<Trained> {
     }
     /// Select solution with minimum total cost while maintaining performance threshold
     pub fn select_cost_optimal(&self, performance_threshold: f64) -> SklResult<&[usize]> {
-        let objective_values = self.objective_values_.as_ref().expect("operation should succeed");
-        let solutions = self.best_solutions_.as_ref().expect("operation should succeed");
+        let objective_values = self
+            .objective_values_
+            .as_ref()
+            .expect("operation should succeed");
+        let solutions = self
+            .best_solutions_
+            .as_ref()
+            .expect("operation should succeed");
         let mut cost_idx = None;
         let mut perf_idx = None;
         for (i, obj) in self.objectives.iter().enumerate() {
@@ -660,8 +685,14 @@ impl MultiObjectiveFeatureSelector<Trained> {
     }
     /// Select solution with best cost-performance ratio
     pub fn select_cost_efficient(&self) -> SklResult<&[usize]> {
-        let objective_values = self.objective_values_.as_ref().expect("operation should succeed");
-        let solutions = self.best_solutions_.as_ref().expect("operation should succeed");
+        let objective_values = self
+            .objective_values_
+            .as_ref()
+            .expect("operation should succeed");
+        let solutions = self
+            .best_solutions_
+            .as_ref()
+            .expect("operation should succeed");
         let mut cost_idx = None;
         let mut perf_idx = None;
         for (i, obj) in self.objectives.iter().enumerate() {
@@ -701,7 +732,10 @@ impl MultiObjectiveFeatureSelector<Trained> {
     }
     /// Get cost breakdown for each Pareto-optimal solution
     pub fn cost_breakdown(&self) -> SklResult<Vec<f64>> {
-        let solutions = self.best_solutions_.as_ref().expect("operation should succeed");
+        let solutions = self
+            .best_solutions_
+            .as_ref()
+            .expect("operation should succeed");
         let mut costs = Vec::new();
         let mut cost_objective = None;
         for obj in &self.objectives {
@@ -723,8 +757,14 @@ impl MultiObjectiveFeatureSelector<Trained> {
     }
     /// Select solution that maximizes fairness metrics
     pub fn select_fairness_optimal(&self) -> SklResult<&[usize]> {
-        let objective_values = self.objective_values_.as_ref().expect("operation should succeed");
-        let solutions = self.best_solutions_.as_ref().expect("operation should succeed");
+        let objective_values = self
+            .objective_values_
+            .as_ref()
+            .expect("operation should succeed");
+        let solutions = self
+            .best_solutions_
+            .as_ref()
+            .expect("operation should succeed");
         let mut fairness_idx = None;
         for (i, obj) in self.objectives.iter().enumerate() {
             if obj.name() == "fairness_aware" {
@@ -752,8 +792,14 @@ impl MultiObjectiveFeatureSelector<Trained> {
     }
     /// Select solution that balances performance and fairness
     pub fn select_fair_balanced(&self, fairness_threshold: f64) -> SklResult<&[usize]> {
-        let objective_values = self.objective_values_.as_ref().expect("operation should succeed");
-        let solutions = self.best_solutions_.as_ref().expect("operation should succeed");
+        let objective_values = self
+            .objective_values_
+            .as_ref()
+            .expect("operation should succeed");
+        let solutions = self
+            .best_solutions_
+            .as_ref()
+            .expect("operation should succeed");
         let mut fairness_idx = None;
         let mut perf_idx = None;
         for (i, obj) in self.objectives.iter().enumerate() {
@@ -799,7 +845,10 @@ impl MultiObjectiveFeatureSelector<Trained> {
     }
     /// Get fairness metrics for each Pareto-optimal solution
     pub fn fairness_metrics(&self) -> SklResult<Vec<f64>> {
-        let objective_values = self.objective_values_.as_ref().expect("operation should succeed");
+        let objective_values = self
+            .objective_values_
+            .as_ref()
+            .expect("operation should succeed");
         let mut fairness_values = Vec::new();
         let mut fairness_idx = None;
         for (i, obj) in self.objectives.iter().enumerate() {
@@ -830,7 +879,10 @@ impl MultiObjectiveFeatureSelector<Trained> {
                 "Reference point must have same dimensions as objectives".to_string(),
             ));
         }
-        let objective_values = self.objective_values_.as_ref().expect("operation should succeed");
+        let objective_values = self
+            .objective_values_
+            .as_ref()
+            .expect("operation should succeed");
         let mut hypervolume = 0.0;
         if self.objectives.len() == 2 {
             let mut points: Vec<(f64, f64)> = Vec::new();
@@ -866,7 +918,10 @@ impl MultiObjectiveFeatureSelector<Trained> {
     }
     /// Get diversity metrics of the Pareto front
     pub fn pareto_diversity(&self) -> SklResult<f64> {
-        let objective_values = self.objective_values_.as_ref().expect("operation should succeed");
+        let objective_values = self
+            .objective_values_
+            .as_ref()
+            .expect("operation should succeed");
         let n_solutions = objective_values.nrows();
         if n_solutions < 2 {
             return Ok(0.0);
@@ -888,8 +943,14 @@ impl MultiObjectiveFeatureSelector<Trained> {
     }
     /// Find knee point solution (best trade-off)
     pub fn knee_point_solution(&self) -> SklResult<&[usize]> {
-        let objective_values = self.objective_values_.as_ref().expect("operation should succeed");
-        let solutions = self.best_solutions_.as_ref().expect("operation should succeed");
+        let objective_values = self
+            .objective_values_
+            .as_ref()
+            .expect("operation should succeed");
+        let solutions = self
+            .best_solutions_
+            .as_ref()
+            .expect("operation should succeed");
         if self.objectives.len() != 2 {
             return Err(SklearsError::InvalidInput(
                 "Knee point detection only supported for 2-objective problems".to_string(),
@@ -924,7 +985,10 @@ impl MultiObjectiveFeatureSelector<Trained> {
     }
     /// Get dominated solutions count for each objective
     pub fn domination_analysis(&self) -> SklResult<Vec<usize>> {
-        let objective_values = self.objective_values_.as_ref().expect("operation should succeed");
+        let objective_values = self
+            .objective_values_
+            .as_ref()
+            .expect("operation should succeed");
         let n_solutions = objective_values.nrows();
         let mut domination_counts = vec![0; n_solutions];
         for i in 0..n_solutions {
@@ -957,8 +1021,14 @@ impl MultiObjectiveFeatureSelector<Trained> {
                 "Ideal point must have same dimensions as objectives".to_string(),
             ));
         }
-        let objective_values = self.objective_values_.as_ref().expect("operation should succeed");
-        let solutions = self.best_solutions_.as_ref().expect("operation should succeed");
+        let objective_values = self
+            .objective_values_
+            .as_ref()
+            .expect("operation should succeed");
+        let solutions = self
+            .best_solutions_
+            .as_ref()
+            .expect("operation should succeed");
         let mut min_distance = f64::INFINITY;
         let mut best_solution_idx = 0;
         for i in 0..objective_values.nrows() {
@@ -990,7 +1060,10 @@ impl MultiObjectiveFeatureSelector<Trained> {
                 "Min and max values must have same dimensions as objectives".to_string(),
             ));
         }
-        let objective_values = self.objective_values_.as_ref().expect("operation should succeed");
+        let objective_values = self
+            .objective_values_
+            .as_ref()
+            .expect("operation should succeed");
         let mut filtered_indices = Vec::new();
         for i in 0..objective_values.nrows() {
             let mut within_range = true;
@@ -1032,12 +1105,14 @@ pub struct KFold {
     pub(crate) shuffle: bool,
 }
 impl KFold {
+    /// new
     pub fn new(n_splits: usize) -> Self {
         Self {
             n_splits,
             shuffle: false,
         }
     }
+    /// shuffle
     pub fn shuffle(mut self, shuffle: bool) -> Self {
         self.shuffle = shuffle;
         self

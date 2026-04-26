@@ -256,7 +256,7 @@ pub fn plot_feature_distributions<P: AsRef<Path>>(
         .map_err(|e| VisualizationError::Plotting(format!("{}", e)))?;
 
     let grid_rows = ((n_features as f64).sqrt().ceil()) as usize;
-    let grid_cols = (n_features + grid_rows - 1) / grid_rows;
+    let grid_cols = n_features.div_ceil(grid_rows);
 
     let areas = root.split_evenly((grid_rows, grid_cols));
 
@@ -370,7 +370,12 @@ mod tests {
         let targets = Array1::zeros(10);
         let int_targets: Array1<i32> = targets.mapv(|x: f64| x as i32);
 
-        let result = plot_2d_classification("/tmp/test.png", &features, &int_targets, None);
+        let result = plot_2d_classification(
+            std::env::temp_dir().join("test.png"),
+            &features,
+            &int_targets,
+            None,
+        );
         assert!(result.is_err());
     }
 }

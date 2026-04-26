@@ -1142,7 +1142,7 @@ pub mod profile_guided_optimization {
             }
         }
 
-        fn should_adapt_strategy(&self, new_strategy: &OptimizationStrategy) -> bool {
+        fn should_adapt_strategy(&self, _new_strategy: &OptimizationStrategy) -> bool {
             // Simple heuristic: adapt if we have enough samples and the strategy differs significantly
             let profile = match self.profile.lock() {
                 Ok(profile) => profile,
@@ -1314,7 +1314,7 @@ mod tests {
             .expect("operation should succeed");
         let labels = Array1::from_vec(vec![0, 0, 1, 1]);
 
-        let (means, variances) = parallel::estimate_gaussian_params_parallel(&data, &labels, 2);
+        let (means, _variances) = parallel::estimate_gaussian_params_parallel(&data, &labels, 2);
 
         assert_relative_eq!(means[[0, 0]], 2.0, epsilon = 1e-10);
         assert_relative_eq!(means[[0, 1]], 3.0, epsilon = 1e-10);
@@ -1419,7 +1419,7 @@ mod tests {
 
     #[test]
     fn test_strategy_recommendation() {
-        let mut optimizer = profile_guided_optimization::ProfileGuidedOptimizer::new(
+        let optimizer = profile_guided_optimization::ProfileGuidedOptimizer::new(
             profile_guided_optimization::OptimizationStrategy::Conservative,
         );
 
@@ -1469,7 +1469,7 @@ mod tests {
         assert!(profile.is_some());
 
         let exported = profile.expect("operation should succeed");
-        assert!(exported.operation_counts.get("log_sum_exp").is_some());
+        assert!(exported.operation_counts.contains_key("log_sum_exp"));
 
         // Reset profile
         optimizer.reset_profile();

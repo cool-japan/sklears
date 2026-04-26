@@ -65,7 +65,7 @@
 use super::*;
 use approx::assert_abs_diff_eq;
 use proptest::prelude::*;
-use scirs2_core::ndarray::{Array2, Axis};
+use scirs2_core::ndarray::Array2;
 use scirs2_core::random::{Random, RngExt};
 use sklears_core::traits::Transform;
 
@@ -934,41 +934,6 @@ mod property_tests {
             } else {
                 0.0
             }
-        }
-
-        /// Calculate multivariate log-likelihood for convergence assessment
-        ///
-        /// Computes a simplified log-likelihood measure for evaluating
-        /// the quality of multivariate data distributions.
-        fn calculate_multivariate_log_likelihood(data: &Array2<f64>) -> f64 {
-            let n_samples = data.nrows() as f64;
-            let n_features = data.ncols();
-
-            // Calculate sample mean
-            let mean = data
-                .mean_axis(Axis(0))
-                .expect("array should have elements for mean computation");
-
-            // Calculate sample covariance
-            let mut cov = Array2::zeros((n_features, n_features));
-            for i in 0..data.nrows() {
-                let centered = &data.row(i).to_owned() - &mean;
-                for j in 0..n_features {
-                    for k in 0..n_features {
-                        cov[[j, k]] += centered[j] * centered[k];
-                    }
-                }
-            }
-            cov /= n_samples - 1.0;
-
-            // Add small regularization to diagonal
-            for i in 0..n_features {
-                cov[[i, i]] += 1e-6;
-            }
-
-            // Simplified log-likelihood (assuming determinant calculation)
-            let trace = cov.diag().sum();
-            -0.5 * n_samples * (trace.ln() + n_features as f64 * (2.0 * std::f64::consts::PI).ln())
         }
 
         /// Calculate MSE specifically on missing value positions

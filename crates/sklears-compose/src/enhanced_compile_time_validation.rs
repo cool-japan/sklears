@@ -15,6 +15,9 @@ use std::marker::PhantomData;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+/// A custom validator function for config values
+type ConfigValidatorFn = Box<dyn Fn(&ConfigValue) -> Result<()> + Send + Sync>;
+
 /// Enhanced compile-time validation system for ML pipeline configurations
 #[derive(Debug)]
 pub struct CompileTimeValidator<State = Unvalidated> {
@@ -48,9 +51,11 @@ pub struct CompileTimeValidator<State = Unvalidated> {
 pub struct Unvalidated;
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct Validated;
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct PartiallyValidated;
 
 /// Configuration for validation behavior
@@ -268,20 +273,43 @@ pub struct ValidationSuggestion {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SuggestionAction {
     /// AddField
-    AddField { field: String, value: String },
+    AddField {
+        /// The field.
+        field: String,
+        /// The value.
+        value: String,
+    },
     /// RemoveField
-    RemoveField { field: String },
+    RemoveField {
+        /// The field.
+        field: String,
+    },
     /// ModifyField
-    ModifyField { field: String, new_value: String },
+    ModifyField {
+        /// The field.
+        field: String,
+        /// The new value.
+        new_value: String,
+    },
     /// RestructureSection
     RestructureSection {
+        /// The section.
         section: String,
+        /// The new structure.
         new_structure: String,
     },
     /// AddDependency
-    AddDependency { dependency: String },
+    AddDependency {
+        /// The dependency.
+        dependency: String,
+    },
     /// UpgradeVersion
-    UpgradeVersion { component: String, version: String },
+    UpgradeVersion {
+        /// The component.
+        component: String,
+        /// The version.
+        version: String,
+    },
 }
 
 /// Suggestion priority levels
@@ -340,6 +368,7 @@ pub struct TypeSafeConfigBuilder<State = Unbuilt> {
 pub struct Unbuilt;
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct Built;
 
 /// Configuration value with type information
@@ -376,7 +405,7 @@ pub struct TypeConstraint {
     pub constraints: Vec<ValueConstraint>,
 
     /// Custom validation function
-    pub custom_validator: Option<Box<dyn Fn(&ConfigValue) -> Result<()> + Send + Sync>>,
+    pub custom_validator: Option<ConfigValidatorFn>,
 }
 
 impl std::fmt::Debug for TypeConstraint {
@@ -438,9 +467,19 @@ pub enum ConfigType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ValueConstraint {
     /// Range
-    Range { min: f64, max: f64 },
+    Range {
+        /// The min.
+        min: f64,
+        /// The max.
+        max: f64,
+    },
     /// Length
-    Length { min: usize, max: Option<usize> },
+    Length {
+        /// The min.
+        min: usize,
+        /// The max.
+        max: Option<usize>,
+    },
     /// Pattern
     Pattern(String),
     /// OneOf
@@ -600,13 +639,18 @@ pub enum SchemaConstraintType {
     RequiredTogether,
     /// ConditionalRequired
     ConditionalRequired {
+        /// The condition.
         condition: String,
+        /// The required.
         required: Vec<String>,
     },
     /// ValueDependency
     ValueDependency {
+        /// The field.
         field: String,
+        /// The dependent field.
         dependent_field: String,
+        /// The values.
         values: Vec<ConfigValue>,
     },
 }
@@ -658,6 +702,7 @@ pub struct ValidatedPipelineConfig<T> {
 
 /// Proof that configuration has been validated
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ValidationProof {
     /// Proof identifier
     proof_id: String,
@@ -702,7 +747,7 @@ impl<State> CompileTimeValidator<State> {
     /// Create a new compile-time validator with custom configuration
     #[must_use]
     pub fn with_config(config: ValidationConfig) -> CompileTimeValidator<Unvalidated> {
-        /// CompileTimeValidator
+        // CompileTimeValidator
         CompileTimeValidator {
             state: PhantomData,
             schema_validators: Arc::new(RwLock::new(HashMap::new())),
@@ -793,7 +838,7 @@ impl CompileTimeValidator<Unvalidated> {
             {
                 let validation_cache_clone = Arc::clone(&self.validation_cache);
                 return Ok((
-                    /// CompileTimeValidator
+                    // CompileTimeValidator
                     CompileTimeValidator {
                         state: PhantomData,
                         schema_validators: self.schema_validators,
@@ -1082,7 +1127,7 @@ impl CompileTimeValidator<Unvalidated> {
     fn generate_suggestions(
         &self,
         errors: &[ValidationError],
-        config: &HashMap<String, ConfigValue>,
+        _config: &HashMap<String, ConfigValue>,
     ) -> Vec<ValidationSuggestion> {
         let mut suggestions = Vec::new();
 
@@ -1144,7 +1189,7 @@ impl CompileTimeValidator<Validated> {
             checksum: "validated".to_string(),
         };
 
-        /// ValidatedPipelineConfig
+        // ValidatedPipelineConfig
         ValidatedPipelineConfig {
             config,
             validation_proof,
@@ -1155,7 +1200,7 @@ impl CompileTimeValidator<Validated> {
     /// Get validation metrics
     #[must_use]
     pub fn get_validation_metrics(&self) -> ValidationMetrics {
-        /// ValidationMetrics
+        // ValidationMetrics
         ValidationMetrics {
             validation_time: Duration::from_millis(0),
             rules_checked: 0,
@@ -1182,7 +1227,7 @@ impl<T> ValidatedPipelineConfig<T> {
     where
         F: FnOnce(T) -> U,
     {
-        /// ValidatedPipelineConfig
+        // ValidatedPipelineConfig
         ValidatedPipelineConfig {
             config: f(self.config),
             validation_proof: self.validation_proof,
@@ -1222,7 +1267,7 @@ impl TypeSafeConfigBuilder<Unbuilt> {
             .insert(name.to_string(), ConfigValue::String(value.into()));
         self.type_constraints.insert(
             name.to_string(),
-            /// TypeConstraint
+            // TypeConstraint
             TypeConstraint {
                 expected_type: ConfigType::String,
                 required: true,
@@ -1241,7 +1286,7 @@ impl TypeSafeConfigBuilder<Unbuilt> {
             .insert(name.to_string(), ConfigValue::Integer(value));
         self.type_constraints.insert(
             name.to_string(),
-            /// TypeConstraint
+            // TypeConstraint
             TypeConstraint {
                 expected_type: ConfigType::Integer,
                 required: true,
@@ -1260,7 +1305,7 @@ impl TypeSafeConfigBuilder<Unbuilt> {
             .insert(name.to_string(), ConfigValue::Float(value));
         self.type_constraints.insert(
             name.to_string(),
-            /// TypeConstraint
+            // TypeConstraint
             TypeConstraint {
                 expected_type: ConfigType::Float,
                 required: true,
@@ -1279,7 +1324,7 @@ impl TypeSafeConfigBuilder<Unbuilt> {
             .insert(name.to_string(), ConfigValue::Boolean(value));
         self.type_constraints.insert(
             name.to_string(),
-            /// TypeConstraint
+            // TypeConstraint
             TypeConstraint {
                 expected_type: ConfigType::Boolean,
                 required: true,
@@ -1481,6 +1526,7 @@ impl Default for PipelineSchemaValidator {
 
 impl PipelineSchemaValidator {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         let mut required_fields = HashSet::new();
         required_fields.insert("model".to_string());
@@ -1489,7 +1535,7 @@ impl PipelineSchemaValidator {
         let mut field_definitions = HashMap::new();
         field_definitions.insert(
             "model".to_string(),
-            /// FieldDefinition
+            // FieldDefinition
             FieldDefinition {
                 field_type: ConfigType::Object(HashMap::new()),
                 description: "Model configuration".to_string(),
@@ -1622,7 +1668,7 @@ impl ValidationRule for NonEmptyStringRule {
 /// Macro for creating enhanced validated configurations
 #[macro_export]
 macro_rules! enhanced_validated_config {
-    ($($key:expr => $value:expr),*) => {{
+    ($($key:expr_2021 => $value:expr_2021),*) => {{
         let mut config = std::collections::HashMap::new();
         $(
             config.insert($key.to_string(), $value);
@@ -1635,7 +1681,7 @@ macro_rules! enhanced_validated_config {
 #[macro_export]
 macro_rules! type_safe_config {
     (
-        $($field:ident: $type:ident = $value:expr),*
+        $($field:ident: $type:ident = $value:expr_2021),*
     ) => {{
         let builder = TypeSafeConfigBuilder::new();
         $(
@@ -1761,7 +1807,10 @@ mod tests {
             ConfigValue::String(_)
         ));
         assert!(matches!(ConfigValue::Integer(42), ConfigValue::Integer(_)));
-        assert!(matches!(ConfigValue::Float(3.14), ConfigValue::Float(_)));
+        assert!(matches!(
+            ConfigValue::Float(std::f64::consts::PI),
+            ConfigValue::Float(_)
+        ));
         assert!(matches!(
             ConfigValue::Boolean(true),
             ConfigValue::Boolean(_)

@@ -135,9 +135,10 @@ impl CompressionConfig {
 }
 
 /// Compression algorithms for image processing
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum CompressionAlgorithm {
     /// JPEG compression
+    #[default]
     JPEG,
     /// PNG compression
     PNG,
@@ -149,12 +150,6 @@ pub enum CompressionAlgorithm {
     AVIF,
     /// Custom compression
     Custom,
-}
-
-impl Default for CompressionAlgorithm {
-    fn default() -> Self {
-        Self::JPEG
-    }
 }
 
 /// Noise reduction configuration
@@ -216,11 +211,12 @@ impl NoiseReductionConfig {
 }
 
 /// Denoising algorithms
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum DenoisingAlgorithm {
     /// Gaussian blur denoising
     GaussianBlur,
     /// Bilateral filter
+    #[default]
     BilateralFilter,
     /// Non-local means denoising
     NonLocalMeans,
@@ -232,12 +228,6 @@ pub enum DenoisingAlgorithm {
     DeepLearning,
     /// Custom denoising
     Custom,
-}
-
-impl Default for DenoisingAlgorithm {
-    fn default() -> Self {
-        Self::BilateralFilter
-    }
 }
 
 /// Sharpening configuration
@@ -541,7 +531,7 @@ impl Default for CachingStrategy {
             eviction_policy: CacheEvictionPolicy::LRU,
             ttl: Duration::from_secs(3600), // 1 hour
             persistent: false,
-            cache_location: "/tmp/cv_cache".to_string(),
+            cache_location: std::env::temp_dir().join("cv_cache").display().to_string(),
         }
     }
 }

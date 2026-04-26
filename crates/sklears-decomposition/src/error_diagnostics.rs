@@ -725,7 +725,7 @@ mod tests {
 
         // Exponential convergence
         for i in 0..10 {
-            let residual = 0.5_f64.powi(i as i32);
+            let residual = 0.5_f64.powi(i);
             diag.update(residual, residual, residual, 1e-10);
         }
 

@@ -391,7 +391,7 @@ impl CalibrationValidator {
         for indices in class_indices.values() {
             let fold_size = indices.len() / k;
             for (i, &idx) in indices.iter().enumerate() {
-                let fold_idx = if fold_size > 0 { i / fold_size } else { i % k };
+                let fold_idx = i.checked_div(fold_size).unwrap_or(i % k);
                 let fold_idx = fold_idx.min(k - 1);
                 splits[fold_idx].1.push(idx);
             }

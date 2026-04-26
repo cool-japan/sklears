@@ -25,7 +25,7 @@ pub fn d2_absolute_error_score(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> Me
         let mut y_sorted = y_true.to_vec();
         y_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let n = y_sorted.len();
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             (y_sorted[n / 2 - 1] + y_sorted[n / 2]) / 2.0
         } else {
             y_sorted[n / 2]

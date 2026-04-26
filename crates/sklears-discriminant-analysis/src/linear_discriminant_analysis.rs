@@ -5,6 +5,7 @@
 
 // ✅ Using SciRS2 dependencies following SciRS2 policy
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1};
+use scirs2_linalg::compat::{Eig, Inverse};
 use sklears_core::{
     error::{validate, Result},
     traits::{Estimator, Fit, Predict, PredictProba, Transform, Trained, Untrained},
@@ -322,12 +323,12 @@ impl Fit<Array2<Float>, Array1<i32>> for LinearDiscriminantAnalysis<Untrained> {
 
         // Solve generalized eigenvalue problem: sb * v = lambda * sw * v
         // This is approximated by solving: inv(sw) * sb * v = lambda * v
-        let sw_inv = match ndarray_linalg::solve::Inverse::inv(&sw) {
+        let sw_inv = match sw.inv() {
             Ok(inv) => inv,
             Err(_) => {
                 // Add regularization if matrix is singular
                 let reg_sw = sw + Array2::eye(n_features) * 1e-6;
-                ndarray_linalg::solve::Inverse::inv(&reg_sw)
+                reg_sw.inv()
                     .map_err(|_| sklears_core::error::SklearsError::InvalidInput(
                         "Could not invert within-class scatter matrix".to_string(),
                     ))?
@@ -337,7 +338,7 @@ impl Fit<Array2<Float>, Array1<i32>> for LinearDiscriminantAnalysis<Untrained> {
         let matrix = sw_inv.dot(&sb);
 
         // Eigenvalue decomposition
-        let (eigenvalues, eigenvectors) = match ndarray_linalg::eig::Eig::eig(&matrix) {
+        let (eigenvalues, eigenvectors) = match matrix.eig() {
             Ok((vals, vecs)) => (vals, vecs),
             Err(_) => return Err(sklears_core::error::SklearsError::InvalidInput(
                 "Eigenvalue decomposition failed".to_string(),

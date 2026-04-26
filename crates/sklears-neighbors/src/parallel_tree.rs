@@ -140,6 +140,7 @@ pub struct ParallelTreeIndex {
     data_partitions: Vec<Vec<usize>>,
 
     // Configuration
+    #[allow(dead_code)]
     leaf_size: usize,
     num_threads: usize,
 
@@ -172,7 +173,7 @@ impl ParallelTreeIndex {
             return Err(NeighborsError::EmptyInput);
         }
 
-        let num_threads = num_threads.unwrap_or_else(|| {
+        let num_threads = num_threads.unwrap_or({
             #[cfg(feature = "parallel")]
             {
                 rayon::current_num_threads()
@@ -315,7 +316,7 @@ impl ParallelTreeIndex {
     #[cfg(feature = "parallel")]
     fn build_data_parallel(&mut self) -> NeighborsResult<()> {
         let n_samples = self.data.shape()[0];
-        let chunk_size = (n_samples + self.num_threads - 1) / self.num_threads;
+        let chunk_size = n_samples.div_ceil(self.num_threads);
 
         // Partition data
         self.data_partitions = (0..n_samples)
@@ -439,6 +440,7 @@ impl ParallelTreeIndex {
         self.build_sequential()
     }
 
+    #[allow(dead_code)] // reserved for non-parallel fallback path
     fn build_sequential(&mut self) -> NeighborsResult<()> {
         let tree = self.build_single_tree(&self.data)?;
         self.store_single_tree(tree);
@@ -476,6 +478,7 @@ impl ParallelTreeIndex {
         self.build_single_tree(data)
     }
 
+    #[allow(dead_code)]
     fn extract_partition_data(&self, partition: &[usize]) -> NeighborsResult<Array2<Float>> {
         let n_features = self.data.shape()[1];
         let mut partition_data = Array2::zeros((partition.len(), n_features));
@@ -491,6 +494,7 @@ impl ParallelTreeIndex {
         Ok(partition_data)
     }
 
+    #[allow(dead_code)]
     fn store_trees(&mut self, trees: Vec<ParallelTreeResult>) {
         for tree in trees {
             self.store_single_tree(tree);
@@ -558,6 +562,7 @@ impl ParallelTreeIndex {
         }
     }
 
+    #[allow(dead_code)]
     fn extract_work_unit_data(
         data: &Array2<Float>,
         unit: &WorkUnit,
@@ -574,6 +579,7 @@ impl ParallelTreeIndex {
         Ok(unit_data)
     }
 
+    #[allow(dead_code)]
     fn build_tree_for_unit(
         data: &Array2<Float>,
         distance: Distance,
@@ -600,6 +606,7 @@ impl ParallelTreeIndex {
         }
     }
 
+    #[allow(dead_code)]
     fn split_work_unit(
         _data: &Array2<Float>,
         unit: &WorkUnit,
@@ -693,6 +700,7 @@ impl ParallelTreeIndex {
         }
     }
 
+    #[allow(dead_code)] // reserved for non-parallel query path
     fn query_knn_sequential(
         &self,
         query_point: ArrayView1<Float>,
@@ -794,6 +802,7 @@ impl ParallelTreeIndex {
         Ok((neighbors, distances))
     }
 
+    #[allow(dead_code)]
     fn query_partition_brute_force(
         &self,
         query_point: ArrayView1<Float>,
@@ -826,6 +835,7 @@ impl ParallelTreeIndex {
         Ok((neighbor_indices, neighbor_distances))
     }
 
+    #[allow(dead_code)] // reserved for distributed partition indexing
     fn adjust_indices_for_partition(
         &self,
         indices: Vec<usize>,
@@ -844,6 +854,7 @@ impl ParallelTreeIndex {
         }
     }
 
+    #[allow(dead_code)]
     fn merge_knn_results(
         &self,
         partition_results: Vec<(Vec<usize>, Vec<Float>)>,
@@ -869,6 +880,8 @@ impl ParallelTreeIndex {
 }
 
 /// Result type for parallel tree construction
+// Variants intentionally share `Tree` postfix to reflect their tree type identity
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Clone)]
 enum ParallelTreeResult {
     KdTree(Arc<KdTree>),

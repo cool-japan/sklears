@@ -340,7 +340,7 @@ impl CompositionExecutionEngine {
         Ok(())
     }
 
-    fn detect_composition_cycles(&self, composition: &CompositionGraph) -> SklResult<()> {
+    fn detect_composition_cycles(&self, _composition: &CompositionGraph) -> SklResult<()> {
         // Simplified cycle detection
         // In a real implementation, this would use proper graph algorithms
         Ok(())
@@ -362,9 +362,9 @@ impl CompositionExecutionEngine {
     fn prepare_component_input(
         &self,
         component_id: &str,
-        composition: &CompositionGraph,
+        _composition: &CompositionGraph,
         initial_input: &HashMap<String, PipelineData>,
-        component_results: &HashMap<String, ComponentExecutionResult>,
+        _component_results: &HashMap<String, ComponentExecutionResult>,
     ) -> SklResult<PipelineData> {
         // Simplified input preparation
         // In a real implementation, this would combine inputs based on composition graph edges
@@ -377,10 +377,10 @@ impl CompositionExecutionEngine {
 
     async fn execute_composition_component(
         &self,
-        context: Arc<RwLock<CompositionContext>>,
+        _context: Arc<RwLock<CompositionContext>>,
         component_node: &CompositionNode,
         input_data: PipelineData,
-        execution_context: &mut CompositionExecutionContext,
+        _execution_context: &mut CompositionExecutionContext,
     ) -> SklResult<ComponentExecutionResult> {
         let start_time = Instant::now();
 
@@ -452,6 +452,7 @@ impl std::fmt::Debug for CompositionContext {
 
 impl CompositionContext {
     #[must_use]
+    /// Creates a new instance.
     pub fn new(context_id: &str) -> Self {
         let now = Instant::now();
         Self {
@@ -474,8 +475,8 @@ impl CompositionContext {
 
     /// Get a component from the context
     #[must_use]
-    pub fn get_component(&self, component_id: &str) -> Option<&Box<dyn PluggableComponent>> {
-        self.components.get(component_id)
+    pub fn get_component(&self, component_id: &str) -> Option<&dyn PluggableComponent> {
+        self.components.get(component_id).map(|b| b.as_ref())
     }
 
     /// Set context variable
@@ -506,6 +507,7 @@ pub enum ContextState {
 
 /// Execution scheduler for managing concurrent executions
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ExecutionScheduler {
     /// Execution queue
     execution_queue: VecDeque<ScheduledExecution>,
@@ -521,6 +523,7 @@ pub struct ExecutionScheduler {
 
 impl ExecutionScheduler {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             execution_queue: VecDeque::new(),
@@ -531,6 +534,7 @@ impl ExecutionScheduler {
         }
     }
 
+    /// Performs schedule execution.
     pub fn schedule_execution(
         &mut self,
         context: Arc<RwLock<CompositionContext>>,
@@ -551,6 +555,7 @@ impl ExecutionScheduler {
         Ok(execution_id)
     }
 
+    /// Performs wait for execution.
     pub fn wait_for_execution(&self, execution_id: &str) -> SklResult<ExecutionResult> {
         // Simplified wait implementation
         // In a real implementation, this would use proper synchronization
@@ -569,6 +574,7 @@ impl ExecutionScheduler {
         })
     }
 
+    /// Performs shutdown.
     pub fn shutdown(&self) -> SklResult<()> {
         let (lock, cvar) = &*self.shutdown_signal;
         let mut shutdown = lock.lock().unwrap_or_else(|e| e.into_inner());
@@ -580,6 +586,7 @@ impl ExecutionScheduler {
 
 /// Resource manager for execution resource allocation
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ResourceManager {
     /// Available CPU cores
     available_cpu_cores: u32,
@@ -593,6 +600,7 @@ pub struct ResourceManager {
 
 impl ResourceManager {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             available_cpu_cores: num_cpus::get() as u32,
@@ -602,6 +610,7 @@ impl ResourceManager {
         }
     }
 
+    /// Performs allocate for pipeline.
     pub fn allocate_for_pipeline(&mut self, pipeline: &Pipeline) -> SklResult<ResourceAllocation> {
         let allocation_id = uuid::Uuid::new_v4().to_string();
 
@@ -622,11 +631,13 @@ impl ResourceManager {
         Ok(allocation)
     }
 
+    /// Performs release allocation.
     pub fn release_allocation(&mut self, allocation: ResourceAllocation) -> SklResult<()> {
         self.allocated_resources.remove(&allocation.allocation_id);
         Ok(())
     }
 
+    /// Performs release all resources.
     pub fn release_all_resources(&mut self) -> SklResult<()> {
         self.allocated_resources.clear();
         Ok(())
@@ -726,6 +737,7 @@ pub struct ResourceUsage {
 
 impl ResourceUsage {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             peak_memory: 0,
@@ -834,6 +846,7 @@ pub struct CompositionExecutionContext {
 
 impl CompositionExecutionContext {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             start_time: Instant::now(),
@@ -957,6 +970,7 @@ pub struct ExecutionStatistics {
 
 impl ExecutionStatistics {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             total_executions: 0,
@@ -991,18 +1005,23 @@ impl ExecutionStatistics {
 #[derive(Debug, Error)]
 pub enum ExecutionEngineError {
     #[error("Context not found: {0}")]
+    /// Variant value.
     ContextNotFound(String),
 
     #[error("Resource allocation failed: {0}")]
+    /// Variant value.
     ResourceAllocationFailed(String),
 
     #[error("Execution scheduling failed: {0}")]
+    /// Variant value.
     SchedulingFailed(String),
 
     #[error("Execution timeout: {0:?}")]
+    /// Variant value.
     ExecutionTimeout(Duration),
 
     #[error("Invalid composition graph: {0}")]
+    /// Variant value.
     InvalidCompositionGraph(String),
 }
 

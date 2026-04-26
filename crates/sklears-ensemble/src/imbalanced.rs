@@ -15,16 +15,16 @@ use sklears_core::{
 };
 use std::collections::HashMap;
 
-/// Helper function to generate random f64 from scirs2_core::random::RngCore
-fn gen_f64(rng: &mut impl scirs2_core::random::RngCore) -> f64 {
+/// Helper function to generate random f64 from scirs2_core::random::Rng
+fn gen_f64(rng: &mut impl scirs2_core::random::Rng) -> f64 {
     let mut bytes = [0u8; 8];
     rng.fill_bytes(&mut bytes);
     f64::from_le_bytes(bytes) / f64::from_le_bytes([255u8; 8])
 }
 
-/// Helper function to generate random value in range from scirs2_core::random::RngCore
+/// Helper function to generate random value in range from scirs2_core::random::Rng
 fn gen_range_usize(
-    rng: &mut impl scirs2_core::random::RngCore,
+    rng: &mut impl scirs2_core::random::Rng,
     range: std::ops::Range<usize>,
 ) -> usize {
     let mut bytes = [0u8; 8];
@@ -193,6 +193,7 @@ pub enum BorderlineMode {
 }
 
 /// Imbalanced ensemble classifier using specialized techniques
+#[allow(dead_code)] // planned API fields
 pub struct ImbalancedEnsembleClassifier<State = Untrained> {
     config: ImbalancedEnsembleConfig,
     state: std::marker::PhantomData<State>,
@@ -291,6 +292,7 @@ impl ImbalancedEnsembleConfigBuilder {
     }
 }
 
+#[allow(non_snake_case, dead_code)] // standard ML notation; implementation methods used in sampling strategies
 impl ImbalancedEnsembleClassifier<Untrained> {
     pub fn new(config: ImbalancedEnsembleConfig) -> Self {
         Self {
@@ -511,6 +513,7 @@ impl ImbalancedEnsembleClassifier<Untrained> {
     }
 
     /// SMOTE (Synthetic Minority Oversampling Technique)
+    #[allow(clippy::needless_range_loop)] // index needed for euclidean_distance(X, i, j) calls
     fn smote_sampling(&self, X: &Array2<f64>, y: &[usize]) -> SklResult<(Array2<f64>, Vec<usize>)> {
         let default_config = SMOTEConfig::default();
         let smote_config = self.config.smote_config.as_ref().unwrap_or(&default_config);
@@ -531,7 +534,7 @@ impl ImbalancedEnsembleClassifier<Untrained> {
     }
 
     /// Tomek Links removal for cleaning
-    #[allow(non_snake_case)]
+    #[allow(non_snake_case, clippy::needless_range_loop)]
     fn tomek_links_sampling(
         &self,
         X: &Array2<f64>,
@@ -842,6 +845,7 @@ impl ImbalancedEnsembleClassifier<Untrained> {
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 impl SMOTESampler {
     pub fn new(config: SMOTEConfig) -> Self {
         let rng = if let Some(seed) = config.random_state {
@@ -1087,7 +1091,7 @@ impl Fit<Array2<f64>, Vec<usize>> for ImbalancedEnsembleClassifier<Untrained> {
         };
 
         // Apply cost-sensitive learning if configured
-        let adjusted_weights = if let Some(ref cost_config) = self.config.cost_sensitive_config {
+        let _adjusted_weights = if let Some(ref cost_config) = self.config.cost_sensitive_config {
             self.apply_cost_sensitive_weights(&class_weights, cost_config)?
         } else {
             class_weights.clone()
@@ -1129,6 +1133,7 @@ impl Fit<Array2<f64>, Vec<usize>> for ImbalancedEnsembleClassifier<Untrained> {
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 impl Predict<Array2<f64>, Vec<usize>> for ImbalancedEnsembleClassifier<Trained> {
     fn predict(&self, X: &Array2<f64>) -> SklResult<Vec<usize>> {
         let mut all_predictions = Vec::new();
@@ -1153,6 +1158,7 @@ impl Predict<Array2<f64>, Vec<usize>> for ImbalancedEnsembleClassifier<Trained> 
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 impl<State> ImbalancedEnsembleClassifier<State> {
     /// Combine predictions using majority voting
     fn majority_voting(&self, predictions: &[Vec<usize>]) -> SklResult<Vec<usize>> {

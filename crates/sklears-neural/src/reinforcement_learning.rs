@@ -14,7 +14,7 @@
 
 use crate::NeuralResult;
 use scirs2_core::ndarray::{Array1, Array2, Axis, ScalarOperand};
-use scirs2_core::random::{thread_rng, CoreRandom, Rng, Uniform};
+use scirs2_core::random::thread_rng;
 use sklears_core::{error::SklearsError, types::FloatBounds};
 use std::collections::VecDeque;
 
@@ -97,6 +97,7 @@ impl<T: FloatBounds> ReplayBuffer<T> {
 
 /// Q-Network for DQN
 #[derive(Debug)]
+#[allow(dead_code)] // Architecture fields retained for network reconstruction and future serialization
 pub struct QNetwork<T: FloatBounds> {
     /// Network weights (layers)
     weights: Vec<Array2<T>>,
@@ -384,20 +385,19 @@ impl<T: FloatBounds + ScalarOperand> DQNAgent<T> {
 
             // TD error
             let td_error = target_q - current_q;
-            total_loss = total_loss + td_error * td_error;
+            total_loss += td_error * td_error;
         }
 
         let loss = total_loss / T::from(batch.len() as f64).unwrap_or_else(|| T::zero());
 
         // Update target network periodically
         self.steps += 1;
-        if self.steps % self.config.target_update_freq == 0 {
+        if self.steps.is_multiple_of(self.config.target_update_freq) {
             self.target_network.copy_weights_from(&self.q_network);
         }
 
         // Decay epsilon
-        self.epsilon =
-            self.epsilon * T::from(self.config.epsilon_decay).unwrap_or_else(|| T::zero());
+        self.epsilon *= T::from(self.config.epsilon_decay).unwrap_or_else(|| T::zero());
         self.epsilon = self
             .epsilon
             .max(T::from(self.config.epsilon_end).unwrap_or_else(|| T::zero()));
@@ -418,6 +418,7 @@ impl<T: FloatBounds + ScalarOperand> DQNAgent<T> {
 
 /// Policy network for policy gradient methods
 #[derive(Debug)]
+#[allow(dead_code)] // Dimension fields retained for policy network reconstruction and future serialization
 pub struct PolicyNetwork<T: FloatBounds> {
     /// Network weights
     weights: Vec<Array2<T>>,
@@ -596,6 +597,7 @@ impl<T: FloatBounds> Default for Trajectory<T> {
 }
 
 /// REINFORCE agent (vanilla policy gradient)
+#[allow(dead_code)] // learning_rate and gamma retained for optimizer configuration in future train_episode method
 pub struct REINFORCEAgent<T: FloatBounds> {
     /// Policy network
     policy: PolicyNetwork<T>,
@@ -638,7 +640,7 @@ impl<T: FloatBounds + ScalarOperand> REINFORCEAgent<T> {
         for (i, (&action, &g)) in trajectory.actions.iter().zip(returns.iter()).enumerate() {
             let log_prob = self.policy.log_prob(&trajectory.states[i], action)?;
             let loss = -log_prob * g; // Negative because we want to maximize
-            total_loss = total_loss + loss;
+            total_loss += loss;
         }
 
         let avg_loss = total_loss / T::from(trajectory.len() as f64).unwrap_or_else(|| T::zero());
@@ -864,8 +866,10 @@ mod tests {
 
     #[test]
     fn test_dqn_double_mode() {
-        let mut config = DQNConfig::default();
-        config.double_dqn = true;
+        let config = DQNConfig {
+            double_dqn: true,
+            ..Default::default()
+        };
 
         let agent: DQNAgent<f64> = DQNAgent::new(config);
         assert!(agent.config.double_dqn);

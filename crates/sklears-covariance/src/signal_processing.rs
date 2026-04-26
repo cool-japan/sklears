@@ -8,7 +8,6 @@ use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::random::essentials::{Normal, Uniform};
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Distribution;
-use scirs2_core::random::Rng;
 use sklears_core::error::SklearsError;
 use sklears_core::traits::{Estimator, Fit};
 use std::collections::HashMap;
@@ -266,19 +265,19 @@ pub struct ArraySignalProcessingUntrained;
 #[derive(Debug, Clone)]
 pub struct ArraySignalProcessingTrained {
     /// Array covariance matrix
-    array_covariance: Array2<f64>,
+    pub array_covariance: Array2<f64>,
     /// Estimated directions of arrival
-    estimated_doas: Array1<f64>,
+    pub estimated_doas: Array1<f64>,
     /// Signal powers
-    signal_powers: Array1<f64>,
+    pub signal_powers: Array1<f64>,
     /// Noise power
-    noise_power: f64,
+    pub noise_power: f64,
     /// Spatial spectrum
-    spatial_spectrum: Array1<f64>,
+    pub spatial_spectrum: Array1<f64>,
     /// Angular grid
-    angular_grid: Array1<f64>,
+    pub angular_grid: Array1<f64>,
     /// Source separation quality
-    separation_quality: f64,
+    pub separation_quality: f64,
 }
 
 /// Radar and sonar covariance applications
@@ -387,17 +386,17 @@ pub struct RadarSonarCovarianceUntrained;
 #[derive(Debug, Clone)]
 pub struct RadarSonarCovarianceTrained {
     /// Clutter covariance matrix
-    clutter_covariance: Array2<f64>,
+    pub clutter_covariance: Array2<f64>,
     /// Range-Doppler map
-    range_doppler_map: Array2<f64>,
+    pub range_doppler_map: Array2<f64>,
     /// Detection statistics
-    detection_statistics: Array1<f64>,
+    pub detection_statistics: Array1<f64>,
     /// Threshold values
-    threshold_values: Array1<f64>,
+    pub threshold_values: Array1<f64>,
     /// Target locations
-    target_locations: Array2<f64>,
+    pub target_locations: Array2<f64>,
     /// Clutter statistics
-    clutter_statistics: ClutterStatistics,
+    pub clutter_statistics: ClutterStatistics,
 }
 
 /// Clutter statistics
@@ -502,17 +501,17 @@ pub struct AdaptiveFilteringCovarianceUntrained;
 #[derive(Debug, Clone)]
 pub struct AdaptiveFilteringCovarianceTrained {
     /// Input signal covariance
-    input_covariance: Array2<f64>,
+    pub input_covariance: Array2<f64>,
     /// Optimal filter coefficients
-    optimal_coefficients: Array1<f64>,
+    pub optimal_coefficients: Array1<f64>,
     /// Adaptive coefficients history
-    coefficients_history: Array2<f64>,
+    pub coefficients_history: Array2<f64>,
     /// Error covariance
-    error_covariance: Array2<f64>,
+    pub error_covariance: Array2<f64>,
     /// Performance metrics values
-    performance_values: HashMap<String, f64>,
+    pub performance_values: HashMap<String, f64>,
     /// Convergence analysis
-    convergence_analysis: ConvergenceAnalysis,
+    pub convergence_analysis: ConvergenceAnalysis,
 }
 
 /// Convergence analysis
@@ -676,7 +675,7 @@ impl Fit<Array2<f64>, ()> for SpatialCovarianceEstimator {
 
 impl SpatialCovarianceEstimator {
     fn estimate_spatial_covariance(&self, x: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let (n_snapshots, n_elements) = x.dim();
+        let (_n_snapshots, _n_elements) = x.dim();
 
         match self.estimation_method {
             SpatialEstimationMethod::SampleCovariance => self.sample_covariance(x),
@@ -744,7 +743,7 @@ impl SpatialCovarianceEstimator {
 
         for i in 0..base_cov.nrows() {
             for j in 0..base_cov.ncols() {
-                let lag = (i as i32 - j as i32).abs() as usize;
+                let lag = (i as i32 - j as i32).unsigned_abs() as usize;
                 if lag < base_cov.nrows() {
                     structured_cov[[i, j]] = base_cov[[0, lag]];
                 }
@@ -790,7 +789,7 @@ impl SpatialCovarianceEstimator {
     fn separate_subspaces(
         &self,
         eigenvectors: &Array2<f64>,
-        eigenvalues: &Array1<f64>,
+        _eigenvalues: &Array1<f64>,
     ) -> Result<(Array2<f64>, Array2<f64>), SklearsError> {
         let n = eigenvectors.nrows();
         let n_signal = n / 3; // Assume 1/3 are signal subspace
@@ -979,7 +978,7 @@ impl Fit<Array2<f64>, ()> for BeamformingCovariance {
     type Fitted = BeamformingCovariance<BeamformingCovarianceTrained>;
 
     fn fit(self, x: &Array2<f64>, _y: &()) -> Result<Self::Fitted, SklearsError> {
-        let (n_snapshots, n_elements) = x.dim();
+        let (n_snapshots, _n_elements) = x.dim();
 
         if n_snapshots < 2 {
             return Err(SklearsError::InvalidInput(
@@ -1109,7 +1108,7 @@ impl BeamformingCovariance {
         Ok(sinr)
     }
 
-    fn compute_beam_pattern(&self, weights: &Array1<f64>) -> Result<Array1<f64>, SklearsError> {
+    fn compute_beam_pattern(&self, _weights: &Array1<f64>) -> Result<Array1<f64>, SklearsError> {
         // Simplified beam pattern computation
         let n_angles = 180;
         let mut local_rng = thread_rng();

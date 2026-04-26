@@ -83,6 +83,7 @@ pub struct TrainedSequentialFeatureSelection {
     /// Number of features originally present
     n_features_in: usize,
     /// Configuration used for training
+    #[allow(dead_code)] // retained for future serialisation / re-fit support
     config: SequentialFeatureSelectionConfig,
 }
 
@@ -128,7 +129,7 @@ impl SequentialFeatureSelection {
 
     /// Set the fraction of features to select
     pub fn n_features_fraction(mut self, fraction: Float) -> Self {
-        self.config.n_features_fraction = Some(fraction.max(0.0).min(1.0));
+        self.config.n_features_fraction = Some(fraction.clamp(0.0, 1.0));
         self.config.n_features_to_select = None;
         self
     }

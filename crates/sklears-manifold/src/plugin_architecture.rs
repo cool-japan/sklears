@@ -50,7 +50,7 @@ pub trait ManifoldPlugin: Send + Sync + Debug {
 
     /// Get plugin metadata
     fn metadata(&self) -> PluginMetadata {
-        /// PluginMetadata
+        // PluginMetadata
         PluginMetadata {
             name: self.name().to_string(),
             version: self.version().to_string(),
@@ -549,7 +549,7 @@ pub mod utils {
 
     /// Get plugin metadata
     pub fn get_plugin_metadata(name: &str) -> Option<PluginMetadata> {
-        /// PLUGIN_REGISTRY
+        // PLUGIN_REGISTRY
         PLUGIN_REGISTRY
             .read()
             .expect("operation should succeed")
@@ -588,7 +588,7 @@ pub mod utils {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::{Array2, ArrayView2};
-    use scirs2_core::random::{thread_rng, RngExt};
+    use scirs2_core::random::thread_rng;
 
     /// Example plugin implementation for testing
     #[derive(Debug)]
@@ -729,7 +729,7 @@ mod tests {
             Ok(())
         }
 
-        fn transform(&self, x: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
+        fn transform(&self, _x: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
             if !self.fitted {
                 return Err(SklearsError::InvalidInput(
                     "Model is not fitted".to_string(),
@@ -748,7 +748,7 @@ mod tests {
         }
 
         fn get_metadata(&self) -> CustomModelMetadata {
-            /// CustomModelMetadata
+            // CustomModelMetadata
             CustomModelMetadata {
                 plugin_name: "ExamplePlugin".to_string(),
                 plugin_version: "1.0.0".to_string(),

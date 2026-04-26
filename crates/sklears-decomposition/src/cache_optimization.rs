@@ -164,7 +164,7 @@ where
 
     /// Check if memory is properly aligned
     pub fn is_aligned(&self) -> bool {
-        (self.data.as_ptr() as usize) % self.alignment == 0
+        (self.data.as_ptr() as usize).is_multiple_of(self.alignment)
     }
 
     /// Get memory alignment
@@ -245,6 +245,7 @@ impl TiledMatrixOps {
     }
 
     /// Multiply a single tile
+    #[allow(clippy::too_many_arguments)]
     fn multiply_tile(
         &self,
         result: &mut Array2<Float>,
@@ -427,20 +428,23 @@ impl TiledMatrixOps {
                 let mut sum = 0.0;
 
                 // Vectorized inner loop with prefetching
-                for (_j, (&matrix_val, &vec_val)) in
+                #[cfg(target_arch = "x86_64")]
+                for (j, (&matrix_val, &vec_val)) in
                     matrix.row(ii).iter().zip(vector.iter()).enumerate()
                 {
-                    #[cfg(target_arch = "x86_64")]
-                    if self.config.enable_prefetch && _j + 8 < n {
+                    if self.config.enable_prefetch && j + 8 < n {
                         unsafe {
-                            let next_ptr = matrix.as_ptr().add(ii * n + _j + 8);
+                            let next_ptr = matrix.as_ptr().add(ii * n + j + 8);
                             std::arch::x86_64::_mm_prefetch(
                                 next_ptr as *const i8,
                                 std::arch::x86_64::_MM_HINT_T0,
                             );
                         }
                     }
-
+                    sum += matrix_val * vec_val;
+                }
+                #[cfg(not(target_arch = "x86_64"))]
+                for (&matrix_val, &vec_val) in matrix.row(ii).iter().zip(vector.iter()) {
                     sum += matrix_val * vec_val;
                 }
 
@@ -571,9 +575,9 @@ impl CachePerformanceAnalyzer {
         };
 
         CacheMissEstimate {
-            l1_misses: l1_misses as usize,
-            l2_misses: l2_misses as usize,
-            l3_misses: l3_misses as usize,
+            l1_misses,
+            l2_misses,
+            l3_misses,
             estimated_penalty_cycles: (l3_misses as f64 * 300.0) as usize, // ~300 cycles per memory access
         }
     }

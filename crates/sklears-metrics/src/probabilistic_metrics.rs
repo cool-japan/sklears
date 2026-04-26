@@ -673,12 +673,7 @@ pub fn kl_divergence(
     let eps = epsilon.unwrap_or(1e-15);
 
     // Validate that both probability matrices contain valid probabilities
-    for (i, (row_true, row_pred)) in p_true
-        .rows()
-        .into_iter()
-        .zip(p_pred.rows().into_iter())
-        .enumerate()
-    {
+    for (i, (row_true, row_pred)) in p_true.rows().into_iter().zip(p_pred.rows()).enumerate() {
         let sum_true: f64 = row_true.sum();
         let sum_pred: f64 = row_pred.sum();
 
@@ -701,12 +696,7 @@ pub fn kl_divergence(
     let mut total_kl = 0.0;
     let mut total_weight = 0.0;
 
-    for (i, (row_true, row_pred)) in p_true
-        .rows()
-        .into_iter()
-        .zip(p_pred.rows().into_iter())
-        .enumerate()
-    {
+    for (i, (row_true, row_pred)) in p_true.rows().into_iter().zip(p_pred.rows()).enumerate() {
         let mut sample_kl = 0.0;
 
         for (&p_t, &p_p) in row_true.iter().zip(row_pred.iter()) {

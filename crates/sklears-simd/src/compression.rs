@@ -74,7 +74,7 @@ pub fn run_length_decode(encoded: &[(u8, u32)]) -> Vec<u8> {
     let mut result = Vec::with_capacity(total_size);
 
     for &(byte, count) in encoded {
-        result.extend(core::iter::repeat(byte).take(count as usize));
+        result.extend(core::iter::repeat_n(byte, count as usize));
     }
 
     result
@@ -221,7 +221,7 @@ impl DictionaryCompressor {
 
         // Sort patterns by frequency and add most common ones to dictionary
         let mut patterns: Vec<_> = pattern_counts.into_iter().collect();
-        patterns.sort_by(|a, b| b.1.cmp(&a.1));
+        patterns.sort_by_key(|b| core::cmp::Reverse(b.1));
 
         for (pattern, count) in patterns {
             if count >= 2 && self.next_code < u16::MAX && !self.dictionary.contains_key(&pattern) {

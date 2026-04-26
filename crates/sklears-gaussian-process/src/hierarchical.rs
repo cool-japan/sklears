@@ -46,11 +46,11 @@
 //! ));
 //!
 //! // Fit the model
-//! let trained_model = model.fit(&x_data, &y_data, &group_data).unwrap();
+//! let trained_model = model.fit(&x_data, &y_data, &group_data).expect("fit should succeed with valid hierarchical data");
 //!
 //! // Make predictions
 //! let x_test = array![[1.5]];
-//! let predictions = trained_model.predict(&x_test, "A").unwrap();
+//! let predictions = trained_model.predict(&x_test, "A").expect("predict should succeed for a known group");
 //! ```
 
 use crate::kernels::Kernel;

@@ -1290,6 +1290,7 @@ unsafe fn not_vec_avx512(input: &[bool], result: &mut [bool]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn eq_vec_neon(a: &[f32], b: &[f32], result: &mut [bool]) {
     use core::arch::aarch64::*;
@@ -1314,6 +1315,7 @@ unsafe fn eq_vec_neon(a: &[f32], b: &[f32], result: &mut [bool]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn ne_vec_neon(a: &[f32], b: &[f32], result: &mut [bool]) {
     use core::arch::aarch64::*;
@@ -1339,6 +1341,7 @@ unsafe fn ne_vec_neon(a: &[f32], b: &[f32], result: &mut [bool]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn lt_vec_neon(a: &[f32], b: &[f32], result: &mut [bool]) {
     use core::arch::aarch64::*;
@@ -1363,6 +1366,7 @@ unsafe fn lt_vec_neon(a: &[f32], b: &[f32], result: &mut [bool]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn le_vec_neon(a: &[f32], b: &[f32], result: &mut [bool]) {
     use core::arch::aarch64::*;
@@ -1387,6 +1391,7 @@ unsafe fn le_vec_neon(a: &[f32], b: &[f32], result: &mut [bool]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn gt_vec_neon(a: &[f32], b: &[f32], result: &mut [bool]) {
     use core::arch::aarch64::*;
@@ -1411,6 +1416,7 @@ unsafe fn gt_vec_neon(a: &[f32], b: &[f32], result: &mut [bool]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn ge_vec_neon(a: &[f32], b: &[f32], result: &mut [bool]) {
     use core::arch::aarch64::*;
@@ -1435,6 +1441,7 @@ unsafe fn ge_vec_neon(a: &[f32], b: &[f32], result: &mut [bool]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn and_vec_neon(a: &[bool], b: &[bool], result: &mut [bool]) {
     use core::arch::aarch64::*;
@@ -1452,6 +1459,7 @@ unsafe fn and_vec_neon(a: &[bool], b: &[bool], result: &mut [bool]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn or_vec_neon(a: &[bool], b: &[bool], result: &mut [bool]) {
     use core::arch::aarch64::*;
@@ -1469,6 +1477,7 @@ unsafe fn or_vec_neon(a: &[bool], b: &[bool], result: &mut [bool]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn xor_vec_neon(a: &[bool], b: &[bool], result: &mut [bool]) {
     use core::arch::aarch64::*;
@@ -1486,6 +1495,7 @@ unsafe fn xor_vec_neon(a: &[bool], b: &[bool], result: &mut [bool]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn not_vec_neon(input: &[bool], result: &mut [bool]) {
     use core::arch::aarch64::*;

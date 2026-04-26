@@ -21,6 +21,7 @@ use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::Random;
 use sklears_core::error::{Result, SklearsError};
 use std::collections::HashMap;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Online Gradient Boosting for streaming data
 ///
@@ -40,7 +41,7 @@ pub struct OnlineGradientBoosting {
     current_estimators: usize,
     /// Loss function type
     loss_function: OnlineLossFunction,
-    /// Feature importance scores
+    /// Feature importance scores (accumulated during online updates)
     feature_importances: HashMap<usize, f64>,
 }
 
@@ -87,7 +88,7 @@ impl Default for OnlineGradientBoostingConfig {
 
 impl OnlineGradientBoosting {
     /// Create a new Online Gradient Boosting model
-    pub fn new(config: OnlineGradientBoostingConfig, n_features: usize) -> Self {
+    pub fn new(config: OnlineGradientBoostingConfig, _n_features: usize) -> Self {
         Self {
             estimators: Vec::with_capacity(config.n_estimators),
             learning_rate: config.learning_rate,
@@ -150,6 +151,11 @@ impl OnlineGradientBoosting {
         }
 
         Ok(prediction)
+    }
+
+    /// Get accumulated feature importance scores
+    pub fn get_feature_importances(&self) -> &HashMap<usize, f64> {
+        &self.feature_importances
     }
 
     /// Get ensemble statistics
@@ -370,7 +376,7 @@ pub struct IncrementalRandomForest {
     /// Concept drift detector
     drift_detector: ConceptDriftDetector,
     /// Random number generator
-    rng: Random,
+    rng: Random<scirs2_core::random::rngs::StdRng>,
     /// Number of features in the dataset
     n_features: Option<usize>,
     /// Sample counter for bootstrap tracking
@@ -380,12 +386,14 @@ pub struct IncrementalRandomForest {
 impl IncrementalRandomForest {
     /// Create a new incremental random forest
     pub fn new(config: IncrementalRandomForestConfig) -> Self {
-        let mut rng = scirs2_core::random::thread_rng();
-
-        // Set seed if provided
-        if let Some(seed) = config.random_state {
-            rng = Random::seed_from_u64(seed);
-        }
+        // Use configured seed, or derive one from system time
+        let seed = config.random_state.unwrap_or_else(|| {
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.subsec_nanos() as u64)
+                .unwrap_or(42)
+        });
+        let rng = Random::seed(seed);
 
         let drift_detector = ConceptDriftDetector::new(config.window_size, config.drift_threshold);
         let oob_buffer = StreamingBuffer::new(config.window_size);
@@ -511,34 +519,6 @@ impl IncrementalRandomForest {
         Ok(())
     }
 
-    /// Calculate out-of-bag predictions for a sample
-    fn calculate_oob_prediction(&self, sample_idx: usize, x_sample: &[f64]) -> Result<f64> {
-        let mut predictions = Vec::new();
-
-        for (tree_idx, tree_stats) in self.tree_stats.iter().enumerate() {
-            // Check if this sample was out-of-bag for this tree
-            if !tree_stats.bootstrap_indices.contains(&sample_idx) {
-                // This tree didn't see this sample during training
-                let x_array = Array2::from_shape_vec((1, x_sample.len()), x_sample.to_vec())
-                    .map_err(|e| {
-                        SklearsError::InvalidInput(format!("Array creation error: {}", e))
-                    })?;
-
-                let pred = self.trees[tree_idx].predict(&x_array)?;
-                predictions.push(pred[0]);
-            }
-        }
-
-        if predictions.is_empty() {
-            return Err(SklearsError::PredictError(
-                "No out-of-bag predictions available".to_string(),
-            ));
-        }
-
-        // Return mean prediction
-        Ok(predictions.iter().sum::<f64>() / predictions.len() as f64)
-    }
-
     /// Update feature importance scores
     fn update_feature_importances(&mut self) {
         self.feature_importances.clear();
@@ -598,7 +578,7 @@ impl IncrementalRandomForest {
                 let mut tree_config = self.config.base_tree_config.clone();
                 tree_config.confidence = self.rng.random_range(0.9..0.99);
 
-                let tree = HoeffdingTree::new(tree_config, self.n_features.unwrap_or(1));
+                let tree = HoeffdingTree::new(tree_config, n_features);
                 let stats = RandomForestTreeStats::new(i);
 
                 self.trees.push(tree);

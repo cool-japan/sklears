@@ -10,7 +10,7 @@ pub mod serde_support {
     use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
     use std::fs::File;
-    use std::io::{BufReader, BufWriter, Read, Write};
+    use std::io::{BufReader, BufWriter};
     use std::path::Path;
 
     /// Serializable wrapper for DMatrix
@@ -33,11 +33,8 @@ pub mod serde_support {
 
     impl From<SerializableMatrix> for Array2<f64> {
         fn from(ser_matrix: SerializableMatrix) -> Self {
-            Array2::from_shape_vec(
-                (ser_matrix.nrows, ser_matrix.ncols),
-                ser_matrix.data,
-            )
-            .expect("Failed to create Array2 from SerializableMatrix")
+            Array2::from_shape_vec((ser_matrix.nrows, ser_matrix.ncols), ser_matrix.data)
+                .expect("Failed to create Array2 from SerializableMatrix")
         }
     }
 
@@ -324,7 +321,8 @@ pub mod serde_support {
                     let mut reader_mut = reader;
                     use std::io::Read;
                     reader_mut.read_to_end(&mut bytes)?;
-                    let (model, _) = oxicode::serde::decode_from_slice(&bytes, oxicode::config::standard())?;
+                    let (model, _) =
+                        oxicode::serde::decode_from_slice(&bytes, oxicode::config::standard())?;
                     model
                 }
                 SerializationFormat::MessagePack => rmp_serde::decode::from_read(reader)?,
@@ -525,13 +523,19 @@ pub mod serde_support {
     }
 } // End of serde_support module
 
+#[cfg(feature = "serde")]
+pub use serde_support::{
+    ModelMetadata, ModelRegistry, ModelSerializer, ModelVersioning, PerformanceMetrics,
+    SerializableConstrainedOptimization, SerializableLassoRegression, SerializableLinearRegression,
+    SerializableMatrix, SerializableModel, SerializableMultiOutputRegression,
+    SerializableRidgeRegression, SerializableVector, SerializationFormat, TrainingInfo,
+};
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
     use super::serde_support::*;
-    use super::*;
     use scirs2_core::ndarray::{Array1, Array2};
-    use std::fs;
     use tempfile::tempdir;
 
     #[test]
@@ -586,8 +590,16 @@ mod tests {
             SerializableLinearRegression::from_json(&json).expect("operation should succeed");
 
         assert_eq!(
-            model.coefficients.as_ref().expect("value should be present").data,
-            deserialized.coefficients.as_ref().expect("serialization should succeed").data
+            model
+                .coefficients
+                .as_ref()
+                .expect("value should be present")
+                .data,
+            deserialized
+                .coefficients
+                .as_ref()
+                .expect("serialization should succeed")
+                .data
         );
         assert_eq!(model.intercept, deserialized.intercept);
         assert_eq!(model.n_features, deserialized.n_features);
@@ -653,12 +665,15 @@ mod tests {
         };
 
         // Save model
-        model.save(&file_path, SerializationFormat::Json).expect("operation should succeed");
+        model
+            .save(&file_path, SerializationFormat::Json)
+            .expect("operation should succeed");
         assert!(file_path.exists());
 
         // Load model
         let loaded_model: SerializableLassoRegression =
-            SerializableLassoRegression::load(&file_path, SerializationFormat::Json).expect("operation should succeed");
+            SerializableLassoRegression::load(&file_path, SerializationFormat::Json)
+                .expect("operation should succeed");
 
         assert_eq!(model.alpha, loaded_model.alpha);
         assert_eq!(model.sparsity_level, loaded_model.sparsity_level);
@@ -690,10 +705,16 @@ mod tests {
         assert_eq!(registry.list_models().len(), 1);
         assert!(registry.get_model("model_1").is_some());
 
-        let retrieved_metadata = registry.get_model("model_1").expect("operation should succeed");
+        let retrieved_metadata = registry
+            .get_model("model_1")
+            .expect("operation should succeed");
         assert_eq!(retrieved_metadata.model_type, metadata.model_type);
         assert_eq!(
-            retrieved_metadata.training_info.as_ref().expect("value should be present").n_samples,
+            retrieved_metadata
+                .training_info
+                .as_ref()
+                .expect("value should be present")
+                .n_samples,
             1000
         );
     }
@@ -769,14 +790,13 @@ mod tests {
         assert_eq!(metadata.model_type, "TestModel");
         assert_eq!(metadata.version, "1.0");
         assert!(metadata.training_info.is_some());
-        assert_eq!(metadata.training_info.as_ref().expect("value should be present").n_samples, 1000);
+        assert_eq!(
+            metadata
+                .training_info
+                .as_ref()
+                .expect("value should be present")
+                .n_samples,
+            1000
+        );
     }
-} // End of serde_support module
-
-#[cfg(feature = "serde")]
-pub use serde_support::{
-    ModelMetadata, ModelRegistry, ModelSerializer, ModelVersioning, PerformanceMetrics,
-    SerializableConstrainedOptimization, SerializableLassoRegression, SerializableLinearRegression,
-    SerializableMatrix, SerializableModel, SerializableMultiOutputRegression,
-    SerializableRidgeRegression, SerializableVector, SerializationFormat, TrainingInfo,
-};
+} // End of tests module

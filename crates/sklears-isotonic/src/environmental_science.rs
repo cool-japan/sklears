@@ -260,8 +260,10 @@ pub struct EcologicalThresholdEstimation {
     /// Sensitivity parameter
     sensitivity: f64,
     /// Maximum iterations
+    #[allow(dead_code)] // intentionally deferred: iteration limit not yet checked
     max_iterations: usize,
     /// Tolerance
+    #[allow(dead_code)] // intentionally deferred: tolerance not yet checked
     tolerance: f64,
 }
 
@@ -1126,7 +1128,7 @@ mod tests {
 
         let noael = model.estimate_noael(0.5).expect("operation should succeed");
 
-        assert!(noael >= 0.0 && noael <= 4.0);
+        assert!((0.0..=4.0).contains(&noael));
     }
 
     #[test]

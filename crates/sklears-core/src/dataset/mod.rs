@@ -23,7 +23,7 @@ pub mod builder;
 /// let dataset = Dataset::new(features, targets);
 ///
 /// // Or generate synthetic data
-/// let dataset = synthetic::make_regression(100, 4, 0.1).unwrap();
+/// let dataset = synthetic::make_regression(100, 4, 0.1).expect("make_regression must succeed with valid parameters");
 /// ```
 ///
 /// ## Using the builder pattern
@@ -57,12 +57,12 @@ pub mod builder;
 ///     100,        // 100 features
 ///     0.1,        // noise level
 ///     Some(5000)  // chunk size
-/// ).unwrap();
+/// ).expect("make_large_regression must succeed with valid parameters");
 ///
 /// // Load and process in batches
-/// let dataset = MmapDataset::from_file("large_data.skl").unwrap();
+/// let dataset = MmapDataset::from_file("large_data.skl").expect("from_file must succeed for existing file");
 /// for batch in dataset.batch_iter(1000) {
-///     let (features, targets) = batch.unwrap();
+///     let (features, targets) = batch.expect("batch iterator must succeed");
 ///     // Process batch...
 /// }
 /// ```

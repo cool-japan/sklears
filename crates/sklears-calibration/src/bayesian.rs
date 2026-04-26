@@ -253,6 +253,7 @@ impl VariationalInferenceCalibrator {
     }
 
     /// Compute KL divergence from prior (assuming standard normal prior)
+    #[allow(dead_code)] // intentionally deferred: ELBO computation not yet integrated
     fn kl_divergence(&self) -> Float {
         let mut kl = 0.0;
 
@@ -1071,6 +1072,7 @@ pub struct NonParametricGPCalibrator {
     /// GP posterior parameters
     alpha: Option<Array1<Float>>,
     /// Kernel matrix inverse
+    #[allow(dead_code)] // intentionally deferred: GP prediction not yet wired to k_inv
     k_inv: Option<Array2<Float>>,
     /// Whether the calibrator is fitted
     is_fitted: bool,

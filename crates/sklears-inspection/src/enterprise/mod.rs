@@ -207,6 +207,7 @@ impl EnterpriseConfig {
 #[derive(Debug)]
 pub struct EnterpriseExplanationSystem {
     /// Configuration
+    #[allow(dead_code)] // stored for system reconfiguration
     config: EnterpriseConfig,
     /// Access control system
     access_control: AccessControl,
@@ -301,7 +302,7 @@ impl EnterpriseExplanationSystem {
         }
 
         // Create audit event
-        let audit_event = AuditEvent::new(
+        let _audit_event = AuditEvent::new(
             AuditEventType::ExplanationGenerated,
             operation_name.to_string(),
             format!("Successfully executed {} operation", operation_name),

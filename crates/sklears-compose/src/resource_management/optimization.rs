@@ -14,6 +14,7 @@ use std::time::{Duration, SystemTime};
 
 /// Resource optimizer for intelligent resource allocation and rebalancing
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ResourceOptimizer {
     /// Optimization configuration
     config: OptimizerConfig,
@@ -102,33 +103,50 @@ pub struct OptimizationResult {
 pub enum OptimizationAction {
     /// Reallocate resources for a task
     Reallocate {
+        /// The task id.
         task_id: String,
-        old_allocation: ResourceAllocation,
-        new_allocation: ResourceAllocation,
+        /// The old allocation.
+        old_allocation: Box<ResourceAllocation>,
+        /// The new allocation.
+        new_allocation: Box<ResourceAllocation>,
     },
     /// Migrate task to different resources
     Migrate {
+        /// The task id.
         task_id: String,
-        from_resources: AllocatedResources,
-        to_resources: AllocatedResources,
+        /// The from resources.
+        from_resources: Box<AllocatedResources>,
+        /// The to resources.
+        to_resources: Box<AllocatedResources>,
     },
     /// Scale resources up
     ScaleUp {
+        /// The resource type.
         resource_type: ResourcePoolType,
+        /// The amount.
         amount: u64,
     },
     /// Scale resources down
     ScaleDown {
+        /// The resource type.
         resource_type: ResourcePoolType,
+        /// The amount.
         amount: u64,
     },
     /// Consolidate resources
     Consolidate {
+        /// The task ids.
         task_ids: Vec<String>,
-        consolidated_allocation: ResourceAllocation,
+        /// The consolidated allocation.
+        consolidated_allocation: Box<ResourceAllocation>,
     },
     /// Adjust resource frequencies
-    AdjustFrequency { resource_id: String, frequency: f64 },
+    AdjustFrequency {
+        /// The resource id.
+        resource_id: String,
+        /// The frequency.
+        frequency: f64,
+    },
 }
 
 /// Optimizer state tracking
@@ -152,6 +170,7 @@ pub struct OptimizerState {
 
 /// Optimization history and analytics
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct OptimizationHistory {
     /// Optimization events
     events: VecDeque<OptimizationEvent>,
@@ -257,6 +276,7 @@ pub struct HistoryConfig {
 
 /// Resource prediction engine for predictive scaling
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ResourcePredictionEngine {
     /// Prediction models
     models: HashMap<String, Box<dyn PredictionModel>>,
@@ -352,11 +372,20 @@ pub enum TemporalPattern {
     /// Constant
     Constant,
     /// Periodic
-    Periodic { period: Duration },
+    Periodic {
+        /// The period.
+        period: Duration,
+    },
     /// Trending
-    Trending { trend: f64 },
+    Trending {
+        /// The trend.
+        trend: f64,
+    },
     /// Burst
-    Burst { burst_duration: Duration },
+    Burst {
+        /// The burst duration.
+        burst_duration: Duration,
+    },
     /// Random
     Random,
 }
@@ -406,6 +435,7 @@ pub struct ResourceUsageVariance {
 
 /// Historical data for predictions
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PredictionHistory {
     /// Usage samples
     usage_samples: VecDeque<UsageSample>,
@@ -532,7 +562,7 @@ impl ResourceOptimizer {
     #[must_use]
     pub fn calculate_optimization_score(
         &self,
-        allocations: &[ResourceAllocation],
+        _allocations: &[ResourceAllocation],
         usage: &ResourceUsage,
     ) -> f64 {
         // Extract utilization metrics for SIMD processing
@@ -541,7 +571,7 @@ impl ResourceOptimizer {
 
         // Collect memory utilization
         let memory_util = usage.memory_usage.used as f64 / usage.memory_usage.total as f64 * 100.0;
-        let memory_utils = [memory_util];
+        let _memory_utils = [memory_util];
 
         // Collect GPU utilizations
         let gpu_utils: Vec<f64> = usage

@@ -662,6 +662,7 @@ impl ExpectedModelChange {
     }
 
     /// Select samples based on expected model change
+    #[allow(non_snake_case)] // standard ML notation
     pub fn select_samples(
         &self,
         X: &ArrayView2<f64>,
@@ -743,6 +744,7 @@ impl ExpectedModelChange {
         Ok(scores)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fisher_information_scores(
         &self,
         X: &ArrayView2<f64>,
@@ -804,6 +806,7 @@ impl ExpectedModelChange {
         }
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn diverse_model_change_selection(
         &self,
         indexed_scores: &[(usize, f64)],
@@ -971,6 +974,7 @@ impl InformationDensity {
     }
 
     /// Select samples based on information density
+    #[allow(non_snake_case)] // standard ML notation
     pub fn select_samples(
         &self,
         X: &ArrayView2<f64>,
@@ -1146,6 +1150,7 @@ impl InformationDensity {
         Ok(uncertainties)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn knn_density_scores(&self, X: &ArrayView2<f64>) -> SklResult<Array1<f64>> {
         let n_samples = X.nrows();
         let mut density_scores = Array1::zeros(n_samples);
@@ -1178,6 +1183,7 @@ impl InformationDensity {
         Ok(density_scores)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn gaussian_density_scores(&self, X: &ArrayView2<f64>) -> SklResult<Array1<f64>> {
         let n_samples = X.nrows();
         let mut density_scores = Array1::zeros(n_samples);
@@ -1201,6 +1207,7 @@ impl InformationDensity {
         Ok(density_scores)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn cosine_similarity_scores(&self, X: &ArrayView2<f64>) -> SklResult<Array1<f64>> {
         let n_samples = X.nrows();
         let mut similarity_scores = Array1::zeros(n_samples);
@@ -1486,7 +1493,7 @@ mod tests {
 
         // Check range [0, 1]
         for &score in normalized.iter() {
-            assert!(score >= 0.0 && score <= 1.0);
+            assert!((0.0..=1.0).contains(&score));
         }
 
         // Check min and max
@@ -1926,7 +1933,7 @@ mod tests {
 
         // Check range [0, 1]
         for &value in normalized.iter() {
-            assert!(value >= 0.0 && value <= 1.0);
+            assert!((0.0..=1.0).contains(&value));
         }
 
         // Check min and max

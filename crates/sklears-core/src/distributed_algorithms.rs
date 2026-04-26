@@ -302,8 +302,7 @@ impl DistributedLinearRegression {
     /// Partition data across workers
     pub fn partition_data(&mut self, features: Vec<Vec<f64>>, targets: Vec<f64>) -> Result<()> {
         let n_samples = features.len();
-        let samples_per_worker =
-            (n_samples + self.config.num_workers - 1) / self.config.num_workers;
+        let samples_per_worker = n_samples.div_ceil(self.config.num_workers);
 
         for worker_idx in 0..self.config.num_workers {
             let start_idx = worker_idx * samples_per_worker;
@@ -629,11 +628,9 @@ impl FederatedLearning {
         }
 
         // Apply differential privacy if enabled
-        if self.config.dp_epsilon.is_some() {
-            self.privacy_mechanism.apply_noise(
-                &mut averaged,
-                self.config.dp_epsilon.expect("expected valid value"),
-            );
+        if let Some(dp_epsilon) = self.config.dp_epsilon {
+            self.privacy_mechanism
+                .apply_noise(&mut averaged, dp_epsilon);
         }
 
         averaged

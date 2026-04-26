@@ -13,6 +13,9 @@ use sklears_core::error::Result;
 use sklears_core::traits::{Fit, Transform};
 use sklears_core::types::{Features, Float};
 
+/// Type alias for constraint pairs: (similar_pairs, dissimilar_pairs)
+type ConstraintPairs = (Vec<(usize, usize)>, Vec<(usize, usize)>);
+
 /// Large Margin Nearest Neighbor (LMNN) metric learning
 ///
 /// LMNN learns a Mahalanobis distance metric that maximizes the margin between
@@ -687,7 +690,7 @@ impl InformationTheoreticMetricLearning {
         x: &ArrayView2<Float>,
         y: &ArrayView1<i32>,
         rng: &mut StdRng,
-    ) -> (Vec<(usize, usize)>, Vec<(usize, usize)>) {
+    ) -> ConstraintPairs {
         let n_samples = x.nrows();
         let mut similar_pairs = Vec::new();
         let mut dissimilar_pairs = Vec::new();
@@ -1441,9 +1444,9 @@ impl OnlineMetricLearning {
     ///
     /// # Returns
     /// Result indicating success or error
-    pub fn partial_fit(&mut self, X: &ArrayView2<Float>, y: &ArrayView1<i32>) -> Result<()> {
-        let n_samples = X.nrows();
-        let n_features = X.ncols();
+    pub fn partial_fit(&mut self, x: &ArrayView2<Float>, y: &ArrayView1<i32>) -> Result<()> {
+        let n_samples = x.nrows();
+        let n_features = x.ncols();
 
         if n_samples == 0 {
             return Err(NeighborsError::EmptyInput.into());
@@ -1468,14 +1471,14 @@ impl OnlineMetricLearning {
 
         // Process each sample in the mini-batch
         for i in 0..n_samples {
-            let xi = X.row(i);
+            let xi = x.row(i);
             let yi = y[i];
 
             // Find k nearest neighbors using current metric
             let mut neighbors = Vec::new();
-            for j in 0..X.nrows() {
+            for j in 0..x.nrows() {
                 if i != j {
-                    let dist = self.mahalanobis_distance(&xi, &X.row(j));
+                    let dist = self.mahalanobis_distance(&xi, &x.row(j));
                     neighbors.push((j, dist, y[j]));
                 }
             }
@@ -1485,7 +1488,7 @@ impl OnlineMetricLearning {
 
             // Compute gradient based on neighbor correctness
             for &(j, _dist, yj) in k_neighbors.iter() {
-                let xj = X.row(*j);
+                let xj = x.row(*j);
                 let diff = &xi.to_owned() - &xj.to_owned();
 
                 // Compute outer product for gradient update
@@ -1513,7 +1516,7 @@ impl OnlineMetricLearning {
         }
 
         // Normalize gradient by batch size
-        gradient = gradient / (n_samples as Float);
+        gradient /= n_samples as Float;
 
         // Apply L2 regularization to prevent overfitting
         let transform_clone = transform.clone();
@@ -1579,10 +1582,10 @@ impl OnlineMetricLearning {
 impl Fit<Array2<Float>, Array1<i32>> for OnlineMetricLearning {
     type Fitted = Self;
 
-    fn fit(self, X: &Array2<Float>, y: &Array1<i32>) -> Result<Self::Fitted> {
+    fn fit(self, x: &Array2<Float>, y: &Array1<i32>) -> Result<Self::Fitted> {
         let mut online = self.clone();
         online.reset();
-        online.partial_fit(&X.view(), &y.view())?;
+        online.partial_fit(&x.view(), &y.view())?;
         Ok(online)
     }
 }
@@ -1607,11 +1610,11 @@ impl Clone for OnlineMetricLearning {
 }
 
 impl Transform<Array2<Float>, Array2<Float>> for OnlineMetricLearning {
-    fn transform(&self, X: &Array2<Float>) -> Result<Array2<Float>> {
+    fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         if let Some(ref transform) = self.transformation {
             // Apply learned transformation to each sample
-            let mut transformed = Array2::zeros((X.nrows(), X.ncols()));
-            for (i, row) in X.axis_iter(Axis(0)).enumerate() {
+            let mut transformed = Array2::zeros((x.nrows(), x.ncols()));
+            for (i, row) in x.axis_iter(Axis(0)).enumerate() {
                 let t_row = transform.dot(&row);
                 for (j, &val) in t_row.iter().enumerate() {
                     transformed[[i, j]] = val;
@@ -1620,11 +1623,12 @@ impl Transform<Array2<Float>, Array2<Float>> for OnlineMetricLearning {
             Ok(transformed)
         } else {
             // No transformation learned yet, return original
-            Ok(X.clone())
+            Ok(x.clone())
         }
     }
 }
 
+#[allow(non_snake_case)]
 #[cfg(test)]
 mod online_tests {
     use super::*;
@@ -1781,7 +1785,7 @@ mod online_tests {
 
         // Recent accuracy should be between 0 and 1
         let accuracy = online.recent_accuracy();
-        assert!(accuracy >= 0.0 && accuracy <= 1.0);
+        assert!((0.0..=1.0).contains(&accuracy));
     }
 
     #[test]

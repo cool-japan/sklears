@@ -673,7 +673,7 @@ mod tests {
         let analyzer = SkewnessAnalyzer::new();
 
         let data = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
-        let skewness = analyzer.calculate_skewness(&data.view());
+        let _skewness = analyzer.calculate_skewness(&data.view());
 
         // Test skewness detection
         assert!(!analyzer.is_skewed(0.1, 0.5)); // Not skewed

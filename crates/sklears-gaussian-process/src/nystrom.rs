@@ -23,8 +23,8 @@ use crate::utils::{robust_cholesky, triangular_solve};
 /// let nystrom_gpr = NystromGaussianProcessRegressor::new()
 ///     .kernel(Box::new(kernel))
 ///     .n_components(2);
-/// let fitted = nystrom_gpr.fit(&X.view(), &y.view()).unwrap();
-/// // Predictions would be: fitted.predict(&X.view()).unwrap();
+/// let fitted = nystrom_gpr.fit(&X.view(), &y.view()).expect("fit should succeed with valid training data");
+/// // Predictions would be: fitted.predict(&X.view()).expect("predict should succeed on trained model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct NystromGaussianProcessRegressor<S = Untrained> {
@@ -53,6 +53,7 @@ pub enum LandmarkSelection {
 
 /// Trained state for Nyström Gaussian Process Regressor
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct NystromGprTrained {
     /// X_train
     pub X_train: Option<Array2<f64>>, // Training inputs (optional)
@@ -254,6 +255,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, f64>> for NystromGaussianProcessReg
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<ArrayView2<'_, f64>, Array1<f64>>
     for NystromGaussianProcessRegressor<NystromGprTrained>
 {
@@ -350,6 +352,7 @@ impl Default for NystromGaussianProcessRegressor<Untrained> {
 }
 
 /// Select landmark points based on the specified method
+#[allow(non_snake_case)]
 fn select_landmarks(
     X: &ArrayView2<f64>,
     n_components: usize,
@@ -371,6 +374,7 @@ fn select_landmarks(
 }
 
 /// Farthest point sampling for landmark selection
+#[allow(non_snake_case)]
 fn farthest_point_sampling(
     X: &ArrayView2<f64>,
     n_components: usize,
@@ -430,6 +434,7 @@ fn farthest_point_sampling(
 }
 
 /// Simple eigendecomposition for symmetric matrices
+#[allow(non_snake_case)]
 fn eigendecomposition(A: &Array2<f64>) -> SklResult<(Array1<f64>, Array2<f64>)> {
     // Simplified eigendecomposition - in practice, would use LAPACK
     // For now, return identity as a placeholder

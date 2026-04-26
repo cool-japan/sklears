@@ -47,7 +47,7 @@ pub enum LRSMethod {
     /// Augmented Lagrangian Method (ALM)
     AugmentedLagrangian,
     /// Alternating Direction Method of Multipliers (ADMM)
-    ADMM,
+    Admm,
     /// Proximal Gradient Method
     ProximalGradient,
 }
@@ -204,7 +204,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for LowRankSparseCovariance<Untrained> {
         // Perform low-rank plus sparse decomposition
         let (low_rank_component, sparse_component, n_iter, objective) = match self.method {
             LRSMethod::AugmentedLagrangian => self.decompose_alm(&empirical_cov)?,
-            LRSMethod::ADMM => self.decompose_admm(&empirical_cov)?,
+            LRSMethod::Admm => self.decompose_admm(&empirical_cov)?,
             LRSMethod::ProximalGradient => self.decompose_proximal_gradient(&empirical_cov)?,
         };
 
@@ -553,7 +553,6 @@ impl LowRankSparseCovariance<LowRankSparseCovarianceTrained> {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::array;
-    use scirs2_linalg::compat::ArrayLinalgExt;
 
     #[test]
     fn test_low_rank_sparse_basic() {
@@ -606,7 +605,7 @@ mod tests {
 
         for method in [
             LRSMethod::AugmentedLagrangian,
-            LRSMethod::ADMM,
+            LRSMethod::Admm,
             LRSMethod::ProximalGradient,
         ] {
             let estimator = LowRankSparseCovariance::new()
@@ -643,7 +642,7 @@ mod tests {
         assert_eq!(estimator.lambda_l1, 0.3);
         assert_eq!(estimator.max_iter, 200);
         assert_eq!(estimator.tol, 1e-8);
-        assert_eq!(estimator.assume_centered, true);
+        assert!(estimator.assume_centered);
         assert_eq!(estimator.mu, 2.0);
         assert_eq!(estimator.mu_max, 1e8);
         assert_eq!(estimator.rho, 3.0);

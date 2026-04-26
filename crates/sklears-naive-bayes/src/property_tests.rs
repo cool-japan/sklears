@@ -5,10 +5,9 @@
 mod tests {
     use super::super::*;
     use crate::smoothing::{LaplaceSmoothing, LidstoneSmoothing, Smoothing};
-    use approx::assert_abs_diff_eq;
     // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
     use proptest::prelude::*;
-    use scirs2_core::ndarray::{Array1, Array2, Axis};
+    use scirs2_core::ndarray::{Array1, Array2};
     use sklears_core::traits::{Fit, Predict, PredictProba, Score};
 
     /// Generate valid probability vectors that sum to 1
@@ -83,8 +82,7 @@ mod tests {
 
     /// Generate valid class labels
     fn labels_strategy(size: usize, n_classes: usize) -> impl Strategy<Value = Array1<i32>> {
-        prop::collection::vec(0i32..(n_classes as i32), size)
-            .prop_map(|data| Array1::from_vec(data))
+        prop::collection::vec(0i32..(n_classes as i32), size).prop_map(Array1::from_vec)
     }
 
     proptest! {
@@ -109,7 +107,7 @@ mod tests {
                 // Property 2: Each row should sum to approximately 1
                 for i in 0..probabilities.nrows() {
                     let row_sum: f64 = probabilities.row(i).sum();
-                    prop_assert!(row_sum >= 0.99 && row_sum <= 1.01);
+                    prop_assert!((0.99..=1.01).contains(&row_sum));
                 }
 
                 // Property 3: Predictions should be consistent with max probability
@@ -129,7 +127,7 @@ mod tests {
 
                 // Property 4: Score should be between 0 and 1
                 let score = trained_model.score(&x, &y).expect("operation should succeed");
-                prop_assert!(score >= 0.0 && score <= 1.0);
+                prop_assert!((0.0..=1.0).contains(&score));
             }
         }
 
@@ -155,7 +153,7 @@ mod tests {
                 // Property 2: Each row should sum to approximately 1
                 for i in 0..probabilities.nrows() {
                     let row_sum: f64 = probabilities.row(i).sum();
-                    prop_assert!(row_sum >= 0.99 && row_sum <= 1.01);
+                    prop_assert!((0.99..=1.01).contains(&row_sum));
                 }
 
                 // Property 3: Adding more smoothing should not drastically change predictions
@@ -196,7 +194,7 @@ mod tests {
                 // Property 2: Each row should sum to approximately 1
                 for i in 0..probabilities.nrows() {
                     let row_sum: f64 = probabilities.row(i).sum();
-                    prop_assert!(row_sum >= 0.99 && row_sum <= 1.01);
+                    prop_assert!((0.99..=1.01).contains(&row_sum));
                 }
 
                 // Property 3: Poisson PMF computation should be mathematically correct
@@ -234,7 +232,7 @@ mod tests {
                 // Property 2: Each row should sum to approximately 1
                 for i in 0..probabilities.nrows() {
                     let row_sum: f64 = probabilities.row(i).sum();
-                    prop_assert!(row_sum >= 0.99 && row_sum <= 1.01);
+                    prop_assert!((0.99..=1.01).contains(&row_sum));
                 }
 
                 // Property 3: Feature probabilities should be in [0, 1] after smoothing
@@ -269,7 +267,7 @@ mod tests {
                 // Property 2: Each row should sum to approximately 1
                 for i in 0..probabilities.nrows() {
                     let row_sum: f64 = probabilities.row(i).sum();
-                    prop_assert!(row_sum >= 0.99 && row_sum <= 1.01);
+                    prop_assert!((0.99..=1.01).contains(&row_sum));
                 }
 
                 // Property 3: Predictions should be deterministic for the same input
@@ -301,12 +299,12 @@ mod tests {
                 // Property 2: Each row should sum to approximately 1
                 for i in 0..probabilities.nrows() {
                     let row_sum: f64 = probabilities.row(i).sum();
-                    prop_assert!(row_sum >= 0.99 && row_sum <= 1.01);
+                    prop_assert!((0.99..=1.01).contains(&row_sum));
                 }
 
                 // Property 3: Score should improve with more balanced data
                 let score = trained_model.score(&x, &y).expect("operation should succeed");
-                prop_assert!(score >= 0.0 && score <= 1.0);
+                prop_assert!((0.0..=1.0).contains(&score));
             }
         }
 

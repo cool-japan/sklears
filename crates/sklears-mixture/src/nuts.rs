@@ -11,6 +11,9 @@ use sklears_core::{
     types::Float,
 };
 
+/// Type alias for NUTS posterior means tuple result
+type PosteriorMeansResult = SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)>;
+
 /// No-U-Turn Sampler for Bayesian Mixture Models
 ///
 /// NUTS is an adaptive variant of Hamiltonian Monte Carlo that automatically determines
@@ -45,7 +48,7 @@ use sklears_core::{
 ///     .target_accept_rate(0.8)
 ///     .max_tree_depth(10);
 ///
-/// let result = nuts.sample(&X.view()).unwrap();
+/// let result = nuts.sample(&X.view()).expect("NUTS sampling should succeed with valid data");
 /// ```
 #[derive(Debug, Clone)]
 pub struct NUTSSampler {
@@ -94,6 +97,7 @@ struct TreeState {
     valid: bool,
 }
 
+#[allow(non_snake_case, clippy::too_many_arguments)]
 impl NUTSSampler {
     /// Create a new NUTSSampler instance
     pub fn new() -> Self {
@@ -625,7 +629,7 @@ impl NUTSSampler {
         n_features: usize,
         weights_samples: &mut Array2<f64>,
         means_samples: &mut Array3<f64>,
-        covariances_samples: &mut Vec<Array3<f64>>,
+        covariances_samples: &mut [Array3<f64>],
         log_posterior_samples: &mut Array1<f64>,
         tree_depth_samples: &mut Array1<usize>,
         tree_depth: usize,
@@ -739,7 +743,7 @@ impl NUTSResult {
     }
 
     /// Compute posterior means
-    pub fn posterior_means(&self) -> SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)> {
+    pub fn posterior_means(&self) -> PosteriorMeansResult {
         let n_samples = self.weights_samples.shape()[0];
         let n_components = self.weights_samples.shape()[1];
         let n_features = self.means_samples.shape()[2];

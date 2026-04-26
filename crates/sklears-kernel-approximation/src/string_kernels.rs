@@ -357,11 +357,9 @@ impl SubsequenceKernel {
 
         let mut dp = vec![vec![vec![0.0; n2 + 1]; n1 + 1]; self.max_length + 1];
 
-        // Initialize base cases
-        for i in 0..=n1 {
-            for j in 0..=n2 {
-                dp[0][i][j] = 1.0;
-            }
+        // Initialize base cases: dp[0][i][j] = 1.0 for all i, j
+        for row in dp[0].iter_mut() {
+            row.fill(1.0);
         }
 
         // Fill DP table
@@ -389,10 +387,7 @@ impl SubsequenceKernel {
         }
 
         // Sum over all subsequence lengths
-        let mut total = 0.0;
-        for k in 1..=self.max_length {
-            total += dp[k][n1][n2];
-        }
+        let total: f64 = dp[1..=self.max_length].iter().map(|k| k[n1][n2]).sum();
 
         total
     }
@@ -488,11 +483,11 @@ impl EditDistanceKernel {
         let mut dp = vec![vec![0; n2 + 1]; n1 + 1];
 
         // Initialize first row and column
-        for i in 0..=n1 {
-            dp[i][0] = i;
+        for (i, row) in dp.iter_mut().enumerate().take(n1 + 1) {
+            row[0] = i;
         }
-        for j in 0..=n2 {
-            dp[0][j] = j;
+        for (j, cell) in dp[0].iter_mut().enumerate().take(n2 + 1) {
+            *cell = j;
         }
 
         // Fill DP table
@@ -848,7 +843,7 @@ mod tests {
         assert_eq!(features.ncols(), 4);
         assert!(features
             .iter()
-            .all(|&x| x >= 0.0 && x <= 1.0 && x.is_finite()));
+            .all(|&x| (0.0..=1.0).contains(&x) && x.is_finite()));
 
         // Self-similarity should be 1.0
         for i in 0..4 {

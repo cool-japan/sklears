@@ -106,30 +106,57 @@ pub struct SystemMetrics {
 #[derive(Debug, Clone)]
 pub enum RecoveryResult {
     /// Recovery succeeded
-    Success { details: String },
+    Success {
+        /// The details.
+        details: String,
+    },
     /// Recovery failed
-    Failure { reason: String },
+    Failure {
+        /// The reason.
+        reason: String,
+    },
     /// Partial recovery
-    Partial { progress: f64, details: String },
+    Partial {
+        /// The progress.
+        progress: f64,
+        /// The details.
+        details: String,
+    },
     /// Recovery in progress
-    InProgress { estimated_completion: SystemTime },
+    InProgress {
+        /// The estimated completion.
+        estimated_completion: SystemTime,
+    },
     /// Manual intervention required
-    RequiresManualIntervention { instructions: String },
+    RequiresManualIntervention {
+        /// The instructions.
+        instructions: String,
+    },
 }
 
 /// Validation result enumeration
 #[derive(Debug, Clone)]
 pub enum ValidationResult {
     /// Validation passed
-    Valid { score: f64 },
+    Valid {
+        /// The score.
+        score: f64,
+    },
     /// Validation failed
-    Invalid { reason: String },
+    Invalid {
+        /// The reason.
+        reason: String,
+    },
     /// Validation inconclusive
-    Inconclusive { details: String },
+    Inconclusive {
+        /// The details.
+        details: String,
+    },
 }
 
 /// Recovery coordinator for managing multiple recovery operations
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct RecoveryCoordinator {
     /// Active recovery sessions
     active_sessions: Arc<RwLock<HashMap<String, RecoverySession>>>,
@@ -203,6 +230,7 @@ pub struct RecoveryCoordinatorConfig {
 
 /// Recovery validator for validating recovery attempts
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct RecoveryValidator {
     /// Validation rules
     rules: Vec<ValidationRule>,
@@ -377,7 +405,7 @@ impl CircuitBreakerRecoveryManager {
     pub fn start_recovery(
         &self,
         circuit_id: String,
-        context: RecoveryContext,
+        _context: RecoveryContext,
     ) -> SklResult<String> {
         let session_id = Uuid::new_v4().to_string();
 
@@ -432,7 +460,7 @@ impl CircuitBreakerRecoveryManager {
             })?;
 
             // Create recovery context (simplified)
-            /// RecoveryContext
+            // RecoveryContext
             RecoveryContext {
                 circuit_id: session.circuit_id.clone(),
                 current_state: CircuitBreakerState::Open,
@@ -512,7 +540,7 @@ impl CircuitBreakerRecoveryManager {
     }
 
     /// Validate recovery
-    pub fn validate_recovery(&self, session_id: &str) -> SklResult<ValidationResult> {
+    pub fn validate_recovery(&self, _session_id: &str) -> SklResult<ValidationResult> {
         // Simplified validation
         let result = ValidationResult::Valid { score: 0.95 };
 
@@ -577,7 +605,7 @@ impl CircuitBreakerRecoveryManager {
     #[must_use]
     pub fn get_metrics(&self) -> RecoveryMetrics {
         let metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
-        /// RecoveryMetrics
+        // RecoveryMetrics
         RecoveryMetrics {
             total_attempts: metrics.total_attempts,
             successful_recoveries: metrics.successful_recoveries,

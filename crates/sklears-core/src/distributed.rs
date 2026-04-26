@@ -1098,7 +1098,7 @@ impl DistributedDataset for DistributedNumericalDataset {
 
             match strategy {
                 PartitioningStrategy::EvenSplit => {
-                    let chunk_size = (self.data.len() + num_nodes - 1) / num_nodes;
+                    let chunk_size = self.data.len().div_ceil(num_nodes);
 
                     for (i, node_id) in nodes.iter().enumerate() {
                         let start = i * chunk_size;

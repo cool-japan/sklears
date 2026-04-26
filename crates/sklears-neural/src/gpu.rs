@@ -32,10 +32,8 @@
 
 use crate::NeuralResult;
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::numeric::Float;
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 #[cfg(feature = "gpu")]
 use {
@@ -1032,6 +1030,7 @@ pub struct GpuContext;
 
 #[cfg(not(feature = "gpu"))]
 impl GpuContext {
+    /// Attempt to create a GPU context; always returns an error when the `gpu` feature is disabled
     pub fn new() -> NeuralResult<Self> {
         Err(SklearsError::InvalidInput(
             "GPU support not compiled. Enable 'gpu' feature".to_string(),
@@ -1046,6 +1045,7 @@ pub struct GpuTensor<T> {
 }
 
 /// GPU-accelerated neural network operations
+#[allow(dead_code)] // context is the GPU handle, used when `gpu` feature is enabled
 pub struct GpuAcceleratedOps {
     #[cfg(feature = "gpu")]
     context: Option<GpuContext>,
@@ -1201,13 +1201,14 @@ impl GpuAcceleratedOps {
         self.matrix_multiply(a, b)
     }
 
-    /// Check if tensor dimensions are suitable for tensor cores
+    /// Check if tensor dimensions are suitable for tensor cores (multiples of 8, min size 64)
+    #[allow(dead_code)] // Called from cfg(feature = "gpu") block; also used in tests
     fn is_tensor_core_friendly(&self, a: &Array2<f32>, b: &Array2<f32>) -> bool {
         let (m, k) = (a.nrows(), a.ncols());
         let n = b.ncols();
 
         // Tensor cores work best with dimensions that are multiples of 8
-        m % 8 == 0 && n % 8 == 0 && k % 8 == 0 &&
+        m % 8 == 0 && n.is_multiple_of(8) && k % 8 == 0 &&
         // And matrices should be reasonably large to benefit from tensor cores
         m >= 64 && n >= 64 && k >= 64
     }
@@ -1412,7 +1413,7 @@ mod tests {
         let relu_result = ops
             .cpu_apply_activation(&input, "relu")
             .expect("operation should succeed");
-        let expected_relu = vec![0.0, 0.0, 0.0, 1.0, 2.0];
+        let expected_relu = [0.0, 0.0, 0.0, 1.0, 2.0];
         for (actual, expected) in relu_result.iter().zip(expected_relu.iter()) {
             assert_relative_eq!(actual, expected, epsilon = 1e-6);
         }

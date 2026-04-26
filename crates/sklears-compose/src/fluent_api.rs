@@ -4,12 +4,7 @@
 //! pipelines with type safety, method chaining, and configuration presets.
 
 use scirs2_core::ndarray::{ArrayView1, ArrayView2};
-use sklears_core::{
-    error::Result as SklResult,
-    prelude::Fit,
-    traits::{Estimator, Untrained},
-    types::Float,
-};
+use sklears_core::{error::Result as SklResult, prelude::Fit, traits::Untrained, types::Float};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
@@ -18,11 +13,14 @@ use crate::{
     SimdConfig,
 };
 
+/// Validator function for a completed pipeline builder
+type PipelineValidatorFn = Box<dyn Fn(&FluentPipelineBuilder<BuilderComplete>) -> SklResult<()>>;
+
 /// Helper function to create high-performance SIMD configuration
 fn create_high_performance_simd_config() -> SimdConfig {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        /// SimdConfig
+        // SimdConfig
         SimdConfig {
             use_avx2: true,
             use_avx512: is_x86_feature_detected!("avx512f"),
@@ -38,7 +36,7 @@ fn create_high_performance_simd_config() -> SimdConfig {
     }
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     {
-        /// SimdConfig
+        // SimdConfig
         SimdConfig {
             use_avx2: false,
             use_avx512: false,
@@ -72,12 +70,15 @@ pub struct FluentPipelineBuilder<State = BuilderEmpty> {
 pub struct BuilderEmpty;
 
 #[derive(Debug)]
+/// Data structure for this component.
 pub struct BuilderWithSteps;
 
 #[derive(Debug)]
+/// Data structure for this component.
 pub struct BuilderWithEstimator;
 
 #[derive(Debug)]
+/// Data structure for this component.
 pub struct BuilderComplete;
 
 /// Pipeline configuration
@@ -201,7 +202,7 @@ pub struct ValidationRule {
     /// Rule description
     pub description: String,
     /// Validation function
-    pub validator: Box<dyn Fn(&FluentPipelineBuilder<BuilderComplete>) -> SklResult<()>>,
+    pub validator: PipelineValidatorFn,
 }
 
 impl std::fmt::Debug for ValidationRule {
@@ -336,7 +337,12 @@ impl FluentPipelineBuilder<BuilderEmpty> {
             },
             caching: CachingConfiguration {
                 enabled: true,
-                cache_dir: Some("/tmp/sklearn_cache".to_string()),
+                cache_dir: Some(
+                    std::env::temp_dir()
+                        .join("sklearn_cache")
+                        .display()
+                        .to_string(),
+                ),
                 max_size_mb: Some(512),
                 ttl_sec: Some(1800),
                 strategy: CacheStrategy::LRU,
@@ -380,7 +386,7 @@ impl FluentPipelineBuilder<BuilderEmpty> {
             },
             caching: CachingConfiguration {
                 enabled: true,
-                cache_dir: Some("/tmp/hpc_cache".to_string()),
+                cache_dir: Some(std::env::temp_dir().join("hpc_cache").display().to_string()),
                 max_size_mb: Some(2048),
                 ttl_sec: Some(7200),
                 strategy: CacheStrategy::SizeBased,
@@ -535,7 +541,7 @@ impl FluentPipelineBuilder<BuilderEmpty> {
         step: Box<dyn PipelineStep>,
     ) -> FluentPipelineBuilder<BuilderWithSteps> {
         self.steps.push((name.into(), step));
-        /// FluentPipelineBuilder
+        // FluentPipelineBuilder
         FluentPipelineBuilder {
             state: PhantomData,
             steps: self.steps,
@@ -549,7 +555,7 @@ impl FluentPipelineBuilder<BuilderEmpty> {
     /// Start with a preprocessing chain
     #[must_use]
     pub fn preprocessing(self) -> PreprocessingChain {
-        /// PreprocessingChain
+        // PreprocessingChain
         PreprocessingChain {
             builder: self,
             preprocessing_steps: Vec::new(),
@@ -559,7 +565,7 @@ impl FluentPipelineBuilder<BuilderEmpty> {
     /// Start with a feature engineering chain
     #[must_use]
     pub fn feature_engineering(self) -> FeatureEngineeringChain {
-        /// FeatureEngineeringChain
+        // FeatureEngineeringChain
         FeatureEngineeringChain {
             builder: self,
             feature_steps: Vec::new(),
@@ -581,7 +587,7 @@ impl FluentPipelineBuilder<BuilderWithSteps> {
         estimator: Box<dyn PipelinePredictor>,
     ) -> FluentPipelineBuilder<BuilderWithEstimator> {
         self.estimator = Some(estimator);
-        /// FluentPipelineBuilder
+        // FluentPipelineBuilder
         FluentPipelineBuilder {
             state: PhantomData,
             steps: self.steps,
@@ -607,7 +613,7 @@ impl FluentPipelineBuilder<BuilderWithSteps> {
     }
 
     /// Add conditional execution
-    pub fn when<F>(mut self, condition: F, then_step: Box<dyn PipelineStep>) -> Self
+    pub fn when<F>(mut self, _condition: F, then_step: Box<dyn PipelineStep>) -> Self
     where
         F: Fn(&ArrayView2<Float>) -> bool + 'static,
     {
@@ -622,7 +628,7 @@ impl FluentPipelineBuilder<BuilderWithEstimator> {
     /// Finalize the pipeline configuration
     #[must_use]
     pub fn finalize(self) -> FluentPipelineBuilder<BuilderComplete> {
-        /// FluentPipelineBuilder
+        // FluentPipelineBuilder
         FluentPipelineBuilder {
             state: PhantomData,
             steps: self.steps,
@@ -691,7 +697,7 @@ impl PreprocessingChain {
 
     /// Add a min-max scaler
     #[must_use]
-    pub fn min_max_scaler(mut self, feature_range: (f64, f64)) -> Self {
+    pub fn min_max_scaler(mut self, _feature_range: (f64, f64)) -> Self {
         self.preprocessing_steps.push((
             "min_max_scaler".to_string(),
             Box::new(crate::MockTransformer::new()),
@@ -711,7 +717,7 @@ impl PreprocessingChain {
 
     /// Add missing value imputation
     #[must_use]
-    pub fn impute_missing(mut self, strategy: ImputationStrategy) -> Self {
+    pub fn impute_missing(mut self, _strategy: ImputationStrategy) -> Self {
         self.preprocessing_steps.push((
             "imputer".to_string(),
             Box::new(crate::MockTransformer::new()),
@@ -726,7 +732,7 @@ impl PreprocessingChain {
             self.builder.steps.push((name, step));
         }
 
-        /// FluentPipelineBuilder
+        // FluentPipelineBuilder
         FluentPipelineBuilder {
             state: PhantomData,
             steps: self.builder.steps,
@@ -748,7 +754,7 @@ pub struct FeatureEngineeringChain {
 impl FeatureEngineeringChain {
     /// Add polynomial features
     #[must_use]
-    pub fn polynomial_features(mut self, degree: usize, include_bias: bool) -> Self {
+    pub fn polynomial_features(mut self, _degree: usize, _include_bias: bool) -> Self {
         self.feature_steps.push((
             "polynomial_features".to_string(),
             Box::new(crate::MockTransformer::new()),
@@ -758,7 +764,7 @@ impl FeatureEngineeringChain {
 
     /// Add feature selection
     #[must_use]
-    pub fn feature_selection(mut self, k_best: usize) -> Self {
+    pub fn feature_selection(mut self, _k_best: usize) -> Self {
         self.feature_steps.push((
             "feature_selection".to_string(),
             Box::new(crate::MockTransformer::new()),
@@ -768,7 +774,7 @@ impl FeatureEngineeringChain {
 
     /// Add PCA
     #[must_use]
-    pub fn pca(mut self, n_components: Option<usize>) -> Self {
+    pub fn pca(mut self, _n_components: Option<usize>) -> Self {
         self.feature_steps
             .push(("pca".to_string(), Box::new(crate::MockTransformer::new())));
         self
@@ -776,7 +782,7 @@ impl FeatureEngineeringChain {
 
     /// Add text vectorization
     #[must_use]
-    pub fn text_vectorizer(mut self, max_features: Option<usize>) -> Self {
+    pub fn text_vectorizer(mut self, _max_features: Option<usize>) -> Self {
         self.feature_steps.push((
             "text_vectorizer".to_string(),
             Box::new(crate::MockTransformer::new()),
@@ -791,7 +797,7 @@ impl FeatureEngineeringChain {
             self.builder.steps.push((name, step));
         }
 
-        /// FluentPipelineBuilder
+        // FluentPipelineBuilder
         FluentPipelineBuilder {
             state: PhantomData,
             steps: self.builder.steps,
@@ -916,7 +922,7 @@ impl PipelinePresets {
     pub fn time_series() -> FluentPipelineBuilder<BuilderEmpty> {
         FluentPipelineBuilder::new().caching(CachingConfiguration {
             enabled: true,
-            cache_dir: Some("/tmp/ts_cache".to_string()),
+            cache_dir: Some(std::env::temp_dir().join("ts_cache").display().to_string()),
             max_size_mb: Some(512),
             ttl_sec: Some(1800),
             strategy: CacheStrategy::TimeExpire,
@@ -1061,7 +1067,7 @@ mod tests {
     fn test_caching_configuration() {
         let cache_config = CachingConfiguration {
             enabled: true,
-            cache_dir: Some("/tmp/test".to_string()),
+            cache_dir: Some(std::env::temp_dir().join("test").display().to_string()),
             max_size_mb: Some(512),
             ttl_sec: Some(1800),
             strategy: CacheStrategy::LFU,

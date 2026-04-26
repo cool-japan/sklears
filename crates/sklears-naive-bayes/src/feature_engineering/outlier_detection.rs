@@ -120,29 +120,44 @@ impl IQROutlierDetector {
     /// Compute quartiles for each feature
     fn compute_quartiles<T>(&self, x: &ArrayView2<T>) -> Result<HashMap<usize, (f64, f64, f64)>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let (_, n_features) = x.dim();
         let mut quartiles = HashMap::new();
 
         for feature_idx in 0..n_features {
-            let mut feature_values: Vec<T> = x.column(feature_idx).to_vec();
-            feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            let mut feature_values: Vec<f64> =
+                x.column(feature_idx).iter().map(|&v| v.into()).collect();
+            feature_values.sort_by(f64::total_cmp);
 
             let n = feature_values.len();
-            let q1_idx = n / 4;
-            let q2_idx = n / 2;
-            let q3_idx = 3 * n / 4;
+            if n == 0 {
+                return Err(SklearsError::InvalidInput(
+                    "Feature column is empty".to_string(),
+                ));
+            }
 
-            // Simplified quartile calculation
-            let q1 = 1.0; // Placeholder conversion from T to f64
-            let q2 = 2.0; // Placeholder conversion from T to f64
-            let q3 = 3.0; // Placeholder conversion from T to f64
+            let q1 = Self::percentile_value(&feature_values, 0.25);
+            let q2 = Self::percentile_value(&feature_values, 0.50);
+            let q3 = Self::percentile_value(&feature_values, 0.75);
 
             quartiles.insert(feature_idx, (q1, q2, q3));
         }
 
         Ok(quartiles)
+    }
+
+    /// Compute a percentile value from a sorted slice
+    fn percentile_value(sorted: &[f64], p: f64) -> f64 {
+        let n = sorted.len();
+        if n == 1 {
+            return sorted[0];
+        }
+        let idx = p * (n - 1) as f64;
+        let lo = idx.floor() as usize;
+        let hi = idx.ceil() as usize;
+        let frac = idx - lo as f64;
+        sorted[lo] * (1.0 - frac) + sorted[hi.min(n - 1)] * frac
     }
 
     /// Compute outlier bounds
@@ -173,7 +188,7 @@ impl IQROutlierDetector {
 
 impl<T> OutlierDetector<T> for IQROutlierDetector
 where
-    T: Clone + Copy + std::fmt::Debug + PartialOrd,
+    T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
 {
     fn fit(&mut self, x: &ArrayView2<T>) -> Result<()> {
         let quartiles = self.compute_quartiles(x)?;
@@ -199,7 +214,7 @@ where
         for sample_idx in 0..n_samples {
             for feature_idx in 0..n_features {
                 if let Some(&(lower_bound, upper_bound)) = bounds.get(&feature_idx) {
-                    let value = 1.0; // Placeholder conversion from T to f64
+                    let value: f64 = x[(sample_idx, feature_idx)].into();
                     if value < lower_bound || value > upper_bound {
                         outliers[sample_idx] = true;
                         break; // Sample is outlier if any feature is out of bounds
@@ -227,7 +242,7 @@ where
 
             for feature_idx in 0..n_features {
                 if let Some(&(lower_bound, upper_bound)) = bounds.get(&feature_idx) {
-                    let value = 1.0; // Placeholder conversion from T to f64
+                    let value: f64 = x[(sample_idx, feature_idx)].into();
                     let deviation = if value < lower_bound {
                         lower_bound - value
                     } else if value > upper_bound {
@@ -284,7 +299,7 @@ impl ZScoreOutlierDetector {
 
 impl<T> OutlierDetector<T> for ZScoreOutlierDetector
 where
-    T: Clone + Copy + std::fmt::Debug + PartialOrd,
+    T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
 {
     fn fit(&mut self, x: &ArrayView2<T>) -> Result<()> {
         let (n_samples, n_features) = x.dim();
@@ -293,14 +308,16 @@ where
             return Err(SklearsError::InvalidInput("Empty input data".to_string()));
         }
 
-        // Compute means and standard deviations
         let mut means = Array1::zeros(n_features);
         let mut stds = Array1::zeros(n_features);
 
         for feature_idx in 0..n_features {
-            // Simplified statistical calculation
-            means[feature_idx] = 0.5; // Placeholder mean
-            stds[feature_idx] = 1.0; // Placeholder std
+            let vals: Vec<f64> = x.column(feature_idx).iter().map(|&v| v.into()).collect();
+            let mean = vals.iter().sum::<f64>() / vals.len() as f64;
+            let variance =
+                vals.iter().map(|&v| (v - mean) * (v - mean)).sum::<f64>() / vals.len() as f64;
+            means[feature_idx] = mean;
+            stds[feature_idx] = variance.sqrt().max(f64::EPSILON);
         }
 
         self.means = Some(means);
@@ -322,12 +339,12 @@ where
 
         for sample_idx in 0..n_samples {
             for feature_idx in 0..n_features {
-                let value = 1.0; // Placeholder conversion from T to f64
+                let value: f64 = x[(sample_idx, feature_idx)].into();
                 let z_score = (value - means[feature_idx]).abs() / stds[feature_idx];
 
                 if z_score > self.threshold {
                     outliers[sample_idx] = true;
-                    break; // Sample is outlier if any feature exceeds threshold
+                    break;
                 }
             }
         }
@@ -350,7 +367,7 @@ where
             let mut max_z_score: f64 = 0.0;
 
             for feature_idx in 0..n_features {
-                let value = 1.0; // Placeholder conversion from T to f64
+                let value: f64 = x[(sample_idx, feature_idx)].into();
                 let z_score = (value - means[feature_idx]).abs() / stds[feature_idx];
                 max_z_score = max_z_score.max(z_score);
             }
@@ -553,7 +570,7 @@ impl LocalOutlierFactor {
     }
 
     /// Compute distance between two points
-    fn compute_distance<T>(&self, idx1: usize, idx2: usize, x: &ArrayView2<T>) -> Result<f64>
+    fn compute_distance<T>(&self, idx1: usize, idx2: usize, _x: &ArrayView2<T>) -> Result<f64>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
     {
@@ -658,33 +675,102 @@ impl EllipticEnvelopeDetector {
         })
     }
 
-    /// Compute robust covariance matrix
+    /// Compute sample covariance matrix and mean vector from f64 data
     fn compute_robust_covariance<T>(&self, x: &ArrayView2<T>) -> Result<(Array1<f64>, Array2<f64>)>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let (n_samples, n_features) = x.dim();
+        if n_samples < 2 {
+            return Err(SklearsError::InvalidInput(
+                "Need at least 2 samples for covariance".to_string(),
+            ));
+        }
 
-        // Simplified robust covariance estimation
-        let mean_vector = Array1::from_elem(n_features, 0.5); // Placeholder mean
-        let mut covariance_matrix = Array2::eye(n_features); // Identity as placeholder
-
-        // Add some variation to the covariance matrix
-        for i in 0..n_features {
+        // Convert to f64 matrix
+        let mut x_f64 = Array2::zeros((n_samples, n_features));
+        for i in 0..n_samples {
             for j in 0..n_features {
-                if i != j {
-                    covariance_matrix[(i, j)] = 0.1; // Placeholder covariance
+                x_f64[(i, j)] = x[(i, j)].into();
+            }
+        }
+
+        // Compute sample mean
+        let mut mean = Array1::zeros(n_features);
+        for j in 0..n_features {
+            mean[j] = x_f64.column(j).sum() / n_samples as f64;
+        }
+
+        // Compute sample covariance
+        let mut cov = Array2::zeros((n_features, n_features));
+        let denom = (n_samples - 1) as f64;
+        for i in 0..n_samples {
+            for j in 0..n_features {
+                for k in 0..n_features {
+                    cov[(j, k)] += (x_f64[(i, j)] - mean[j]) * (x_f64[(i, k)] - mean[k]) / denom;
                 }
             }
         }
 
-        Ok((mean_vector, covariance_matrix))
+        // Regularize to ensure positive definiteness
+        for j in 0..n_features {
+            cov[(j, j)] += 1e-6;
+        }
+
+        Ok((mean, cov))
     }
 
-    /// Compute Mahalanobis distance
+    /// Cholesky decomposition: returns lower triangular L such that A = L * L^T
+    fn cholesky_lower(a: &Array2<f64>) -> Result<Array2<f64>> {
+        let d = a.nrows();
+        let mut l = Array2::<f64>::zeros((d, d));
+        for j in 0..d {
+            let s: f64 = (0..j).map(|k| l[[j, k]] * l[[j, k]]).sum();
+            let diag = a[[j, j]] - s;
+            if diag <= 0.0 {
+                return Err(SklearsError::NumericalError(
+                    "Covariance matrix is not positive definite".to_string(),
+                ));
+            }
+            l[[j, j]] = diag.sqrt();
+            for i in j + 1..d {
+                let s: f64 = (0..j).map(|k| l[[i, k]] * l[[j, k]]).sum();
+                l[[i, j]] = (a[[i, j]] - s) / l[[j, j]];
+            }
+        }
+        Ok(l)
+    }
+
+    /// Forward substitution: solve L*y = b, return y
+    fn forward_substitution(l: &Array2<f64>, b: &[f64]) -> Vec<f64> {
+        let d = b.len();
+        let mut y = vec![0.0_f64; d];
+        for i in 0..d {
+            let sum: f64 = (0..i).map(|k| l[[i, k]] * y[k]).sum();
+            y[i] = (b[i] - sum) / l[[i, i]];
+        }
+        y
+    }
+
+    /// Compute Mahalanobis distance for a sample vector (as f64 slice) given fitted mean/cov
+    fn mahalanobis_distance_f64(sample: &[f64], mean: &Array1<f64>, l: &Array2<f64>) -> f64 {
+        // diff = sample - mean
+        let diff: Vec<f64> = sample
+            .iter()
+            .zip(mean.iter())
+            .map(|(&s, &m)| s - m)
+            .collect();
+        // solve L y = diff
+        let y = Self::forward_substitution(l, &diff);
+        // ||y||^2 = Mahalanobis distance squared
+        let dist_sq: f64 = y.iter().map(|&v| v * v).sum();
+        dist_sq.sqrt()
+    }
+
+    /// Compute Mahalanobis distance for a generic sample
     fn mahalanobis_distance<T>(&self, sample: &ArrayView1<T>) -> Result<f64>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let mean = self
             .mean_vector
@@ -700,9 +786,9 @@ impl EllipticEnvelopeDetector {
                 operation: "EllipticEnvelope not fitted".to_string(),
             })?;
 
-        // Simplified Mahalanobis distance calculation
-        let distance = 2.0; // Placeholder calculation
-        Ok(distance)
+        let l = Self::cholesky_lower(cov)?;
+        let sample_f64: Vec<f64> = sample.iter().map(|&v| v.into()).collect();
+        Ok(Self::mahalanobis_distance_f64(&sample_f64, mean, &l))
     }
 
     pub fn covariance_matrix(&self) -> Option<&Array2<f64>> {
@@ -716,32 +802,28 @@ impl EllipticEnvelopeDetector {
 
 impl<T> OutlierDetector<T> for EllipticEnvelopeDetector
 where
-    T: Clone + Copy + std::fmt::Debug + PartialOrd,
+    T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
 {
     fn fit(&mut self, x: &ArrayView2<T>) -> Result<()> {
         let (mean_vector, covariance_matrix) = self.compute_robust_covariance(x)?;
 
-        // Compute threshold based on contamination
-        let scores = (0..x.dim().0)
-            .map(|i| {
-                let sample = x.row(i);
-                // Simplified score calculation
-                1.5 + i as f64 * 0.1
-            })
-            .collect::<Vec<f64>>();
+        self.mean_vector = Some(mean_vector);
+        self.covariance_matrix = Some(covariance_matrix);
 
-        let mut sorted_scores = scores;
-        sorted_scores.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+        // Compute Mahalanobis distances for training data and set threshold
+        let scores = self.decision_function(x)?;
 
-        let threshold_idx = (self.config.contamination * sorted_scores.len() as f64) as usize;
+        let mut sorted_scores = scores.to_vec();
+        sorted_scores.sort_by(f64::total_cmp);
+        // Threshold at (1 - contamination) quantile
+        let threshold_idx =
+            ((1.0 - self.config.contamination) * sorted_scores.len() as f64) as usize;
         let threshold = if threshold_idx < sorted_scores.len() {
             sorted_scores[threshold_idx]
         } else {
-            2.0
+            sorted_scores.last().copied().unwrap_or(2.0)
         };
 
-        self.mean_vector = Some(mean_vector);
-        self.covariance_matrix = Some(covariance_matrix);
         self.threshold = Some(threshold);
 
         Ok(())

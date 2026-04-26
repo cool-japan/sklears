@@ -68,8 +68,8 @@ pub enum ComponentSelectionStrategy {
 ///
 /// let adaptive = AdaptiveNystroem::new(Kernel::Rbf { gamma: 1.0 })
 ///     .selection_strategy(ComponentSelectionStrategy::ErrorTolerance { tolerance: 0.1 });
-/// let fitted_adaptive = adaptive.fit(&X, &()).unwrap();
-/// let X_transformed = fitted_adaptive.transform(&X).unwrap();
+/// let fitted_adaptive = adaptive.fit(&X, &()).expect("fit should succeed with valid adaptive Nystroem input");
+/// let X_transformed = fitted_adaptive.transform(&X).expect("transform should succeed after adaptive Nystroem fitting");
 /// ```
 #[derive(Debug, Clone)]
 /// AdaptiveNystroem

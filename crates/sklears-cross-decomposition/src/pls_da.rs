@@ -172,7 +172,7 @@ impl Fit<Array2<Float>, Array1<usize>> for PLSDA<Untrained> {
             .expect("mean_axis requires non-empty array");
 
         let mut x_centered = x - &x_mean.view().insert_axis(Axis(0));
-        let mut y_centered = y_dummy.clone() - &y_mean.view().insert_axis(Axis(0));
+        let y_centered = y_dummy.clone() - y_mean.view().insert_axis(Axis(0));
 
         let x_std = if self.scale {
             let x_std = x_centered.std_axis(Axis(0), 0.0);
@@ -481,6 +481,16 @@ impl PLSDA<Trained> {
         self.y_scores_
             .as_ref()
             .expect("value should be set after fitting")
+    }
+
+    /// Get the number of iterations per component (sklearn-style fitted attribute)
+    pub fn n_iter(&self) -> Option<&[usize]> {
+        self.n_iter_.as_deref()
+    }
+
+    /// Get the encoded Y dummy matrix (sklearn-style fitted attribute)
+    pub fn y_dummy(&self) -> Option<&Array2<Float>> {
+        self.y_dummy_.as_ref()
     }
 }
 

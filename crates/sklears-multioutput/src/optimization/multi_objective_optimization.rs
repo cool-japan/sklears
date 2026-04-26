@@ -12,11 +12,12 @@
 //! - **Crowding Distance**: Maintain diversity in the Pareto front
 //! - **Multiple Objectives**: Support for accuracy, complexity, MSE, MAE, and custom objectives
 //! - **Tournament Selection**: Efficient parent selection for reproduction
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::{RandNormal, Rng, RngExt};
+use scirs2_core::random::RandNormal;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -184,7 +185,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView2<'_, Float>> for MultiObjectiveOptimiz
         let mut population = self.initialize_population(n_features, n_outputs, &mut rng)?;
         let mut convergence_history = Vec::new();
 
-        for generation in 0..self.config.generations {
+        for _generation in 0..self.config.generations {
             // Evaluate objectives for all solutions
             self.evaluate_population(&mut population, X, y)?;
 
@@ -265,7 +266,7 @@ impl MultiObjectiveOptimizer<Untrained> {
         X: &ArrayView2<'_, Float>,
         y: &ArrayView2<'_, Float>,
     ) -> SklResult<()> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
         let n_outputs = y.ncols();
 
         for solution in population.iter_mut() {
@@ -275,7 +276,10 @@ impl MultiObjectiveOptimizer<Untrained> {
                 .parameters
                 .slice(s![..weights_size])
                 .to_owned()
-                .into_shape((n_features, n_outputs))
+                .into_shape_with_order((
+                    (n_features, n_outputs),
+                    scirs2_core::ndarray::Order::RowMajor,
+                ))
                 .expect("operation should succeed");
             let bias = solution.parameters.slice(s![weights_size..]).to_owned();
 
@@ -618,7 +622,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>>
     for MultiObjectiveOptimizer<MultiObjectiveOptimizerTrained>
 {
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
         let best_solution = &self.state.best_solution;
 
         // Extract weights and bias from best solution parameters
@@ -628,7 +632,10 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>>
             .parameters
             .slice(s![..weights_size])
             .to_owned()
-            .into_shape((n_features, n_outputs))
+            .into_shape_with_order((
+                (n_features, n_outputs),
+                scirs2_core::ndarray::Order::RowMajor,
+            ))
             .expect("operation should succeed");
         let bias = best_solution
             .parameters

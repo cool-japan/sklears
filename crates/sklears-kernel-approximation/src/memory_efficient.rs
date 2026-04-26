@@ -160,6 +160,7 @@ impl MemoryEfficientRBFSampler {
 pub struct FittedMemoryEfficientRBFSampler {
     random_weights: Array2<f64>,
     random_offset: Array1<f64>,
+    #[allow(dead_code)] // stored for inspection/serialization
     gamma: f64,
     config: MemoryConfig,
 }
@@ -253,6 +254,7 @@ pub struct MemoryEfficientNystroem {
     coef0: Option<f64>,
     sampling: SamplingStrategy,
     config: MemoryConfig,
+    #[allow(dead_code)] // stored for reproducibility and serialization
     random_seed: Option<u64>,
 }
 

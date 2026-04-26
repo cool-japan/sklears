@@ -5,11 +5,13 @@
 //! portfolio optimization, volatility modeling, and stress testing.
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::Distribution;
 use scirs2_core::StandardNormal;
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{error::SklearsError, traits::Estimator, traits::Fit};
 use std::collections::HashMap;
+/// Return type for risk factor model fitting methods
+type RiskFactorFitResult =
+    Result<(Array2<f64>, Array2<f64>, Array1<f64>, Option<Array2<f64>>), SklearsError>;
 
 // Risk Factor Model Covariance
 #[derive(Debug, Clone)]
@@ -76,6 +78,12 @@ pub struct RiskDecomposition {
     pub factor_contributions: Array1<f64>,
 }
 
+impl Default for RiskFactorModel<RiskFactorModelUntrained> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RiskFactorModel<RiskFactorModelUntrained> {
     pub fn new() -> Self {
         Self {
@@ -125,7 +133,7 @@ impl Fit<Array2<f64>, ()> for RiskFactorModel<RiskFactorModelUntrained> {
     type Fitted = RiskFactorModel<RiskFactorModelTrained>;
 
     fn fit(self, x: &Array2<f64>, _y: &()) -> Result<Self::Fitted, SklearsError> {
-        let (n_samples, n_assets) = x.dim();
+        let (n_samples, _n_assets) = x.dim();
 
         if n_samples < self.n_factors {
             return Err(SklearsError::InvalidInput(
@@ -133,7 +141,7 @@ impl Fit<Array2<f64>, ()> for RiskFactorModel<RiskFactorModelUntrained> {
             ));
         }
 
-        let (factor_loadings, factor_covariance, specific_variances, factor_returns) =
+        let (factor_loadings, factor_covariance, specific_variances, _factor_returns) =
             match self.method {
                 FactorModelMethod::PCA => self.fit_pca(&x.view())?,
                 FactorModelMethod::MLE => self.fit_mle(&x.view())?,
@@ -149,11 +157,11 @@ impl Fit<Array2<f64>, ()> for RiskFactorModel<RiskFactorModelUntrained> {
             + Array2::from_diag(&specific_variances);
 
         // Compute R-squared for each asset
-        let r_squared =
+        let _r_squared =
             self.compute_r_squared(&factor_loadings, &specific_variances, &covariance_matrix);
 
         // Compute risk decomposition
-        let risk_decomposition = self.compute_risk_decomposition(
+        let _risk_decomposition = self.compute_risk_decomposition(
             &factor_loadings,
             &factor_covariance,
             &specific_variances,
@@ -173,11 +181,8 @@ impl Fit<Array2<f64>, ()> for RiskFactorModel<RiskFactorModelUntrained> {
 }
 
 impl RiskFactorModel<RiskFactorModelUntrained> {
-    fn fit_pca(
-        &self,
-        x: &ArrayView2<f64>,
-    ) -> Result<(Array2<f64>, Array2<f64>, Array1<f64>, Option<Array2<f64>>), SklearsError> {
-        let (n_samples, n_assets) = x.dim();
+    fn fit_pca(&self, x: &ArrayView2<f64>) -> RiskFactorFitResult {
+        let (n_samples, _n_assets) = x.dim();
 
         // Center the data
         let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
@@ -216,10 +221,7 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
         ))
     }
 
-    fn fit_mle(
-        &self,
-        x: &ArrayView2<f64>,
-    ) -> Result<(Array2<f64>, Array2<f64>, Array1<f64>, Option<Array2<f64>>), SklearsError> {
+    fn fit_mle(&self, x: &ArrayView2<f64>) -> RiskFactorFitResult {
         // Maximum Likelihood Estimation using EM algorithm
         let (n_samples, n_assets) = x.dim();
 
@@ -289,10 +291,7 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
         ))
     }
 
-    fn fit_apc(
-        &self,
-        x: &ArrayView2<f64>,
-    ) -> Result<(Array2<f64>, Array2<f64>, Array1<f64>, Option<Array2<f64>>), SklearsError> {
+    fn fit_apc(&self, x: &ArrayView2<f64>) -> RiskFactorFitResult {
         // Asymptotic Principal Components for large cross-sections
         let (n_samples, n_assets) = x.dim();
 
@@ -352,16 +351,13 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
         ))
     }
 
-    fn fit_statistical_fa(
-        &self,
-        x: &ArrayView2<f64>,
-    ) -> Result<(Array2<f64>, Array2<f64>, Array1<f64>, Option<Array2<f64>>), SklearsError> {
+    fn fit_statistical_fa(&self, x: &ArrayView2<f64>) -> RiskFactorFitResult {
         // Statistical Factor Analysis with varimax rotation
-        let (n_samples, n_assets) = x.dim();
+        let (n_samples, _n_assets) = x.dim();
 
         // Start with PCA solution
-        let (mut factor_loadings, factor_covariance, mut specific_variances, factor_returns) =
-            self.fit_pca(x)?;
+        let (mut factor_loadings, factor_covariance, _, factor_returns) = self.fit_pca(x)?;
+        let specific_variances;
 
         // Apply varimax rotation for interpretability
         factor_loadings = self.varimax_rotation(&factor_loadings)?;
@@ -386,16 +382,13 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
         ))
     }
 
-    fn fit_fundamental(
-        &self,
-        x: &ArrayView2<f64>,
-    ) -> Result<(Array2<f64>, Array2<f64>, Array1<f64>, Option<Array2<f64>>), SklearsError> {
+    fn fit_fundamental(&self, x: &ArrayView2<f64>) -> RiskFactorFitResult {
         // Fundamental factor model (requires external factor data)
         // For now, implement as enhanced PCA with economic interpretation
-        let (n_samples, n_assets) = x.dim();
+        let (_n_samples, _n_assets) = x.dim();
 
         // Use PCA as base
-        let (factor_loadings, factor_covariance, specific_variances, factor_returns) =
+        let (factor_loadings, _factor_covariance, specific_variances, factor_returns) =
             self.fit_pca(x)?;
 
         // Apply economic constraints and interpretations
@@ -482,13 +475,12 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
         let u = col_i.mapv(|x| x * x) - col_j.mapv(|x| x * x);
         let v = (&col_i * &col_j) * 2.0;
 
-        let a = u.sum();
-        let b = v.sum();
+        let _a = u.sum();
+        let _b = v.sum();
         let c = u.mapv(|x| x * x).sum() - v.mapv(|x| x * x).sum();
         let d = u.dot(&v) * 2.0;
 
-        let theta = (d / (c + (c * c + d * d).sqrt())).atan() / 4.0;
-        theta
+        (d / (c + (c * c + d * d).sqrt())).atan() / 4.0
     }
 
     fn apply_givens_rotation(&self, matrix: &mut Array2<f64>, i: usize, j: usize, theta: f64) {
@@ -529,7 +521,7 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
     fn compute_r_squared(
         &self,
         loadings: &Array2<f64>,
-        specific_vars: &Array1<f64>,
+        _specific_vars: &Array1<f64>,
         total_cov: &Array2<f64>,
     ) -> Array1<f64> {
         let total_variance = total_cov.diag().to_owned();
@@ -977,7 +969,7 @@ impl VolatilityModel {
         let mut volatilities = Vec::with_capacity(n);
 
         for i in 0..n {
-            let start = if i >= window_size { i - window_size } else { 0 };
+            let start = i.saturating_sub(window_size);
             let window_returns = returns.slice(s![start..=i]);
             let realized_vol = window_returns.mapv(|r| r * r).sum().sqrt();
             volatilities.push(realized_vol);
@@ -1059,6 +1051,12 @@ pub struct StressTestResult {
     pub portfolio_impact: Option<f64>,
     pub var_impact: Option<f64>,
     pub component_contributions: Option<Array1<f64>>,
+}
+
+impl Default for StressTesting {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StressTesting {
@@ -1300,7 +1298,7 @@ mod tests {
                     .sum();
                 let explained_variance = fitted.get_factor_loadings().mapv(|x| x * x).sum();
                 let r_squared = explained_variance / total_variance;
-                assert!(r_squared >= 0.0 && r_squared <= 1.0);
+                assert!((0.0..=1.0).contains(&r_squared));
             }
             Err(_) => {
                 // Acceptable for basic test

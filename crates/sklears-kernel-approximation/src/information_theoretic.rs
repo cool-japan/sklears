@@ -60,8 +60,10 @@ impl MutualInformationKernel {
 #[derive(Debug, Clone)]
 /// FittedMutualInformationKernel
 pub struct FittedMutualInformationKernel {
+    #[allow(dead_code)] // stored for inspection/serialization
     feature_weights: Array1<f64>,
     random_features: Array2<f64>,
+    #[allow(dead_code)] // stored for inspection/serialization
     mi_scores: Array1<f64>,
 }
 
@@ -180,7 +182,9 @@ impl EntropyFeatureSelector {
 /// FittedEntropyFeatureSelector
 pub struct FittedEntropyFeatureSelector {
     selected_features: Vec<usize>,
+    #[allow(dead_code)] // stored for inspection/serialization
     feature_scores: Array1<f64>,
+    #[allow(dead_code)] // stored for inspection/serialization
     entropies: Array1<f64>,
 }
 
@@ -315,6 +319,7 @@ impl KLDivergenceKernel {
 /// FittedKLDivergenceKernel
 pub struct FittedKLDivergenceKernel {
     random_projections: Array2<f64>,
+    #[allow(dead_code)] // stored for inspection/serialization
     reference_histograms: Vec<Array1<f64>>,
     kl_weights: Array1<f64>,
 }
@@ -459,6 +464,7 @@ impl InformationBottleneckExtractor {
 /// FittedInformationBottleneckExtractor
 pub struct FittedInformationBottleneckExtractor {
     cluster_centers: Array2<f64>,
+    #[allow(dead_code)] // stored for inspection/serialization
     assignment_probs: Array2<f64>,
     information_values: Array1<f64>,
     n_components: usize,

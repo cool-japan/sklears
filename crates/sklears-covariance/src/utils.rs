@@ -239,7 +239,7 @@ where
 
     // Add regularization to diagonal
     for i in 0..n_rows {
-        regularized[[i, i]] = regularized[[i, i]] + reg_param;
+        regularized[[i, i]] += reg_param;
     }
 
     Ok(regularized)
@@ -290,7 +290,7 @@ where
 
     // Compute trace
     for i in 0..n_rows {
-        properties.trace = properties.trace + matrix[[i, i]];
+        properties.trace += matrix[[i, i]];
     }
 
     // Simple checks for positive definiteness (diagonal dominance heuristic)
@@ -327,7 +327,7 @@ where
     // Approximate determinant (product of diagonal elements for diagonal matrices)
     properties.determinant = F::one();
     for i in 0..n_rows {
-        properties.determinant = properties.determinant * matrix[[i, i]];
+        properties.determinant *= matrix[[i, i]];
     }
 
     Ok(properties)
@@ -361,7 +361,7 @@ where
 {
     let mut sum = F::zero();
     for value in matrix.iter() {
-        sum = sum + (*value) * (*value);
+        sum += (*value) * (*value);
     }
     sum.sqrt()
 }
@@ -375,7 +375,7 @@ where
     let mut trace = F::zero();
     let min_dim = matrix.nrows().min(matrix.ncols());
     for i in 0..min_dim {
-        trace = trace + matrix[[i, i]];
+        trace += matrix[[i, i]];
     }
     trace
 }
@@ -396,7 +396,7 @@ where
 
         for j in 0..n_cols {
             if i != j {
-                off_diag_sum = off_diag_sum + matrix[[i, j]].abs();
+                off_diag_sum += matrix[[i, j]].abs();
             }
         }
 
@@ -432,14 +432,14 @@ where
         let mut x_new = Array2::zeros((n_rows, 1));
         for i in 0..n_rows {
             for j in 0..n_cols {
-                x_new[[i, 0]] = x_new[[i, 0]] + matrix[[i, j]] * x[[j, 0]];
+                x_new[[i, 0]] += matrix[[i, j]] * x[[j, 0]];
             }
         }
 
         // Compute norm
         let mut norm = F::zero();
         for i in 0..n_rows {
-            norm = norm + x_new[[i, 0]] * x_new[[i, 0]];
+            norm += x_new[[i, 0]] * x_new[[i, 0]];
         }
         norm = norm.sqrt();
 
@@ -452,7 +452,7 @@ where
 
         // Normalize
         for i in 0..n_rows {
-            x_new[[i, 0]] = x_new[[i, 0]] / norm;
+            x_new[[i, 0]] /= norm;
         }
 
         eigenvalue = norm;
@@ -576,7 +576,7 @@ impl<F: NdFloat> CovarianceCV<F> {
 
     /// Generate cross-validation fold indices
     pub fn generate_folds(&self, n_samples: usize) -> Vec<Vec<usize>> {
-        let indices: Vec<usize> = (0..n_samples).collect();
+        let _indices: Vec<usize> = (0..n_samples).collect();
 
         // Simple k-fold splitting (deterministic for now)
         let fold_size = n_samples / self.n_folds;

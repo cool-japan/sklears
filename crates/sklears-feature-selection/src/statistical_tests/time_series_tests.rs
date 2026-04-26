@@ -4,14 +4,17 @@ use scirs2_core::error::CoreError;
 use scirs2_core::ndarray::ArrayView1;
 type CoreResult<T> = std::result::Result<T, CoreError>;
 
+/// ljung_box_test
 pub fn ljung_box_test(_x: &ArrayView1<f64>, _lags: usize) -> CoreResult<(f64, f64)> {
     Ok((0.0, 0.5))
 }
 
+/// adf_test
 pub fn adf_test(_x: &ArrayView1<f64>) -> CoreResult<(f64, f64)> {
     Ok((0.0, 0.5))
 }
 
+/// granger_causality
 pub fn granger_causality(
     _x: &ArrayView1<f64>,
     _y: &ArrayView1<f64>,

@@ -11,6 +11,23 @@ use scirs2_core::RngExt;
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
+/// Boxed dynamic error for NAS search functions
+type NasError = Box<dyn std::error::Error>;
+/// NAS search function result: (best_arch, best_score, evaluations, n_evaluated, history)
+type NasSearchResult = Result<
+    (
+        NeuralArchitecture,
+        Float,
+        Vec<ArchitectureEvaluation>,
+        usize,
+        Vec<Float>,
+    ),
+    NasError,
+>;
+/// NAS evaluation function trait object
+#[allow(dead_code)] // NasEvalFn retained as canonical type alias for NAS evaluation callbacks
+type NasEvalFn = dyn Fn(&NeuralArchitecture) -> Result<ArchitectureEvaluation, NasError>;
+
 /// Neural Architecture Search strategies
 #[derive(Debug, Clone)]
 pub enum NASStrategy {
@@ -214,21 +231,9 @@ impl NASOptimizer {
     }
 
     /// Evolutionary algorithm-based architecture search
-    fn evolutionary_search<F>(
-        &mut self,
-        evaluation_fn: &F,
-    ) -> Result<
-        (
-            NeuralArchitecture,
-            Float,
-            Vec<ArchitectureEvaluation>,
-            usize,
-            Vec<Float>,
-        ),
-        Box<dyn std::error::Error>,
-    >
+    fn evolutionary_search<F>(&mut self, evaluation_fn: &F) -> NasSearchResult
     where
-        F: Fn(&NeuralArchitecture) -> Result<ArchitectureEvaluation, Box<dyn std::error::Error>>,
+        F: Fn(&NeuralArchitecture) -> Result<ArchitectureEvaluation, NasError>,
     {
         let (population_size, generations, mutation_rate, crossover_rate) =
             match &self.config.strategy {
@@ -295,21 +300,9 @@ impl NASOptimizer {
     }
 
     /// Reinforcement learning-based architecture search
-    fn reinforcement_learning_search<F>(
-        &mut self,
-        evaluation_fn: &F,
-    ) -> Result<
-        (
-            NeuralArchitecture,
-            Float,
-            Vec<ArchitectureEvaluation>,
-            usize,
-            Vec<Float>,
-        ),
-        Box<dyn std::error::Error>,
-    >
+    fn reinforcement_learning_search<F>(&mut self, evaluation_fn: &F) -> NasSearchResult
     where
-        F: Fn(&NeuralArchitecture) -> Result<ArchitectureEvaluation, Box<dyn std::error::Error>>,
+        F: Fn(&NeuralArchitecture) -> Result<ArchitectureEvaluation, NasError>,
     {
         let (episodes, learning_rate, exploration_rate) = match &self.config.strategy {
             NASStrategy::ReinforcementLearning {
@@ -373,21 +366,9 @@ impl NASOptimizer {
     }
 
     /// Gradient-based differentiable architecture search
-    fn gradient_based_search<F>(
-        &mut self,
-        evaluation_fn: &F,
-    ) -> Result<
-        (
-            NeuralArchitecture,
-            Float,
-            Vec<ArchitectureEvaluation>,
-            usize,
-            Vec<Float>,
-        ),
-        Box<dyn std::error::Error>,
-    >
+    fn gradient_based_search<F>(&mut self, evaluation_fn: &F) -> NasSearchResult
     where
-        F: Fn(&NeuralArchitecture) -> Result<ArchitectureEvaluation, Box<dyn std::error::Error>>,
+        F: Fn(&NeuralArchitecture) -> Result<ArchitectureEvaluation, NasError>,
     {
         let (search_epochs, learning_rate, _weight_decay) = match &self.config.strategy {
             NASStrategy::GDAS {
@@ -446,21 +427,9 @@ impl NASOptimizer {
     }
 
     /// Random search baseline
-    fn random_search<F>(
-        &mut self,
-        evaluation_fn: &F,
-    ) -> Result<
-        (
-            NeuralArchitecture,
-            Float,
-            Vec<ArchitectureEvaluation>,
-            usize,
-            Vec<Float>,
-        ),
-        Box<dyn std::error::Error>,
-    >
+    fn random_search<F>(&mut self, evaluation_fn: &F) -> NasSearchResult
     where
-        F: Fn(&NeuralArchitecture) -> Result<ArchitectureEvaluation, Box<dyn std::error::Error>>,
+        F: Fn(&NeuralArchitecture) -> Result<ArchitectureEvaluation, NasError>,
     {
         let (n_trials, _max_depth) = match &self.config.strategy {
             NASStrategy::RandomSearch {
@@ -503,21 +472,9 @@ impl NASOptimizer {
     }
 
     /// Progressive search with increasing complexity
-    fn progressive_search<F>(
-        &mut self,
-        evaluation_fn: &F,
-    ) -> Result<
-        (
-            NeuralArchitecture,
-            Float,
-            Vec<ArchitectureEvaluation>,
-            usize,
-            Vec<Float>,
-        ),
-        Box<dyn std::error::Error>,
-    >
+    fn progressive_search<F>(&mut self, evaluation_fn: &F) -> NasSearchResult
     where
-        F: Fn(&NeuralArchitecture) -> Result<ArchitectureEvaluation, Box<dyn std::error::Error>>,
+        F: Fn(&NeuralArchitecture) -> Result<ArchitectureEvaluation, NasError>,
     {
         let (stages, complexity_growth) = match &self.config.strategy {
             NASStrategy::Progressive {
@@ -572,21 +529,9 @@ impl NASOptimizer {
     }
 
     /// Bayesian optimization for architecture search
-    fn bayesian_optimization_search<F>(
-        &mut self,
-        evaluation_fn: &F,
-    ) -> Result<
-        (
-            NeuralArchitecture,
-            Float,
-            Vec<ArchitectureEvaluation>,
-            usize,
-            Vec<Float>,
-        ),
-        Box<dyn std::error::Error>,
-    >
+    fn bayesian_optimization_search<F>(&mut self, evaluation_fn: &F) -> NasSearchResult
     where
-        F: Fn(&NeuralArchitecture) -> Result<ArchitectureEvaluation, Box<dyn std::error::Error>>,
+        F: Fn(&NeuralArchitecture) -> Result<ArchitectureEvaluation, NasError>,
     {
         let (n_trials, _acquisition_function) = match &self.config.strategy {
             NASStrategy::BayesianOptimization {
@@ -777,6 +722,7 @@ impl NASOptimizer {
     }
 
     /// Tournament selection for evolutionary algorithm
+    #[allow(dead_code)] // intentionally deferred: tournament_selection not yet called
     fn tournament_selection<'a>(
         &mut self,
         population: &'a [NeuralArchitecture],

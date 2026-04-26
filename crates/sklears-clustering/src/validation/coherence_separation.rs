@@ -886,7 +886,7 @@ mod tests {
 
         // Test overall quality score
         let quality = result.overall_quality_score();
-        assert!(quality >= 0.0 && quality <= 1.0);
+        assert!((0.0..=1.0).contains(&quality));
     }
 
     #[test]
@@ -900,7 +900,7 @@ mod tests {
 
         // Test poorly separated pairs
         let poorly_separated = result.poorly_separated_pairs(10.0); // High threshold
-        assert!(poorly_separated.len() >= 0);
+        let _ = poorly_separated.len(); // len() is always >= 0 for usize
 
         // Test most overlapping pair
         let most_overlapping = result.most_overlapping_pair();

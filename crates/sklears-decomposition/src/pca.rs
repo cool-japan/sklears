@@ -161,17 +161,9 @@ impl Transform<Array2<Float>, Array2<Float>> for PcaTrained {
 }
 
 /// PCA builder pattern
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PcaBuilder {
     config: PcaConfig,
-}
-
-impl Default for PcaBuilder {
-    fn default() -> Self {
-        Self {
-            config: PcaConfig::default(),
-        }
-    }
 }
 
 impl PcaBuilder {

@@ -324,7 +324,6 @@ impl SemiSupervisedGAN<Untrained> {
 
     /// Train the GAN
     fn train(&mut self, x: &ArrayView2<f64>, y: &ArrayView1<i32>) -> SklResult<()> {
-        let n_samples = x.nrows();
         let n_features = x.ncols();
 
         // Initialize networks
@@ -348,18 +347,14 @@ impl SemiSupervisedGAN<Untrained> {
             let mut total_g_loss = 0.0;
 
             // Train discriminator on labeled data
-            for batch_start in (0..labeled_indices.len()).step_by(self.batch_size) {
-                let batch_end = (batch_start + self.batch_size).min(labeled_indices.len());
-
+            for _batch_start in (0..labeled_indices.len()).step_by(self.batch_size) {
                 // In practice, you'd implement proper gradient computation here
                 // This is a simplified version for demonstration
                 total_d_loss += 1.0; // Placeholder
             }
 
             // Train discriminator on unlabeled data
-            for batch_start in (0..unlabeled_indices.len()).step_by(self.batch_size) {
-                let batch_end = (batch_start + self.batch_size).min(unlabeled_indices.len());
-
+            for _batch_start in (0..unlabeled_indices.len()).step_by(self.batch_size) {
                 // In practice, you'd implement proper gradient computation here
                 total_d_loss += 1.0; // Placeholder
             }
@@ -540,7 +535,6 @@ impl PredictProba<ArrayView2<'_, Float>, Array2<f64>>
 mod tests {
     use super::*;
     use scirs2_core::array;
-    use scirs2_core::ndarray_ext::{s, ArrayView1, ArrayView2};
 
     #[test]
     fn test_generator_creation() {
@@ -606,7 +600,7 @@ mod tests {
         let probs = result.expect("operation should succeed");
         assert_eq!(probs.len(), 3);
         assert!((probs.sum() - 1.0).abs() < 1e-10);
-        assert!(probs.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(probs.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -695,7 +689,7 @@ mod tests {
         assert!(result.is_ok());
 
         let real_prob = result.expect("operation should succeed");
-        assert!(real_prob >= 0.0 && real_prob <= 1.0);
+        assert!((0.0..=1.0).contains(&real_prob));
     }
 
     #[test]

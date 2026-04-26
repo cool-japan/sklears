@@ -32,7 +32,7 @@
 //!     implementations: Vec::new(),
 //! };
 //!
-//! let analysis = analyzer.analyze_dependencies(&trait_info).unwrap();
+//! let analysis = analyzer.analyze_dependencies(&trait_info).expect("dependency analysis must succeed");
 //! println!("Direct dependencies: {:?}", analysis.direct_dependencies);
 //! println!("Dependency depth: {}", analysis.dependency_depth);
 //! ```

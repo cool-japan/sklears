@@ -93,8 +93,9 @@ impl HierarchicalGraphConstruction {
     }
 
     /// Construct hierarchical graph from data
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(&self, X: &ArrayView2<f64>) -> Result<HierarchicalGraph, SklearsError> {
-        let mut rng = if let Some(seed) = self.random_state {
+        let mut rng = if let Some(_seed) = self.random_state {
             Random::seed(42)
         } else {
             Random::seed(42)
@@ -131,6 +132,7 @@ impl HierarchicalGraphConstruction {
     }
 
     /// Construct graph at a specific level
+    #[allow(non_snake_case)] // standard ML notation
     fn construct_level_graph(
         &self,
         X: &ArrayView2<f64>,
@@ -198,6 +200,7 @@ impl HierarchicalGraphConstruction {
     }
 
     /// Compute adaptive epsilon for epsilon-graph construction
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_adaptive_epsilon(
         &self,
         X: &ArrayView2<f64>,
@@ -233,6 +236,7 @@ impl HierarchicalGraphConstruction {
     }
 
     /// Construct adaptive graph with variable neighborhood sizes
+    #[allow(non_snake_case)] // standard ML notation
     fn construct_adaptive_graph(
         &self,
         X: &ArrayView2<f64>,
@@ -277,6 +281,7 @@ impl HierarchicalGraphConstruction {
     }
 
     /// Compute local densities for adaptive graph construction
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_local_densities(
         &self,
         X: &ArrayView2<f64>,
@@ -305,6 +310,7 @@ impl HierarchicalGraphConstruction {
     }
 
     /// Coarsen data for next hierarchy level
+    #[allow(non_snake_case)] // standard ML notation
     fn coarsen_level<R>(
         &self,
         X: &ArrayView2<f64>,
@@ -329,6 +335,7 @@ impl HierarchicalGraphConstruction {
     }
 
     /// Coarsen by random sampling
+    #[allow(non_snake_case)] // standard ML notation
     fn coarsen_by_sampling<R>(
         &self,
         X: &ArrayView2<f64>,
@@ -357,6 +364,7 @@ impl HierarchicalGraphConstruction {
     }
 
     /// Coarsen by clustering (simple k-means-like approach)
+    #[allow(non_snake_case)] // standard ML notation
     fn coarsen_by_clustering(
         &self,
         X: &ArrayView2<f64>,
@@ -412,6 +420,7 @@ impl HierarchicalGraphConstruction {
     }
 
     /// Coarsen by pooling (average neighboring points)
+    #[allow(non_snake_case)] // standard ML notation
     fn coarsen_by_pooling(
         &self,
         X: &ArrayView2<f64>,
@@ -681,6 +690,7 @@ impl MultiScaleSemiSupervised {
     }
 
     /// Fit multi-scale semi-supervised model
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(
         &self,
         X: &ArrayView2<f64>,
@@ -816,6 +826,7 @@ impl MultiScaleSemiSupervised {
     }
 
     /// Perform label propagation on a single graph
+    #[allow(non_snake_case)] // standard ML notation
     fn propagate_labels(
         &self,
         graph: &Array2<f64>,
@@ -913,6 +924,7 @@ impl MultiScaleSemiSupervised {
     }
 
     /// Normalize graph to get transition matrix
+    #[allow(non_snake_case)] // standard ML notation
     fn normalize_graph(&self, graph: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
         let n_samples = graph.nrows();
         let mut P = graph.clone();
@@ -940,7 +952,6 @@ impl Default for MultiScaleSemiSupervised {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::array;
 
     #[test]

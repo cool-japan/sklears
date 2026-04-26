@@ -68,7 +68,7 @@ impl Discretizer {
     /// Fit discretizer to data
     pub fn fit<T>(&mut self, x: &ArrayView2<T>) -> Result<()>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let (_, n_features) = x.dim();
         let mut bin_edges = HashMap::new();
@@ -85,7 +85,7 @@ impl Discretizer {
     /// Transform data using fitted discretizer
     pub fn transform<T>(&self, x: &ArrayView2<T>) -> Result<Array2<usize>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let bin_edges = self
             .bin_edges
@@ -100,7 +100,7 @@ impl Discretizer {
         for feature_idx in 0..n_features {
             if let Some(edges) = bin_edges.get(&feature_idx) {
                 for sample_idx in 0..n_samples {
-                    let value = 1.0; // Placeholder conversion from T to f64
+                    let value: f64 = x[(sample_idx, feature_idx)].into();
                     let bin = self.find_bin(value, edges);
                     result[(sample_idx, feature_idx)] = bin;
                 }
@@ -113,37 +113,67 @@ impl Discretizer {
     /// Compute bin edges for a feature
     fn compute_bin_edges<T>(&self, column: &ArrayView1<T>) -> Result<Array1<f64>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         match self.config.method {
-            DiscretizationMethod::Quantile => self.quantile_edges(column),
-            DiscretizationMethod::Uniform => self.uniform_edges(column),
-            _ => self.quantile_edges(column), // Default
+            DiscretizationMethod::Quantile | DiscretizationMethod::EqualFrequency => {
+                self.quantile_edges(column)
+            }
+            DiscretizationMethod::Uniform | DiscretizationMethod::EqualWidth => {
+                self.uniform_edges(column)
+            }
+            _ => self.quantile_edges(column),
         }
     }
 
-    /// Compute quantile-based edges
+    /// Compute quantile-based (equal-frequency) edges
     fn quantile_edges<T>(&self, column: &ArrayView1<T>) -> Result<Array1<f64>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
-        // Simplified quantile computation
-        let mut edges = Array1::zeros(self.config.n_bins + 1);
-        for i in 0..=self.config.n_bins {
-            edges[i] = i as f64 / self.config.n_bins as f64;
+        let n_bins = self.config.n_bins;
+        let mut values: Vec<f64> = column.iter().map(|&v| v.into()).collect();
+        if values.is_empty() {
+            return Err(SklearsError::InvalidInput("Column is empty".to_string()));
+        }
+        values.sort_by(f64::total_cmp);
+        let n = values.len();
+
+        let mut edges = Array1::zeros(n_bins + 1);
+        edges[0] = values[0];
+        edges[n_bins] = values[n - 1];
+        for i in 1..n_bins {
+            let p = i as f64 / n_bins as f64;
+            let idx = p * (n - 1) as f64;
+            let lo = idx.floor() as usize;
+            let hi = idx.ceil() as usize;
+            let frac = idx - lo as f64;
+            edges[i] = values[lo] * (1.0 - frac) + values[hi.min(n - 1)] * frac;
         }
         Ok(edges)
     }
 
-    /// Compute uniform edges
+    /// Compute uniform (equal-width) edges
     fn uniform_edges<T>(&self, column: &ArrayView1<T>) -> Result<Array1<f64>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
-        // Simplified uniform computation
-        let mut edges = Array1::zeros(self.config.n_bins + 1);
-        for i in 0..=self.config.n_bins {
-            edges[i] = i as f64;
+        let n_bins = self.config.n_bins;
+        let values: Vec<f64> = column.iter().map(|&v| v.into()).collect();
+        if values.is_empty() {
+            return Err(SklearsError::InvalidInput("Column is empty".to_string()));
+        }
+        let min_val = values.iter().copied().fold(f64::INFINITY, f64::min);
+        let max_val = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        let bin_width = if (max_val - min_val).abs() < f64::EPSILON {
+            1.0
+        } else {
+            (max_val - min_val) / n_bins as f64
+        };
+
+        let mut edges = Array1::zeros(n_bins + 1);
+        for i in 0..=n_bins {
+            edges[i] = min_val + i as f64 * bin_width;
         }
         Ok(edges)
     }
@@ -299,8 +329,8 @@ impl DiscretizationAnalyzer {
 
     pub fn analyze_discretization<T>(
         &mut self,
-        original: &ArrayView2<T>,
-        discretized: &Array2<usize>,
+        _original: &ArrayView2<T>,
+        _discretized: &Array2<usize>,
     ) -> Result<()>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
@@ -340,16 +370,70 @@ impl BinningOptimizer {
     pub fn optimize_bins<T>(
         &mut self,
         x: &ArrayView2<T>,
-        y: Option<&ArrayView1<T>>,
+        _y: Option<&ArrayView1<T>>,
     ) -> Result<usize>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
-        // Optimize number of bins
-        let best_bins = 5; // Placeholder
+        // Entropy-minimization: try bin counts 2..=10, pick lowest mean entropy
+        let (_, n_features) = x.dim();
+        let mut best_bins = 5usize;
+        let mut best_score = f64::INFINITY;
+
+        for n_bins in 2usize..=10 {
+            let config = DiscretizationConfig {
+                method: DiscretizationMethod::Uniform,
+                n_bins,
+                encode: "ordinal".to_string(),
+                strategy: "uniform".to_string(),
+            };
+            let mut discretizer = Discretizer::new(config);
+            if discretizer.fit(x).is_err() {
+                continue;
+            }
+            let discretized = match discretizer.transform(x) {
+                Ok(d) => d,
+                Err(_) => continue,
+            };
+
+            // Compute mean entropy across features
+            let mut total_entropy = 0.0_f64;
+            for feat in 0..n_features {
+                let col: Vec<usize> = discretized.column(feat).to_vec();
+                let mut counts = vec![0usize; n_bins];
+                for &v in &col {
+                    let idx = v.min(n_bins - 1);
+                    counts[idx] += 1;
+                }
+                let n_total = col.len() as f64;
+                let entropy: f64 = counts
+                    .iter()
+                    .filter(|&&c| c > 0)
+                    .map(|&c| {
+                        let p = c as f64 / n_total;
+                        -p * p.ln()
+                    })
+                    .sum();
+                total_entropy += entropy;
+            }
+            let mean_entropy = if n_features > 0 {
+                total_entropy / n_features as f64
+            } else {
+                0.0
+            };
+
+            self.optimization_results
+                .insert(format!("entropy_{}", n_bins), mean_entropy);
+
+            if mean_entropy < best_score {
+                best_score = mean_entropy;
+                best_bins = n_bins;
+            }
+        }
+
         self.best_n_bins = Some(best_bins);
         self.optimization_results
-            .insert("best_score".to_string(), 0.85);
+            .insert("best_score".to_string(), best_score);
         Ok(best_bins)
     }
 

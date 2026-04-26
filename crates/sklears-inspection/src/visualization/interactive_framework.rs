@@ -15,12 +15,15 @@ use crate::Float;
 use scirs2_core::ndarray::Array2;
 use std::collections::HashMap;
 
+/// Type alias for update callback boxed trait objects
+type UpdateCallbackFn = Box<dyn Fn(&str, &Array2<Float>) + Send + Sync>;
+
 /// Interactive visualization framework
 pub struct InteractiveVisualizer {
     /// Current plot configurations
     pub plot_configs: HashMap<String, PlotConfig>,
     /// Update callbacks
-    pub update_callbacks: Vec<Box<dyn Fn(&str, &Array2<Float>) + Send + Sync>>,
+    pub update_callbacks: Vec<UpdateCallbackFn>,
     /// Real-time update enabled
     pub real_time_updates: bool,
 }
@@ -135,7 +138,7 @@ impl Default for InteractiveVisualizer {
 
 #[cfg(test)]
 mod tests {
-    use super::super::config_types::{ColorScheme, PlotConfig};
+    use super::super::config_types::PlotConfig;
     use super::*;
     use scirs2_core::ndarray::array;
 

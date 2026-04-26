@@ -13,6 +13,9 @@ use sklears_core::{
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+/// A custom consistency rule function
+type ConsistencyRuleFn = Box<dyn Fn(&str) -> Vec<ConsistencyIssue>>;
+
 /// Standard configuration trait that all components should implement
 pub trait StandardConfig: Debug + Clone + Default {
     /// Validate the configuration
@@ -283,7 +286,7 @@ pub struct ConsistencyCheckConfig {
     /// Strictness level for checking
     pub strictness_level: CheckStrictnessLevel,
     /// Custom validation rules
-    pub custom_rules: Vec<Box<dyn Fn(&str) -> Vec<ConsistencyIssue>>>,
+    pub custom_rules: Vec<ConsistencyRuleFn>,
 }
 
 impl std::fmt::Debug for ConsistencyCheckConfig {
@@ -338,10 +341,15 @@ pub enum CheckStrictnessLevel {
 /// Component type information for analysis
 #[derive(Debug, Clone)]
 pub struct ComponentTypeInfo {
+    /// The name.
     pub name: String,
+    /// The category.
     pub category: ComponentCategory,
+    /// The implemented traits.
     pub implemented_traits: Vec<String>,
+    /// The method signatures.
     pub method_signatures: Vec<MethodSignature>,
+    /// The performance characteristics.
     pub performance_characteristics: PerformanceCharacteristics,
 }
 
@@ -365,10 +373,15 @@ pub enum ComponentCategory {
 /// Method signature information for consistency checking
 #[derive(Debug, Clone)]
 pub struct MethodSignature {
+    /// The name.
     pub name: String,
+    /// The input types.
     pub input_types: Vec<String>,
+    /// The output type.
     pub output_type: String,
+    /// The is async.
     pub is_async: bool,
+    /// The error handling.
     pub error_handling: ErrorHandlingPattern,
 }
 
@@ -383,15 +396,20 @@ pub enum ErrorHandlingPattern {
     Panic,
     /// Custom
     Custom(String),
+    /// Variant value.
     None,
 }
 
 /// Performance characteristics of components
 #[derive(Debug, Clone)]
 pub struct PerformanceCharacteristics {
+    /// The computational complexity.
     pub computational_complexity: String,
+    /// The memory complexity.
     pub memory_complexity: String,
+    /// The thread safety.
     pub thread_safety: ThreadSafetyLevel,
+    /// The cache efficiency.
     pub cache_efficiency: f64,
 }
 
@@ -449,7 +467,7 @@ impl ApiConsistencyChecker {
     }
 
     /// Check if a component follows standard API patterns with advanced analysis
-    pub fn check_component<T>(&mut self, component: &T) -> ConsistencyReport
+    pub fn check_component<T>(&mut self, _component: &T) -> ConsistencyReport
     where
         T: Debug,
     {
@@ -461,7 +479,6 @@ impl ApiConsistencyChecker {
         }
 
         let mut issues = Vec::new();
-        let mut recommendations = Vec::new();
 
         // Analyze component type and category
         let component_info = self.analyze_component_type(&component_name);
@@ -484,7 +501,7 @@ impl ApiConsistencyChecker {
         }
 
         // Generate recommendations based on issues found
-        recommendations = self.generate_recommendations(&issues, &component_info);
+        let recommendations = self.generate_recommendations(&issues, &component_info);
 
         // Calculate consistency score
         let score = self.calculate_consistency_score(&issues);
@@ -537,7 +554,7 @@ impl ApiConsistencyChecker {
         let improvement_suggestions = self
             .generate_pipeline_improvement_suggestions(&component_reports, &cross_component_issues);
 
-        /// PipelineConsistencyReport
+        // PipelineConsistencyReport
         PipelineConsistencyReport {
             total_components,
             consistent_components,
@@ -561,7 +578,7 @@ impl ApiConsistencyChecker {
     /// Get analysis statistics
     #[must_use]
     pub fn get_analysis_statistics(&self) -> AnalysisStatistics {
-        /// AnalysisStatistics
+        // AnalysisStatistics
         AnalysisStatistics {
             total_components_analyzed: self.cached_reports.len(),
             average_consistency_score: self.cached_reports.values().map(|r| r.score).sum::<f64>()
@@ -595,7 +612,7 @@ impl ApiConsistencyChecker {
                 ComponentCategory::Unknown
             };
 
-        /// ComponentTypeInfo
+        // ComponentTypeInfo
         ComponentTypeInfo {
             name: component_name.to_string(),
             category,
@@ -630,17 +647,18 @@ impl ApiConsistencyChecker {
                     });
                 }
             }
-            ComponentCategory::Transformer => {
-                if !info.implemented_traits.contains(&"Transform".to_string()) {
-                    issues.push(ConsistencyIssue {
-                        category: IssueCategory::ConfigurationPattern,
-                        severity: IssueSeverity::Major,
-                        description: "Transformer should implement Transform trait".to_string(),
-                        location: Some("Type definition".to_string()),
-                        suggested_fix: Some("impl Transform<X> for YourTransformer".to_string()),
-                    });
-                }
+            ComponentCategory::Transformer
+                if !info.implemented_traits.contains(&"Transform".to_string()) =>
+            {
+                issues.push(ConsistencyIssue {
+                    category: IssueCategory::ConfigurationPattern,
+                    severity: IssueSeverity::Major,
+                    description: "Transformer should implement Transform trait".to_string(),
+                    location: Some("Type definition".to_string()),
+                    suggested_fix: Some("impl Transform<X> for YourTransformer".to_string()),
+                });
             }
+            ComponentCategory::Transformer => {}
             _ => {} // Other categories have different requirements
         }
 
@@ -863,7 +881,7 @@ impl ApiConsistencyChecker {
     fn infer_method_signatures(&self, _component_name: &str) -> Vec<MethodSignature> {
         // This would be implemented with actual reflection or metadata in practice
         vec![
-            /// MethodSignature
+            // MethodSignature
             MethodSignature {
                 name: "fit".to_string(),
                 input_types: vec!["X".to_string(), "Y".to_string()],
@@ -871,7 +889,7 @@ impl ApiConsistencyChecker {
                 is_async: false,
                 error_handling: ErrorHandlingPattern::Result,
             },
-            /// MethodSignature
+            // MethodSignature
             MethodSignature {
                 name: "predict".to_string(),
                 input_types: vec!["X".to_string()],
@@ -886,7 +904,7 @@ impl ApiConsistencyChecker {
         &self,
         _component_name: &str,
     ) -> PerformanceCharacteristics {
-        /// PerformanceCharacteristics
+        // PerformanceCharacteristics
         PerformanceCharacteristics {
             computational_complexity: "O(n)".to_string(),
             memory_complexity: "O(n)".to_string(),
@@ -905,7 +923,7 @@ impl ApiConsistencyChecker {
         }
 
         let mut issues: Vec<_> = issue_counts.into_iter().collect();
-        issues.sort_by(|a, b| b.1.cmp(&a.1));
+        issues.sort_by_key(|b| std::cmp::Reverse(b.1));
         issues.into_iter().take(5).map(|(desc, _)| desc).collect()
     }
 }
@@ -913,9 +931,13 @@ impl ApiConsistencyChecker {
 /// Statistics about analysis performed
 #[derive(Debug, Clone)]
 pub struct AnalysisStatistics {
+    /// The total components analyzed.
     pub total_components_analyzed: usize,
+    /// The average consistency score.
     pub average_consistency_score: f64,
+    /// The most common issues.
     pub most_common_issues: Vec<String>,
+    /// The registered types.
     pub registered_types: usize,
 }
 
@@ -1040,7 +1062,7 @@ pub enum RecommendationPriority {
 /// Helper macro for implementing `StandardConfig`
 #[macro_export]
 macro_rules! impl_standard_config {
-    ($config_type:ty, $component_type:expr, $description:expr) => {
+    ($config_type:ty, $component_type:expr_2021, $description:expr_2021) => {
         impl StandardConfig for $config_type {
             fn validate(&self) -> SklResult<()> {
                 // Default validation - override as needed
@@ -1048,7 +1070,7 @@ macro_rules! impl_standard_config {
             }
 
             fn summary(&self) -> ConfigSummary {
-                /// ConfigSummary
+                // ConfigSummary
                 ConfigSummary {
                     component_type: $component_type.to_string(),
                     description: $description.to_string(),
@@ -1076,7 +1098,9 @@ mod tests {
 
     #[derive(Debug, Clone, Default)]
     struct TestConfig {
+        #[allow(dead_code)]
         pub param1: f64,
+        #[allow(dead_code)]
         pub param2: bool,
     }
 
@@ -1106,8 +1130,10 @@ mod tests {
 
     #[test]
     fn test_enhanced_consistency_checking() {
-        let mut config = ConsistencyCheckConfig::default();
-        config.strictness_level = CheckStrictnessLevel::Strict;
+        let config = ConsistencyCheckConfig {
+            strictness_level: CheckStrictnessLevel::Strict,
+            ..Default::default()
+        };
 
         let mut checker = ApiConsistencyChecker::with_config(config);
         let test_config = TestConfig::default();
@@ -1203,10 +1229,15 @@ pub mod pattern_detection {
     /// Standard API pattern definition
     #[derive(Debug, Clone)]
     pub struct ApiPattern {
+        /// The name.
         pub name: String,
+        /// The description.
         pub description: String,
+        /// The pattern type.
         pub pattern_type: PatternType,
+        /// The detection rules.
         pub detection_rules: Vec<DetectionRule>,
+        /// The compliance level.
         pub compliance_level: ComplianceLevel,
     }
 
@@ -1232,8 +1263,11 @@ pub mod pattern_detection {
     /// Pattern detection rule
     #[derive(Debug, Clone)]
     pub struct DetectionRule {
+        /// The rule type.
         pub rule_type: RuleType,
+        /// The pattern.
         pub pattern: String,
+        /// The weight.
         pub weight: f64,
     }
 
@@ -1266,20 +1300,30 @@ pub mod pattern_detection {
     /// Detected pattern in a component
     #[derive(Debug, Clone)]
     pub struct DetectedPattern {
+        /// The pattern.
         pub pattern: ApiPattern,
+        /// The confidence.
         pub confidence: f64,
+        /// The evidence.
         pub evidence: Vec<String>,
+        /// The compliance score.
         pub compliance_score: f64,
+        /// The violations.
         pub violations: Vec<PatternViolation>,
     }
 
     /// Pattern violation
     #[derive(Debug, Clone)]
     pub struct PatternViolation {
+        /// The violation type.
         pub violation_type: ViolationType,
+        /// The description.
         pub description: String,
+        /// The location.
         pub location: String,
+        /// The severity.
         pub severity: ViolationSeverity,
+        /// The suggestion.
         pub suggestion: String,
     }
 
@@ -1338,19 +1382,19 @@ pub mod pattern_detection {
                 description: "Builder pattern for fluent configuration".to_string(),
                 pattern_type: PatternType::Builder,
                 detection_rules: vec![
-                    /// DetectionRule
+                    // DetectionRule
                     DetectionRule {
                         rule_type: RuleType::TypeName,
                         pattern: ".*Builder$".to_string(),
                         weight: 0.8,
                     },
-                    /// DetectionRule
+                    // DetectionRule
                     DetectionRule {
                         rule_type: RuleType::MethodName,
                         pattern: "build".to_string(),
                         weight: 0.9,
                     },
-                    /// DetectionRule
+                    // DetectionRule
                     DetectionRule {
                         rule_type: RuleType::MethodSignature,
                         pattern: "-> Self".to_string(),
@@ -1366,13 +1410,13 @@ pub mod pattern_detection {
                 description: "Repository pattern for data access".to_string(),
                 pattern_type: PatternType::Repository,
                 detection_rules: vec![
-                    /// DetectionRule
+                    // DetectionRule
                     DetectionRule {
                         rule_type: RuleType::MethodName,
                         pattern: "find.*|get.*|save.*|delete.*".to_string(),
                         weight: 0.8,
                     },
-                    /// DetectionRule
+                    // DetectionRule
                     DetectionRule {
                         rule_type: RuleType::TypeName,
                         pattern: ".*Repository$".to_string(),
@@ -1388,13 +1432,13 @@ pub mod pattern_detection {
                 description: "Factory pattern for object creation".to_string(),
                 pattern_type: PatternType::Factory,
                 detection_rules: vec![
-                    /// DetectionRule
+                    // DetectionRule
                     DetectionRule {
                         rule_type: RuleType::MethodName,
                         pattern: "create.*|new.*|make.*".to_string(),
                         weight: 0.7,
                     },
-                    /// DetectionRule
+                    // DetectionRule
                     DetectionRule {
                         rule_type: RuleType::TypeName,
                         pattern: ".*Factory$".to_string(),
@@ -1410,19 +1454,19 @@ pub mod pattern_detection {
                 description: "Pipeline pattern for data processing".to_string(),
                 pattern_type: PatternType::Pipeline,
                 detection_rules: vec![
-                    /// DetectionRule
+                    // DetectionRule
                     DetectionRule {
                         rule_type: RuleType::MethodName,
                         pattern: "fit.*|transform.*|predict.*".to_string(),
                         weight: 0.8,
                     },
-                    /// DetectionRule
+                    // DetectionRule
                     DetectionRule {
                         rule_type: RuleType::TypeName,
                         pattern: ".*Pipeline$".to_string(),
                         weight: 0.9,
                     },
-                    /// DetectionRule
+                    // DetectionRule
                     DetectionRule {
                         rule_type: RuleType::TraitImplementation,
                         pattern: "Estimator|Transform".to_string(),
@@ -1439,7 +1483,7 @@ pub mod pattern_detection {
         }
 
         /// Detect patterns in a component
-        pub fn detect_patterns<T>(&mut self, component: &T) -> Vec<DetectedPattern>
+        pub fn detect_patterns<T>(&mut self, _component: &T) -> Vec<DetectedPattern>
         where
             T: Debug,
         {
@@ -1599,7 +1643,7 @@ pub mod pattern_detection {
                 .filter(|v| v.severity == ViolationSeverity::Critical)
                 .count();
 
-            /// PatternComplianceReport
+            // PatternComplianceReport
             PatternComplianceReport {
                 component_name: component_name.to_string(),
                 total_patterns,
@@ -1641,12 +1685,19 @@ pub mod pattern_detection {
     /// Pattern compliance report
     #[derive(Debug, Clone)]
     pub struct PatternComplianceReport {
+        /// The component name.
         pub component_name: String,
+        /// The total patterns.
         pub total_patterns: usize,
+        /// The compliant patterns.
         pub compliant_patterns: usize,
+        /// The detected patterns.
         pub detected_patterns: Vec<DetectedPattern>,
+        /// The average compliance.
         pub average_compliance: f64,
+        /// The critical violations.
         pub critical_violations: usize,
+        /// The recommendations.
         pub recommendations: Vec<String>,
     }
 }

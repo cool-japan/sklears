@@ -1,19 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
-#![allow(clippy::type_complexity)]
-#![allow(clippy::too_many_arguments)]
-#![allow(clippy::only_used_in_recursion)]
-#![allow(clippy::needless_range_loop)]
-#![allow(clippy::manual_clamp)]
-#![allow(clippy::ptr_arg)]
-#![allow(clippy::single_match)]
-#![allow(clippy::if_same_then_else)]
-#![allow(clippy::incompatible_msrv)]
 //! Kernel approximation methods
 //!
 //! This module is part of sklears, providing scikit-learn compatible

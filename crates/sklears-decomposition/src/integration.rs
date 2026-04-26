@@ -275,7 +275,7 @@ impl BatchProcessor {
     }
 
     /// Split data into batches
-    pub fn split<'a>(&self, data: &'a Array2<Float>) -> Vec<Array2<Float>> {
+    pub fn split(&self, data: &Array2<Float>) -> Vec<Array2<Float>> {
         let n_samples = data.nrows();
         let mut batches = Vec::new();
 
@@ -389,11 +389,17 @@ impl DataConverter {
     }
 }
 
+/// Supported dtype strings for memory-mapped arrays
+const SUPPORTED_DTYPES_F32: &str = "float32";
+const SUPPORTED_DTYPES_F64: &str = "float64";
+
 /// Memory-mapped array wrapper (conceptual - for documentation)
 #[derive(Debug)]
 pub struct MemoryMappedArray {
     shape: (usize, usize),
+    /// Expected element dtype (e.g. "float32" or "float64")
     dtype: String,
+    /// File path used to reopen the mapping if evicted
     path: String,
 }
 
@@ -408,12 +414,58 @@ impl MemoryMappedArray {
         self.shape
     }
 
+    /// Return the dtype string for this array
+    pub fn dtype(&self) -> &str {
+        &self.dtype
+    }
+
+    /// Return the file path for this array
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    /// Validate that the requested dtype is compatible with the Float type used at compile time.
+    ///
+    /// Returns `Ok(())` when the stored dtype matches the native `Float` width, or an error
+    /// describing the mismatch.
+    pub fn validate_dtype(&self) -> Result<()> {
+        let float_size = std::mem::size_of::<Float>();
+        let expected_dtype = if float_size == 4 {
+            SUPPORTED_DTYPES_F32
+        } else {
+            SUPPORTED_DTYPES_F64
+        };
+
+        if self.dtype != expected_dtype {
+            return Err(SklearsError::InvalidInput(format!(
+                "dtype mismatch for file '{}': stored dtype is '{}' but the native Float type \
+                 requires '{}' (size {} bytes)",
+                self.path, self.dtype, expected_dtype, float_size
+            )));
+        }
+        Ok(())
+    }
+
     /// Note: Actual implementation would use memmap2 crate
-    /// This is a conceptual placeholder
+    ///
+    /// This validates dtype compatibility and confirms the path can be reopened before
+    /// attempting to load — returning a descriptive error when either check fails.
     pub fn to_array(&self) -> Result<Array2<Float>> {
-        Err(SklearsError::InvalidInput(
-            "Memory-mapped array loading not yet implemented - use memmap2 crate".to_string(),
-        ))
+        // Validate dtype first
+        self.validate_dtype()?;
+
+        // Verify the path is still accessible so a future implementation can reopen it
+        if !std::path::Path::new(&self.path).exists() {
+            return Err(SklearsError::InvalidInput(format!(
+                "Cannot reopen memory-mapped file '{}': path does not exist",
+                self.path
+            )));
+        }
+
+        Err(SklearsError::InvalidInput(format!(
+            "Memory-mapped array loading not yet implemented for file '{}' - use memmap2 crate",
+            self.path
+        )))
     }
 }
 
@@ -567,5 +619,89 @@ mod tests {
         for &val in nonneg.iter() {
             assert!(val >= 0.0);
         }
+    }
+
+    // ---- MemoryMappedArray dtype / path tests ----
+
+    /// validate_dtype succeeds when dtype matches the native Float width.
+    #[test]
+    fn test_memory_mapped_array_dtype_valid() {
+        use std::mem::size_of;
+        let native_dtype = if size_of::<Float>() == 4 {
+            "float32"
+        } else {
+            "float64"
+        };
+        let mma = MemoryMappedArray::new(
+            "/tmp/test.npy".to_string(),
+            (10, 10),
+            native_dtype.to_string(),
+        );
+        assert!(
+            mma.validate_dtype().is_ok(),
+            "validate_dtype should succeed for matching dtype"
+        );
+    }
+
+    /// validate_dtype returns an error when dtype mismatches.
+    #[test]
+    fn test_memory_mapped_array_dtype_mismatch() {
+        use std::mem::size_of;
+        // Use the opposite dtype to force a mismatch
+        let wrong_dtype = if size_of::<Float>() == 4 {
+            "float64"
+        } else {
+            "float32"
+        };
+        let mma = MemoryMappedArray::new(
+            "/tmp/test.npy".to_string(),
+            (10, 10),
+            wrong_dtype.to_string(),
+        );
+        let err = mma.validate_dtype();
+        assert!(
+            err.is_err(),
+            "validate_dtype should fail for mismatching dtype"
+        );
+        let msg = format!("{:?}", err);
+        assert!(
+            msg.contains(wrong_dtype),
+            "error should mention the stored dtype"
+        );
+    }
+
+    /// to_array uses path for error message when file is missing.
+    #[test]
+    fn test_memory_mapped_array_path_in_error() {
+        use std::mem::size_of;
+        let native_dtype = if size_of::<Float>() == 4 {
+            "float32"
+        } else {
+            "float64"
+        };
+        let nonexistent_path = "/tmp/does_not_exist_for_sklears_test_12345.npy";
+        let mma = MemoryMappedArray::new(
+            nonexistent_path.to_string(),
+            (5, 5),
+            native_dtype.to_string(),
+        );
+        let err = mma.to_array();
+        assert!(err.is_err(), "to_array should fail for missing file");
+        let msg = format!("{:?}", err);
+        assert!(
+            msg.contains(nonexistent_path),
+            "error message should include the file path"
+        );
+    }
+
+    /// path() and dtype() accessors return the stored values.
+    #[test]
+    fn test_memory_mapped_array_accessors() {
+        let path = "/tmp/data.bin".to_string();
+        let dtype = "float64".to_string();
+        let mma = MemoryMappedArray::new(path.clone(), (3, 4), dtype.clone());
+        assert_eq!(mma.path(), path);
+        assert_eq!(mma.dtype(), dtype);
+        assert_eq!(mma.shape(), (3, 4));
     }
 }

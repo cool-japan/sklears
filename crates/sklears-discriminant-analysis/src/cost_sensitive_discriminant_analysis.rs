@@ -378,7 +378,7 @@ impl CostSensitiveDiscriminantAnalysis {
 
         let mut rng = SimpleRng::new(self.config.random_state.unwrap_or(42));
 
-        for (_class_idx, &class_label) in classes.iter().enumerate() {
+        for &class_label in classes.iter() {
             let class_indices: Vec<usize> = y
                 .iter()
                 .enumerate()
@@ -432,7 +432,7 @@ impl CostSensitiveDiscriminantAnalysis {
 
         let mut rng = SimpleRng::new(self.config.random_state.unwrap_or(42));
 
-        for (_class_idx, &class_label) in classes.iter().enumerate() {
+        for &class_label in classes.iter() {
             let mut class_indices: Vec<usize> = y
                 .iter()
                 .enumerate()
@@ -737,7 +737,7 @@ impl TrainedCostSensitiveDiscriminantAnalysis {
 
         let mut total_cost = 0.0;
 
-        for (_i, (&true_label, &pred_label)) in y_true.iter().zip(y_pred.iter()).enumerate() {
+        for (&true_label, &pred_label) in y_true.iter().zip(y_pred.iter()) {
             let true_idx = self
                 .classes
                 .iter()

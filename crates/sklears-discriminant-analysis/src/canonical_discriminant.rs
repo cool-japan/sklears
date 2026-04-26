@@ -317,12 +317,12 @@ impl<D: Data<Elem = Float>> Fit<ArrayBase<D, Ix2>, Array1<i32>> for CanonicalDis
                     let diff = &sample - &group_mean;
                     let outer = diff
                         .clone()
-                        .into_shape((n_features, 1))
+                        .into_shape_with_order((n_features, 1))
                         .expect("value should be present")
                         .dot(
                             &diff
                                 .clone()
-                                .into_shape((1, n_features))
+                                .into_shape_with_order((1, n_features))
                                 .expect("array shape error"),
                         );
                     w_matrix += &outer;
@@ -336,12 +336,12 @@ impl<D: Data<Elem = Float>> Fit<ArrayBase<D, Ix2>, Array1<i32>> for CanonicalDis
             let diff = &group_means.row(i) - &overall_mean;
             let outer = diff
                 .clone()
-                .into_shape((n_features, 1))
+                .into_shape_with_order((n_features, 1))
                 .expect("value should be present")
                 .dot(
                     &diff
                         .clone()
-                        .into_shape((1, n_features))
+                        .into_shape_with_order((1, n_features))
                         .expect("array shape error"),
                 );
             b_matrix += &(outer * group_sizes[i]);
@@ -490,148 +490,5 @@ impl<D: Data<Elem = Float>> Transform<ArrayBase<D, Ix2>, Array2<Float>>
 impl Default for CanonicalDiscriminantAnalysis {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[allow(non_snake_case)]
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::array;
-    use scirs2_core::ndarray::Axis;
-
-    #[test]
-    fn test_canonical_discriminant_analysis_basic() {
-        let x = array![
-            [1.0, 2.0, 3.0],
-            [1.1, 2.1, 3.1],
-            [1.2, 2.2, 3.2],
-            [4.0, 5.0, 6.0],
-            [4.1, 5.1, 6.1],
-            [4.2, 5.2, 6.2]
-        ];
-        let y = array![0, 0, 0, 1, 1, 1];
-
-        let cda = CanonicalDiscriminantAnalysis::new();
-        let fitted = cda.fit(&x, &y).expect("model fitting should succeed");
-        let predictions = fitted.predict(&x).expect("prediction should succeed");
-
-        assert_eq!(predictions.len(), 6);
-        assert_eq!(fitted.classes().len(), 2);
-        assert_eq!(fitted.coefficients().nrows(), 3);
-    }
-
-    #[test]
-    fn test_canonical_discriminant_predict_proba() {
-        let x = array![[1.0, 2.0], [1.1, 2.1], [3.0, 4.0], [3.1, 4.1]];
-        let y = array![0, 0, 1, 1];
-
-        let cda = CanonicalDiscriminantAnalysis::new();
-        let fitted = cda.fit(&x, &y).expect("model fitting should succeed");
-        let probas = fitted
-            .predict_proba(&x)
-            .expect("probability prediction should succeed");
-
-        assert_eq!(probas.dim(), (4, 2));
-
-        // Check that probabilities sum to 1
-        for row in probas.axis_iter(Axis(0)) {
-            let sum: Float = row.sum();
-            assert_abs_diff_eq!(sum, 1.0, epsilon = 1e-6);
-        }
-    }
-
-    #[test]
-    fn test_canonical_discriminant_transform() {
-        let x = array![
-            [1.0, 2.0, 3.0],
-            [1.1, 2.1, 3.1],
-            [4.0, 5.0, 6.0],
-            [4.1, 5.1, 6.1]
-        ];
-        let y = array![0, 0, 1, 1];
-
-        let cda = CanonicalDiscriminantAnalysis::new().n_components(Some(1));
-        let fitted = cda.fit(&x, &y).expect("model fitting should succeed");
-        let transformed = fitted.transform(&x).expect("transform should succeed");
-
-        assert_eq!(transformed.dim(), (4, 1));
-    }
-
-    #[test]
-    fn test_canonical_discriminant_multiclass() {
-        let x = array![
-            [1.0, 2.0],
-            [1.1, 2.1],
-            [3.0, 4.0],
-            [3.1, 4.1],
-            [5.0, 6.0],
-            [5.1, 6.1]
-        ];
-        let y = array![0, 0, 1, 1, 2, 2];
-
-        let cda = CanonicalDiscriminantAnalysis::new();
-        let fitted = cda.fit(&x, &y).expect("model fitting should succeed");
-        let predictions = fitted.predict(&x).expect("prediction should succeed");
-        let probas = fitted
-            .predict_proba(&x)
-            .expect("probability prediction should succeed");
-
-        assert_eq!(predictions.len(), 6);
-        assert_eq!(fitted.classes().len(), 3);
-        assert_eq!(probas.dim(), (6, 3));
-
-        // Check that probabilities sum to 1
-        for row in probas.axis_iter(Axis(0)) {
-            let sum: Float = row.sum();
-            assert_abs_diff_eq!(sum, 1.0, epsilon = 1e-6);
-        }
-    }
-
-    #[test]
-    fn test_canonical_discriminant_no_standardization() {
-        let x = array![[1.0, 2.0], [1.1, 2.1], [3.0, 4.0], [3.1, 4.1]];
-        let y = array![0, 0, 1, 1];
-
-        let cda = CanonicalDiscriminantAnalysis::new().standardize(false);
-        let fitted = cda.fit(&x, &y).expect("model fitting should succeed");
-        let predictions = fitted.predict(&x).expect("prediction should succeed");
-
-        assert_eq!(predictions.len(), 4);
-        assert_eq!(fitted.classes().len(), 2);
-    }
-
-    #[test]
-    fn test_canonical_discriminant_with_regularization() {
-        let x = array![[1.0, 2.0], [1.1, 2.1], [3.0, 4.0], [3.1, 4.1]];
-        let y = array![0, 0, 1, 1];
-
-        let cda = CanonicalDiscriminantAnalysis::new().reg_param(0.1);
-        let fitted = cda.fit(&x, &y).expect("model fitting should succeed");
-        let predictions = fitted.predict(&x).expect("prediction should succeed");
-
-        assert_eq!(predictions.len(), 4);
-        assert_eq!(fitted.classes().len(), 2);
-    }
-
-    #[test]
-    fn test_canonical_correlations() {
-        let x = array![
-            [1.0, 2.0, 3.0],
-            [1.1, 2.1, 3.1],
-            [4.0, 5.0, 6.0],
-            [4.1, 5.1, 6.1]
-        ];
-        let y = array![0, 0, 1, 1];
-
-        let cda = CanonicalDiscriminantAnalysis::new();
-        let fitted = cda.fit(&x, &y).expect("model fitting should succeed");
-        let correlations = fitted.canonical_correlations();
-
-        assert_eq!(correlations.len(), fitted.eigenvalues().len());
-        for &corr in correlations.iter() {
-            assert!(corr >= 0.0 && corr <= 1.0);
-        }
     }
 }

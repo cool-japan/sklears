@@ -89,8 +89,8 @@ pub enum CausalMethod {
 ///
 /// // X: covariates, T: treatment, Y: outcome
 /// let data = array![[1.0, 0.0, 2.0], [2.0, 1.0, 5.0]];
-/// let fitted = causal.fit(&data, &()).unwrap();
-/// let features = fitted.transform(&data).unwrap();
+/// let fitted = causal.fit(&data, &()).expect("fit should succeed with valid causal data");
+/// let features = fitted.transform(&data).expect("transform should succeed after fitting");
 /// ```
 #[derive(Debug, Clone)]
 pub struct CausalKernel<State = Untrained> {
@@ -173,7 +173,7 @@ impl CausalKernel<Untrained> {
             }
 
             scores[i] = if weight_sum > 1e-10 {
-                (score / weight_sum).max(0.01).min(0.99) // Clip for stability
+                (score / weight_sum).clamp(0.01, 0.99) // Clip for stability
             } else {
                 0.5
             };
@@ -407,7 +407,7 @@ impl CausalKernel<Trained> {
 /// let cf = CounterfactualKernel::new(config);
 ///
 /// let data = array![[1.0, 0.0, 2.0], [2.0, 1.0, 5.0]];
-/// let fitted = cf.fit(&data, &()).unwrap();
+/// let fitted = cf.fit(&data, &()).expect("fit should succeed with valid counterfactual data");
 /// ```
 #[derive(Debug, Clone)]
 pub struct CounterfactualKernel<State = Untrained> {
@@ -490,7 +490,7 @@ impl Fit<Array2<Float>, ()> for CounterfactualKernel<Untrained> {
             }
 
             propensity_scores[i] = if weight_sum > 1e-10 {
-                (score / weight_sum).max(0.01).min(0.99)
+                (score / weight_sum).clamp(0.01, 0.99)
             } else {
                 0.5
             };
@@ -678,7 +678,7 @@ mod tests {
         let scores = fitted.propensity_scores();
 
         // Propensity scores should be between 0 and 1
-        assert!(scores.iter().all(|&s| s >= 0.0 && s <= 1.0));
+        assert!(scores.iter().all(|&s| (0.0..=1.0).contains(&s)));
     }
 
     #[test]

@@ -7,7 +7,6 @@
 use crate::{ManifoldConfig, ManifoldPresets};
 
 /// Fluent API builder for manifold learning
-use sklears_core::traits::Estimator;
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct ManifoldBuilder {

@@ -38,8 +38,11 @@ pub struct NaturalGradientEmbedding<S = Untrained> {
 #[derive(Debug, Clone)]
 pub struct NaturalGradientTrained {
     embedding: Array2<f64>,
+    #[allow(dead_code)] // deferred: exposed in future introspection API
     fisher_matrix: Array2<f64>,
+    #[allow(dead_code)] // deferred: exposed in future training diagnostics API
     natural_gradient_history: Vec<Array2<f64>>,
+    #[allow(dead_code)] // deferred: exposed in future training diagnostics API
     convergence_history: Vec<f64>,
 }
 
@@ -213,7 +216,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for NaturalGradientEmbedding<Untrained> {
 impl Transform<ArrayView2<'_, Float>, Array2<f64>>
     for NaturalGradientEmbedding<NaturalGradientTrained>
 {
-    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
+    fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         // For fitted data, return the stored embedding
         // For new data, would need out-of-sample extension
         Ok(self.state.embedding.clone())

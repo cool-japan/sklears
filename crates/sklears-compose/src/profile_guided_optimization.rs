@@ -11,7 +11,7 @@ use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 
 use sklears_core::error::{Result as SklResult, SklearsError};
 
@@ -199,10 +199,15 @@ pub struct OptimizationStrategy {
 /// Parallel execution strategies
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ParallelStrategy {
+    /// Variant value.
     Serial,
+    /// Variant value.
     ThreadParallel,
+    /// Variant value.
     Vectorized,
+    /// Variant value.
     Hybrid,
+    /// Variant value.
     GPU,
 }
 
@@ -222,9 +227,13 @@ pub struct CacheOptimizationHints {
 /// Memory access patterns
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AccessPattern {
+    /// Variant value.
     Sequential,
+    /// Variant value.
     Random,
+    /// Variant value.
     Strided,
+    /// Variant value.
     Blocked,
 }
 
@@ -376,7 +385,7 @@ impl PerformancePredictor for MLPerformancePredictor {
         self.training_samples += 1;
 
         // Retrain periodically
-        if self.training_samples % 50 == 0 {
+        if self.training_samples.is_multiple_of(50) {
             self.train()?;
         }
 
@@ -416,7 +425,7 @@ impl ProfileGuidedOptimizer {
             .unwrap_or(1);
 
         // Simplified hardware detection
-        /// HardwareContext
+        // HardwareContext
         HardwareContext {
             cpu_cores,
             cache_sizes: vec![32768, 262_144, 8_388_608], // Typical L1, L2, L3
@@ -661,7 +670,7 @@ impl ProfileGuidedOptimizer {
             256
         };
 
-        /// CacheOptimizationHints
+        // CacheOptimizationHints
         CacheOptimizationHints {
             block_size,
             use_prefetch: characteristics.n_samples > 10000,
@@ -936,7 +945,7 @@ mod tests {
 
     #[test]
     fn test_ml_predictor() {
-        let mut predictor = MLPerformancePredictor::new();
+        let predictor = MLPerformancePredictor::new();
         assert_eq!(predictor.accuracy(), 0.0);
 
         let characteristics = DataCharacteristics {
@@ -1385,6 +1394,7 @@ impl Default for HeuristicPredictor {
 
 impl HeuristicPredictor {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self { accuracy: 0.6 } // Fixed reasonable accuracy
     }
@@ -1433,6 +1443,7 @@ impl Default for PolynomialPredictor {
 
 impl PolynomialPredictor {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             coefficients: vec![1.0; 15], // Degree-2 polynomial features
@@ -1493,7 +1504,7 @@ impl PerformancePredictor for PolynomialPredictor {
         self.training_data.push((features, target));
 
         // Periodic retraining
-        if self.training_data.len() % 20 == 0 {
+        if self.training_data.len().is_multiple_of(20) {
             self.train_polynomial_regression()?;
         }
 

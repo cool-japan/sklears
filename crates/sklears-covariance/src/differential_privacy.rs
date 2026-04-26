@@ -240,7 +240,7 @@ impl<'a> Fit<ArrayView2<'a, f64>, ()>
         let mut rng = scirs2_core::random::thread_rng();
 
         // Step 1: Clip input data
-        let clipped_data = self.clip_data(&x);
+        let clipped_data = self.clip_data(x);
 
         // Step 2: Compute empirical covariance
         let empirical_cov = self.compute_empirical_covariance(&clipped_data);
@@ -335,7 +335,7 @@ impl DifferentialPrivacyCovariance<DifferentialPrivacyUntrained> {
     }
 
     /// Calculate sensitivity for the covariance computation
-    fn calculate_sensitivity(&self, n_samples: usize, n_features: usize) -> f64 {
+    fn calculate_sensitivity(&self, n_samples: usize, _n_features: usize) -> f64 {
         // For covariance matrix, sensitivity depends on clipping bound and sample size
         // Global sensitivity for empirical covariance is roughly 2 * bound^2 / n
         2.0 * self.clipping_bound.powi(2) / n_samples as f64
@@ -437,7 +437,7 @@ impl DifferentialPrivacyCovariance<DifferentialPrivacyUntrained> {
 
         // Project to positive semidefinite cone using eigenvalue decomposition
         // This is a simplified approach - in practice, use more sophisticated methods
-        let eigenvalues: Array1<f64> = Array1::from_iter((0..n).map(|i| {
+        let _eigenvalues: Array1<f64> = Array1::from_iter((0..n).map(|i| {
             covariance[[i, i]].max(1e-12) // Ensure positive diagonal
         }));
 
@@ -526,7 +526,7 @@ impl DifferentialPrivacyCovariance<DifferentialPrivacyUntrained> {
             frobenius_error,
             spectral_error,
             condition_number_ratio,
-            eigenvalue_preservation: eigenvalue_preservation.max(0.0).min(1.0),
+            eigenvalue_preservation: eigenvalue_preservation.clamp(0.0, 1.0),
             covariance_bias,
             variance_inflation,
         }

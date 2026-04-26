@@ -46,7 +46,9 @@ pub struct SpectralGraphIsotonicRegression<State = Untrained> {
     // Fitted attributes
     fitted_values_: Option<Array1<Float>>,
     laplacian_: Option<Array2<Float>>,
+    #[allow(dead_code)] // intentionally deferred: eigenvectors not yet exposed
     eigenvectors_: Option<Array2<Float>>,
+    #[allow(dead_code)] // intentionally deferred: eigenvalues not yet exposed
     eigenvalues_: Option<Array1<Float>>,
 
     _state: PhantomData<State>,
@@ -1680,7 +1682,7 @@ mod tests {
                 .centrality_scores()
                 .expect("operation should succeed");
             assert_eq!(centrality.len(), y.len());
-            assert!(centrality.iter().all(|&v| v >= 0.0 && v <= 1.0));
+            assert!(centrality.iter().all(|&v| (0.0..=1.0).contains(&v)));
         }
     }
 
@@ -1782,7 +1784,7 @@ mod tests {
 
         // All values should be in [0, 1]
         for &val in centrality.iter() {
-            assert!(val >= 0.0 && val <= 1.0);
+            assert!((0.0..=1.0).contains(&val));
         }
     }
 

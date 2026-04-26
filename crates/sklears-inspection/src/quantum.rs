@@ -46,11 +46,8 @@
 //! ```
 
 use crate::types::Float;
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
-use scirs2_core::random::{thread_rng, CoreRandom};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use sklears_core::error::{Result as SklResult, SklearsError};
-use std::collections::HashMap;
-use std::f64::consts::PI;
 
 /// Quantum gate types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -488,7 +485,7 @@ impl QuantumExplainer {
 
         // Simplified: assign importance based on which qubits encode which features
         // Assume feature i is encoded on qubit (i % num_qubits)
-        for i in 0..num_features {
+        for (i, importance_slot) in importance.iter_mut().enumerate().take(num_features) {
             let qubit = i % circuit.num_qubits;
 
             // Count gates affecting this qubit
@@ -499,7 +496,7 @@ impl QuantumExplainer {
                 }
             }
 
-            importance[i] = gate_count as Float;
+            *importance_slot = gate_count as Float;
         }
 
         // Normalize
@@ -517,6 +514,7 @@ impl QuantumExplainer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::f64::consts::PI;
 
     #[test]
     fn test_quantum_gate_properties() {

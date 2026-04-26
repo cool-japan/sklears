@@ -8,7 +8,6 @@ use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::{seq::SliceRandom, RngExt, SeedableRng};
-use scirs2_core::SliceRandomExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Fit, Transform},
@@ -133,9 +132,12 @@ pub struct FittedStochasticManifoldLearning {
     n_components: usize,
     embedding: Array2<Float>,
     learning_rate: Float,
+    #[allow(dead_code)] // deferred: momentum scheduling stored for future out-of-sample extension
     momentum: Float,
     objective: String,
+    #[allow(dead_code)] // deferred: k-NN graph parameters stored for future transform support
     n_neighbors: usize,
+    #[allow(dead_code)] // deferred: t-SNE perplexity stored for future out-of-sample extension
     perplexity: Float,
     training_data: Array2<Float>,
     loss_history: Vec<Float>,
@@ -147,7 +149,7 @@ impl Fit<Array2<Float>, ()> for StochasticManifoldLearning {
     fn fit(self, data: &Array2<Float>, _y: &()) -> SklResult<Self::Fitted> {
         let x = data;
         let n_samples = x.nrows();
-        let n_features = x.ncols();
+        let _n_features = x.ncols();
 
         if self.n_components >= n_samples {
             return Err(SklearsError::InvalidInput(format!(
@@ -249,6 +251,7 @@ impl Transform<Array2<Float>, Array2<Float>> for FittedStochasticManifoldLearnin
 
 impl StochasticManifoldLearning {
     /// Process a single batch of data
+    #[allow(clippy::too_many_arguments)] // SGD update requires data, embedding state, velocity, indices, distances, neighbors, and epoch
     fn process_batch(
         &self,
         data: &Array2<Float>,
@@ -259,7 +262,6 @@ impl StochasticManifoldLearning {
         neighbor_indices: &Option<Vec<Vec<usize>>>,
         epoch: usize,
     ) -> SklResult<Float> {
-        let mut batch_loss = 0.0;
         let current_lr = self.learning_rate / (1.0 + epoch as Float * 0.1);
 
         // Compute gradients for the batch
@@ -277,7 +279,7 @@ impl StochasticManifoldLearning {
         }
 
         // Compute batch loss
-        batch_loss =
+        let batch_loss =
             self.compute_batch_loss(data, embedding, batch_indices, distances, neighbor_indices)?;
 
         Ok(batch_loss)
@@ -372,7 +374,7 @@ impl StochasticManifoldLearning {
         embedding: &Array2<Float>,
         batch_indices: &[usize],
         distances: &Array2<Float>,
-        neighbor_indices: &Vec<Vec<usize>>,
+        neighbor_indices: &[Vec<usize>],
         gradients: &mut Array2<Float>,
     ) -> SklResult<()> {
         for &i in batch_indices {
@@ -402,11 +404,9 @@ impl StochasticManifoldLearning {
         embedding: &Array2<Float>,
         batch_indices: &[usize],
         distances: &Array2<Float>,
-        neighbor_indices: &Vec<Vec<usize>>,
+        neighbor_indices: &[Vec<usize>],
         gradients: &mut Array2<Float>,
     ) -> SklResult<()> {
-        let n_samples = embedding.nrows();
-
         // Compute high-dimensional probabilities (simplified)
         for &i in batch_indices {
             let mut total_prob = 0.0;
@@ -422,7 +422,7 @@ impl StochasticManifoldLearning {
             }
 
             // Normalize probabilities
-            for (j, prob) in &mut high_probs {
+            for (_j, prob) in &mut high_probs {
                 *prob /= total_prob;
             }
 
@@ -776,7 +776,7 @@ impl StreamingManifoldLearning {
         self.update_count += data.nrows();
 
         // Update embedding if necessary
-        if self.update_count % self.update_frequency == 0 {
+        if self.update_count.is_multiple_of(self.update_frequency) {
             self.update_embedding()?;
         }
 

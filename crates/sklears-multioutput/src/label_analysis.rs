@@ -126,7 +126,7 @@ pub fn analyze_combinations(y: &ArrayView2<'_, i32>) -> SklResult<LabelAnalysisR
         .collect();
 
     // Sort by frequency (descending)
-    combinations.sort_by(|a, b| b.frequency.cmp(&a.frequency));
+    combinations.sort_by_key(|b| std::cmp::Reverse(b.frequency));
 
     let most_frequent = combinations.first().cloned();
     let least_frequent = combinations.last().cloned();

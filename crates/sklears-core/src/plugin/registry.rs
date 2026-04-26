@@ -73,7 +73,7 @@ impl PluginRegistry {
     /// use sklears_core::plugin::PluginRegistry;
     ///
     /// let registry = PluginRegistry::new();
-    /// assert_eq!(registry.list_plugins().unwrap().len(), 0);
+    /// assert_eq!(registry.list_plugins().expect("list_plugins must succeed on empty registry").len(), 0);
     /// ```
     pub fn new() -> Self {
         Self {
@@ -237,7 +237,7 @@ impl PluginRegistry {
     /// use sklears_core::plugin::PluginRegistry;
     ///
     /// let registry = PluginRegistry::new();
-    /// let plugins = registry.list_plugins().unwrap();
+    /// let plugins = registry.list_plugins().expect("list_plugins must succeed on empty registry");
     /// assert!(plugins.is_empty()); // No plugins registered yet
     /// ```
     pub fn list_plugins(&self) -> Result<Vec<String>> {
@@ -266,7 +266,7 @@ impl PluginRegistry {
     /// use sklears_core::plugin::{PluginRegistry, PluginCategory};
     ///
     /// let registry = PluginRegistry::new();
-    /// let algorithms = registry.get_plugins_by_category(&PluginCategory::Algorithm).unwrap();
+    /// let algorithms = registry.get_plugins_by_category(&PluginCategory::Algorithm).expect("get_plugins_by_category must succeed on empty registry");
     /// assert!(algorithms.is_empty()); // No plugins registered yet
     /// ```
     pub fn get_plugins_by_category(&self, category: &PluginCategory) -> Result<Vec<String>> {
@@ -296,7 +296,7 @@ impl PluginRegistry {
     /// use std::any::TypeId;
     ///
     /// let registry = PluginRegistry::new();
-    /// let compatible = registry.get_compatible_plugins(TypeId::of::<f64>()).unwrap();
+    /// let compatible = registry.get_compatible_plugins(TypeId::of::<f64>()).expect("get_compatible_plugins must succeed on empty registry");
     /// assert!(compatible.is_empty()); // No plugins registered yet
     /// ```
     pub fn get_compatible_plugins(&self, type_id: TypeId) -> Result<Vec<String>> {

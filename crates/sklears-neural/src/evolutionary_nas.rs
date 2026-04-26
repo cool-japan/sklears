@@ -9,8 +9,7 @@
 //! - Architecture encoding and decoding
 
 use crate::{nas::OperationType, NeuralResult};
-use scirs2_core::random::{thread_rng, CoreRandom, Rng};
-use sklears_core::{error::SklearsError, types::FloatBounds};
+use scirs2_core::random::thread_rng;
 use std::collections::HashSet;
 
 #[cfg(feature = "serde")]
@@ -301,13 +300,19 @@ impl Individual {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum SelectionStrategy {
     /// Tournament selection
-    Tournament { size: usize },
+    Tournament {
+        /// Number of candidates drawn for each tournament
+        size: usize,
+    },
     /// Roulette wheel selection
     RouletteWheel,
     /// Rank-based selection
     Rank,
     /// Elitism (keep top k)
-    Elitism { top_k: usize },
+    Elitism {
+        /// Number of top-ranked individuals copied unchanged to the next generation
+        top_k: usize,
+    },
 }
 
 /// Evolutionary NAS configuration

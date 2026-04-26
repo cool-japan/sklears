@@ -1,8 +1,7 @@
 //! Optimization solvers for neural networks.
 
 use crate::NeuralResult;
-use scirs2_core::ndarray::{Array1, Array2, Axis};
-use std::collections::HashMap;
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Gradient clipping methods
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -150,28 +149,43 @@ pub enum LearningRateSchedule {
 /// SGD solver for neural network optimization
 #[derive(Debug, Clone)]
 pub struct SgdSolver {
+    /// Current learning rate, adjusted by the schedule each step
     pub learning_rate: f64,
+    /// Momentum coefficient; 0.0 disables momentum
     pub momentum: f64,
+    /// Whether to use Nesterov accelerated momentum
     pub nesterovs_momentum: bool,
+    /// Learning rate schedule that determines how the rate changes over time
     pub schedule: LearningRateSchedule,
+    /// Exponent for inverse-scaling schedule: `lr = eta0 / (t + 1)^power_t`
     pub power_t: f64,
+    /// Initial learning rate used as the reference for schedule computations
     pub eta0: f64,
-    // Additional parameters for learning rate schedules
-    pub decay_rate: f64,     // for exponential decay
-    pub decay_steps: usize,  // for exponential decay
-    pub max_steps: usize,    // for cosine annealing and warmup
-    pub lr_min: f64,         // for cosine annealing and cyclical LR
-    pub lr_max: f64,         // for cyclical LR
-    pub step_size: usize,    // for step decay and cyclical LR
-    pub decay_factor: f64,   // for step decay
-    pub warmup_steps: usize, // for warmup
-    pub cycle_length: usize, // for cyclical LR
+    /// Multiplicative decay factor per `decay_steps` for exponential schedule
+    pub decay_rate: f64,
+    /// Number of steps between learning rate decay events for exponential schedule
+    pub decay_steps: usize,
+    /// Total steps budget used by cosine annealing and warmup schedules
+    pub max_steps: usize,
+    /// Minimum learning rate floor for cosine annealing and cyclical schedules
+    pub lr_min: f64,
+    /// Maximum learning rate ceiling for cyclical LR schedule
+    pub lr_max: f64,
+    /// Half-cycle length in steps for step-decay and cyclical LR
+    pub step_size: usize,
+    /// Multiplicative factor applied at each step boundary for step-decay
+    pub decay_factor: f64,
+    /// Number of linear-warmup steps before reaching the full learning rate
+    pub warmup_steps: usize,
+    /// Full cycle length in steps for cyclical LR schedule
+    pub cycle_length: usize,
     velocity_weights: Vec<Array2<f64>>,
     velocity_biases: Vec<Array1<f64>>,
     t: usize,
 }
 
 impl SgdSolver {
+    /// Create a new SGD solver with basic parameters; advanced schedule params use sensible defaults
     pub fn new(
         learning_rate: f64,
         momentum: f64,
@@ -243,12 +257,14 @@ impl SgdSolver {
         }
     }
 
+    /// Initialize optimizer state buffers to match shapes of `weights` and `biases`
     pub fn initialize(&mut self, weights: &[Array2<f64>], biases: &[Array1<f64>]) {
         self.velocity_weights = weights.iter().map(|w| Array2::zeros(w.dim())).collect();
         self.velocity_biases = biases.iter().map(|b| Array1::zeros(b.len())).collect();
         self.t = 0;
     }
 
+    /// Perform one optimization step using the provided gradients; updates `weights` and `biases` in place
     pub fn update_params(
         &mut self,
         weights: &mut [Array2<f64>],
@@ -338,9 +354,13 @@ impl SgdSolver {
 /// Adam optimizer for neural network optimization
 #[derive(Debug, Clone)]
 pub struct AdamSolver {
+    /// Step size used to scale parameter updates
     pub learning_rate: f64,
+    /// Exponential decay rate for the first moment estimate
     pub beta1: f64,
+    /// Exponential decay rate for the second moment estimate
     pub beta2: f64,
+    /// Small constant added to denominator to prevent division by zero
     pub epsilon: f64,
     m_weights: Vec<Array2<f64>>,
     v_weights: Vec<Array2<f64>>,
@@ -350,6 +370,7 @@ pub struct AdamSolver {
 }
 
 impl AdamSolver {
+    /// Create a new Adam optimizer with the given hyperparameters
     pub fn new(learning_rate: f64, beta1: f64, beta2: f64, epsilon: f64) -> Self {
         Self {
             learning_rate,
@@ -364,6 +385,7 @@ impl AdamSolver {
         }
     }
 
+    /// Initialize optimizer state buffers to match shapes of `weights` and `biases`
     pub fn initialize(&mut self, weights: &[Array2<f64>], biases: &[Array1<f64>]) {
         self.m_weights = weights.iter().map(|w| Array2::zeros(w.dim())).collect();
         self.v_weights = weights.iter().map(|w| Array2::zeros(w.dim())).collect();
@@ -372,6 +394,7 @@ impl AdamSolver {
         self.t = 0;
     }
 
+    /// Perform one optimization step using the provided gradients; updates `weights` and `biases` in place
     pub fn update_params(
         &mut self,
         weights: &mut [Array2<f64>],
@@ -417,10 +440,15 @@ impl AdamSolver {
 /// AdamW optimizer with decoupled weight decay
 #[derive(Debug, Clone)]
 pub struct AdamWSolver {
+    /// Step size used to scale parameter updates
     pub learning_rate: f64,
+    /// Exponential decay rate for the first moment estimate
     pub beta1: f64,
+    /// Exponential decay rate for the second moment estimate
     pub beta2: f64,
+    /// Small constant for numerical stability in denominator
     pub epsilon: f64,
+    /// L2 weight decay coefficient applied independently of the gradient
     pub weight_decay: f64,
     m_weights: Vec<Array2<f64>>,
     v_weights: Vec<Array2<f64>>,
@@ -430,6 +458,7 @@ pub struct AdamWSolver {
 }
 
 impl AdamWSolver {
+    /// Create a new AdamW optimizer with the given hyperparameters
     pub fn new(
         learning_rate: f64,
         beta1: f64,
@@ -451,6 +480,7 @@ impl AdamWSolver {
         }
     }
 
+    /// Initialize optimizer state buffers to match shapes of `weights` and `biases`
     pub fn initialize(&mut self, weights: &[Array2<f64>], biases: &[Array1<f64>]) {
         self.m_weights = weights.iter().map(|w| Array2::zeros(w.dim())).collect();
         self.v_weights = weights.iter().map(|w| Array2::zeros(w.dim())).collect();
@@ -459,6 +489,7 @@ impl AdamWSolver {
         self.t = 0;
     }
 
+    /// Perform one optimization step using the provided gradients; updates `weights` and `biases` in place
     pub fn update_params(
         &mut self,
         weights: &mut [Array2<f64>],
@@ -506,21 +537,26 @@ impl AdamWSolver {
 /// RMSprop optimizer
 #[derive(Debug, Clone)]
 pub struct RMSpropSolver {
+    /// Step size controlling the magnitude of parameter updates
     pub learning_rate: f64,
-    pub alpha: f64, // decay rate
+    /// Smoothing constant for the running mean-square of gradients
+    pub alpha: f64,
+    /// Small constant for numerical stability in denominator
     pub epsilon: f64,
+    /// Momentum coefficient; 0.0 disables momentum
     pub momentum: f64,
-    pub centered: bool, // whether to use centered RMSprop
+    /// When true, uses the centered variant that normalizes by gradient mean
+    pub centered: bool,
     v_weights: Vec<Array2<f64>>,
     v_biases: Vec<Array1<f64>>,
     momentum_weights: Vec<Array2<f64>>,
     momentum_biases: Vec<Array1<f64>>,
-    // For centered RMSprop
     g_weights: Vec<Array2<f64>>,
     g_biases: Vec<Array1<f64>>,
 }
 
 impl RMSpropSolver {
+    /// Create a new RMSprop optimizer with the given hyperparameters
     pub fn new(
         learning_rate: f64,
         alpha: f64,
@@ -543,6 +579,7 @@ impl RMSpropSolver {
         }
     }
 
+    /// Initialize optimizer state buffers to match shapes of `weights` and `biases`
     pub fn initialize(&mut self, weights: &[Array2<f64>], biases: &[Array1<f64>]) {
         self.v_weights = weights.iter().map(|w| Array2::zeros(w.dim())).collect();
         self.v_biases = biases.iter().map(|b| Array1::zeros(b.len())).collect();
@@ -555,6 +592,7 @@ impl RMSpropSolver {
         }
     }
 
+    /// Perform one optimization step using the provided gradients; updates `weights` and `biases` in place
     pub fn update_params(
         &mut self,
         weights: &mut [Array2<f64>],
@@ -621,9 +659,13 @@ impl RMSpropSolver {
 /// Nadam optimizer (Nesterov-accelerated Adam)
 #[derive(Debug, Clone)]
 pub struct NadamSolver {
+    /// Step size for parameter updates
     pub learning_rate: f64,
+    /// Exponential decay rate for first moment estimates
     pub beta1: f64,
+    /// Exponential decay rate for second raw moment estimates
     pub beta2: f64,
+    /// Small constant added to denominator for numerical stability
     pub epsilon: f64,
     m_weights: Vec<Array2<f64>>,
     v_weights: Vec<Array2<f64>>,
@@ -633,6 +675,7 @@ pub struct NadamSolver {
 }
 
 impl NadamSolver {
+    /// Create a new Nadam optimizer with the given hyperparameters
     pub fn new(learning_rate: f64, beta1: f64, beta2: f64, epsilon: f64) -> Self {
         Self {
             learning_rate,
@@ -647,6 +690,7 @@ impl NadamSolver {
         }
     }
 
+    /// Initialize optimizer state buffers to match shapes of `weights` and `biases`
     pub fn initialize(&mut self, weights: &[Array2<f64>], biases: &[Array1<f64>]) {
         self.m_weights = weights.iter().map(|w| Array2::zeros(w.dim())).collect();
         self.v_weights = weights.iter().map(|w| Array2::zeros(w.dim())).collect();
@@ -655,6 +699,7 @@ impl NadamSolver {
         self.t = 0;
     }
 
+    /// Perform one optimization step using the provided gradients; updates `weights` and `biases` in place
     pub fn update_params(
         &mut self,
         weights: &mut [Array2<f64>],
@@ -665,7 +710,7 @@ impl NadamSolver {
         self.t += 1;
         let beta1_t = self.beta1.powi(self.t as i32);
         let beta2_t = self.beta2.powi(self.t as i32);
-        let lr_t = self.learning_rate / (1.0 - beta1_t);
+        let _lr_t = self.learning_rate / (1.0 - beta1_t);
 
         for i in 0..weights.len() {
             // Update biased first moment estimate
@@ -705,17 +750,24 @@ impl NadamSolver {
 /// Designed for large batch training with layer-wise adaptive learning rates
 #[derive(Debug, Clone)]
 pub struct LarsSolver {
+    /// Global base learning rate before layer-wise scaling
     pub learning_rate: f64,
+    /// Momentum coefficient for gradient accumulation
     pub momentum: f64,
+    /// L2 regularization coefficient added to gradients before momentum update
     pub weight_decay: f64,
-    pub lars_coefficient: f64,  // typically 0.001
-    pub epsilon: f64,           // small constant to avoid division by zero
-    pub trust_coefficient: f64, // trust ratio coefficient, typically 1.0
+    /// LARS-specific scaling coefficient; typically 0.001
+    pub lars_coefficient: f64,
+    /// Small constant added to denominator to avoid division by zero
+    pub epsilon: f64,
+    /// Trust ratio coefficient scaling the layer-wise learning rate; typically 1.0
+    pub trust_coefficient: f64,
     momentum_weights: Vec<Array2<f64>>,
     momentum_biases: Vec<Array1<f64>>,
 }
 
 impl LarsSolver {
+    /// Create a new LARS optimizer with the given hyperparameters
     pub fn new(
         learning_rate: f64,
         momentum: f64,
@@ -736,11 +788,13 @@ impl LarsSolver {
         }
     }
 
+    /// Initialize optimizer state buffers to match shapes of `weights` and `biases`
     pub fn initialize(&mut self, weights: &[Array2<f64>], biases: &[Array1<f64>]) {
         self.momentum_weights = weights.iter().map(|w| Array2::zeros(w.dim())).collect();
         self.momentum_biases = biases.iter().map(|b| Array1::zeros(b.len())).collect();
     }
 
+    /// Perform one optimization step using the provided gradients; updates `weights` and `biases` in place
     pub fn update_params(
         &mut self,
         weights: &mut [Array2<f64>],
@@ -788,12 +842,18 @@ impl LarsSolver {
 /// Combines layer-wise adaptation from LARS with Adam's moments
 #[derive(Debug, Clone)]
 pub struct LambSolver {
+    /// Global base learning rate before layer-wise trust ratio scaling
     pub learning_rate: f64,
+    /// Exponential decay rate for first moment estimates
     pub beta1: f64,
+    /// Exponential decay rate for second raw moment estimates
     pub beta2: f64,
+    /// Small constant added to denominator for numerical stability
     pub epsilon: f64,
+    /// L2 regularization coefficient added to gradients before moment update
     pub weight_decay: f64,
-    pub trust_coefficient: f64, // trust ratio coefficient, typically 1.0
+    /// Maximum trust ratio coefficient capping the layer-wise learning rate; typically 1.0
+    pub trust_coefficient: f64,
     m_weights: Vec<Array2<f64>>,
     v_weights: Vec<Array2<f64>>,
     m_biases: Vec<Array1<f64>>,
@@ -802,6 +862,7 @@ pub struct LambSolver {
 }
 
 impl LambSolver {
+    /// Create a new LAMB optimizer with the given hyperparameters
     pub fn new(
         learning_rate: f64,
         beta1: f64,
@@ -825,6 +886,7 @@ impl LambSolver {
         }
     }
 
+    /// Initialize optimizer state buffers to match shapes of `weights` and `biases`
     pub fn initialize(&mut self, weights: &[Array2<f64>], biases: &[Array1<f64>]) {
         self.m_weights = weights.iter().map(|w| Array2::zeros(w.dim())).collect();
         self.v_weights = weights.iter().map(|w| Array2::zeros(w.dim())).collect();
@@ -833,6 +895,7 @@ impl LambSolver {
         self.t = 0;
     }
 
+    /// Perform one optimization step using the provided gradients; updates `weights` and `biases` in place
     pub fn update_params(
         &mut self,
         weights: &mut [Array2<f64>],

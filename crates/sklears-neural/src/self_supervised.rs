@@ -1,16 +1,14 @@
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
-use scirs2_core::numeric::{Float, One, ToPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 use crate::activation::Activation;
 use sklears_core::error::SklearsError;
-use sklears_core::traits::{Fit, Predict, Transform};
 use sklears_core::types::FloatBounds;
 
-/// Self-supervised learning methods for neural networks
-///
-/// This module provides implementations of various self-supervised learning techniques
-/// including contrastive learning, masked modeling, and autoencoding approaches.
+// Self-supervised learning methods for neural networks.
+// This module provides implementations of various self-supervised learning techniques
+// including contrastive learning, masked modeling, and autoencoding approaches.
 
 /// Simple Dense Layer for Self-Supervised Models
 #[derive(Debug, Clone)]
@@ -83,7 +81,7 @@ impl<T: FloatBounds + ScalarOperand> SimpleMLP<T> {
 
         for i in 0..layer_sizes.len() - 1 {
             let activation = if i < activations.len() {
-                activations[i].clone()
+                activations[i]
             } else {
                 None
             };
@@ -115,6 +113,7 @@ impl<T: FloatBounds + ScalarOperand> SimpleMLP<T> {
 /// Implements SimCLR-style contrastive learning with configurable augmentations
 /// and temperature-scaled cross-entropy loss.
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // embedding_dim retained for representation shape validation
 pub struct ContrastiveLearner<T: FloatBounds + ScalarOperand> {
     /// Encoder network
     encoder: SimpleMLP<T>,
@@ -126,6 +125,7 @@ pub struct ContrastiveLearner<T: FloatBounds + ScalarOperand> {
     embedding_dim: usize,
 }
 
+/// Configuration for the contrastive learning algorithm
 #[derive(Debug, Clone)]
 pub struct ContrastiveConfig<T: Float> {
     /// Temperature for contrastive loss
@@ -192,13 +192,12 @@ impl<T: FloatBounds + ScalarOperand + Debug> ContrastiveLearner<T> {
 
         for i in 0..batch_size {
             let anchor = embeddings.row(i);
-            let mut positive_sim = T::zero();
             let mut negative_sims = Vec::new();
 
             // Find positive pair (next sample in batch as positive)
             let positive_idx = (i + 1) % batch_size;
             let positive = embeddings.row(positive_idx);
-            positive_sim = self.cosine_similarity(&anchor, &positive)?;
+            let positive_sim = self.cosine_similarity(&anchor, &positive)?;
 
             // Compute negative similarities
             for j in 0..batch_size {
@@ -217,7 +216,7 @@ impl<T: FloatBounds + ScalarOperand + Debug> ContrastiveLearner<T> {
                 .fold(T::zero(), |acc, x| acc + x);
 
             let loss = -(pos_exp / (pos_exp + neg_exp_sum)).ln();
-            total_loss = total_loss + loss;
+            total_loss += loss;
         }
 
         Ok(total_loss / T::from(batch_size).unwrap_or_else(|| T::zero()))
@@ -257,6 +256,7 @@ impl<T: FloatBounds + ScalarOperand + Debug> ContrastiveLearner<T> {
 ///
 /// Implements simple autoencoder architecture for unsupervised feature learning.
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // latent_dim retained for bottleneck description and future VAE-style sampling
 pub struct SelfSupervisedAutoencoder<T: FloatBounds + ScalarOperand> {
     /// Encoder network
     encoder: SimpleMLP<T>,
@@ -270,13 +270,18 @@ pub struct SelfSupervisedAutoencoder<T: FloatBounds + ScalarOperand> {
     config: AutoencoderConfig<T>,
 }
 
+/// Variant of self-supervised autoencoder reconstruction objective
 #[derive(Debug, Clone)]
 pub enum AutoencoderType {
+    /// Standard autoencoder minimizing reconstruction loss
     Vanilla,
+    /// Autoencoder trained to reconstruct clean inputs from corrupted inputs
     Denoising,
+    /// Autoencoder with a sparsity penalty on the latent activations
     Sparse,
 }
 
+/// Configuration for the self-supervised autoencoder
 #[derive(Debug, Clone)]
 pub struct AutoencoderConfig<T: Float> {
     /// Latent dimension
@@ -370,7 +375,7 @@ impl<T: FloatBounds + ScalarOperand + Debug> SelfSupervisedAutoencoder<T> {
         for element in noisy_input.iter_mut() {
             let noise =
                 T::from(rng.random::<f32>()).unwrap_or_else(|| T::zero()) * self.config.noise_level;
-            *element = *element + noise;
+            *element += noise;
         }
 
         Ok(noisy_input)
@@ -408,12 +413,16 @@ pub struct SelfSupervisedTrainer<T: FloatBounds + ScalarOperand> {
     config: TrainingConfig<T>,
 }
 
+/// The self-supervised learning algorithm to use inside [`SelfSupervisedTrainer`]
 #[derive(Debug, Clone)]
 pub enum SelfSupervisedMethod<T: FloatBounds + ScalarOperand> {
+    /// Contrastive learning using positive/negative pair discrimination
     Contrastive(ContrastiveLearner<T>),
+    /// Reconstruction-based learning via an autoencoder
     Autoencoder(SelfSupervisedAutoencoder<T>),
 }
 
+/// Training loop configuration for self-supervised learning
 #[derive(Debug, Clone)]
 pub struct TrainingConfig<T: Float> {
     /// Number of epochs
@@ -450,7 +459,7 @@ impl<T: FloatBounds + ScalarOperand + Debug + std::iter::Sum> SelfSupervisedTrai
     pub fn fit(&mut self, data: &Array2<T>) -> Result<Vec<T>, SklearsError> {
         let mut losses = Vec::new();
 
-        for epoch in 0..self.config.epochs {
+        for _epoch in 0..self.config.epochs {
             let epoch_loss = match &mut self.method {
                 SelfSupervisedMethod::Contrastive(learner) => {
                     let embeddings = learner.forward(data)?;

@@ -1,4 +1,6 @@
 //! Hot-Deck Imputation for Categorical Data
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! Hot-deck imputation replaces missing values with observed values from similar
 //! records (donors). This method is particularly suitable for categorical data

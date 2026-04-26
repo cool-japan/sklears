@@ -32,7 +32,7 @@ proptest! {
 
         // Test Tanh properties
         let tanh_output = tanh_activation(input);
-        prop_assert!(tanh_output >= -1.0 && tanh_output <= 1.0);
+        prop_assert!((-1.0..=1.0).contains(&tanh_output));
 
         // Test that tanh(-x) = -tanh(x)
         let tanh_neg = tanh_activation(-input);
@@ -260,7 +260,7 @@ proptest! {
         let weights = Array1::from_vec(vec![1.0, -0.5, 2.0, -1.5, 0.8]);
 
         // Test L2 regularization (weight decay)
-        let l2_penalty = weights.iter().map(|&w| (w as f64).powi(2)).sum::<f64>();
+        let l2_penalty = weights.iter().map(|&w: &f64| w.powi(2)).sum::<f64>();
         let l2_loss = weight_decay * l2_penalty;
 
         prop_assert!(l2_loss >= 0.0);
@@ -268,7 +268,7 @@ proptest! {
 
         // L2 penalty should increase with larger weights
         let larger_weights = weights.mapv(|w| w * 2.0);
-        let larger_l2_penalty = larger_weights.iter().map(|&w| (w as f64).powi(2)).sum::<f64>();
+        let larger_l2_penalty = larger_weights.iter().map(|&w: &f64| w.powi(2)).sum::<f64>();
         prop_assert!(larger_l2_penalty >= l2_penalty);
 
         // Test dropout properties
@@ -303,8 +303,8 @@ proptest! {
         let sim_identical = cosine_similarity_test(&emb1, &emb3);
 
         // Cosine similarity should be in [-1, 1]
-        prop_assert!(sim_different >= -1.0 && sim_different <= 1.0);
-        prop_assert!(sim_identical >= -1.0 && sim_identical <= 1.0);
+        prop_assert!((-1.0..=1.0).contains(&sim_different));
+        prop_assert!((-1.0..=1.0).contains(&sim_identical));
 
         // Identical vectors should have similarity close to 1 (allow for numerical precision)
         prop_assert!((sim_identical - 1.0).abs() < 1e-8);
@@ -471,7 +471,7 @@ proptest! {
                 .collect();
 
             for &norm_score in &normalized_scores {
-                prop_assert!(norm_score >= 0.0 && norm_score <= 1.0);
+                prop_assert!((0.0..=1.0).contains(&norm_score));
                 prop_assert!(norm_score.is_finite());
             }
 
@@ -578,8 +578,7 @@ fn compute_simple_contrastive_loss(embeddings: &Array2<f64>, temperature: f64) -
 
 fn reconstruction_loss_test(input: &Array2<f64>, reconstruction: &Array2<f64>) -> f64 {
     let diff = input - reconstruction;
-    let mse = diff.mapv(|x| x * x).mean().unwrap_or(0.0);
-    mse
+    diff.mapv(|x| x * x).mean().unwrap_or(0.0)
 }
 
 #[allow(non_snake_case)]

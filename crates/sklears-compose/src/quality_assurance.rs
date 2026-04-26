@@ -101,9 +101,13 @@ pub struct TestEnvironment {
 /// Resource limits for testing
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceLimits {
+    /// The max memory mb.
     pub max_memory_mb: u64,
+    /// The max cpu cores.
     pub max_cpu_cores: usize,
+    /// The max test duration.
     pub max_test_duration: Duration,
+    /// The max disk usage mb.
     pub max_disk_usage_mb: u64,
 }
 
@@ -121,9 +125,13 @@ pub struct TestDataConfig {
 /// Parameters for synthetic data generation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyntheticDataParams {
+    /// The n samples.
     pub n_samples: usize,
+    /// The n features.
     pub n_features: usize,
+    /// The noise level.
     pub noise_level: f64,
+    /// The correlation structure.
     pub correlation_structure: CorrelationStructure,
 }
 
@@ -133,33 +141,50 @@ pub enum CorrelationStructure {
     /// Independent
     Independent,
     /// BlockCorrelated
-    BlockCorrelated { block_size: usize },
+    BlockCorrelated {
+        /// The block size.
+        block_size: usize,
+    },
     /// Hierarchical
-    Hierarchical { levels: usize },
+    Hierarchical {
+        /// The levels.
+        levels: usize,
+    },
     /// Random
-    Random { density: f64 },
+    Random {
+        /// The density.
+        density: f64,
+    },
 }
 
 /// Real data validation settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RealDataValidation {
+    /// The check data quality.
     pub check_data_quality: bool,
+    /// The validate schemas.
     pub validate_schemas: bool,
+    /// The detect drift.
     pub detect_drift: bool,
+    /// The privacy compliance.
     pub privacy_compliance: bool,
 }
 
 /// Parallelism configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParallelismConfig {
+    /// The max parallel tests.
     pub max_parallel_tests: usize,
+    /// The test isolation.
     pub test_isolation: TestIsolation,
+    /// The resource sharing.
     pub resource_sharing: ResourceSharing,
 }
 
 /// Test isolation strategy
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TestIsolation {
+    /// Variant value.
     None,
     /// ProcessLevel
     ProcessLevel,
@@ -198,25 +223,37 @@ pub struct AutoRemediationConfig {
 pub enum RemediationStrategy {
     /// Adjust hyperparameters
     HyperparameterTuning {
+        /// The max iterations.
         max_iterations: usize,
+        /// The search strategy.
         search_strategy: String,
     },
     /// Feature engineering adjustments
-    FeatureEngineering { techniques: Vec<String> },
+    FeatureEngineering {
+        /// The techniques.
+        techniques: Vec<String>,
+    },
     /// Data preprocessing fixes
     DataPreprocessing {
+        /// The normalization.
         normalization: bool,
+        /// The outlier removal.
         outlier_removal: bool,
+        /// The missing value imputation.
         missing_value_imputation: bool,
     },
     /// Model architecture changes
     ModelArchitecture {
+        /// The complexity adjustment.
         complexity_adjustment: f64,
+        /// The regularization.
         regularization: bool,
     },
     /// Resource optimization
     ResourceOptimization {
+        /// The memory optimization.
         memory_optimization: bool,
+        /// The parallelization.
         parallelization: bool,
     },
 }
@@ -252,17 +289,24 @@ pub enum ReportFormat {
 /// Notification configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotificationConfig {
+    /// The email notifications.
     pub email_notifications: bool,
+    /// The slack notifications.
     pub slack_notifications: bool,
+    /// The webhook notifications.
     pub webhook_notifications: bool,
+    /// The notification thresholds.
     pub notification_thresholds: HashMap<String, f64>,
 }
 
 /// Report retention policy
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RetentionPolicy {
+    /// The max reports.
     pub max_reports: usize,
+    /// The max age days.
     pub max_age_days: usize,
+    /// The compress old reports.
     pub compress_old_reports: bool,
 }
 
@@ -368,30 +412,45 @@ pub struct QualityStandards {
 /// Quality benchmark for specific domains
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QualityBenchmark {
+    /// The domain.
     pub domain: String,
+    /// The min accuracy.
     pub min_accuracy: f64,
+    /// The max latency ms.
     pub max_latency_ms: f64,
+    /// The max memory mb.
     pub max_memory_mb: u64,
+    /// The min robustness score.
     pub min_robustness_score: f64,
 }
 
 /// Custom quality metric definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomQualityMetric {
+    /// The name.
     pub name: String,
+    /// The description.
     pub description: String,
+    /// The calculation method.
     pub calculation_method: String,
+    /// The threshold.
     pub threshold: f64,
+    /// The weight.
     pub weight: f64,
 }
 
 /// Compliance requirements
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceRequirements {
+    /// The data privacy.
     pub data_privacy: bool,
+    /// The algorithmic fairness.
     pub algorithmic_fairness: bool,
+    /// The explainability.
     pub explainability: bool,
+    /// The audit trail.
     pub audit_trail: bool,
+    /// The regulatory standards.
     pub regulatory_standards: Vec<String>,
 }
 
@@ -400,7 +459,7 @@ impl Default for QualityStandards {
         let mut benchmarks = HashMap::new();
         benchmarks.insert(
             "general".to_string(),
-            /// QualityBenchmark
+            // QualityBenchmark
             QualityBenchmark {
                 domain: "general".to_string(),
                 min_accuracy: 0.85,
@@ -448,30 +507,45 @@ pub struct QualityAssessment {
 /// Results from different quality tests
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QualityTestResults {
+    /// The validation passed.
     pub validation_passed: bool,
+    /// The validation summary.
     pub validation_summary: HashMap<String, serde_json::Value>,
+    /// The stress test report.
     pub stress_test_report: Option<StressTestReport>,
+    /// The regression test result.
     pub regression_test_result: Option<serde_json::Value>, // Generic placeholder for regression results
+    /// The custom test results.
     pub custom_test_results: HashMap<String, CustomTestResult>,
 }
 
 /// Custom test result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomTestResult {
+    /// The test name.
     pub test_name: String,
+    /// The passed.
     pub passed: bool,
+    /// The score.
     pub score: f64,
+    /// The details.
     pub details: HashMap<String, serde_json::Value>,
 }
 
 /// Quality issues detected during assessment
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QualityIssue {
+    /// The severity.
     pub severity: IssueSeverity,
+    /// The category.
     pub category: IssueCategory,
+    /// The description.
     pub description: String,
+    /// The impact.
     pub impact: ImpactAssessment,
+    /// The detected at.
     pub detected_at: DateTime<Utc>,
+    /// The remediation suggestions.
     pub remediation_suggestions: Vec<String>,
 }
 
@@ -512,20 +586,30 @@ pub enum IssueCategory {
 /// Impact assessment for issues
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImpactAssessment {
+    /// The business impact.
     pub business_impact: f64,
+    /// The technical impact.
     pub technical_impact: f64,
+    /// The user impact.
     pub user_impact: f64,
+    /// The estimated cost.
     pub estimated_cost: Option<f64>,
 }
 
 /// Quality improvement recommendations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QualityRecommendation {
+    /// The priority.
     pub priority: RecommendationPriority,
+    /// The category.
     pub category: RecommendationCategory,
+    /// The description.
     pub description: String,
+    /// The estimated effort.
     pub estimated_effort: EstimatedEffort,
+    /// The expected improvement.
     pub expected_improvement: f64,
+    /// The implementation steps.
     pub implementation_steps: Vec<String>,
 }
 
@@ -562,8 +646,11 @@ pub enum RecommendationCategory {
 /// Estimated effort for recommendations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EstimatedEffort {
+    /// The time hours.
     pub time_hours: f64,
+    /// The complexity.
     pub complexity: EffortComplexity,
+    /// The required skills.
     pub required_skills: Vec<String>,
 }
 
@@ -585,33 +672,51 @@ pub enum EffortComplexity {
 /// Quality metrics breakdown
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QualityMetrics {
+    /// The accuracy score.
     pub accuracy_score: f64,
+    /// The performance score.
     pub performance_score: f64,
+    /// The reliability score.
     pub reliability_score: f64,
+    /// The maintainability score.
     pub maintainability_score: f64,
+    /// The security score.
     pub security_score: f64,
+    /// The usability score.
     pub usability_score: f64,
+    /// The compliance score.
     pub compliance_score: f64,
+    /// The weighted scores.
     pub weighted_scores: HashMap<String, f64>,
 }
 
 /// Assessment metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssessmentMetadata {
+    /// The assessment id.
     pub assessment_id: String,
+    /// The pipeline version.
     pub pipeline_version: String,
+    /// The environment.
     pub environment: String,
+    /// The test duration.
     pub test_duration: Duration,
+    /// The resource usage.
     pub resource_usage: ResourceUsage,
+    /// The configuration.
     pub configuration: QAConfig,
 }
 
 /// Resource usage during assessment
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceUsage {
+    /// The peak memory mb.
     pub peak_memory_mb: u64,
+    /// The cpu time seconds.
     pub cpu_time_seconds: f64,
+    /// The disk io mb.
     pub disk_io_mb: u64,
+    /// The network io mb.
     pub network_io_mb: u64,
 }
 
@@ -642,7 +747,7 @@ impl AutomatedQualityAssurance {
         let assessment_id = uuid::Uuid::new_v4().to_string();
 
         // Generate or use provided test data
-        let (x, y) = if let Some((x, y)) = test_data {
+        let (_x, _y) = if let Some((x, y)) = test_data {
             (
                 x.to_owned(),
                 y.map(scirs2_core::ndarray::ArrayBase::to_owned),
@@ -790,6 +895,7 @@ impl AutomatedQualityAssurance {
     }
 
     /// Analyze validation results for issues and recommendations
+    #[allow(dead_code)]
     fn analyze_validation_results(
         &self,
         validation_report: &ValidationReport,
@@ -944,7 +1050,7 @@ impl AutomatedQualityAssurance {
     /// Calculate detailed quality metrics
     fn calculate_quality_metrics(
         &self,
-        test_results: &QualityTestResults,
+        _test_results: &QualityTestResults,
         issues: &[QualityIssue],
     ) -> QualityMetrics {
         let mut accuracy_score: f64 = 1.0;
@@ -986,7 +1092,7 @@ impl AutomatedQualityAssurance {
         weighted_scores.insert("usability".to_string(), usability_score * 0.05);
         weighted_scores.insert("compliance".to_string(), compliance_score * 0.05);
 
-        /// QualityMetrics
+        // QualityMetrics
         QualityMetrics {
             accuracy_score: accuracy_score.max(0.0).min(1.0),
             performance_score: performance_score.max(0.0).min(1.0),
@@ -1055,7 +1161,7 @@ impl AutomatedQualityAssurance {
         let executive_summary =
             self.generate_executive_summary(&latest_assessment, &quality_trends);
 
-        /// QualityReport
+        // QualityReport
         QualityReport {
             timestamp: Utc::now(),
             executive_summary,
@@ -1077,7 +1183,7 @@ impl AutomatedQualityAssurance {
             timestamps.push(assessment.timestamp);
         }
 
-        /// QualityTrends
+        // QualityTrends
         QualityTrends {
             overall_score_trend: self.calculate_trend(&scores),
             assessment_count: self.assessment_history.len(),
@@ -1129,7 +1235,7 @@ impl AutomatedQualityAssurance {
                 .count()
         });
 
-        /// ExecutiveSummary
+        // ExecutiveSummary
         ExecutiveSummary {
             current_quality_score: current_score,
             quality_gates_status: latest_assessment
@@ -1218,7 +1324,7 @@ impl AutomatedQualityAssurance {
     /// Check compliance status
     fn check_compliance_status(&self) -> ComplianceStatus {
         // Mock implementation
-        /// ComplianceStatus
+        // ComplianceStatus
         ComplianceStatus {
             overall_compliant: true,
             compliance_scores: HashMap::new(),
@@ -1265,9 +1371,13 @@ impl AutomatedQualityAssurance {
 /// Quality trends analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QualityTrends {
+    /// The overall score trend.
     pub overall_score_trend: TrendDirection,
+    /// The assessment count.
     pub assessment_count: usize,
+    /// The average score.
     pub average_score: f64,
+    /// The score variance.
     pub score_variance: f64,
 }
 
@@ -1285,32 +1395,49 @@ pub enum TrendDirection {
 /// Executive summary for stakeholders
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutiveSummary {
+    /// The current quality score.
     pub current_quality_score: f64,
+    /// The quality gates status.
     pub quality_gates_status: bool,
+    /// The critical issues count.
     pub critical_issues_count: usize,
+    /// The trend.
     pub trend: TrendDirection,
+    /// The key insights.
     pub key_insights: Vec<String>,
+    /// The action items.
     pub action_items: Vec<String>,
 }
 
 /// Compliance status
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceStatus {
+    /// The overall compliant.
     pub overall_compliant: bool,
+    /// The compliance scores.
     pub compliance_scores: HashMap<String, f64>,
+    /// The non compliant areas.
     pub non_compliant_areas: Vec<String>,
+    /// The audit trail complete.
     pub audit_trail_complete: bool,
 }
 
 /// Comprehensive quality report
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QualityReport {
+    /// The timestamp.
     pub timestamp: DateTime<Utc>,
+    /// The executive summary.
     pub executive_summary: ExecutiveSummary,
+    /// The latest assessment.
     pub latest_assessment: Option<QualityAssessment>,
+    /// The historical assessments.
     pub historical_assessments: Vec<QualityAssessment>,
+    /// The quality trends.
     pub quality_trends: QualityTrends,
+    /// The compliance status.
     pub compliance_status: ComplianceStatus,
+    /// The recommendations.
     pub recommendations: Vec<QualityRecommendation>,
 }
 
@@ -1318,7 +1445,6 @@ pub struct QualityReport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::Array2;
     use sklears_core::prelude::SklearsError;
 
     // Mock estimator for testing

@@ -1,10 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::needless_range_loop)]
-#![allow(clippy::derivable_impls)]
-#![allow(clippy::needless_borrow)]
 //! Linear models for sklears
 //!
 //! This crate provides implementations of linear models including:
@@ -28,8 +21,7 @@ pub mod chunked_processing;
 #[cfg(feature = "diagnostics")]
 pub mod classification_diagnostics;
 #[cfg(feature = "constrained-optimization")]
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod constrained_optimization;
+pub mod constrained_optimization;
 #[cfg(feature = "convergence-analysis")]
 pub mod convergence_visualization;
 #[cfg(feature = "coordinate-descent")]
@@ -46,8 +38,7 @@ pub mod feature_scaling;
 #[cfg(feature = "feature-selection")]
 pub mod feature_selection;
 #[cfg(feature = "glm")]
-// TODO: Migrate to scirs2-linalg (uses ndarray_linalg::Solve)
-//pub mod glm;
+pub mod glm;
 #[cfg(feature = "gpu")]
 pub mod gpu_acceleration;
 #[cfg(feature = "huber")]
@@ -63,16 +54,14 @@ pub mod lasso_lars;
 pub mod linear_regression;
 #[cfg(feature = "logistic-regression")]
 pub mod logistic_regression;
-// TODO: Temporarily disabled until cross_val_score is generalized for LogisticRegression
-// #[cfg(feature = "logistic-regression")]
-// pub mod logistic_regression_cv;
+#[cfg(feature = "logistic-regression")]
+pub mod logistic_regression_cv;
 #[cfg(feature = "memory-mapping")]
 pub mod memory_efficient_ops;
 #[cfg(feature = "memory-mapping")]
 pub mod mmap_arrays;
 #[cfg(any(feature = "multi-task", feature = "all-algorithms"))]
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod multi_output_regression;
+pub mod multi_output_regression;
 #[cfg(feature = "multi-task-elastic-net")]
 pub mod multi_task_elastic_net;
 #[cfg(feature = "multi-task-elastic-net")]
@@ -99,8 +88,7 @@ pub mod perceptron;
 #[cfg(feature = "feature-selection")]
 pub mod polynomial_features;
 #[cfg(feature = "quantile-regression")]
-// TODO: Migrate to scirs2-linalg (uses ndarray_linalg::Solve)
-//pub mod quantile;
+pub mod quantile;
 #[cfg(feature = "ransac")]
 pub mod ransac;
 #[cfg(feature = "feature-selection")]
@@ -112,8 +100,7 @@ pub mod ridge_classifier;
 #[cfg(feature = "ridge")]
 pub mod ridge_cv;
 #[cfg(feature = "serde")]
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod serialization;
+pub mod serialization;
 #[cfg(feature = "sgd")]
 pub mod sgd;
 #[cfg(feature = "simd")]
@@ -143,9 +130,8 @@ pub mod uncertainty_quantification;
 #[cfg(feature = "theil-sen")]
 pub mod theil_sen;
 
-//#[allow(non_snake_case)]
 #[cfg(test)]
-//pub mod advanced_property_tests;
+pub mod advanced_property_tests;
 #[cfg(feature = "admm")]
 pub use admm::{AdmmConfig, AdmmSolution, AdmmSolver};
 
@@ -182,12 +168,11 @@ pub use classification_diagnostics::{
 };
 
 #[cfg(feature = "constrained-optimization")]
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use constrained_optimization::{
-//     ConstrainedLinearRegression, ConstrainedOptimizationBuilder, ConstrainedOptimizationConfig,
-//     ConstrainedOptimizationProblem, ConstrainedOptimizationResult, ConstraintType,
-//     InteriorPointSolver,
-// };
+pub use constrained_optimization::{
+    ConstrainedLinearRegression, ConstrainedOptimizationBuilder, ConstrainedOptimizationConfig,
+    ConstrainedOptimizationProblem, ConstrainedOptimizationResult, ConstraintType,
+    InteriorPointSolver,
+};
 #[cfg(feature = "convergence-analysis")]
 pub use convergence_visualization::{
     ComparisonResult, ConvergenceAnalysis, ConvergenceConfig, ConvergenceCriteria,
@@ -229,12 +214,10 @@ pub use feature_selection::{
     FeatureScore, FeatureSelectionConfig, FeatureSelector, ModelBasedEstimator, UnivariateScoreFunc,
 };
 #[cfg(feature = "glm")]
-// TODO: Migrate to scirs2-linalg (uses ndarray_linalg::Solve)
-// pub use glm::{Family, GLMConfig, GeneralizedLinearModel, Link};
+pub use glm::{Family, GLMConfig, GeneralizedLinearModel, Link};
 #[cfg(feature = "huber")]
 pub use huber::{HuberRegressor, HuberRegressorConfig};
-// TODO: Migrate to scirs2-linalg (uses ndarray_linalg::Solve)
-// pub use irls::{IRLSConfig, IRLSEstimator, IRLSResult, ScaleEstimator, WeightFunction};
+pub use irls::{IRLSConfig, IRLSEstimator, IRLSResult, ScaleEstimator, WeightFunction};
 #[cfg(feature = "lasso")]
 pub use lars::{Lars, LarsConfig};
 #[cfg(feature = "lasso")]
@@ -245,9 +228,8 @@ pub use lasso_lars::{LassoLars, LassoLarsConfig};
 pub use linear_regression::{LinearRegression, LinearRegressionConfig};
 #[cfg(feature = "logistic-regression")]
 pub use logistic_regression::{LogisticRegression, LogisticRegressionConfig};
-// TODO: Temporarily disabled until cross_val_score is generalized for LogisticRegression
-// #[cfg(feature = "logistic-regression")]
-// pub use logistic_regression_cv::{LogisticRegressionCV, LogisticRegressionCVConfig};
+#[cfg(feature = "logistic-regression")]
+pub use logistic_regression_cv::{LogisticRegressionCV, LogisticRegressionCVConfig};
 #[cfg(feature = "memory-mapping")]
 pub use memory_efficient_ops::{
     MemoryEfficiencyConfig, MemoryEfficientCoordinateDescent, MemoryEfficientOps, MemoryOperation,
@@ -258,11 +240,10 @@ pub use mmap_arrays::{
     MmapAdvice, MmapConfig, MmapMatrix, MmapMatrixMut, MmapUtils, MmapVector, MmapVectorMut,
 };
 #[cfg(any(feature = "multi-task", feature = "all-algorithms"))]
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use multi_output_regression::{
-//     MultiOutputConfig, MultiOutputRegression, MultiOutputRegressionBuilder, MultiOutputResult,
-//     MultiOutputStrategy,
-// };
+pub use multi_output_regression::{
+    MultiOutputConfig, MultiOutputRegression, MultiOutputRegressionBuilder, MultiOutputResult,
+    MultiOutputStrategy,
+};
 #[cfg(feature = "multi-task-elastic-net")]
 pub use multi_task_elastic_net::{MultiTaskElasticNet, MultiTaskElasticNetConfig};
 #[cfg(feature = "multi-task-elastic-net")]
@@ -304,8 +285,7 @@ pub use polynomial_features::{
     FeatureInfo, PolynomialConfig, PolynomialFeatures, PolynomialFeaturesBuilder, PolynomialUtils,
 };
 #[cfg(feature = "quantile-regression")]
-// TODO: Migrate to scirs2-linalg (uses ndarray_linalg::Solve)
-// pub use quantile::{QuantileRegressor, QuantileRegressorConfig, QuantileSolver, SolverOptions};
+pub use quantile::{QuantileRegressor, QuantileRegressorConfig, QuantileSolver, SolverOptions};
 #[cfg(feature = "ransac")]
 pub use ransac::{RANSACLoss, RANSACRegressor, RANSACRegressorConfig};
 #[cfg(feature = "feature-selection")]
@@ -322,22 +302,20 @@ pub use ridge_classifier::{RidgeClassifier, RidgeClassifierConfig};
 #[cfg(feature = "ridge")]
 pub use ridge_cv::{RidgeCV, RidgeCVConfig};
 #[cfg(feature = "serde")]
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use serialization::{
-//     ModelMetadata, ModelRegistry, ModelSerializer, ModelVersioning, PerformanceMetrics,
-//     SerializableConstrainedOptimization, SerializableLassoRegression, SerializableLinearRegression,
-//     SerializableMatrix, SerializableModel, SerializableMultiOutputRegression,
-//     SerializableRidgeRegression, SerializableVector, SerializationFormat, TrainingInfo,
-// };
+pub use serialization::{
+    ModelMetadata, ModelRegistry, ModelSerializer, ModelVersioning, PerformanceMetrics,
+    SerializableConstrainedOptimization, SerializableLassoRegression, SerializableLinearRegression,
+    SerializableMatrix, SerializableModel, SerializableMultiOutputRegression,
+    SerializableRidgeRegression, SerializableVector, SerializationFormat, TrainingInfo,
+};
 #[cfg(feature = "sgd")]
 pub use sgd::{
     SGDClassifier, SGDClassifierConfig, SGDLoss, SGDPenalty, SGDRegressor, SGDRegressorConfig,
 };
-// #[cfg(feature = "simd")]
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use simd_optimizations::{
-//     SimdConfig, SimdCoordinateDescent, SimdFeatures, SimdLinearRegression, SimdOps,
-// };
+#[cfg(feature = "simd")]
+pub use simd_optimizations::{
+    SimdConfig, SimdCoordinateDescent, SimdFeatures, SimdLinearRegression, SimdOps,
+};
 #[cfg(feature = "theil-sen")]
 pub use theil_sen::{TheilSenRegressor, TheilSenRegressorConfig};
 // Exports for new modular framework

@@ -36,8 +36,7 @@ pub fn simd_adwin_bound_calculation(
     // Scalar implementation
     let delta = alpha.ln() * 2.0;
     let variance_term = (var0 / n0) + (var1 / n1);
-    let bound = (-delta / (2.0 * n)).exp() * variance_term.sqrt();
-    bound
+    (-delta / (2.0 * n)).exp() * variance_term.sqrt()
 }
 
 /// MSE impurity calculation for regression splits
@@ -90,6 +89,7 @@ pub fn simd_fast_variance(data: &[f64]) -> f64 {
     }
 
     let mean = data.iter().sum::<f64>() / data.len() as f64;
-    let variance: f64 = data.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / (data.len() - 1) as f64;
+    let variance: f64 =
+        data.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / (data.len() - 1) as f64;
     variance
 }

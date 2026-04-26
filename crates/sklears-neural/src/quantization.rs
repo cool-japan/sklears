@@ -36,9 +36,8 @@
 //! let quantizer = Quantizer::new(config);
 //! ```
 
-use crate::layers::Layer;
 use crate::{NeuralResult, SklearsError};
-use scirs2_core::ndarray::{Array1, Array2, Array3, Array4, ArrayView1, ArrayView2, Axis};
+use scirs2_core::ndarray::Array2;
 use sklears_core::types::{Float, FloatBounds};
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -47,10 +46,11 @@ use std::marker::PhantomData;
 use serde::{Deserialize, Serialize};
 
 /// Quantization data type
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum QuantizationType {
     /// 8-bit integer quantization
+    #[default]
     INT8,
     /// 16-bit integer quantization
     INT16,
@@ -62,17 +62,12 @@ pub enum QuantizationType {
     Ternary,
 }
 
-impl Default for QuantizationType {
-    fn default() -> Self {
-        QuantizationType::INT8
-    }
-}
-
 /// Quantization strategy
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum QuantizationStrategy {
     /// Post-training quantization
+    #[default]
     PostTraining,
     /// Quantization-aware training
     QuantizationAware,
@@ -82,48 +77,38 @@ pub enum QuantizationStrategy {
     Static,
 }
 
-impl Default for QuantizationStrategy {
-    fn default() -> Self {
-        QuantizationStrategy::PostTraining
-    }
-}
-
 /// Quantization granularity
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Granularity {
     /// Per-tensor quantization (single scale/zero-point for entire tensor)
+    #[default]
     PerTensor,
     /// Per-channel quantization (different scale/zero-point per output channel)
     PerChannel,
     /// Per-group quantization (different scale/zero-point per group of channels)
-    PerGroup { group_size: usize },
-}
-
-impl Default for Granularity {
-    fn default() -> Self {
-        Granularity::PerTensor
-    }
+    PerGroup {
+        /// Number of channels per quantization group
+        group_size: usize,
+    },
 }
 
 /// Calibration method for determining quantization parameters
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum CalibrationMethod {
     /// Use min/max values from calibration data
+    #[default]
     MinMax,
     /// Use percentile values (e.g., 99.9th percentile)
-    Percentile { percentile: f64 },
+    Percentile {
+        /// Percentile value for calibration (e.g., 99.9)
+        percentile: f64,
+    },
     /// Use entropy-based calibration (KL divergence)
     Entropy,
     /// Use mean squared error for optimal quantization parameters
     MSE,
-}
-
-impl Default for CalibrationMethod {
-    fn default() -> Self {
-        CalibrationMethod::MinMax
-    }
 }
 
 /// Quantization configuration
@@ -146,8 +131,9 @@ pub struct QuantizationConfig {
     pub quantize_activations: bool,
     /// Layers to skip quantization
     pub skip_layers: Vec<String>,
-    /// Quantization-aware training parameters
+    /// Number of quantization-aware training epochs
     pub qat_epochs: usize,
+    /// Learning rate used during quantization-aware training
     pub qat_learning_rate: Float,
     /// Fake quantization during training
     pub fake_quantize: bool,
@@ -250,6 +236,7 @@ pub struct QuantizationParams {
 }
 
 impl QuantizationParams {
+    /// Create a new set of quantization parameters with the given scale, zero-point, and value range
     pub fn new(scale: f64, zero_point: i32, min_val: f64, max_val: f64, n_levels: u32) -> Self {
         Self {
             scale,
@@ -329,6 +316,7 @@ impl QuantizedTensor {
 
 /// Observer for collecting statistics during calibration
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // momentum retained for EMA calibration; will be used in update_ema method
 pub struct Observer {
     /// Running minimum
     min_val: f64,
@@ -344,6 +332,7 @@ pub struct Observer {
 }
 
 impl Observer {
+    /// Create a new observer with the given EMA momentum and histogram resolution
     pub fn new(momentum: f64, histogram_bins: usize) -> Self {
         Self {
             min_val: f64::INFINITY,
@@ -456,7 +445,7 @@ impl Observer {
         (min_p, max_p)
     }
 
-    fn compute_optimal_clipping(&self, n_levels: u32) -> (f64, f64) {
+    fn compute_optimal_clipping(&self, _n_levels: u32) -> (f64, f64) {
         // Simplified implementation - in practice would use KL divergence
         let (min_p, max_p) = self.compute_percentile(99.9);
         (min_p, max_p)
@@ -469,6 +458,7 @@ impl Observer {
 }
 
 /// Main quantization engine
+#[allow(dead_code)] // calibration_data retained for replay calibration and future cross-layer optimization
 pub struct Quantizer<T: FloatBounds> {
     config: QuantizationConfig,
     /// Layer-specific quantization parameters
@@ -495,7 +485,7 @@ impl<T: FloatBounds> Quantizer<T> {
     /// Calibrate quantization parameters using sample data
     pub fn calibrate(&mut self, model_data: &HashMap<String, Array2<T>>) -> NeuralResult<()> {
         // Initialize observers
-        for (layer_name, data) in model_data {
+        for layer_name in model_data.keys() {
             if !self.config.skip_layers.contains(layer_name) {
                 let observer = Observer::new(self.config.observer_momentum, 256);
                 self.observers.insert(layer_name.clone(), observer);
@@ -884,7 +874,7 @@ mod tests {
     #[test]
     fn test_quantization_metrics() {
         let original = arr2(&[[1.0, 2.0], [3.0, 4.0]]);
-        let reconstructed = arr2(&[[1.1, 1.9], [3.1, 3.9]]);
+        let _reconstructed = arr2(&[[1.1, 1.9], [3.1, 3.9]]);
 
         let config = QuantizationConfig::default();
         let quantizer = Quantizer::<f64>::new(config);

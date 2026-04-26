@@ -9,7 +9,7 @@ use crate::activation::Activation;
 use crate::mlp_classifier::MLPClassifier;
 use crate::mlp_regressor::MLPRegressor;
 use crate::solvers::Solver;
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::Array2;
 use sklears_core::traits::{Fit, Predict};
 use std::time::{Duration, Instant};
 
@@ -215,13 +215,21 @@ impl Default for MemoryLeakDetector {
 /// Memory usage statistics
 #[derive(Debug, Clone)]
 pub struct MemoryStats {
+    /// Minimum virtual memory observed across all snapshots (bytes)
     pub virtual_memory_min: u64,
+    /// Maximum virtual memory observed across all snapshots (bytes)
     pub virtual_memory_max: u64,
+    /// Mean virtual memory across all snapshots (bytes)
     pub virtual_memory_avg: f64,
+    /// Minimum resident (physical) memory across all snapshots (bytes)
     pub resident_memory_min: u64,
+    /// Maximum resident (physical) memory across all snapshots (bytes)
     pub resident_memory_max: u64,
+    /// Mean resident (physical) memory across all snapshots (bytes)
     pub resident_memory_avg: f64,
+    /// Number of memory snapshots taken during the monitoring period
     pub total_snapshots: usize,
+    /// Number of allocation sites that appear to be leaking memory
     pub potential_leaks: usize,
 }
 
@@ -274,7 +282,7 @@ fn get_memory_usage() -> (u64, u64) {
 
     // Use ps command to get memory info
     if let Ok(output) = Command::new("ps")
-        .args(&["-o", "vsz,rss", "-p"])
+        .args(["-o", "vsz,rss", "-p"])
         .arg(std::process::id().to_string())
         .output()
     {

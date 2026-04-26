@@ -12,6 +12,9 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, SystemTime};
 
+/// Memory event callback list
+type MemoryCallbacks = Arc<RwLock<Vec<Box<dyn Fn(&MemoryUsage) + Send + Sync>>>>;
+
 /// Memory usage tracking
 #[derive(Debug, Clone)]
 pub struct MemoryUsage {
@@ -91,7 +94,7 @@ pub struct MemoryMonitor {
     /// Running flag
     is_running: Arc<Mutex<bool>>,
     /// Callbacks for memory events
-    callbacks: Arc<RwLock<Vec<Box<dyn Fn(&MemoryUsage) + Send + Sync>>>>,
+    callbacks: MemoryCallbacks,
 }
 
 impl std::fmt::Debug for MemoryMonitor {
@@ -204,7 +207,7 @@ impl MemoryMonitor {
     fn monitor_loop(
         usage: Arc<RwLock<MemoryUsage>>,
         history: Arc<RwLock<VecDeque<MemoryUsage>>>,
-        callbacks: Arc<RwLock<Vec<Box<dyn Fn(&MemoryUsage) + Send + Sync>>>>,
+        callbacks: MemoryCallbacks,
         is_running: Arc<Mutex<bool>>,
         config: MemoryMonitorConfig,
     ) {
@@ -348,6 +351,7 @@ pub struct MemoryStatistics {
 
 /// Memory pool for efficient allocation and reuse
 #[derive(Debug)]
+#[allow(clippy::arc_with_non_send_sync)]
 pub struct MemoryPool {
     config: MemoryPoolConfig,
     available_blocks: Arc<RwLock<BTreeMap<usize, Vec<MemoryBlock>>>>,
@@ -439,6 +443,7 @@ impl Default for PoolStatistics {
 
 impl MemoryPool {
     /// Create a new memory pool
+    #[allow(clippy::arc_with_non_send_sync)]
     pub fn new(config: MemoryPoolConfig) -> SklResult<Self> {
         let mut pool = Self {
             config,

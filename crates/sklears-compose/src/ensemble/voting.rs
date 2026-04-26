@@ -34,6 +34,7 @@ use sklears_core::{
 ///     .voting("hard")
 ///     .build();
 /// ```
+#[allow(dead_code)]
 pub struct VotingClassifier<S = Untrained> {
     state: S,
     estimators: Vec<(String, Box<dyn PipelinePredictor>)>,
@@ -62,6 +63,7 @@ pub struct VotingClassifier<S = Untrained> {
 ///     .estimator("reg2", Box::new(MockPredictor::new()))
 ///     .build();
 /// ```
+#[allow(dead_code)]
 pub struct VotingRegressor<S = Untrained> {
     state: S,
     estimators: Vec<(String, Box<dyn PipelinePredictor>)>,
@@ -70,6 +72,7 @@ pub struct VotingRegressor<S = Untrained> {
 }
 
 /// Trained state for `VotingClassifier`
+#[allow(dead_code)]
 pub struct VotingClassifierTrained {
     fitted_estimators: Vec<(String, Box<dyn PipelinePredictor>)>,
     classes: Array1<f64>,
@@ -78,6 +81,7 @@ pub struct VotingClassifierTrained {
 }
 
 /// Trained state for `VotingRegressor`
+#[allow(dead_code)]
 pub struct VotingRegressorTrained {
     fitted_estimators: Vec<(String, Box<dyn PipelinePredictor>)>,
     n_features_in: usize,

@@ -82,6 +82,7 @@ impl GradientEmbeddingMethods {
         self
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn query(
         &self,
         X: &ArrayView2<f64>,

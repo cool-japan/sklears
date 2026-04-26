@@ -1226,7 +1226,7 @@ impl MixedTypeFeatureExtractor {
                 let mut sorted = valid_values.clone();
                 sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let mid = sorted.len() / 2;
-                if sorted.len() % 2 == 0 {
+                if sorted.len().is_multiple_of(2) {
                     (sorted[mid - 1] + sorted[mid]) / 2.0
                 } else {
                     sorted[mid]
@@ -1459,6 +1459,7 @@ impl Estimator<Untrained> for MixedTypeFeatureExtractor {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl Fit<Array2<f64>, ()> for MixedTypeFeatureExtractor {
     type Fitted = FittedMixedTypeFeatureExtractor;
 
@@ -1527,6 +1528,7 @@ impl Fit<Array2<f64>, ()> for MixedTypeFeatureExtractor {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl Transform<Array2<f64>, Array2<f64>> for FittedMixedTypeFeatureExtractor {
     fn transform(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         self.extractor.transform_data(X)

@@ -141,9 +141,10 @@ pub struct LocalExplanationResult {
 ///     ..Default::default()
 /// };
 ///
-/// let result = explain_locally(&model_fn, &X_train.view(), &instance.view(), &config).unwrap();
+/// let result = explain_locally(&model_fn, &X_train.view(), &instance.view(), &config).expect("local explanation should succeed with valid inputs");
 /// assert_eq!(result.feature_importance.len(), 2);
 /// ```
+#[allow(non_snake_case)] // standard ML notation
 pub fn explain_locally<F>(
     model_fn: &F,
     X_train: &ArrayView2<Float>,
@@ -176,6 +177,7 @@ where
 }
 
 /// Local surrogate model explanation (LIME-like)
+#[allow(non_snake_case)] // standard ML notation
 fn local_surrogate_explanation<F>(
     model_fn: &F,
     X_train: &ArrayView2<Float>,
@@ -254,6 +256,7 @@ where
 }
 
 /// Local linear approximation explanation
+#[allow(non_snake_case)] // standard ML notation
 fn local_linear_explanation<F>(
     model_fn: &F,
     X_train: &ArrayView2<Float>,
@@ -317,6 +320,7 @@ where
 }
 
 /// Neighborhood-based explanation
+#[allow(non_snake_case)] // standard ML notation
 fn neighborhood_explanation<F>(
     model_fn: &F,
     X_train: &ArrayView2<Float>,
@@ -344,7 +348,7 @@ where
     }
 
     // Get predictions for neighborhood
-    let neighborhood_predictions = model_fn(&X_neighborhood.view());
+    let _neighborhood_predictions = model_fn(&X_neighborhood.view());
 
     // Calculate feature importance based on neighborhood variance
     let mut feature_importance = Array1::zeros(instance.len());
@@ -381,6 +385,7 @@ where
 }
 
 /// Prototype-based explanation
+#[allow(non_snake_case)] // standard ML notation
 fn prototype_explanation<F>(
     model_fn: &F,
     X_train: &ArrayView2<Float>,
@@ -408,7 +413,7 @@ where
     }
 
     // Get predictions for prototypes
-    let prototype_predictions = model_fn(&prototypes.view());
+    let _prototype_predictions = model_fn(&prototypes.view());
 
     // Calculate feature importance based on prototype influence
     let mut feature_importance = Array1::zeros(instance.len());
@@ -443,8 +448,9 @@ where
 }
 
 /// Exemplar-based explanation
+#[allow(non_snake_case)] // standard ML notation
 fn exemplar_explanation<F>(
-    model_fn: &F,
+    _model_fn: &F,
     X_train: &ArrayView2<Float>,
     instance: &ArrayView1<Float>,
     config: &LocalExplanationConfig,
@@ -520,6 +526,7 @@ where
 }
 
 /// Local decision tree explanation (simplified)
+#[allow(non_snake_case)] // standard ML notation
 fn local_tree_explanation<F>(
     model_fn: &F,
     X_train: &ArrayView2<Float>,
@@ -530,7 +537,7 @@ where
     F: Fn(&ArrayView2<Float>) -> Vec<Float>,
 {
     // Find neighborhood
-    let (neighborhood_indices, neighborhood_weights) = find_neighborhood(
+    let (_neighborhood_indices, _neighborhood_weights) = find_neighborhood(
         X_train,
         instance,
         config.n_neighbors,
@@ -579,6 +586,7 @@ fn calculate_kernel_weight(distance: Float, kernel: KernelType, bandwidth: Float
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn find_neighborhood(
     X_train: &ArrayView2<Float>,
     instance: &ArrayView1<Float>,
@@ -612,6 +620,7 @@ fn euclidean_distance(a: &ArrayView1<Float>, b: &ArrayView1<Float>) -> Float {
         .sqrt()
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn fit_weighted_linear_model(
     X: &ArrayView2<Float>,
     y: &[Float],
@@ -688,6 +697,7 @@ fn fit_weighted_linear_model(
     Ok((coefficients, intercept, r_squared))
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn find_prototypes(
     X_train: &ArrayView2<Float>,
     instance: &ArrayView1<Float>,

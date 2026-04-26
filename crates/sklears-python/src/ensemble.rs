@@ -30,6 +30,7 @@ pub struct PyGradientBoostingClassifier {
 #[pymethods]
 impl PyGradientBoostingClassifier {
     #[new]
+    #[allow(clippy::too_many_arguments)] // scikit-learn API compatibility requires matching argument count
     #[pyo3(signature = (
         n_estimators=100,
         learning_rate=0.1,
@@ -155,6 +156,7 @@ pub struct PyGradientBoostingRegressor {
 #[pymethods]
 impl PyGradientBoostingRegressor {
     #[new]
+    #[allow(clippy::too_many_arguments)] // scikit-learn API compatibility requires matching argument count
     #[pyo3(signature = (
         n_estimators=100,
         learning_rate=0.1,

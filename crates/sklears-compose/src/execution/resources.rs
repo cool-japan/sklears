@@ -622,9 +622,15 @@ pub enum ResourceHealth {
     /// Resources are healthy
     Healthy,
     /// Resources have warnings
-    Warning { reason: String },
+    Warning {
+        /// The reason.
+        reason: String,
+    },
     /// Resources are in critical state
-    Critical { reason: String },
+    Critical {
+        /// The reason.
+        reason: String,
+    },
     /// Resources are unavailable
     Unavailable,
 }
@@ -696,7 +702,7 @@ impl ResourceMonitor for SystemResourceMonitor {
     }
 
     fn collect_metrics(&self) -> ResourceMetrics {
-        /// ResourceMetrics
+        // ResourceMetrics
         ResourceMetrics {
             timestamp: SystemTime::now(),
             cpu: collect_cpu_metrics(),
@@ -785,7 +791,7 @@ fn detect_available_disk_space() -> u64 {
             // ... other fields omitted for brevity
         }
 
-        extern "C" {
+        unsafe extern "C" {
             fn statvfs(path: *const c_char, buf: *mut StatVfs) -> i32;
         }
 
@@ -874,7 +880,7 @@ mod tests {
     }
 
     fn create_test_task() -> ExecutionTask {
-        /// ExecutionTask
+        // ExecutionTask
         ExecutionTask {
             id: "test_task_1".to_string(),
             task_type: TaskType::Computation,

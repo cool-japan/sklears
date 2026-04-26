@@ -460,6 +460,7 @@ impl DropoutCalibrator {
     }
 
     /// Apply dropout mask
+    #[allow(dead_code)] // intentionally deferred: dropout regularization not yet called during training
     fn apply_dropout(&self, activations: &Array1<Float>) -> Array1<Float> {
         let _rng_instance = thread_rng();
         let scale = 1.0 / (1.0 - self.dropout_prob);

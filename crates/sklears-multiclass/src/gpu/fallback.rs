@@ -185,6 +185,7 @@ impl GpuMatrixOps for CpuMatrixOps {
 
 /// CPU-based batch prediction (fallback)
 pub struct CpuBatchPredict<P> {
+    #[allow(dead_code)] // predictor accessed via GPU/CPU dispatch path not yet wired
     predictor: P,
 }
 

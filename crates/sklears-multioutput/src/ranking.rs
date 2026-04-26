@@ -109,7 +109,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView2<'_, i32>> for IndependentLabelPredict
     type Fitted = IndependentLabelPrediction<IndependentLabelPredictionTrained>;
 
     fn fit(self, x: &ArrayView2<'_, Float>, y: &ArrayView2<'_, i32>) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
         let (y_samples, n_labels) = y.dim();
 
         if n_samples != y_samples {
@@ -173,7 +173,7 @@ impl IndependentLabelPrediction<Untrained> {
         &self,
         x: &ArrayView2<'_, Float>,
         y_label: &ArrayView1<'_, i32>,
-        rng: &mut scirs2_core::random::CoreRandom,
+        _rng: &mut scirs2_core::random::CoreRandom,
     ) -> SklResult<BinaryClassifierModel> {
         let (n_samples, n_features) = x.dim();
 
@@ -190,7 +190,7 @@ impl IndependentLabelPrediction<Untrained> {
 
         // Normalize features
         let mut x_normalized = x.to_owned();
-        for (i, mut row) in x_normalized.rows_mut().into_iter().enumerate() {
+        for mut row in x_normalized.rows_mut().into_iter() {
             row -= &feature_means;
             row /= &feature_stds;
         }
@@ -278,9 +278,9 @@ impl IndependentLabelPrediction<Untrained> {
         let n_labels = y.ncols();
         let mut thresholds = Vec::new();
 
-        for label_idx in 0..n_labels {
+        for (label_idx, classifier) in classifiers.iter().enumerate().take(n_labels) {
             let y_true = y.column(label_idx);
-            let y_scores = self.predict_probabilities_single_label(x, &classifiers[label_idx])?;
+            let y_scores = self.predict_probabilities_single_label(x, classifier)?;
 
             let mut best_threshold = 0.5;
             let mut best_accuracy = 0.0;
@@ -323,9 +323,9 @@ impl IndependentLabelPrediction<Untrained> {
         let n_labels = y.ncols();
         let mut thresholds = Vec::new();
 
-        for label_idx in 0..n_labels {
+        for (label_idx, classifier) in classifiers.iter().enumerate().take(n_labels) {
             let y_true = y.column(label_idx);
-            let y_scores = self.predict_probabilities_single_label(x, &classifiers[label_idx])?;
+            let y_scores = self.predict_probabilities_single_label(x, classifier)?;
 
             let mut best_threshold = 0.5;
             let mut best_fscore = 0.0;
@@ -412,7 +412,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<i32>>
     for IndependentLabelPrediction<IndependentLabelPredictionTrained>
 {
     fn predict(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<i32>> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
         let mut predictions = Array2::<i32>::zeros((n_samples, self.state.n_labels));
 
         for label_idx in 0..self.state.n_labels {

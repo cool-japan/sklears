@@ -13,6 +13,7 @@ use sklears_datasets::{
 
 /// Generate isotropic Gaussian blobs for clustering
 #[pyfunction]
+#[allow(clippy::too_many_arguments)] // scikit-learn API compatibility requires matching argument count
 #[pyo3(signature = (
     n_samples=100,
     n_features=2,
@@ -47,6 +48,7 @@ fn make_blobs_py<'py>(
 
 /// Generate a random classification problem
 #[pyfunction]
+#[allow(clippy::too_many_arguments)] // scikit-learn API compatibility requires matching argument count
 #[pyo3(signature = (
     n_samples=100,
     n_features=20,
@@ -105,6 +107,7 @@ fn make_classification_py<'py>(
 
 /// Generate a random regression problem
 #[pyfunction]
+#[allow(clippy::too_many_arguments)] // scikit-learn API compatibility requires matching argument count
 #[pyo3(signature = (
     n_samples=100,
     n_features=100,

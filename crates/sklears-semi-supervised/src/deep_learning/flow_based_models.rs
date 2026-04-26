@@ -406,12 +406,10 @@ impl NormalizingFlow<Untrained> {
 
         // Training loop (simplified)
         for iteration in 0..self.max_iter {
-            let mut total_loss = 0.0;
-
             // Supervised loss on labeled data
             let mut supervised_loss = 0.0;
             for &idx in &labeled_indices {
-                let features = self.forward_impl(&x.row(idx))?;
+                let _features = self.forward_impl(&x.row(idx))?;
                 let probs = self.classify(&x.row(idx))?;
 
                 // Cross-entropy loss (simplified)
@@ -433,7 +431,7 @@ impl NormalizingFlow<Untrained> {
             }
             unsupervised_loss /= n_samples as f64;
 
-            total_loss = supervised_loss + self.reg_param * unsupervised_loss;
+            let total_loss = supervised_loss + self.reg_param * unsupervised_loss;
 
             // Simple update (in practice, you'd use proper gradient computation)
             if iteration % 10 == 0 {
@@ -501,7 +499,8 @@ impl NormalizingFlow<NormalizingFlowTrained> {
     }
 
     /// Forward pass through flow
-    fn forward(&self, x: &ArrayView1<f64>) -> SklResult<(Array1<f64>, f64)> {
+    #[allow(dead_code)]
+    pub(crate) fn forward(&self, x: &ArrayView1<f64>) -> SklResult<(Array1<f64>, f64)> {
         let mut current = x.to_owned();
         let mut total_log_det = 0.0;
 
@@ -673,7 +672,7 @@ mod tests {
         let result = layer.forward(&x.view());
         assert!(result.is_ok());
 
-        let (output, log_det) = result.expect("operation should succeed");
+        let (output, _log_det) = result.expect("operation should succeed");
         assert_eq!(output.len(), 4);
         // Check that masked elements are unchanged
         assert_eq!(output[0], x[0]);

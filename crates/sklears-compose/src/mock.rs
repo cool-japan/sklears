@@ -9,6 +9,87 @@ use sklears_core::{
 
 use crate::{PipelinePredictor, PipelineStep};
 
+/// Passthrough transformer — returns input unchanged.
+///
+/// Used in `ColumnTransformer` when the `"passthrough"` transformer name is
+/// specified.  It implements `PipelineStep` so it can be inserted directly
+/// into a pipeline without performing any computation.
+#[derive(Debug, Clone, Default)]
+pub struct PassthroughTransformer;
+
+impl PassthroughTransformer {
+    /// Create a new `PassthroughTransformer`.
+    #[must_use]
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Transform<ArrayView2<'_, Float>, Array2<f64>> for PassthroughTransformer {
+    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
+        Ok(x.mapv(|v| v))
+    }
+}
+
+impl PipelineStep for PassthroughTransformer {
+    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
+        Transform::transform(self, x)
+    }
+
+    fn fit(
+        &mut self,
+        _x: &ArrayView2<'_, Float>,
+        _y: Option<&ArrayView1<'_, Float>>,
+    ) -> SklResult<()> {
+        Ok(())
+    }
+
+    fn clone_step(&self) -> Box<dyn PipelineStep> {
+        Box::new(self.clone())
+    }
+}
+
+/// Drop transformer — discards all columns, returning a 0-column array.
+///
+/// Used in `ColumnTransformer` when the `"drop"` transformer name is
+/// specified.  The resulting array has the same number of rows as the input
+/// but zero columns, which `concatenate_results` will handle correctly by
+/// contributing no features to the output.
+#[derive(Debug, Clone, Default)]
+pub struct DropTransformer;
+
+impl DropTransformer {
+    /// Create a new `DropTransformer`.
+    #[must_use]
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Transform<ArrayView2<'_, Float>, Array2<f64>> for DropTransformer {
+    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
+        Ok(Array2::zeros((x.nrows(), 0)))
+    }
+}
+
+impl PipelineStep for DropTransformer {
+    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
+        Transform::transform(self, x)
+    }
+
+    fn fit(
+        &mut self,
+        _x: &ArrayView2<'_, Float>,
+        _y: Option<&ArrayView1<'_, Float>>,
+    ) -> SklResult<()> {
+        Ok(())
+    }
+
+    fn clone_step(&self) -> Box<dyn PipelineStep> {
+        Box::new(self.clone())
+    }
+}
+
 /// Mock transformer for demonstration
 #[derive(Debug, Clone)]
 pub struct MockTransformer {

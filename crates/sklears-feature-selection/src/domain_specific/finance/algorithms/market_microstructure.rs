@@ -10,10 +10,7 @@ type Result<T> = SklResult<T>;
 type Float = f64;
 
 /// Compute order flow scores
-pub(crate) fn compute_order_flow_scores(
-    x: &Array2<Float>,
-    y: &Array1<Float>,
-) -> Result<Array1<Float>> {
+pub fn compute_order_flow_scores(x: &Array2<Float>, y: &Array1<Float>) -> Result<Array1<Float>> {
     let n_features = x.ncols();
     let mut scores = Array1::zeros(n_features);
 
@@ -60,7 +57,7 @@ pub(crate) fn compute_order_flow_scores(
 }
 
 /// Compute bid-ask spread scores
-pub(crate) fn compute_bid_ask_scores(
+pub fn compute_bid_ask_scores(
     x: &Array2<Float>,
     _y: &Array1<Float>,
     spread_pct: Float,
@@ -100,7 +97,7 @@ pub(crate) fn compute_bid_ask_scores(
 }
 
 /// Compute market impact scores
-pub(crate) fn compute_market_impact_scores(
+pub fn compute_market_impact_scores(
     x: &Array2<Float>,
     _y: &Array1<Float>,
 ) -> Result<Array1<Float>> {
@@ -135,7 +132,7 @@ pub(crate) fn compute_market_impact_scores(
 }
 
 /// Compute transaction cost scores
-pub(crate) fn compute_transaction_cost_scores(
+pub fn compute_transaction_cost_scores(
     x: &Array2<Float>,
     _y: &Array1<Float>,
 ) -> Result<Array1<Float>> {
@@ -170,10 +167,7 @@ pub(crate) fn compute_transaction_cost_scores(
 }
 
 /// Compute cross-asset correlation scores
-pub(crate) fn compute_cross_asset_scores(
-    x: &Array2<Float>,
-    _y: &Array1<Float>,
-) -> Result<Array1<Float>> {
+pub fn compute_cross_asset_scores(x: &Array2<Float>, _y: &Array1<Float>) -> Result<Array1<Float>> {
     let n_features = x.ncols();
     let mut scores = Array1::zeros(n_features);
 
@@ -201,10 +195,7 @@ pub(crate) fn compute_cross_asset_scores(
 }
 
 /// Compute spillover scores
-pub(crate) fn compute_spillover_scores(
-    x: &Array2<Float>,
-    _y: &Array1<Float>,
-) -> Result<Array1<Float>> {
+pub fn compute_spillover_scores(x: &Array2<Float>, _y: &Array1<Float>) -> Result<Array1<Float>> {
     let n_features = x.ncols();
     let mut scores = Array1::zeros(n_features);
 

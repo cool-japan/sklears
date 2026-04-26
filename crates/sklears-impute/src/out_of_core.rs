@@ -1,4 +1,6 @@
 //! Out-of-core imputation algorithms for datasets larger than memory
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides imputation methods that can process datasets that don't
 //! fit entirely in memory by streaming data from disk and processing it in chunks.
@@ -473,7 +475,7 @@ impl OutOfCoreSimpleImputer<Untrained> {
                         sorted_values
                             .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                         let mid = sorted_values.len() / 2;
-                        if sorted_values.len() % 2 == 0 {
+                        if sorted_values.len().is_multiple_of(2) {
                             (sorted_values[mid - 1] + sorted_values[mid]) / 2.0
                         } else {
                             sorted_values[mid]
@@ -732,7 +734,7 @@ impl OutOfCoreKNNImputer<Untrained> {
     fn build_neighbor_index(&self, X: &Array2<f64>) -> Result<NeighborIndex, SklearsError> {
         let (n_samples, n_features) = X.dim();
         let chunk_size = self.config.chunk_size;
-        let num_chunks = (n_samples + chunk_size - 1) / chunk_size;
+        let num_chunks = n_samples.div_ceil(chunk_size);
 
         // Compute chunk centroids for approximate search
         let mut chunk_centroids = Array2::<f64>::zeros((num_chunks, n_features));
@@ -1182,7 +1184,7 @@ mod tests {
         let config = OutOfCoreConfig {
             max_memory_usage: 500_000_000,
             chunk_size: 50_000,
-            temp_dir: PathBuf::from("/tmp/test"),
+            temp_dir: std::env::temp_dir().join("test"),
             ..Default::default()
         };
 
@@ -1190,6 +1192,6 @@ mod tests {
 
         assert_eq!(imputer.config.max_memory_usage, 500_000_000);
         assert_eq!(imputer.config.chunk_size, 50_000);
-        assert_eq!(imputer.config.temp_dir, PathBuf::from("/tmp/test"));
+        assert_eq!(imputer.config.temp_dir, std::env::temp_dir().join("test"));
     }
 }

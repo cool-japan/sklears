@@ -15,16 +15,12 @@ use sklears_core::{
 };
 use std::collections::HashMap;
 
-/// Helper function to generate random f64 from scirs2_core::random::RngCore
-fn gen_f64(rng: &mut impl scirs2_core::random::RngCore) -> f64 {
-    let mut bytes = [0u8; 8];
-    rng.fill_bytes(&mut bytes);
-    f64::from_le_bytes(bytes) / f64::from_le_bytes([255u8; 8])
-}
+/// Type alias for labelset mapping (forward and inverse)
+type LabelsetMappings = (HashMap<Vec<usize>, usize>, HashMap<usize, Vec<usize>>);
 
-/// Helper function to generate random value in range from scirs2_core::random::RngCore
+/// Helper function to generate random value in range from scirs2_core::random::Rng
 fn gen_range_usize(
-    rng: &mut impl scirs2_core::random::RngCore,
+    rng: &mut impl scirs2_core::random::Rng,
     range: std::ops::Range<usize>,
 ) -> usize {
     let mut bytes = [0u8; 8];
@@ -130,6 +126,7 @@ pub enum LabelCorrelationMethod {
 }
 
 /// Multi-label ensemble classifier
+#[allow(dead_code)] // planned API fields
 pub struct MultiLabelEnsembleClassifier<State = Untrained> {
     config: MultiLabelEnsembleConfig,
     state: std::marker::PhantomData<State>,
@@ -264,10 +261,7 @@ impl MultiLabelEnsembleClassifier<Untrained> {
     }
 
     /// Extract unique labelsets from multi-label target matrix
-    fn extract_labelsets(
-        &self,
-        y: &Array2<usize>,
-    ) -> SklResult<(HashMap<Vec<usize>, usize>, HashMap<usize, Vec<usize>>)> {
+    fn extract_labelsets(&self, y: &Array2<usize>) -> SklResult<LabelsetMappings> {
         let mut labelset_mapping = HashMap::new();
         let mut inverse_mapping = HashMap::new();
         let mut labelset_id = 0;
@@ -389,6 +383,7 @@ impl Estimator for MultiLabelEnsembleClassifier<Untrained> {
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 impl Fit<Array2<f64>, Array2<usize>> for MultiLabelEnsembleClassifier<Untrained> {
     type Fitted = MultiLabelEnsembleClassifier<Trained>;
 
@@ -526,6 +521,7 @@ impl Fit<Array2<f64>, Array2<usize>> for MultiLabelEnsembleClassifier<Untrained>
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 impl Predict<Array2<f64>, MultiLabelPredictionResults> for MultiLabelEnsembleClassifier<Trained> {
     fn predict(&self, X: &Array2<f64>) -> SklResult<MultiLabelPredictionResults> {
         let base_classifiers = self.base_classifiers.as_ref().expect("Model is trained");
@@ -553,7 +549,7 @@ impl Predict<Array2<f64>, MultiLabelPredictionResults> for MultiLabelEnsembleCla
             }
 
             LabelTransformationStrategy::LabelPowerset => {
-                if let (Some(labelset_mapping), Some(inverse_labelset_mapping)) =
+                if let (Some(_labelset_mapping), Some(inverse_labelset_mapping)) =
                     (&self.labelset_mapping, &self.inverse_labelset_mapping)
                 {
                     let labelset_predictions = base_classifiers[0].predict(X)?;
@@ -616,6 +612,7 @@ impl Predict<Array2<f64>, MultiLabelPredictionResults> for MultiLabelEnsembleCla
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 impl MultiLabelEnsembleClassifier<Trained> {
     /// Get the number of labels
     pub fn n_labels(&self) -> usize {

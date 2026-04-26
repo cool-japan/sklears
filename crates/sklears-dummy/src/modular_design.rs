@@ -6,7 +6,6 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::error::SklearsError;
-use sklears_core::traits::{Fit, Predict};
 use std::collections::HashMap;
 
 /// Core trait for baseline strategies
@@ -57,7 +56,7 @@ pub trait ClassificationStrategy: BaselineStrategy<Prediction = i32> {
     /// Get decision scores if supported
     fn decision_function(
         &self,
-        fitted_data: &Self::FittedData,
+        _fitted_data: &Self::FittedData,
         x: &ArrayView2<f64>,
     ) -> Result<Vec<f64>, SklearsError> {
         // Default implementation returns 0.0 for all predictions
@@ -72,7 +71,7 @@ pub trait RegressionStrategy: BaselineStrategy<Prediction = f64> {
         &self,
         fitted_data: &Self::FittedData,
         x: &ArrayView2<f64>,
-        confidence: f64,
+        _confidence: f64,
     ) -> Result<Vec<(f64, f64)>, SklearsError> {
         // Default implementation returns point predictions as intervals
         let predictions = self.predict(fitted_data, x)?;
@@ -778,7 +777,7 @@ mod tests {
             .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 10.0));
+        assert!(predictions.iter().all(|&p| (0.0..=10.0).contains(&p)));
     }
 
     #[test]

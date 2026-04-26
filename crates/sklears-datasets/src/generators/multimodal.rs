@@ -11,6 +11,17 @@ use scirs2_core::random::{Normal, RngExt};
 use sklears_core::error::{Result, SklearsError};
 use std::f64::consts::PI;
 
+/// Result type for multi-agent environment: (states, actions, rewards, cumulative_rewards)
+type MultiAgentResult = (Array3<usize>, Array3<usize>, Array2<f64>, Array1<f64>);
+/// Result type for communication cost datasets: (upload, download, round_times, bandwidth)
+type CommCostResult = (Array2<f64>, Array2<f64>, Array1<f64>, Array1<f64>);
+/// Result type for sensor fusion dataset: (sensor_data, timestamps, events)
+type SensorFusionResult = (Vec<Array2<f64>>, Array1<f64>, Array1<usize>);
+/// Result type for multimodal alignment dataset: (modality_data, alignment, scores)
+type MultimodalAlignResult = (Vec<Array2<f64>>, Array2<f64>, Array1<f64>);
+/// Result type for cross-modal retrieval dataset: (source, target, labels, difficulty_scores)
+type CrossModalRetrievalResult = (Array2<f64>, Array2<f64>, Array1<usize>, Array1<f64>);
+
 /// Multi-agent environment configuration
 #[derive(Debug, Clone)]
 pub struct MultiAgentConfig {
@@ -28,7 +39,7 @@ pub fn make_multi_agent_environment(
     n_episodes: usize,
     episode_length: usize,
     random_state: Option<u64>,
-) -> Result<(Array3<usize>, Array3<usize>, Array2<f64>, Array1<f64>)> {
+) -> Result<MultiAgentResult> {
     if config.n_agents == 0 || config.n_states == 0 || config.n_actions == 0 {
         return Err(SklearsError::InvalidInput(
             "n_agents, n_states, and n_actions must be positive".to_string(),
@@ -179,7 +190,7 @@ pub fn make_vision_language_dataset(
         for h in 0..height {
             for w in 0..width {
                 let sample: f64 = rng.sample(normal);
-                images[[i, h, w]] = sample.max(0.0).min(1.0);
+                images[[i, h, w]] = sample.clamp(0.0, 1.0);
             }
         }
     }
@@ -314,7 +325,7 @@ pub fn make_communication_cost_datasets(
     n_rounds: usize,
     model_size_mb: f64,
     random_state: Option<u64>,
-) -> Result<(Array2<f64>, Array2<f64>, Array1<f64>, Array1<f64>)> {
+) -> Result<CommCostResult> {
     if config.n_clients == 0 || n_rounds == 0 {
         return Err(SklearsError::InvalidInput(
             "n_clients and n_rounds must be positive".to_string(),
@@ -427,7 +438,7 @@ pub fn make_sensor_fusion_dataset(
     temporal_length: usize,
     sync_accuracy: f64, // Synchronization accuracy between sensors
     random_state: Option<u64>,
-) -> Result<(Vec<Array2<f64>>, Array1<f64>, Array1<usize>)> {
+) -> Result<SensorFusionResult> {
     if n_samples == 0 || sensor_types.is_empty() || temporal_length == 0 {
         return Err(SklearsError::InvalidInput(
             "n_samples, sensor_types, and temporal_length must be positive".to_string(),
@@ -470,11 +481,8 @@ pub fn make_sensor_fusion_dataset(
         .collect();
 
     // Initialize sensor data arrays
-    for i in 0..n_sensors {
-        sensor_data.push(Array2::zeros((
-            n_samples,
-            temporal_length * sensor_dimensions[i],
-        )));
+    for &dim in &sensor_dimensions {
+        sensor_data.push(Array2::zeros((n_samples, temporal_length * dim)));
     }
 
     let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
@@ -525,7 +533,7 @@ pub fn make_sensor_fusion_dataset(
                         }
                         "camera" => {
                             let pixel_intensity = 0.5 + 0.3 * base_signal;
-                            pixel_intensity.max(0.0).min(1.0)
+                            pixel_intensity.clamp(0.0, 1.0)
                         }
                         "lidar" => {
                             let distance = 5.0 + 2.0 * base_signal + 0.5 * (dim as f64);
@@ -575,7 +583,7 @@ pub fn make_multimodal_alignment_dataset(
     alignment_strength: f64,
     cross_modal_noise: f64,
     random_state: Option<u64>,
-) -> Result<(Vec<Array2<f64>>, Array2<f64>, Array1<f64>)> {
+) -> Result<MultimodalAlignResult> {
     if n_samples == 0 || modality_types.is_empty() {
         return Err(SklearsError::InvalidInput(
             "n_samples and modality_types must be positive".to_string(),
@@ -619,8 +627,8 @@ pub fn make_multimodal_alignment_dataset(
         .collect();
 
     // Initialize modality data arrays
-    for i in 0..n_modalities {
-        modality_data.push(Array2::zeros((n_samples, modality_dimensions[i])));
+    for &dim in &modality_dimensions {
+        modality_data.push(Array2::zeros((n_samples, dim)));
     }
 
     // Cross-modal alignment matrix
@@ -705,6 +713,8 @@ pub fn make_multimodal_alignment_dataset(
                 let mut norm_i_sq = 0.0;
                 let mut norm_j_sq = 0.0;
 
+                // k is used for arithmetic indexing into two different arrays
+                #[allow(clippy::needless_range_loop)]
                 for k in 0..shared_len {
                     let val_i = modality_embeddings[i][k];
                     let val_j = modality_embeddings[j][k];
@@ -739,7 +749,7 @@ pub fn make_cross_modal_retrieval_dataset(
     n_distractors: usize,      // Number of negative examples per positive
     retrieval_difficulty: f64, // 0.0 (easy) to 1.0 (hard)
     random_state: Option<u64>,
-) -> Result<(Array2<f64>, Array2<f64>, Array1<usize>, Array1<f64>)> {
+) -> Result<CrossModalRetrievalResult> {
     if n_samples == 0 || n_distractors == 0 {
         return Err(SklearsError::InvalidInput(
             "n_samples and n_distractors must be positive".to_string(),
@@ -943,7 +953,7 @@ mod tests {
         // Check image values are in [0, 1]
         for &pixel in images.iter() {
             assert!(
-                pixel >= 0.0 && pixel <= 1.0,
+                (0.0..=1.0).contains(&pixel),
                 "Image pixels should be in [0, 1]"
             );
         }
@@ -956,7 +966,7 @@ mod tests {
         // Check alignment scores are in [0, 1]
         for &score in alignment_scores.iter() {
             assert!(
-                score >= 0.0 && score <= 1.0,
+                (0.0..=1.0).contains(&score),
                 "Alignment scores should be in [0, 1]"
             );
         }
@@ -979,7 +989,7 @@ mod tests {
         // Check sync scores are reasonable
         for &score in sync_scores.iter() {
             assert!(
-                score >= 0.0 && score <= 1.0,
+                (0.0..=1.0).contains(&score),
                 "Sync scores should be in [0, 1]"
             );
         }
@@ -1045,7 +1055,7 @@ mod tests {
         // Check fusion quality is in [0, 1]
         for &quality in fusion_quality.iter() {
             assert!(
-                quality >= 0.0 && quality <= 1.0,
+                (0.0..=1.0).contains(&quality),
                 "Fusion quality should be in [0, 1]"
             );
         }
@@ -1074,7 +1084,7 @@ mod tests {
         // Check alignment scores are reasonable
         for &score in alignment_scores.iter() {
             assert!(
-                score >= 0.0 && score <= 1.0,
+                (0.0..=1.0).contains(&score),
                 "Alignment scores should be in [0, 1]"
             );
         }
@@ -1109,7 +1119,7 @@ mod tests {
         // Check retrieval scores are reasonable
         for &score in retrieval_scores.iter() {
             assert!(
-                score >= -1.0 && score <= 1.0,
+                (-1.0..=1.0).contains(&score),
                 "Retrieval scores should be in [-1, 1] (cosine similarity)"
             );
         }

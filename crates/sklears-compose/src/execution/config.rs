@@ -41,8 +41,11 @@ pub struct ResourceConstraints {
 /// I/O bandwidth limits
 #[derive(Debug, Clone)]
 pub struct IoLimits {
+    /// The max read bps.
     pub max_read_bps: u64,
+    /// The max write bps.
     pub max_write_bps: u64,
+    /// The max concurrent io.
     pub max_concurrent_io: usize,
 }
 
@@ -87,19 +90,29 @@ pub struct FaultToleranceConfig {
 #[derive(Debug, Clone)]
 pub enum BackoffStrategy {
     /// Fixed delay between retries
-    Fixed { delay: Duration },
+    Fixed {
+        /// The delay.
+        delay: Duration,
+    },
     /// Exponential backoff with base delay
     Exponential {
+        /// The base delay.
         base_delay: Duration,
+        /// The multiplier.
         multiplier: f64,
     },
     /// Linear backoff with increment
     Linear {
+        /// The base delay.
         base_delay: Duration,
+        /// The increment.
         increment: Duration,
     },
     /// Custom backoff function
-    Custom { delays: Vec<Duration> },
+    Custom {
+        /// The delays.
+        delays: Vec<Duration>,
+    },
 }
 
 /// Health check configuration
@@ -202,6 +215,7 @@ pub struct PerformanceTuning {
 /// Optimization levels
 #[derive(Debug, Clone)]
 pub enum OptimizationLevel {
+    /// Variant value.
     None,
     /// Low
     Low,
@@ -216,6 +230,7 @@ pub enum OptimizationLevel {
 /// Prefetching strategies
 #[derive(Debug, Clone)]
 pub enum PrefetchingStrategy {
+    /// Variant value.
     None,
     /// Sequential
     Sequential,
@@ -228,6 +243,7 @@ pub enum PrefetchingStrategy {
 /// Caching strategies
 #[derive(Debug, Clone)]
 pub enum CachingStrategy {
+    /// Variant value.
     None,
     /// LRU
     LRU,

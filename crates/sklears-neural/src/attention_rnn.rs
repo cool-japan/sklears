@@ -64,6 +64,7 @@ pub enum AttentionType {
 /// Combines LSTM with attention mechanism to allow the model to focus on
 /// relevant parts of the input sequence during processing.
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fields stored for future use and introspection
 pub struct AttentionLSTM<T: FloatBounds> {
     /// Base LSTM cell
     lstm: LSTMCell<T>,
@@ -149,8 +150,6 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> AttentionLSTM<T> {
         input: &Array2<T>,
         training: bool,
     ) -> NeuralResult<Array2<T>> {
-        let batch_size = input.nrows();
-
         // Standard LSTM forward pass
         let lstm_output = self.lstm.forward(input, training)?;
 
@@ -245,6 +244,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> AttentionLSTM<T> {
 
 /// Attention-enhanced GRU cell
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fields stored for future use and introspection
 pub struct AttentionGRU<T: FloatBounds> {
     /// Base GRU cell
     gru: GRUCell<T>,
@@ -360,6 +360,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> AttentionGRU<T> {
 /// Implements a hierarchical attention mechanism that operates at multiple levels,
 /// typically used for document classification with word-level and sentence-level attention.
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // Fields retained for full model state and future API completeness
 pub struct HierarchicalAttentionNetwork<T: FloatBounds> {
     /// Word-level LSTM
     word_lstm: AttentionLSTM<T>,
@@ -521,6 +522,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> HierarchicalAttention
 
 /// Self-attention mechanism for sequence modeling
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // Fields retained for full model state and future API completeness
 pub struct SelfAttentionRNN<T: FloatBounds> {
     /// Base RNN (can be LSTM or GRU)
     rnn: AttentionLSTM<T>,
@@ -614,7 +616,6 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> SelfAttentionRNN<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
     use scirs2_core::essentials::Normal;
     use scirs2_core::ndarray::Array3;
     use scirs2_core::random::thread_rng;
@@ -644,7 +645,7 @@ mod tests {
 
         let input = Array2::from_shape_fn((5, 10), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         let output = lstm.forward_with_attention(&input, false);
         assert!(output.is_ok());
@@ -663,7 +664,7 @@ mod tests {
 
         let document = Array3::from_shape_fn((2, 5, 96), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("construction should succeed"))
         }); // 2 docs, 5 sentences, 96 word features
         let output = han.forward_hierarchical(&document, false);
         assert!(output.is_ok());
@@ -681,7 +682,7 @@ mod tests {
 
         let input = Array3::from_shape_fn((2, 8, 10), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("construction should succeed"))
         }); // batch, seq, features
         let output = self_attn_rnn.forward_self_attention(&input, false);
         assert!(output.is_ok());
@@ -700,13 +701,13 @@ mod tests {
         // Set encoder states
         let encoder_states = Array3::from_shape_fn((1, 5, 64), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         lstm.set_encoder_states(encoder_states);
 
         let input = Array2::from_shape_fn((1, 10), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         let _output = lstm
             .forward_with_attention(&input, false)

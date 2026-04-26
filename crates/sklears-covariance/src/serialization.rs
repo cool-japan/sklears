@@ -451,11 +451,7 @@ impl ModelRegistry {
         match compression {
             CompressionMethod::None => Ok(data),
             CompressionMethod::Gzip => {
-                use std::io::Write;
-                let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
-                encoder.write_all(&data)
-                    .map_err(|e| SklearsError::InvalidInput(format!("Gzip compression failed: {}", e)))?;
-                encoder.finish()
+                oxiarc_deflate::gzip_compress(&data, 6)
                     .map_err(|e| SklearsError::InvalidInput(format!("Gzip compression failed: {}", e)))
             }
             _ => {
@@ -470,12 +466,8 @@ impl ModelRegistry {
         match compression {
             CompressionMethod::None => Ok(data.to_vec()),
             CompressionMethod::Gzip => {
-                use std::io::Read;
-                let mut decoder = flate2::read::GzDecoder::new(data);
-                let mut decompressed = Vec::new();
-                decoder.read_to_end(&mut decompressed)
-                    .map_err(|e| SklearsError::InvalidInput(format!("Gzip decompression failed: {}", e)))?;
-                Ok(decompressed)
+                oxiarc_deflate::gzip_decompress(data)
+                    .map_err(|e| SklearsError::InvalidInput(format!("Gzip decompression failed: {}", e)))
             }
             _ => {
                 // For now, fall back to no compression for unsupported methods

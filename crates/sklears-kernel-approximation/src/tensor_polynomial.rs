@@ -1,6 +1,12 @@
 //! Tensor product polynomial features for multi-dimensional feature interactions
 
 use scirs2_core::ndarray::Array2;
+
+/// Tensor index structure: outer Vec = terms, inner Vec = dimensions, innermost Vec = powers per dim
+type TensorIndices = Vec<Vec<Vec<u32>>>;
+
+/// Contraction mapping: for each contracted term, list of original term indices
+type ContractionMap = Vec<Vec<usize>>;
 use sklears_core::{
     error::{Result, SklearsError},
     prelude::{Fit, Transform},
@@ -60,8 +66,8 @@ pub enum ContractionMethod {
 /// let X = array![[1.0, 2.0], [3.0, 4.0]];
 ///
 /// let tensor_poly = TensorPolynomialFeatures::new(2, 2);
-/// let fitted_tensor = tensor_poly.fit(&X, &()).unwrap();
-/// let X_transformed = fitted_tensor.transform(&X).unwrap();
+/// let fitted_tensor = tensor_poly.fit(&X, &()).expect("fit should succeed with valid tensor polynomial input");
+/// let X_transformed = fitted_tensor.transform(&X).expect("transform should succeed after tensor polynomial fitting");
 /// ```
 #[derive(Debug, Clone)]
 /// TensorPolynomialFeatures
@@ -314,7 +320,7 @@ impl TensorPolynomialFeatures<Untrained> {
     }
 
     /// Apply tensor ordering to indices
-    fn apply_tensor_ordering(&self, indices: &mut Vec<Vec<Vec<u32>>>) {
+    fn apply_tensor_ordering(&self, indices: &mut [Vec<Vec<u32>>]) {
         match self.tensor_ordering {
             TensorOrdering::Lexicographic => {
                 indices.sort_by(|a, b| {
@@ -380,7 +386,7 @@ impl TensorPolynomialFeatures<Untrained> {
     fn apply_contraction(
         &self,
         tensor_indices: &[Vec<Vec<u32>>],
-    ) -> Result<(Vec<Vec<Vec<u32>>>, Vec<Vec<usize>>)> {
+    ) -> Result<(TensorIndices, ContractionMap)> {
         match &self.contraction_method {
             ContractionMethod::None => {
                 let identity_map: Vec<Vec<usize>> =
@@ -402,7 +408,7 @@ impl TensorPolynomialFeatures<Untrained> {
         &self,
         tensor_indices: &[Vec<Vec<u32>>],
         contraction_indices: &[usize],
-    ) -> Result<(Vec<Vec<Vec<u32>>>, Vec<Vec<usize>>)> {
+    ) -> Result<(TensorIndices, ContractionMap)> {
         let mut contracted_indices = Vec::new();
         let mut contraction_map = Vec::new();
 
@@ -443,7 +449,7 @@ impl TensorPolynomialFeatures<Untrained> {
         &self,
         tensor_indices: &[Vec<Vec<u32>>],
         target_rank: usize,
-    ) -> Result<(Vec<Vec<Vec<u32>>>, Vec<Vec<usize>>)> {
+    ) -> Result<(TensorIndices, ContractionMap)> {
         if target_rank >= tensor_indices.len() {
             let identity_map: Vec<Vec<usize>> =
                 (0..tensor_indices.len()).map(|i| vec![i]).collect();
@@ -461,7 +467,7 @@ impl TensorPolynomialFeatures<Untrained> {
     fn contract_symmetric(
         &self,
         tensor_indices: &[Vec<Vec<u32>>],
-    ) -> Result<(Vec<Vec<Vec<u32>>>, Vec<Vec<usize>>)> {
+    ) -> Result<(TensorIndices, ContractionMap)> {
         let mut contracted_indices = Vec::new();
         let mut contraction_map = Vec::new();
         let mut used = vec![false; tensor_indices.len()];

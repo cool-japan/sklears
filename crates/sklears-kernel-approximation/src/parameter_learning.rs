@@ -1194,7 +1194,7 @@ mod tests {
             .expect("operation should succeed");
 
         assert!(result.best_score > 0.0);
-        assert!(result.parameter_history.len() >= 1);
+        assert!(!result.parameter_history.is_empty());
         // Note: May converge early, so we don't check exact length
     }
 
@@ -1240,7 +1240,7 @@ mod tests {
             .expect("operation should succeed");
 
         assert!(result.best_score >= 0.0);
-        assert!(result.parameter_history.len() > 0);
+        assert!(!result.parameter_history.is_empty());
     }
 
     #[test]

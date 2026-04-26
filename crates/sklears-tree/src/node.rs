@@ -111,6 +111,21 @@ impl CompactTreeNode {
     }
 }
 
+/// Per-node surrogate information stored alongside `CompactTree`.
+///
+/// When the primary split feature is NaN at predict time we need an ordered list
+/// of surrogate candidates.  We store them as a separate `Vec<Vec<SurrogateSplit>>`
+/// indexed by node index (parallel to `CompactTree::nodes`).  An empty inner `Vec`
+/// means "no surrogates for this node".  A `bool` fallback direction (`true` = Left)
+/// is also stored per node for the all-NaN case.
+#[derive(Debug, Clone, Default)]
+pub struct NodeSurrogates {
+    /// Surrogate splits per node index, sorted by descending agreement score.
+    pub surrogate_splits: Vec<SurrogateSplit>,
+    /// Majority fallback direction: `true` = Left, `false` = Right.
+    pub majority_direction: bool,
+}
+
 /// Compact tree representation for memory efficiency
 #[derive(Debug, Clone)]
 pub struct CompactTree {
@@ -122,33 +137,129 @@ pub struct CompactTree {
     pub n_features: usize,
     /// Tree depth
     pub depth: usize,
+    /// Per-node surrogate data for NaN-tolerant routing (parallel to `nodes`).
+    /// Length == 0 means surrogates are not configured (pure NaN = error or mean-fill
+    /// assumed upstream).  When non-empty it must equal `nodes.len()`.
+    pub node_surrogates: Vec<NodeSurrogates>,
 }
 
 impl CompactTree {
-    /// Create a new compact tree
+    /// Create a new compact tree without surrogate data.
     pub fn new(n_features: usize) -> Self {
         Self {
             nodes: Vec::new(),
             feature_importances: vec![0.0; n_features],
             n_features,
             depth: 0,
+            node_surrogates: Vec::new(),
         }
     }
 
-    /// Add a new node and return its index
+    /// Add a new node and return its index.
     pub fn add_node(&mut self, node: CompactTreeNode) -> u32 {
         let idx = self.nodes.len() as u32;
         self.nodes.push(node);
         idx
     }
 
-    /// Predict a single sample
+    /// Register surrogate splits for a specific node.
+    ///
+    /// `node_idx` must be a valid index into `self.nodes`.  `surrogates` should be
+    /// pre-sorted in descending agreement order.  Call this after all nodes have been
+    /// added so the lengths stay consistent.
+    pub fn set_node_surrogates(
+        &mut self,
+        node_idx: usize,
+        surrogates: Vec<SurrogateSplit>,
+        majority_direction: bool,
+    ) -> Result<()> {
+        // Lazily initialise the surrogate Vec to the current node count.
+        if self.node_surrogates.is_empty() && !self.nodes.is_empty() {
+            self.node_surrogates = vec![NodeSurrogates::default(); self.nodes.len()];
+        }
+
+        if node_idx >= self.node_surrogates.len() {
+            return Err(SklearsError::InvalidInput(format!(
+                "node_idx {node_idx} is out of range for surrogate storage (len={})",
+                self.node_surrogates.len()
+            )));
+        }
+
+        self.node_surrogates[node_idx] = NodeSurrogates {
+            surrogate_splits: surrogates,
+            majority_direction,
+        };
+        Ok(())
+    }
+
+    /// Determine the child index to visit from `current_idx`, handling NaN values.
+    ///
+    /// Returns the raw child value from the node (still 1-based before the `-1`
+    /// adjustment done by the caller) or an error.
+    fn route_node(&self, current_idx: usize, sample: &[f64]) -> Result<u32> {
+        let node = &self.nodes[current_idx];
+        let feature_idx = node.feature_idx() as usize;
+
+        if feature_idx >= sample.len() {
+            return Err(SklearsError::InvalidInput(
+                "Feature index out of bounds".to_string(),
+            ));
+        }
+
+        let feature_value = sample[feature_idx];
+        let threshold = node.threshold() as f64;
+
+        // Fast path: primary feature is finite.
+        if feature_value.is_finite() {
+            return Ok(if feature_value <= threshold {
+                node.left_child
+            } else {
+                node.right_child
+            });
+        }
+
+        // NaN path: try surrogates when available.
+        if !self.node_surrogates.is_empty() {
+            let ns = &self.node_surrogates[current_idx];
+            for surrogate in &ns.surrogate_splits {
+                let val = sample
+                    .get(surrogate.feature_idx)
+                    .copied()
+                    .unwrap_or(f64::NAN);
+                if val.is_finite() {
+                    let surrogate_goes_left = val <= surrogate.threshold;
+                    // `left_direction` encodes the correlation: if `true`, the surrogate's
+                    // "left" side (val <= threshold) corresponds to the primary split's left
+                    // side.  If `false` the surrogate is negatively correlated and its left
+                    // side corresponds to the primary split's right side.
+                    let goes_primary_left = surrogate_goes_left == surrogate.left_direction;
+                    return Ok(if goes_primary_left {
+                        node.left_child
+                    } else {
+                        node.right_child
+                    });
+                }
+            }
+            // All features NaN — use majority direction.
+            return Ok(if ns.majority_direction {
+                node.left_child
+            } else {
+                node.right_child
+            });
+        }
+
+        // Surrogates not configured and feature is NaN — treat as going left (default).
+        Ok(node.left_child)
+    }
+
+    /// Predict a single sample, routing NaN values through surrogate splits when
+    /// surrogate data has been registered via `set_node_surrogates`.
     pub fn predict_single(&self, sample: &[f64]) -> Result<f64> {
         if self.nodes.is_empty() {
             return Err(SklearsError::InvalidInput("Empty tree".to_string()));
         }
 
-        let mut current_idx = 0;
+        let mut current_idx = 0usize;
 
         loop {
             if current_idx >= self.nodes.len() {
@@ -161,26 +272,12 @@ impl CompactTree {
                 return Ok(node.prediction());
             }
 
-            let feature_idx = node.feature_idx() as usize;
-            if feature_idx >= sample.len() {
-                return Err(SklearsError::InvalidInput(
-                    "Feature index out of bounds".to_string(),
-                ));
-            }
+            let next_raw = self.route_node(current_idx, sample)?;
 
-            let feature_value = sample[feature_idx];
-            let threshold = node.threshold() as f64;
-
-            if feature_value <= threshold {
-                current_idx = node.left_child as usize;
-            } else {
-                current_idx = node.right_child as usize;
-            }
-
-            if current_idx == 0 {
+            if next_raw == 0 {
                 return Err(SklearsError::InvalidInput("Invalid child node".to_string()));
             }
-            current_idx -= 1; // Convert to 0-based indexing
+            current_idx = (next_raw - 1) as usize; // Convert to 0-based indexing
         }
     }
 
@@ -364,6 +461,15 @@ impl CompactEnsemble {
     }
 }
 
+/// Direction enum for NaN-aware surrogate routing
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SplitDirection {
+    /// Route the sample to the left child
+    Left,
+    /// Route the sample to the right child
+    Right,
+}
+
 /// Tree node for building algorithms
 #[derive(Debug, Clone)]
 pub struct TreeNode {
@@ -385,6 +491,68 @@ pub struct TreeNode {
     pub parent_id: Option<usize>,
     /// Whether this is a leaf node
     pub is_leaf: bool,
+    /// Surrogate splits for NaN-tolerant routing, sorted by descending agreement score.
+    /// Each surrogate mimics the primary split when the primary feature is missing.
+    pub surrogate_splits: Vec<SurrogateSplit>,
+    /// Majority direction: the side that the majority of training samples went when the
+    /// primary split feature was observed.  Used as a last-resort fallback when all
+    /// features (primary and all surrogates) are NaN at predict time.
+    /// `true` = Left, `false` = Right.
+    pub majority_direction: bool,
+}
+
+impl TreeNode {
+    /// Determine the routing direction for a sample at this (non-leaf) node.
+    ///
+    /// Algorithm:
+    /// 1. If the primary split feature is finite, use the primary threshold.
+    /// 2. Otherwise, iterate surrogates (highest agreement first) and use the
+    ///    first one whose feature is also finite.
+    /// 3. If every feature is NaN, fall back to `majority_direction`.
+    ///
+    /// Returns `None` if the node has no split (`best_split` is `None`).
+    pub fn route_sample(&self, sample: &[f64]) -> Option<SplitDirection> {
+        let split = self.best_split.as_ref()?;
+
+        // 1. Primary split
+        let primary_val = sample.get(split.feature_idx).copied().unwrap_or(f64::NAN);
+        if primary_val.is_finite() {
+            return Some(if primary_val <= split.threshold {
+                SplitDirection::Left
+            } else {
+                SplitDirection::Right
+            });
+        }
+
+        // 2. Surrogate splits (already sorted by descending agreement at fit time)
+        for surrogate in &self.surrogate_splits {
+            let val = sample
+                .get(surrogate.feature_idx)
+                .copied()
+                .unwrap_or(f64::NAN);
+            if val.is_finite() {
+                let surrogate_goes_left = val <= surrogate.threshold;
+                // `left_direction` encodes the correlation direction: `true` means the
+                // surrogate's own left side (val <= threshold) maps to the PRIMARY split's
+                // left side.  `false` means a negatively-correlated surrogate — its left
+                // side corresponds to the primary split's RIGHT side.  We XOR (==) to
+                // obtain the primary direction.
+                let goes_primary_left = surrogate_goes_left == surrogate.left_direction;
+                return Some(if goes_primary_left {
+                    SplitDirection::Left
+                } else {
+                    SplitDirection::Right
+                });
+            }
+        }
+
+        // 3. Majority fallback
+        Some(if self.majority_direction {
+            SplitDirection::Left
+        } else {
+            SplitDirection::Right
+        })
+    }
 }
 
 /// Priority wrapper for nodes in the queue
@@ -814,5 +982,316 @@ impl SharedTreeEnsemble {
     /// Get sharing statistics for the ensemble
     pub fn get_sharing_stats(&self) -> Result<SubtreeSharingStats> {
         self.subtree_manager.calculate_memory_savings()
+    }
+}
+
+#[cfg(test)]
+mod surrogate_routing_tests {
+    use super::*;
+
+    // -----------------------------------------------------------------------
+    // Helper: build a two-level CompactTree with a single split node and two
+    // leaf children.
+    //
+    // Layout (1-based child indices stored in CompactTreeNode):
+    //   node[0] = split on feature 0, threshold 5.0
+    //   node[1] = left  leaf, prediction 1.0
+    //   node[2] = right leaf, prediction 2.0
+    //
+    // The child index convention: `left_child = 2` means node index `2-1 = 1`.
+    // -----------------------------------------------------------------------
+    fn build_two_leaf_tree() -> CompactTree {
+        let mut tree = CompactTree::new(2);
+
+        // Split node: feature 0, threshold 5.0
+        let mut split_node = CompactTreeNode::new_split(0, 5.0_f32, 0.5);
+        split_node.set_left_child(2); // 1-based → node[1]
+        split_node.set_right_child(3); // 1-based → node[2]
+        tree.add_node(split_node);
+
+        // Left leaf: prediction 1.0
+        tree.add_node(CompactTreeNode::new_leaf(1.0));
+        // Right leaf: prediction 2.0
+        tree.add_node(CompactTreeNode::new_leaf(2.0));
+
+        tree
+    }
+
+    /// Baseline: primary feature is finite — surrogate code is never reached.
+    #[test]
+    fn test_predict_no_nan_uses_primary_split() {
+        let tree = build_two_leaf_tree();
+
+        // <= threshold → left leaf → 1.0
+        let pred_left = tree
+            .predict_single(&[3.0, 99.0])
+            .expect("prediction should succeed");
+        assert_eq!(pred_left, 1.0);
+
+        // > threshold → right leaf → 2.0
+        let pred_right = tree
+            .predict_single(&[7.0, 99.0])
+            .expect("prediction should succeed");
+        assert_eq!(pred_right, 2.0);
+    }
+
+    /// NaN in primary feature, surrogate (feature 1, threshold 10.0) present.
+    /// Sample feature1 = 6.0 (<= 10.0 → surrogate goes left → prediction 1.0).
+    #[test]
+    fn test_predict_nan_primary_uses_surrogate() {
+        let mut tree = build_two_leaf_tree();
+
+        // Register surrogate for node 0: feature 1, threshold 10.0, agreement 0.9
+        tree.set_node_surrogates(
+            0,
+            vec![SurrogateSplit {
+                feature_idx: 1,
+                threshold: 10.0,
+                agreement: 0.9,
+                left_direction: true,
+            }],
+            false, // majority → right (won't be reached in this test)
+        )
+        .expect("set_node_surrogates should succeed");
+
+        // Primary feature (0) is NaN; surrogate (feature 1 = 6.0) <= 10.0 → left → 1.0
+        let pred = tree
+            .predict_single(&[f64::NAN, 6.0])
+            .expect("prediction should succeed");
+        assert_eq!(pred, 1.0);
+
+        // Surrogate (feature 1 = 15.0) > 10.0 → right → 2.0
+        let pred2 = tree
+            .predict_single(&[f64::NAN, 15.0])
+            .expect("prediction should succeed");
+        assert_eq!(pred2, 2.0);
+    }
+
+    /// Both primary and surrogate features are NaN — fall back to majority direction.
+    #[test]
+    fn test_predict_all_nan_uses_majority_fallback() {
+        let mut tree = build_two_leaf_tree();
+
+        // Surrogate on feature 1, but majority → left
+        tree.set_node_surrogates(
+            0,
+            vec![SurrogateSplit {
+                feature_idx: 1,
+                threshold: 10.0,
+                agreement: 0.85,
+                left_direction: true,
+            }],
+            true, // majority = left
+        )
+        .expect("set_node_surrogates should succeed");
+
+        // Both NaN → majority fallback → left → 1.0
+        let pred = tree
+            .predict_single(&[f64::NAN, f64::NAN])
+            .expect("prediction should succeed");
+        assert_eq!(pred, 1.0);
+
+        // Same tree but majority = right
+        let mut tree2 = build_two_leaf_tree();
+        tree2
+            .set_node_surrogates(
+                0,
+                vec![SurrogateSplit {
+                    feature_idx: 1,
+                    threshold: 10.0,
+                    agreement: 0.85,
+                    left_direction: false,
+                }],
+                false, // majority = right
+            )
+            .expect("set_node_surrogates should succeed");
+
+        let pred2 = tree2
+            .predict_single(&[f64::NAN, f64::NAN])
+            .expect("prediction should succeed");
+        assert_eq!(pred2, 2.0);
+    }
+
+    /// NaN in primary, no surrogates registered → default go-left behaviour.
+    #[test]
+    fn test_predict_nan_primary_no_surrogates_defaults_left() {
+        let tree = build_two_leaf_tree(); // no surrogates configured
+
+        // Primary NaN, no surrogate storage → go left → 1.0
+        let pred = tree
+            .predict_single(&[f64::NAN, 99.0])
+            .expect("prediction should succeed");
+        assert_eq!(pred, 1.0);
+    }
+
+    // -----------------------------------------------------------------------
+    // TreeNode::route_sample tests (the standalone helper method)
+    // -----------------------------------------------------------------------
+
+    fn make_tree_node(feature_idx: usize, threshold: f64) -> TreeNode {
+        TreeNode {
+            id: 0,
+            depth: 0,
+            sample_indices: vec![],
+            impurity: 0.5,
+            prediction: 0.0,
+            potential_decrease: 0.1,
+            best_split: Some(CustomSplit {
+                feature_idx,
+                threshold,
+                impurity_decrease: 0.1,
+                left_count: 5,
+                right_count: 5,
+            }),
+            parent_id: None,
+            is_leaf: false,
+            surrogate_splits: Vec::new(),
+            majority_direction: true,
+        }
+    }
+
+    #[test]
+    fn test_tree_node_route_primary_finite() {
+        let node = make_tree_node(0, 5.0);
+        assert_eq!(
+            node.route_sample(&[3.0, 0.0]),
+            Some(SplitDirection::Left),
+            "3.0 <= 5.0 should go left"
+        );
+        assert_eq!(
+            node.route_sample(&[8.0, 0.0]),
+            Some(SplitDirection::Right),
+            "8.0 > 5.0 should go right"
+        );
+    }
+
+    #[test]
+    fn test_tree_node_route_nan_primary_uses_surrogate() {
+        let mut node = make_tree_node(0, 5.0);
+        node.surrogate_splits = vec![SurrogateSplit {
+            feature_idx: 1,
+            threshold: 10.0,
+            agreement: 0.9,
+            left_direction: true,
+        }];
+
+        // Primary (feature 0) is NaN; surrogate (feature 1 = 6.0) <= 10.0 → left
+        assert_eq!(
+            node.route_sample(&[f64::NAN, 6.0]),
+            Some(SplitDirection::Left)
+        );
+        // Surrogate (feature 1 = 14.0) > 10.0 → right
+        assert_eq!(
+            node.route_sample(&[f64::NAN, 14.0]),
+            Some(SplitDirection::Right)
+        );
+    }
+
+    #[test]
+    fn test_tree_node_route_all_nan_uses_majority() {
+        let mut node = make_tree_node(0, 5.0);
+        node.surrogate_splits = vec![SurrogateSplit {
+            feature_idx: 1,
+            threshold: 10.0,
+            agreement: 0.9,
+            left_direction: true,
+        }];
+        node.majority_direction = false; // majority → right
+
+        assert_eq!(
+            node.route_sample(&[f64::NAN, f64::NAN]),
+            Some(SplitDirection::Right)
+        );
+
+        node.majority_direction = true; // majority → left
+        assert_eq!(
+            node.route_sample(&[f64::NAN, f64::NAN]),
+            Some(SplitDirection::Left)
+        );
+    }
+
+    #[test]
+    fn test_tree_node_route_no_split_returns_none() {
+        let mut node = make_tree_node(0, 5.0);
+        node.best_split = None;
+        assert_eq!(node.route_sample(&[3.0, 0.0]), None);
+    }
+
+    // -------------------------------------------------------------------
+    // Tests for negatively-correlated surrogates (`left_direction: false`)
+    // -------------------------------------------------------------------
+
+    /// `left_direction: false` means the surrogate is negatively correlated with
+    /// the primary split: "surrogate val <= threshold" maps to primary going RIGHT.
+    #[test]
+    fn test_compact_tree_negative_surrogate_inverts_direction() {
+        let mut tree = build_two_leaf_tree();
+
+        // Negatively-correlated surrogate on feature 1, threshold 10.0.
+        // When feature1 <= 10.0, the surrogate "goes left" locally but that
+        // maps to the PRIMARY going RIGHT (left_direction = false).
+        tree.set_node_surrogates(
+            0,
+            vec![SurrogateSplit {
+                feature_idx: 1,
+                threshold: 10.0,
+                agreement: 0.8,
+                left_direction: false, // negatively correlated
+            }],
+            true, // majority → left (not reached)
+        )
+        .expect("set_node_surrogates should succeed");
+
+        // Primary (feature 0) NaN; surrogate feature1 = 6.0 (<= 10.0)
+        // → surrogate_goes_left = true, left_direction = false
+        // → goes_primary_left = true == false = false → PRIMARY RIGHT → prediction 2.0
+        let pred = tree
+            .predict_single(&[f64::NAN, 6.0])
+            .expect("prediction should succeed");
+        assert_eq!(
+            pred, 2.0,
+            "negative surrogate: val<=threshold should route RIGHT"
+        );
+
+        // surrogate feature1 = 15.0 (> 10.0)
+        // → surrogate_goes_left = false, left_direction = false
+        // → goes_primary_left = false == false = true → PRIMARY LEFT → prediction 1.0
+        let pred2 = tree
+            .predict_single(&[f64::NAN, 15.0])
+            .expect("prediction should succeed");
+        assert_eq!(
+            pred2, 1.0,
+            "negative surrogate: val>threshold should route LEFT"
+        );
+    }
+
+    /// Same inversion test for `TreeNode::route_sample`.
+    #[test]
+    fn test_tree_node_route_negative_surrogate_inverts_direction() {
+        let mut node = make_tree_node(0, 5.0);
+        node.surrogate_splits = vec![SurrogateSplit {
+            feature_idx: 1,
+            threshold: 10.0,
+            agreement: 0.8,
+            left_direction: false, // negatively correlated
+        }];
+
+        // Primary NaN; surrogate feature1 = 6.0 (<= 10.0)
+        // → surrogate_goes_left = true, left_direction = false
+        // → goes_primary_left = true == false = false → Right
+        assert_eq!(
+            node.route_sample(&[f64::NAN, 6.0]),
+            Some(SplitDirection::Right),
+            "negative surrogate: val<=threshold should route Right"
+        );
+
+        // surrogate feature1 = 15.0 (> 10.0)
+        // → surrogate_goes_left = false, left_direction = false
+        // → goes_primary_left = false == false = true → Left
+        assert_eq!(
+            node.route_sample(&[f64::NAN, 15.0]),
+            Some(SplitDirection::Left),
+            "negative surrogate: val>threshold should route Left"
+        );
     }
 }

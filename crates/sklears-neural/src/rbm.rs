@@ -6,10 +6,10 @@
 use crate::SklearsError;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::{Normal, Uniform};
-use scirs2_core::random::{seeded_rng, Distribution, RandomExt, Rng};
+use scirs2_core::random::{seeded_rng, Distribution};
 use sklears_core::{
     error::Result,
-    traits::{Estimator, Fit, Predict, Trained, Transform, Untrained},
+    traits::{Estimator, Fit, Trained, Transform, Untrained},
     types::Float,
 };
 use std::marker::PhantomData;
@@ -430,7 +430,6 @@ fn sample_bernoulli(probs: &Array2<Float>) -> Array2<Float> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::array;
 
     #[test]

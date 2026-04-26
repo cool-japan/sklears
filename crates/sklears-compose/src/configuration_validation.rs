@@ -6,10 +6,12 @@
 //! for configuration errors.
 
 use serde::{Deserialize, Serialize};
-use sklears_core::traits::Estimator;
 use std::collections::HashMap;
 use std::fmt;
 use std::marker::PhantomData;
+
+/// A custom validator function that accepts any debug-printable value
+type CustomValidatorFn = Box<dyn Fn(&dyn std::fmt::Debug) -> ValidationResult + Send + Sync>;
 
 /// Validation severity levels
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -27,15 +29,22 @@ pub enum ValidationSeverity {
 /// Configuration validation result
 #[derive(Debug, Clone)]
 pub struct ValidationResult {
+    /// The severity.
     pub severity: ValidationSeverity,
+    /// The component.
     pub component: String,
+    /// The field.
     pub field: String,
+    /// The message.
     pub message: String,
+    /// The suggestions.
     pub suggestions: Vec<String>,
+    /// The error code.
     pub error_code: String,
 }
 
 impl ValidationResult {
+    /// Creates a new instance.
     pub fn new(
         severity: ValidationSeverity,
         component: impl Into<String>,
@@ -53,17 +62,20 @@ impl ValidationResult {
     }
 
     #[must_use]
+    /// Performs with suggestions.
     pub fn with_suggestions(mut self, suggestions: Vec<String>) -> Self {
         self.suggestions = suggestions;
         self
     }
 
+    /// Performs with error code.
     pub fn with_error_code(mut self, code: impl Into<String>) -> Self {
         self.error_code = code.into();
         self
     }
 
     #[must_use]
+    /// Checks the condition.
     pub fn is_error(&self) -> bool {
         matches!(
             self.severity,
@@ -75,21 +87,31 @@ impl ValidationResult {
 /// Comprehensive validation report
 #[derive(Debug, Clone)]
 pub struct ValidationReport {
+    /// The results.
     pub results: Vec<ValidationResult>,
+    /// The summary.
     pub summary: ValidationSummary,
 }
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct ValidationSummary {
+    /// The total checks.
     pub total_checks: usize,
+    /// The passed.
     pub passed: usize,
+    /// The warnings.
     pub warnings: usize,
+    /// The errors.
     pub errors: usize,
+    /// The critical.
     pub critical: usize,
+    /// The overall status.
     pub overall_status: ValidationStatus,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// Enumeration of validation status variants.
 pub enum ValidationStatus {
     /// Passed
     Passed,
@@ -109,6 +131,7 @@ impl Default for ValidationReport {
 
 impl ValidationReport {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             results: Vec::new(),
@@ -123,6 +146,7 @@ impl ValidationReport {
         }
     }
 
+    /// Adds a result.
     pub fn add_result(&mut self, result: ValidationResult) {
         match result.severity {
             ValidationSeverity::Info => {}
@@ -153,11 +177,13 @@ impl ValidationReport {
     }
 
     #[must_use]
+    /// Checks the condition.
     pub fn has_errors(&self) -> bool {
         self.summary.errors > 0 || self.summary.critical > 0
     }
 
     #[must_use]
+    /// Performs display summary.
     pub fn display_summary(&self) -> String {
         format!(
             "Validation Summary: {} checks, {} passed, {} warnings, {} errors, {} critical (Status: {:?})",
@@ -173,32 +199,46 @@ impl ValidationReport {
 
 /// Configuration validator trait for type-safe validation
 pub trait ConfigurationValidator<T> {
+    /// Performs validate.
     fn validate(&self, config: &T) -> ValidationReport;
+    /// Performs validate field.
     fn validate_field(&self, field_name: &str, value: &dyn std::fmt::Debug) -> ValidationReport;
+    /// Returns the validation schema.
     fn get_validation_schema(&self) -> ValidationSchema;
 }
 
 /// Validation schema definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationSchema {
+    /// The name.
     pub name: String,
+    /// The version.
     pub version: String,
+    /// The fields.
     pub fields: HashMap<String, FieldConstraints>,
+    /// The dependencies.
     pub dependencies: Vec<DependencyConstraint>,
+    /// The custom rules.
     pub custom_rules: Vec<CustomValidationRule>,
 }
 
 /// Field-level validation constraints
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldConstraints {
+    /// The required.
     pub required: bool,
+    /// The field type.
     pub field_type: FieldType,
+    /// The constraints.
     pub constraints: Vec<Constraint>,
+    /// The description.
     pub description: String,
+    /// The examples.
     pub examples: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Enumeration of field type variants.
 pub enum FieldType {
     /// Integer
     Integer,
@@ -217,11 +257,22 @@ pub enum FieldType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Enumeration of constraint variants.
 pub enum Constraint {
     /// Range
-    Range { min: f64, max: f64 },
+    Range {
+        /// The min.
+        min: f64,
+        /// The max.
+        max: f64,
+    },
     /// Length
-    Length { min: usize, max: usize },
+    Length {
+        /// The min.
+        min: usize,
+        /// The max.
+        max: usize,
+    },
     /// Pattern
     Pattern(String), // Regex pattern
     /// OneOf
@@ -233,22 +284,31 @@ pub enum Constraint {
 /// Cross-field dependency constraints
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DependencyConstraint {
+    /// The name.
     pub name: String,
+    /// The condition.
     pub condition: String, // Expression that must be true
+    /// The error message.
     pub error_message: String,
+    /// The severity.
     pub severity: ValidationSeverity,
 }
 
 /// Custom validation rules
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomValidationRule {
+    /// The name.
     pub name: String,
+    /// The description.
     pub description: String,
+    /// The rule type.
     pub rule_type: RuleType,
+    /// The parameters.
     pub parameters: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Enumeration of rule type variants.
 pub enum RuleType {
     /// ParameterCompatibility
     ParameterCompatibility,
@@ -261,6 +321,7 @@ pub enum RuleType {
 }
 
 /// Enhanced compile-time configuration validator with type-level constraints
+#[allow(dead_code)]
 pub struct CompileTimeValidator<T> {
     schema: ValidationSchema,
     _phantom: PhantomData<T>,
@@ -268,6 +329,7 @@ pub struct CompileTimeValidator<T> {
 
 impl<T> CompileTimeValidator<T> {
     #[must_use]
+    /// Creates a new instance.
     pub fn new(schema: ValidationSchema) -> Self {
         Self {
             schema,
@@ -276,7 +338,7 @@ impl<T> CompileTimeValidator<T> {
     }
 
     /// Validate configuration at compile time where possible
-    pub fn validate_static(&self, config: &T) -> ValidationReport
+    pub fn validate_static(&self, _config: &T) -> ValidationReport
     where
         T: fmt::Debug,
     {
@@ -289,9 +351,12 @@ impl<T> CompileTimeValidator<T> {
 
 /// Type-level validation traits for compile-time guarantees
 pub trait ValidConfig {
+    /// The Error type.
     type Error;
+    /// The is valid constant.
     const IS_VALID: bool;
 
+    /// Performs validate config.
     fn validate_config() -> Result<(), Self::Error>;
 }
 
@@ -327,6 +392,7 @@ where
 /// Type-level parameter constraints using const generics
 pub trait ParameterConstraints<const MIN: i32, const MAX: i32> {
     #[must_use]
+    /// Performs validate range.
     fn validate_range(value: i32) -> bool {
         value >= MIN && value <= MAX
     }
@@ -373,14 +439,31 @@ impl<const MIN: i32, const MAX: i32> ValidatedParameter<MIN, MAX> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParameterValidationError {
     /// OutOfRange
-    OutOfRange { value: i32, min: i32, max: i32 },
+    OutOfRange {
+        /// The value.
+        value: i32,
+        /// The min.
+        min: i32,
+        /// The max.
+        max: i32,
+    },
     /// InvalidType
-    InvalidType { expected: String, actual: String },
+    InvalidType {
+        /// The expected.
+        expected: String,
+        /// The actual.
+        actual: String,
+    },
     /// MissingRequired
-    MissingRequired { parameter: String },
+    MissingRequired {
+        /// The parameter.
+        parameter: String,
+    },
     /// DependencyViolation
     DependencyViolation {
+        /// The parameter.
         parameter: String,
+        /// The dependency.
         dependency: String,
     },
 }
@@ -414,9 +497,13 @@ impl std::error::Error for ParameterValidationError {}
 
 /// Type-level feature flag validation
 pub trait FeatureFlags {
+    /// The supports parallel constant.
     const SUPPORTS_PARALLEL: bool;
+    /// The supports gpu constant.
     const SUPPORTS_GPU: bool;
+    /// The requires blas constant.
     const REQUIRES_BLAS: bool;
+    /// The memory intensive constant.
     const MEMORY_INTENSIVE: bool;
 }
 
@@ -479,11 +566,24 @@ pub enum ConfigurationValidationError {
     /// InvalidConfiguration
     InvalidConfiguration,
     /// FeatureNotSupported
-    FeatureNotSupported { feature: String },
+    FeatureNotSupported {
+        /// The feature.
+        feature: String,
+    },
     /// IncompatibleFeatures
-    IncompatibleFeatures { feature1: String, feature2: String },
+    IncompatibleFeatures {
+        /// The feature1.
+        feature1: String,
+        /// The feature2.
+        feature2: String,
+    },
     /// ResourceConstraintViolation
-    ResourceConstraintViolation { resource: String, limit: String },
+    ResourceConstraintViolation {
+        /// The resource.
+        resource: String,
+        /// The limit.
+        limit: String,
+    },
 }
 
 impl fmt::Display for ConfigurationValidationError {
@@ -509,15 +609,22 @@ impl std::error::Error for ConfigurationValidationError {}
 
 /// Compile-time pipeline stage validation
 pub trait PipelineStage {
+    /// The Input type.
     type Input;
+    /// The Output type.
     type Output;
+    /// The Config type.
     type Config: ValidConfig;
 
+    /// The stage name constant.
     const STAGE_NAME: &'static str;
+    /// The is transformative constant.
     const IS_TRANSFORMATIVE: bool;
+    /// The is terminal constant.
     const IS_TERMINAL: bool;
 
     #[must_use]
+    /// Performs validate compatibility.
     fn validate_compatibility<U: PipelineStage>() -> bool
     where
         Self::Output: CompatibleWith<U::Input>,
@@ -535,6 +642,7 @@ impl CompatibleWith<i32> for i32 {}
 impl<T> CompatibleWith<Vec<T>> for Vec<T> {}
 
 /// Compile-time validated pipeline
+#[allow(dead_code)]
 pub struct ValidatedPipeline<Stages> {
     stages: Stages,
 }
@@ -548,7 +656,7 @@ where
     where
         S1::Config: ValidConfig,
     {
-        /// ValidatedPipeline
+        // ValidatedPipeline
         ValidatedPipeline { stages: (stage,) }
     }
 }
@@ -565,7 +673,7 @@ where
         S1::Config: ValidConfig,
         S2::Config: ValidConfig,
     {
-        /// ValidatedPipeline
+        // ValidatedPipeline
         ValidatedPipeline {
             stages: (stage1, stage2),
         }
@@ -575,7 +683,7 @@ where
 /// Macro for creating validated configurations with compile-time checks
 #[macro_export]
 macro_rules! validated_config {
-    ($config_type:ty, $($field:ident: $value:expr),*) => {{
+    ($config_type:ty, $($field:ident: $value:expr_2021),*) => {{
         // This would expand to create a validated configuration
         // with compile-time validation where possible
         compile_error!("Macro implementation would go here");
@@ -613,8 +721,7 @@ impl<T, const N: usize> TypedConfigurationValidator<T, N> {
 /// Runtime configuration validator
 pub struct RuntimeValidator {
     schemas: HashMap<String, ValidationSchema>,
-    custom_validators:
-        HashMap<String, Box<dyn Fn(&dyn std::fmt::Debug) -> ValidationResult + Send + Sync>>,
+    custom_validators: HashMap<String, CustomValidatorFn>,
 }
 
 impl Default for RuntimeValidator {
@@ -625,6 +732,7 @@ impl Default for RuntimeValidator {
 
 impl RuntimeValidator {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             schemas: HashMap::new(),
@@ -632,10 +740,12 @@ impl RuntimeValidator {
         }
     }
 
+    /// Performs register schema.
     pub fn register_schema(&mut self, name: String, schema: ValidationSchema) {
         self.schemas.insert(name, schema);
     }
 
+    /// Performs register custom validator.
     pub fn register_custom_validator<F>(&mut self, name: String, validator: F)
     where
         F: Fn(&dyn std::fmt::Debug) -> ValidationResult + Send + Sync + 'static,
@@ -643,6 +753,7 @@ impl RuntimeValidator {
         self.custom_validators.insert(name, Box::new(validator));
     }
 
+    /// Performs validate configuration.
     pub fn validate_configuration<T>(&self, config: &T, schema_name: &str) -> ValidationReport
     where
         T: fmt::Debug,
@@ -690,9 +801,9 @@ impl RuntimeValidator {
 
     fn validate_field_constraints<T>(
         &self,
-        field_name: &str,
+        _field_name: &str,
         constraints: &FieldConstraints,
-        config: &T,
+        _config: &T,
     ) -> Option<ValidationResult>
     where
         T: fmt::Debug,
@@ -708,8 +819,8 @@ impl RuntimeValidator {
 
     fn validate_dependency<T>(
         &self,
-        dependency: &DependencyConstraint,
-        config: &T,
+        _dependency: &DependencyConstraint,
+        _config: &T,
     ) -> Option<ValidationResult>
     where
         T: fmt::Debug,
@@ -721,8 +832,8 @@ impl RuntimeValidator {
 
     fn apply_custom_rule<T>(
         &self,
-        rule: &CustomValidationRule,
-        config: &T,
+        _rule: &CustomValidationRule,
+        _config: &T,
     ) -> Option<ValidationResult>
     where
         T: fmt::Debug,
@@ -746,6 +857,7 @@ impl Default for PipelineConfigValidator {
 
 impl PipelineConfigValidator {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         let mut validator = RuntimeValidator::new();
 
@@ -761,7 +873,7 @@ impl PipelineConfigValidator {
         validator.register_schema("PipelineConfig".to_string(), pipeline_schema);
 
         // Register custom validators
-        validator.register_custom_validator("performance_check".to_string(), |config| {
+        validator.register_custom_validator("performance_check".to_string(), |_config| {
             ValidationResult::new(
                 ValidationSeverity::Info,
                 "PipelineConfig",
@@ -778,7 +890,7 @@ impl PipelineConfigValidator {
 
         fields.insert(
             "n_jobs".to_string(),
-            /// FieldConstraints
+            // FieldConstraints
             FieldConstraints {
                 required: false,
                 field_type: FieldType::Integer,
@@ -793,7 +905,7 @@ impl PipelineConfigValidator {
 
         fields.insert(
             "random_state".to_string(),
-            /// FieldConstraints
+            // FieldConstraints
             FieldConstraints {
                 required: false,
                 field_type: FieldType::Integer,
@@ -808,7 +920,7 @@ impl PipelineConfigValidator {
 
         fields.insert(
             "verbose".to_string(),
-            /// FieldConstraints
+            // FieldConstraints
             FieldConstraints {
                 required: false,
                 field_type: FieldType::Boolean,
@@ -839,6 +951,7 @@ impl PipelineConfigValidator {
         }]
     }
 
+    /// Performs validate pipeline config.
     pub fn validate_pipeline_config<T>(&self, config: &T) -> ValidationReport
     where
         T: fmt::Debug,
@@ -854,6 +967,7 @@ pub struct ValidationBuilder {
 }
 
 impl ValidationBuilder {
+    /// Creates a new instance.
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             schema: ValidationSchema {
@@ -866,24 +980,28 @@ impl ValidationBuilder {
         }
     }
 
+    /// Adds a field.
     pub fn add_field(mut self, name: impl Into<String>, constraints: FieldConstraints) -> Self {
         self.schema.fields.insert(name.into(), constraints);
         self
     }
 
     #[must_use]
+    /// Adds a dependency.
     pub fn add_dependency(mut self, dependency: DependencyConstraint) -> Self {
         self.schema.dependencies.push(dependency);
         self
     }
 
     #[must_use]
+    /// Adds a custom rule.
     pub fn add_custom_rule(mut self, rule: CustomValidationRule) -> Self {
         self.schema.custom_rules.push(rule);
         self
     }
 
     #[must_use]
+    /// Builds and returns the result.
     pub fn build(self) -> ValidationSchema {
         self.schema
     }
@@ -897,11 +1015,12 @@ pub mod examples {
     };
 
     #[must_use]
+    /// Performs create linear regression validator.
     pub fn create_linear_regression_validator() -> ValidationSchema {
         ValidationBuilder::new("LinearRegressionConfig")
             .add_field(
                 "fit_intercept",
-                /// FieldConstraints
+                // FieldConstraints
                 FieldConstraints {
                     required: false,
                     field_type: FieldType::Boolean,
@@ -912,7 +1031,7 @@ pub mod examples {
             )
             .add_field(
                 "alpha",
-                /// FieldConstraints
+                // FieldConstraints
                 FieldConstraints {
                     required: false,
                     field_type: FieldType::Float,
@@ -931,11 +1050,12 @@ pub mod examples {
     }
 
     #[must_use]
+    /// Performs create ensemble validator.
     pub fn create_ensemble_validator() -> ValidationSchema {
         ValidationBuilder::new("EnsembleConfig")
             .add_field(
                 "n_estimators",
-                /// FieldConstraints
+                // FieldConstraints
                 FieldConstraints {
                     required: true,
                     field_type: FieldType::Integer,
@@ -949,7 +1069,7 @@ pub mod examples {
             )
             .add_field(
                 "voting",
-                /// FieldConstraints
+                // FieldConstraints
                 FieldConstraints {
                     required: false,
                     field_type: FieldType::Enum(vec!["hard".to_string(), "soft".to_string()]),
@@ -1027,7 +1147,9 @@ mod tests {
         // Mock configuration for testing
         #[derive(Debug)]
         struct MockConfig {
+            #[allow(dead_code)]
             n_jobs: i32,
+            #[allow(dead_code)]
             verbose: bool,
         }
 
@@ -1047,7 +1169,7 @@ mod tests {
         let schema = ValidationBuilder::new("TestSchema")
             .add_field(
                 "test_field",
-                /// FieldConstraints
+                // FieldConstraints
                 FieldConstraints {
                     required: true,
                     field_type: FieldType::Integer,
@@ -1168,9 +1290,15 @@ mod tests {
 
         // Test stage properties
         assert_eq!(TestStage1::STAGE_NAME, "TestStage1");
-        assert!(TestStage1::IS_TRANSFORMATIVE);
-        assert!(!TestStage1::IS_TERMINAL);
-        assert!(TestStage2::IS_TERMINAL);
+        const _: () = {
+            assert!(TestStage1::IS_TRANSFORMATIVE);
+        };
+        const _: () = {
+            assert!(!TestStage1::IS_TERMINAL);
+        };
+        const _: () = {
+            assert!(TestStage2::IS_TERMINAL);
+        };
     }
 
     #[test]

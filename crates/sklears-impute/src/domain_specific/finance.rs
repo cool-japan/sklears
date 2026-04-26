@@ -2,6 +2,7 @@
 //!
 //! This module provides specialized imputation methods for financial data types
 //! including time series, portfolio data, risk factors, and economic indicators.
+#![allow(non_snake_case)]
 
 use crate::core::{ImputationError, ImputationResult};
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};

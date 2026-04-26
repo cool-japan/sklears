@@ -473,6 +473,7 @@ pub struct SolverInfo {
 /// The main modular framework that coordinates components
 #[derive(Debug)]
 pub struct ModularFramework {
+    #[allow(dead_code)] // reserved for future use in advanced framework operations
     config: ModularConfig,
 }
 
@@ -647,6 +648,7 @@ pub struct ModularLinearModel {
 
 impl ModularLinearModel {
     /// Fit the model to training data
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(&self, X: &Array2<Float>, y: &Array1<Float>) -> Result<OptimizationResult> {
         let data = ObjectiveData {
             features: X.clone(),
@@ -665,6 +667,7 @@ impl ModularLinearModel {
     }
 
     /// Make predictions using the fitted model
+    #[allow(non_snake_case)] // standard ML notation
     pub fn predict(&self, X: &Array2<Float>, result: &OptimizationResult) -> Result<Array1<Float>> {
         let predictions = X.dot(&result.coefficients);
 

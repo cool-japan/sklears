@@ -36,7 +36,7 @@ use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1};
 ///     .window_sizes(vec![3, 5])
 ///     .extract_trend(true);
 ///
-/// let features = extractor.extract_features(&ts_data.view()).unwrap();
+/// let features = extractor.extract_features(&ts_data.view()).expect("valid time series produces features");
 /// ```
 #[derive(Debug, Clone)]
 pub struct TemporalFeatureExtractor {
@@ -274,7 +274,7 @@ impl Default for TemporalFeatureExtractor {
 ///     .step_size(1)
 ///     .features(vec!["mean".to_string(), "std".to_string(), "volatility".to_string()]);
 ///
-/// let features = extractor.extract_features(&ts_data.view()).unwrap();
+/// let features = extractor.extract_features(&ts_data.view()).expect("valid time series produces features");
 /// ```
 #[derive(Debug, Clone)]
 pub struct SlidingWindowFeatures {
@@ -365,25 +365,21 @@ impl SlidingWindowFeatures {
                                 / 2.0
                         }
                     }
-                    "volatility" => {
-                        if self.window_size > 1 {
-                            let returns: Vec<Float> = window
-                                .windows(2)
-                                .into_iter()
-                                .map(|pair| (pair[1] - pair[0]) / pair[0].max(1e-10))
-                                .collect();
-                            let mean_return =
-                                returns.iter().sum::<Float>() / returns.len() as Float;
-                            (returns
-                                .iter()
-                                .map(|&r| (r - mean_return).powi(2))
-                                .sum::<Float>()
-                                / returns.len() as Float)
-                                .sqrt()
-                        } else {
-                            0.0
-                        }
+                    "volatility" if self.window_size > 1 => {
+                        let returns: Vec<Float> = window
+                            .windows(2)
+                            .into_iter()
+                            .map(|pair| (pair[1] - pair[0]) / pair[0].max(1e-10))
+                            .collect();
+                        let mean_return = returns.iter().sum::<Float>() / returns.len() as Float;
+                        (returns
+                            .iter()
+                            .map(|&r| (r - mean_return).powi(2))
+                            .sum::<Float>()
+                            / returns.len() as Float)
+                            .sqrt()
                     }
+                    "volatility" => 0.0,
                     "skewness" => self.compute_skewness(&window),
                     "kurtosis" => self.compute_kurtosis(&window),
                     _ => 0.0, // Unknown feature
@@ -462,7 +458,7 @@ impl Default for SlidingWindowFeatures {
 ///     .include_power_spectrum(true)
 ///     .normalize(true);
 ///
-/// let features = extractor.extract_features(&ts_data.view()).unwrap();
+/// let features = extractor.extract_features(&ts_data.view()).expect("valid time series produces features");
 /// ```
 #[derive(Debug, Clone)]
 pub struct FourierTransformFeatures {
@@ -536,15 +532,15 @@ impl FourierTransformFeatures {
         let max_freq = (self.n_frequencies.min(n / 2)).max(1);
 
         if self.include_power_spectrum {
-            for i in 0..max_freq {
-                let power = fft_result[i].0.powi(2) + fft_result[i].1.powi(2); // |X[k]|^2
+            for &(re, im) in fft_result.iter().take(max_freq) {
+                let power = re.powi(2) + im.powi(2); // |X[k]|^2
                 features.push(power);
             }
         }
 
         if self.include_phase {
-            for i in 0..max_freq {
-                let phase = fft_result[i].1.atan2(fft_result[i].0); // angle(X[k])
+            for &(re, im) in fft_result.iter().take(max_freq) {
+                let phase = im.atan2(re); // angle(X[k])
                 features.push(phase);
             }
         }
@@ -603,6 +599,7 @@ impl FourierTransformFeatures {
         Ok(windowed)
     }
 
+    #[allow(clippy::needless_range_loop)] // k/j used in arithmetic angle computation, not just indexing
     fn compute_dft(&self, ts: &Array1<Float>) -> SklResult<Vec<(Float, Float)>> {
         let n = ts.len();
         let mut result = vec![(0.0, 0.0); n];
@@ -635,6 +632,8 @@ impl FourierTransformFeatures {
         let mut weighted_sum = 0.0;
         let mut total_power = 0.0;
 
+        #[allow(clippy::needless_range_loop)]
+        // i used as frequency index in arithmetic, not just for indexing
         for i in 0..max_freq {
             let power = fft_result[i].0.powi(2) + fft_result[i].1.powi(2);
             weighted_sum += i as Float * power;
@@ -650,6 +649,8 @@ impl FourierTransformFeatures {
 
         // Spectral bandwidth
         let mut bandwidth_sum = 0.0;
+        #[allow(clippy::needless_range_loop)]
+        // i used as frequency index in arithmetic, not just for indexing
         for i in 0..max_freq {
             let power = fft_result[i].0.powi(2) + fft_result[i].1.powi(2);
             bandwidth_sum += (i as Float - spectral_centroid).powi(2) * power;
@@ -667,6 +668,8 @@ impl FourierTransformFeatures {
         let mut cumulative_energy = 0.0;
         let mut rolloff_freq = 0.0;
 
+        #[allow(clippy::needless_range_loop)]
+        // i used as frequency index in arithmetic, not just for indexing
         for i in 0..max_freq {
             let power = fft_result[i].0.powi(2) + fft_result[i].1.powi(2);
             cumulative_energy += power;

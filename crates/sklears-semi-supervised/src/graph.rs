@@ -1,6 +1,7 @@
 //! Graph construction utilities for semi-supervised learning
 
 use scirs2_core::ndarray_ext::{Array1, Array2, Axis};
+use scirs2_core::random::RngExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -8,6 +9,7 @@ use sklears_core::{
 use std::collections::HashSet;
 
 /// Construct k-nearest neighbors graph
+#[allow(non_snake_case)] // standard ML notation
 pub fn knn_graph(X: &Array2<Float>, n_neighbors: usize, mode: &str) -> SklResult<Array2<Float>> {
     let n_samples = X.nrows();
     let mut W = Array2::zeros((n_samples, n_samples));
@@ -48,6 +50,7 @@ pub fn knn_graph(X: &Array2<Float>, n_neighbors: usize, mode: &str) -> SklResult
 }
 
 /// Construct epsilon-neighborhood graph
+#[allow(non_snake_case)] // standard ML notation
 pub fn epsilon_graph(X: &Array2<Float>, epsilon: Float, mode: &str) -> SklResult<Array2<Float>> {
     let n_samples = X.nrows();
     let mut W = Array2::zeros((n_samples, n_samples));
@@ -77,6 +80,7 @@ pub fn epsilon_graph(X: &Array2<Float>, epsilon: Float, mode: &str) -> SklResult
 }
 
 /// Construct graph Laplacian
+#[allow(non_snake_case)] // standard ML notation
 pub fn graph_laplacian(adjacency: &Array2<Float>, normed: bool) -> SklResult<Array2<Float>> {
     let n_samples = adjacency.nrows();
     let mut L = Array2::zeros((n_samples, n_samples));
@@ -118,6 +122,7 @@ pub fn graph_laplacian(adjacency: &Array2<Float>, normed: bool) -> SklResult<Arr
 }
 
 /// Make graph symmetric
+#[allow(non_snake_case)] // standard ML notation
 pub fn make_symmetric(W: &mut Array2<Float>) {
     let n = W.nrows();
     for i in 0..n {
@@ -130,6 +135,7 @@ pub fn make_symmetric(W: &mut Array2<Float>) {
 }
 
 /// Construct mutual k-nearest neighbors graph
+#[allow(non_snake_case)] // standard ML notation
 pub fn mutual_knn_graph(X: &Array2<Float>, n_neighbors: usize) -> SklResult<Array2<Float>> {
     let knn_graph = knn_graph(X, n_neighbors, "connectivity")?;
     let n_samples = X.nrows();
@@ -148,6 +154,7 @@ pub fn mutual_knn_graph(X: &Array2<Float>, n_neighbors: usize) -> SklResult<Arra
 }
 
 /// Construct shared nearest neighbors graph
+#[allow(non_snake_case)] // standard ML notation
 pub fn shared_nn_graph(
     X: &Array2<Float>,
     n_neighbors: usize,
@@ -201,6 +208,7 @@ pub fn shared_nn_graph(
 /// The random walk Laplacian is defined as L_rw = I - D^(-1) * W,
 /// where D is the degree matrix and W is the adjacency matrix.
 /// This is useful for spectral clustering and random walk analysis.
+#[allow(non_snake_case)] // standard ML notation
 pub fn random_walk_laplacian(adjacency: &Array2<Float>) -> SklResult<Array2<Float>> {
     let n_samples = adjacency.nrows();
     let mut L_rw = Array2::zeros((n_samples, n_samples));
@@ -233,6 +241,7 @@ pub fn random_walk_laplacian(adjacency: &Array2<Float>) -> SklResult<Array2<Floa
 ///
 /// The diffusion matrix is defined as P^t where P is the transition matrix
 /// and t is the diffusion time parameter.
+#[allow(non_snake_case)] // standard ML notation
 pub fn diffusion_matrix(adjacency: &Array2<Float>, t: usize) -> SklResult<Array2<Float>> {
     let n_samples = adjacency.nrows();
 
@@ -260,6 +269,7 @@ pub fn diffusion_matrix(adjacency: &Array2<Float>, t: usize) -> SklResult<Array2
 /// Adaptive neighborhood graph construction
 ///
 /// Automatically determines the neighborhood size based on local density estimation.
+#[allow(non_snake_case)] // standard ML notation
 pub fn adaptive_knn_graph(X: &Array2<Float>, mode: &str) -> SklResult<Array2<Float>> {
     let n_samples = X.nrows();
     let mut W = Array2::zeros((n_samples, n_samples));
@@ -324,6 +334,7 @@ pub fn adaptive_knn_graph(X: &Array2<Float>, mode: &str) -> SklResult<Array2<Flo
 /// Graph sparsification using effective resistance sampling
 ///
 /// Reduces the number of edges while preserving spectral properties.
+#[allow(non_snake_case)] // standard ML notation
 pub fn sparsify_graph(
     adjacency: &Array2<Float>,
     sparsity_ratio: Float,
@@ -485,7 +496,6 @@ fn power_iteration_eigenvectors(
     matrix: &Array2<Float>,
     n_eigenvectors: usize,
 ) -> SklResult<Array2<Float>> {
-    use scirs2_core::random::rand_prelude::*;
     use scirs2_core::random::Random;
 
     let n = matrix.nrows();
@@ -582,7 +592,6 @@ fn power_iteration_eigenvectors(
 
 /// Simplified Lanczos method for larger matrices
 fn lanczos_eigenvectors(matrix: &Array2<Float>, n_eigenvectors: usize) -> SklResult<Array2<Float>> {
-    use scirs2_core::random::rand_prelude::*;
     use scirs2_core::random::Random;
 
     let n = matrix.nrows();
@@ -635,12 +644,12 @@ fn lanczos_eigenvectors(matrix: &Array2<Float>, n_eigenvectors: usize) -> SklRes
 }
 
 /// Simple k-means clustering for spectral clustering
+#[allow(non_snake_case)] // standard ML notation
 fn kmeans_clustering(
     X: &Array2<Float>,
     n_clusters: usize,
-    random_state: Option<u64>,
+    _random_state: Option<u64>,
 ) -> SklResult<Array1<i32>> {
-    use scirs2_core::random::rand_prelude::*;
     use scirs2_core::random::Random;
 
     let (n_samples, n_features) = X.dim();
@@ -757,6 +766,7 @@ fn kmeans_clustering(
 /// let W = multi_scale_graph_construction(&X, &scales, None, "weighted", true).unwrap();
 /// assert_eq!(W.dim(), (4, 4));
 /// ```
+#[allow(non_snake_case)] // standard ML notation
 pub fn multi_scale_graph_construction(
     X: &Array2<Float>,
     scales: &[usize],
@@ -944,6 +954,7 @@ pub fn multi_scale_graph_construction(
 /// # Returns
 ///
 /// * `SklResult<Array1<i32>>` - Cluster labels
+#[allow(non_snake_case)] // standard ML notation
 pub fn multi_scale_spectral_clustering(
     X: &Array2<Float>,
     n_clusters: usize,
@@ -984,6 +995,7 @@ pub fn multi_scale_spectral_clustering(
 /// # Returns
 ///
 /// * `SklResult<(Array2<Float>, Vec<usize>)>` - Combined graph and selected scales
+#[allow(non_snake_case)] // standard ML notation
 pub fn adaptive_multi_scale_graph_construction(
     X: &Array2<Float>,
     min_scale: usize,

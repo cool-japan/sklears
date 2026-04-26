@@ -21,6 +21,7 @@ pub enum ConformalMethod {
     RAPS { lambda: f64 },
 }
 
+#[allow(clippy::derivable_impls)] // ConformalMethod has non-unit variants; explicit default documents choice
 impl Default for ConformalMethod {
     fn default() -> Self {
         Self::SplitConformal

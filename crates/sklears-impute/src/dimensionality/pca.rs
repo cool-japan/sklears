@@ -1,4 +1,6 @@
 //! Principal Component Analysis Imputer
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides PCA-based imputation for missing value estimation.
 

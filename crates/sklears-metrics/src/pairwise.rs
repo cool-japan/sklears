@@ -1272,9 +1272,6 @@ pub fn string_kernel_matrix(sequences: &[&[u8]], k: usize) -> MetricsResult<Arra
 /// println!("NCD: {:.3}", ncd);
 /// ```
 pub fn normalized_compression_distance(x: &[u8], y: &[u8]) -> MetricsResult<f64> {
-    use flate2::{write::GzEncoder, Compression};
-    use std::io::Write;
-
     if x.is_empty() && y.is_empty() {
         return Ok(0.0);
     }
@@ -1284,25 +1281,21 @@ pub fn normalized_compression_distance(x: &[u8], y: &[u8]) -> MetricsResult<f64>
     }
 
     // Helper function to compress data and return compressed size
-    let compress = |data: &[u8]| -> Result<usize, std::io::Error> {
-        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-        encoder.write_all(data)?;
-        let compressed = encoder.finish()?;
+    let compress = |data: &[u8]| -> MetricsResult<usize> {
+        let compressed = oxiarc_deflate::gzip_compress(data, 6)
+            .map_err(|e| MetricsError::InvalidInput(format!("Compression failed: {}", e)))?;
         Ok(compressed.len())
     };
 
     // Get compressed sizes
-    let c_x = compress(x)
-        .map_err(|e| MetricsError::InvalidInput(format!("Compression failed for x: {}", e)))?;
-    let c_y = compress(y)
-        .map_err(|e| MetricsError::InvalidInput(format!("Compression failed for y: {}", e)))?;
+    let c_x = compress(x)?;
+    let c_y = compress(y)?;
 
     // Concatenate x and y and compress
     let mut xy = Vec::with_capacity(x.len() + y.len());
     xy.extend_from_slice(x);
     xy.extend_from_slice(y);
-    let c_xy = compress(&xy)
-        .map_err(|e| MetricsError::InvalidInput(format!("Compression failed for xy: {}", e)))?;
+    let c_xy = compress(&xy)?;
 
     let min_c = c_x.min(c_y) as f64;
     let max_c = c_x.max(c_y) as f64;
@@ -1365,20 +1358,11 @@ pub fn normalized_compression_distance_matrix(sequences: &[&[u8]]) -> MetricsRes
 ///
 /// Approximate Kolmogorov complexity (compressed size in bytes)
 pub fn approximate_kolmogorov_complexity(data: &[u8]) -> MetricsResult<usize> {
-    use flate2::{write::GzEncoder, Compression};
-    use std::io::Write;
-
     if data.is_empty() {
         return Ok(0);
     }
 
-    let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
-    encoder
-        .write_all(data)
-        .map_err(|e| MetricsError::InvalidInput(format!("Compression failed: {}", e)))?;
-
-    let compressed = encoder
-        .finish()
+    let compressed = oxiarc_deflate::gzip_compress(data, 9)
         .map_err(|e| MetricsError::InvalidInput(format!("Compression failed: {}", e)))?;
 
     Ok(compressed.len())
@@ -1637,7 +1621,7 @@ mod tests {
     #[test]
     fn test_empty_input() {
         let X = array![[]]
-            .into_shape((0, 2))
+            .into_shape_with_order((0, 2))
             .expect("operation should succeed");
 
         let result = euclidean_distances(&X.view(), None);

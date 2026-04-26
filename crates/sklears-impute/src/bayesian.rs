@@ -1,4 +1,5 @@
 //! Bayesian imputation methods
+#![allow(non_snake_case)]
 //!
 //! This module provides comprehensive Bayesian approaches to missing data imputation.
 //!

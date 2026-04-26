@@ -2,7 +2,7 @@
 
 use super::common::{Trained, Untrained};
 use scirs2_core::ndarray::{Array1, Array2, Array3};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Transform},
@@ -43,8 +43,8 @@ pub struct SparseTensorDecomposition<State = Untrained> {
     pub sparsity_threshold: Float,
     /// Factor matrices
     factor_matrices_: Option<Vec<Array2<Float>>>,
-    /// Original tensor shape
-    original_shape_: Option<Vec<usize>>,
+    /// Original tensor shape recorded at fit time
+    pub original_shape_: Option<Vec<usize>>,
     /// Sparsity levels achieved
     sparsity_levels_: Option<Array1<Float>>,
     /// Reconstruction error
@@ -123,9 +123,9 @@ impl Fit<Array3<Float>, ()> for SparseTensorDecomposition<Untrained> {
 
         // Initialize factor matrices with small random values
         let mut factor_matrices = Vec::new();
-        for mode in 0..3 {
-            let mut factor = Array2::zeros((shape[mode], self.n_factors));
-            for i in 0..shape[mode] {
+        for &dim in shape.iter().take(3) {
+            let mut factor = Array2::zeros((dim, self.n_factors));
+            for i in 0..dim {
                 for j in 0..self.n_factors {
                     factor[[i, j]] = thread_rng().random::<Float>() * 0.01;
                 }
@@ -422,7 +422,7 @@ mod tests {
         let sparsity = fitted.sparsity_levels();
         assert_eq!(sparsity.len(), 3);
         for &level in sparsity.iter() {
-            assert!(level >= 0.0 && level <= 1.0);
+            assert!((0.0..=1.0).contains(&level));
         }
     }
 

@@ -6,7 +6,8 @@
 use crate::{activation::Activation, NeuralResult};
 use scirs2_core::ndarray::{Array1, Array2, Array3, Array4, Array5, Axis};
 use scirs2_core::random::essentials::Normal;
-use scirs2_core::random::{Distribution, Rng, RngExt};
+use scirs2_core::random::Rng;
+use scirs2_core::RngExt;
 use sklears_core::error::SklearsError;
 use sklears_core::types::FloatBounds;
 
@@ -65,6 +66,7 @@ pub struct Conv1D {
 }
 
 impl Conv1D {
+    /// Create a new 1-D convolutional layer with the specified filter count and geometry
     pub fn new(
         out_channels: usize,
         kernel_size: usize,
@@ -132,7 +134,7 @@ impl Conv1D {
                 operation: "forward".to_string(),
             })?;
 
-        let (batch_size, in_channels, input_length) = if input.ndim() == 2 {
+        let (_batch_size, in_channels, input_length) = if input.ndim() == 2 {
             (1, input.nrows(), input.ncols())
         } else {
             return Err(SklearsError::ShapeMismatch {
@@ -243,6 +245,7 @@ pub struct Conv2D {
 }
 
 impl Conv2D {
+    /// Create a new 2-D convolutional layer with the specified filter count and geometry
     pub fn new(
         out_channels: usize,
         kernel_size: (usize, usize),
@@ -457,6 +460,7 @@ pub struct DepthwiseSeparableConv2D {
 }
 
 impl DepthwiseSeparableConv2D {
+    /// Create a new depthwise-separable 2-D convolutional layer with the specified parameters
     pub fn new(
         out_channels: usize,
         kernel_size: (usize, usize),
@@ -719,6 +723,7 @@ pub struct GroupConv2D {
 }
 
 impl GroupConv2D {
+    /// Create a new grouped 2-D convolutional layer; `out_channels` must be divisible by `groups`
     pub fn new(
         out_channels: usize,
         kernel_size: (usize, usize),
@@ -731,7 +736,7 @@ impl GroupConv2D {
     ) -> Self {
         // Validate that out_channels is divisible by groups
         assert!(
-            out_channels % groups == 0,
+            out_channels.is_multiple_of(groups),
             "out_channels must be divisible by groups"
         );
 
@@ -754,7 +759,7 @@ impl GroupConv2D {
     /// Initialize weights and biases
     pub fn initialize(&mut self, in_channels: usize, rng: &mut impl Rng) -> NeuralResult<()> {
         // Validate that in_channels is divisible by groups
-        if in_channels % self.groups != 0 {
+        if !in_channels.is_multiple_of(self.groups) {
             return Err(SklearsError::InvalidInput(format!(
                 "in_channels ({}) must be divisible by groups ({})",
                 in_channels, self.groups
@@ -842,9 +847,9 @@ impl GroupConv2D {
         // Perform grouped convolution
         for group in 0..self.groups {
             let in_ch_start = group * in_channels_per_group;
-            let in_ch_end = (group + 1) * in_channels_per_group;
+            let _in_ch_end = (group + 1) * in_channels_per_group;
             let out_ch_start = group * out_channels_per_group;
-            let out_ch_end = (group + 1) * out_channels_per_group;
+            let _out_ch_end = (group + 1) * out_channels_per_group;
 
             for out_ch_offset in 0..out_channels_per_group {
                 let out_ch = out_ch_start + out_ch_offset;
@@ -967,6 +972,7 @@ pub struct Pool2D {
 }
 
 impl Pool2D {
+    /// Create a new 2-D pooling layer with the specified type, window size, stride, and padding
     pub fn new(
         pool_type: PoolingType,
         pool_size: (usize, usize),
@@ -1105,6 +1111,7 @@ pub struct Conv3D {
 }
 
 impl Conv3D {
+    /// Create a new 3-D convolutional layer with the specified filter count and volumetric geometry
     pub fn new(
         out_channels: usize,
         kernel_size: (usize, usize, usize),
@@ -1320,6 +1327,7 @@ pub struct Pool3D {
 }
 
 impl Pool3D {
+    /// Create a new 3-D pooling layer with the specified type, window size, stride, and padding
     pub fn new(
         pool_type: PoolingType,
         pool_size: (usize, usize, usize),
@@ -1457,11 +1465,14 @@ pub mod cnn_blocks {
     /// A complete convolutional block with conv, activation, and optional pooling
     #[derive(Debug, Clone)]
     pub struct ConvBlock2D {
+        /// The 2-D convolution layer in this block
         pub conv: Conv2D,
+        /// Optional pooling layer applied after the convolution
         pub pool: Option<Pool2D>,
     }
 
     impl ConvBlock2D {
+        /// Create a convolutional block with the given filter count, kernel, stride, activation, and optional pooling window
         pub fn new(
             out_channels: usize,
             kernel_size: (usize, usize),
@@ -1491,10 +1502,12 @@ pub mod cnn_blocks {
             Self { conv, pool }
         }
 
+        /// Initialize convolution weights from `in_channels` and the given RNG
         pub fn initialize(&mut self, in_channels: usize, rng: &mut impl Rng) -> NeuralResult<()> {
             self.conv.initialize(in_channels, rng)
         }
 
+        /// Run the convolution (and optional pooling) forward pass on a `(C, H, W)` feature map
         pub fn forward(&mut self, input: &Array3<f64>) -> NeuralResult<Array3<f64>> {
             let conv_output = self.conv.forward(input)?;
 
@@ -1505,6 +1518,7 @@ pub mod cnn_blocks {
             }
         }
 
+        /// Compute the spatial output size `(height, width)` for the given input spatial size
         pub fn output_size(&self, input_size: (usize, usize)) -> (usize, usize) {
             let conv_size = self.conv.output_size(input_size);
             if let Some(ref pool) = self.pool {
@@ -1518,12 +1532,16 @@ pub mod cnn_blocks {
     /// ResNet-style residual block
     #[derive(Debug, Clone)]
     pub struct ResidualBlock2D {
+        /// First convolution in the residual block (3x3)
         pub conv1: Conv2D,
+        /// Second convolution in the residual block (3x3)
         pub conv2: Conv2D,
-        pub shortcut: Option<Conv2D>, // For dimension matching
+        /// Optional 1x1 shortcut convolution for matching dimensions when stride > 1
+        pub shortcut: Option<Conv2D>,
     }
 
     impl ResidualBlock2D {
+        /// Create a residual block with the given number of channels, stride, and pre-activation function
         pub fn new(channels: usize, stride: (usize, usize), activation: Activation) -> Self {
             let conv1 = Conv2D::new(
                 channels,
@@ -1567,6 +1585,7 @@ pub mod cnn_blocks {
             }
         }
 
+        /// Initialize all convolution weights from `in_channels` using the given RNG
         pub fn initialize(&mut self, in_channels: usize, rng: &mut impl Rng) -> NeuralResult<()> {
             self.conv1.initialize(in_channels, rng)?;
             self.conv2.initialize(in_channels, rng)?;
@@ -1578,6 +1597,7 @@ pub mod cnn_blocks {
             Ok(())
         }
 
+        /// Run the two convolutions plus the skip connection and return the summed output
         pub fn forward(&mut self, input: &Array3<f64>) -> NeuralResult<Array3<f64>> {
             let x = self.conv1.forward(input)?;
             let x = self.conv2.forward(&x)?;

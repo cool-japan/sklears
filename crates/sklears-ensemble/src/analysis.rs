@@ -219,6 +219,7 @@ impl EnsembleAnalyzer {
     }
 
     /// Aggregate individual feature importances using the specified method
+    #[allow(clippy::needless_range_loop)] // i and j needed as array indices in 2D operations
     fn aggregate_importances(
         &self,
         individual_importances: &Array2<Float>,
@@ -258,7 +259,7 @@ impl EnsembleAnalyzer {
                     feature_importances
                         .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
-                    let median = if feature_importances.len() % 2 == 0 {
+                    let median = if feature_importances.len().is_multiple_of(2) {
                         let mid = feature_importances.len() / 2;
                         (feature_importances[mid - 1] + feature_importances[mid]) / 2.0
                     } else {
@@ -285,9 +286,10 @@ impl EnsembleAnalyzer {
                     .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
                 let mut aggregated = Array1::zeros(n_features);
-                for i in 0..*k.min(&n_features) {
-                    let (feature_idx, importance) = indexed_importances[i];
-                    aggregated[feature_idx] = importance;
+                for (feature_idx, importance) in
+                    indexed_importances.iter().take(*k.min(&n_features))
+                {
+                    aggregated[*feature_idx] = *importance;
                 }
 
                 Ok(aggregated)
@@ -322,7 +324,7 @@ impl EnsembleAnalyzer {
                 self.bayesian_average_importances(individual_importances, model_weights)
             }
 
-            ImportanceAggregationMethod::PermutationBased { n_repeats } => {
+            ImportanceAggregationMethod::PermutationBased { n_repeats: _ } => {
                 // Placeholder for permutation-based importance
                 // In a real implementation, this would compute permutation importance
                 let mean_importances = individual_importances
@@ -331,7 +333,9 @@ impl EnsembleAnalyzer {
                 Ok(mean_importances)
             }
 
-            ImportanceAggregationMethod::SHAPBased { background_samples } => {
+            ImportanceAggregationMethod::SHAPBased {
+                background_samples: _,
+            } => {
                 // Placeholder for SHAP-based importance
                 // In a real implementation, this would compute SHAP values
                 let mean_importances = individual_importances
@@ -871,7 +875,6 @@ impl EnsembleAnalyzer {
 
         let mut ece: Float = 0.0;
         let mut mce: Float = 0.0;
-        let mut total_samples = 0;
 
         for i in 0..n_bins {
             let bin_lower = i as Float * bin_size;
@@ -890,7 +893,6 @@ impl EnsembleAnalyzer {
             }
 
             let bin_size_actual = bin_indices.len();
-            total_samples += bin_size_actual;
 
             // Compute average confidence and accuracy in this bin
             let avg_confidence = bin_indices

@@ -56,6 +56,7 @@ pub fn weighted_average_f32(values: &[f32], weights: &[f32]) -> f32 {
 }
 
 /// Consensus-based voting strategy
+#[allow(clippy::needless_range_loop)] // multi-dimensional indexing with estimator_idx and sample_idx
 pub fn consensus_voting(
     all_predictions: &[Array1<Float>],
     consensus_threshold: f32,
@@ -211,6 +212,7 @@ pub fn dynamic_weight_adjustment(
 }
 
 /// Temperature-scaled soft voting
+#[allow(clippy::needless_range_loop)] // multi-dimensional indexing with estimator_idx, sample_idx, class_idx
 pub fn temperature_scaled_voting(
     all_probabilities: &[Array2<Float>],
     temperature: f32,
@@ -263,6 +265,7 @@ pub fn temperature_scaled_voting(
 }
 
 /// Rank-based voting using ordinal rankings
+#[allow(clippy::needless_range_loop)] // multi-dimensional indexing with estimator_idx and sample_idx
 pub fn rank_based_voting(all_probabilities: &[Array2<Float>]) -> Result<Array1<Float>> {
     if all_probabilities.is_empty() {
         return Err(sklears_core::error::SklearsError::InvalidParameter {

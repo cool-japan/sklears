@@ -18,6 +18,9 @@ use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::error::{Result, SklearsError};
 use std::fmt::Debug;
 
+/// Type alias for cross-validation result entries: (name, log_likelihoods, n_params, n_data)
+type CvResults = [(String, Vec<f64>, Vec<usize>, Vec<usize>)];
+
 /// Result of information criterion calculation
 #[derive(Debug, Clone)]
 pub struct InformationCriterionResult {
@@ -554,7 +557,7 @@ impl CrossValidatedIC {
     /// Select best model using cross-validated IC
     pub fn select_model(
         &self,
-        cv_results: &[(String, Vec<f64>, Vec<usize>, Vec<usize>)], // (name, cv_log_likes, cv_n_params, cv_n_data)
+        cv_results: &CvResults, // (name, cv_log_likes, cv_n_params, cv_n_data)
     ) -> Result<ModelComparisonResult> {
         let calculator = InformationCriterionCalculator::new();
         let mut aggregated_models = Vec::new();

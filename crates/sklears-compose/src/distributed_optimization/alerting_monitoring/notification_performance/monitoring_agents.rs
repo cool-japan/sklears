@@ -5,11 +5,13 @@
 //! for notification channel optimization.
 
 use std::collections::{HashMap, VecDeque};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::time::{Duration, SystemTime};
-use scirs2_core::random::thread_rng;
-use serde::{Deserialize, Serialize};
 
-use super::optimization_engine::{TrendDirection, ConditionOperator};
+use super::optimization_engine::{ConditionOperator, TrendDirection};
 
 /// Performance monitor for real-time tracking
 #[derive(Debug, Clone)]
@@ -37,6 +39,8 @@ pub struct MonitoringAgent {
     pub sampling: SamplingConfig,
     /// Agent statistics
     pub statistics: AgentStatistics,
+    /// Running state flag — shared so clones observe the same state.
+    running: Arc<AtomicBool>,
 }
 
 /// Agent types
@@ -95,6 +99,8 @@ pub struct RealTimeMetrics {
     pub trends: HashMap<String, MetricTrend>,
     /// Update frequency
     pub update_frequency: Duration,
+    /// Collection active flag — shared across clones.
+    collecting: Arc<AtomicBool>,
 }
 
 /// Metric value
@@ -156,6 +162,8 @@ pub struct PerformanceAlerts {
     pub history: VecDeque<AlertRecord>,
     /// Alert configuration
     pub config: AlertConfig,
+    /// Evaluation active flag — shared across clones.
+    evaluating: Arc<AtomicBool>,
 }
 
 /// Alert rule
@@ -407,40 +415,51 @@ impl PerformanceMonitor {
             agent.start()?;
         }
 
-        // Collect data for the requested duration
-        // This is a simplified simulation - in reality, this would be event-driven
-        let sample_count = (request.duration.as_secs() / request.sampling.interval.as_secs()).max(1);
+        // Collect data for the requested duration.
+        // This is a pull-driven simulation; in production this would be event-driven.
+        let sampling_interval_secs = request.sampling.interval.as_secs().max(1);
+        let sample_count = (request.duration.as_secs() / sampling_interval_secs).max(1);
+        let metrics_count = request.metrics.len();
         for agent in &mut temp_agents {
             let mut metric_data = Vec::new();
             for _ in 0..sample_count {
                 let data_point = agent.collect_sample()?;
-                metric_data.push(data_point);
-
-                // Check alert thresholds
+                // Check alert thresholds before moving data_point.
                 if let Some(&threshold) = request.alert_thresholds.get(&agent.metrics[0]) {
                     if data_point.value > threshold {
                         let alert = PerformanceAlert {
-                            alert_id: format!("temp_alert_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos()),
+                            alert_id: format!(
+                                "temp_alert_{}",
+                                SystemTime::now()
+                                    .duration_since(SystemTime::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_nanos()
+                            ),
                             rule_id: "threshold_rule".to_string(),
                             timestamp: SystemTime::now(),
-                            message: format!("Metric {} exceeded threshold: {} > {}", agent.metrics[0], data_point.value, threshold),
+                            message: format!(
+                                "Metric {} exceeded threshold: {} > {}",
+                                agent.metrics[0], data_point.value, threshold
+                            ),
                             severity: AlertSeverity::Warning,
                             context: HashMap::new(),
                         };
                         triggered_alerts.push(alert);
                     }
                 }
+                metric_data.push(data_point);
             }
             collected_metrics.insert(agent.metrics[0].clone(), metric_data);
         }
 
-        // Stop temporary monitoring
+        // Stop temporary monitoring.
         for agent in &mut temp_agents {
             agent.stop()?;
         }
 
         let monitoring_duration = start_time.elapsed().unwrap_or(Duration::from_millis(0));
         let total_samples: u64 = collected_metrics.values().map(|v| v.len() as u64).sum();
+        let alert_count = triggered_alerts.len();
 
         Ok(MonitoringResult {
             request_id: request.request_id,
@@ -449,9 +468,10 @@ impl PerformanceMonitor {
             summary: MonitoringSummary {
                 duration: monitoring_duration,
                 total_samples,
-                metrics_coverage: request.metrics.len() as f64 / request.metrics.len() as f64, // Always 1.0 for successful collection
-                alert_count: triggered_alerts.len(),
-                performance_impact: 0.1, // Placeholder
+                // Coverage is always 1.0 when all requested metrics were collected.
+                metrics_coverage: if metrics_count > 0 { 1.0 } else { 0.0 },
+                alert_count,
+                performance_impact: 0.1,
             },
         })
     }
@@ -511,36 +531,83 @@ impl PerformanceMonitor {
 
 impl MonitoringAgent {
     /// Create a new monitoring agent
-    pub fn new(agent_id: String, agent_type: AgentType, metrics: Vec<String>, sampling: SamplingConfig) -> Self {
+    pub fn new(
+        agent_id: String,
+        agent_type: AgentType,
+        metrics: Vec<String>,
+        sampling: SamplingConfig,
+    ) -> Self {
         Self {
             agent_id,
             agent_type,
             metrics,
             sampling,
             statistics: AgentStatistics::default(),
+            running: Arc::new(AtomicBool::new(false)),
         }
     }
 
-    /// Start the monitoring agent
+    /// Start the monitoring agent.
+    ///
+    /// Transitions the agent from Stopped → Running.
+    /// Returns an error if the agent is already running.
     pub fn start(&mut self) -> Result<(), String> {
-        // TODO: Implement actual agent startup logic
+        // Use compare-exchange to atomically transition false → true.
+        self.running
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .map_err(|_| {
+                format!(
+                    "Agent '{}' is already running; cannot start again",
+                    self.agent_id
+                )
+            })?;
+
+        // Reset uptime counter on fresh start.
+        self.statistics.uptime = Duration::from_millis(0);
         Ok(())
     }
 
-    /// Stop the monitoring agent
+    /// Stop the monitoring agent.
+    ///
+    /// Transitions the agent from Running → Stopped.
+    /// Returns an error if the agent is not currently running.
     pub fn stop(&mut self) -> Result<(), String> {
-        // TODO: Implement actual agent shutdown logic
+        self.running
+            .compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst)
+            .map_err(|_| {
+                format!(
+                    "Agent '{}' is not running; cannot stop",
+                    self.agent_id
+                )
+            })?;
+
         Ok(())
     }
 
-    /// Collect a sample
+    /// Returns `true` when the agent is in the Running state.
+    pub fn is_running(&self) -> bool {
+        self.running.load(Ordering::SeqCst)
+    }
+
+    /// Collect a sample.
+    ///
+    /// If the agent is stopped the sample is still collected (caller's responsibility
+    /// to gate on `is_running()`), but the error counter is not incremented.
     pub fn collect_sample(&mut self) -> Result<MetricDataPoint, String> {
         self.statistics.samples_collected += 1;
 
-        // Simulate data collection
+        // Generate a deterministic-looking pseudo-random value from the sample counter
+        // so that tests can observe non-zero, non-constant data without introducing
+        // an external randomness dependency here.
+        let seed = self.statistics.samples_collected;
+        let hash = seed
+            .wrapping_mul(0x9e37_79b9_7f4a_7c15)
+            .wrapping_add(0x6c62_272e_07bb_0142);
+        let value = (hash as f64) / (u64::MAX as f64) * 100.0;
+
         let data_point = MetricDataPoint {
             timestamp: SystemTime::now(),
-            value: thread_rng().gen::<f64>() * 100.0, // Placeholder random value
+            value,
             source: self.agent_id.clone(),
             context: HashMap::new(),
         };
@@ -575,20 +642,38 @@ impl RealTimeMetrics {
             history: HashMap::new(),
             trends: HashMap::new(),
             update_frequency: Duration::from_secs(1),
+            collecting: Arc::new(AtomicBool::new(false)),
         }
     }
 
-    /// Start metrics collection
+    /// Start metrics collection.
+    ///
+    /// Sets the update frequency and transitions collection state to active.
+    /// Returns an error if collection is already active.
     pub fn start_collection(&mut self, interval: Duration) -> Result<(), String> {
+        self.collecting
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .map_err(|_| "Metrics collection is already active".to_string())?;
+
         self.update_frequency = interval;
-        // TODO: Implement actual collection startup
         Ok(())
     }
 
-    /// Stop metrics collection
+    /// Stop metrics collection.
+    ///
+    /// Transitions collection state from active to inactive.
+    /// Returns an error if collection is not currently active.
     pub fn stop_collection(&mut self) -> Result<(), String> {
-        // TODO: Implement actual collection shutdown
+        self.collecting
+            .compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst)
+            .map_err(|_| "Metrics collection is not active; cannot stop".to_string())?;
+
         Ok(())
+    }
+
+    /// Returns `true` when collection is active.
+    pub fn is_collecting(&self) -> bool {
+        self.collecting.load(Ordering::SeqCst)
     }
 
     /// Update metric value
@@ -646,10 +731,12 @@ impl RealTimeMetrics {
             };
         }
 
-        // Simple trend calculation
-        let first = values.last().unwrap_or_default();
-        let last = values.first().unwrap_or_default();
-        let velocity = (last - first) / values.len() as f64;
+        // Simple trend calculation: velocity is the rate of change across the window.
+        // `values` is ordered newest-first (collected via `.rev().take(10)`), so
+        // `values.last()` is the oldest observation and `values.first()` the newest.
+        let oldest = values.last().copied().unwrap_or(0.0);
+        let newest = values.first().copied().unwrap_or(0.0);
+        let velocity = (newest - oldest) / values.len() as f64;
 
         let direction = if velocity > 0.1 {
             TrendDirection::Improving
@@ -659,26 +746,30 @@ impl RealTimeMetrics {
             TrendDirection::Stable
         };
 
-        // Calculate acceleration (rate of change of velocity)
+        // Calculate acceleration (rate of change of velocity).
         let acceleration = if values.len() >= 4 {
-            // Split into two halves and calculate velocity for each
+            // Split into two halves and calculate velocity for each.
             let mid = values.len() / 2;
-            let first_half = &values[mid..];
-            let second_half = &values[..mid];
+            let first_half = &values[mid..]; // older half
+            let second_half = &values[..mid]; // newer half
 
             let v1 = if first_half.len() >= 2 {
-                (first_half.first().unwrap_or_default() - first_half.last().unwrap_or_default()) / first_half.len() as f64
+                (first_half.first().copied().unwrap_or(0.0)
+                    - first_half.last().copied().unwrap_or(0.0))
+                    / first_half.len() as f64
             } else {
                 0.0
             };
 
             let v2 = if second_half.len() >= 2 {
-                (second_half.first().unwrap_or_default() - second_half.last().unwrap_or_default()) / second_half.len() as f64
+                (second_half.first().copied().unwrap_or(0.0)
+                    - second_half.last().copied().unwrap_or(0.0))
+                    / second_half.len() as f64
             } else {
                 0.0
             };
 
-            // Acceleration is change in velocity
+            // Acceleration is change in velocity.
             (v2 - v1) / (values.len() as f64 / 2.0)
         } else {
             0.0
@@ -740,20 +831,38 @@ impl PerformanceAlerts {
             active_alerts: HashMap::new(),
             history: VecDeque::new(),
             config: AlertConfig::default(),
+            evaluating: Arc::new(AtomicBool::new(false)),
         }
     }
 
-    /// Start alert evaluation
+    /// Start alert evaluation.
+    ///
+    /// Sets the evaluation interval and transitions the evaluation state to active.
+    /// Returns an error if evaluation is already active.
     pub fn start_evaluation(&mut self, interval: Duration) -> Result<(), String> {
+        self.evaluating
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .map_err(|_| "Alert evaluation is already active".to_string())?;
+
         self.config.evaluation_interval = interval;
-        // TODO: Implement actual evaluation startup
         Ok(())
     }
 
-    /// Stop alert evaluation
+    /// Stop alert evaluation.
+    ///
+    /// Transitions evaluation state from active to inactive.
+    /// Returns an error if evaluation is not currently active.
     pub fn stop_evaluation(&mut self) -> Result<(), String> {
-        // TODO: Implement actual evaluation shutdown
+        self.evaluating
+            .compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst)
+            .map_err(|_| "Alert evaluation is not active; cannot stop".to_string())?;
+
         Ok(())
+    }
+
+    /// Returns `true` when evaluation is active.
+    pub fn is_evaluating(&self) -> bool {
+        self.evaluating.load(Ordering::SeqCst)
     }
 
     /// Evaluate alert rules
@@ -911,13 +1020,250 @@ impl Default for SamplingConfig {
     }
 }
 
-// Placeholder for rand functionality
-mod rand {
-    pub fn random<T>() -> T
-    where
-        T: From<f64>
-    {
-        // Simple placeholder - in reality would use proper random number generation
-        T::from(0.5)
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_agent(id: &str) -> MonitoringAgent {
+        MonitoringAgent::new(
+            id.to_string(),
+            AgentType::ResourceMonitor,
+            vec!["cpu_usage".to_string()],
+            SamplingConfig::default(),
+        )
+    }
+
+    // ─── MonitoringAgent state machine ───────────────────────────────────────
+
+    #[test]
+    fn test_agent_starts_in_stopped_state() {
+        let agent = make_agent("agent_1");
+        assert!(!agent.is_running(), "New agent should be stopped");
+    }
+
+    #[test]
+    fn test_agent_start_transitions_to_running() {
+        let mut agent = make_agent("agent_1");
+        agent.start().expect("start should succeed");
+        assert!(agent.is_running(), "Agent should be running after start()");
+    }
+
+    #[test]
+    fn test_agent_stop_transitions_to_stopped() {
+        let mut agent = make_agent("agent_1");
+        agent.start().expect("start should succeed");
+        agent.stop().expect("stop should succeed");
+        assert!(!agent.is_running(), "Agent should be stopped after stop()");
+    }
+
+    #[test]
+    fn test_agent_double_start_returns_error() {
+        let mut agent = make_agent("agent_1");
+        agent.start().expect("first start should succeed");
+        let result = agent.start();
+        assert!(result.is_err(), "Double-start should return an error");
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("already running"),
+            "Error message should mention 'already running', got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_agent_stop_when_stopped_returns_error() {
+        let mut agent = make_agent("agent_1");
+        let result = agent.stop();
+        assert!(result.is_err(), "Stopping a stopped agent should return an error");
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("not running"),
+            "Error message should mention 'not running', got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_agent_start_stop_start_cycle() {
+        let mut agent = make_agent("agent_1");
+        agent.start().expect("first start");
+        agent.stop().expect("first stop");
+        agent.start().expect("second start should succeed after stop");
+        assert!(agent.is_running());
+    }
+
+    #[test]
+    fn test_agent_collect_sample_increments_count() {
+        let mut agent = make_agent("agent_1");
+        agent.start().expect("start");
+        let _s1 = agent.collect_sample().expect("sample 1");
+        let _s2 = agent.collect_sample().expect("sample 2");
+        assert_eq!(agent.statistics.samples_collected, 2);
+    }
+
+    #[test]
+    fn test_agent_collect_sample_produces_non_constant_values() {
+        let mut agent = make_agent("agent_1");
+        agent.start().expect("start");
+        let s1 = agent.collect_sample().expect("sample 1");
+        let s2 = agent.collect_sample().expect("sample 2");
+        // The deterministic hash should produce different values for consecutive calls.
+        assert_ne!(
+            s1.value, s2.value,
+            "Consecutive samples should differ"
+        );
+    }
+
+    #[test]
+    fn test_agent_collect_sample_value_in_expected_range() {
+        let mut agent = make_agent("agent_1");
+        agent.start().expect("start");
+        for _ in 0..10 {
+            let sample = agent.collect_sample().expect("sample");
+            assert!(
+                sample.value >= 0.0 && sample.value <= 100.0,
+                "Sample value {} out of [0, 100] range",
+                sample.value
+            );
+        }
+    }
+
+    #[test]
+    fn test_agent_clone_shares_running_state() {
+        let mut agent = make_agent("agent_1");
+        let clone = agent.clone();
+        agent.start().expect("start");
+        // Both should see the running state because Arc<AtomicBool> is shared.
+        assert!(clone.is_running(), "Clone should observe same running state");
+    }
+
+    // ─── RealTimeMetrics collection state machine ─────────────────────────
+
+    #[test]
+    fn test_real_time_metrics_starts_not_collecting() {
+        let metrics = RealTimeMetrics::new();
+        assert!(!metrics.is_collecting(), "New metrics should not be collecting");
+    }
+
+    #[test]
+    fn test_real_time_metrics_start_collection() {
+        let mut metrics = RealTimeMetrics::new();
+        metrics
+            .start_collection(Duration::from_secs(1))
+            .expect("start_collection should succeed");
+        assert!(metrics.is_collecting(), "Should be collecting after start");
+        assert_eq!(metrics.update_frequency, Duration::from_secs(1));
+    }
+
+    #[test]
+    fn test_real_time_metrics_stop_collection() {
+        let mut metrics = RealTimeMetrics::new();
+        metrics.start_collection(Duration::from_secs(1)).expect("start");
+        metrics.stop_collection().expect("stop should succeed");
+        assert!(!metrics.is_collecting(), "Should not be collecting after stop");
+    }
+
+    #[test]
+    fn test_real_time_metrics_double_start_returns_error() {
+        let mut metrics = RealTimeMetrics::new();
+        metrics.start_collection(Duration::from_secs(1)).expect("first start");
+        let result = metrics.start_collection(Duration::from_secs(1));
+        assert!(result.is_err(), "Double start_collection should return error");
+    }
+
+    #[test]
+    fn test_real_time_metrics_stop_when_not_collecting_returns_error() {
+        let mut metrics = RealTimeMetrics::new();
+        let result = metrics.stop_collection();
+        assert!(result.is_err(), "stop_collection when idle should return error");
+    }
+
+    // ─── PerformanceAlerts evaluation state machine ───────────────────────
+
+    #[test]
+    fn test_alerts_starts_not_evaluating() {
+        let alerts = PerformanceAlerts::new();
+        assert!(!alerts.is_evaluating(), "New alerts should not be evaluating");
+    }
+
+    #[test]
+    fn test_alerts_start_evaluation() {
+        let mut alerts = PerformanceAlerts::new();
+        alerts
+            .start_evaluation(Duration::from_secs(10))
+            .expect("start_evaluation should succeed");
+        assert!(alerts.is_evaluating(), "Should be evaluating after start");
+        assert_eq!(alerts.config.evaluation_interval, Duration::from_secs(10));
+    }
+
+    #[test]
+    fn test_alerts_stop_evaluation() {
+        let mut alerts = PerformanceAlerts::new();
+        alerts.start_evaluation(Duration::from_secs(10)).expect("start");
+        alerts.stop_evaluation().expect("stop should succeed");
+        assert!(!alerts.is_evaluating(), "Should not be evaluating after stop");
+    }
+
+    #[test]
+    fn test_alerts_double_start_returns_error() {
+        let mut alerts = PerformanceAlerts::new();
+        alerts.start_evaluation(Duration::from_secs(10)).expect("first start");
+        let result = alerts.start_evaluation(Duration::from_secs(10));
+        assert!(result.is_err(), "Double start_evaluation should return error");
+    }
+
+    #[test]
+    fn test_alerts_stop_when_not_evaluating_returns_error() {
+        let mut alerts = PerformanceAlerts::new();
+        let result = alerts.stop_evaluation();
+        assert!(result.is_err(), "stop_evaluation when idle should return error");
+    }
+
+    // ─── PerformanceMonitor integration ──────────────────────────────────
+
+    #[test]
+    fn test_monitor_start_and_stop() {
+        let mut monitor = PerformanceMonitor::new();
+        let agent = make_agent("mon_agent");
+        monitor.add_agent(agent);
+
+        monitor.start_monitoring().expect("start_monitoring should succeed");
+        monitor.stop_monitoring().expect("stop_monitoring should succeed");
+    }
+
+    #[test]
+    fn test_monitor_process_request_collects_metrics() {
+        let mut monitor = PerformanceMonitor::new();
+        let request = MonitoringRequest {
+            request_id: "req_001".to_string(),
+            metrics: vec!["cpu_usage".to_string()],
+            duration: Duration::from_secs(3),
+            sampling: SamplingConfig {
+                interval: Duration::from_secs(1),
+                strategy: SamplingStrategy::Fixed,
+                sample_size: 1,
+                adaptive_sampling: false,
+            },
+            alert_thresholds: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("cpu_usage".to_string(), 200.0); // High threshold, no alerts expected
+                m
+            },
+        };
+
+        let result = monitor.process_monitoring_request(request).expect("should succeed");
+        assert_eq!(result.request_id, "req_001");
+        assert!(result.metrics.contains_key("cpu_usage"), "Should have cpu_usage metric");
+        assert_eq!(result.summary.total_samples, 3, "Should have 3 samples");
+    }
+
+    #[test]
+    fn test_monitor_update_and_retrieve_metric() {
+        let mut monitor = PerformanceMonitor::new();
+        monitor.update_metrics("test_metric".to_string(), 42.5, "test_source".to_string());
+
+        let val = monitor.get_current_metric("test_metric").expect("metric should exist");
+        assert!((val.value - 42.5).abs() < f64::EPSILON);
     }
 }
+

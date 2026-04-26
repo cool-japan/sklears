@@ -5,11 +5,9 @@
 //! and various augmentation strategies.
 
 use crate::NeuralResult;
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4};
-use scirs2_core::random::essentials::{
-    Normal, Normal as RandNormal, Uniform, Uniform as RandUniform,
-};
-use scirs2_core::random::{Distribution, Rng, RngExt};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3};
+use scirs2_core::random::essentials::{Normal, Uniform, Uniform as RandUniform};
+use scirs2_core::random::{Distribution, RngExt};
 use scirs2_core::{ChaCha8Rng, SeedableRng};
 use sklears_core::types::FloatBounds;
 use std::collections::HashMap;
@@ -119,6 +117,7 @@ pub struct GaussianNoise<T: FloatBounds> {
 }
 
 impl<T: FloatBounds> GaussianNoise<T> {
+    /// Create a new Gaussian noise transformation with the given mean and standard deviation
     pub fn new(mean: T, std: T) -> Self {
         Self {
             mean,
@@ -128,6 +127,7 @@ impl<T: FloatBounds> GaussianNoise<T> {
         }
     }
 
+    /// Set the probability (0.0–1.0) of applying this transformation to each sample
     pub fn with_probability(mut self, prob: T) -> Self {
         self.probability = prob;
         self
@@ -183,6 +183,7 @@ pub struct UniformNoise<T: FloatBounds> {
 }
 
 impl<T: FloatBounds> UniformNoise<T> {
+    /// Create a new uniform noise transformation sampling noise uniformly from `[low, high)`
     pub fn new(low: T, high: T) -> Self {
         Self {
             low,
@@ -192,6 +193,7 @@ impl<T: FloatBounds> UniformNoise<T> {
         }
     }
 
+    /// Set the probability (0.0–1.0) of applying this transformation to each sample
     pub fn with_probability(mut self, prob: T) -> Self {
         self.probability = prob;
         self
@@ -241,6 +243,7 @@ pub struct FeatureDropout<T: FloatBounds> {
 }
 
 impl<T: FloatBounds> FeatureDropout<T> {
+    /// Create a new feature dropout transformation that zeros entire feature columns with probability `dropout_rate`
     pub fn new(dropout_rate: T) -> Self {
         Self {
             dropout_rate,
@@ -249,6 +252,7 @@ impl<T: FloatBounds> FeatureDropout<T> {
         }
     }
 
+    /// Set the probability (0.0–1.0) of applying this transformation to each sample
     pub fn with_probability(mut self, prob: T) -> Self {
         self.probability = prob;
         self
@@ -299,6 +303,7 @@ pub struct FeatureScaling<T: FloatBounds> {
 }
 
 impl<T: FloatBounds> FeatureScaling<T> {
+    /// Create a new feature scaling transformation that multiplies all values by a random factor drawn from `[min_scale, max_scale)`
     pub fn new(min_scale: T, max_scale: T) -> Self {
         Self {
             scale_range: (min_scale, max_scale),
@@ -307,6 +312,7 @@ impl<T: FloatBounds> FeatureScaling<T> {
         }
     }
 
+    /// Set the probability (0.0–1.0) of applying this transformation to each sample
     pub fn with_probability(mut self, prob: T) -> Self {
         self.probability = prob;
         self
@@ -351,6 +357,7 @@ pub struct FeaturePermutation<T: FloatBounds> {
 }
 
 impl<T: FloatBounds> FeaturePermutation<T> {
+    /// Create a new feature permutation transformation that randomly shuffles a `permutation_ratio` fraction of features
     pub fn new(permutation_ratio: T) -> Self {
         Self {
             permutation_ratio,
@@ -359,6 +366,7 @@ impl<T: FloatBounds> FeaturePermutation<T> {
         }
     }
 
+    /// Set the probability (0.0–1.0) of applying this transformation to each sample
     pub fn with_probability(mut self, prob: T) -> Self {
         self.probability = prob;
         self
@@ -423,15 +431,33 @@ pub struct TimeSeriesAugmentation<T: FloatBounds> {
     name: String,
 }
 
+/// Individual time-series augmentation operation applied inside [`TimeSeriesAugmentation`]
 #[derive(Debug, Clone)]
 pub enum TimeSeriesTransform {
-    TimeWarp { sigma: f64 },
-    MagnitudeWarp { sigma: f64 },
-    WindowSlicing { ratio: f64 },
-    Jittering { sigma: f64 },
+    /// Randomly warp the time axis with a smooth curve parameterized by `sigma`
+    TimeWarp {
+        /// Standard deviation of the Gaussian kernel controlling warp magnitude
+        sigma: f64,
+    },
+    /// Randomly scale the magnitude of the signal with a smooth curve parameterized by `sigma`
+    MagnitudeWarp {
+        /// Standard deviation of the Gaussian kernel controlling warp magnitude
+        sigma: f64,
+    },
+    /// Crop a contiguous window of relative size `ratio` and stretch it to the original length
+    WindowSlicing {
+        /// Fraction of the time series length to retain in the window (0.0–1.0)
+        ratio: f64,
+    },
+    /// Add independent zero-mean Gaussian noise with standard deviation `sigma` to each time step
+    Jittering {
+        /// Standard deviation of the additive Gaussian noise
+        sigma: f64,
+    },
 }
 
 impl<T: FloatBounds> TimeSeriesAugmentation<T> {
+    /// Create a new time-series augmentation with no operations configured
     pub fn new() -> Self {
         Self {
             transformations: Vec::new(),
@@ -440,11 +466,13 @@ impl<T: FloatBounds> TimeSeriesAugmentation<T> {
         }
     }
 
+    /// Append a time-series transformation operation to the pipeline
     pub fn add_transform(mut self, transform: TimeSeriesTransform) -> Self {
         self.transformations.push(transform);
         self
     }
 
+    /// Set the probability (0.0–1.0) of applying this augmentation to each sample
     pub fn with_probability(mut self, prob: T) -> Self {
         self.probability = prob;
         self
@@ -580,7 +608,7 @@ impl<T: FloatBounds> TimeSeriesAugmentation<T> {
         for i in 0..n_samples {
             for j in 0..n_features {
                 let scale_factor = T::from(normal.sample(rng)).unwrap_or_else(T::one);
-                result[[i, j]] = result[[i, j]] * scale_factor;
+                result[[i, j]] *= scale_factor;
             }
         }
 
@@ -633,53 +661,62 @@ pub struct AugmentationBuilder<T: FloatBounds> {
 }
 
 impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> AugmentationBuilder<T> {
+    /// Create a new builder wrapping an empty augmentation pipeline
     pub fn new() -> Self {
         Self {
             pipeline: AugmentationPipeline::new(),
         }
     }
 
+    /// Create a builder whose pipeline uses a fixed random seed for reproducibility
     pub fn with_seed(seed: u64) -> Self {
         Self {
             pipeline: AugmentationPipeline::with_seed(seed),
         }
     }
 
+    /// Set the default probability applied to all subsequently added transformations
     pub fn probability(mut self, prob: T) -> Self {
         self.pipeline = self.pipeline.probability(prob);
         self
     }
 
+    /// Add a Gaussian noise transformation with the given mean and standard deviation
     pub fn gaussian_noise(mut self, mean: T, std: T) -> Self {
         let noise = GaussianNoise::new(mean, std);
         self.pipeline = self.pipeline.add_transformation(Box::new(noise));
         self
     }
 
+    /// Add a uniform noise transformation sampling noise uniformly from `[low, high)`
     pub fn uniform_noise(mut self, low: T, high: T) -> Self {
         let noise = UniformNoise::new(low, high);
         self.pipeline = self.pipeline.add_transformation(Box::new(noise));
         self
     }
 
+    /// Add a feature dropout transformation that zeros feature columns with probability `rate`
     pub fn feature_dropout(mut self, rate: T) -> Self {
         let dropout = FeatureDropout::new(rate);
         self.pipeline = self.pipeline.add_transformation(Box::new(dropout));
         self
     }
 
+    /// Add a feature scaling transformation that multiplies values by a random factor from `[min_scale, max_scale)`
     pub fn feature_scaling(mut self, min_scale: T, max_scale: T) -> Self {
         let scaling = FeatureScaling::new(min_scale, max_scale);
         self.pipeline = self.pipeline.add_transformation(Box::new(scaling));
         self
     }
 
+    /// Add a feature permutation transformation that shuffles a `ratio` fraction of features
     pub fn feature_permutation(mut self, ratio: T) -> Self {
         let permutation = FeaturePermutation::new(ratio);
         self.pipeline = self.pipeline.add_transformation(Box::new(permutation));
         self
     }
 
+    /// Add a time-series jittering transformation with Gaussian noise standard deviation `sigma`
     pub fn time_series_jittering(mut self, sigma: f64) -> Self {
         let ts_aug =
             TimeSeriesAugmentation::new().add_transform(TimeSeriesTransform::Jittering { sigma });
@@ -687,6 +724,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> AugmentationBuilder<T
         self
     }
 
+    /// Finalize the builder and return the configured augmentation pipeline
     pub fn build(self) -> AugmentationPipeline<T> {
         self.pipeline
     }
@@ -702,7 +740,6 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Default for Augmentat
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
 
     #[test]
     fn test_gaussian_noise() -> NeuralResult<()> {

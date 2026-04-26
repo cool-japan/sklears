@@ -296,7 +296,7 @@ impl NearestCentroid<Untrained> {
                     let mut values: Vec<Float> = class_data.column(feature_idx).to_vec();
                     values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-                    let median = if values.len() % 2 == 0 {
+                    let median = if values.len().is_multiple_of(2) {
                         let mid = values.len() / 2;
                         (values[mid - 1] + values[mid]) / 2.0
                     } else {
@@ -486,6 +486,7 @@ impl NearestCentroid<Untrained> {
     /// This method implements the shrinkage approach by computing the variance
     /// of each feature across all class centroids and setting features with
     /// variance below the threshold to zero.
+    #[allow(dead_code)] // reserved for regularization
     fn apply_shrinkage(centroids: &Array2<Float>, threshold: Float) -> Result<Array2<Float>> {
         if threshold < 0.0 {
             return Err(NeighborsError::InvalidInput(format!(

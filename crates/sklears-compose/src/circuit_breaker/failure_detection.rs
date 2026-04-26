@@ -15,6 +15,7 @@ use super::statistics_tracking::RequestResult;
 
 /// Circuit breaker failure detector with advanced pattern recognition and adaptive thresholds
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct CircuitBreakerFailureDetector {
     /// Detection configuration
     config: FailureDetectionConfig,
@@ -58,6 +59,7 @@ pub struct WindowEntry {
 
 /// Statistical analyzer for failure detection
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct StatisticalAnalyzer {
     /// Analysis method
     method: StatisticalMethod,
@@ -127,6 +129,7 @@ pub struct AnalysisResult {
 
 /// Pattern detector for failure patterns
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PatternDetector {
     /// Known patterns
     patterns: Arc<RwLock<Vec<FailurePattern>>>,
@@ -212,6 +215,7 @@ pub struct ResourcePattern {
 }
 
 /// Pattern matching engine
+#[allow(dead_code)]
 pub struct PatternMatchingEngine {
     /// Matching algorithms
     algorithms: HashMap<String, Box<dyn PatternMatchingAlgorithm + Send + Sync>>,
@@ -299,6 +303,7 @@ pub struct MatchingMetrics {
 }
 
 /// Pattern learning system for adaptive pattern recognition
+#[allow(dead_code)]
 pub struct PatternLearningSystem {
     /// Learning algorithm
     algorithm: Box<dyn PatternLearningAlgorithm + Send + Sync>,
@@ -406,6 +411,7 @@ pub struct LearningConfig {
 
 /// Threshold manager for adaptive threshold management
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ThresholdManager {
     /// Static thresholds
     static_thresholds: HashMap<String, f64>,
@@ -446,6 +452,7 @@ pub struct ThresholdRange {
 }
 
 /// Adaptive threshold calculator
+#[allow(dead_code)]
 pub struct AdaptiveThresholdCalculator {
     /// Historical performance data
     performance_data: Arc<Mutex<Vec<PerformanceDataPoint>>>,
@@ -524,6 +531,7 @@ pub struct AdaptiveThresholdConfig {
 }
 
 /// Threshold optimization engine
+#[allow(dead_code)]
 pub struct ThresholdOptimizationEngine {
     /// Optimization objectives
     objectives: Vec<OptimizationObjective>,
@@ -828,7 +836,7 @@ impl CircuitBreakerFailureDetector {
     }
 
     /// Update adaptive thresholds
-    pub fn update_thresholds(&self, performance_data: Vec<PerformanceDataPoint>) {
+    pub fn update_thresholds(&self, _performance_data: Vec<PerformanceDataPoint>) {
         // Simplified threshold update
     }
 
@@ -866,7 +874,7 @@ impl SlidingWindow {
     /// Get window statistics
     #[must_use]
     pub fn get_stats(&self) -> WindowStats {
-        /// WindowStats
+        // WindowStats
         WindowStats {
             total_requests: self.entries.len() as u64,
             success_count: self.success_count,

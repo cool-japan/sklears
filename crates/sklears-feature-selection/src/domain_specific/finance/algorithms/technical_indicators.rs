@@ -15,7 +15,7 @@ use super::utilities::compute_pearson_correlation;
 ///
 /// RSI is a momentum oscillator that measures the speed and magnitude of price changes.
 /// This function computes how well RSI correlates with the target variable.
-pub(crate) fn compute_rsi_predictive_power(
+pub fn compute_rsi_predictive_power(
     feature: &ArrayView1<Float>,
     target: &Array1<Float>,
     period: usize,
@@ -70,7 +70,7 @@ pub(crate) fn compute_rsi_predictive_power(
 ///
 /// MACD is a trend-following momentum indicator showing the relationship between
 /// two exponential moving averages.
-pub(crate) fn compute_macd_predictive_power(
+pub fn compute_macd_predictive_power(
     feature: &ArrayView1<Float>,
     target: &Array1<Float>,
     period: usize,
@@ -112,7 +112,7 @@ pub(crate) fn compute_macd_predictive_power(
 ///
 /// Bollinger Bands are volatility bands placed above and below a moving average.
 /// This function measures how well band signals correlate with the target.
-pub(crate) fn compute_bollinger_bands_predictive_power(
+pub fn compute_bollinger_bands_predictive_power(
     feature: &ArrayView1<Float>,
     target: &Array1<Float>,
     period: usize,
@@ -155,7 +155,7 @@ pub(crate) fn compute_bollinger_bands_predictive_power(
 ///
 /// ATR measures market volatility by decomposing the entire range of an asset
 /// price for a given period.
-pub(crate) fn compute_atr_predictive_power(
+pub fn compute_atr_predictive_power(
     feature: &ArrayView1<Float>,
     target: &Array1<Float>,
     period: usize,
@@ -193,7 +193,7 @@ pub(crate) fn compute_atr_predictive_power(
 /// Compute OBV (On-Balance Volume) predictive power
 ///
 /// OBV is a momentum indicator that uses volume flow to predict changes in price.
-pub(crate) fn compute_obv_predictive_power(
+pub fn compute_obv_predictive_power(
     feature: &ArrayView1<Float>,
     target: &Array1<Float>,
     _period: usize,
@@ -231,7 +231,7 @@ pub(crate) fn compute_obv_predictive_power(
 ///
 /// VWAP gives the average price a security has traded at throughout the day,
 /// based on both volume and price.
-pub(crate) fn compute_vwap_predictive_power(
+pub fn compute_vwap_predictive_power(
     feature: &ArrayView1<Float>,
     target: &Array1<Float>,
     period: usize,

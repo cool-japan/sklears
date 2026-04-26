@@ -6,12 +6,8 @@
 
 pub mod geometric_median;
 
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3, Axis};
-use scirs2_core::ndarray_ext::stats;
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2};
 use sklears_core::types::Float;
-use std::collections::HashMap;
-use std::f64::consts::PI;
 
 pub use geometric_median::{
     FittedGeometricMedianCCA, GeometricMedian, GeometricMedianCCA, GeometricMedianConfig,
@@ -215,11 +211,11 @@ pub struct GeometricProperties {
 /// Geodesic computation utilities
 pub struct GeodesicComputer {
     /// Manifold type
-    manifold: ManifoldType,
+    pub manifold: ManifoldType,
     /// Numerical integration method
-    integration_method: IntegrationMethod,
+    pub integration_method: IntegrationMethod,
     /// Accuracy parameters
-    accuracy_params: AccuracyParameters,
+    pub accuracy_params: AccuracyParameters,
 }
 
 /// Numerical integration methods for geodesics
@@ -255,11 +251,11 @@ pub struct AccuracyParameters {
 /// Natural gradient computation
 pub struct NaturalGradientComputer {
     /// Fisher information matrix computation method
-    fisher_method: FisherInformationMethod,
+    pub fisher_method: FisherInformationMethod,
     /// Regularization for numerical stability
-    regularization: Float,
+    pub regularization: Float,
     /// Preconditioning strategy
-    preconditioning: PreconditioningStrategy,
+    pub preconditioning: PreconditioningStrategy,
 }
 
 /// Methods for computing Fisher information matrix
@@ -295,11 +291,11 @@ pub enum PreconditioningStrategy {
 /// Geometric median computation
 pub struct GeometricMedianComputer {
     /// Distance metric on the manifold
-    distance_metric: ManifoldDistanceMetric,
+    pub distance_metric: ManifoldDistanceMetric,
     /// Optimization algorithm for median
-    optimization_algorithm: MedianOptimizationAlgorithm,
+    pub optimization_algorithm: MedianOptimizationAlgorithm,
     /// Robustness parameters
-    robustness_params: RobustnessParameters,
+    pub robustness_params: RobustnessParameters,
 }
 
 /// Distance metrics on manifolds
@@ -346,11 +342,11 @@ pub struct RobustnessParameters {
 /// Curved exponential family distributions
 pub struct CurvedExponentialFamily {
     /// Natural parameter space manifold
-    natural_parameter_manifold: ManifoldType,
+    pub natural_parameter_manifold: ManifoldType,
     /// Sufficient statistics computation
-    sufficient_statistics: SufficientStatisticsMethod,
+    pub sufficient_statistics: SufficientStatisticsMethod,
     /// Log normalizer computation
-    log_normalizer: LogNormalizerMethod,
+    pub log_normalizer: LogNormalizerMethod,
 }
 
 /// Methods for computing sufficient statistics
@@ -468,7 +464,7 @@ impl RiemannianOptimizer {
             // Compute search direction based on algorithm
             let search_direction = match &self.algorithm {
                 RiemannianAlgorithm::RiemannianGradientDescent {
-                    learning_rate,
+                    learning_rate: _,
                     momentum,
                 } => self.compute_gradient_descent_direction(
                     &riemannian_grad,
@@ -491,7 +487,7 @@ impl RiemannianOptimizer {
                     self.compute_bfgs_direction(&riemannian_grad, &mut bfgs_memory, *memory_size)?
                 }
                 RiemannianAlgorithm::NaturalGradient {
-                    learning_rate,
+                    learning_rate: _,
                     regularization,
                 } => self.compute_natural_gradient_direction(
                     &current_point,
@@ -558,7 +554,7 @@ impl RiemannianOptimizer {
     ) -> Result<Array2<Float>, DifferentialGeometryError> {
         match &self.manifold {
             ManifoldType::Euclidean { .. } => Ok(point.clone()),
-            ManifoldType::Sphere { dimension } => {
+            ManifoldType::Sphere { dimension: _ } => {
                 let norm = point.mapv(|x| x * x).sum().sqrt();
                 if norm == 0.0 {
                     return Err(DifferentialGeometryError::InvalidPoint(
@@ -808,8 +804,8 @@ impl RiemannianOptimizer {
     fn svd_projection(
         &self,
         point: &Array2<Float>,
-        n: usize,
-        p: usize,
+        _n: usize,
+        _p: usize,
     ) -> Result<Array2<Float>, DifferentialGeometryError> {
         // SVD-based projection (simplified)
         Ok(point.clone())
@@ -861,9 +857,9 @@ impl RiemannianOptimizer {
     fn fixed_rank_projection(
         &self,
         point: &Array2<Float>,
-        m: usize,
-        n: usize,
-        rank: usize,
+        _m: usize,
+        _n: usize,
+        _rank: usize,
     ) -> Result<Array2<Float>, DifferentialGeometryError> {
         // SVD truncation to fixed rank (simplified)
         Ok(point.clone())
@@ -872,7 +868,7 @@ impl RiemannianOptimizer {
     fn product_projection(
         &self,
         point: &Array2<Float>,
-        manifolds: &[ManifoldType],
+        _manifolds: &[ManifoldType],
     ) -> Result<Array2<Float>, DifferentialGeometryError> {
         // Project each component (simplified)
         Ok(point.clone())
@@ -883,7 +879,7 @@ impl RiemannianOptimizer {
 
     fn stiefel_tangent_projection(
         &self,
-        point: &Array2<Float>,
+        _point: &Array2<Float>,
         gradient: &Array2<Float>,
     ) -> Result<Array2<Float>, DifferentialGeometryError> {
         Ok(gradient.clone()) // Simplified
@@ -891,7 +887,7 @@ impl RiemannianOptimizer {
 
     fn grassmann_tangent_projection(
         &self,
-        point: &Array2<Float>,
+        _point: &Array2<Float>,
         gradient: &Array2<Float>,
     ) -> Result<Array2<Float>, DifferentialGeometryError> {
         Ok(gradient.clone()) // Simplified
@@ -899,7 +895,7 @@ impl RiemannianOptimizer {
 
     fn oblique_tangent_projection(
         &self,
-        point: &Array2<Float>,
+        _point: &Array2<Float>,
         gradient: &Array2<Float>,
     ) -> Result<Array2<Float>, DifferentialGeometryError> {
         Ok(gradient.clone()) // Simplified
@@ -907,7 +903,7 @@ impl RiemannianOptimizer {
 
     fn fixed_rank_tangent_projection(
         &self,
-        point: &Array2<Float>,
+        _point: &Array2<Float>,
         gradient: &Array2<Float>,
     ) -> Result<Array2<Float>, DifferentialGeometryError> {
         Ok(gradient.clone()) // Simplified
@@ -915,16 +911,16 @@ impl RiemannianOptimizer {
 
     fn product_tangent_projection(
         &self,
-        point: &Array2<Float>,
+        _point: &Array2<Float>,
         gradient: &Array2<Float>,
-        manifolds: &[ManifoldType],
+        _manifolds: &[ManifoldType],
     ) -> Result<Array2<Float>, DifferentialGeometryError> {
         Ok(gradient.clone()) // Simplified
     }
 
     fn spd_norm(
         &self,
-        point: &Array2<Float>,
+        _point: &Array2<Float>,
         tangent_vector: &Array2<Float>,
     ) -> Result<Float, DifferentialGeometryError> {
         Ok(tangent_vector.mapv(|x| x * x).sum().sqrt()) // Simplified
@@ -932,7 +928,7 @@ impl RiemannianOptimizer {
 
     fn fixed_rank_norm(
         &self,
-        point: &Array2<Float>,
+        _point: &Array2<Float>,
         tangent_vector: &Array2<Float>,
     ) -> Result<Float, DifferentialGeometryError> {
         Ok(tangent_vector.mapv(|x| x * x).sum().sqrt()) // Simplified
@@ -940,9 +936,9 @@ impl RiemannianOptimizer {
 
     fn product_norm(
         &self,
-        point: &Array2<Float>,
+        _point: &Array2<Float>,
         tangent_vector: &Array2<Float>,
-        manifolds: &[ManifoldType],
+        _manifolds: &[ManifoldType],
     ) -> Result<Float, DifferentialGeometryError> {
         Ok(tangent_vector.mapv(|x| x * x).sum().sqrt()) // Simplified
     }
@@ -992,7 +988,7 @@ impl RiemannianOptimizer {
         &self,
         point: &Array2<Float>,
         tangent_vector: &Array2<Float>,
-        manifolds: &[ManifoldType],
+        _manifolds: &[ManifoldType],
     ) -> Result<Array2<Float>, DifferentialGeometryError> {
         Ok(point + tangent_vector) // Simplified
     }
@@ -1041,7 +1037,7 @@ impl RiemannianOptimizer {
         &self,
         point1: &Array2<Float>,
         point2: &Array2<Float>,
-        manifolds: &[ManifoldType],
+        _manifolds: &[ManifoldType],
     ) -> Result<Float, DifferentialGeometryError> {
         Ok((point1 - point2).mapv(|x| x * x).sum().sqrt()) // Simplified
     }
@@ -1066,7 +1062,7 @@ impl RiemannianOptimizer {
         iteration: usize,
         restart_frequency: usize,
     ) -> Result<Array2<Float>, DifferentialGeometryError> {
-        if iteration % restart_frequency == 0 {
+        if iteration.is_multiple_of(restart_frequency) {
             *previous_direction = -gradient.clone();
         } else {
             let beta = match beta_method {
@@ -1090,9 +1086,9 @@ impl RiemannianOptimizer {
 
     fn compute_trust_region_direction<F>(
         &self,
-        point: &Array2<Float>,
+        _point: &Array2<Float>,
         gradient: &Array2<Float>,
-        objective: &F,
+        _objective: &F,
     ) -> Result<Array2<Float>, DifferentialGeometryError>
     where
         F: Fn(&Array2<Float>) -> Float,
@@ -1104,8 +1100,8 @@ impl RiemannianOptimizer {
     fn compute_bfgs_direction(
         &self,
         gradient: &Array2<Float>,
-        memory: &mut Vec<(Array2<Float>, Array2<Float>)>,
-        memory_size: usize,
+        _memory: &mut Vec<(Array2<Float>, Array2<Float>)>,
+        _memory_size: usize,
     ) -> Result<Array2<Float>, DifferentialGeometryError> {
         // Simplified L-BFGS computation
         Ok(-gradient.clone())
@@ -1113,9 +1109,9 @@ impl RiemannianOptimizer {
 
     fn compute_natural_gradient_direction(
         &self,
-        point: &Array2<Float>,
+        _point: &Array2<Float>,
         gradient: &Array2<Float>,
-        regularization: Float,
+        _regularization: Float,
     ) -> Result<Array2<Float>, DifferentialGeometryError> {
         // Simplified natural gradient computation
         Ok(-gradient.clone())
@@ -1248,10 +1244,9 @@ impl Default for LineSearchParameters {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::essentials::Normal;
     use scirs2_core::ndarray::array;
     use scirs2_core::ndarray::Array2;
-    use scirs2_core::random::thread_rng;
+    use std::f64::consts::PI;
 
     #[test]
     fn test_riemannian_optimizer_creation() {
@@ -1353,8 +1348,8 @@ mod tests {
             });
 
         // Minimize f(x) = -x[0] on the unit sphere (maximum should be at (1, 0, 0))
-        let objective = |point: &Array2<Float>| -point[[0, 0]];
-        let gradient = |point: &Array2<Float>| array![[-1.0, 0.0, 0.0]];
+        let objective = |pt: &Array2<Float>| -pt[[0, 0]];
+        let gradient = |_pt: &Array2<Float>| array![[-1.0, 0.0, 0.0]];
 
         let initial_point = array![[0.0, 1.0, 0.0]]; // Start at (0, 1, 0)
         let result = optimizer

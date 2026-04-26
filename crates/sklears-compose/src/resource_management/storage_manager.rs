@@ -5,6 +5,7 @@ use sklears_core::error::Result as SklResult;
 
 /// Storage resource manager
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct StorageResourceManager {
     /// Storage devices
     devices: Vec<StorageDevice>,
@@ -58,7 +59,7 @@ impl StorageResourceManager {
     }
 
     /// Release storage allocation
-    pub fn release_storage(&mut self, allocation: &StorageAllocation) -> SklResult<()> {
+    pub fn release_storage(&mut self, _allocation: &StorageAllocation) -> SklResult<()> {
         Ok(())
     }
 }

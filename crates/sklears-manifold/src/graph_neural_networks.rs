@@ -18,12 +18,12 @@ use sklears_core::{
 ///
 /// These are neural network architectures designed to learn node embeddings
 /// on graph-structured data through message passing and aggregation.
-
 /// Graph Convolutional Network (GCN) Layer
 ///
 /// Implements a single GCN layer that performs graph convolution:
 /// H^(l+1) = σ(D^(-1/2) A D^(-1/2) H^(l) W^(l))
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct GCNLayer {
     weight: Array2<f64>,
     bias: Option<Array1<f64>>,
@@ -93,6 +93,7 @@ pub struct GraphConvolutionalNetwork<S = Untrained> {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct GCNTrained {
     gcn_layers: Vec<GCNLayer>,
     embedding: Array2<f64>,
@@ -167,7 +168,7 @@ impl Fit<ArrayView2<'_, f64>, ()> for GraphConvolutionalNetwork<Untrained> {
     type Fitted = GraphConvolutionalNetwork<GCNTrained>;
 
     fn fit(self, x: &ArrayView2<'_, f64>, _y: &()) -> SklResult<Self::Fitted> {
-        let (n_nodes, n_features) = x.dim();
+        let (_n_nodes, n_features) = x.dim();
 
         // Create adjacency matrix from feature similarity
         let adjacency = self.create_adjacency_matrix(x)?;
@@ -297,6 +298,7 @@ pub struct GraphSAGE<S = Untrained> {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct GraphSAGETrained {
     weight_matrices: Vec<Array2<f64>>,
     embedding: Array2<f64>,
@@ -369,7 +371,7 @@ impl Fit<ArrayView2<'_, f64>, ()> for GraphSAGE<Untrained> {
     type Fitted = GraphSAGE<GraphSAGETrained>;
 
     fn fit(self, x: &ArrayView2<'_, f64>, _y: &()) -> SklResult<Self::Fitted> {
-        let (n_nodes, n_features) = x.dim();
+        let (_n_nodes, n_features) = x.dim();
 
         // Create adjacency matrix
         let adjacency = self.create_adjacency_matrix(x)?;
@@ -397,9 +399,9 @@ impl Fit<ArrayView2<'_, f64>, ()> for GraphSAGE<Untrained> {
         // Forward pass through GraphSAGE layers
         let mut current_embeddings = x.to_owned();
 
-        for layer in 0..self.n_layers {
+        for weights in &weight_matrices {
             current_embeddings =
-                self.sage_layer_forward(&current_embeddings, &adjacency, &weight_matrices[layer])?;
+                self.sage_layer_forward(&current_embeddings, &adjacency, weights)?;
         }
 
         Ok(GraphSAGE {
@@ -548,6 +550,7 @@ pub struct GraphAttentionNetwork<S = Untrained> {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct GATTrained {
     attention_weights: Vec<Array2<f64>>,
     weight_matrices: Vec<Array2<f64>>,

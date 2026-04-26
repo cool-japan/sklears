@@ -33,7 +33,7 @@
 //!     .add_candidate_polynomial(2)
 //!     .add_candidate_gaussian_process(Box::new(RBF::new(1.0)), 5);
 //!
-//! let best_noise_fn = selector.select_best(&x_train, &y_train).unwrap();
+//! let best_noise_fn = selector.select_best(&x_train, &y_train).expect("noise function selection should succeed with valid data");
 //! ```
 
 use crate::heteroscedastic::{LearnableNoiseFunction, NoiseFunction};
@@ -74,6 +74,12 @@ pub struct AutomaticNoiseFunctionSelector {
     learning_rate: f64,
     cross_validation_folds: Option<usize>,
     regularization_strength: f64,
+}
+
+impl Default for AutomaticNoiseFunctionSelector {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AutomaticNoiseFunctionSelector {
@@ -133,6 +139,7 @@ impl AutomaticNoiseFunctionSelector {
     }
 
     /// Add a polynomial noise function candidate
+    #[allow(clippy::same_item_push)] // Intentionally pushes same initial value for each degree
     pub fn add_candidate_polynomial(mut self, degree: usize) -> Self {
         let mut coeffs = vec![0.1]; // Constant term
         for _ in 1..=degree {
@@ -522,7 +529,7 @@ impl EnsembleNoiseFunction {
                     let mut weighted_sum = 0.0;
                     let mut weight_sum = 0.0;
 
-                    for (_j, pred) in predictions.iter().enumerate() {
+                    for pred in predictions.iter() {
                         let variance = pred[i].max(1e-12);
                         let inv_var_weight = 1.0 / variance;
                         weighted_sum += inv_var_weight * pred[i];
@@ -589,6 +596,7 @@ impl NoiseFunction for EnsembleNoiseFunction {
         }
 
         // Set weights
+        #[allow(clippy::needless_range_loop)] // indexing both self.weights and params
         for i in 0..n_functions {
             self.weights[i] = params[i];
         }
@@ -677,7 +685,7 @@ impl AdaptiveRegularization {
             + self.adaptation_rate * (data_complexity + self.complexity_penalty * param_complexity);
         let strength = self.base_strength * adaptive_factor / noise_level.max(1e-6);
 
-        strength.max(1e-12).min(1e-1) // Clamp to reasonable range
+        strength.clamp(1e-12, 1e-1) // Clamp to reasonable range
     }
 }
 

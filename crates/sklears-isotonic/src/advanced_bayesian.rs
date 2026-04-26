@@ -69,6 +69,7 @@ impl NonparametricBayesianIsotonic {
     }
 
     /// Fit using Dirichlet process mixture model
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn fit(&mut self, X: &Array1<f64>, y: &Array1<f64>) -> Result<(), SklearsError> {
         if X.len() != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -120,6 +121,7 @@ impl NonparametricBayesianIsotonic {
     }
 
     /// Simple isotonic fit helper
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     fn isotonic_fit(&self, _X: &Array1<f64>, y: &Array1<f64>) -> Result<Array1<f64>, SklearsError> {
         let mut fitted = y.clone();
 
@@ -141,6 +143,7 @@ impl NonparametricBayesianIsotonic {
     }
 
     /// Predict with posterior mean
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn predict(&self, X: &Array1<f64>) -> Result<Array1<f64>, SklearsError> {
         if self.samples.is_empty() {
             return Err(SklearsError::NotFitted {
@@ -163,6 +166,7 @@ impl NonparametricBayesianIsotonic {
     }
 
     /// Linear interpolation
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     fn interpolate(&self, x: f64, X: &Array1<f64>, y: &Array1<f64>) -> Result<f64, SklearsError> {
         if x <= X[0] {
             return Ok(y[0]);
@@ -182,6 +186,7 @@ impl NonparametricBayesianIsotonic {
     }
 
     /// Get posterior credible interval
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn credible_interval(
         &self,
         X: &Array1<f64>,
@@ -247,8 +252,8 @@ pub struct GaussianProcessMonotonic {
     variance: f64,
     /// Noise variance
     noise_variance: f64,
-    /// Training data
-    X_train: Option<Array1<f64>>,
+    /// Training data (stored as x_train, X convention in methods)
+    x_train: Option<Array1<f64>>,
     y_train: Option<Array1<f64>>,
 }
 
@@ -259,7 +264,7 @@ impl Default for GaussianProcessMonotonic {
             length_scale: 1.0,
             variance: 1.0,
             noise_variance: 0.01,
-            X_train: None,
+            x_train: None,
             y_train: None,
         }
     }
@@ -312,6 +317,7 @@ impl GaussianProcessMonotonic {
     }
 
     /// Fit the GP model
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn fit(&mut self, X: &Array1<f64>, y: &Array1<f64>) -> Result<(), SklearsError> {
         if X.len() != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -327,16 +333,17 @@ impl GaussianProcessMonotonic {
             }
         }
 
-        self.X_train = Some(X.clone());
+        self.x_train = Some(X.clone());
         self.y_train = Some(y_isotonic);
 
         Ok(())
     }
 
     /// Predict with GP
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn predict(&self, X: &Array1<f64>) -> Result<Array1<f64>, SklearsError> {
         let X_train = self
-            .X_train
+            .x_train
             .as_ref()
             .ok_or_else(|| SklearsError::NotFitted {
                 operation: "predict".to_string(),
@@ -385,6 +392,7 @@ impl GaussianProcessMonotonic {
     }
 
     /// Get prediction uncertainty
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn predict_with_uncertainty(
         &self,
         X: &Array1<f64>,
@@ -396,7 +404,7 @@ impl GaussianProcessMonotonic {
         for (i, &x) in X.iter().enumerate() {
             // Prior variance minus reduction from observations
             let X_train = self
-                .X_train
+                .x_train
                 .as_ref()
                 .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
             let mut k_star_sum = 0.0;
@@ -434,8 +442,8 @@ pub struct VariationalInferenceIsotonic {
     variational_mean: Option<Array1<f64>>,
     /// Variational parameters (log variance)
     variational_log_var: Option<Array1<f64>>,
-    /// Training data
-    X_train: Option<Array1<f64>>,
+    /// Training data (stored as x_train, X convention in methods)
+    x_train: Option<Array1<f64>>,
 }
 
 impl Default for VariationalInferenceIsotonic {
@@ -447,7 +455,7 @@ impl Default for VariationalInferenceIsotonic {
             tolerance: 1e-6,
             variational_mean: None,
             variational_log_var: None,
-            X_train: None,
+            x_train: None,
         }
     }
 }
@@ -477,6 +485,7 @@ impl VariationalInferenceIsotonic {
     }
 
     /// Fit using variational inference
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn fit(&mut self, X: &Array1<f64>, y: &Array1<f64>) -> Result<(), SklearsError> {
         if X.len() != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -533,12 +542,13 @@ impl VariationalInferenceIsotonic {
 
         self.variational_mean = Some(mean);
         self.variational_log_var = Some(log_var);
-        self.X_train = Some(X.slice(s![0..n_points]).to_owned());
+        self.x_train = Some(X.slice(s![0..n_points]).to_owned());
 
         Ok(())
     }
 
     /// Predict with variational posterior
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn predict(&self, X: &Array1<f64>) -> Result<Array1<f64>, SklearsError> {
         let mean = self
             .variational_mean
@@ -547,7 +557,7 @@ impl VariationalInferenceIsotonic {
                 operation: "predict".to_string(),
             })?;
         let X_train = self
-            .X_train
+            .x_train
             .as_ref()
             .ok_or_else(|| SklearsError::NotFitted {
                 operation: "predict".to_string(),
@@ -576,6 +586,7 @@ impl VariationalInferenceIsotonic {
     }
 
     /// Compute evidence lower bound (ELBO)
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn compute_elbo(&self, X: &Array1<f64>, y: &Array1<f64>) -> Result<f64, SklearsError> {
         let mean = self
             .variational_mean
@@ -685,6 +696,7 @@ impl MCMCIsotonicSampler {
     }
 
     /// Run MCMC sampling
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn sample(&mut self, X: &Array1<f64>, y: &Array1<f64>) -> Result<(), SklearsError> {
         if X.len() != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -703,6 +715,7 @@ impl MCMCIsotonicSampler {
     }
 
     /// Metropolis-Hastings sampling
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     fn metropolis_hastings(
         &mut self,
         _X: &Array1<f64>,
@@ -759,12 +772,14 @@ impl MCMCIsotonicSampler {
     }
 
     /// Hamiltonian Monte Carlo sampling (simplified)
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     fn hamiltonian_mc(&mut self, _X: &Array1<f64>, y: &Array1<f64>) -> Result<(), SklearsError> {
         // Simplified HMC - for full implementation would need gradient computations
         self.metropolis_hastings(_X, y)
     }
 
     /// Gibbs sampling
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     fn gibbs_sampling(&mut self, _X: &Array1<f64>, y: &Array1<f64>) -> Result<(), SklearsError> {
         let mut rng = thread_rng();
         let normal = Normal::new(0.0, self.proposal_scale)
@@ -803,6 +818,7 @@ impl MCMCIsotonicSampler {
     }
 
     /// NUTS sampling (simplified)
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     fn nuts_sampling(&mut self, _X: &Array1<f64>, y: &Array1<f64>) -> Result<(), SklearsError> {
         // Simplified NUTS - use Gibbs as fallback
         self.gibbs_sampling(_X, y)
@@ -862,6 +878,7 @@ impl MCMCIsotonicSampler {
 // ============================================================================
 
 /// Fit nonparametric Bayesian isotonic regression
+#[allow(non_snake_case)] // X is standard ML feature matrix notation
 pub fn nonparametric_bayesian_isotonic(
     X: &Array1<f64>,
     y: &Array1<f64>,
@@ -873,6 +890,7 @@ pub fn nonparametric_bayesian_isotonic(
 }
 
 /// Fit Gaussian process with monotonicity constraints
+#[allow(non_snake_case)] // X is standard ML feature matrix notation
 pub fn gaussian_process_monotonic(
     X: &Array1<f64>,
     y: &Array1<f64>,
@@ -884,6 +902,7 @@ pub fn gaussian_process_monotonic(
 }
 
 /// Fit using variational inference
+#[allow(non_snake_case)] // X is standard ML feature matrix notation
 pub fn variational_inference_isotonic(
     X: &Array1<f64>,
     y: &Array1<f64>,
@@ -895,6 +914,7 @@ pub fn variational_inference_isotonic(
 }
 
 /// Sample using MCMC
+#[allow(non_snake_case)] // X is standard ML feature matrix notation
 pub fn mcmc_isotonic_sampling(
     X: &Array1<f64>,
     y: &Array1<f64>,
@@ -917,6 +937,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_nonparametric_bayesian() {
         let X = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
@@ -939,6 +960,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_gaussian_process_monotonic() {
         let X = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
@@ -959,6 +981,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_gp_with_uncertainty() {
         let X = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
@@ -980,6 +1003,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_variational_inference() {
         let X = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
@@ -999,6 +1023,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_mcmc_metropolis_hastings() {
         let X = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
@@ -1019,6 +1044,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_mcmc_gibbs() {
         let X = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0]);
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0]);
@@ -1042,6 +1068,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_credible_interval() {
         let X = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0]);
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0]);
@@ -1066,6 +1093,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_function_apis() {
         let X = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0]);
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0]);

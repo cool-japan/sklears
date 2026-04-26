@@ -333,8 +333,8 @@ impl SparseMatrix {
 ///
 /// let sparse_poly = SparsePolynomialFeatures::new(2)
 ///     .sparsity_strategy(SparsityStrategy::Absolute(0.1));
-/// let fitted_sparse = sparse_poly.fit(&X, &()).unwrap();
-/// let X_transformed = fitted_sparse.transform(&X).unwrap();
+/// let fitted_sparse = sparse_poly.fit(&X, &()).expect("fit should succeed with valid sparse polynomial input");
+/// let X_transformed = fitted_sparse.transform(&X).expect("transform should succeed after sparse polynomial fitting");
 /// ```
 #[derive(Debug, Clone)]
 /// SparsePolynomialFeatures
@@ -529,17 +529,11 @@ impl SparsePolynomialFeatures<Untrained> {
     }
 
     fn is_valid_for_interaction_only(&self, powers: &[u32]) -> bool {
-        let non_zero_count = powers.iter().filter(|&&p| p > 0).count();
         let max_power = powers.iter().max().unwrap_or(&0);
 
-        // Valid if:
-        // 1. It's a linear term (single variable with power 1)
-        // 2. It's an interaction term (multiple variables, each with power 1)
-        if non_zero_count == 1 {
-            *max_power == 1
-        } else {
-            *max_power == 1
-        }
+        // Valid if linear term (single variable) or interaction term (multiple variables),
+        // in both cases the maximum power must be 1
+        *max_power == 1
     }
 }
 

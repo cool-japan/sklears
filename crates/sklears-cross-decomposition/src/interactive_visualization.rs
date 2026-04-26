@@ -18,8 +18,7 @@
 //! - JSON data for custom visualizations
 //! - Real-time streaming updates via WebSocket
 
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use sklears_core::types::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -856,7 +855,6 @@ pub enum VisualizationError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
 
     #[test]
     fn test_interactive_visualizer_creation() {

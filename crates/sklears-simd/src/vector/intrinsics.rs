@@ -185,8 +185,10 @@ pub struct F32x4 {
 /// 8-element f32 SIMD vector abstraction
 #[derive(Debug, Clone, Copy)]
 pub struct F32x8 {
+    #[allow(dead_code)] // AVX2 256-bit lane; used by F32x8 methods not yet exposed in public API
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     inner: core::arch::x86_64::__m256,
+    #[allow(dead_code)] // Fallback scalar storage; used by F32x8 methods not yet exposed
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     inner: [f32; 8],
 }
@@ -194,8 +196,10 @@ pub struct F32x8 {
 /// 16-element f32 SIMD vector abstraction
 #[derive(Debug, Clone, Copy)]
 pub struct F32x16 {
+    #[allow(dead_code)] // AVX-512 512-bit lane; used by F32x16 methods not yet exposed
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     inner: core::arch::x86_64::__m512,
+    #[allow(dead_code)] // Fallback scalar storage; used by F32x16 methods not yet exposed
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     inner: [f32; 16],
 }
@@ -258,7 +262,12 @@ impl F32x4 {
         }
     }
 
-    /// Load four f32 values from memory (aligned)
+    /// Load four f32 values from aligned memory.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be valid, non-null, aligned to 16 bytes, and point to at least 4 initialized
+    /// `f32` values.
     #[inline]
     pub unsafe fn load_aligned(ptr: *const f32) -> Self {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -283,7 +292,11 @@ impl F32x4 {
         }
     }
 
-    /// Load four f32 values from memory (unaligned)
+    /// Load four f32 values from unaligned memory.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be valid, non-null, and point to at least 4 initialized `f32` values.
     #[inline]
     pub unsafe fn load_unaligned(ptr: *const f32) -> Self {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -308,7 +321,12 @@ impl F32x4 {
         }
     }
 
-    /// Store four f32 values to memory (aligned)
+    /// Store four f32 values to aligned memory.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be valid, non-null, aligned to 16 bytes, and point to writable storage for at
+    /// least 4 `f32` values.
     #[inline]
     pub unsafe fn store_aligned(self, ptr: *mut f32) {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -330,7 +348,11 @@ impl F32x4 {
         }
     }
 
-    /// Store four f32 values to memory (unaligned)
+    /// Store four f32 values to unaligned memory.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be valid, non-null, and point to writable storage for at least 4 `f32` values.
     #[inline]
     pub unsafe fn store_unaligned(self, ptr: *mut f32) {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -352,9 +374,9 @@ impl F32x4 {
         }
     }
 
-    /// Add two F32x4 vectors
+    /// Add two F32x4 vectors element-wise.
     #[inline]
-    pub fn add(self, other: Self) -> Self {
+    fn add_impl(self, other: Self) -> Self {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             unsafe {
@@ -386,9 +408,9 @@ impl F32x4 {
         }
     }
 
-    /// Multiply two F32x4 vectors
+    /// Multiply two F32x4 vectors element-wise.
     #[inline]
-    pub fn mul(self, other: Self) -> Self {
+    fn mul_impl(self, other: Self) -> Self {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             unsafe {
@@ -497,6 +519,22 @@ impl F32x4 {
         {
             self.inner[index]
         }
+    }
+}
+
+impl core::ops::Add for F32x4 {
+    type Output = Self;
+    #[inline]
+    fn add(self, other: Self) -> Self {
+        self.add_impl(other)
+    }
+}
+
+impl core::ops::Mul for F32x4 {
+    type Output = Self;
+    #[inline]
+    fn mul(self, other: Self) -> Self {
+        self.mul_impl(other)
     }
 }
 
@@ -640,7 +678,7 @@ pub fn align_up(value: usize, alignment: usize) -> usize {
     let mask = alignment - 1;
     if !alignment.is_power_of_two() {
         // Fallback to modulo arithmetic for non power-of-two alignments.
-        return if value % alignment == 0 {
+        return if value.is_multiple_of(alignment) {
             value
         } else {
             value + (alignment - (value % alignment))
@@ -776,14 +814,14 @@ mod tests {
         assert_eq!(a.extract(3), 4.0);
 
         // Test addition
-        let sum = a.add(b);
+        let sum = a + b;
         assert_eq!(sum.extract(0), 6.0);
         assert_eq!(sum.extract(1), 8.0);
         assert_eq!(sum.extract(2), 10.0);
         assert_eq!(sum.extract(3), 12.0);
 
         // Test multiplication
-        let product = a.mul(b);
+        let product = a * b;
         assert_eq!(product.extract(0), 5.0);
         assert_eq!(product.extract(1), 12.0);
         assert_eq!(product.extract(2), 21.0);
@@ -898,14 +936,14 @@ mod tests {
             let offset = i * simd_width;
             unsafe {
                 let vec = F32x4::load_unaligned(data.as_ptr().add(offset));
-                let doubled = vec.add(vec); // Double each element
+                let doubled = vec + vec; // Double each element
                 doubled.store_unaligned(result.as_mut_ptr().add(offset));
             }
         }
 
         // Verify first few elements
-        for i in 0..(chunks * simd_width) {
-            assert_eq!(result[i], 2.0 * (i as f32));
+        for (i, &val) in result.iter().enumerate().take(chunks * simd_width) {
+            assert_eq!(val, 2.0 * (i as f32));
         }
     }
 

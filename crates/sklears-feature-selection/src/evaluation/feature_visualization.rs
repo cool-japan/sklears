@@ -247,7 +247,7 @@ impl StabilityPlots {
 
         // Sort features by frequency
         let mut sorted_features: Vec<(usize, usize)> = feature_counts.into_iter().collect();
-        sorted_features.sort_by(|a, b| b.1.cmp(&a.1));
+        sorted_features.sort_by_key(|b| std::cmp::Reverse(b.1));
 
         // Display top features (limit for readability)
         let max_features = 20.min(sorted_features.len());
@@ -340,7 +340,7 @@ impl StabilityPlots {
         }
 
         let mut sorted_features: Vec<(usize, usize)> = feature_counts.into_iter().collect();
-        sorted_features.sort_by(|a, b| b.1.cmp(&a.1));
+        sorted_features.sort_by_key(|b| std::cmp::Reverse(b.1));
 
         let n_features = top_n_features.min(sorted_features.len()).min(10); // Limit for readability
         let top_features: Vec<usize> = sorted_features

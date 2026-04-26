@@ -48,6 +48,7 @@ use super::simd_ops;
 /// ```
 #[derive(Debug, Clone)]
 pub struct GroupLasso<S = Untrained> {
+    #[allow(dead_code)]
     pub(crate) state: S,
     /// Regularization strength
     pub(crate) alpha: Float,
@@ -74,12 +75,14 @@ pub struct GroupLassoTrained {
     pub(crate) intercepts: HashMap<String, Array1<Float>>,
     /// Number of input features
     pub(crate) n_features: usize,
+    #[allow(dead_code)]
     /// Task configurations
     pub(crate) task_outputs: HashMap<String, usize>,
     /// Feature groups
     pub(crate) feature_groups: Vec<Vec<usize>>,
     /// Training iterations performed
     pub(crate) n_iter: usize,
+    #[allow(dead_code)]
     /// Regularization strength used
     pub(crate) alpha: Float,
 }

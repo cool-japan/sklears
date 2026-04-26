@@ -54,8 +54,8 @@ impl Default for SparseGaussianProcessRegressorConfig {
 /// let sgpr = SparseGaussianProcessRegressor::new()
 ///     .kernel(Box::new(kernel))
 ///     .n_inducing(4);
-/// let fitted = sgpr.fit(&X, &y).unwrap();
-/// let predictions = fitted.predict(&X).unwrap();
+/// let fitted = sgpr.fit(&X, &y).expect("fit should succeed with valid training data");
+/// let predictions = fitted.predict(&X).expect("predict should succeed on trained model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct SparseGaussianProcessRegressor<S = Untrained> {
@@ -77,6 +77,7 @@ pub enum InducingPointInit {
 
 /// Trained state for Sparse Gaussian Process Regressor
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct SgprTrained {
     /// X_train
     pub X_train: Option<Array2<f64>>, // Training inputs
@@ -179,6 +180,7 @@ impl Estimator for SparseGaussianProcessRegressor<SgprTrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Fit<Array2<f64>, Array1<f64>> for SparseGaussianProcessRegressor<Untrained> {
     type Fitted = SparseGaussianProcessRegressor<SgprTrained>;
 
@@ -305,6 +307,7 @@ impl Fit<Array2<f64>, Array1<f64>> for SparseGaussianProcessRegressor<Untrained>
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<Array2<f64>, Array1<f64>> for SparseGaussianProcessRegressor<SgprTrained> {
     fn predict(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
         let (mean, _) = self.predict_with_std(X)?;
@@ -312,6 +315,7 @@ impl Predict<Array2<f64>, Array1<f64>> for SparseGaussianProcessRegressor<SgprTr
     }
 }
 
+#[allow(non_snake_case)]
 impl SparseGaussianProcessRegressor<SgprTrained> {
     /// Predict with uncertainty estimates
     #[allow(non_snake_case)]

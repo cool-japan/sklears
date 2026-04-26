@@ -7,9 +7,9 @@
 //! - t-Distributed Stochastic Neighbor Embedding (t-SNE)
 //! - Uniform Manifold Approximation and Projection (UMAP)
 
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
-use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{Rng, thread_rng, Random};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{rng as make_rng, RngExt, SeedableRng};
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -305,9 +305,11 @@ impl ManifoldLearning<Untrained> {
     fn tsne(&self, x: &Array2<f64>) -> ManifoldResult {
         let (n_samples, _) = x.dim();
 
-        // Initialize random number generator
-        // TODO: Support seeding for reproducibility
-        let mut rng = thread_rng();
+        // Initialize random number generator with optional seeding for reproducibility
+        let mut rng: StdRng = match self.random_state {
+            Some(seed) => StdRng::seed_from_u64(seed),
+            None => StdRng::from_rng(&mut make_rng()),
+        };
 
         // Step 1: Compute pairwise similarities in high-dimensional space
         let p_matrix = self.compute_tsne_similarities(x)?;
@@ -316,7 +318,7 @@ impl ManifoldLearning<Untrained> {
         let mut embedding = Array2::zeros((n_samples, self.n_components));
         for i in 0..n_samples {
             for j in 0..self.n_components {
-                embedding[[i, j]] = rng.gen() * 1e-4;
+                embedding[[i, j]] = rng.random::<f64>() * 1e-4;
             }
         }
 
@@ -330,9 +332,11 @@ impl ManifoldLearning<Untrained> {
     fn umap(&self, x: &Array2<f64>) -> ManifoldResult {
         let (n_samples, _) = x.dim();
 
-        // Initialize random number generator
-        // TODO: Support seeding for reproducibility
-        let mut rng = thread_rng();
+        // Initialize random number generator with optional seeding for reproducibility
+        let mut rng: StdRng = match self.random_state {
+            Some(seed) => StdRng::seed_from_u64(seed),
+            None => StdRng::from_rng(&mut make_rng()),
+        };
 
         // Step 1: Build fuzzy topological representation
         let neighbors = self.find_knn(x, self.n_neighbors)?;
@@ -342,7 +346,7 @@ impl ManifoldLearning<Untrained> {
         let mut embedding = Array2::zeros((n_samples, self.n_components));
         for i in 0..n_samples {
             for j in 0..self.n_components {
-                embedding[[i, j]] = (rng.gen() - 0.5) * 20.0;
+                embedding[[i, j]] = (rng.random::<f64>() - 0.5) * 20.0;
             }
         }
 
@@ -367,7 +371,7 @@ impl ManifoldLearning<Untrained> {
                 }
             }
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
             for (idx, &(_, neighbor_idx)) in distances.iter().take(k).enumerate() {
                 neighbors[[i, idx]] = neighbor_idx;
@@ -547,9 +551,15 @@ impl ManifoldLearning<Untrained> {
         }
 
         // Double centering
-        let row_means = similarity.mean_axis(Axis(1)).expect("array should have elements for mean computation");
-        let col_means = similarity.mean_axis(Axis(0)).expect("array should have elements for mean computation");
-        let grand_mean = row_means.mean().expect("array should have elements for mean computation");
+        let row_means = similarity.mean_axis(Axis(1)).ok_or_else(|| {
+            SklearsError::NumericalError("cannot compute row means of empty matrix".to_string())
+        })?;
+        let col_means = similarity.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError("cannot compute col means of empty matrix".to_string())
+        })?;
+        let grand_mean = row_means.mean().ok_or_else(|| {
+            SklearsError::NumericalError("cannot compute grand mean of empty array".to_string())
+        })?;
 
         for i in 0..n_samples {
             for j in 0..n_samples {
@@ -601,7 +611,7 @@ impl ManifoldLearning<Untrained> {
             }
         }
 
-        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
+        distances.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let median_distance = distances[distances.len() / 2];
 
         Ok(median_distance)
@@ -895,7 +905,7 @@ impl ManifoldLearning<Untrained> {
             }
         }
 
-        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
+        distances.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         // Use median distance as sigma estimate
         if !distances.is_empty() {
@@ -912,8 +922,11 @@ impl ManifoldLearning<Untrained> {
         fuzzy_graph: &Array2<f64>,
     ) -> Result<usize> {
         let (n_samples, _n_components) = embedding.dim();
-        // TODO: Support seeding for reproducibility
-        let mut rng = thread_rng();
+        // Initialize random number generator with optional seeding for reproducibility
+        let mut rng: StdRng = match self.random_state {
+            Some(seed) => StdRng::seed_from_u64(seed),
+            None => StdRng::from_rng(&mut make_rng()),
+        };
 
         for iter in 0..self.max_iter {
             // Sample edges from the fuzzy graph
@@ -921,7 +934,7 @@ impl ManifoldLearning<Untrained> {
                 for j in (i + 1)..n_samples {
                     let weight = fuzzy_graph[[i, j]];
 
-                    if weight > rng.gen() {
+                    if weight > rng.random::<f64>() {
                         // Attractive force
                         self.apply_umap_force(embedding, i, j, true)?;
                     } else {
@@ -1112,7 +1125,7 @@ impl ManifoldLearning<TrainedManifoldLearning> {
                 distances.push((distance, j));
             }
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
             // Use weighted average of k nearest neighbors
             let k = self.n_neighbors.min(distances.len());
@@ -1216,7 +1229,9 @@ mod tests {
 
         // Test transformation
         let new_point = array![[0.5, 0.5, 0.0]];
-        let transformed = trained_ml.transform(&new_point).expect("transformation should succeed");
+        let transformed = trained_ml
+            .transform(&new_point)
+            .expect("transformation should succeed");
         assert_eq!(transformed.dim(), (1, 2));
     }
 

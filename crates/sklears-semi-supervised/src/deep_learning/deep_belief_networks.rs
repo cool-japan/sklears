@@ -481,8 +481,9 @@ impl Estimator for DeepBeliefNetwork {
 impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for DeepBeliefNetwork {
     type Fitted = FittedDeepBeliefNetwork;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &ArrayView2<'_, f64>, y: &ArrayView1<'_, i32>) -> Result<Self::Fitted> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
 
         // Check for sufficient labeled samples
         let labeled_count = y.iter().filter(|&&label| label != -1).count();
@@ -672,6 +673,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for DeepBeliefNetwork {
 }
 
 impl Predict<ArrayView2<'_, f64>, Array1<i32>> for FittedDeepBeliefNetwork {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, f64>) -> Result<Array1<i32>> {
         let probabilities = self.predict_proba(X)?;
         let n_samples = X.dim().0;
@@ -693,6 +695,7 @@ impl Predict<ArrayView2<'_, f64>, Array1<i32>> for FittedDeepBeliefNetwork {
 }
 
 impl PredictProba<ArrayView2<'_, f64>, Array2<f64>> for FittedDeepBeliefNetwork {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_proba(&self, X: &ArrayView2<'_, f64>) -> Result<Array2<f64>> {
         let n_samples = X.dim().0;
 

@@ -278,8 +278,8 @@ unsafe fn simd_mean_avx(data: &[f64]) -> f64 {
     let mut sum = sum_array.iter().sum::<f64>();
 
     // Add remaining elements
-    for j in i..data.len() {
-        sum += data[j];
+    for &val in data.iter().skip(i) {
+        sum += val;
     }
 
     sum / data.len() as f64
@@ -327,8 +327,8 @@ unsafe fn simd_variance_avx(data: &[f64], mean: f64) -> f64 {
     let mut sum_sq_diff = sum_array.iter().sum::<f64>();
 
     // Add remaining elements
-    for j in i..data.len() {
-        sum_sq_diff += (data[j] - mean).powi(2);
+    for &val in data.iter().skip(i) {
+        sum_sq_diff += (val - mean).powi(2);
     }
 
     sum_sq_diff / (data.len() - 1) as f64
@@ -432,8 +432,8 @@ unsafe fn simd_euclidean_distance_avx(diff: &[f64]) -> f64 {
     let mut sum_sq = sum_array.iter().sum::<f64>();
 
     // Add remaining elements
-    for j in i..diff.len() {
-        sum_sq += diff[j] * diff[j];
+    for &val in diff.iter().skip(i) {
+        sum_sq += val * val;
     }
 
     sum_sq.sqrt()

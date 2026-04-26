@@ -79,7 +79,10 @@ impl Default for ProgressiveAllocationConfig {
 /// Progressive resource allocator
 pub struct ProgressiveAllocator {
     config: ProgressiveAllocationConfig,
+    #[allow(dead_code)]
+    // allocation_history retained for future audit/replay of allocation records
     allocation_history: Vec<AllocationRecord>,
+    #[allow(dead_code)] // current_level retained for future level-aware progressive allocation
     current_level: usize,
     remaining_budget: Float,
 }
@@ -439,6 +442,7 @@ pub struct AllocationPlan {
 
 /// Allocation record for history tracking
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // AllocationRecord level/resources/n_configs retained for future allocation diagnostics
 struct AllocationRecord {
     level: usize,
     resources: Float,
@@ -901,6 +905,7 @@ impl CoarseToFineOptimizer {
 
 /// Evaluation point in optimization
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // EvaluationPoint parameters/level retained for future coarse-to-fine trace logging
 struct EvaluationPoint {
     parameters: HashMap<String, Float>,
     value: Float,
@@ -1124,6 +1129,7 @@ pub enum BudgetAllocationStrategy {
 pub struct BudgetAllocator {
     strategy: BudgetAllocationStrategy,
     total_budget: Float,
+    #[allow(dead_code)] // allocations retained for future budget-tracking audit queries
     allocations: HashMap<usize, Float>,
 }
 

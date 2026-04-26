@@ -46,7 +46,7 @@
 //! ```
 
 use crate::types::Float;
-use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::error::{Result as SklResult, SklearsError};
 use std::collections::HashMap;
 
@@ -391,7 +391,7 @@ impl MultiModalExplainer {
             let vision_dim = vision.ncols();
 
             // Simplified attention: dot product similarity
-            let attn = Array2::from_shape_fn((text_dim, vision_dim), |(i, j)| {
+            let attn = Array2::from_shape_fn((text_dim, vision_dim), |(_i, _j)| {
                 // Placeholder: would compute actual attention scores in real implementation
                 1.0 / (text_dim * vision_dim) as Float
             });
@@ -404,7 +404,7 @@ impl MultiModalExplainer {
             let text_dim = text.ncols();
             let audio_dim = audio.ncols();
 
-            let attn = Array2::from_shape_fn((text_dim, audio_dim), |(i, j)| {
+            let attn = Array2::from_shape_fn((text_dim, audio_dim), |(_i, _j)| {
                 1.0 / (text_dim * audio_dim) as Float
             });
             attention.text_to_audio = Some(attn.clone());
@@ -415,7 +415,7 @@ impl MultiModalExplainer {
             let vision_dim = vision.ncols();
             let audio_dim = audio.ncols();
 
-            let attn = Array2::from_shape_fn((vision_dim, audio_dim), |(i, j)| {
+            let attn = Array2::from_shape_fn((vision_dim, audio_dim), |(_i, _j)| {
                 1.0 / (vision_dim * audio_dim) as Float
             });
             attention.vision_to_audio = Some(attn.clone());
@@ -501,7 +501,7 @@ impl MultiModalExplainer {
     /// Compute interaction between two modalities
     fn compute_pairwise_interaction(
         &self,
-        input: &MultiModalInput,
+        _input: &MultiModalInput,
         source: ModalityType,
         target: ModalityType,
     ) -> SklResult<ModalityInteraction> {
@@ -554,7 +554,7 @@ impl MultiModalExplainer {
         // Compute post-fusion importance (simplified)
         let total_features: usize = pre_fusion_importance.values().map(|imp| imp.len()).sum();
         let post_fusion_importance =
-            Array1::from_shape_fn(total_features, |i| 1.0 / total_features as Float);
+            Array1::from_shape_fn(total_features, |_i| 1.0 / total_features as Float);
 
         Ok(FusionExplanation {
             fusion_strategy: self.config.fusion_strategy,
@@ -730,7 +730,7 @@ mod tests {
 
     #[test]
     fn test_fusion_strategies() {
-        let strategies = vec![
+        let strategies = [
             FusionStrategy::EarlyFusion,
             FusionStrategy::LateFusion,
             FusionStrategy::AttentionFusion,
@@ -743,7 +743,7 @@ mod tests {
 
     #[test]
     fn test_interaction_types() {
-        let types = vec![
+        let types = [
             InteractionType::Reinforcing,
             InteractionType::Suppressive,
             InteractionType::Independent,

@@ -5,7 +5,6 @@
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::numeric::Float;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 use scirs2_core::random::SeedableRng;
 // SciRS2 Policy Compliance - Use scirs2-core for random distributions
@@ -241,7 +240,7 @@ impl StickBreaking {
         assignments: &[usize],
         rng: &mut scirs2_core::random::CoreRandom<scirs2_core::random::rngs::StdRng>,
     ) -> Result<(), DirichletProcessError> {
-        let n_samples = assignments.len();
+        let _n_samples = assignments.len();
 
         for k in 0..self.truncation {
             let n_k = assignments.iter().filter(|&&z| z == k).count();
@@ -277,6 +276,7 @@ pub struct DirichletProcessNB {
     is_fitted: bool,
 }
 
+#[allow(non_snake_case)]
 impl DirichletProcessNB {
     pub fn new(config: DirichletProcessConfig) -> Self {
         let rng = match config.random_seed {
@@ -486,13 +486,13 @@ impl DirichletProcessNB {
     fn sample_component_assignment(
         &mut self,
         sample: &Array1<f64>,
-        class: i32,
+        _class: i32,
     ) -> Result<usize, DirichletProcessError> {
         let mut log_probs = Vec::new();
         let n_samples = self.component_assignments.len() as f64;
 
         // Existing components
-        for (k, component) in self.components.iter().enumerate() {
+        for component in self.components.iter() {
             let log_likelihood = component.log_likelihood(sample);
             let log_prior = if component.sample_count > 0 {
                 (component.sample_count as f64
@@ -596,14 +596,14 @@ impl DirichletProcessNB {
         let mut responsibilities = Array2::<f64>::zeros((n_samples, max_components));
         let mut alpha =
             vec![self.config.concentration_alpha / max_components as f64; max_components];
-        let mut beta = vec![1.0; max_components];
+        let _beta = vec![1.0; max_components];
 
         // Initialize with K-means-like initialization
         self.initialize_variational_components(X, y, max_components)?;
 
         let mut prev_elbo = f64::NEG_INFINITY;
 
-        for iteration in 0..self.config.max_iterations {
+        for _iteration in 0..self.config.max_iterations {
             // E-step: Update responsibilities using current component parameters
             for i in 0..n_samples {
                 let sample = X.row(i);
@@ -930,7 +930,7 @@ impl DirichletProcessNB {
     }
 }
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::field_reassign_with_default)]
 #[cfg(test)]
 mod tests {
     use super::*;

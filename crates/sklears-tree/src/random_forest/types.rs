@@ -317,7 +317,7 @@ impl RandomForestClassifier<Trained> {
         }
         let n_threads = ParallelUtils::optimal_n_threads(self.config.n_jobs);
         let result = ParallelUtils::with_thread_pool(n_threads, || {
-            let chunk_size = (x.nrows() + n_threads - 1) / n_threads;
+            let chunk_size = x.nrows().div_ceil(n_threads);
             let chunks: Vec<_> = x
                 .axis_chunks_iter(scirs2_core::ndarray::Axis(0), chunk_size)
                 .collect();
@@ -712,7 +712,7 @@ impl RandomForestRegressor<Trained> {
         }
         let n_threads = ParallelUtils::optimal_n_threads(self.config.n_jobs);
         let result = ParallelUtils::with_thread_pool(n_threads, || {
-            let chunk_size = (x.nrows() + n_threads - 1) / n_threads;
+            let chunk_size = x.nrows().div_ceil(n_threads);
             let chunks: Vec<_> = x
                 .axis_chunks_iter(scirs2_core::ndarray::Axis(0), chunk_size)
                 .collect();

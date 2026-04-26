@@ -711,6 +711,7 @@ mod calibration_tests {
     }
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 #[allow(clippy::too_many_arguments)]
 fn train_neural_calibration_calibrators(
     probabilities: &Array2<Float>,
@@ -749,6 +750,7 @@ fn train_neural_calibration_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_mixup_calibration_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -782,6 +784,7 @@ fn train_mixup_calibration_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_dropout_calibration_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -808,6 +811,7 @@ fn train_dropout_calibration_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_ensemble_neural_calibration_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -834,6 +838,7 @@ fn train_ensemble_neural_calibration_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_structured_prediction_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -875,6 +880,7 @@ fn train_structured_prediction_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_online_sigmoid_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -903,6 +909,7 @@ fn train_online_sigmoid_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_adaptive_online_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -929,6 +936,7 @@ fn train_adaptive_online_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_incremental_update_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -954,6 +962,7 @@ fn train_incremental_update_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 #[allow(clippy::too_many_arguments)]
 fn train_calibration_aware_focal_calibrators(
     probabilities: &Array2<Float>,
@@ -999,6 +1008,7 @@ fn train_calibration_aware_focal_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_calibration_aware_cross_entropy_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -1042,6 +1052,7 @@ fn train_calibration_aware_cross_entropy_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_calibration_aware_brier_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -1084,6 +1095,7 @@ fn train_calibration_aware_brier_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_calibration_aware_ece_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -1129,6 +1141,7 @@ fn train_calibration_aware_ece_calibrators(
 
 // Multi-modal calibration training functions
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_multi_modal_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -1165,6 +1178,7 @@ fn train_multi_modal_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_cross_modal_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -1189,6 +1203,7 @@ fn train_cross_modal_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_heterogeneous_ensemble_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -1222,6 +1237,7 @@ fn train_heterogeneous_ensemble_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_domain_adaptation_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -1247,6 +1263,7 @@ fn train_domain_adaptation_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 fn train_transfer_learning_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -1285,6 +1302,7 @@ fn train_transfer_learning_calibrators(
     Ok(calibrators)
 }
 
+#[allow(dead_code)] // intentionally deferred: test helper pending integration test wiring
 #[allow(clippy::too_many_arguments)]
 fn train_differentiable_ece_calibrators(
     probabilities: &Array2<Float>,

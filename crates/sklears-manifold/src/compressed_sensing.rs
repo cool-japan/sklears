@@ -116,11 +116,15 @@ impl ManifoldCompressedSensing {
 #[derive(Debug, Clone)]
 pub struct FittedManifoldCompressedSensing {
     n_measurements: usize,
+    #[allow(dead_code)] // deferred: exposed in future introspection API
     n_components: usize,
     measurement_matrix: Array2<Float>,
     manifold_basis: Array2<Float>,
     sparse_dictionary: Array2<Float>,
+    #[allow(dead_code)]
+    // deferred: used for iterative refinement in future out-of-sample extension
     reconstruction_weights: Array2<Float>,
+    #[allow(dead_code)] // deferred: used in future sparsity-regularized transform
     sparsity_level: usize,
     manifold_reg: Float,
     sparsity_reg: Float,
@@ -232,7 +236,7 @@ impl FittedManifoldCompressedSensing {
         &self,
         measurement: &ArrayView1<Float>,
     ) -> SklResult<Array1<Float>> {
-        let n_features = self.measurement_matrix.ncols();
+        let _n_features = self.measurement_matrix.ncols(); // deferred: used in full reconstruction
 
         // Initialize reconstruction with pseudoinverse solution
         let mut reconstruction = self.pseudoinverse_reconstruction(measurement)?;
@@ -245,7 +249,7 @@ impl FittedManifoldCompressedSensing {
         }
 
         // Iterative refinement using manifold and sparsity constraints
-        for iter in 0..100 {
+        for _iter in 0..100 {
             let old_reconstruction = reconstruction.clone();
 
             // Project onto manifold
@@ -552,7 +556,7 @@ impl ManifoldCompressedSensing {
             }
 
             // Update dictionary atom using SVD
-            if let Ok((u, s, vt)) = residual_matrix.t().svd(true) {
+            if let Ok((u, s, _vt)) = residual_matrix.t().svd(true) {
                 if !s.is_empty() {
                     let new_atom = u.column(0).to_owned();
                     new_dictionary.column_mut(j).assign(&new_atom);
@@ -568,7 +572,7 @@ impl ManifoldCompressedSensing {
         &self,
         data: &Array2<Float>,
         manifold_basis: &Array2<Float>,
-        sparse_dictionary: &Array2<Float>,
+        _sparse_dictionary: &Array2<Float>,
     ) -> SklResult<Array2<Float>> {
         let n_samples = data.nrows();
         let n_components = manifold_basis.ncols();
@@ -652,7 +656,7 @@ impl OrthogonalMatchingPursuit {
         let mut residual = signal.clone();
         let mut selected_atoms = Vec::new();
 
-        for iter in 0..self.max_iter.min(self.sparsity_level) {
+        for _iter in 0..self.max_iter.min(self.sparsity_level) {
             // Find the most correlated atom
             let mut max_correlation = 0.0;
             let mut best_atom = 0;

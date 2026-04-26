@@ -201,7 +201,7 @@ impl SNE<Untrained> {
 
         // For each point i, find sigma_i that gives desired perplexity
         for i in 0..n_samples {
-            let sigma = 1.0;
+            let _sigma = 1.0; // deferred: initial sigma; beta = 1/(2*sigma^2) drives search
             let mut beta = 1.0; // beta = 1 / (2 * sigma^2)
 
             // Binary search for optimal sigma

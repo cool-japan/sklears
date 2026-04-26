@@ -79,6 +79,7 @@ pub struct CodeStyle {
 pub enum NamingConvention {
     /// `snake_case`
     SnakeCase,
+    /// Variant value.
     CamelCase,
     /// `PascalCase`
     PascalCase,
@@ -118,6 +119,7 @@ pub enum DeploymentTarget {
 
 /// Code generator for workflows
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct CodeGenerator {
     /// Generation configuration
     config: CodeGenerationConfig,
@@ -129,6 +131,7 @@ pub struct CodeGenerator {
 
 /// Template engine for code generation
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TemplateEngine {
     /// Language templates
     templates: HashMap<CodeLanguage, LanguageTemplate>,
@@ -156,11 +159,17 @@ pub struct LanguageTemplate {
 /// Code generation statistics
 #[derive(Debug, Clone)]
 pub struct GenerationStatistics {
+    /// The total lines.
     pub total_lines: usize,
+    /// The code lines.
     pub code_lines: usize,
+    /// The comment lines.
     pub comment_lines: usize,
+    /// The function count.
     pub function_count: usize,
+    /// The import count.
     pub import_count: usize,
+    /// The generation time.
     pub generation_time: std::time::Duration,
 }
 
@@ -695,12 +704,11 @@ impl CodeGenerator {
         // Add algorithm-specific dependencies
         for step in &workflow.steps {
             match step.algorithm.as_str() {
-                "StandardScaler" | "LinearRegression" => {
+                "StandardScaler" | "LinearRegression"
                     if matches!(self.config.language, CodeLanguage::Python)
-                        && !dependencies.contains(&"scikit-learn".to_string())
-                    {
-                        dependencies.push("scikit-learn".to_string());
-                    }
+                        && !dependencies.contains(&"scikit-learn".to_string()) =>
+                {
+                    dependencies.push("scikit-learn".to_string());
                 }
                 _ => {}
             }
@@ -979,7 +987,7 @@ impl Default for TemplateRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::workflow_language::workflow_definitions::{StepType, WorkflowMetadata};
+    use crate::workflow_language::workflow_definitions::StepType;
 
     #[test]
     fn test_code_generator_creation() {

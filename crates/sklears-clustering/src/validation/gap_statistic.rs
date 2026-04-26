@@ -42,7 +42,7 @@ impl ClusteringValidator {
     ///     (4, 2),
     ///     vec![1.0, 2.0, 1.5, 1.8, 5.0, 8.0, 5.2, 7.8],
     /// )
-    /// .unwrap();
+    /// .expect("shape and data length must match");
     ///
     /// // Define clustering function
     /// let clustering_fn = |data: &Array2<f64>, k: usize| -> Result<Vec<i32>> {
@@ -53,7 +53,7 @@ impl ClusteringValidator {
     ///
     /// let result = validator
     ///     .gap_statistic(&data, 1..4, Some(20), clustering_fn)
-    ///     .unwrap();
+    ///     .expect("gap statistic computation must succeed");
     /// println!("Optimal k: {}", result.optimal_k);
     /// ```
     pub fn gap_statistic<F>(
@@ -823,7 +823,7 @@ mod tests {
 
         let optimal_k =
             validator.find_optimal_k_one_se_rule(&k_values, &gap_values, &gap_std_errors);
-        assert!(optimal_k >= 1 && optimal_k <= 5);
+        assert!((1..=5).contains(&optimal_k));
 
         let max_gap_k = validator.find_optimal_k_max_gap(&k_values, &gap_values);
         assert_eq!(max_gap_k, 3); // k=3 has the highest gap (0.8)

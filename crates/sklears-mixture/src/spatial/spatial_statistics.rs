@@ -57,6 +57,7 @@ pub struct LocalIndicators {
 /// Spatial autocorrelation analyzer
 pub struct SpatialAutocorrelationAnalyzer {
     spatial_weights: Array2<f64>,
+    #[allow(dead_code)]
     coords: Array2<f64>,
 }
 
@@ -85,8 +86,8 @@ impl SpatialAutocorrelationAnalyzer {
                     for j in 0..n_samples {
                         if i != j {
                             let dist = euclidean_distance(
-                                &coords.row(i).to_owned().into_raw_vec(),
-                                &coords.row(j).to_owned().into_raw_vec(),
+                                &coords.row(i).to_owned().into_raw_vec_and_offset().0,
+                                &coords.row(j).to_owned().into_raw_vec_and_offset().0,
                             );
                             if dist <= *radius {
                                 weights[[i, j]] = 1.0 / dist.max(1e-6); // Inverse distance weighting
@@ -412,8 +413,8 @@ impl SpatialClusteringQuality {
             for j in 0..n_samples {
                 if i != j && assignments[j] == cluster_i {
                     intra_cluster_dist += euclidean_distance(
-                        &coords.row(i).to_owned().into_raw_vec(),
-                        &coords.row(j).to_owned().into_raw_vec(),
+                        &coords.row(i).to_owned().into_raw_vec_and_offset().0,
+                        &coords.row(j).to_owned().into_raw_vec_and_offset().0,
                     );
                     same_cluster_count += 1;
                 }
@@ -437,8 +438,8 @@ impl SpatialClusteringQuality {
                     for j in 0..n_samples {
                         if assignments[j] == other_cluster {
                             inter_cluster_dist += euclidean_distance(
-                                &coords.row(i).to_owned().into_raw_vec(),
-                                &coords.row(j).to_owned().into_raw_vec(),
+                                &coords.row(i).to_owned().into_raw_vec_and_offset().0,
+                                &coords.row(j).to_owned().into_raw_vec_and_offset().0,
                             );
                             other_cluster_count += 1;
                         }
@@ -500,8 +501,8 @@ impl SpatialClusteringQuality {
             for j in (i + 1)..n_components {
                 if cluster_counts[i] > 0 && cluster_counts[j] > 0 {
                     let dist = euclidean_distance(
-                        &centroids.row(i).to_owned().into_raw_vec(),
-                        &centroids.row(j).to_owned().into_raw_vec(),
+                        &centroids.row(i).to_owned().into_raw_vec_and_offset().0,
+                        &centroids.row(j).to_owned().into_raw_vec_and_offset().0,
                     );
                     min_separation = min_separation.min(dist);
                 }
@@ -511,6 +512,7 @@ impl SpatialClusteringQuality {
         Ok(min_separation)
     }
 
+    #[allow(clippy::needless_range_loop)]
     fn compute_spatial_compactness(
         coords: &Array2<f64>,
         assignments: &Array1<usize>,
@@ -543,7 +545,7 @@ impl SpatialClusteringQuality {
                 let mut total_dist = 0.0;
                 for &point_idx in &cluster_points {
                     let dist = euclidean_distance(
-                        &coords.row(point_idx).to_owned().into_raw_vec(),
+                        &coords.row(point_idx).to_owned().into_raw_vec_and_offset().0,
                         &centroid,
                     );
                     total_dist += dist;
@@ -701,7 +703,7 @@ mod tests {
         assert!(quality.boundary_coherence >= 0.0 && quality.boundary_coherence <= 1.0);
 
         let overall = quality.overall_score();
-        assert!(overall >= 0.0 && overall <= 1.0);
+        assert!((0.0..=1.0).contains(&overall));
     }
 
     #[test]

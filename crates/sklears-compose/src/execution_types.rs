@@ -255,16 +255,30 @@ pub enum RetryBackoffStrategy {
     Fixed,
 
     /// Linear increase in delay
-    Linear { increment: Duration },
+    Linear {
+        /// The increment.
+        increment: Duration,
+    },
 
     /// Exponential backoff
-    Exponential { multiplier: f64 },
+    Exponential {
+        /// The multiplier.
+        multiplier: f64,
+    },
 
     /// Jittered exponential backoff
-    JitteredExponential { multiplier: f64, jitter: f64 },
+    JitteredExponential {
+        /// The multiplier.
+        multiplier: f64,
+        /// The jitter.
+        jitter: f64,
+    },
 
     /// Custom backoff function
-    Custom { strategy_name: String },
+    Custom {
+        /// The strategy name.
+        strategy_name: String,
+    },
 }
 
 /// Conditions that trigger task retries
@@ -318,16 +332,25 @@ pub enum TimeoutAction {
     Cancel,
 
     /// Attempt graceful shutdown
-    GracefulShutdown { grace_period: Duration },
+    GracefulShutdown {
+        /// The grace period.
+        grace_period: Duration,
+    },
 
     /// Force kill the task
     ForceKill,
 
     /// Move to different execution strategy
-    Migrate { target_strategy: String },
+    Migrate {
+        /// The target strategy.
+        target_strategy: String,
+    },
 
     /// Custom timeout handling
-    Custom { handler_name: String },
+    Custom {
+        /// The handler name.
+        handler_name: String,
+    },
 }
 
 /// Task resource requirements specification
@@ -579,7 +602,10 @@ pub enum DurabilityLevel {
     SyncWrite,
 
     /// Replicated writes
-    Replicated { replica_count: usize },
+    Replicated {
+        /// The replica count.
+        replica_count: usize,
+    },
 
     /// Custom durability strategy
     Custom(String),
@@ -702,33 +728,50 @@ pub enum ExecutionLocation {
     Local,
 
     /// Execute on specific remote node
-    Remote { node_id: String },
+    Remote {
+        /// The node id.
+        node_id: String,
+    },
 
     /// Execute in cloud environment
     Cloud {
+        /// The provider.
         provider: String,
+        /// The region.
         region: String,
+        /// The availability zone.
         availability_zone: Option<String>,
     },
 
     /// Execute on edge device
     Edge {
+        /// The device id.
         device_id: String,
+        /// The device type.
         device_type: String,
     },
 
     /// Execute in container environment
     Container {
+        /// The container id.
         container_id: String,
+        /// The orchestrator.
         orchestrator: String,
     },
 
     /// Execute in virtual machine
-    VirtualMachine { vm_id: String, hypervisor: String },
+    VirtualMachine {
+        /// The vm id.
+        vm_id: String,
+        /// The hypervisor.
+        hypervisor: String,
+    },
 
     /// Custom execution location
     Custom {
+        /// The location type.
         location_type: String,
+        /// The parameters.
         parameters: HashMap<String, String>,
     },
 }
@@ -1597,7 +1640,7 @@ mod tests {
         let values = vec![
             MetadataValue::String("test".to_string()),
             MetadataValue::Integer(42),
-            MetadataValue::Float(3.14),
+            MetadataValue::Float(std::f64::consts::PI),
             MetadataValue::Boolean(true),
             MetadataValue::Timestamp(SystemTime::now()),
             MetadataValue::Duration(Duration::from_secs(60)),

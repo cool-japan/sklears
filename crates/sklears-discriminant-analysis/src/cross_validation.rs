@@ -12,6 +12,9 @@ use std::collections::HashMap;
 
 use crate::{LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis};
 
+/// Type alias for a train/validation split: (x_train, y_train, x_val, y_val)
+type FoldSplit = (Array2<Float>, Array1<i32>, Array2<Float>, Array1<i32>);
+
 /// Cross-validation configuration
 #[derive(Debug, Clone)]
 pub struct CrossValidationConfig {
@@ -192,7 +195,7 @@ impl GridSearchLDA {
         &self,
         x: &Array2<Float>,
         y: &Array1<i32>,
-    ) -> Result<Vec<(Array2<Float>, Array1<i32>, Array2<Float>, Array1<i32>)>> {
+    ) -> Result<Vec<FoldSplit>> {
         // Get unique classes and their indices
         let mut class_indices: HashMap<i32, Vec<usize>> = HashMap::new();
         for (i, &class) in y.iter().enumerate() {
@@ -386,7 +389,7 @@ impl GridSearchQDA {
         &self,
         x: &Array2<Float>,
         y: &Array1<i32>,
-    ) -> Result<Vec<(Array2<Float>, Array1<i32>, Array2<Float>, Array1<i32>)>> {
+    ) -> Result<Vec<FoldSplit>> {
         // Get unique classes and their indices
         let mut class_indices: HashMap<i32, Vec<usize>> = HashMap::new();
         for (i, &class) in y.iter().enumerate() {
@@ -824,7 +827,7 @@ impl NestedCrossValidator {
         x: &Array2<Float>,
         y: &Array1<i32>,
         config: &CrossValidationConfig,
-    ) -> Result<Vec<(Array2<Float>, Array1<i32>, Array2<Float>, Array1<i32>)>> {
+    ) -> Result<Vec<FoldSplit>> {
         // Reuse the stratified fold creation logic from GridSearchLDA
         let grid_search = GridSearchLDA::new(ParameterGrid::new(), config.clone());
         grid_search.create_stratified_folds(x, y)

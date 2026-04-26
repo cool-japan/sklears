@@ -133,6 +133,7 @@ impl Estimator for HuberRegressor<Untrained> {
 }
 
 /// Huber loss function
+#[allow(dead_code)] // used by IRLS weight computation in future huber regression variants
 fn huber_loss(residual: f64, epsilon: f64) -> f64 {
     let abs_residual = residual.abs();
     if abs_residual <= epsilon {
@@ -143,6 +144,7 @@ fn huber_loss(residual: f64, epsilon: f64) -> f64 {
 }
 
 /// Derivative of Huber loss
+#[allow(dead_code)] // used by IRLS weight computation in future huber regression variants
 fn huber_loss_derivative(residual: f64, epsilon: f64) -> f64 {
     if residual.abs() <= epsilon {
         residual
@@ -211,7 +213,7 @@ impl Fit<Array2<f64>, Array1<f64>> for HuberRegressor<Untrained> {
             let mut abs_residuals: Vec<f64> = residuals.iter().map(|&r| r.abs()).collect();
             abs_residuals.sort_by(|a, b| compare_floats(a, b).unwrap_or(std::cmp::Ordering::Equal));
             let n = abs_residuals.len();
-            let mad = if n % 2 == 0 {
+            let mad = if n.is_multiple_of(2) {
                 (abs_residuals[n / 2 - 1] + abs_residuals[n / 2]) / 2.0
             } else {
                 abs_residuals[n / 2]

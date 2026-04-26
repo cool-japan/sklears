@@ -386,7 +386,7 @@ impl FeatureScaler {
 
             // Compute median (50th percentile)
             let median_idx = feature_values.len() / 2;
-            stats.medians[j] = if feature_values.len() % 2 == 0 {
+            stats.medians[j] = if feature_values.len().is_multiple_of(2) {
                 (feature_values[median_idx - 1] + feature_values[median_idx]) / 2.0
             } else {
                 feature_values[median_idx]

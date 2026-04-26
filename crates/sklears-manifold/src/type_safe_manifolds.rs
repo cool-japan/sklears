@@ -127,7 +127,7 @@ impl<S, P, D> TypeSafeManifold<S, P, D> {
     }
 
     /// Get a view of the underlying data
-    pub fn view(&self) -> ArrayView2<Float> {
+    pub fn view(&self) -> ArrayView2<'_, Float> {
         self.data.view()
     }
 
@@ -320,7 +320,7 @@ impl<P, D> TypeSafeManifold<structure::Discrete, P, D> {
             // Sort by distance and take k nearest
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
-            for (dist, neighbor) in distances.iter().take(k) {
+            for (_dist, neighbor) in distances.iter().take(k) {
                 adjacency[[i, *neighbor]] = 1.0;
                 adjacency[[*neighbor, i]] = 1.0; // Make symmetric
             }
@@ -534,7 +534,7 @@ pub type DiscreteManifold =
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::{array, ArrayView2};
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_euclidean_manifold_creation() {

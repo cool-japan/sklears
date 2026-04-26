@@ -229,33 +229,18 @@ impl EfficientFileWriter {
 pub struct CompressionUtils;
 
 impl CompressionUtils {
-    /// Compress data using flate2 (gzip-compatible)
+    /// Compress data using gzip
     #[cfg(feature = "compression")]
     pub fn compress_gzip(data: &[u8]) -> UtilsResult<Vec<u8>> {
-        use flate2::{write::GzEncoder, Compression};
-
-        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-        encoder
-            .write_all(data)
-            .map_err(|e| UtilsError::InvalidParameter(format!("Compression failed: {e}")))?;
-
-        encoder
-            .finish()
+        oxiarc_deflate::gzip_compress(data, 6)
             .map_err(|e| UtilsError::InvalidParameter(format!("Compression failed: {e}")))
     }
 
     /// Decompress gzip data
     #[cfg(feature = "compression")]
     pub fn decompress_gzip(data: &[u8]) -> UtilsResult<Vec<u8>> {
-        use flate2::read::GzDecoder;
-
-        let mut decoder = GzDecoder::new(data);
-        let mut decompressed = Vec::new();
-        decoder
-            .read_to_end(&mut decompressed)
-            .map_err(|e| UtilsError::InvalidParameter(format!("Decompression failed: {e}")))?;
-
-        Ok(decompressed)
+        oxiarc_deflate::gzip_decompress(data)
+            .map_err(|e| UtilsError::InvalidParameter(format!("Decompression failed: {e}")))
     }
 
     /// Simple run-length encoding for sparse data
@@ -285,7 +270,7 @@ impl CompressionUtils {
     pub fn run_length_decode(encoded: &[(u8, usize)]) -> Vec<u8> {
         let mut result = Vec::new();
         for &(value, count) in encoded {
-            result.extend(std::iter::repeat(value).take(count));
+            result.extend(std::iter::repeat_n(value, count));
         }
         result
     }
@@ -536,22 +521,17 @@ impl FormatConverter {
                 Ok(Event::Start(ref e)) => {
                     current_element = String::from_utf8_lossy(e.name().as_ref()).to_string();
                 }
-                Ok(Event::Text(e)) => {
-                    if !current_element.is_empty() {
-                        let raw_text = e.decode().map_err(|e| {
-                            UtilsError::InvalidParameter(format!(
-                                "Failed to decode XML text: {}",
-                                e
-                            ))
-                        })?;
-                        let text = unescape(&raw_text).map_err(|e| {
-                            UtilsError::InvalidParameter(format!(
-                                "Failed to unescape XML text: {}",
-                                e
-                            ))
-                        })?;
-                        result.insert(current_element.clone(), text.into_owned());
-                    }
+                Ok(Event::Text(e)) if !current_element.is_empty() => {
+                    let raw_text = e.decode().map_err(|e| {
+                        UtilsError::InvalidParameter(format!("Failed to decode XML text: {}", e))
+                    })?;
+                    let text = unescape(&raw_text).map_err(|e| {
+                        UtilsError::InvalidParameter(format!("Failed to unescape XML text: {}", e))
+                    })?;
+                    result.insert(current_element.clone(), text.into_owned());
+                }
+                Ok(Event::Text(_)) => {
+                    // current_element is empty; skip this text node
                 }
                 Ok(Event::End(_)) => {
                     current_element.clear();

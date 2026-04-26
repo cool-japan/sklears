@@ -40,7 +40,7 @@
 //! ```
 
 use crate::types::Float;
-use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::error::{Result as SklResult, SklearsError};
 use std::collections::HashMap;
 
@@ -312,6 +312,7 @@ pub struct CounterfactualText {
 /// LLM explainer
 pub struct LLMExplainer {
     /// Task type
+    #[allow(dead_code)] // stored for task-specific explanation logic
     task: LLMTask,
     /// Configuration
     config: LLMExplainerConfig,
@@ -472,7 +473,7 @@ impl LLMExplainer {
     }
 
     /// Compute layer-wise importance
-    fn compute_layer_importance(&self, input: &TokenizedInput) -> SklResult<Vec<LayerImportance>> {
+    fn compute_layer_importance(&self, _input: &TokenizedInput) -> SklResult<Vec<LayerImportance>> {
         let mut layer_importances = Vec::new();
         let num_layers = self.config.num_layers;
 
@@ -759,7 +760,7 @@ mod tests {
 
     #[test]
     fn test_neuron_activation_pattern_finder() {
-        let activations = vec![Array2::from_shape_fn((5, 10), |(i, j)| {
+        let activations = vec![Array2::from_shape_fn((5, 10), |(_i, j)| {
             if j < 5 {
                 0.9
             } else {
@@ -780,7 +781,7 @@ mod tests {
 
     #[test]
     fn test_llm_tasks() {
-        let tasks = vec![
+        let tasks = [
             LLMTask::TextClassification,
             LLMTask::TextGeneration,
             LLMTask::QuestionAnswering,
@@ -793,7 +794,7 @@ mod tests {
 
     #[test]
     fn test_layer_types() {
-        let types = vec![
+        let types = [
             LayerType::Embedding,
             LayerType::Attention,
             LayerType::FeedForward,
@@ -804,7 +805,7 @@ mod tests {
 
     #[test]
     fn test_variation_types() {
-        let types = vec![
+        let types = [
             VariationType::TokenSubstitution,
             VariationType::TokenDeletion,
             VariationType::TokenReordering,

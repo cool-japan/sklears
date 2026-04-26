@@ -689,7 +689,7 @@ mod tests {
 
         // Check range [0, 1)
         for &val in &output {
-            assert!(val >= 0.0 && val < 1.0);
+            assert!((0.0..1.0).contains(&val));
         }
 
         // Check some variability
@@ -748,7 +748,7 @@ mod tests {
 
         // All samples should be in [0, 1]
         for &sample in &samples {
-            assert!(sample >= 0.0 && sample <= 1.0);
+            assert!((0.0..=1.0).contains(&sample));
         }
     }
 

@@ -9,7 +9,7 @@
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
 use crate::error::{Result, SklearsComposeError};
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
 use super::functions::ContextProvider;
 use super::types::{ContextType, EnvironmentContextProvider};

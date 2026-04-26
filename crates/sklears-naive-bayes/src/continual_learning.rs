@@ -9,12 +9,13 @@ use scirs2_core::numeric::{Float, NumCast};
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 
-// Type aliases for compatibility with DMatrix/DVector usage
-type DMatrix<T> = Array2<T>;
-type DVector<T> = Array1<T>;
+// Type aliases for compatibility with Matrix2D/Vector1D usage
+type Matrix2D<T> = Array2<T>;
+type Vector1D<T> = Array1<T>;
+/// Task-specific parameters: per-class (means, variances)
+type TaskParams<T> = HashMap<i32, (Vector1D<T>, Vector1D<T>)>;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-// TODO: Migrate to full scirs2_core::random when API is stabilized
-use scirs2_core::random::thread_rng;
+use scirs2_core::random::seeded_rng;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::marker::PhantomData;
@@ -110,6 +111,8 @@ pub struct ContinualLearningConfig {
     pub task_specific_bn: bool,
     /// Maximum iterations for learning algorithms
     pub max_iterations: usize,
+    /// Random seed for reproducibility (None = non-deterministic)
+    pub random_state: Option<u64>,
 }
 
 impl Default for ContinualLearningConfig {
@@ -127,6 +130,7 @@ impl Default for ContinualLearningConfig {
             drift_window_size: 100,
             task_specific_bn: true,
             max_iterations: 100,
+            random_state: None,
         }
     }
 }
@@ -138,7 +142,7 @@ pub struct TaskMetadata {
     pub num_samples: usize,
     pub num_classes: usize,
     #[serde(skip)]
-    pub feature_statistics: Option<DVector<f64>>,
+    pub feature_statistics: Option<Vector1D<f64>>,
     pub class_distribution: HashMap<i32, f64>,
     pub timestamp: u64,
 }
@@ -146,7 +150,7 @@ pub struct TaskMetadata {
 /// Memory sample for replay
 #[derive(Debug, Clone)]
 pub struct MemorySample<T: Float> {
-    pub features: DVector<T>,
+    pub features: Vector1D<T>,
     pub label: i32,
     pub task_id: usize,
     pub importance_weight: T,
@@ -157,8 +161,8 @@ pub struct MemorySample<T: Float> {
 #[derive(Debug, Clone)]
 pub struct FisherInformation<T: Float> {
     pub class_priors: HashMap<i32, T>,
-    pub feature_means: HashMap<i32, DVector<T>>,
-    pub feature_variances: HashMap<i32, DVector<T>>,
+    pub feature_means: HashMap<i32, Vector1D<T>>,
+    pub feature_variances: HashMap<i32, Vector1D<T>>,
 }
 
 /// Continual Learning Naive Bayes Classifier
@@ -167,9 +171,9 @@ pub struct ContinualLearningNB<T: Float> {
     /// Configuration
     config: ContinualLearningConfig,
     /// Current task parameters
-    current_task_params: HashMap<i32, (DVector<T>, DVector<T>)>, // (means, variances)
+    current_task_params: TaskParams<T>, // (means, variances)
     /// Previous task parameters for EWC
-    previous_task_params: Vec<HashMap<i32, (DVector<T>, DVector<T>)>>,
+    previous_task_params: Vec<TaskParams<T>>,
     /// Fisher information matrices for EWC
     fisher_information: Vec<FisherInformation<T>>,
     /// Memory buffer for replay
@@ -211,6 +215,7 @@ struct ADWINBucket<T: Float> {
     variance: T,
 }
 
+#[allow(non_snake_case)]
 impl<T: Float + Clone + std::fmt::Debug + 'static> ContinualLearningNB<T>
 where
     T: Float + Copy,
@@ -245,7 +250,7 @@ where
     }
 
     /// Fit on a new task
-    pub fn fit_task(&mut self, X: &DMatrix<T>, y: &[i32], task_id: usize) -> Result<()> {
+    pub fn fit_task(&mut self, X: &Matrix2D<T>, y: &[i32], task_id: usize) -> Result<()> {
         if X.nrows() != y.len() {
             return Err(ContinualLearningError::FeatureMismatch {
                 expected: X.nrows(),
@@ -319,7 +324,7 @@ where
     }
 
     /// Predict with current knowledge
-    pub fn predict(&self, X: &DMatrix<T>) -> Result<Vec<i32>> {
+    pub fn predict(&self, X: &Matrix2D<T>) -> Result<Vec<i32>> {
         if !self.is_fitted {
             return Err(ContinualLearningError::InsufficientData);
         }
@@ -348,14 +353,14 @@ where
     }
 
     /// Predict class probabilities
-    pub fn predict_proba(&self, X: &DMatrix<T>) -> Result<DMatrix<T>> {
+    pub fn predict_proba(&self, X: &Matrix2D<T>) -> Result<Matrix2D<T>> {
         if !self.is_fitted {
             return Err(ContinualLearningError::InsufficientData);
         }
 
         let n_samples = X.nrows();
         let n_classes = self.all_classes.len();
-        let mut probabilities = DMatrix::zeros((n_samples, n_classes));
+        let mut probabilities = Matrix2D::zeros((n_samples, n_classes));
 
         for (sample_idx, sample) in X.axis_iter(Axis(0)).enumerate() {
             for (class_idx, &class) in self.all_classes.iter().enumerate() {
@@ -376,7 +381,7 @@ where
     }
 
     /// Detect concept drift
-    pub fn detect_drift(&mut self, X: &DMatrix<T>, y: &[i32]) -> Result<bool> {
+    pub fn detect_drift(&mut self, X: &Matrix2D<T>, y: &[i32]) -> Result<bool> {
         // Simplified drift detection based on prediction accuracy
         let predictions = self.predict(X)?;
         let accuracy = predictions
@@ -405,7 +410,7 @@ where
     }
 
     /// Fit with Elastic Weight Consolidation
-    fn fit_with_ewc(&mut self, X: &DMatrix<T>, y: &[i32]) -> Result<()> {
+    fn fit_with_ewc(&mut self, X: &Matrix2D<T>, y: &[i32]) -> Result<()> {
         // Standard Naive Bayes parameter estimation
         self.fit_standard_nb(X, y)?;
 
@@ -418,7 +423,7 @@ where
     }
 
     /// Fit with memory replay
-    fn fit_with_memory_replay(&mut self, X: &DMatrix<T>, y: &[i32]) -> Result<()> {
+    fn fit_with_memory_replay(&mut self, X: &Matrix2D<T>, y: &[i32]) -> Result<()> {
         // Combine current data with memory buffer
         let (combined_X, combined_y) = self.combine_with_memory(X, y)?;
 
@@ -429,7 +434,7 @@ where
     }
 
     /// Fit with progressive learning
-    fn fit_with_progressive_learning(&mut self, X: &DMatrix<T>, y: &[i32]) -> Result<()> {
+    fn fit_with_progressive_learning(&mut self, X: &Matrix2D<T>, y: &[i32]) -> Result<()> {
         // Create task-specific parameters
         let task_params = self.learn_task_specific_parameters(X, y)?;
 
@@ -440,7 +445,7 @@ where
     }
 
     /// Fit with knowledge distillation
-    fn fit_with_knowledge_distillation(&mut self, X: &DMatrix<T>, y: &[i32]) -> Result<()> {
+    fn fit_with_knowledge_distillation(&mut self, X: &Matrix2D<T>, y: &[i32]) -> Result<()> {
         // Get soft targets from previous model
         let soft_targets = if self.is_fitted {
             Some(self.predict_proba(X)?)
@@ -460,7 +465,7 @@ where
     }
 
     /// Fit with hybrid approach
-    fn fit_with_hybrid_approach(&mut self, X: &DMatrix<T>, y: &[i32]) -> Result<()> {
+    fn fit_with_hybrid_approach(&mut self, X: &Matrix2D<T>, y: &[i32]) -> Result<()> {
         // Combine memory replay with EWC
         let (combined_X, combined_y) = self.combine_with_memory(X, y)?;
         self.fit_standard_nb(&combined_X, &combined_y)?;
@@ -473,7 +478,7 @@ where
     }
 
     /// Standard Naive Bayes fitting
-    fn fit_standard_nb(&mut self, X: &DMatrix<T>, y: &[i32]) -> Result<()> {
+    fn fit_standard_nb(&mut self, X: &Matrix2D<T>, y: &[i32]) -> Result<()> {
         self.current_task_params.clear();
 
         // Compute class priors
@@ -496,8 +501,8 @@ where
                 continue;
             }
 
-            let mut means = DVector::zeros(self.n_features);
-            let mut variances = DVector::zeros(self.n_features);
+            let mut means = Vector1D::zeros(self.n_features);
+            let mut variances = Vector1D::zeros(self.n_features);
 
             for feature_idx in 0..self.n_features {
                 let feature_values: Vec<T> = class_samples
@@ -529,7 +534,7 @@ where
     /// Compute Fisher Information Matrix
     fn compute_fisher_information(
         &self,
-        _X: &DMatrix<T>,
+        _X: &Matrix2D<T>,
         _y: &[i32],
     ) -> Result<FisherInformation<T>> {
         // Simplified Fisher Information computation
@@ -558,7 +563,7 @@ where
         for (class, (current_means, current_vars)) in &mut self.current_task_params {
             // Apply EWC penalty to previous tasks
             for fisher in &self.fisher_information {
-                if let (Some(prev_means), Some(prev_vars)) = (
+                if let (Some(prev_means), Some(_prev_vars)) = (
                     fisher.feature_means.get(class),
                     fisher.feature_variances.get(class),
                 ) {
@@ -577,16 +582,16 @@ where
     }
 
     /// Combine current data with memory buffer
-    fn combine_with_memory(&self, X: &DMatrix<T>, y: &[i32]) -> Result<(DMatrix<T>, Vec<i32>)> {
+    fn combine_with_memory(&self, X: &Matrix2D<T>, y: &[i32]) -> Result<(Matrix2D<T>, Vec<i32>)> {
         let memory_samples: Vec<_> = self.memory_buffer.iter().collect();
         let total_samples = X.nrows() + memory_samples.len();
 
-        let mut combined_X = DMatrix::zeros((total_samples, self.n_features));
+        let mut combined_X = Matrix2D::zeros((total_samples, self.n_features));
         let mut combined_y = Vec::with_capacity(total_samples);
 
         // Add current data
-        for i in 0..X.nrows() {
-            combined_X.row_mut(i).assign(&X.row(i));
+        for (i, row) in X.rows().into_iter().enumerate() {
+            combined_X.row_mut(i).assign(&row);
             combined_y.push(y[i]);
         }
 
@@ -601,7 +606,7 @@ where
     }
 
     /// Update memory buffer with new samples
-    fn update_memory_buffer(&mut self, X: &DMatrix<T>, y: &[i32], task_id: usize) -> Result<()> {
+    fn update_memory_buffer(&mut self, X: &Matrix2D<T>, y: &[i32], task_id: usize) -> Result<()> {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .expect("operation should succeed")
@@ -633,16 +638,24 @@ where
     /// Select samples for memory buffer
     fn select_memory_samples(
         &self,
-        X: &DMatrix<T>,
+        X: &Matrix2D<T>,
         y: &[i32],
         _task_id: usize,
     ) -> Result<Vec<(usize, T)>> {
         let mut selected = Vec::new();
-        let mut rng = thread_rng();
+        // Use seeded RNG for reproducibility when random_state is set;
+        // fall back to a time-derived seed for non-deterministic behaviour.
+        let effective_seed = self.config.random_state.unwrap_or_else(|| {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos() as u64)
+                .unwrap_or(0)
+        });
+        let mut rng = seeded_rng(effective_seed);
 
         match self.config.memory_strategy {
             MemoryStrategy::Random => {
-                let num_samples = (X.nrows() / 10).max(1).min(100); // Sample 10% or at most 100
+                let num_samples = (X.nrows() / 10).clamp(1, 100); // Sample 10% or at most 100
                 for _ in 0..num_samples {
                     let idx = rng.gen_range(0..X.nrows());
                     selected.push((idx, T::one()));
@@ -656,7 +669,7 @@ where
                 }
 
                 let samples_per_class = 10; // Store 10 samples per class
-                for (&class, _) in &class_counts {
+                for &class in class_counts.keys() {
                     let class_indices: Vec<usize> = y
                         .iter()
                         .enumerate()
@@ -672,7 +685,7 @@ where
             }
             _ => {
                 // Default to random for other strategies
-                let num_samples = (X.nrows() / 10).max(1).min(100);
+                let num_samples = (X.nrows() / 10).clamp(1, 100);
                 for _ in 0..num_samples {
                     let idx = rng.gen_range(0..X.nrows());
                     selected.push((idx, T::one()));
@@ -684,11 +697,7 @@ where
     }
 
     /// Learn task-specific parameters
-    fn learn_task_specific_parameters(
-        &self,
-        X: &DMatrix<T>,
-        y: &[i32],
-    ) -> Result<HashMap<i32, (DVector<T>, DVector<T>)>> {
+    fn learn_task_specific_parameters(&self, X: &Matrix2D<T>, y: &[i32]) -> Result<TaskParams<T>> {
         let mut task_params = HashMap::new();
 
         for &class in &self.all_classes {
@@ -702,8 +711,8 @@ where
                 continue;
             }
 
-            let mut means = DVector::zeros(self.n_features);
-            let mut variances = DVector::zeros(self.n_features);
+            let mut means = Vector1D::zeros(self.n_features);
+            let mut variances = Vector1D::zeros(self.n_features);
 
             for feature_idx in 0..self.n_features {
                 let feature_values: Vec<T> = class_samples
@@ -735,7 +744,7 @@ where
     /// Integrate task-specific parameters
     fn integrate_task_parameters(
         &mut self,
-        task_params: HashMap<i32, (DVector<T>, DVector<T>)>,
+        task_params: HashMap<i32, (Vector1D<T>, Vector1D<T>)>,
     ) -> Result<()> {
         let learning_rate = NumCast::from(self.config.learning_rate).unwrap_or_else(T::zero);
 
@@ -758,8 +767,8 @@ where
     /// Apply knowledge distillation
     fn apply_knowledge_distillation(
         &mut self,
-        _soft_targets: &DMatrix<T>,
-        _X: &DMatrix<T>,
+        _soft_targets: &Matrix2D<T>,
+        _X: &Matrix2D<T>,
     ) -> Result<()> {
         // Simplified knowledge distillation
         // In practice, this would involve minimizing the KL divergence between
@@ -768,7 +777,7 @@ where
     }
 
     /// Compute class probability
-    fn compute_class_probability(&self, sample: &DVector<T>, class: i32) -> T {
+    fn compute_class_probability(&self, sample: &Vector1D<T>, class: i32) -> T {
         if let (Some(prior), Some((means, variances))) = (
             self.class_priors.get(&class),
             self.current_task_params.get(&class),
@@ -801,7 +810,7 @@ where
     }
 
     /// Create task metadata
-    fn create_task_metadata(&self, task_id: usize, X: &DMatrix<T>, y: &[i32]) -> TaskMetadata {
+    fn create_task_metadata(&self, task_id: usize, X: &Matrix2D<T>, y: &[i32]) -> TaskMetadata {
         let mut class_distribution = HashMap::new();
         let total_samples = y.len() as f64;
 
@@ -810,7 +819,7 @@ where
         }
 
         // Compute feature statistics
-        let mut feature_stats = DVector::zeros(self.n_features);
+        let mut feature_stats = Vector1D::zeros(self.n_features);
         for i in 0..self.n_features {
             let column_sum: T = X.column(i).iter().cloned().sum();
             feature_stats[i] = column_sum.into();

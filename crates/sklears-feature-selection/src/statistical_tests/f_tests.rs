@@ -202,7 +202,7 @@ mod tests {
             .expect("operation should succeed");
 
         assert!(f_stat > 0.0);
-        assert!(p_value >= 0.0 && p_value <= 1.0);
+        assert!((0.0..=1.0).contains(&p_value));
     }
 
     #[test]
@@ -217,6 +217,6 @@ mod tests {
         assert_eq!(f_stats.len(), 2);
         assert_eq!(p_values.len(), 2);
         assert!(f_stats.iter().all(|&x| x >= 0.0));
-        assert!(p_values.iter().all(|&x| x >= 0.0 && x <= 1.0));
+        assert!(p_values.iter().all(|&x| (0.0..=1.0).contains(&x)));
     }
 }

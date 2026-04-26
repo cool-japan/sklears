@@ -45,7 +45,7 @@ impl Default for MemoryMappedKernelConfig {
         let default_threads = num_cpus::get();
 
         Self {
-            file_path: PathBuf::from("/tmp/sklears_kernel_matrix.dat"),
+            file_path: std::env::temp_dir().join("sklears_kernel_matrix.dat"),
             cache_size: 10000,
             block_size: 1000,
             precompute_all: false,

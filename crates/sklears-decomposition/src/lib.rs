@@ -1,10 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
 //! Matrix and tensor decomposition algorithms for dimensionality reduction
 //!
 //! This module provides various decomposition techniques including:
@@ -41,8 +34,7 @@
 pub use scirs2_core::s;
 
 pub mod cache_optimization;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod cca;
+pub mod cca;
 pub mod component_selection;
 pub mod constrained_decomposition;
 pub mod dictionary_learning;
@@ -50,48 +42,38 @@ pub mod distributed;
 pub mod error_diagnostics;
 pub mod factor_analysis;
 pub mod fluent_api;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod format_support;
+pub mod format_support;
 pub mod hardware_acceleration;
 pub mod ica;
 pub mod image_cv;
+pub mod incremental_pca;
 pub mod integration;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod incremental_pca;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod kernel_pca;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod manifold;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod matrix_completion;
+pub mod kernel_pca;
+pub mod manifold;
+pub mod matrix_completion;
 pub mod memory_efficiency;
 pub mod modular_framework;
 pub mod nmf;
 pub mod online_nmf;
 pub mod pca;
 pub mod performance;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod pls;
+pub mod pls;
 pub mod quality_metrics;
 pub mod robust_methods;
 pub mod signal_processing;
 mod simd_signal;
 pub mod sklearn_compat;
 pub mod streaming;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod tensor_decomposition;
+pub mod tensor_decomposition;
 pub mod time_series;
 pub mod type_safe;
 pub mod validation;
 pub mod visualization;
 
-#[allow(non_snake_case)]
 #[cfg(test)]
-// TODO: Migrate to scirs2-linalg (uses nalgebra/ICA types)
-// pub mod property_tests;
+pub mod property_tests;
 pub use cache_optimization::*;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use cca::*;
+pub use cca::*;
 pub use component_selection::*;
 pub use constrained_decomposition::*;
 pub use dictionary_learning::*;
@@ -99,8 +81,12 @@ pub use distributed::*;
 pub use error_diagnostics::*;
 pub use factor_analysis::*;
 pub use fluent_api::*;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use format_support::*;
+// Re-export format_support excluding SparseMatrix and MemoryMappedMatrix (conflict with integration and memory_efficiency)
+#[cfg(feature = "hdf5-support")]
+pub use format_support::HDF5Support;
+pub use format_support::{DecompositionResults, FormatConfig, SparseFormat};
+#[cfg(feature = "sparse")]
+pub use format_support::{SparseDecompositionResult, SparseMatrixSupport, SparseStats};
 pub use hardware_acceleration::{
     AccelerationConfig, AlignedMemoryOps, MixedPrecisionOps, ParallelDecomposition, SimdMatrixOps,
 };
@@ -109,14 +95,14 @@ pub use hardware_acceleration::{GpuAcceleration, GpuDecomposition};
 pub use ica::*;
 pub use image_cv::*;
 pub use integration::*;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use incremental_pca::*;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use kernel_pca::*;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use manifold::*;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use matrix_completion::*;
+// Re-export incremental_pca excluding IncrementalPcaConfig (conflicts with pca::IncrementalPcaConfig type alias)
+pub use incremental_pca::IncrementalPCA;
+pub use kernel_pca::{KernelApproximation, KernelFunction, KernelPCA, KernelPcaConfig};
+pub use manifold::{DistanceMetric, ManifoldAlgorithm, ManifoldLearning, TrainedManifoldLearning};
+pub use matrix_completion::{
+    CompletionAlgorithm, LowRankMatrixRecovery, MatrixCompletion, RecoveryAlgorithm,
+    TrainedLowRankMatrixRecovery, TrainedMatrixCompletion,
+};
 pub use memory_efficiency::*;
 // Re-export modular_framework excluding DecompositionAlgorithm enum and DecompositionPipeline struct to avoid conflicts
 pub use modular_framework::{
@@ -129,8 +115,7 @@ pub use nmf::*;
 pub use online_nmf::*;
 pub use pca::*;
 pub use performance::*;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use pls::*;
+pub use pls::{FittedPLS, PLSAlgorithm, PartialLeastSquares};
 pub use quality_metrics::*;
 pub use robust_methods::{
     BreakdownPointAnalysis, BreakdownResult, LossFunction, MEstimatorDecomposition,
@@ -143,8 +128,9 @@ pub use sklearn_compat::{
     SklearnPipeline, SklearnTransformer,
 };
 pub use streaming::*;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use tensor_decomposition::*;
+pub use tensor_decomposition::{
+    CPAlgorithm, CPDecomposition, TrainedCP, TrainedTucker, TuckerAlgorithm, TuckerDecomposition,
+};
 pub use time_series::*;
 // Re-export type_safe with DecompositionPipeline aliased to avoid conflict
 pub use type_safe::{

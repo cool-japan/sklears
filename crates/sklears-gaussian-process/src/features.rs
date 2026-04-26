@@ -23,8 +23,8 @@ use crate::{classification::GpcConfig, utils};
 /// ```ignore
 /// let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 /// let mut rff = RandomFourierFeatures::new(100, 1.0, Some(42));
-/// rff.fit(&X.view()).unwrap();
-/// let features = rff.transform(&X.view()).unwrap();
+/// rff.fit(&X.view()).expect("fit should succeed with valid input data");
+/// let features = rff.transform(&X.view()).expect("transform should succeed after fitting");
 /// ```
 #[derive(Debug, Clone)]
 pub struct RandomFourierFeatures {
@@ -36,6 +36,7 @@ pub struct RandomFourierFeatures {
     fitted: bool,
 }
 
+#[allow(non_snake_case)]
 impl RandomFourierFeatures {
     /// Create a new RandomFourierFeatures instance
     ///
@@ -185,8 +186,8 @@ impl Default for RandomFourierFeatures {
 ///     .n_components(50)
 ///     .gamma(1.0)
 ///     .alpha(1e-3);
-/// let fitted = rff_gpr.fit(&X.view(), &y.view()).unwrap();
-/// let predictions = fitted.predict(&X.view()).unwrap();
+/// let fitted = rff_gpr.fit(&X.view(), &y.view()).expect("fit should succeed with valid training data");
+/// let predictions = fitted.predict(&X.view()).expect("predict should succeed on trained model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct RandomFourierFeaturesGPR<S = Untrained> {
@@ -344,6 +345,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, f64>> for RandomFourierFeaturesGPR<
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<ArrayView2<'_, f64>, Array1<f64>> for RandomFourierFeaturesGPR<RffGprTrained> {
     fn predict(&self, X: &ArrayView2<f64>) -> SklResult<Array1<f64>> {
         let (mean, _) = self.predict_with_std(X)?;
@@ -351,6 +353,7 @@ impl Predict<ArrayView2<'_, f64>, Array1<f64>> for RandomFourierFeaturesGPR<RffG
     }
 }
 
+#[allow(non_snake_case)]
 impl RandomFourierFeaturesGPR<RffGprTrained> {
     /// Predict with uncertainty estimates
     pub fn predict_with_std(&self, X: &ArrayView2<f64>) -> SklResult<(Array1<f64>, Array1<f64>)> {

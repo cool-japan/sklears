@@ -10,7 +10,7 @@ type Result<T> = SklResult<T>;
 type Float = f64;
 
 /// Detect market regimes using various methods
-pub(crate) fn detect_market_regimes(x: &Array2<Float>, method: &str) -> Result<Array2<Float>> {
+pub fn detect_market_regimes(x: &Array2<Float>, method: &str) -> Result<Array2<Float>> {
     match method {
         "volatility" => detect_regimes_by_volatility(x),
         "momentum" => detect_regimes_by_momentum(x),
@@ -94,10 +94,7 @@ fn detect_regimes_by_momentum(x: &Array2<Float>) -> Result<Array2<Float>> {
 }
 
 /// Detect market regimes using Hidden Markov Model
-pub(crate) fn detect_market_regimes_hmm(
-    x: &Array2<Float>,
-    n_regimes: usize,
-) -> Result<Array2<Float>> {
+pub fn detect_market_regimes_hmm(x: &Array2<Float>, n_regimes: usize) -> Result<Array2<Float>> {
     let n_samples = x.nrows();
     let mut regime_probs = Array2::zeros((n_samples, n_regimes));
 
@@ -143,7 +140,7 @@ pub(crate) fn detect_market_regimes_hmm(
 }
 
 /// Compute regime transition probabilities
-pub(crate) fn compute_regime_transitions(regime_probs: &Array2<Float>) -> Result<Array2<Float>> {
+pub fn compute_regime_transitions(regime_probs: &Array2<Float>) -> Result<Array2<Float>> {
     let n_regimes = regime_probs.ncols();
     let n_samples = regime_probs.nrows();
 
@@ -185,7 +182,7 @@ pub(crate) fn compute_regime_transitions(regime_probs: &Array2<Float>) -> Result
 }
 
 /// Compute regime-based feature scores
-pub(crate) fn compute_regime_based_scores(
+pub fn compute_regime_based_scores(
     x: &Array2<Float>,
     _y: &Array1<Float>,
     method: &str,

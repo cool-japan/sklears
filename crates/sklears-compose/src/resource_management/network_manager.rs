@@ -5,6 +5,7 @@ use sklears_core::error::Result as SklResult;
 
 /// Network resource manager
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct NetworkResourceManager {
     /// Network interfaces
     interfaces: Vec<NetworkInterface>,
@@ -48,7 +49,7 @@ impl NetworkResourceManager {
     }
 
     /// Release network allocation
-    pub fn release_network(&mut self, allocation: &NetworkAllocation) -> SklResult<()> {
+    pub fn release_network(&mut self, _allocation: &NetworkAllocation) -> SklResult<()> {
         Ok(())
     }
 }

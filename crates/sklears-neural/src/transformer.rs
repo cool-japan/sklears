@@ -4,16 +4,13 @@
 //! models for sequence-to-sequence tasks, encoder-only models for classification,
 //! and decoder-only models for language generation.
 
-use crate::layers::attention::{MultiHeadAttention, ScaledDotProductAttention};
+use crate::layers::attention::MultiHeadAttention;
 use crate::layers::transformer::{PositionalEncoding, PositionalEncodingType};
-use crate::layers::{Layer, ParameterizedLayer};
 use crate::weight_init::{InitStrategy, WeightInitializer};
 use crate::NeuralResult;
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, Axis};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3};
 use scirs2_core::random::ChaCha8Rng;
-use scirs2_core::random::RandomExt;
 use scirs2_core::random::SeedableRng;
-use sklears_core::error::SklearsError;
 use sklears_core::types::FloatBounds;
 
 /// Configuration for transformer models
@@ -109,7 +106,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> FeedForwardNetwork<T>
 
     /// Forward pass through the feed-forward network
     pub fn forward(&self, input: &Array3<T>, training: bool) -> NeuralResult<Array3<T>> {
-        let (batch_size, seq_len, d_model) = input.dim();
+        let (batch_size, seq_len, _d_model) = input.dim();
         let mut output = Array3::zeros((batch_size, seq_len, self.linear2.ncols()));
 
         for b in 0..batch_size {
@@ -204,6 +201,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> LayerNorm<T> {
 
 /// Transformer encoder layer
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // dropout_rate retained for future dropout application during forward pass
 pub struct TransformerEncoderLayer<T: FloatBounds> {
     /// Multi-head self-attention
     self_attention: MultiHeadAttention<T>,
@@ -220,6 +218,7 @@ pub struct TransformerEncoderLayer<T: FloatBounds> {
 }
 
 impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> TransformerEncoderLayer<T> {
+    /// Create a new encoder layer from the given transformer configuration
     pub fn new(config: &TransformerConfig<T>) -> NeuralResult<Self> {
         let self_attention =
             MultiHeadAttention::new(config.num_heads, config.d_model, Some(config.dropout_rate))?;
@@ -283,6 +282,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> TransformerEncoderLay
 
 /// Transformer decoder layer
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // dropout_rate retained for future dropout application during forward pass
 pub struct TransformerDecoderLayer<T: FloatBounds> {
     /// Masked self-attention
     self_attention: MultiHeadAttention<T>,
@@ -301,6 +301,7 @@ pub struct TransformerDecoderLayer<T: FloatBounds> {
 }
 
 impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> TransformerDecoderLayer<T> {
+    /// Create a new decoder layer from the given transformer configuration
     pub fn new(config: &TransformerConfig<T>) -> NeuralResult<Self> {
         let self_attention =
             MultiHeadAttention::new(config.num_heads, config.d_model, Some(config.dropout_rate))?;
@@ -586,7 +587,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + From<f64>> Transform
         }
 
         // Project to vocabulary
-        let (batch_size, seq_len, d_model) = x.dim();
+        let (batch_size, seq_len, _d_model) = x.dim();
         let mut logits = Array3::zeros((batch_size, seq_len, self.output_projection.ncols()));
 
         for b in 0..batch_size {
@@ -734,7 +735,6 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + From<f64>>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
     use scirs2_core::essentials::Normal;
     use scirs2_core::ndarray::Array3;
     use scirs2_core::random::thread_rng;
@@ -755,7 +755,7 @@ mod tests {
             .expect("construction should succeed");
         let input = Array3::from_shape_fn((2, 10, 512), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         let output = ffn
             .forward(&input, false)
@@ -769,7 +769,7 @@ mod tests {
         let layer_norm = LayerNorm::<f64>::new(512);
         let input = Array3::from_shape_fn((2, 10, 512), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         let output = layer_norm.forward(&input);
         assert_eq!(output.dim(), (2, 10, 512));
@@ -784,7 +784,7 @@ mod tests {
 
         let input = Array3::from_shape_fn((2, 10, 512), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         let output = encoder_layer
             .forward(&input, None, false)
@@ -801,11 +801,11 @@ mod tests {
 
         let input = Array3::from_shape_fn((2, 10, 512), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         let encoder_output = Array3::from_shape_fn((2, 15, 512), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         let output = decoder_layer
             .forward(&input, &encoder_output, None, None, false)

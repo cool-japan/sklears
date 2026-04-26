@@ -208,7 +208,10 @@ impl ConvergenceTracker {
         &mut self,
         metric_values: HashMap<ConvergenceMetric, Float>,
     ) -> Result<()> {
-        if self.current_iteration % self.config.record_frequency != 0 {
+        if !self
+            .current_iteration
+            .is_multiple_of(self.config.record_frequency)
+        {
             self.current_iteration += 1;
             return Ok(());
         }

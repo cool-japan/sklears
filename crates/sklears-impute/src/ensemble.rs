@@ -1,4 +1,6 @@
 //! Ensemble-based imputation methods
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides ensemble learning approaches to missing data imputation,
 //! including random forests, gradient boosting, and other tree-based ensemble methods.

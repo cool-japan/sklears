@@ -60,6 +60,7 @@ use std::time::SystemTime;
 
 /// Runtime algorithm selector
 pub struct AdaptiveOptimizer {
+    #[allow(dead_code)] // Used via detect() at construction; stored for future adaptive queries
     capabilities: SimdCapabilities,
     performance_cache: Arc<Mutex<HashMap<String, AlgorithmPerformance>>>,
     auto_tuning_enabled: bool,
@@ -188,7 +189,7 @@ impl AdaptiveOptimizer {
         variants: &'a [Box<dyn AlgorithmVariant<T>>],
         input: &T,
         strategy: DispatchStrategy,
-    ) -> Option<&'a Box<dyn AlgorithmVariant<T>>> {
+    ) -> Option<&'a dyn AlgorithmVariant<T>> {
         let applicable_variants: Vec<&'a dyn AlgorithmVariant<T>> = variants
             .iter()
             .filter(|variant| variant.is_applicable(input))
@@ -199,20 +200,13 @@ impl AdaptiveOptimizer {
             return None;
         }
 
-        let selected = match strategy {
+        match strategy {
             DispatchStrategy::AlwaysFastest => self.select_fastest(&applicable_variants, input),
             DispatchStrategy::MostReliable => self.select_most_reliable(&applicable_variants),
             DispatchStrategy::Balanced => self.select_balanced(&applicable_variants, input),
             DispatchStrategy::DataDriven => self.select_data_driven(&applicable_variants, input),
             DispatchStrategy::MLGuided => self.select_ml_guided(&applicable_variants, input),
-        };
-
-        // Find the original Box corresponding to the selected trait object
-        selected.and_then(|selected_variant| {
-            variants.iter().find(|boxed| {
-                core::ptr::eq(boxed.as_ref() as *const _, selected_variant as *const _)
-            })
-        })
+        }
     }
 
     /// Execute algorithm with performance tracking
@@ -525,7 +519,7 @@ impl PerformanceFeedbackLoop {
         self.feedback_history.push(record);
 
         // Trigger adaptation if we have enough feedback
-        if self.feedback_history.len() % 10 == 0 {
+        if self.feedback_history.len().is_multiple_of(10) {
             self.adapt_strategies();
         }
     }

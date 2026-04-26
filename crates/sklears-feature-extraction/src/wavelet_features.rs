@@ -770,6 +770,8 @@ impl TimeFrequencyExtractor {
         let mut result = vec![(0.0, 0.0); n];
 
         // Simple DFT (for production, use a proper FFT implementation)
+        // k used in trig angle computation k*j, not just indexing
+        #[allow(clippy::needless_range_loop)]
         for k in 0..n {
             let mut real_sum = 0.0;
             let mut imag_sum = 0.0;

@@ -1,4 +1,6 @@
 //! Association Rule Imputer
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! Imputation using association rules discovered from categorical data.
 //! Missing values are imputed based on frequent patterns and strong rules.

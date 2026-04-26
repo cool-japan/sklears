@@ -1,4 +1,5 @@
 //! Multivariate imputation methods
+#![allow(non_snake_case)]
 //!
 //! This module provides sophisticated multivariate imputation strategies including
 //! canonical correlation analysis, dimension reduction integration, and advanced

@@ -345,6 +345,7 @@ impl AutoregressiveModel {
 impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for AutoregressiveModel {
     type Fitted = AutoregressiveModel;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &ArrayView2<f64>, y: &ArrayView1<i32>) -> Result<Self::Fitted, SklearsError> {
         if X.nrows() != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -421,6 +422,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for AutoregressiveModel {
 }
 
 impl Predict<ArrayView2<'_, f64>, Array1<i32>> for AutoregressiveModel {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<f64>) -> Result<Array1<i32>, SklearsError> {
         if !self.fitted {
             return Err(SklearsError::NotFitted {
@@ -446,6 +448,7 @@ impl Predict<ArrayView2<'_, f64>, Array1<i32>> for AutoregressiveModel {
 }
 
 impl PredictProba<ArrayView2<'_, f64>, Array2<f64>> for AutoregressiveModel {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_proba(&self, X: &ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
         if !self.fitted {
             return Err(SklearsError::NotFitted {

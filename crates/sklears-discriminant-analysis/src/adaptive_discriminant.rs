@@ -313,7 +313,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
                 .data
                 .as_ref()
                 .expect("data not available - model not fitted");
-            data.total_samples % adaptation_frequency == 0
+            data.total_samples.is_multiple_of(adaptation_frequency)
         };
 
         if should_adapt {

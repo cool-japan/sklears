@@ -408,6 +408,8 @@ pub struct TopologicalCalibrationAnalyzer {
     /// Mapper graph representation
     mapper_graph: Option<MapperGraph>,
     /// Topological features cache
+    #[allow(dead_code)]
+    // intentionally deferred: topological feature caching not yet implemented
     features_cache: HashMap<String, TopologicalFeatures>,
 }
 

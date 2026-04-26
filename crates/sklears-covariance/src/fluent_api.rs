@@ -9,7 +9,6 @@ use crate::composable_regularization::{
 };
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use sklears_core::error::SklearsError;
-use sklears_core::traits::Estimator;
 use std::collections::HashMap;
 
 /// Fluent covariance estimation pipeline builder
@@ -209,7 +208,7 @@ pub struct StandardizationStep {
 
 impl StandardizationStep {
     pub fn new() -> Self {
-        /// StandardizationStep
+        // StandardizationStep
         StandardizationStep {
             center: true,
             scale: true,
@@ -252,7 +251,7 @@ impl PreprocessingStep for StandardizationStep {
                 let mut sorted_col: Vec<f64> = column.to_vec();
                 sorted_col.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-                let median = if sorted_col.len() % 2 == 0 {
+                let median = if sorted_col.len().is_multiple_of(2) {
                     (sorted_col[sorted_col.len() / 2 - 1] + sorted_col[sorted_col.len() / 2]) / 2.0
                 } else {
                     sorted_col[sorted_col.len() / 2]
@@ -265,7 +264,7 @@ impl PreprocessingStep for StandardizationStep {
                     sorted_deviations
                         .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-                    if sorted_deviations.len() % 2 == 0 {
+                    if sorted_deviations.len().is_multiple_of(2) {
                         (sorted_deviations[sorted_deviations.len() / 2 - 1]
                             + sorted_deviations[sorted_deviations.len() / 2])
                             / 2.0
@@ -344,7 +343,7 @@ pub enum OutlierMethod {
 
 impl OutlierRemovalStep {
     pub fn new() -> Self {
-        /// OutlierRemovalStep
+        // OutlierRemovalStep
         OutlierRemovalStep {
             method: OutlierMethod::ZScore,
             threshold: 3.0,
@@ -450,7 +449,7 @@ pub enum ConditioningMethod {
 
 impl ConditioningStep {
     pub fn new() -> Self {
-        /// ConditioningStep
+        // ConditioningStep
         ConditioningStep {
             min_condition: 1e6,
             method: ConditioningMethod::Ridge,
@@ -546,7 +545,7 @@ impl Default for CovariancePipeline {
 impl CovariancePipeline<Unfit> {
     /// Create a new covariance pipeline
     pub fn new() -> Self {
-        /// CovariancePipeline
+        // CovariancePipeline
         CovariancePipeline {
             preprocessing_steps: Vec::new(),
             estimator_config: EstimatorConfig {
@@ -644,14 +643,14 @@ impl CovariancePipeline<Unfit> {
     }
 
     /// Add L1 regularization
-    pub fn l1_regularize(mut self, alpha: f64) -> Self {
+    pub fn l1_regularize(mut self, _alpha: f64) -> Self {
         let regularization = RegularizationFactory::elastic_net(1.0);
         self.regularization = Some(regularization);
         self
     }
 
     /// Add L2 regularization
-    pub fn l2_regularize(mut self, alpha: f64) -> Self {
+    pub fn l2_regularize(mut self, _alpha: f64) -> Self {
         let regularization = RegularizationFactory::elastic_net(0.0);
         self.regularization = Some(regularization);
         self
@@ -838,7 +837,7 @@ impl CovariancePipeline<Unfit> {
     }
 
     fn estimate_covariance(&self, data: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = data.dim();
+        let (_n_samples, n_features) = data.dim();
 
         // Simplified covariance estimation based on estimator type
         match &self.estimator_config.estimator_type {

@@ -125,6 +125,7 @@ impl GraphStructureLearning<Untrained> {
         self
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn initialize_graph(&self, X: &Array2<f64>) -> Array2<f64> {
         let n_samples = X.nrows();
         let mut W = Array2::zeros((n_samples, n_samples));
@@ -185,6 +186,7 @@ impl GraphStructureLearning<Untrained> {
         }
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn proximal_gradient_step(&self, W: &Array2<f64>, grad: &Array2<f64>, lr: f64) -> Array2<f64> {
         let mut W_new = W - lr * grad;
 
@@ -217,6 +219,7 @@ impl GraphStructureLearning<Untrained> {
         W_new
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn normalize_graph(&self, W: &Array2<f64>) -> Array2<f64> {
         if !self.normalize_weights {
             return W.clone();
@@ -241,7 +244,6 @@ impl GraphStructureLearning<Untrained> {
     #[allow(non_snake_case)]
     fn propagate_labels(&self, W: &Array2<f64>, Y_init: &Array2<f64>) -> SklResult<Array2<f64>> {
         let n_samples = W.nrows();
-        let n_classes = Y_init.ncols();
 
         // Compute transition matrix
         let D = W.sum_axis(Axis(1));
@@ -384,11 +386,9 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for GraphStructureLearning<
             prev_loss = total_loss;
 
             // Compute gradient w.r.t. W
-            let mut grad_W = Array2::zeros(W.dim());
-
             // Data fidelity gradient: 2 * (W * X - X) * X^T
             let residual = &WX - &X;
-            grad_W = 2.0 * residual.dot(&X.t());
+            let mut grad_W = 2.0 * residual.dot(&X.t());
 
             // Smoothness gradient: β * (D * Y * Y^T - W * Y * Y^T)
             let YYT = Y.dot(&Y.t());
@@ -637,6 +637,7 @@ impl RobustGraphLearning<Untrained> {
         }
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_robust_weights(&self, X: &Array2<f64>) -> Array2<f64> {
         let n_samples = X.nrows();
         let mut W = Array2::zeros((n_samples, n_samples));
@@ -848,6 +849,7 @@ impl PredictProba<ArrayView2<'_, Float>, Array2<f64>>
 
 /// Trained state for GraphStructureLearning
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation: X_train
 pub struct GraphStructureLearningTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -863,6 +865,7 @@ pub struct GraphStructureLearningTrained {
 
 /// Trained state for RobustGraphLearning
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation: X_train
 pub struct RobustGraphLearningTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -1004,7 +1007,7 @@ impl DistributedGraphLearning<Untrained> {
     }
 
     fn partition_nodes(&self, n_samples: usize) -> Vec<Vec<usize>> {
-        let nodes_per_worker = (n_samples + self.n_workers - 1) / self.n_workers;
+        let nodes_per_worker = n_samples.div_ceil(self.n_workers);
         let overlap_size = (nodes_per_worker as f64 * self.overlap_ratio) as usize;
 
         let mut partitions = Vec::with_capacity(self.n_workers);
@@ -1084,6 +1087,7 @@ impl DistributedGraphLearning<Untrained> {
         }
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn extract_subgraph(&self, X: &Array2<f64>, partition: &[usize]) -> Array2<f64> {
         let n_nodes = partition.len();
         let n_features = X.ncols();
@@ -1111,10 +1115,11 @@ impl DistributedGraphLearning<Untrained> {
         y_sub
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn learn_local_graph(
         &self,
         X_sub: &Array2<f64>,
-        y_sub: &Array1<i32>,
+        _y_sub: &Array1<i32>,
     ) -> SklResult<Array2<f64>> {
         let n_samples = X_sub.nrows();
         let mut W = Array2::zeros((n_samples, n_samples));
@@ -1210,9 +1215,7 @@ impl DistributedGraphLearning<Untrained> {
         let mut weight_counts: Array2<f64> = Array2::zeros((n_total, n_total));
 
         // Aggregate local graphs into global graph
-        for (worker_idx, (local_graph, partition)) in
-            local_graphs.iter().zip(partitions.iter()).enumerate()
-        {
+        for (local_graph, partition) in local_graphs.iter().zip(partitions.iter()) {
             for (i, &node_i) in partition.iter().enumerate() {
                 for (j, &node_j) in partition.iter().enumerate() {
                     if i < local_graph.nrows()
@@ -1431,6 +1434,7 @@ impl PredictProba<ArrayView2<'_, Float>, Array2<f64>>
 
 /// Trained state for DistributedGraphLearning
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation: X_train
 pub struct DistributedGraphLearningTrained {
     /// X_train
     pub X_train: Array2<f64>,

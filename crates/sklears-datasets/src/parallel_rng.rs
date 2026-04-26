@@ -46,7 +46,7 @@ impl ParallelRng {
 
         // Determine chunk size for parallel processing
         let num_workers = rayon::current_num_threads();
-        let chunk_size = (n_samples + num_workers - 1) / num_workers;
+        let chunk_size = n_samples.div_ceil(num_workers);
 
         // Generate rows in parallel
         let rows: Vec<Array1<f64>> = (0..n_samples)
@@ -76,7 +76,7 @@ impl ParallelRng {
     /// Generate uniform random values in parallel
     pub fn generate_uniform_parallel(&self, n_samples: usize, low: f64, high: f64) -> Array1<f64> {
         let num_workers = rayon::current_num_threads();
-        let chunk_size = (n_samples + num_workers - 1) / num_workers;
+        let chunk_size = n_samples.div_ceil(num_workers);
 
         (0..n_samples)
             .into_par_iter()
@@ -163,7 +163,7 @@ pub fn make_regression_parallel(
     let targets = if noise > 0.0 {
         let noise_values: Vec<f64> = (0..n_samples)
             .into_par_iter()
-            .chunks((n_samples + rayon::current_num_threads() - 1) / rayon::current_num_threads())
+            .chunks(n_samples.div_ceil(rayon::current_num_threads()))
             .enumerate()
             .flat_map(|(chunk_id, chunk)| {
                 let mut chunk_rng = rng.get_thread_rng(chunk_id + 1);
@@ -216,7 +216,7 @@ pub fn make_blobs_parallel(
     // Generate samples in parallel
     let samples: Vec<Array1<f64>> = (0..n_samples)
         .into_par_iter()
-        .chunks((n_samples + rayon::current_num_threads() - 1) / rayon::current_num_threads())
+        .chunks(n_samples.div_ceil(rayon::current_num_threads()))
         .enumerate()
         .flat_map(|(chunk_id, chunk)| {
             let mut chunk_rng = rng.get_thread_rng(chunk_id + 1);
@@ -252,8 +252,8 @@ mod tests {
         // Just verify it was created successfully
         let val1 = thread_rng.random::<f64>();
         let val2 = thread_rng.random::<f64>();
-        assert!(val1 >= 0.0 && val1 <= 1.0);
-        assert!(val2 >= 0.0 && val2 <= 1.0);
+        assert!((0.0..=1.0).contains(&val1));
+        assert!((0.0..=1.0).contains(&val2));
     }
 
     #[test]
@@ -279,7 +279,7 @@ mod tests {
 
         // Check that all values are in range
         for &val in values.iter() {
-            assert!(val >= 0.0 && val <= 10.0);
+            assert!((0.0..=10.0).contains(&val));
         }
     }
 
@@ -292,9 +292,9 @@ mod tests {
         assert_eq!(targets.len(), 100);
 
         // Check that we have all classes
-        let mut has_class = vec![false; 3];
+        let mut has_class = [false; 3];
         for &target in targets.iter() {
-            assert!(target >= 0 && target < 3);
+            assert!((0..3).contains(&target));
             has_class[target as usize] = true;
         }
         assert!(has_class.iter().all(|&x| x));
@@ -318,9 +318,9 @@ mod tests {
         assert_eq!(targets.len(), 150);
 
         // Check that we have all clusters
-        let mut has_cluster = vec![false; 3];
+        let mut has_cluster = [false; 3];
         for &target in targets.iter() {
-            assert!(target >= 0 && target < 3);
+            assert!((0..3).contains(&target));
             has_cluster[target as usize] = true;
         }
         assert!(has_cluster.iter().all(|&x| x));

@@ -9,11 +9,17 @@ use sklears_core::types::Float;
 /// Auto-vectorized distance metrics that use SIMD when available
 #[derive(Debug, Clone, Copy)]
 pub enum DistanceMetric {
+    /// Standard Euclidean (L2) distance
     Euclidean,
+    /// Manhattan (L1) distance
     Manhattan,
+    /// Chebyshev (L∞) distance
     Chebyshev,
+    /// Cosine similarity distance (1 - cosine similarity)
     Cosine,
+    /// Minkowski distance with parameter p
     Minkowski(Float),
+    /// Jaccard distance for binary vectors
     Jaccard,
 }
 
@@ -1279,7 +1285,7 @@ mod tests {
 
     #[test]
     fn test_optimized_distance_computer_performance() {
-        use scirs2_core::ndarray::{Array1, Array2};
+        use scirs2_core::ndarray::Array2;
 
         let computer = OptimizedDistanceComputer::new();
         let n_points = 100;

@@ -1,4 +1,6 @@
 //! Information-theoretic imputation methods
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides imputation strategies based on information theory,
 //! including mutual information, entropy, minimum description length, and maximum entropy methods.

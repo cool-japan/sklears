@@ -329,6 +329,7 @@ impl WaveletTransform {
     }
 
     /// Get wavelet filters (low-pass, high-pass)
+    #[allow(clippy::excessive_precision)]
     fn get_wavelet_filters(&self) -> WaveletResult<(Array1<f64>, Array1<f64>)> {
         match self.wavelet_type {
             WaveletType::Haar => {
@@ -424,20 +425,26 @@ impl WaveletTransform {
     }
 
     /// Get reconstruction filters (dual to analysis filters)
+    ///
+    /// The analysis in `convolve_downsample` performs a forward cross-correlation:
+    /// `a[n] = Σ_j h[j] · x[2n + j]`  (no filter reversal).
+    ///
+    /// The synthesis in `upsample_convolve` performs a causal convolution:
+    /// `y[i] = Σ_j upsampled[i - j] · f[j]`
+    ///
+    /// For these two operations to form a perfect-reconstruction pair, the synthesis
+    /// filter must be the **same** as the analysis filter (not time-reversed).
+    /// Time-reversal of an asymmetric filter (e.g. Haar g) introduces a sign flip
+    /// that breaks the quadrature mirror condition and produces a reconstruction
+    /// error proportional to the detail coefficients.
     fn get_reconstruction_filters(&self) -> WaveletResult<(Array1<f64>, Array1<f64>)> {
         let (h, g) = self.get_wavelet_filters()?;
 
         if self.wavelet_type.is_orthogonal() {
-            // For orthogonal wavelets, reconstruction filters are time-reversed analysis filters
-            let mut h_rec = Array1::zeros(h.len());
-            let mut g_rec = Array1::zeros(g.len());
-
-            for i in 0..h.len() {
-                h_rec[i] = h[h.len() - 1 - i];
-                g_rec[i] = g[g.len() - 1 - i];
-            }
-
-            Ok((h_rec, g_rec))
+            // Synthesis uses the same forward-scan correlation convention as analysis.
+            // No reversal needed: the causal synthesis + forward analysis already
+            // satisfy the polyphase perfect-reconstruction identity.
+            Ok((h, g))
         } else {
             // For biorthogonal wavelets, need separate reconstruction filters
             // This is a simplified implementation
@@ -448,7 +455,7 @@ impl WaveletTransform {
     /// Extend signal according to boundary condition (simplified for consistent lengths)
     fn extend_signal(&self, signal: &Array1<f64>) -> WaveletResult<Array1<f64>> {
         // Ensure signal length is even for consistent downsampling
-        if signal.len() % 2 != 0 {
+        if !signal.len().is_multiple_of(2) {
             let mut padded = Array1::zeros(signal.len() + 1);
             for i in 0..signal.len() {
                 padded[i] = signal[i];
@@ -843,13 +850,13 @@ mod tests {
         // Test reconstruction
         let reconstructed = wavelet.idwt(&result).expect("operation should succeed");
 
-        // Check that reconstruction is close to original (allowing for boundary effects)
-        // TODO: Improve reconstruction accuracy - current implementation has precision limitations
+        // Haar is orthogonal with symmetric h and antisymmetric g; the fixed
+        // forward-scan synthesis achieves near-machine-precision reconstruction.
         let min_len = signal.len().min(reconstructed.len());
         for i in 0..min_len {
             let diff = (signal[i] - reconstructed[i]).abs();
             assert!(
-                diff < 10.0, // Relaxed tolerance due to current implementation limitations
+                diff < 1e-10,
                 "Reconstruction error at index {}: {}",
                 i,
                 diff
@@ -932,8 +939,8 @@ mod tests {
             .idwt(&decomposition)
             .expect("operation should succeed");
 
-        // Should have reasonable reconstruction for orthogonal wavelets
-        // TODO: Improve reconstruction accuracy for true perfect reconstruction
+        // Haar + Periodic boundary achieves true perfect reconstruction
+        // (same-filter synthesis cancels the forward-scan analysis exactly).
         let reconstruction_error = signal
             .iter()
             .zip(reconstructed.iter())
@@ -941,7 +948,7 @@ mod tests {
             .fold(0.0, f64::max);
 
         assert!(
-            reconstruction_error < 20.0, // Relaxed tolerance due to current implementation limitations
+            reconstruction_error < 1e-10,
             "Perfect reconstruction failed: max error = {}",
             reconstruction_error
         );
@@ -1098,7 +1105,10 @@ mod tests {
             // Check that decomposition produces reasonable sizes
             // (Don't enforce strict decreasing due to boundary effects)
             for detail in result.details() {
-                assert!(detail.len() > 0, "Detail coefficients should not be empty");
+                assert!(
+                    !detail.is_empty(),
+                    "Detail coefficients should not be empty"
+                );
                 assert!(
                     detail.len() <= signal.len(),
                     "Detail length should not exceed original signal"

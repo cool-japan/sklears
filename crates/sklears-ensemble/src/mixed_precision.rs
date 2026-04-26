@@ -99,6 +99,7 @@ pub struct MixedPrecisionGradientAccumulator {
 }
 
 /// Automatic Mixed Precision (AMP) context
+#[allow(dead_code)] // planned API fields
 pub struct AMPContext {
     config: MixedPrecisionConfig,
     scaler: GradientScaler,
@@ -267,7 +268,7 @@ impl MixedPrecisionTrainer {
     {
         let mut models = Vec::new();
 
-        for i in 0..n_estimators {
+        for _i in 0..n_estimators {
             // Convert input to mixed precision
             let x_mixed = self.to_mixed_precision(x, "forward_pass");
 
@@ -330,8 +331,8 @@ impl MixedPrecisionArray {
             MixedPrecisionArray::Full(arr) => arr.len() * std::mem::size_of::<Float>(),
             MixedPrecisionArray::Half(arr) => arr.len() * std::mem::size_of::<Half>(),
             MixedPrecisionArray::Mixed {
-                fp32_data,
-                fp16_data,
+                fp32_data: _,
+                fp16_data: _,
                 precision_mask,
             } => {
                 let fp32_count = precision_mask.iter().filter(|&&x| x).count();

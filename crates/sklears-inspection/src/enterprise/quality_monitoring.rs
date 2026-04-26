@@ -114,14 +114,14 @@ impl QualityMetric {
 
     /// Check if higher values are better for this metric
     pub fn higher_is_better(&self) -> bool {
-        match self {
+        !matches!(
+            self,
             QualityMetric::ExplanationGenerationTime
-            | QualityMetric::MemoryUsage
-            | QualityMetric::ComputationalCost
-            | QualityMetric::ErrorRate
-            | QualityMetric::ModelDrift => false,
-            _ => true,
-        }
+                | QualityMetric::MemoryUsage
+                | QualityMetric::ComputationalCost
+                | QualityMetric::ErrorRate
+                | QualityMetric::ModelDrift
+        )
     }
 
     /// Get default thresholds for this metric
@@ -582,6 +582,7 @@ impl QualityDataPoint {
 #[derive(Debug)]
 pub struct QualityTimeSeries {
     /// The metric being tracked
+    #[allow(dead_code)] // stored for metric identification
     metric: QualityMetric,
     /// Historical data points
     data_points: VecDeque<QualityDataPoint>,
@@ -657,7 +658,7 @@ impl QualityTimeSeries {
 
         let min = sorted_values[0];
         let max = sorted_values[count - 1];
-        let median = if count % 2 == 0 {
+        let median = if count.is_multiple_of(2) {
             (sorted_values[count / 2 - 1] + sorted_values[count / 2]) / 2.0
         } else {
             sorted_values[count / 2]

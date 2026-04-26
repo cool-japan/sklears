@@ -9,7 +9,7 @@
 use crate::activation::Activation;
 use crate::SklearsError;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{Rng, RngExt, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::Result,
     traits::{Estimator, Fit, Trained, Transform, Untrained},
@@ -20,8 +20,11 @@ use std::marker::PhantomData;
 /// Optimizer types for training
 #[derive(Debug, Clone, Copy)]
 pub enum OptimizerType {
+    /// Stochastic Gradient Descent optimizer
     SGD,
+    /// Adam optimizer (Adaptive Moment Estimation)
     Adam,
+    /// RMSprop optimizer (Root Mean Square Propagation)
     RMSprop,
 }
 

@@ -1,16 +1,15 @@
-use scirs2_core::ndarray::{Array1, Array2, Axis, ScalarOperand};
-use scirs2_core::numeric::{Float, One, ToPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ScalarOperand};
+use scirs2_core::numeric::{Float, ToPrimitive};
 use std::fmt::Debug;
 
-use crate::activation::Activation;
 use crate::self_supervised::{DenseLayer, SimpleMLP};
 use sklears_core::error::SklearsError;
 use sklears_core::types::FloatBounds;
 
-/// Numerical gradient checking utilities for neural networks
-///
-/// This module provides tools for validating analytical gradients by comparing them
-/// with numerically computed gradients using finite differences.
+// Numerical gradient checking utilities for neural networks
+//
+// This module provides tools for validating analytical gradients by comparing them
+// with numerically computed gradients using finite differences.
 
 /// Gradient checking configuration
 #[derive(Debug, Clone)]
@@ -96,11 +95,14 @@ pub trait LossFunction<T: FloatBounds + ScalarOperand> {
 
 /// Mean Squared Error loss function
 #[derive(Debug, Clone)]
+/// Mean squared error loss function for gradient checking
+#[derive(Default)]
 pub struct MeanSquaredError<T: FloatBounds + ScalarOperand> {
     _phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: FloatBounds + ScalarOperand> MeanSquaredError<T> {
+    /// Create a new MeanSquaredError loss function
     pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,
@@ -138,7 +140,14 @@ pub struct CrossEntropyLoss<T: FloatBounds + ScalarOperand> {
     _phantom: std::marker::PhantomData<T>,
 }
 
+impl<T: FloatBounds + ScalarOperand> Default for CrossEntropyLoss<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: FloatBounds + ScalarOperand> CrossEntropyLoss<T> {
+    /// Create a new cross-entropy loss function
     pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,
@@ -196,7 +205,7 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive> GradientChecker<T> {
         loss_fn: &dyn LossFunction<T>,
     ) -> Result<GradientCheckResults<T>, SklearsError> {
         // Forward pass to get predictions
-        let predictions = network.forward(inputs)?;
+        let _predictions = network.forward(inputs)?;
 
         // Compute analytical gradients using backpropagation
         let analytical_grads =
@@ -213,9 +222,9 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive> GradientChecker<T> {
     /// Check gradients for a single layer
     pub fn check_layer_gradients(
         &self,
-        layer: &mut DenseLayer<T>,
-        inputs: &Array2<T>,
-        output_gradients: &Array2<T>,
+        _layer: &mut DenseLayer<T>,
+        _inputs: &Array2<T>,
+        _output_gradients: &Array2<T>,
     ) -> Result<GradientCheckResults<T>, SklearsError> {
         // This is a simplified version for demonstration
         // In practice, you'd implement full gradient checking for each layer type
@@ -251,8 +260,8 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive> GradientChecker<T> {
 
             max_rel_error = max_rel_error.max(rel_error);
             max_abs_error = max_abs_error.max(abs_error);
-            sum_rel_error = sum_rel_error + rel_error;
-            sum_abs_error = sum_abs_error + abs_error;
+            sum_rel_error += rel_error;
+            sum_abs_error += abs_error;
 
             parameter_results.push(ParameterGradientResult {
                 param_index: i,
@@ -291,7 +300,7 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive> GradientChecker<T> {
         let predictions = network.forward(inputs)?;
 
         // Compute loss gradient
-        let loss_grad = loss_fn.compute_gradient(&predictions, targets)?;
+        let _loss_grad = loss_fn.compute_gradient(&predictions, targets)?;
 
         // Backward pass through network
         // This is simplified - in practice you'd implement full backpropagation
@@ -495,8 +504,8 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive> GradientChecker<T> {
 
                 max_rel_error = max_rel_error.max(rel_error);
                 max_abs_error = max_abs_error.max(abs_error);
-                sum_rel_error = sum_rel_error + rel_error;
-                sum_abs_error = sum_abs_error + abs_error;
+                sum_rel_error += rel_error;
+                sum_abs_error += abs_error;
                 total_checked += 1;
 
                 parameter_results.push(ParameterGradientResult {
@@ -645,6 +654,7 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive> GradientChecker<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Activation;
     use approx::assert_abs_diff_eq;
 
     #[test]

@@ -1,5 +1,5 @@
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::{thread_rng, RngCore, SeedableRng};
+use scirs2_core::random::{thread_rng, Rng, SeedableRng};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::types::Float;
 use std::cmp::Ordering;
@@ -218,7 +218,7 @@ impl StatisticalSummary {
         let min = sorted_scores[0];
         let max = sorted_scores[sorted_scores.len() - 1];
 
-        let median = if sorted_scores.len() % 2 == 0 {
+        let median = if sorted_scores.len().is_multiple_of(2) {
             let mid = sorted_scores.len() / 2;
             (sorted_scores[mid - 1] + sorted_scores[mid]) / 2.0
         } else {
@@ -344,7 +344,7 @@ pub fn is_classification_task(y: &Array1<Float>) -> bool {
 }
 
 /// Create a random number generator with optional seed
-pub fn create_rng(random_state: Option<u64>) -> Box<dyn RngCore> {
+pub fn create_rng(random_state: Option<u64>) -> Box<dyn Rng> {
     match random_state {
         Some(seed) => Box::new(scirs2_core::random::rngs::StdRng::seed_from_u64(seed)),
         None => Box::new(thread_rng()),

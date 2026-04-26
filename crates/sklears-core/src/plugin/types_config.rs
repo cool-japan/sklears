@@ -258,7 +258,7 @@ impl PluginParameter {
     /// use sklears_core::plugin::PluginParameter;
     ///
     /// let param = PluginParameter::Int(42);
-    /// assert_eq!(param.as_int().unwrap(), 42);
+    /// assert_eq!(param.as_int().expect("Int parameter must return value"), 42);
     ///
     /// let param = PluginParameter::String("not a number".to_string());
     /// assert!(param.as_int().is_err());
@@ -286,10 +286,10 @@ impl PluginParameter {
     /// use sklears_core::plugin::PluginParameter;
     ///
     /// let param = PluginParameter::Float(3.14);
-    /// assert_eq!(param.as_float().unwrap(), 3.14);
+    /// assert_eq!(param.as_float().expect("Float parameter must return value"), 3.14);
     ///
     /// let param = PluginParameter::Int(42);
-    /// assert_eq!(param.as_float().unwrap(), 42.0);
+    /// assert_eq!(param.as_float().expect("Int parameter must convert to float"), 42.0);
     ///
     /// let param = PluginParameter::Bool(true);
     /// assert!(param.as_float().is_err());
@@ -316,7 +316,7 @@ impl PluginParameter {
     /// use sklears_core::plugin::PluginParameter;
     ///
     /// let param = PluginParameter::String("hello".to_string());
-    /// assert_eq!(param.as_string().unwrap(), "hello");
+    /// assert_eq!(param.as_string().expect("String parameter must return value"), "hello");
     ///
     /// let param = PluginParameter::Int(42);
     /// assert!(param.as_string().is_err());
@@ -342,7 +342,7 @@ impl PluginParameter {
     /// use sklears_core::plugin::PluginParameter;
     ///
     /// let param = PluginParameter::Bool(true);
-    /// assert_eq!(param.as_bool().unwrap(), true);
+    /// assert_eq!(param.as_bool().expect("Bool parameter must return value"), true);
     ///
     /// let param = PluginParameter::String("true".to_string());
     /// assert!(param.as_bool().is_err());

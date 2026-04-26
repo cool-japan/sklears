@@ -62,10 +62,15 @@ pub struct AutoMLFactory {
 /// Configuration for the AutoML factory
 #[derive(Debug, Clone)]
 pub struct AutoMLFactoryConfig {
+    /// enable_advanced_optimization
     pub enable_advanced_optimization: bool,
+    /// enable_preprocessing
     pub enable_preprocessing: bool,
+    /// enable_benchmarking
     pub enable_benchmarking: bool,
+    /// parallel_workers
     pub parallel_workers: usize,
+    /// time_budget_seconds
     pub time_budget_seconds: u64,
 }
 

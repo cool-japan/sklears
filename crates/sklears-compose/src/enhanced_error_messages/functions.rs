@@ -3,41 +3,43 @@
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
 use crate::error::{Result, SklearsComposeError};
-use std::collections::{HashMap, VecDeque};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::collections::HashMap;
+use std::time::Duration;
 
-use super::types::{
-    ActionableSuggestion, ContextCollectionConfig, ContextType, DataErrorSuggestionGenerator,
-    EnhancedErrorContext, EnvironmentContextProvider, ErrorCategory, ErrorContextCollector,
-    ErrorFormatter, ErrorMessageEnhancer, ErrorPatternAnalyzer, FormatterConfig,
-    PatternAnalysisConfig, RecoveryAdvisor, RecoveryConfig, RecoveryOutcome, SuggestionEngine,
-    SuggestionEngineConfig,
-};
+use super::types::{ActionableSuggestion, ContextType, EnhancedErrorContext, RecoveryOutcome};
 
 /// Trait for context providers
 pub trait ContextProvider: std::fmt::Debug + Send + Sync {
+    /// Performs the operation.
     fn collect_context(&self, error: &SklearsComposeError) -> Result<HashMap<String, String>>;
+    /// Performs the operation.
     fn context_type(&self) -> ContextType;
 }
 /// Trait for suggestion generators
 pub trait SuggestionGenerator: std::fmt::Debug + Send + Sync {
+    /// Performs the operation.
     fn generate_suggestions(
         &self,
         error: &SklearsComposeError,
         context: &EnhancedErrorContext,
     ) -> Result<Vec<ActionableSuggestion>>;
+    /// Performs the operation.
     fn error_types(&self) -> Vec<String>;
 }
 /// Trait for automatic recovery handlers
 pub trait AutoRecoveryHandler: std::fmt::Debug + Send + Sync {
+    /// Performs the operation.
     fn can_recover(&self, error: &SklearsComposeError) -> bool;
+    /// Performs the operation.
     fn attempt_recovery(
         &self,
         error: &SklearsComposeError,
         context: &EnhancedErrorContext,
     ) -> Result<RecoveryOutcome>;
 }
+/// Extension trait for `Duration` providing convenience constructors.
 pub trait DurationExt {
+    /// Creates a `Duration` from a number of minutes.
     fn from_mins(minutes: u64) -> Duration;
 }
 impl DurationExt for Duration {
@@ -48,6 +50,12 @@ impl DurationExt for Duration {
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
+    use super::super::types::{
+        ContextCollectionConfig, DataErrorSuggestionGenerator, EnvironmentContextProvider,
+        ErrorCategory, ErrorContextCollector, ErrorFormatter, ErrorMessageEnhancer,
+        ErrorPatternAnalyzer, FormatterConfig, PatternAnalysisConfig, RecoveryAdvisor,
+        RecoveryConfig, SuggestionEngine, SuggestionEngineConfig,
+    };
     use super::*;
     #[test]
     fn test_error_enhancer_creation() {

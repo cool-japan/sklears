@@ -158,6 +158,7 @@ impl BatchModeActiveLearning {
         }
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn select_diverse_batch(
         &self,
         X: &ArrayView2<f64>,
@@ -217,6 +218,7 @@ impl BatchModeActiveLearning {
         Ok(selected_indices)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn query(
         &self,
         X: &ArrayView2<f64>,

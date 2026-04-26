@@ -1,10 +1,10 @@
 //! Deep Canonical Correlation Analysis
 
-use scirs2_core::ndarray::{Array1, Array2, Array3, Axis};
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result, SklearsError},
-    traits::{Estimator, Fit, Trained, Transform, Untrained},
+    traits::{Fit, Trained, Transform, Untrained},
     types::Float,
 };
 use std::marker::PhantomData;
@@ -33,23 +33,6 @@ impl ActivationFunction {
             ActivationFunction::ReLU => x.mapv(|v| v.max(0.0)),
             ActivationFunction::LeakyReLU => x.mapv(|v| if v > 0.0 { v } else { 0.01 * v }),
             ActivationFunction::Linear => x.clone(),
-        }
-    }
-
-    /// Apply the derivative of the activation function
-    fn derivative(&self, x: &Array2<Float>) -> Array2<Float> {
-        match self {
-            ActivationFunction::Sigmoid => {
-                let sig = self.apply(x);
-                &sig * &(1.0 - &sig)
-            }
-            ActivationFunction::Tanh => {
-                let tanh_x = self.apply(x);
-                1.0 - &tanh_x * &tanh_x
-            }
-            ActivationFunction::ReLU => x.mapv(|v| if v > 0.0 { 1.0 } else { 0.0 }),
-            ActivationFunction::LeakyReLU => x.mapv(|v| if v > 0.0 { 1.0 } else { 0.01 }),
-            ActivationFunction::Linear => Array2::ones(x.raw_dim()),
         }
     }
 }
@@ -750,7 +733,6 @@ impl DeepCCA<Untrained> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use proptest::prelude::*;
     use scirs2_core::ndarray::array;
 
@@ -855,8 +837,8 @@ mod tests {
                 prop_assert_eq!(x_transformed.shape(), &[n_samples, output_dim]);
 
                 // Check that weights have correct dimensions
-                prop_assert!(fitted.weights_x().len() >= 1);
-                prop_assert!(fitted.weights_y().len() >= 1);
+                prop_assert!(!fitted.weights_x().is_empty());
+                prop_assert!(!fitted.weights_y().is_empty());
 
                 // Check that correlations are computed
                 prop_assert_eq!(fitted.correlations().len(), output_dim);

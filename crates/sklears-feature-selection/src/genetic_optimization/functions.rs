@@ -3,15 +3,19 @@
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
 use super::types::*;
-use crate::IndexableTarget;
-use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Axis, Dim, OwnedRepr};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use sklears_core::{
     error::Result as SklResult,
     traits::{Fit, Score},
-    types::Float,
 };
+
+// ndarray 0.17 3-param form to avoid trait-solver normalization failure in where bounds
+type Mat2f64 = ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>, f64>;
+type Vec1f64 = ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>, f64>;
+type Vec1i32 = ArrayBase<OwnedRepr<i32>, Dim<[usize; 1]>, i32>;
+type Vec1usize = ArrayBase<OwnedRepr<usize>, Dim<[usize; 1]>, usize>;
 /// Generate a random chromosome (binary vector representing feature selection)
 pub(crate) fn generate_random_chromosome(
     n_features: usize,
@@ -20,10 +24,10 @@ pub(crate) fn generate_random_chromosome(
     rng: &mut StdRng,
 ) -> Vec<bool> {
     let mut chromosome = vec![false; n_features];
-    let n_selected = rng.gen_range(min_features..max_features.min(n_features + 1));
+    let n_selected = rng.random_range(min_features..max_features.min(n_features + 1));
     let mut selected_indices: Vec<usize> = (0..n_features).collect();
     for _ in 0..n_selected {
-        let idx = rng.gen_range(0..selected_indices.len());
+        let idx = rng.random_range(0..selected_indices.len());
         let feature_idx = selected_indices.swap_remove(idx);
         chromosome[feature_idx] = true;
     }
@@ -36,10 +40,10 @@ pub(crate) fn tournament_selection<'a>(
     tournament_size: usize,
     rng: &mut StdRng,
 ) -> &'a Vec<bool> {
-    let mut best_idx = rng.gen_range(0..population.len());
+    let mut best_idx = rng.random_range(0..population.len());
     let mut best_fitness = fitness_scores[best_idx];
     for _ in 1..tournament_size {
-        let idx = rng.gen_range(0..population.len());
+        let idx = rng.random_range(0..population.len());
         if fitness_scores[idx] > best_fitness {
             best_idx = idx;
             best_fitness = fitness_scores[idx];
@@ -56,7 +60,7 @@ pub(crate) fn uniform_crossover(
     let mut child1 = Vec::with_capacity(parent1.len());
     let mut child2 = Vec::with_capacity(parent1.len());
     for i in 0..parent1.len() {
-        if rng.gen::<bool>() {
+        if rng.random::<bool>() {
             child1.push(parent1[i]);
             child2.push(parent2[i]);
         } else {
@@ -73,7 +77,7 @@ pub(crate) fn flip_mutation(
     max_features: usize,
     rng: &mut StdRng,
 ) {
-    let flip_idx = rng.gen_range(0..chromosome.len());
+    let flip_idx = rng.random_range(0..chromosome.len());
     chromosome[flip_idx] = !chromosome[flip_idx];
     let new_count = chromosome.iter().filter(|&&x| x).count();
     if new_count < min_features {
@@ -85,7 +89,7 @@ pub(crate) fn flip_mutation(
             .collect();
         for _ in 0..need_to_add {
             if !false_indices.is_empty() {
-                let idx = rng.gen_range(0..false_indices.len());
+                let idx = rng.random_range(0..false_indices.len());
                 chromosome[false_indices[idx]] = true;
             }
         }
@@ -98,33 +102,94 @@ pub(crate) fn flip_mutation(
             .collect();
         for _ in 0..need_to_remove {
             if !true_indices.is_empty() {
-                let idx = rng.gen_range(0..true_indices.len());
+                let idx = rng.random_range(0..true_indices.len());
                 chromosome[true_indices[idx]] = false;
             }
         }
     }
 }
-/// Cross-validate score for a given feature subset
-pub(crate) fn cross_validate_score<E, Y>(
+/// Cross-validate score for a given feature subset (f64 target)
+pub(crate) fn cross_validate_score_f64<E>(
     estimator: &E,
-    x: &Array2<Float>,
-    y: &Y,
+    x: &Mat2f64,
+    y: &Vec1f64,
     cv_folds: usize,
 ) -> SklResult<f64>
 where
-    E: Clone + Fit<Array2<Float>, Y>,
-    E::Fitted: Score<Array2<Float>, Y>,
-    Y: Clone + IndexableTarget,
-    <E::Fitted as Score<Array2<Float>, Y>>::Float: Into<f64>,
+    E: Clone + Fit<Mat2f64, Vec1f64>,
+    E::Fitted: Score<Mat2f64, Vec1f64>,
+    <E::Fitted as Score<Mat2f64, Vec1f64>>::Float: Into<f64>,
 {
     let n_samples = x.nrows();
     let cv = KFold::new(cv_folds).shuffle(true);
     let mut scores = Vec::new();
     for (train_idx, test_idx) in cv.split(n_samples) {
         let x_train = x.select(Axis(0), &train_idx);
-        let y_train = y.select(&train_idx);
+        let y_train = Array1::from_iter(train_idx.iter().map(|&i| y[i]));
         let x_test = x.select(Axis(0), &test_idx);
-        let y_test = y.select(&test_idx);
+        let y_test = Array1::from_iter(test_idx.iter().map(|&i| y[i]));
+        let fitted = estimator.clone().fit(&x_train, &y_train)?;
+        let score = fitted.score(&x_test, &y_test)?;
+        scores.push(score);
+    }
+    let mut sum = 0.0;
+    for score in &scores {
+        sum += (*score).into();
+    }
+    Ok(sum / scores.len() as f64)
+}
+
+/// Cross-validate score for a given feature subset (i32 target, for classification)
+pub(crate) fn cross_validate_score_i32<E>(
+    estimator: &E,
+    x: &Mat2f64,
+    y: &Vec1i32,
+    cv_folds: usize,
+) -> SklResult<f64>
+where
+    E: Clone + Fit<Mat2f64, Vec1i32>,
+    E::Fitted: Score<Mat2f64, Vec1i32>,
+    <E::Fitted as Score<Mat2f64, Vec1i32>>::Float: Into<f64>,
+{
+    let n_samples = x.nrows();
+    let cv = KFold::new(cv_folds).shuffle(true);
+    let mut scores = Vec::new();
+    for (train_idx, test_idx) in cv.split(n_samples) {
+        let x_train = x.select(Axis(0), &train_idx);
+        let y_train = Array1::from_iter(train_idx.iter().map(|&i| y[i]));
+        let x_test = x.select(Axis(0), &test_idx);
+        let y_test = Array1::from_iter(test_idx.iter().map(|&i| y[i]));
+        let fitted = estimator.clone().fit(&x_train, &y_train)?;
+        let score = fitted.score(&x_test, &y_test)?;
+        scores.push(score);
+    }
+    let mut sum = 0.0;
+    for score in &scores {
+        sum += (*score).into();
+    }
+    Ok(sum / scores.len() as f64)
+}
+
+/// Cross-validate score for a given feature subset (usize target)
+pub(crate) fn cross_validate_score_usize<E>(
+    estimator: &E,
+    x: &Mat2f64,
+    y: &Vec1usize,
+    cv_folds: usize,
+) -> SklResult<f64>
+where
+    E: Clone + Fit<Mat2f64, Vec1usize>,
+    E::Fitted: Score<Mat2f64, Vec1usize>,
+    <E::Fitted as Score<Mat2f64, Vec1usize>>::Float: Into<f64>,
+{
+    let n_samples = x.nrows();
+    let cv = KFold::new(cv_folds).shuffle(true);
+    let mut scores = Vec::new();
+    for (train_idx, test_idx) in cv.split(n_samples) {
+        let x_train = x.select(Axis(0), &train_idx);
+        let y_train = Array1::from_iter(train_idx.iter().map(|&i| y[i]));
+        let x_test = x.select(Axis(0), &test_idx);
+        let y_test = Array1::from_iter(test_idx.iter().map(|&i| y[i]));
         let fitted = estimator.clone().fit(&x_train, &y_train)?;
         let score = fitted.score(&x_test, &y_test)?;
         scores.push(score);
@@ -152,6 +217,7 @@ pub trait ObjectiveFunction: Send + Sync + std::fmt::Debug {
     fn is_minimization(&self) -> bool {
         false
     }
+    /// fn
     fn clone_box(&self) -> Box<dyn ObjectiveFunction>;
 }
 impl Clone for Box<dyn ObjectiveFunction> {

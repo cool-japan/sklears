@@ -10,6 +10,7 @@ use sklears_core::error::{Result as SklResult, SklearsError};
 pub struct RobustnessEvaluation;
 
 impl RobustnessEvaluation {
+    /// evaluate_robustness
     pub fn evaluate_robustness(_features: &[usize]) -> SklResult<f64> {
         Err(SklearsError::NotImplemented(
             "RobustnessEvaluation::evaluate_robustness is not yet implemented".to_string(),
@@ -22,6 +23,7 @@ impl RobustnessEvaluation {
 pub struct NoiseResistance;
 
 impl NoiseResistance {
+    /// test_noise_resistance
     pub fn test_noise_resistance(_features: &[usize], _noise_level: f64) -> SklResult<f64> {
         Err(SklearsError::NotImplemented(
             "NoiseResistance::test_noise_resistance is not yet implemented".to_string(),
@@ -34,6 +36,7 @@ impl NoiseResistance {
 pub struct OutlierSensitivity;
 
 impl OutlierSensitivity {
+    /// test_outlier_sensitivity
     pub fn test_outlier_sensitivity(_features: &[usize], _outlier_fraction: f64) -> SklResult<f64> {
         Err(SklearsError::NotImplemented(
             "OutlierSensitivity::test_outlier_sensitivity is not yet implemented".to_string(),
@@ -46,6 +49,7 @@ impl OutlierSensitivity {
 pub struct ParameterSensitivity;
 
 impl ParameterSensitivity {
+    /// test_parameter_sensitivity
     pub fn test_parameter_sensitivity(
         _features: &[usize],
         _parameter_variations: &[f64],
@@ -61,6 +65,7 @@ impl ParameterSensitivity {
 pub struct StabilityUnderPerturbation;
 
 impl StabilityUnderPerturbation {
+    /// test_stability
     pub fn test_stability(_features: &[usize], _perturbation_level: f64) -> SklResult<f64> {
         Err(SklearsError::NotImplemented(
             "StabilityUnderPerturbation::test_stability is not yet implemented".to_string(),

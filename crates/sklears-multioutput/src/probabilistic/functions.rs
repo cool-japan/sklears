@@ -3,14 +3,6 @@
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
 use super::*;
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::thread_rng;
-use scirs2_core::random::{RandNormal, Rng};
-use sklears_core::{
-    error::{Result as SklResult, SklearsError},
-    traits::{Estimator, Fit, Predict, Untrained},
-    types::Float,
-};
 /// Trait extension for array operations
 pub trait ArrayInverse<A> {
     fn inv(&self) -> Option<Array2<A>>;
@@ -377,7 +369,7 @@ mod tests {
             .random_state(Some(123));
         assert_eq!(gp.kernel, KernelFunction::Matern(2.0, 2.5));
         assert_eq!(gp.noise_level, 0.05);
-        assert_eq!(gp.normalize_y, true);
+        assert!(gp.normalize_y);
         assert_eq!(gp.random_state, Some(123));
     }
     #[test]

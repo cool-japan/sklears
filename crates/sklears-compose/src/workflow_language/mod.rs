@@ -180,33 +180,43 @@ pub use dsl_language::{
 };
 
 // Type aliases for common usage patterns
+/// Type alias.
 pub type WorkflowResult<T> = Result<T, WorkflowError>;
 
 // Common error types unified interface
 #[derive(Debug, thiserror::Error)]
+/// Enumeration of workflow error variants.
 pub enum WorkflowError {
     #[error("Validation error: {0}")]
+    /// Variant value.
     Validation(String),
 
     #[error("Execution error: {0}")]
+    /// Variant value.
     Execution(#[from] WorkflowExecutionError),
 
     #[error("Code generation error: {0}")]
+    /// Variant value.
     CodeGeneration(#[from] CodeGenerationError),
 
     #[error("Parse error: {0}")]
+    /// Variant value.
     Parse(#[from] ParseError),
 
     #[error("Registry error: {0}")]
+    /// Variant value.
     Registry(#[from] RegistryError),
 
     #[error("I/O error: {0}")]
+    /// Variant value.
     Io(#[from] std::io::Error),
 
     #[error("Serialization error: {0}")]
+    /// Variant value.
     Serialization(#[from] serde_json::Error),
 
     #[error("Sklears error: {0}")]
+    /// Variant value.
     Sklears(#[from] sklears_core::error::SklearsError),
 }
 
@@ -236,11 +246,17 @@ impl WorkflowDefinition {
         Ok(generated.source_code)
     }
 
-    /// Execute this workflow with the given context
+    /// Execute this workflow with the given context.
+    ///
+    /// The supplied `ExecutionContext` provides the execution ID and mode that
+    /// drive the run.  These are transferred to the executor's internal context
+    /// so that execution IDs propagate through to `ExecutionResult`.
     #[must_use]
     pub fn execute(&self, context: ExecutionContext) -> ExecutionResult {
         let mut executor = WorkflowExecutor::new();
-        // TODO: Configure executor with context
+        // Configure the executor's context from the caller-supplied context so
+        // that execution IDs and execution modes are honoured.
+        executor.apply_context(context);
         executor.execute_workflow(self.clone()).unwrap_or_default()
     }
 }
@@ -257,6 +273,7 @@ pub struct WorkflowBuilder {
 
 impl WorkflowBuilder {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             metadata: WorkflowMetadata::default(),
@@ -268,54 +285,63 @@ impl WorkflowBuilder {
         }
     }
 
+    /// Performs name.
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.metadata.name = name.into();
         self
     }
 
+    /// Performs version.
     pub fn version(mut self, version: impl Into<String>) -> Self {
         self.metadata.version = version.into();
         self
     }
 
+    /// Performs description.
     pub fn description(mut self, description: impl Into<String>) -> Self {
         self.metadata.description = Some(description.into());
         self
     }
 
     #[must_use]
+    /// Adds a input.
     pub fn add_input(mut self, input: InputDefinition) -> Self {
         self.inputs.push(input);
         self
     }
 
     #[must_use]
+    /// Adds a output.
     pub fn add_output(mut self, output: OutputDefinition) -> Self {
         self.outputs.push(output);
         self
     }
 
     #[must_use]
+    /// Adds a step.
     pub fn add_step(mut self, step: StepDefinition) -> Self {
         self.steps.push(step);
         self
     }
 
     #[must_use]
+    /// Adds a connection.
     pub fn add_connection(mut self, connection: Connection) -> Self {
         self.connections.push(connection);
         self
     }
 
     #[must_use]
+    /// Performs execution config.
     pub fn execution_config(mut self, config: ExecutionConfig) -> Self {
         self.execution = config;
         self
     }
 
     #[must_use]
+    /// Builds and returns the result.
     pub fn build(self) -> WorkflowDefinition {
-        /// WorkflowDefinition
+        // WorkflowDefinition
         WorkflowDefinition {
             metadata: self.metadata,
             inputs: self.inputs,
@@ -335,23 +361,28 @@ impl Default for WorkflowBuilder {
 
 // Convenience functions for quick workflow operations
 #[must_use]
+/// Performs create workflow.
 pub fn create_workflow(name: &str) -> WorkflowBuilder {
     WorkflowBuilder::new().name(name)
 }
 
+/// Performs parse workflow.
 pub fn parse_workflow(dsl_code: &str) -> Result<WorkflowDefinition, ParseError> {
     WorkflowDefinition::from_dsl(dsl_code)
 }
 
+/// Performs create visual builder.
 pub fn create_visual_builder() -> Result<VisualPipelineBuilder, WorkflowError> {
     Ok(VisualPipelineBuilder::new())
 }
 
+/// Performs create code generator.
 pub fn create_code_generator() -> Result<CodeGenerator, WorkflowError> {
     Ok(CodeGenerator::new(CodeGenerationConfig::default()))
 }
 
 // Integration utilities for cross-module operations
+/// Data structure for this component.
 pub struct WorkflowIntegration;
 
 impl WorkflowIntegration {
@@ -361,13 +392,17 @@ impl WorkflowIntegration {
         Ok(dsl.generate(&builder.workflow))
     }
 
-    /// Load a workflow from visual builder into execution engine
+    /// Load a workflow from visual builder into execution engine.
+    ///
+    /// The supplied `ExecutionContext` is transferred to the new executor so that
+    /// callers can carry an execution ID and execution mode into the engine.
     pub fn visual_to_execution(
-        builder: &VisualPipelineBuilder,
+        _builder: &VisualPipelineBuilder,
         context: ExecutionContext,
     ) -> Result<WorkflowExecutor, WorkflowError> {
-        let executor = WorkflowExecutor::new();
-        // TODO: Configure executor with registry and context as needed
+        let mut executor = WorkflowExecutor::new();
+        // Propagate the caller's context (execution ID, mode) into the executor.
+        executor.apply_context(context);
         Ok(executor)
     }
 

@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 /// GPU resource manager
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct GpuResourceManager {
     /// GPU devices
     devices: Vec<GpuDevice>,
@@ -43,7 +44,7 @@ impl GpuResourceManager {
     }
 
     /// Allocate GPU resources
-    pub fn allocate_gpu(&mut self, device_count: usize) -> SklResult<GpuAllocation> {
+    pub fn allocate_gpu(&mut self, _device_count: usize) -> SklResult<GpuAllocation> {
         Ok(GpuAllocation {
             devices: Vec::new(),
             memory_pools: Vec::new(),
@@ -53,7 +54,7 @@ impl GpuResourceManager {
     }
 
     /// Release GPU allocation
-    pub fn release_gpu(&mut self, allocation: &GpuAllocation) -> SklResult<()> {
+    pub fn release_gpu(&mut self, _allocation: &GpuAllocation) -> SklResult<()> {
         Ok(())
     }
 }

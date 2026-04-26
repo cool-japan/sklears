@@ -76,7 +76,7 @@ pub fn gini_impurity(probabilities: &Array1<Float>) -> Float {
 ///
 /// let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
 /// let normalized = standardize(&data);
-/// let mean = normalized.mean().unwrap();
+/// let mean = normalized.mean().expect("mean must exist for non-empty array");
 /// assert!(mean.abs() < 1e-10);
 /// ```
 pub fn standardize(array: &Array1<Float>) -> Array1<Float> {

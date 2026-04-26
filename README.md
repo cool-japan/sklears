@@ -7,13 +7,13 @@ A comprehensive machine learning library in Rust, inspired by scikit-learn's int
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0` (March 20, 2026) — 11,222 tests passing (100%), 175 skipped. See the [CHANGELOG.md](CHANGELOG.md) for details.
+> **Latest release:** `0.1.1` (April 25, 2026) — 11,586+ tests passing across 36 crates. See the [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## Overview
 
 sklears brings the familiar scikit-learn API to Rust, aiming for comprehensive compatibility while leveraging Rust's unique advantages:
 
-- **>99% scikit-learn API coverage** validated for `0.1.0`
+- **>99% scikit-learn API coverage** validated for `0.1.1`
 - **Pure Rust implementation** with zero C/Fortran dependencies
 - **Memory safety** without garbage collection
 - **Type-safe APIs** that catch errors at compile time
@@ -161,13 +161,56 @@ Add sklears to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-sklears = "0.1.0"
+sklears = "0.1.1"
 
 # Or with specific features
-sklears = { version = "0.1.0", features = ["linear", "clustering", "parallel"] }
+sklears = { version = "0.1.1", features = ["linear", "clustering", "parallel"] }
 ```
 
 ## 🎯 Current Implementation Status
+
+### Crate Status Overview
+
+| Crate | Tests | Stubs | Status |
+|-------|-------|-------|--------|
+| sklears-calibration | 395 | 12 | Stable |
+| sklears-clustering | 248 | 12 | Alpha |
+| sklears-compose | 654 | 406 | Partial |
+| sklears-core | 697 | 141 | Alpha |
+| sklears-covariance | 265 | 10 | Alpha |
+| sklears-cross-decomposition | 506 | 15 | Stable |
+| sklears-datasets | 89 | 10 | Stable |
+| sklears-decomposition | 365 | 13 | Alpha |
+| sklears-discriminant-analysis | 300 | 17 | Stable |
+| sklears-dummy | 247 | 10 | Stable |
+| sklears-ensemble | 258 | 19 | Alpha |
+| sklears-feature-extraction | 407 | 24 | Alpha |
+| sklears-feature-selection | 238 | 10 | Alpha |
+| sklears-gaussian-process | 149 | 11 | Stable |
+| sklears-impute | 118 | 7 | Stable |
+| sklears-inspection | 620 | 51 | Alpha |
+| sklears-isotonic | 345 | 1 | Stable |
+| sklears-kernel-approximation | 531 | 7 | Stable |
+| sklears-linear | 429 | 10 | Stable |
+| sklears-manifold | 372 | 13 | Alpha |
+| sklears-metrics | 411 | 39 | Alpha |
+| sklears-mixture | 200 | 28 | Partial |
+| sklears-model-selection | 331 | 35 | Alpha |
+| sklears-multiclass | 300 | 8 | Stable |
+| sklears-multioutput | 246 | 2 | Stable |
+| sklears-naive-bayes | 463 | 80 | Alpha |
+| sklears-neighbors | 403 | 11 | Alpha |
+| sklears-neural | 432 | 9 | Alpha |
+| sklears-preprocessing | 300 | 97 | Alpha |
+| sklears-python | 44 | 10 | Alpha |
+| sklears-semi-supervised | 356 | 5 | Stable |
+| sklears-simd | 0 | 4 | Alpha |
+| sklears-svm | 273 | 16 | Alpha |
+| sklears-tree | 71 | 8 | Alpha |
+| sklears-utils | 494 | 2 | Stable |
+| **Total** | **~11,586** | **~1,123** | |
+
+Legend: **Stable** = <20 stubs, >50 tests · **Alpha** = functional, some stubs · **Partial** = core works, significant stubs remain
 
 ### ✅ Fully Implemented Algorithms
 

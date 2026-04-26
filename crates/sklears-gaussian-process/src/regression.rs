@@ -44,8 +44,8 @@ pub enum VariationalOptimizer {
 /// let vsgpr = VariationalSparseGaussianProcessRegressor::new()
 ///     .kernel(Box::new(kernel))
 ///     .n_inducing(3);
-/// let fitted = vsgpr.fit(&X.view(), &y.view()).unwrap();
-/// let predictions = fitted.predict(&X.view()).unwrap();
+/// let fitted = vsgpr.fit(&X.view(), &y.view()).expect("fit should succeed with valid training data");
+/// let predictions = fitted.predict(&X.view()).expect("predict should succeed on trained model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct VariationalSparseGaussianProcessRegressor<S = Untrained> {
@@ -71,6 +71,7 @@ pub struct VariationalSparseGaussianProcessRegressor<S = Untrained> {
 
 /// Trained state for Variational Sparse Gaussian Process Regressor
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct VsgprTrained {
     /// Z
     pub Z: Array2<f64>, // Inducing points
@@ -212,6 +213,7 @@ impl Estimator for VariationalSparseGaussianProcessRegressor<VsgprTrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, f64>>
     for VariationalSparseGaussianProcessRegressor<Untrained>
 {
@@ -274,7 +276,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, f64>>
                     &Z,
                     &m,
                     &S,
-                    &kernel,
+                    kernel.as_ref(),
                     self.sigma_n,
                 )?;
 
@@ -414,6 +416,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, f64>>
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<ArrayView2<'_, f64>, Array1<f64>>
     for VariationalSparseGaussianProcessRegressor<VsgprTrained>
 {
@@ -423,6 +426,7 @@ impl Predict<ArrayView2<'_, f64>, Array1<f64>>
     }
 }
 
+#[allow(non_snake_case)]
 impl VariationalSparseGaussianProcessRegressor<VsgprTrained> {
     /// Predict with uncertainty estimates
     #[allow(non_snake_case)]
@@ -535,7 +539,7 @@ impl VariationalSparseGaussianProcessRegressor<VsgprTrained> {
                 &self.state.Z,
                 &self.state.m,
                 &self.state.S,
-                &self.state.kernel,
+                self.state.kernel.as_ref(),
                 self.state.sigma_n,
             )?;
 
@@ -571,7 +575,7 @@ impl VariationalSparseGaussianProcessRegressor<VsgprTrained> {
             &self.state.Z,
             &self.state.m,
             &self.state.S,
-            &self.state.kernel,
+            self.state.kernel.as_ref(),
             self.state.sigma_n,
         )?;
 
@@ -664,11 +668,16 @@ impl VariationalSparseGaussianProcessRegressor<VsgprTrained> {
             // Update posterior covariance: S := S - K * α^T * S
             let s_update = kalman_gain
                 .view()
-                .into_shape((kalman_gain.len(), 1))
+                .into_shape_with_order((kalman_gain.len(), 1))
                 .map_err(|_| SklearsError::FitError("Shape error in recursive update".to_string()))?
-                .dot(&alpha.view().into_shape((1, alpha.len())).map_err(|_| {
-                    SklearsError::FitError("Shape error in recursive update".to_string())
-                })?)
+                .dot(
+                    &alpha
+                        .view()
+                        .into_shape_with_order((1, alpha.len()))
+                        .map_err(|_| {
+                            SklearsError::FitError("Shape error in recursive update".to_string())
+                        })?,
+                )
                 .dot(&self.state.S);
             self.state.S = &self.state.S - &s_update;
 
@@ -724,7 +733,7 @@ impl VariationalSparseGaussianProcessRegressor<VsgprTrained> {
 
             self = self.recursive_update(
                 &x_i.view()
-                    .into_shape((1, x_i.len()))
+                    .into_shape_with_order((1, x_i.len()))
                     .map_err(|_| {
                         SklearsError::FitError("Shape error in sliding window update".to_string())
                     })?
@@ -867,7 +876,7 @@ impl VariationalSparseGaussianProcessRegressor<VsgprTrained> {
     ///
     /// Returns a quality score between 0 and 1, where 1 indicates perfect approximation
     fn assess_approximation_quality(&self, X: &ArrayView2<f64>) -> SklResult<f64> {
-        let n_test = (X.nrows() / 4).max(10).min(50); // Sample subset for efficiency
+        let n_test = (X.nrows() / 4).clamp(10, 50); // Sample subset for efficiency
         let indices: Vec<usize> = (0..X.nrows()).step_by(X.nrows() / n_test + 1).collect();
 
         let mut total_variance_explained = 0.0;
@@ -902,7 +911,7 @@ impl VariationalSparseGaussianProcessRegressor<VsgprTrained> {
         }
 
         let quality = total_variance_explained / total_variance;
-        Ok(quality.min(1.0).max(0.0))
+        Ok(quality.clamp(0.0, 1.0))
     }
 
     /// Add new inducing points based on data coverage and uncertainty
@@ -1110,7 +1119,7 @@ fn compute_elbo_and_gradients(
     Z: &Array2<f64>,
     m: &Array1<f64>,
     S: &Array2<f64>,
-    kernel: &Box<dyn Kernel>,
+    kernel: &dyn Kernel,
     sigma_n: f64,
 ) -> SklResult<(f64, Array1<f64>, Array2<f64>)> {
     let n = X.nrows();
@@ -1197,6 +1206,7 @@ fn compute_elbo_and_gradients(
 }
 
 /// Ensure a matrix remains positive definite
+#[allow(non_snake_case)]
 fn ensure_positive_definite(mut S: Array2<f64>) -> SklResult<Array2<f64>> {
     // Simple approach: add small diagonal jitter if needed
     let min_eigenval = 1e-6;
@@ -1252,8 +1262,8 @@ fn ensure_positive_definite(mut S: Array2<f64>) -> SklResult<Array2<f64>> {
 /// let X = array![[1.0], [2.0], [3.0]];
 /// let Y = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]; // 3 samples, 2 outputs
 ///
-/// let fitted = mogpr.fit(&X.view(), &Y.view()).unwrap();
-/// let predictions = fitted.predict(&X.view()).unwrap();
+/// let fitted = mogpr.fit(&X.view(), &Y.view()).expect("fit should succeed with valid training data");
+/// let predictions = fitted.predict(&X.view()).expect("predict should succeed on trained model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct MultiOutputGaussianProcessRegressor<S = Untrained> {
@@ -1267,18 +1277,22 @@ pub struct MultiOutputGaussianProcessRegressor<S = Untrained> {
 
 /// Trained state for MultiOutputGaussianProcessRegressor
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct MogprTrained {
     X_train: Array2<f64>,
+    #[allow(dead_code)]
     Y_train: Array2<f64>,
     kernel: Box<dyn Kernel>,
     alpha: f64,
     n_outputs: usize,
     n_latent: usize,
     mixing_matrix: Array2<f64>,
+    #[allow(dead_code)]
     covariance_inv: Vec<Array2<f64>>, // Inverse covariances for each latent GP
-    y_latent: Vec<Array1<f64>>,       // Latent targets for each GP
+    y_latent: Vec<Array1<f64>>, // Latent targets for each GP
 }
 
+#[allow(non_snake_case)]
 impl MultiOutputGaussianProcessRegressor<Untrained> {
     /// Create a new MultiOutputGaussianProcessRegressor instance
     pub fn new() -> Self {
@@ -1427,6 +1441,7 @@ impl Estimator for MultiOutputGaussianProcessRegressor<Untrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Fit<ArrayView2<'_, f64>, ArrayView2<'_, f64>, SklearsError>
     for MultiOutputGaussianProcessRegressor<Untrained>
 {
@@ -1501,6 +1516,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView2<'_, f64>, SklearsError>
     }
 }
 
+#[allow(non_snake_case)]
 impl MultiOutputGaussianProcessRegressor<MogprTrained> {
     /// Access the trained state
     pub fn trained_state(&self) -> &MogprTrained {
@@ -1601,6 +1617,7 @@ impl Predict<ArrayView2<'_, f64>, Array2<f64>>
 }
 
 /// Solve triangular system for multiple right-hand sides
+#[allow(non_snake_case)]
 fn solve_triangular_matrix(L: &Array2<f64>, B: &Array2<f64>) -> SklResult<Array2<f64>> {
     let n = L.nrows();
     let m = B.ncols();

@@ -8,17 +8,6 @@ use scirs2_core::ndarray::Array2;
 use sklears_core::error::{Result as SklResult, SklearsError};
 type Result<T> = SklResult<T>;
 use std::collections::HashSet;
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum StabilityError {
-    #[error("Feature sets must have the same length")]
-    FeatureSetLengthMismatch,
-    #[error("Invalid feature index: {0}")]
-    InvalidFeatureIndex(usize),
-    #[error("Insufficient data for stability analysis")]
-    InsufficientData,
-}
 
 /// Jaccard similarity coefficient for feature set overlap
 #[derive(Debug, Clone)]
@@ -207,11 +196,17 @@ impl ConsistencyIndex {
 /// Comprehensive stability measures aggregator
 #[derive(Debug, Clone)]
 pub struct StabilityMeasures {
+    /// jaccard_similarity
     pub jaccard_similarity: f64,
+    /// dice_similarity
     pub dice_similarity: f64,
+    /// overlap_coefficient
     pub overlap_coefficient: f64,
+    /// consistency_index
     pub consistency_index: f64,
+    /// pairwise_stability
     pub pairwise_stability: f64,
+    /// relative_stability_index
     pub relative_stability_index: f64,
 }
 
@@ -496,10 +491,10 @@ mod tests {
         let measures = StabilityMeasures::compute(&feature_sets, total_features)
             .expect("operation should succeed");
 
-        assert!(measures.jaccard_similarity >= 0.0 && measures.jaccard_similarity <= 1.0);
-        assert!(measures.dice_similarity >= 0.0 && measures.dice_similarity <= 1.0);
-        assert!(measures.overlap_coefficient >= 0.0 && measures.overlap_coefficient <= 1.0);
-        assert!(measures.pairwise_stability >= 0.0 && measures.pairwise_stability <= 1.0);
+        assert!((0.0..=1.0).contains(&measures.jaccard_similarity));
+        assert!((0.0..=1.0).contains(&measures.dice_similarity));
+        assert!((0.0..=1.0).contains(&measures.overlap_coefficient));
+        assert!((0.0..=1.0).contains(&measures.pairwise_stability));
 
         let report = measures.report();
         assert!(report.contains("Stability Report"));
@@ -517,8 +512,8 @@ mod tests {
         let overlap = OverlapCoefficient::average_coefficient(&feature_sets)
             .expect("operation should succeed");
 
-        assert!(jaccard >= 0.0 && jaccard <= 1.0);
-        assert!(dice >= 0.0 && dice <= 1.0);
-        assert!(overlap >= 0.0 && overlap <= 1.0);
+        assert!((0.0..=1.0).contains(&jaccard));
+        assert!((0.0..=1.0).contains(&dice));
+        assert!((0.0..=1.0).contains(&overlap));
     }
 }

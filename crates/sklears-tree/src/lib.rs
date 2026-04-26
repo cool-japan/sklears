@@ -1,10 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
 //! Tree-based algorithms for sklears
 //!
 //! This crate provides implementations of tree-based machine learning algorithms including:
@@ -24,12 +17,13 @@ pub mod splits;
 
 // Extended modules
 pub mod extra_trees_enhanced;
-// pub mod incremental; // Temporarily disabled due to advanced features
+pub mod incremental;
 pub mod isolation_forest;
 pub mod model_tree;
+pub mod multi_output;
 pub mod parallel;
 pub mod random_forest;
-// pub mod shap; // Temporarily disabled
+pub mod shap;
 
 // Essential re-exports for the main API
 pub use config::{ndarray_to_dense_matrix, DecisionTreeConfig, MaxFeatures, MissingValueStrategy};

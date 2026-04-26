@@ -16,9 +16,10 @@ use sklears_core::types::Float;
 use std::collections::HashMap;
 
 /// Advanced randomization strategy for Extra Trees
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum RandomizationStrategy {
     /// Standard Extra Trees with random thresholds
+    #[default]
     Standard,
     /// Rotation Forest: Apply PCA rotation to feature subsets
     RotationForest {
@@ -37,12 +38,6 @@ pub enum RandomizationStrategy {
         /// Target dimensionality
         target_dim: usize,
     },
-}
-
-impl Default for RandomizationStrategy {
-    fn default() -> Self {
-        Self::Standard
-    }
 }
 
 /// Feature binning configuration for categorical/discrete features
@@ -558,7 +553,7 @@ mod tests {
         // Values should be binned
         let binned_col = result.column(0);
         for &val in binned_col.iter() {
-            assert!(val >= 0.0 && val < 2.0);
+            assert!((0.0..2.0).contains(&val));
         }
     }
 

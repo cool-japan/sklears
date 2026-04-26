@@ -1,20 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
-#![allow(clippy::type_complexity)]
-#![allow(clippy::needless_range_loop)]
-#![allow(clippy::iter_kv_map)]
-#![allow(clippy::enum_variant_names)]
-#![allow(clippy::assign_op_pattern)]
-#![allow(clippy::explicit_counter_loop)]
-#![allow(clippy::unused_enumerate_index)]
-#![allow(clippy::manual_map)]
-#![allow(clippy::manual_clamp)]
-#![allow(clippy::manual_unwrap_or_default)]
 //! Neighbor-based algorithms for machine learning
 //!
 //! This crate provides k-nearest neighbors (k-NN) and related algorithms for
@@ -33,19 +16,19 @@
 //!     2.0, 3.0,
 //!     3.0, 1.0,
 //!     4.0, 2.0,
-//! ]).unwrap();
+//! ]).expect("shape matches data length");
 //! let y = array![0, 0, 1, 1];
 //!
 //! // Train classifier
 //! let classifier = KNeighborsClassifier::new(3);
-//! let fitted = classifier.fit(&X, &y).unwrap();
+//! let fitted = classifier.fit(&X, &y).expect("KNeighborsClassifier fit should succeed on valid input");
 //!
 //! // Make predictions
 //! let X_test = Array2::from_shape_vec((2, 2), vec![
 //!     1.5, 2.5,
 //!     3.5, 1.5,
-//! ]).unwrap();
-//! let predictions = fitted.predict(&X_test).unwrap();
+//! ]).expect("shape matches data length");
+//! let predictions = fitted.predict(&X_test).expect("KNeighborsClassifier predict should succeed on valid input");
 //! ```
 
 pub mod abod;

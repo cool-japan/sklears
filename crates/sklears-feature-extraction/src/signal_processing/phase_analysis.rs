@@ -146,6 +146,7 @@ impl PhaseBasedExtractor {
     }
 
     /// Compute complex FFT
+    #[allow(clippy::needless_range_loop)] // k/n_idx used in arithmetic angle computation, not just indexing
     fn fft_complex(&self, signal: &[f64]) -> (Vec<f64>, Vec<f64>) {
         let n = signal.len();
         let n_freqs = n / 2 + 1;

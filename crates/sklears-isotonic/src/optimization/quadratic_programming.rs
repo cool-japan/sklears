@@ -304,7 +304,7 @@ mod tests {
             .increasing(true)
             .convergence(1e-6, 500);
 
-        assert_eq!(regressor.increasing, true);
+        assert!(regressor.increasing);
         assert!((regressor.tolerance - 1e-6).abs() < 1e-12);
         assert_eq!(regressor.max_iterations, 500);
     }

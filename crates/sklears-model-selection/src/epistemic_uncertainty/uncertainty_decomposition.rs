@@ -1,3 +1,6 @@
+// Uncertainty decomposition utilities — not yet wired into the public API
+#![allow(dead_code)]
+
 use scirs2_core::ndarray::{Array1, Array2};
 // use scirs2_core::numeric::Float;
 

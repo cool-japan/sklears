@@ -7,7 +7,7 @@
 
 State-of-the-art tree-based algorithms for Rust with 5-20x performance improvements over scikit-learn. Features advanced algorithms like BART, soft trees, and LightGBM-style optimizations.
 
-> **Latest release:** `0.1.0` (March 20, 2026). See the [workspace release notes](../../docs/releases/0.1.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.1` (April 25, 2026). See the [workspace release notes](../../docs/releases/0.1.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -239,7 +239,7 @@ sklears-tree/
 
 ## Status
 
-- **Implementation**: 96% complete (171/186 tests passing)
+- **Implementation**: 71 passing crate tests for `0.1.1`
 - **Advanced Algorithms**: BART, soft trees, oblique trees ✓
 - **Interpretability**: SHAP, LIME, anchor explanations ✓
 - **GPU Support**: In development (Week 1 priority)

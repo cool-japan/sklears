@@ -343,6 +343,7 @@ impl SureIndependenceScreening {
 
 /// Trained Sure Independence Screening model
 pub struct TrainedSureIndependenceScreening {
+    #[allow(dead_code)] // retained for future serialisation / re-fit support
     config: SureIndependenceScreeningConfig,
     selected_features: Vec<usize>,
     feature_correlations: Array1<Float>,

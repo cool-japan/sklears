@@ -164,6 +164,7 @@ pub enum OutputFormat {
 
 /// Automatic baseline generator
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct AutoBaselineGenerator {
     recommendation_engine: BaselineRecommendationEngine,
     configuration_helper: ConfigurationHelper,
@@ -172,6 +173,7 @@ pub struct AutoBaselineGenerator {
 
 /// Baseline pipeline for integration
 #[derive(Debug)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct BaselinePipeline {
     config: PipelineConfig,
     fitted_baseline: Option<Box<dyn BaselineEstimator>>,
@@ -181,6 +183,7 @@ pub struct BaselinePipeline {
 
 /// Smart default selector
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct SmartDefaultSelector {
     selection_criteria: Vec<SelectionCriterion>,
     fallback_strategy: BaselineType,
@@ -196,6 +199,7 @@ pub struct ConfigurationHelper {
 
 /// Baseline recommendation engine
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct BaselineRecommendationEngine {
     recommendation_rules: Vec<RecommendationRule>,
     performance_history: HashMap<String, PerformanceMetrics>,
@@ -436,7 +440,7 @@ impl AutoBaselineGenerator {
     }
 
     fn compute_correlation(&self, x: &ArrayView1<f64>, y: &ArrayView1<f64>) -> f64 {
-        let n = x.len() as f64;
+        let _n = x.len() as f64;
         let mean_x = x
             .mean()
             .expect("array should have elements for mean computation");
@@ -470,31 +474,31 @@ impl Default for AutoBaselineGenerator {
 impl BaselineRecommendationEngine {
     /// Create a new recommendation engine
     pub fn new() -> Self {
-        let mut recommendation_rules = Vec::new();
-
-        // Add default recommendation rules
-        recommendation_rules.push(RecommendationRule {
-            condition: "high_dimensional".to_string(),
-            recommended_baseline: BaselineType::DummyClassifier(ClassifierStrategy::MostFrequent),
-            confidence: 0.8,
-            reasoning: "High-dimensional data benefits from simple baselines".to_string(),
-        });
-
-        recommendation_rules.push(RecommendationRule {
-            condition: "imbalanced".to_string(),
-            recommended_baseline: BaselineType::DummyClassifier(ClassifierStrategy::Stratified),
-            confidence: 0.7,
-            reasoning: "Imbalanced data requires stratified sampling".to_string(),
-        });
-
-        recommendation_rules.push(RecommendationRule {
-            condition: "high_outlier_ratio".to_string(),
-            recommended_baseline: BaselineType::RobustBaseline(RobustStrategy::TrimmedMean {
-                trim_proportion: 0.1,
-            }),
-            confidence: 0.9,
-            reasoning: "High outlier ratio requires robust methods".to_string(),
-        });
+        // Default recommendation rules
+        let recommendation_rules = vec![
+            RecommendationRule {
+                condition: "high_dimensional".to_string(),
+                recommended_baseline: BaselineType::DummyClassifier(
+                    ClassifierStrategy::MostFrequent,
+                ),
+                confidence: 0.8,
+                reasoning: "High-dimensional data benefits from simple baselines".to_string(),
+            },
+            RecommendationRule {
+                condition: "imbalanced".to_string(),
+                recommended_baseline: BaselineType::DummyClassifier(ClassifierStrategy::Stratified),
+                confidence: 0.7,
+                reasoning: "Imbalanced data requires stratified sampling".to_string(),
+            },
+            RecommendationRule {
+                condition: "high_outlier_ratio".to_string(),
+                recommended_baseline: BaselineType::RobustBaseline(RobustStrategy::TrimmedMean {
+                    trim_proportion: 0.1,
+                }),
+                confidence: 0.9,
+                reasoning: "High outlier ratio requires robust methods".to_string(),
+            },
+        ];
 
         Self {
             recommendation_rules,
@@ -666,7 +670,7 @@ impl ConfigurationHelper {
         }
 
         // Sort by priority (higher priority first)
-        relevant_hints.sort_by(|a, b| b.priority.cmp(&a.priority));
+        relevant_hints.sort_by_key(|b| std::cmp::Reverse(b.priority));
 
         relevant_hints
     }
@@ -682,7 +686,6 @@ impl Default for ConfigurationHelper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_auto_baseline_generator() {

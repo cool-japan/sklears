@@ -129,7 +129,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for MutualInformationMaximi
     fn fit(self, X: &ArrayView2<'_, Float>, y: &ArrayView1<'_, i32>) -> SklResult<Self::Fitted> {
         let X = X.to_owned();
         let y = y.to_owned();
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
 
         // Identify labeled and unlabeled samples
         let mut labeled_indices = Vec::new();
@@ -152,7 +152,6 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for MutualInformationMaximi
         }
 
         let classes: Vec<i32> = classes.into_iter().collect();
-        let n_classes = classes.len();
 
         // Initialize random number generator
         let mut rng = if let Some(seed) = self.random_state {
@@ -266,12 +265,13 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for MutualInformationMaximi
 
 impl MutualInformationMaximization<Untrained> {
     /// Estimate mutual information using histogram-based method
+    #[allow(non_snake_case)] // standard ML notation
     fn estimate_mutual_information(
         &self,
         X: &Array2<f64>,
         y: &Array1<i32>,
         labeled_indices: &[usize],
-        classes: &[i32],
+        _classes: &[i32],
     ) -> SklResult<f64> {
         if labeled_indices.is_empty() {
             return Ok(0.0);
@@ -552,6 +552,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for InformationBottleneck<U
 }
 
 impl InformationBottleneck<Untrained> {
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_reconstruction_loss(
         &self,
         X_original: &Array2<f64>,
@@ -603,6 +604,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
 
 /// Trained state for MutualInformationMaximization
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct MutualInformationTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -618,6 +620,7 @@ pub struct MutualInformationTrained {
 
 /// Trained state for InformationBottleneck
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct InformationBottleneckTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -719,7 +722,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>>
     fn fit(self, X: &ArrayView2<'_, Float>, y: &ArrayView1<'_, i32>) -> SklResult<Self::Fitted> {
         let X = X.to_owned();
         let y = y.to_owned();
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
 
         // Identify labeled and unlabeled samples
         let mut labeled_indices = Vec::new();
@@ -1171,6 +1174,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>> for KLDivergenceOptimization<KL
 
 /// Trained state for EntropyRegularizedSemiSupervised
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct EntropyRegularizedTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -1186,6 +1190,7 @@ pub struct EntropyRegularizedTrained {
 
 /// Trained state for KLDivergenceOptimization
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct KLDivergenceTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -1220,7 +1225,7 @@ mod tests {
         let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
-        assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
+        assert!(predictions.iter().all(|&p| (0..=1).contains(&p)));
 
         // Labeled samples should be predicted correctly
         assert_eq!(predictions[0], 0);
@@ -1352,7 +1357,7 @@ mod tests {
         let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
-        assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
+        assert!(predictions.iter().all(|&p| (0..=1).contains(&p)));
     }
 
     #[test]
@@ -1386,7 +1391,7 @@ mod tests {
         let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
-        assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
+        assert!(predictions.iter().all(|&p| (0..=1).contains(&p)));
     }
 
     #[test]

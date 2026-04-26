@@ -9,6 +9,7 @@ use sklears_core::{
     error::{validate, Result, SklearsError},
     traits::{Estimator, Fit, Predict, Score, Trained, Untrained},
     types::{Array1, Array2, Float},
+    validation::{ConfigValidation, Validate, ValidationRule, ValidationRules},
 };
 
 use crate::{Penalty, Solver};
@@ -59,6 +60,30 @@ impl Default for LinearRegressionConfig {
             #[cfg(feature = "gpu")]
             gpu_min_size: 1000,
         }
+    }
+}
+
+impl Validate for LinearRegressionConfig {
+    fn validate(&self) -> Result<()> {
+        ValidationRules::new("max_iter")
+            .add_rule(ValidationRule::Range {
+                min: 1.0,
+                max: 1_000_000.0,
+            })
+            .validate_numeric(&(self.max_iter as f64))?;
+
+        ValidationRules::new("tol")
+            .add_rule(ValidationRule::Positive)
+            .add_rule(ValidationRule::Finite)
+            .validate_numeric(&self.tol)?;
+
+        Ok(())
+    }
+}
+
+impl ConfigValidation for LinearRegressionConfig {
+    fn validate_config(&self) -> Result<()> {
+        self.validate()
     }
 }
 

@@ -951,7 +951,7 @@ impl EncodingConfig {
 }
 
 /// Encoding presets for speed vs quality trade-off
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum EncodingPreset {
     /// Fastest encoding, lowest quality
     UltraFast,
@@ -960,6 +960,7 @@ pub enum EncodingPreset {
     /// Fast encoding
     Fast,
     /// Balanced speed and quality
+    #[default]
     Medium,
     /// Slower encoding, better quality
     Slow,
@@ -967,12 +968,6 @@ pub enum EncodingPreset {
     VerySlow,
     /// Slowest encoding, highest quality
     Placebo,
-}
-
-impl Default for EncodingPreset {
-    fn default() -> Self {
-        Self::Medium
-    }
 }
 
 /// Network optimization configuration
@@ -1057,9 +1052,10 @@ impl NetworkOptimizationConfig {
 }
 
 /// Congestion control algorithms for network optimization
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CongestionControlAlgorithm {
     /// Bottleneck Bandwidth and Round-trip propagation time
+    #[default]
     BBR,
     /// CUBIC TCP
     Cubic,
@@ -1069,12 +1065,6 @@ pub enum CongestionControlAlgorithm {
     NewReno,
     /// Custom algorithm
     Custom,
-}
-
-impl Default for CongestionControlAlgorithm {
-    fn default() -> Self {
-        Self::BBR
-    }
 }
 
 /// Error resilience configuration for streaming
@@ -1463,11 +1453,26 @@ pub enum RealTimeError {
     /// Buffer underrun
     BufferUnderrun,
     /// Latency exceeded
-    LatencyExceeded { actual: Duration, limit: Duration },
+    LatencyExceeded {
+        /// The actual.
+        actual: Duration,
+        /// The limit.
+        limit: Duration,
+    },
     /// Frame rate too low
-    FrameRateTooLow { actual: f64, minimum: f64 },
+    FrameRateTooLow {
+        /// The actual.
+        actual: f64,
+        /// The minimum.
+        minimum: f64,
+    },
     /// Quality degradation
-    QualityDegradation { actual: f64, minimum: f64 },
+    QualityDegradation {
+        /// The actual.
+        actual: f64,
+        /// The minimum.
+        minimum: f64,
+    },
     /// Resource limit exceeded
     ResourceLimitExceeded(String),
     /// Network error
@@ -1664,8 +1669,10 @@ mod tests {
 
     #[test]
     fn test_config_validation() {
-        let mut config = RealTimeProcessingConfig::default();
-        config.enabled = true;
+        let mut config = RealTimeProcessingConfig {
+            enabled: true,
+            ..Default::default()
+        };
         assert!(config.validate().is_ok());
 
         config.target_fps = 0.0;

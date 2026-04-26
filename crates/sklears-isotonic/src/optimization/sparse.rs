@@ -559,7 +559,7 @@ mod tests {
         let sparsity_ratio = fitted.sparsity_ratio(x.len());
         let memory_reduction = fitted.memory_reduction_factor(x.len());
 
-        assert!(sparsity_ratio >= 0.0 && sparsity_ratio <= 1.0);
+        assert!((0.0..=1.0).contains(&sparsity_ratio));
         assert!(memory_reduction >= 1.0);
     }
 

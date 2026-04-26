@@ -1071,6 +1071,7 @@ pub struct Isomap {
     n_neighbors: usize,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl Isomap {
     pub fn new() -> Self {
         Self {
@@ -1133,6 +1134,7 @@ pub struct LocallyLinearEmbedding {
     reg: f64,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl LocallyLinearEmbedding {
     pub fn new() -> Self {
         Self {
@@ -1195,9 +1197,11 @@ pub struct TSNE {
     n_components: usize,
     perplexity: f64,
     n_iter: usize,
+    #[allow(dead_code)] // learning_rate retained for future gradient descent t-SNE optimization
     learning_rate: f64,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl TSNE {
     pub fn new() -> Self {
         Self {
@@ -1280,6 +1284,7 @@ pub struct UMAP {
     min_dist: f64,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl UMAP {
     pub fn new() -> Self {
         Self {
@@ -1326,9 +1331,11 @@ impl Default for UMAP {
 pub struct MDS {
     n_components: usize,
     max_iter: usize,
+    #[allow(dead_code)] // eps retained for future convergence tolerance in SMACOF optimization
     eps: f64,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl MDS {
     pub fn new() -> Self {
         Self {
@@ -1367,6 +1374,7 @@ pub struct SpectralEmbedding {
     gamma: f64,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl SpectralEmbedding {
     pub fn new() -> Self {
         Self {

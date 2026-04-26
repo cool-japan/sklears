@@ -147,7 +147,7 @@ impl LowDiscrepancySequences {
             for j in 0..dim {
                 let u = uniform_sequence[[i, j]];
                 // Prevent extreme values
-                let u_clamped = u.max(1e-10).min(1.0 - 1e-10);
+                let u_clamped = u.clamp(1e-10, 1.0 - 1e-10);
 
                 // Approximate inverse normal CDF using Beasley-Springer-Moro algorithm
                 let x = Self::inverse_normal_cdf(u_clamped);

@@ -471,7 +471,7 @@ pub mod reference_counting {
                     .iter()
                     .map(|(name, &count)| (name.clone(), count))
                     .collect();
-                items.sort_by(|a, b| b.1.cmp(&a.1));
+                items.sort_by_key(|b| std::cmp::Reverse(b.1));
                 items.truncate(limit);
                 items
             } else {
@@ -552,8 +552,9 @@ pub mod streaming_algorithms {
                 return;
             }
 
-            // Find cell k
-            let mut k = 0;
+            // Find cell k; initial value is always overwritten by one of the branches below
+            #[allow(unused_assignments)]
+            let mut k = 0_usize;
             if value < self.marker_heights[0] {
                 self.marker_heights[0] = value;
                 k = 1;
@@ -561,13 +562,13 @@ pub mod streaming_algorithms {
                 self.marker_heights[4] = value;
                 k = 4;
             } else {
+                k = 4; // default if no element satisfies value < marker_heights[i]
                 for i in 1..4 {
                     if value < self.marker_heights[i] {
                         k = i;
                         break;
                     }
                 }
-                k = 4;
             }
 
             // Increment positions
@@ -830,7 +831,7 @@ mod tests {
         pool.return_vec(vec2);
 
         // Test pool reuse
-        let vec3 = pool.get(100);
+        let _vec3 = pool.get(100);
         let stats = pool.statistics();
         assert!(stats.pool_hits > 0);
 
@@ -861,12 +862,12 @@ mod tests {
             advanced_pooling::MemoryMappedStorage::new(std::mem::size_of::<f64>(), 10);
 
         // Store some values
-        let idx1 = storage.push(&3.14f64).expect("operation should succeed");
-        let idx2 = storage.push(&2.71f64).expect("operation should succeed");
+        let idx1 = storage.push(&1.23f64).expect("operation should succeed");
+        let idx2 = storage.push(&4.56f64).expect("operation should succeed");
 
         assert_eq!(storage.len(), 2);
-        assert_eq!(storage.get::<f64>(idx1), Some(3.14));
-        assert_eq!(storage.get::<f64>(idx2), Some(2.71));
+        assert_eq!(storage.get::<f64>(idx1), Some(1.23));
+        assert_eq!(storage.get::<f64>(idx2), Some(4.56));
 
         let memory_usage = storage.memory_usage();
         assert!(memory_usage > 0);
@@ -877,8 +878,8 @@ mod tests {
         let cache = reference_counting::SharedPredictionCache::new();
 
         // Test cache operations
-        cache.insert(42, 3.14);
-        assert_eq!(cache.get(42), Some(3.14));
+        cache.insert(42, 1.23);
+        assert_eq!(cache.get(42), Some(1.23));
         assert_eq!(cache.get(99), None);
 
         let stats = cache.stats();
@@ -890,7 +891,7 @@ mod tests {
 
         // Test cloning
         let cache2 = cache.clone();
-        assert_eq!(cache2.get(42), Some(3.14));
+        assert_eq!(cache2.get(42), Some(1.23));
     }
 
     #[test]

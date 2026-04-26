@@ -656,7 +656,7 @@ impl OptimizationHook for LoggingHook {
         iteration: usize,
         _history: &OptimizationHistory,
     ) -> Result<(), HookError> {
-        if iteration % self.log_interval == 0 {
+        if iteration.is_multiple_of(self.log_interval) {
             println!("Starting iteration {}", iteration);
         }
         Ok(())
@@ -676,7 +676,7 @@ impl OptimizationHook for LoggingHook {
         iteration: usize,
         history: &OptimizationHistory,
     ) -> Result<(), HookError> {
-        if iteration % self.log_interval == 0 {
+        if iteration.is_multiple_of(self.log_interval) {
             println!(
                 "Iteration {} complete. Best so far: {}",
                 iteration, history.best_value

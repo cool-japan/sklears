@@ -13,6 +13,15 @@ use sklears_core::{
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
+/// Preprocessed data result: (x_processed, y_processed, x_mean, x_scale, y_mean)
+pub type PreprocessedDataResult = SklResult<(
+    Array2<Float>,
+    Array1<Float>,
+    Array1<Float>,
+    Array1<Float>,
+    f64,
+)>;
+
 /// Group LASSO feature selector
 ///
 /// Implements group LASSO regularization that can select or exclude entire groups of features.
@@ -43,6 +52,7 @@ pub struct GroupLassoSelector<State = Untrained> {
 }
 
 impl GroupLassoSelector<Untrained> {
+    /// new
     pub fn new() -> Self {
         Self {
             alpha: 1.0,
@@ -61,36 +71,43 @@ impl GroupLassoSelector<Untrained> {
         }
     }
 
+    /// alpha
     pub fn alpha(mut self, alpha: f64) -> Self {
         self.alpha = alpha;
         self
     }
 
+    /// feature_groups
     pub fn feature_groups(mut self, groups: Vec<Vec<usize>>) -> Self {
         self.feature_groups = groups;
         self
     }
 
+    /// group_names
     pub fn group_names(mut self, names: Vec<String>) -> Self {
         self.group_names = Some(names);
         self
     }
 
+    /// max_iter
     pub fn max_iter(mut self, max_iter: usize) -> Self {
         self.max_iter = max_iter;
         self
     }
 
+    /// tol
     pub fn tol(mut self, tol: f64) -> Self {
         self.tol = tol;
         self
     }
 
+    /// fit_intercept
     pub fn fit_intercept(mut self, fit_intercept: bool) -> Self {
         self.fit_intercept = fit_intercept;
         self
     }
 
+    /// normalize
     pub fn normalize(mut self, normalize: bool) -> Self {
         self.normalize = normalize;
         self
@@ -190,17 +207,7 @@ impl Fit<Array2<Float>, Array1<Float>> for GroupLassoSelector<Untrained> {
 }
 
 impl GroupLassoSelector<Untrained> {
-    fn preprocess_data(
-        &self,
-        x: &Array2<Float>,
-        y: &Array1<Float>,
-    ) -> SklResult<(
-        Array2<Float>,
-        Array1<Float>,
-        Array1<Float>,
-        Array1<Float>,
-        f64,
-    )> {
+    fn preprocess_data(&self, x: &Array2<Float>, y: &Array1<Float>) -> PreprocessedDataResult {
         let (n_samples, n_features) = x.dim();
         let mut x_processed = x.clone();
         let mut y_processed = y.clone();
@@ -485,11 +492,12 @@ pub struct SparseGroupLassoSelector<State = Untrained> {
     // Trained state
     coefficients_: Option<Array1<Float>>,
     selected_features_: Option<Vec<usize>>,
-    selected_groups_: Option<Vec<usize>>,
-    intercept_: Option<f64>,
+    _selected_groups_: Option<Vec<usize>>,
+    _intercept_: Option<f64>,
 }
 
 impl SparseGroupLassoSelector<Untrained> {
+    /// new
     pub fn new() -> Self {
         Self {
             alpha_group: 1.0,
@@ -503,26 +511,30 @@ impl SparseGroupLassoSelector<Untrained> {
             state: PhantomData,
             coefficients_: None,
             selected_features_: None,
-            selected_groups_: None,
-            intercept_: None,
+            _selected_groups_: None,
+            _intercept_: None,
         }
     }
 
+    /// alpha_group
     pub fn alpha_group(mut self, alpha: f64) -> Self {
         self.alpha_group = alpha;
         self
     }
 
+    /// alpha_element
     pub fn alpha_element(mut self, alpha: f64) -> Self {
         self.alpha_element = alpha;
         self
     }
 
+    /// feature_groups
     pub fn feature_groups(mut self, groups: Vec<Vec<usize>>) -> Self {
         self.feature_groups = groups;
         self
     }
 
+    /// group_names
     pub fn group_names(mut self, names: Vec<String>) -> Self {
         self.group_names = Some(names);
         self
@@ -608,8 +620,8 @@ impl Fit<Array2<Float>, Array1<Float>> for SparseGroupLassoSelector<Untrained> {
             state: PhantomData,
             coefficients_: Some(coefficients),
             selected_features_: Some(selected_features),
-            selected_groups_: Some(selected_groups),
-            intercept_: fitted_group_lasso.intercept(),
+            _selected_groups_: Some(selected_groups),
+            _intercept_: fitted_group_lasso.intercept(),
         })
     }
 }
@@ -698,11 +710,12 @@ pub struct HierarchicalStructuredSparsitySelector<State = Untrained> {
     // Trained state
     coefficients_: Option<Array1<Float>>,
     selected_features_: Option<Vec<usize>>,
-    selected_nodes_: Option<Vec<usize>>,
-    intercept_: Option<f64>,
+    _selected_nodes_: Option<Vec<usize>>,
+    _intercept_: Option<f64>,
 }
 
 impl HierarchicalStructuredSparsitySelector<Untrained> {
+    /// new
     pub fn new() -> Self {
         Self {
             alpha: 1.0,
@@ -715,41 +728,48 @@ impl HierarchicalStructuredSparsitySelector<Untrained> {
             state: PhantomData,
             coefficients_: None,
             selected_features_: None,
-            selected_nodes_: None,
-            intercept_: None,
+            _selected_nodes_: None,
+            _intercept_: None,
         }
     }
 
+    /// alpha
     pub fn alpha(mut self, alpha: f64) -> Self {
         self.alpha = alpha;
         self
     }
 
+    /// hierarchy
     pub fn hierarchy(mut self, hierarchy: HashMap<usize, Vec<usize>>) -> Self {
         self.hierarchy = hierarchy;
         self
     }
 
+    /// feature_to_node
     pub fn feature_to_node(mut self, mapping: HashMap<usize, usize>) -> Self {
         self.feature_to_node = mapping;
         self
     }
 
+    /// max_iter
     pub fn max_iter(mut self, max_iter: usize) -> Self {
         self.max_iter = max_iter;
         self
     }
 
+    /// tol
     pub fn tol(mut self, tol: f64) -> Self {
         self.tol = tol;
         self
     }
 
+    /// fit_intercept
     pub fn fit_intercept(mut self, fit_intercept: bool) -> Self {
         self.fit_intercept = fit_intercept;
         self
     }
 
+    /// normalize
     pub fn normalize(mut self, normalize: bool) -> Self {
         self.normalize = normalize;
         self
@@ -827,24 +847,14 @@ impl Fit<Array2<Float>, Array1<Float>> for HierarchicalStructuredSparsitySelecto
             state: PhantomData,
             coefficients_: Some(coefficients),
             selected_features_: Some(selected_features),
-            selected_nodes_: Some(selected_nodes),
-            intercept_: intercept,
+            _selected_nodes_: Some(selected_nodes),
+            _intercept_: intercept,
         })
     }
 }
 
 impl HierarchicalStructuredSparsitySelector<Untrained> {
-    fn preprocess_data(
-        &self,
-        x: &Array2<Float>,
-        y: &Array1<Float>,
-    ) -> SklResult<(
-        Array2<Float>,
-        Array1<Float>,
-        Array1<Float>,
-        Array1<Float>,
-        f64,
-    )> {
+    fn preprocess_data(&self, x: &Array2<Float>, y: &Array1<Float>) -> PreprocessedDataResult {
         let (n_samples, n_features) = x.dim();
         let mut x_processed = x.clone();
         let mut y_processed = y.clone();
@@ -1082,10 +1092,11 @@ pub struct GraphStructuredSparsitySelector<State = Untrained> {
     // Trained state
     coefficients_: Option<Array1<Float>>,
     selected_features_: Option<Vec<usize>>,
-    intercept_: Option<f64>,
+    _intercept_: Option<f64>,
 }
 
 impl GraphStructuredSparsitySelector<Untrained> {
+    /// new
     pub fn new() -> Self {
         Self {
             alpha: 1.0,
@@ -1097,35 +1108,41 @@ impl GraphStructuredSparsitySelector<Untrained> {
             state: PhantomData,
             coefficients_: None,
             selected_features_: None,
-            intercept_: None,
+            _intercept_: None,
         }
     }
 
+    /// alpha
     pub fn alpha(mut self, alpha: f64) -> Self {
         self.alpha = alpha;
         self
     }
 
+    /// adjacency_matrix
     pub fn adjacency_matrix(mut self, matrix: Array2<Float>) -> Self {
         self.adjacency_matrix = matrix;
         self
     }
 
+    /// max_iter
     pub fn max_iter(mut self, max_iter: usize) -> Self {
         self.max_iter = max_iter;
         self
     }
 
+    /// tol
     pub fn tol(mut self, tol: f64) -> Self {
         self.tol = tol;
         self
     }
 
+    /// fit_intercept
     pub fn fit_intercept(mut self, fit_intercept: bool) -> Self {
         self.fit_intercept = fit_intercept;
         self
     }
 
+    /// normalize
     pub fn normalize(mut self, normalize: bool) -> Self {
         self.normalize = normalize;
         self
@@ -1196,7 +1213,7 @@ impl Fit<Array2<Float>, Array1<Float>> for GraphStructuredSparsitySelector<Untra
             state: PhantomData,
             coefficients_: Some(coefficients),
             selected_features_: Some(selected_features),
-            intercept_: intercept,
+            _intercept_: intercept,
         })
     }
 }
@@ -1360,11 +1377,12 @@ pub struct OverlappingGroupSparsitySelector<State = Untrained> {
     // Trained state
     coefficients_: Option<Array1<Float>>,
     selected_features_: Option<Vec<usize>>,
-    selected_groups_: Option<Vec<usize>>,
-    intercept_: Option<f64>,
+    _selected_groups_: Option<Vec<usize>>,
+    _intercept_: Option<f64>,
 }
 
 impl OverlappingGroupSparsitySelector<Untrained> {
+    /// new
     pub fn new() -> Self {
         Self {
             alpha: 1.0,
@@ -1377,41 +1395,48 @@ impl OverlappingGroupSparsitySelector<Untrained> {
             state: PhantomData,
             coefficients_: None,
             selected_features_: None,
-            selected_groups_: None,
-            intercept_: None,
+            _selected_groups_: None,
+            _intercept_: None,
         }
     }
 
+    /// alpha
     pub fn alpha(mut self, alpha: f64) -> Self {
         self.alpha = alpha;
         self
     }
 
+    /// overlapping_groups
     pub fn overlapping_groups(mut self, groups: Vec<Vec<usize>>) -> Self {
         self.overlapping_groups = groups;
         self
     }
 
+    /// group_names
     pub fn group_names(mut self, names: Vec<String>) -> Self {
         self.group_names = Some(names);
         self
     }
 
+    /// max_iter
     pub fn max_iter(mut self, max_iter: usize) -> Self {
         self.max_iter = max_iter;
         self
     }
 
+    /// tol
     pub fn tol(mut self, tol: f64) -> Self {
         self.tol = tol;
         self
     }
 
+    /// fit_intercept
     pub fn fit_intercept(mut self, fit_intercept: bool) -> Self {
         self.fit_intercept = fit_intercept;
         self
     }
 
+    /// normalize
     pub fn normalize(mut self, normalize: bool) -> Self {
         self.normalize = normalize;
         self
@@ -1492,8 +1517,8 @@ impl Fit<Array2<Float>, Array1<Float>> for OverlappingGroupSparsitySelector<Untr
             state: PhantomData,
             coefficients_: Some(coefficients),
             selected_features_: Some(selected_features),
-            selected_groups_: Some(selected_groups),
-            intercept_: intercept,
+            _selected_groups_: Some(selected_groups),
+            _intercept_: intercept,
         })
     }
 }
@@ -1829,7 +1854,7 @@ mod tests {
 
         assert!(fitted_selector.coefficients_.is_some());
         assert!(fitted_selector.selected_features_.is_some());
-        assert!(fitted_selector.selected_groups_.is_some());
+        assert!(fitted_selector._selected_groups_.is_some());
     }
 
     #[test]

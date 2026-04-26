@@ -44,8 +44,8 @@ use sklears_core::{
 ///     .with_epsilon(0.1)
 ///     .with_max_iter(1000);
 ///
-/// let trained_model = model.fit(&X, &y).unwrap();
-/// let predictions = trained_model.predict(&X).unwrap();
+/// let trained_model = model.fit(&X, &y).expect("LinearSVR fit should succeed on valid input");
+/// let predictions = trained_model.predict(&X).expect("LinearSVR predict should succeed on valid input");
 /// ```
 #[derive(Debug, Clone)]
 pub struct LinearSVR {

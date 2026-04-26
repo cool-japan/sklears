@@ -18,9 +18,9 @@ use sklears_core::{
 };
 use std::collections::HashMap;
 
-/// Helper function to generate random value in range from scirs2_core::random::RngCore
+/// Helper function to generate random value in range from scirs2_core::random::Rng
 fn gen_range_usize(
-    rng: &mut impl scirs2_core::random::RngCore,
+    rng: &mut impl scirs2_core::random::Rng,
     range: std::ops::Range<usize>,
 ) -> usize {
     let mut bytes = [0u8; 8];
@@ -29,17 +29,17 @@ fn gen_range_usize(
     range.start + (val as usize % (range.end - range.start))
 }
 
-/// Helper function to generate random f64 from scirs2_core::random::RngCore
-fn gen_f64(rng: &mut impl scirs2_core::random::RngCore) -> f64 {
+/// Helper function to generate random f64 from scirs2_core::random::Rng
+fn gen_f64(rng: &mut impl scirs2_core::random::Rng) -> f64 {
     let mut bytes = [0u8; 8];
     rng.fill_bytes(&mut bytes);
     let val = u64::from_le_bytes(bytes);
     (val as f64) / (u64::MAX as f64)
 }
 
-/// Helper function to generate random f64 in range from scirs2_core::random::RngCore
+/// Helper function to generate random f64 in range from scirs2_core::random::Rng
 fn gen_range_f64(
-    rng: &mut impl scirs2_core::random::RngCore,
+    rng: &mut impl scirs2_core::random::Rng,
     range: std::ops::RangeInclusive<f64>,
 ) -> f64 {
     let random_01 = gen_f64(rng);
@@ -171,6 +171,7 @@ pub enum InputPreprocessing {
 }
 
 /// Adversarial ensemble classifier
+#[allow(dead_code)] // planned API fields (adversarial robustness)
 pub struct AdversarialEnsembleClassifier<State = Untrained> {
     config: AdversarialEnsembleConfig,
     state: std::marker::PhantomData<State>,
@@ -304,9 +305,10 @@ impl<State> AdversarialEnsembleClassifier<State> {
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation throughout impl
 impl<State> AdversarialEnsembleClassifier<State> {
     /// Generate adversarial examples using FGSM
-    fn generate_fgsm_examples(&self, X: &Array2<f64>, y: &[usize]) -> SklResult<Array2<f64>> {
+    fn generate_fgsm_examples(&self, X: &Array2<f64>, _y: &[usize]) -> SklResult<Array2<f64>> {
         let mut adversarial_X = X.clone();
         let mut rng = if let Some(seed) = self.config.random_state {
             scirs2_core::random::seeded_rng(seed)
@@ -326,7 +328,7 @@ impl<State> AdversarialEnsembleClassifier<State> {
     }
 
     /// Generate adversarial examples using PGD
-    fn generate_pgd_examples(&self, X: &Array2<f64>, y: &[usize]) -> SklResult<Array2<f64>> {
+    fn generate_pgd_examples(&self, X: &Array2<f64>, _y: &[usize]) -> SklResult<Array2<f64>> {
         let mut adversarial_X = X.clone();
         let mut rng = if let Some(seed) = self.config.random_state {
             scirs2_core::random::seeded_rng(seed)
@@ -459,6 +461,7 @@ impl Estimator for AdversarialEnsembleClassifier<Untrained> {
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 impl Fit<Array2<f64>, Vec<usize>> for AdversarialEnsembleClassifier<Untrained> {
     type Fitted = AdversarialEnsembleClassifier<Trained>;
 
@@ -493,7 +496,7 @@ impl Fit<Array2<f64>, Vec<usize>> for AdversarialEnsembleClassifier<Untrained> {
         let n_clean = ((1.0 - self.config.adversarial_ratio) * X.nrows() as f64) as usize;
         let n_adversarial = X.nrows() - n_clean;
 
-        for estimator_idx in 0..self.config.n_estimators {
+        for _estimator_idx in 0..self.config.n_estimators {
             // Create training subset with mix of clean and adversarial examples
             let mut training_X = Array2::zeros((n_clean + n_adversarial, X.ncols()));
             let mut training_y = Vec::new();
@@ -572,7 +575,7 @@ impl Fit<Array2<f64>, Vec<usize>> for AdversarialEnsembleClassifier<Untrained> {
                 detector_y.push(1);
             }
 
-            let detector_y_array = Array1::from_vec(detector_y.iter().map(|&x| x).collect());
+            let detector_y_array = Array1::from_vec(detector_y.to_vec());
             let detector = BaggingClassifier::new()
                 .n_estimators(10)
                 .fit(&detector_X, &detector_y_array)?;
@@ -605,6 +608,7 @@ impl Fit<Array2<f64>, Vec<usize>> for AdversarialEnsembleClassifier<Untrained> {
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 impl Predict<Array2<f64>, AdversarialPredictionResults> for AdversarialEnsembleClassifier<Trained> {
     fn predict(&self, X: &Array2<f64>) -> SklResult<AdversarialPredictionResults> {
         let base_classifiers = self.base_classifiers.as_ref().expect("Model is trained");
@@ -615,7 +619,7 @@ impl Predict<Array2<f64>, AdversarialPredictionResults> for AdversarialEnsembleC
 
         let n_samples = processed_X.nrows();
         let mut all_predictions = Vec::new();
-        let all_probabilities: Vec<Vec<f64>> = Vec::new();
+        let _all_probabilities: Vec<Vec<f64>> = Vec::new();
 
         // Get predictions from all base classifiers
         for classifier in base_classifiers {
@@ -630,13 +634,11 @@ impl Predict<Array2<f64>, AdversarialPredictionResults> for AdversarialEnsembleC
 
         for sample_idx in 0..n_samples {
             let mut vote_counts = HashMap::new();
-            let mut total_weight = 0.0;
 
             for (classifier_idx, predictions) in all_predictions.iter().enumerate() {
                 let pred = predictions[sample_idx];
                 let weight = ensemble_weights[classifier_idx];
                 *vote_counts.entry(pred).or_insert(0.0) += weight;
-                total_weight += weight;
             }
 
             // Find prediction with highest weighted vote
@@ -702,6 +704,7 @@ impl Predict<Array2<f64>, AdversarialPredictionResults> for AdversarialEnsembleC
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 impl AdversarialEnsembleClassifier<Trained> {
     /// Get robustness metrics
     pub fn robustness_metrics(&self) -> &RobustnessMetrics {

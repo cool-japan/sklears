@@ -16,7 +16,7 @@ impl Default for ArchivePolicy {
             enabled: true,
             archive_after: Duration::days(7),
             archive_destination: ArchiveDestination::LocalDirectory(
-                "/tmp/sklears_archive".to_string(),
+                std::env::temp_dir().join("sklears_archive").display().to_string(),
             ),
             compression: ArchiveCompression::default(),
             indexing: ArchiveIndexing::default(),

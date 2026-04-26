@@ -1,5 +1,6 @@
 //! HDBSCAN (Hierarchical Density-Based Spatial Clustering of Applications with Noise) implementation using scirs2
 
+use std::collections::HashMap;
 use std::marker::PhantomData;
 
 use scirs2_core::ndarray::Array;
@@ -11,7 +12,7 @@ use sklears_core::{
 };
 
 use scirs2_cluster::density::hdbscan::{
-    hdbscan, ClusterSelectionMethod, HDBSCANOptions, HDBSCANResult,
+    hdbscan, ClusterSelectionMethod, CondensedTree, HDBSCANOptions, HDBSCANResult,
 };
 use scirs2_cluster::density::DistanceMetric;
 
@@ -203,6 +204,154 @@ impl HDBSCAN<Untrained> {
             0
         }
     }
+
+    /// Extract cluster persistence scores from the condensed cluster tree.
+    ///
+    /// The persistence of a cluster is defined as:
+    ///   `persistence[c] = max_lambda_fallout[c] - lambda_birth[c]`
+    ///
+    /// where `lambda_birth[c]` is the lambda value at which cluster `c` was born
+    /// (split from its parent), and `max_lambda_fallout[c]` is the maximum lambda
+    /// value at which any leaf (individual point) falls out of `c` (or any
+    /// descendant sub-cluster of `c`).
+    ///
+    /// Concretely, the condensed tree stores entries `(parent, child, lambda, size)`:
+    /// - `size == 1` → leaf point `child` fell out of cluster `parent` at `lambda`
+    /// - `size > 1` → sub-cluster `child` was born inside `parent` at `lambda`
+    ///
+    /// Cluster IDs in the condensed tree are internal IDs (>= n_samples).  We map
+    /// them to output label indices (0-based) by subtracting the minimum internal
+    /// cluster ID.
+    fn extract_persistence_scores(
+        condensed_tree: &CondensedTree<Float>,
+        n_clusters: usize,
+    ) -> Array1<Float> {
+        if n_clusters == 0 {
+            return Array::zeros(0);
+        }
+
+        let parents = &condensed_tree.parent;
+        let children = &condensed_tree.child;
+        let lambdas = &condensed_tree.lambda_val;
+        let sizes = &condensed_tree.sizes;
+
+        if parents.is_empty() {
+            return Array::ones(n_clusters);
+        }
+
+        // The root is the parent that never appears as a sub-cluster child (size > 1).
+        // In this HDBSCAN convention the root has the smallest internal node ID.
+        let sub_cluster_children: std::collections::HashSet<usize> = parents
+            .iter()
+            .zip(children.iter())
+            .zip(sizes.iter())
+            .filter_map(|((_p, &c), &s)| {
+                if s > 1 && c >= 0 {
+                    Some(c as usize)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let root_id = parents
+            .iter()
+            .filter(|&&p| p >= 0)
+            .map(|&p| p as usize)
+            .find(|id| !sub_cluster_children.contains(id))
+            .unwrap_or_else(|| {
+                parents
+                    .iter()
+                    .filter(|&&p| p >= 0)
+                    .map(|&p| p as usize)
+                    .max()
+                    .unwrap_or(0)
+            });
+
+        // lambda_birth[cluster_id] = lambda at which this cluster was born.
+        let mut lambda_birth: HashMap<usize, Float> = HashMap::new();
+        lambda_birth.insert(root_id, 0.0);
+
+        // max_fallout_lambda[cluster_id] = max lambda at which any leaf falls out.
+        let mut max_fallout_lambda: HashMap<usize, Float> = HashMap::new();
+
+        // parent_of[child_cluster] = parent_cluster (for sub-cluster entries only)
+        let mut parent_of: HashMap<usize, usize> = HashMap::new();
+
+        for idx in 0..parents.len() {
+            let parent = if parents[idx] >= 0 {
+                parents[idx] as usize
+            } else {
+                continue;
+            };
+            let lambda = lambdas[idx];
+            let size = sizes[idx];
+
+            if size == 1 {
+                let entry = max_fallout_lambda.entry(parent).or_insert(0.0);
+                if lambda > *entry {
+                    *entry = lambda;
+                }
+            } else {
+                let child = if children[idx] >= 0 {
+                    children[idx] as usize
+                } else {
+                    continue;
+                };
+                lambda_birth.insert(child, lambda);
+                parent_of.insert(child, parent);
+            }
+        }
+
+        // Propagate max fallout lambdas upward.
+        // Children have larger IDs than parents in this convention, so descending
+        // order processes children before their parents.
+        let mut cluster_ids: Vec<usize> = lambda_birth.keys().copied().collect();
+        cluster_ids.sort_unstable_by(|a, b| b.cmp(a)); // descending
+
+        for &child_id in &cluster_ids {
+            if child_id == root_id {
+                continue;
+            }
+            if let Some(&parent_id) = parent_of.get(&child_id) {
+                let child_max = max_fallout_lambda.get(&child_id).copied().unwrap_or(0.0);
+                let entry = max_fallout_lambda.entry(parent_id).or_insert(0.0);
+                if child_max > *entry {
+                    *entry = child_max;
+                }
+            }
+        }
+
+        let mut cluster_ids_no_root: Vec<usize> = lambda_birth
+            .keys()
+            .copied()
+            .filter(|&id| id != root_id)
+            .collect();
+        cluster_ids_no_root.sort_unstable();
+
+        let mut persistence = Array::zeros(n_clusters);
+        for (label_idx, &cluster_id) in cluster_ids_no_root.iter().enumerate() {
+            if label_idx >= n_clusters {
+                break;
+            }
+            let birth = lambda_birth.get(&cluster_id).copied().unwrap_or(0.0);
+            let fallout = max_fallout_lambda
+                .get(&cluster_id)
+                .copied()
+                .unwrap_or(birth);
+            persistence[label_idx] = (fallout - birth).max(0.0);
+        }
+
+        // Clusters with no data default to 1.0 (fully persistent).
+        for val in persistence.iter_mut() {
+            if *val == 0.0 {
+                *val = 1.0;
+            }
+        }
+
+        persistence
+    }
+
     /// Create a new HDBSCAN model
     pub fn new() -> Self {
         Self {
@@ -336,13 +485,48 @@ impl Fit<Array2<Float>, ()> for HDBSCAN<Untrained> {
         let labels = result.labels.clone();
         let probabilities = result.probabilities.clone();
 
-        // For cluster persistence, we'll compute it from the condensed tree if available
-        // or create a dummy array for now
-        let cluster_persistence = if let Some(_condensed_tree) = &result.condensed_tree {
-            // TODO: Extract actual persistence scores from condensed tree
-            // For now, create dummy persistence scores
-            let n_clusters = Self::n_clusters_from_labels(&labels);
-            Array::ones(n_clusters)
+        // For cluster persistence, compute it from the condensed tree if available.
+        // When the label-based cluster count is 0 (all points marked noise), fall back
+        // to counting non-root sub-clusters in the condensed tree so that persistence
+        // scores are still computed for any structural clusters the tree contains.
+        let cluster_persistence = if let Some(condensed_tree) = &result.condensed_tree {
+            let label_clusters = Self::n_clusters_from_labels(&labels);
+            let n_clusters = if label_clusters > 0 {
+                label_clusters
+            } else {
+                // When the EOM extractor labels everything as noise, infer cluster count
+                // directly from the condensed tree structure.
+                //
+                // Try hierarchical sub-clusters first (size > 1 child entries).
+                let sub_cluster_children: std::collections::HashSet<usize> = condensed_tree
+                    .parent
+                    .iter()
+                    .zip(condensed_tree.child.iter())
+                    .zip(condensed_tree.sizes.iter())
+                    .filter_map(|((_p, &c), &s)| {
+                        if s > 1 && c >= 0 {
+                            Some(c as usize)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                if !sub_cluster_children.is_empty() {
+                    sub_cluster_children.len()
+                } else {
+                    // Flat tree (all entries are leaf-point drops): treat each
+                    // distinct parent node as one cluster.
+                    condensed_tree
+                        .parent
+                        .iter()
+                        .filter(|&&p| p >= 0)
+                        .map(|&p| p as usize)
+                        .collect::<std::collections::HashSet<_>>()
+                        .len()
+                        .max(1)
+                }
+            };
+            Self::extract_persistence_scores(condensed_tree, n_clusters)
         } else {
             Array::zeros(0)
         };
@@ -628,12 +812,87 @@ impl HDBSCAN<Trained> {
     }
 }
 
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
+    use scirs2_cluster::density::hdbscan::CondensedTree;
     use scirs2_core::ndarray::array;
+
+    /// Build a minimal synthetic condensed tree and verify that `extract_persistence_scores`
+    /// computes the correct persistence values.
+    ///
+    /// Tree layout (3 points, 2 leaf nodes, 1 cluster):
+    ///   root = 3 (min_cluster_id = 3)
+    ///   cluster 4 born from root at lambda = 2.0  → lambda_birth[4] = 2.0
+    ///   point 0 falls out of cluster 4 at lambda = 5.0
+    ///   point 1 falls out of cluster 4 at lambda = 4.0
+    ///   → persistence[4] = max(5.0, 4.0) - 2.0 = 3.0
+    #[test]
+    fn test_persistence_extraction_synthetic_tree() {
+        let condensed_tree = CondensedTree {
+            // parent IDs
+            parent: vec![3, 3, 4, 4],
+            // child IDs  (size=1 → leaf point, size>1 → sub-cluster)
+            child: vec![4, 2, 0, 1],
+            // lambda values at which the child left the parent
+            lambda_val: vec![2.0, 1.0, 5.0, 4.0],
+            // sizes  (size=1 → leaf; size=2 → cluster with 2 points)
+            sizes: vec![2, 1, 1, 1],
+        };
+
+        // n_clusters = 1 (only cluster 4, root 3 is excluded)
+        let persistence = HDBSCAN::extract_persistence_scores(&condensed_tree, 1);
+
+        assert_eq!(persistence.len(), 1, "Expected exactly one cluster");
+        // Cluster 4: birth=2.0, max_fallout=5.0 → persistence = 3.0
+        assert!(
+            (persistence[0] - 3.0).abs() < 1e-6,
+            "Persistence should be 3.0, got {}",
+            persistence[0]
+        );
+    }
+
+    /// Ensure that the persistence scores are non-negative after fitting on real data.
+    ///
+    /// Uses a dataset large and well-separated enough that scirs2's HDBSCAN finds
+    /// at least one cluster above the `min_cluster_size` threshold, so that the
+    /// returned persistence array is non-empty.
+    #[test]
+    fn test_persistence_scores_are_positive() {
+        // 12 points split into two clearly separated clusters of 6 each.
+        // The within-cluster spread (≤0.05) is << the inter-cluster gap (≈14.1),
+        // so HDBSCAN with min_cluster_size=3 reliably identifies both clusters.
+        let data = array![
+            // Cluster 1 – six points near (0, 0)
+            [0.00_f64, 0.00],
+            [0.05, 0.00],
+            [0.00, 0.05],
+            [0.05, 0.05],
+            [0.02, 0.03],
+            [0.03, 0.02],
+            // Cluster 2 – six points near (10, 10)
+            [10.00, 10.00],
+            [10.05, 10.00],
+            [10.00, 10.05],
+            [10.05, 10.05],
+            [10.02, 10.03],
+            [10.03, 10.02],
+        ];
+
+        let model = HDBSCAN::new()
+            .min_cluster_size(3)
+            .fit(&data, &())
+            .expect("HDBSCAN should fit successfully");
+
+        let persistence = model.cluster_persistence();
+        assert!(
+            !persistence.is_empty(),
+            "Persistence array must be non-empty"
+        );
+        for &p in persistence.iter() {
+            assert!(p >= 0.0, "Persistence must be non-negative, got {p}");
+        }
+    }
 
     #[test]
     fn test_hdbscan_simple() {
@@ -678,7 +937,7 @@ mod tests {
 
         // Check that we get reasonable probabilities
         for &prob in probabilities.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
 
         // If clusters were found, verify cluster points have higher probabilities than noise points
@@ -771,29 +1030,39 @@ mod tests {
         assert!(valid_config.validate_config().is_ok());
 
         // Test invalid min_cluster_size (zero)
-        let mut invalid_config = HDBSCANConfig::default();
-        invalid_config.min_cluster_size = 0;
+        let invalid_config = HDBSCANConfig {
+            min_cluster_size: 0,
+            ..HDBSCANConfig::default()
+        };
         assert!(invalid_config.validate().is_err());
 
         // Test invalid alpha (negative)
-        let mut invalid_config = HDBSCANConfig::default();
-        invalid_config.alpha = -1.0;
+        let invalid_config = HDBSCANConfig {
+            alpha: -1.0,
+            ..HDBSCANConfig::default()
+        };
         assert!(invalid_config.validate().is_err());
 
         // Test invalid alpha (NaN)
-        let mut invalid_config = HDBSCANConfig::default();
-        invalid_config.alpha = Float::NAN;
+        let invalid_config = HDBSCANConfig {
+            alpha: Float::NAN,
+            ..HDBSCANConfig::default()
+        };
         assert!(invalid_config.validate().is_err());
 
         // Test invalid max_cluster_size (smaller than min_cluster_size)
-        let mut invalid_config = HDBSCANConfig::default();
-        invalid_config.min_cluster_size = 10;
-        invalid_config.max_cluster_size = Some(5);
+        let invalid_config = HDBSCANConfig {
+            min_cluster_size: 10,
+            max_cluster_size: Some(5),
+            ..HDBSCANConfig::default()
+        };
         assert!(invalid_config.validate().is_err());
 
         // Test warnings
-        let mut warning_config = HDBSCANConfig::default();
-        warning_config.min_cluster_size = 60; // Large value
+        let warning_config = HDBSCANConfig {
+            min_cluster_size: 60,
+            ..HDBSCANConfig::default()
+        }; // Large value
         let warnings = warning_config.get_warnings();
         assert_eq!(warnings.len(), 1);
         assert!(warnings[0].contains("miss smaller"));

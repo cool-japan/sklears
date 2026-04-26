@@ -11,11 +11,9 @@
 //! - Approximate baseline methods with bounded error guarantees
 //! - Sampling-based baselines for efficient large-scale processing
 
-use rayon::prelude::*;
-use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{thread_rng, Distribution, RngExt};
+use scirs2_core::ndarray::{s, ArrayView1, ArrayView2};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::{Result, SklearsError};
-use sklears_core::traits::Estimator;
 use std::collections::HashMap;
 use std::sync::RwLock;
 use std::time::Instant;
@@ -99,6 +97,7 @@ struct LargeScaleState {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 struct NodeStatistics {
     sample_count: usize,
     mean: f64,
@@ -196,7 +195,6 @@ impl LargeScaleDummyEstimator {
 
         // Create memory-mapped arrays for large datasets
         let n_samples = x.nrows();
-        let n_features = x.ncols();
 
         // Process in memory-mapped blocks
         for block_start in (0..n_samples).step_by(block_size) {
@@ -220,7 +218,7 @@ impl LargeScaleDummyEstimator {
     /// Reservoir sampling implementation
     fn process_reservoir_sampling(
         &self,
-        x: &ArrayView2<f64>,
+        _x: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
         reservoir_size: usize,
         replacement_rate: f64,
@@ -264,7 +262,7 @@ impl LargeScaleDummyEstimator {
     /// Sketch-based processing implementation
     fn process_sketch_based(
         &self,
-        x: &ArrayView2<f64>,
+        _x: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
         sketch_size: usize,
         hash_functions: usize,
@@ -299,11 +297,11 @@ impl LargeScaleDummyEstimator {
     /// Distributed processing implementation
     fn process_distributed(
         &self,
-        x: &ArrayView2<f64>,
+        _x: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
         node_id: usize,
-        total_nodes: usize,
-        coordinator_address: &str,
+        _total_nodes: usize,
+        _coordinator_address: &str,
     ) -> Result<()> {
         let mut state = self.state.write().expect("operation should succeed");
 
@@ -352,7 +350,7 @@ impl LargeScaleDummyEstimator {
         let new_count = old_count + chunk_count;
 
         if new_count > 0 {
-            let delta = chunk_sum - state.running_sum * (chunk_count as f64 / old_count as f64);
+            let _delta = chunk_sum - state.running_sum * (chunk_count as f64 / old_count as f64);
             state.running_sum += chunk_sum;
             state.running_sum_squares += chunk_sum_squares;
             state.sample_count = new_count;
@@ -595,6 +593,7 @@ impl StreamingBaselineUpdater {
 }
 
 /// Approximate baseline methods with error bounds
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct ApproximateBaseline {
     method: ApproximateMethod,
     error_bound: f64,
@@ -1042,7 +1041,7 @@ pub struct SampledBaselineResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::array;
+    use scirs2_core::ndarray::{array, Array1, Array2};
 
     #[test]
     fn test_large_scale_chunked_processing() {
@@ -1060,7 +1059,7 @@ mod tests {
         assert!(result.is_ok());
 
         let mean = estimator.get_mean();
-        assert!(mean >= 0.0 && mean <= 10.0);
+        assert!((0.0..=10.0).contains(&mean));
     }
 
     #[test]

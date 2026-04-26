@@ -59,6 +59,7 @@ pub struct OptimizationResult {
     pub final_gradient_norm: f64,
 }
 
+#[allow(non_snake_case)]
 impl KernelOptimizer {
     /// Create a new kernel optimizer
     pub fn new() -> Self {
@@ -110,7 +111,7 @@ impl KernelOptimizer {
     /// Optimize kernel parameters
     pub fn optimize_kernel(
         &self,
-        kernel: &mut Box<dyn Kernel>,
+        kernel: &mut dyn Kernel,
         X: ArrayView2<f64>,
         y: ArrayView1<f64>,
     ) -> SklResult<OptimizationResult> {
@@ -151,7 +152,7 @@ impl KernelOptimizer {
     /// Optimize from initial parameters
     fn optimize_from_initial(
         &self,
-        kernel: &mut Box<dyn Kernel>,
+        kernel: &mut dyn Kernel,
         X: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
         initial_params: Vec<f64>,
@@ -223,7 +224,7 @@ impl KernelOptimizer {
     #[allow(non_snake_case)]
     fn compute_objective_and_gradient(
         &self,
-        kernel: &Box<dyn Kernel>,
+        kernel: &dyn Kernel,
         X: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
     ) -> SklResult<(f64, Vec<f64>)> {
@@ -242,7 +243,7 @@ impl KernelOptimizer {
     #[allow(non_snake_case)]
     fn compute_gradient(
         &self,
-        kernel: &Box<dyn Kernel>,
+        kernel: &dyn Kernel,
         X: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
     ) -> SklResult<Vec<f64>> {
@@ -268,10 +269,18 @@ impl KernelOptimizer {
             kernel_plus.set_params(&params_plus)?;
             kernel_minus.set_params(&params_minus)?;
 
-            let f_plus =
-                -log_marginal_likelihood(&X_owned.view(), &y_owned.view(), &kernel_plus, 1e-6)?;
-            let f_minus =
-                -log_marginal_likelihood(&X_owned.view(), &y_owned.view(), &kernel_minus, 1e-6)?;
+            let f_plus = -log_marginal_likelihood(
+                &X_owned.view(),
+                &y_owned.view(),
+                kernel_plus.as_ref(),
+                1e-6,
+            )?;
+            let f_minus = -log_marginal_likelihood(
+                &X_owned.view(),
+                &y_owned.view(),
+                kernel_minus.as_ref(),
+                1e-6,
+            )?;
 
             gradient[i] = (f_plus - f_minus) / (2.0 * h);
         }
@@ -280,9 +289,9 @@ impl KernelOptimizer {
     }
 
     /// Apply bounds to gradient (set to zero if at boundary)
-    fn apply_bounds_to_gradient(&self, params: &Vec<f64>, gradient: &Vec<f64>) -> Vec<f64> {
+    fn apply_bounds_to_gradient(&self, params: &[f64], gradient: &[f64]) -> Vec<f64> {
         if let Some(bounds) = &self.bounds {
-            let mut clipped = gradient.clone();
+            let mut clipped = gradient.to_vec();
             for i in 0..params.len() {
                 if i < bounds.len() {
                     let (lower, upper) = bounds[i];
@@ -298,12 +307,12 @@ impl KernelOptimizer {
             }
             clipped
         } else {
-            gradient.clone()
+            gradient.to_vec()
         }
     }
 
     /// Apply bounds to parameters
-    fn apply_bounds_to_params(&self, params: &mut Vec<f64>) {
+    fn apply_bounds_to_params(&self, params: &mut [f64]) {
         if let Some(bounds) = &self.bounds {
             for i in 0..params.len() {
                 if i < bounds.len() {
@@ -318,11 +327,11 @@ impl KernelOptimizer {
     #[allow(non_snake_case)]
     fn line_search(
         &self,
-        kernel: &mut Box<dyn Kernel>,
+        kernel: &mut dyn Kernel,
         X: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
-        params: &Vec<f64>,
-        direction: &Vec<f64>,
+        params: &[f64],
+        direction: &[f64],
     ) -> SklResult<Vec<f64>> {
         let mut alpha = 1.0;
         let rho = 0.5;
@@ -366,13 +375,13 @@ impl KernelOptimizer {
         }
 
         // If line search fails, return original parameters
-        Ok(params.clone())
+        Ok(params.to_vec())
     }
 
     /// Random initialization of parameters for restarts
     fn random_initialize_params(
         &self,
-        kernel: &Box<dyn Kernel>,
+        kernel: &dyn Kernel,
         seed: Option<u64>,
     ) -> SklResult<Vec<f64>> {
         let current_params = kernel.get_params();
@@ -380,6 +389,7 @@ impl KernelOptimizer {
 
         // Simple random perturbation (in practice, could use better strategies)
         let scale = 0.5; // Perturbation scale
+        #[allow(clippy::needless_range_loop)] // index used for both params and seed offset
         for i in 0..params.len() {
             let noise = if let Some(s) = seed {
                 // Simple linear congruential generator for reproducibility
@@ -406,8 +416,9 @@ impl KernelOptimizer {
 }
 
 /// Optimize kernel parameters using gradient descent
+#[allow(non_snake_case)]
 pub fn optimize_kernel_parameters(
-    kernel: &mut Box<dyn Kernel>,
+    kernel: &mut dyn Kernel,
     X: ArrayView2<f64>,
     y: ArrayView1<f64>,
     optimizer_config: Option<KernelOptimizer>,
@@ -448,7 +459,7 @@ mod tests {
         let mut kernel: Box<dyn Kernel> = Box::new(RBF::new(1.0));
 
         let result = optimizer
-            .optimize_kernel(&mut kernel, X.view(), y.view())
+            .optimize_kernel(kernel.as_mut(), X.view(), y.view())
             .expect("operation should succeed");
 
         assert!(result.final_objective.is_finite());
@@ -481,7 +492,7 @@ mod tests {
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
         let gradient = optimizer
-            .compute_gradient(&kernel, &X.view(), &y.view())
+            .compute_gradient(kernel.as_ref(), &X.view(), &y.view())
             .expect("operation should succeed");
 
         assert_eq!(gradient.len(), 1); // RBF has one parameter
@@ -494,13 +505,13 @@ mod tests {
         let kernel: Box<dyn Kernel> = Box::new(RBF::new(1.0));
 
         let params1 = optimizer
-            .random_initialize_params(&kernel, Some(42))
+            .random_initialize_params(kernel.as_ref(), Some(42))
             .expect("operation should succeed");
         let params2 = optimizer
-            .random_initialize_params(&kernel, Some(42))
+            .random_initialize_params(kernel.as_ref(), Some(42))
             .expect("operation should succeed");
         let params3 = optimizer
-            .random_initialize_params(&kernel, Some(43))
+            .random_initialize_params(kernel.as_ref(), Some(43))
             .expect("operation should succeed");
 
         // Same seed should give same result

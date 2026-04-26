@@ -28,9 +28,9 @@ use std::collections::{HashMap, HashSet};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::rand_prelude::Distribution;
 // Normal distribution via scirs2_core::random::RandNormal
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::random::{thread_rng, Random};
 use sklears_core::error::{Result, SklearsError};
-use sklears_core::prelude::*;
+use sklears_core::traits::{Estimator, Fit, Predict};
 
 /// Types of constraints for semi-supervised clustering
 #[derive(Debug, Clone, PartialEq)]
@@ -89,6 +89,12 @@ pub struct ConstrainedKMeans {
     constraints: Vec<ConstraintType>,
 }
 
+impl Default for ConstrainedKMeans {
+    fn default() -> Self {
+        Self::new(ConstrainedKMeansConfig::default(), Vec::new())
+    }
+}
+
 /// Fitted Constrained K-Means model
 pub struct ConstrainedKMeansFitted {
     /// Cluster centroids
@@ -114,11 +120,6 @@ impl ConstrainedKMeans {
             config,
             constraints,
         }
-    }
-
-    /// Create with default configuration and empty constraints
-    pub fn default() -> Self {
-        Self::new(ConstrainedKMeansConfig::default(), Vec::new())
     }
 
     /// Builder pattern: add must-link constraint
@@ -585,6 +586,12 @@ pub struct LabelPropagation {
     config: LabelPropagationConfig,
 }
 
+impl Default for LabelPropagation {
+    fn default() -> Self {
+        Self::new(LabelPropagationConfig::default())
+    }
+}
+
 /// Fitted Label Propagation model
 pub struct LabelPropagationFitted {
     /// Final label probabilities
@@ -601,11 +608,6 @@ impl LabelPropagation {
     /// Create a new Label Propagation clusterer
     pub fn new(config: LabelPropagationConfig) -> Self {
         Self { config }
-    }
-
-    /// Create with default configuration
-    pub fn default() -> Self {
-        Self::new(LabelPropagationConfig::default())
     }
 
     /// Builder pattern: set alpha parameter
@@ -839,14 +841,11 @@ impl Predict<Array2<f64>, Vec<i32>> for LabelPropagationFitted {
     }
 }
 
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
 
     #[test]
-    #[allow(non_snake_case)]
     fn test_constrained_kmeans_basic() {
         let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1])
             .expect("operation should succeed");
@@ -907,7 +906,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(non_snake_case)]
     fn test_label_propagation_basic() {
         let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1])
             .expect("operation should succeed");
@@ -1014,8 +1012,6 @@ impl SemiSupervisedSpectral {
         X: &Array2<f64>,
         constraints: &[ConstraintType],
     ) -> Result<SemiSupervisedSpectralFitted> {
-        let n_samples = X.nrows();
-
         // Compute affinity matrix
         let mut affinity = self.compute_affinity_matrix(X)?;
 
@@ -1298,7 +1294,6 @@ impl ActiveClustering {
     where
         F: FnMut(&ClusteringQuery) -> QueryResponse,
     {
-        let n_samples = X.nrows();
         let mut constraints = Vec::new();
         let mut total_queries = 0;
 

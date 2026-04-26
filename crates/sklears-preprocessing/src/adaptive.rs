@@ -545,15 +545,13 @@ impl AdaptiveParameterSelector<Untrained> {
         let data_size = n_samples * n_features * std::mem::size_of::<Float>();
         let target_memory = 100_000_000; // ~100MB target
 
-        let optimal_size = if data_size <= target_memory {
+        if data_size <= target_memory {
             n_samples // Process all at once
         } else {
             (target_memory / (n_features * std::mem::size_of::<Float>()))
                 .max(1000)
                 .min(n_samples)
-        };
-
-        optimal_size
+        }
     }
 
     /// Optimize parameters based on data characteristics
@@ -709,7 +707,7 @@ impl AdaptiveParameterSelector<Untrained> {
             / characteristics.outlier_percentages.len() as Float;
 
         // Convert percentage to rate and add some margin
-        (avg_outlier_pct / 100.0 * 1.2).min(0.5).max(0.01)
+        (avg_outlier_pct / 100.0 * 1.2).clamp(0.01, 0.5)
     }
 
     /// Evaluate different parameter configurations
@@ -820,9 +818,9 @@ impl AdaptiveParameterSelector<Untrained> {
         }
 
         // Reward appropriate outlier thresholds
-        if avg_outlier_pct > 15.0 && *outlier_threshold <= 2.5 {
-            score += 0.3;
-        } else if avg_outlier_pct <= 5.0 && *outlier_threshold >= 3.0 {
+        if (avg_outlier_pct > 15.0 && *outlier_threshold <= 2.5)
+            || (avg_outlier_pct <= 5.0 && *outlier_threshold >= 3.0)
+        {
             score += 0.3;
         }
 
@@ -1014,7 +1012,7 @@ impl AdaptiveParameterSelector<Trained> {
             imputation,
             outlier_detection,
             transformation,
-            confidence: confidence.min(1.0).max(0.0),
+            confidence: confidence.clamp(0.0, 1.0),
         })
     }
 
@@ -1060,7 +1058,7 @@ impl AdaptiveParameterSelector<Trained> {
         report.push_str(&format!("Average missing values: {:.1}%\n", avg_missing));
         report.push_str(&format!("Average outlier rate: {:.1}%\n", avg_outliers));
         report.push_str(&format!("Average absolute skewness: {:.3}\n", avg_skewness));
-        report.push_str("\n");
+        report.push('\n');
 
         // Parameter recommendations
         report.push_str("=== Parameter Recommendations ===\n");
@@ -1079,7 +1077,7 @@ impl AdaptiveParameterSelector<Trained> {
             "  Quantile range: ({:.1}%, {:.1}%)\n",
             recommendations.scaling.quantile_range.0, recommendations.scaling.quantile_range.1
         ));
-        report.push_str("\n");
+        report.push('\n');
 
         report.push_str("Imputation:\n");
         report.push_str(&format!(
@@ -1093,7 +1091,7 @@ impl AdaptiveParameterSelector<Trained> {
             "  Outlier-aware: {}\n",
             recommendations.imputation.outlier_aware
         ));
-        report.push_str("\n");
+        report.push('\n');
 
         report.push_str("Outlier Detection:\n");
         report.push_str(&format!(
@@ -1108,7 +1106,7 @@ impl AdaptiveParameterSelector<Trained> {
             "  Threshold: {:.2}\n",
             recommendations.outlier_detection.threshold
         ));
-        report.push_str("\n");
+        report.push('\n');
 
         report.push_str("Transformation:\n");
         report.push_str(&format!(
@@ -1119,7 +1117,7 @@ impl AdaptiveParameterSelector<Trained> {
             "  Handle negatives: {}\n",
             recommendations.transformation.handle_negatives
         ));
-        report.push_str("\n");
+        report.push('\n');
 
         // Strategy and configuration
         report.push_str("=== Configuration ===\n");

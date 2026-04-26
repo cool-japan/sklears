@@ -300,7 +300,7 @@ impl ErrorRecovery {
             let size = actual[0];
             // Try to find reasonable 2D shape
             for i in 1..=(size as f64).sqrt() as usize + 1 {
-                if size % i == 0 {
+                if size.is_multiple_of(i) {
                     return Some(vec![i, size / i]);
                 }
             }

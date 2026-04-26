@@ -17,10 +17,12 @@ type Result<T> = SklResult<T>;
 pub struct PipelineOptimizer;
 
 impl PipelineOptimizer {
+    /// new
     pub fn new() -> Self {
         Self
     }
 
+    /// create_optimal_pipeline
     pub fn create_optimal_pipeline(
         &self,
         methods: &[OptimizedMethod],
@@ -73,9 +75,13 @@ impl Default for PipelineOptimizer {
 /// Configuration for the automated pipeline
 #[derive(Debug, Clone)]
 pub struct PipelineConfig {
+    /// validation_strategy
     pub validation_strategy: ValidationStrategy,
+    /// max_optimization_iterations
     pub max_optimization_iterations: usize,
+    /// target_performance
     pub target_performance: Option<f64>,
+    /// prefer_interpretability
     pub prefer_interpretability: bool,
 }
 
@@ -94,35 +100,56 @@ impl Default for PipelineConfig {
 #[derive(Debug, Clone)]
 pub enum ValidationStrategy {
     /// CrossValidation
-    CrossValidation { folds: usize },
+    CrossValidation {
+        /// folds
+        folds: usize,
+    },
     /// HoldOut
-    HoldOut { test_size: f64 },
+    HoldOut {
+        /// test_size
+        test_size: f64,
+    },
     /// TimeSeriesSplit
-    TimeSeriesSplit { n_splits: usize },
+    TimeSeriesSplit {
+        /// n_splits
+        n_splits: usize,
+    },
 }
 
 /// Performance metrics for a method
 #[derive(Debug, Clone)]
 pub struct MethodPerformance {
+    /// method_name
     pub method_name: String,
+    /// score
     pub score: f64,
+    /// score_std
     pub score_std: f64,
+    /// scores
     pub scores: Vec<f64>,
+    /// feature_stability
     pub feature_stability: f64,
+    /// computational_cost
     pub computational_cost: f64,
+    /// method_config
     pub method_config: MethodConfig,
 }
 
 /// Optimal pipeline result
 #[derive(Debug, Clone)]
 pub struct OptimalPipeline {
+    /// method
     pub method: OptimizedMethod,
+    /// performance
     pub performance: MethodPerformance,
+    /// config
     pub config: PipelineConfigResult,
+    /// target_n_features
     pub target_n_features: Option<usize>,
 }
 
 impl OptimalPipeline {
+    /// fit
     pub fn fit(self, X: ArrayView2<f64>, y: ArrayView1<f64>) -> Result<TrainedOptimalPipeline> {
         let trained_method = self.method.fit(X, y)?;
 
@@ -133,6 +160,7 @@ impl OptimalPipeline {
         })
     }
 
+    /// get_config
     pub fn get_config(&self) -> PipelineConfigResult {
         self.config.clone()
     }
@@ -141,20 +169,26 @@ impl OptimalPipeline {
 /// Trained optimal pipeline
 #[derive(Debug, Clone)]
 pub struct TrainedOptimalPipeline {
+    /// trained_method
     pub trained_method: TrainedMethod,
+    /// performance
     pub performance: MethodPerformance,
+    /// config
     pub config: PipelineConfigResult,
 }
 
 impl TrainedOptimalPipeline {
+    /// transform_indices
     pub fn transform_indices(&self) -> Result<Vec<usize>> {
         self.trained_method.transform_indices()
     }
 
+    /// get_feature_importances
     pub fn get_feature_importances(&self) -> Result<Vec<f64>> {
         Ok(self.trained_method.feature_importances.clone())
     }
 
+    /// method_info
     pub fn method_info(&self) -> MethodInfo {
         MethodInfo {
             name: format!("{:?}", self.trained_method.method_type),
@@ -251,30 +285,45 @@ impl TrainedOptimalPipeline {
 /// Method information
 #[derive(Debug, Clone)]
 pub struct MethodInfo {
+    /// name
     pub name: String,
+    /// parameters
     pub parameters: HashMap<String, String>,
 }
 
 /// Pipeline configuration result
 #[derive(Debug, Clone)]
 pub struct PipelineConfigResult {
+    /// method
     pub method: AutoMLMethod,
+    /// hyperparameters
     pub hyperparameters: MethodConfig,
+    /// expected_performance
     pub expected_performance: f64,
+    /// feature_stability
     pub feature_stability: f64,
+    /// computational_cost
     pub computational_cost: f64,
 }
 
 /// Complete AutoML results
 #[derive(Debug, Clone)]
 pub struct AutoMLResults {
+    /// selected_features
     pub selected_features: Vec<usize>,
+    /// feature_importances
     pub feature_importances: Vec<f64>,
+    /// best_method
     pub best_method: MethodInfo,
+    /// data_characteristics
     pub data_characteristics: DataCharacteristics,
+    /// method_performances
     pub method_performances: Vec<MethodPerformance>,
+    /// pipeline_config
     pub pipeline_config: PipelineConfigResult,
+    /// validation_scores
     pub validation_scores: Vec<f64>,
+    /// recommendation
     pub recommendation: String,
 }
 
@@ -345,9 +394,14 @@ impl AutoMLResults {
 /// Summary of AutoML results
 #[derive(Debug, Clone)]
 pub struct AutoMLSummary {
+    /// selected_feature_count
     pub selected_feature_count: usize,
+    /// best_method_name
     pub best_method_name: String,
+    /// best_score
     pub best_score: f64,
+    /// feature_reduction_ratio
     pub feature_reduction_ratio: f64,
+    /// recommendation_summary
     pub recommendation_summary: String,
 }

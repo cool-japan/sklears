@@ -357,11 +357,7 @@ impl CloudStorageUtils {
             total_size_bytes: total_size,
             total_objects,
             file_types,
-            average_file_size: if total_objects > 0 {
-                total_size / total_objects
-            } else {
-                0
-            },
+            average_file_size: total_size.checked_div(total_objects).unwrap_or(0),
         })
     }
 }

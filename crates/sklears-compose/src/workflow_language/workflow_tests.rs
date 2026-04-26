@@ -11,7 +11,7 @@ mod tests {
         code_generation::*, component_registry::*, dsl_language::*, visual_builder::*,
         workflow_definitions::*, workflow_execution::*,
     };
-    use std::collections::{BTreeMap, HashMap};
+    use std::collections::BTreeMap;
     use std::time::Duration;
 
     // ======================
@@ -139,7 +139,12 @@ mod tests {
             }),
             caching: Some(CachingConfig {
                 enable_step_caching: true,
-                cache_directory: Some("/tmp/workflow_cache".to_string()),
+                cache_directory: Some(
+                    std::env::temp_dir()
+                        .join("workflow_cache")
+                        .display()
+                        .to_string(),
+                ),
                 cache_ttl_sec: Some(3600),
                 max_cache_size_mb: Some(512),
             }),
@@ -927,7 +932,7 @@ mod tests {
     fn test_cross_module_compatibility() {
         // Test that all modules work together correctly
         let registry = ComponentRegistry::new();
-        let mut executor = WorkflowExecutor::with_registry(registry);
+        let executor = WorkflowExecutor::with_registry(registry);
         let mut builder = VisualPipelineBuilder::new();
         let dsl = PipelineDSL::new();
 
@@ -1000,7 +1005,7 @@ mod tests {
             ));
         }
 
-        large_dsl.push_str("}");
+        large_dsl.push('}');
 
         let mut dsl = PipelineDSL::new();
         let start_time = std::time::Instant::now();

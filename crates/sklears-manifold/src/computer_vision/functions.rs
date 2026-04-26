@@ -2,19 +2,15 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
-use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3, Axis};
-
-use super::types::{
-    FaceManifoldLearning, FacePreprocessing, ImagePatchEmbedding, ManifoldImageDenoising,
-    ObjectEmbeddingMethod, ObjectRecognitionEmbedding, PoseEmbeddingMethod, PoseEstimationManifold,
-    VideoManifoldAnalysis,
-};
-
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use scirs2_core::ndarray::Array3;
+    use super::super::types::{
+        FaceManifoldLearning, FacePreprocessing, ImagePatchEmbedding, ManifoldImageDenoising,
+        ObjectEmbeddingMethod, ObjectRecognitionEmbedding, PoseEmbeddingMethod,
+        PoseEstimationManifold, VideoManifoldAnalysis,
+    };
+    use scirs2_core::ndarray::{Array1, Array2, Array3, Axis};
     use sklears_core::traits::{Fit, Transform};
     #[test]
     fn test_image_patch_embedding_basic() {
@@ -78,7 +74,7 @@ mod tests {
         let similarity = fitted
             .face_similarity(&face1, &face2)
             .expect("operation should succeed");
-        assert!(similarity >= -1.0 && similarity <= 1.0);
+        assert!((-1.0..=1.0).contains(&similarity));
     }
     #[test]
     fn test_manifold_image_denoising() {
@@ -179,7 +175,7 @@ mod tests {
         let confidence = fitted
             .pose_confidence(&test_pose)
             .expect("operation should succeed");
-        assert!(confidence >= 0.0 && confidence <= 1.0);
+        assert!((0.0..=1.0).contains(&confidence));
     }
     #[test]
     fn test_object_recognition_basic() {
@@ -216,7 +212,7 @@ mod tests {
         let confidence = fitted
             .recognition_confidence(&test_sample)
             .expect("operation should succeed");
-        assert!(confidence >= 0.0 && confidence <= 1.0);
+        assert!((0.0..=1.0).contains(&confidence));
     }
     #[test]
     fn test_object_embedding() {
@@ -284,7 +280,7 @@ mod tests {
         let consistency = fitted
             .temporal_consistency(&video)
             .expect("operation should succeed");
-        assert!(consistency >= 0.0 && consistency <= 1.0);
+        assert!((0.0..=1.0).contains(&consistency));
     }
     #[test]
     fn test_pose_estimation_invalid_input() {

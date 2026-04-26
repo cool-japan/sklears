@@ -1,9 +1,7 @@
-use scirs2_core::ndarray::{Array, Array1, Array2, ArrayD, Axis, Dimension, RemoveAxis};
-use scirs2_core::numeric::Float;
+use scirs2_core::ndarray::{Array, Array1, Dimension, RemoveAxis};
 use sklears_core::error::SklearsError;
 use sklears_core::types::FloatBounds;
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::Instant;
 
 /// Result type for distributed training operations
@@ -106,6 +104,7 @@ pub struct DistributedStats<T: FloatBounds> {
 }
 
 /// Distributed training coordinator
+#[allow(dead_code)] // Workers and gradient_buffers are the core infrastructure; read via trait methods
 pub struct DistributedTrainer<T: FloatBounds> {
     /// Configuration
     config: DistributedConfig<T>,
@@ -153,12 +152,9 @@ impl<T: FloatBounds + Default + std::iter::Sum<T> + scirs2_core::ndarray::Scalar
     }
 
     /// Distribute data across workers
-    pub fn distribute_data<D: Dimension>(
-        &self,
-        data: &Array<T, D>,
-    ) -> DistributedResult<Vec<Array<T, D>>>
+    pub fn distribute_data<D>(&self, data: &Array<T, D>) -> DistributedResult<Vec<Array<T, D>>>
     where
-        D: RemoveAxis,
+        D: Dimension + RemoveAxis,
     {
         let num_samples = data.shape()[0];
         let samples_per_worker = num_samples / self.config.num_workers;
@@ -231,7 +227,7 @@ impl<T: FloatBounds + Default + std::iter::Sum<T> + scirs2_core::ndarray::Scalar
         &mut self,
         gradients: &mut HashMap<String, Array1<T>>,
     ) -> DistributedResult<()> {
-        for (name, grad) in gradients.iter_mut() {
+        for (_name, grad) in gradients.iter_mut() {
             // Simulate all-reduce by averaging gradients across workers
             let sum: T = grad.iter().copied().sum();
             let mean = sum / T::from(self.config.num_workers).unwrap_or_else(|| T::zero());
@@ -266,7 +262,7 @@ impl<T: FloatBounds + Default + std::iter::Sum<T> + scirs2_core::ndarray::Scalar
 
         for level in 0..num_levels {
             let group_size = 2_usize.pow(level as u32);
-            for (name, grad) in gradients.iter_mut() {
+            for (_name, grad) in gradients.iter_mut() {
                 // Simulate hierarchical reduction
                 let reduction_factor = T::from(group_size).unwrap_or_else(|| T::zero());
                 grad.mapv_inplace(|x| x / reduction_factor);
@@ -347,7 +343,6 @@ impl<T: FloatBounds + Default + std::iter::Sum<T> + scirs2_core::ndarray::Scalar
             return 1.0;
         }
 
-        let last_idx = self.stats.computation_time_ms.len() - 1;
         let max_time = *self
             .stats
             .computation_time_ms
@@ -384,12 +379,12 @@ impl<T: FloatBounds + Default + std::iter::Sum<T> + scirs2_core::ndarray::Scalar
         let computation_time = compute_fn()?;
 
         // Synchronize gradients if needed
-        if self.current_step % self.config.sync_frequency == 0 {
+        if self.current_step.is_multiple_of(self.config.sync_frequency) {
             self.synchronize_gradients(gradients)?;
         }
 
         // Update statistics
-        let total_time = start_time.elapsed().as_millis() as f64;
+        let _total_time = start_time.elapsed().as_millis() as f64;
         self.update_stats(computation_time, 0.0); // Memory usage would need system integration
 
         self.current_step += 1;
@@ -399,6 +394,7 @@ impl<T: FloatBounds + Default + std::iter::Sum<T> + scirs2_core::ndarray::Scalar
 }
 
 /// Worker coordinator for distributed training
+#[allow(dead_code)] // Config field retained for worker-specific parameter access in future methods
 pub struct WorkerCoordinator<T: FloatBounds> {
     /// Worker rank/ID
     rank: usize,
@@ -409,6 +405,7 @@ pub struct WorkerCoordinator<T: FloatBounds> {
 }
 
 impl<T: FloatBounds> WorkerCoordinator<T> {
+    /// Create a new worker coordinator with the given rank and configuration
     pub fn new(rank: usize, config: &DistributedConfig<T>) -> DistributedResult<Self> {
         Ok(Self {
             rank,
@@ -417,20 +414,24 @@ impl<T: FloatBounds> WorkerCoordinator<T> {
         })
     }
 
+    /// Get the rank of this worker
     pub fn get_rank(&self) -> usize {
         self.rank
     }
 
+    /// Update local gradients with new gradient values
     pub fn update_gradients(&mut self, gradients: HashMap<String, Array1<T>>) {
         self.local_gradients = gradients;
     }
 
+    /// Get reference to local gradients
     pub fn get_gradients(&self) -> &HashMap<String, Array1<T>> {
         &self.local_gradients
     }
 }
 
 /// Parameter server for distributed training
+#[allow(dead_code)] // global_parameters is written during aggregation; read access is via update methods
 pub struct ParameterServer<T: FloatBounds> {
     /// Global parameters
     global_parameters: HashMap<String, Array1<T>>,
@@ -441,6 +442,7 @@ pub struct ParameterServer<T: FloatBounds> {
 }
 
 impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + Copy> ParameterServer<T> {
+    /// Create a new parameter server with the given distributed configuration
     pub fn new(config: &DistributedConfig<T>) -> DistributedResult<Self> {
         Ok(Self {
             global_parameters: HashMap::new(),
@@ -449,6 +451,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + Copy> ParameterServe
         })
     }
 
+    /// Aggregate gradients from workers into accumulated storage
     pub fn aggregate_gradients(
         &mut self,
         gradients: &HashMap<String, Array1<T>>,
@@ -464,6 +467,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + Copy> ParameterServe
         Ok(())
     }
 
+    /// Broadcast averaged parameters to all workers
     pub fn broadcast_parameters(
         &mut self,
         gradients: &mut HashMap<String, Array1<T>>,
@@ -489,6 +493,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + Copy> ParameterServe
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_distributed_config_default() {
@@ -553,7 +558,7 @@ mod tests {
             ..Default::default()
         };
 
-        let trainer = DistributedTrainer::new(config).expect("construction should succeed");
+        let _trainer = DistributedTrainer::new(config).expect("construction should succeed");
         let mut gradients = HashMap::new();
         gradients.insert(
             "test".to_string(),

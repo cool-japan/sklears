@@ -183,6 +183,7 @@ pub trait TypeSafeFit<ProblemType, const N_FEATURES: usize> {
     type TrainedModel;
 
     /// Fit the model to training data with compile-time feature size verification
+    #[allow(non_snake_case)] // standard ML notation
     fn fit_typed(self, X: &Array2<Float>, y: &Array1<Float>) -> Result<Self::TrainedModel>;
 }
 
@@ -191,6 +192,7 @@ impl<const N_FEATURES: usize> TypeSafeFit<problem_type::Regression, N_FEATURES>
 {
     type TrainedModel = TypeSafeLinearModel<Trained, problem_type::Regression, N_FEATURES>;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit_typed(self, X: &Array2<Float>, y: &Array1<Float>) -> Result<Self::TrainedModel> {
         // Compile-time feature size check
         if X.ncols() != N_FEATURES {
@@ -234,12 +236,14 @@ impl<const N_FEATURES: usize> TypeSafeFit<problem_type::Regression, N_FEATURES>
 /// Trait for making predictions with compile-time verification
 pub trait TypeSafePredict<ProblemType, const N_FEATURES: usize> {
     /// Make predictions with compile-time feature size verification
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_typed(&self, X: &Array2<Float>) -> Result<Array1<Float>>;
 }
 
 impl<const N_FEATURES: usize> TypeSafePredict<problem_type::Regression, N_FEATURES>
     for TypeSafeLinearModel<Trained, problem_type::Regression, N_FEATURES>
 {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_typed(&self, X: &Array2<Float>) -> Result<Array1<Float>> {
         // Compile-time feature size check
         if X.ncols() != N_FEATURES {

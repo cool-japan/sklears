@@ -316,8 +316,8 @@ impl NeuralLayer {
 /// let nda = NeuralDiscriminantAnalysis::new()
 ///     .max_epochs(50)
 ///     .hidden_layers(vec![32, 16]);
-/// let fitted = nda.fit(&x, &y).unwrap();
-/// let predictions = fitted.predict(&x).unwrap();
+/// let fitted = nda.fit(&x, &y).expect("fit should succeed with valid input");
+/// let predictions = fitted.predict(&x).expect("predict should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct NeuralDiscriminantAnalysis {
@@ -597,7 +597,7 @@ impl TrainedNeuralDiscriminantAnalysis {
     fn train_network(&mut self, x: &Array2<Float>, y: &Array1<i32>) -> Result<()> {
         let n_samples = x.nrows();
         let batch_size = self.config.training.batch_size.min(n_samples);
-        let n_batches = (n_samples + batch_size - 1) / batch_size;
+        let n_batches = n_samples.div_ceil(batch_size);
 
         let mut best_loss = Float::INFINITY;
         let mut patience_counter = 0;
@@ -1006,7 +1006,7 @@ mod tests {
         assert_eq!(nda.config.training.batch_size, 16);
         assert_eq!(nda.config.architecture.dropout_rate, 0.2);
         assert_eq!(nda.config.discriminant_regularization, 0.01);
-        assert_eq!(nda.config.class_balance_weight, true);
+        assert!(nda.config.class_balance_weight);
         assert_eq!(nda.config.random_state, Some(42));
     }
 

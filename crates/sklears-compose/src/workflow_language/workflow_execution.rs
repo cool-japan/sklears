@@ -201,6 +201,18 @@ impl WorkflowExecutor {
         }
     }
 
+    /// Apply an external [`ExecutionContext`] to this executor.
+    ///
+    /// This propagates the caller-supplied execution ID and execution mode so
+    /// that these settings are respected when `execute_workflow` is called.
+    /// Other fields of the executor's internal context (data flow, current
+    /// step, start time) are left at their defaults and will be overwritten
+    /// when execution begins.
+    pub fn apply_context(&mut self, context: ExecutionContext) {
+        self.context.execution_id = context.execution_id;
+        self.context.execution_mode = context.execution_mode;
+    }
+
     /// Validate a workflow
     #[must_use]
     pub fn validate_workflow(&self, workflow: &WorkflowDefinition) -> ValidationResult {
@@ -606,7 +618,7 @@ impl WorkflowExecutor {
         let step_start = Instant::now();
 
         // Get component definition
-        let component = self
+        let _component = self
             .registry
             .get_component(&step.algorithm)
             .ok_or_else(|| {
@@ -743,7 +755,7 @@ impl WorkflowExecutor {
             for step in &workflow.steps {
                 if step.outputs.contains(&output.name) {
                     let key = format!("{}:{}", step.id, output.name);
-                    if let Some(data) = self.context.data_flow.get(&key) {
+                    if let Some(_data) = self.context.data_flow.get(&key) {
                         outputs.insert(
                             output.name.clone(),
                             format!("Data from step '{}' port '{}'", step.id, output.name),
@@ -1124,7 +1136,7 @@ pub enum WorkflowExecutionError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::workflow_language::workflow_definitions::{DataType, StepType};
+    use crate::workflow_language::workflow_definitions::StepType;
 
     #[test]
     fn test_workflow_executor_creation() {

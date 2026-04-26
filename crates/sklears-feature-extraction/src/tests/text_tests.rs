@@ -301,7 +301,7 @@ fn test_count_vectorizer_max_features() {
     assert!(features.ncols() <= 5);
 
     if let Some(vocab_map) = &vocab {
-        if vocab_map.len() > 0 {
+        if !vocab_map.is_empty() {
             assert_eq!(vocab_map.len(), features.ncols());
         }
     }
@@ -416,7 +416,7 @@ fn test_text_tokenization_patterns() {
             || vocab_map.contains_key("word3")
             || vocab_map.contains_key("word4");
 
-        if vocab_map.len() > 0 {
+        if !vocab_map.is_empty() {
             assert!(has_basic_words, "Should tokenize basic words");
         }
     }
@@ -909,7 +909,7 @@ fn test_aspect_sentiment_aggregate() {
 
     // Food should appear twice
     if let Some(food_sentiments) = aggregated.get("food") {
-        assert!(food_sentiments.len() >= 1);
+        assert!(!food_sentiments.is_empty());
     }
 }
 
@@ -983,5 +983,5 @@ fn test_aspect_sentiment_multiple_occurrences() {
     let result = analyzer.analyze("The product is great. Another product is terrible.");
 
     // Should find both occurrences
-    assert!(result.len() >= 1);
+    assert!(!result.is_empty());
 }

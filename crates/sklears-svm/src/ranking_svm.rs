@@ -318,8 +318,10 @@ impl RankingLoss {
 #[derive(Debug, Clone)]
 struct PairwiseSample {
     /// Features of the preferred item
+    #[allow(dead_code)] // intentionally deferred: per-item feature access pending
     preferred_features: Array1<Float>,
-    /// Features of the non-preferred item  
+    /// Features of the non-preferred item
+    #[allow(dead_code)] // intentionally deferred: per-item feature access pending
     non_preferred_features: Array1<Float>,
     /// Difference vector (preferred - non_preferred)
     difference_vector: Array1<Float>,

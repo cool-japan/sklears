@@ -60,7 +60,9 @@ impl CoverNode {
 #[derive(Debug, Clone)]
 struct SearchItem {
     distance: Float,
+    #[allow(dead_code)] // used in search priority logic
     node_idx: usize,
+    #[allow(dead_code)] // distinguishes node vs point in priority queue
     is_point: bool,
 }
 

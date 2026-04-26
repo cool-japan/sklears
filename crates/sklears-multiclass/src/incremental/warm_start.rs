@@ -402,10 +402,12 @@ mod tests {
 
     #[test]
     fn test_warm_start_learning_rate_decay() {
-        let mut config = WarmStartConfig::default();
-        config.initial_lr = 1.0;
-        config.lr_decay = 0.5;
-        config.decay_steps = 2;
+        let config = WarmStartConfig {
+            initial_lr: 1.0,
+            lr_decay: 0.5,
+            decay_steps: 2,
+            ..WarmStartConfig::default()
+        };
 
         let mut manager = WarmStartManager::new(config);
         let weights = array![[1.0, 2.0], [3.0, 4.0]];

@@ -8,7 +8,7 @@ use scirs2_core::ndarray::{Array1, ArrayView1};
 type Float = f64;
 
 /// Compute Pearson correlation between two arrays
-pub(crate) fn compute_pearson_correlation(x: &ArrayView1<Float>, y: &ArrayView1<Float>) -> Float {
+pub fn compute_pearson_correlation(x: &ArrayView1<Float>, y: &ArrayView1<Float>) -> Float {
     if x.len() != y.len() || x.is_empty() {
         return 0.0;
     }
@@ -38,7 +38,7 @@ pub(crate) fn compute_pearson_correlation(x: &ArrayView1<Float>, y: &ArrayView1<
 }
 
 /// Select top K features based on scores
-pub(crate) fn select_top_k_features(scores: &Array1<Float>, k: usize) -> Vec<usize> {
+pub fn select_top_k_features(scores: &Array1<Float>, k: usize) -> Vec<usize> {
     let mut indexed_scores: Vec<(usize, Float)> =
         scores.iter().enumerate().map(|(i, &s)| (i, s)).collect();
 
@@ -48,7 +48,7 @@ pub(crate) fn select_top_k_features(scores: &Array1<Float>, k: usize) -> Vec<usi
 }
 
 /// Select features above a threshold
-pub(crate) fn select_features_by_threshold(scores: &Array1<Float>, threshold: Float) -> Vec<usize> {
+pub fn select_features_by_threshold(scores: &Array1<Float>, threshold: Float) -> Vec<usize> {
     scores
         .iter()
         .enumerate()

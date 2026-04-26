@@ -252,20 +252,17 @@ impl<'a> Fit<ArrayView2<'a, f64>, ()> for InformationTheoryCovariance<Informatio
         }
 
         // Step 1: Estimate entropies for each variable
-        let entropy_estimates = self.estimate_entropies(&x)?;
+        let entropy_estimates = self.estimate_entropies(x)?;
 
         // Step 2: Estimate mutual information matrix
-        let mutual_information_matrix = self.estimate_mutual_information_matrix(&x)?;
+        let mutual_information_matrix = self.estimate_mutual_information_matrix(x)?;
 
         // Step 3: Estimate transfer entropy matrix (for causal relationships)
-        let transfer_entropy_matrix = self.estimate_transfer_entropy_matrix(&x)?;
+        let transfer_entropy_matrix = self.estimate_transfer_entropy_matrix(x)?;
 
         // Step 4: Compute covariance matrix using information theory
-        let covariance = self.compute_information_covariance(
-            &x,
-            &mutual_information_matrix,
-            &entropy_estimates,
-        )?;
+        let covariance =
+            self.compute_information_covariance(x, &mutual_information_matrix, &entropy_estimates)?;
 
         // Step 5: Apply regularization
         let (regularized_covariance, regularization_term) =
@@ -282,7 +279,7 @@ impl<'a> Fit<ArrayView2<'a, f64>, ()> for InformationTheoryCovariance<Informatio
         let conditional_entropy_matrix = self
             .compute_conditional_entropy_matrix(&mutual_information_matrix, &entropy_estimates)?;
 
-        let information_divergence = self.compute_information_divergence(&x)?;
+        let information_divergence = self.compute_information_divergence(x)?;
         let information_bottleneck_value = self
             .compute_information_bottleneck_value(&mutual_information_matrix, &entropy_estimates)?;
 

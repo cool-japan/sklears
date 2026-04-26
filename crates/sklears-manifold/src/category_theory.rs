@@ -52,6 +52,7 @@ where
     }
 }
 
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct Functor<C1, C2, FObj, FMor>
 where
     C1: Clone,
@@ -138,6 +139,7 @@ pub enum TransformationType {
 
 pub type ManifoldCategory = Category<ManifoldObject, EmbeddingMorphism>;
 
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct CategoricalManifoldLearning {
     category: ManifoldCategory,
     current_object_id: Option<usize>,
@@ -237,6 +239,7 @@ impl CategoricalManifoldLearning {
     }
 }
 
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct FunctorialEmbedding<F> {
     functor: F,
     source_category: ManifoldCategory,

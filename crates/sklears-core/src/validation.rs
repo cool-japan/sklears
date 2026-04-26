@@ -449,22 +449,20 @@ impl ValidationRules {
     {
         for rule in &self.rules {
             match rule {
-                ValidationRule::Positive => {
-                    if *value <= T::zero() {
-                        return Err(SklearsError::InvalidParameter {
-                            name: self.field_name.clone(),
-                            reason: "must be positive".to_string(),
-                        });
-                    }
+                ValidationRule::Positive if *value <= T::zero() => {
+                    return Err(SklearsError::InvalidParameter {
+                        name: self.field_name.clone(),
+                        reason: "must be positive".to_string(),
+                    });
                 }
-                ValidationRule::NonNegative => {
-                    if *value < T::zero() {
-                        return Err(SklearsError::InvalidParameter {
-                            name: self.field_name.clone(),
-                            reason: "must be non-negative".to_string(),
-                        });
-                    }
+                ValidationRule::Positive => {}
+                ValidationRule::NonNegative if *value < T::zero() => {
+                    return Err(SklearsError::InvalidParameter {
+                        name: self.field_name.clone(),
+                        reason: "must be non-negative".to_string(),
+                    });
                 }
+                ValidationRule::NonNegative => {}
                 ValidationRule::Finite => {
                     if let Some(float_val) = NumCast::from(*value) {
                         let f: f64 = float_val;
@@ -487,16 +485,19 @@ impl ValidationRules {
                         }
                     }
                 }
-                ValidationRule::PatternGuard(_pattern_guard) => {
-                    // TODO: Fix lifetime issues with pattern guard validation
-                    // let value_any = &value as &dyn std::any::Any;
-                    // let result = (pattern_guard.guard_fn)(value_any)?;
-                    // if !result {
-                    //     return Err(SklearsError::InvalidParameter {
-                    //         name: self.field_name.clone(),
-                    //         reason: pattern_guard.error_message.clone(),
-                    //     });
-                    // }
+                ValidationRule::PatternGuard(pattern_guard) => {
+                    // Cast the numeric value to Any so the guard function can inspect it.
+                    // The guard_fn is Box<dyn Fn(&dyn Any) -> Result<bool>> which takes
+                    // a shared reference; the local `value` binding is the concrete `T`,
+                    // so we take a reference to it and coerce through &dyn Any.
+                    let value_any: &dyn std::any::Any = value;
+                    let passes = (pattern_guard.guard_fn)(value_any)?;
+                    if !passes {
+                        return Err(SklearsError::InvalidParameter {
+                            name: self.field_name.clone(),
+                            reason: pattern_guard.error_message.clone(),
+                        });
+                    }
                 }
                 _ => {
                     // Skip rules that don't apply to numeric values
@@ -510,24 +511,24 @@ impl ValidationRules {
     pub fn validate_string(&self, value: &str) -> Result<()> {
         for rule in &self.rules {
             match rule {
-                ValidationRule::OneOf(options) => {
-                    if !options.contains(&value.to_string()) {
+                ValidationRule::OneOf(options) if !options.contains(&value.to_string()) => {
+                    return Err(SklearsError::InvalidParameter {
+                        name: self.field_name.clone(),
+                        reason: format!("must be one of {options:?}"),
+                    });
+                }
+                ValidationRule::OneOf(_) => {}
+                ValidationRule::PatternGuard(pattern_guard) => {
+                    // Convert to owned String so it is 'static and can be cast to &dyn Any.
+                    let owned: String = value.to_owned();
+                    let value_any: &dyn std::any::Any = &owned;
+                    let passes = (pattern_guard.guard_fn)(value_any)?;
+                    if !passes {
                         return Err(SklearsError::InvalidParameter {
                             name: self.field_name.clone(),
-                            reason: format!("must be one of {options:?}"),
+                            reason: pattern_guard.error_message.clone(),
                         });
                     }
-                }
-                ValidationRule::PatternGuard(_pattern_guard) => {
-                    // TODO: Fix lifetime issues with pattern guard validation
-                    // let value_any = &value as &dyn std::any::Any;
-                    // let result = (pattern_guard.guard_fn)(value_any)?;
-                    // if !result {
-                    //     return Err(SklearsError::InvalidParameter {
-                    //         name: self.field_name.clone(),
-                    //         reason: pattern_guard.error_message.clone(),
-                    //     });
-                    // }
                 }
                 _ => {
                     // Skip rules that don't apply to string values
@@ -541,32 +542,31 @@ impl ValidationRules {
     pub fn validate_array<T>(&self, value: &[T]) -> Result<()> {
         for rule in &self.rules {
             match rule {
-                ValidationRule::MinLength(min_len) => {
-                    if value.len() < *min_len {
+                ValidationRule::MinLength(min_len) if value.len() < *min_len => {
+                    return Err(SklearsError::InvalidParameter {
+                        name: self.field_name.clone(),
+                        reason: format!("must have at least {min_len} elements"),
+                    });
+                }
+                ValidationRule::MinLength(_) => {}
+                ValidationRule::MaxLength(max_len) if value.len() > *max_len => {
+                    return Err(SklearsError::InvalidParameter {
+                        name: self.field_name.clone(),
+                        reason: format!("must have at most {max_len} elements"),
+                    });
+                }
+                ValidationRule::MaxLength(_) => {}
+                ValidationRule::PatternGuard(pattern_guard) => {
+                    // Pass the length as a 'static usize so it can be cast to &dyn Any.
+                    let len: usize = value.len();
+                    let value_any: &dyn std::any::Any = &len;
+                    let passes = (pattern_guard.guard_fn)(value_any)?;
+                    if !passes {
                         return Err(SklearsError::InvalidParameter {
                             name: self.field_name.clone(),
-                            reason: format!("must have at least {min_len} elements"),
+                            reason: pattern_guard.error_message.clone(),
                         });
                     }
-                }
-                ValidationRule::MaxLength(max_len) => {
-                    if value.len() > *max_len {
-                        return Err(SklearsError::InvalidParameter {
-                            name: self.field_name.clone(),
-                            reason: format!("must have at most {max_len} elements"),
-                        });
-                    }
-                }
-                ValidationRule::PatternGuard(_pattern_guard) => {
-                    // TODO: Fix lifetime issues with pattern guard validation
-                    // let value_any = &value as &dyn std::any::Any;
-                    // let result = (pattern_guard.guard_fn)(value_any)?;
-                    // if !result {
-                    //     return Err(SklearsError::InvalidParameter {
-                    //         name: self.field_name.clone(),
-                    //         reason: pattern_guard.error_message.clone(),
-                    //     });
-                    // }
                 }
                 _ => {
                     // Skip rules that don't apply to arrays
@@ -580,14 +580,13 @@ impl ValidationRules {
     pub fn validate_usize(&self, value: &usize) -> Result<()> {
         for rule in &self.rules {
             match rule {
-                ValidationRule::Positive => {
-                    if *value == 0 {
-                        return Err(SklearsError::InvalidParameter {
-                            name: self.field_name.clone(),
-                            reason: "must be positive".to_string(),
-                        });
-                    }
+                ValidationRule::Positive if *value == 0 => {
+                    return Err(SklearsError::InvalidParameter {
+                        name: self.field_name.clone(),
+                        reason: "must be positive".to_string(),
+                    });
                 }
+                ValidationRule::Positive => {}
                 ValidationRule::NonNegative => {
                     // usize is always non-negative, so this always passes
                 }
@@ -1269,5 +1268,111 @@ mod tests {
         assert!(formatted.contains("fit"));
         assert!(formatted.contains("100 samples"));
         assert!(formatted.contains("5 features"));
+    }
+
+    // -----------------------------------------------------------------
+    // PatternGuard validation tests (previously the commented-out TODO)
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn test_pattern_guard_numeric_passes() {
+        // Guard that only accepts even numbers (using i64 casting inside Any).
+        let guard = PatternGuardRule {
+            pattern_name: "even_number".to_string(),
+            guard_fn: Box::new(|value: &dyn std::any::Any| {
+                if let Some(v) = value.downcast_ref::<f64>() {
+                    Ok(*v as i64 % 2 == 0)
+                } else {
+                    Ok(false)
+                }
+            }),
+            error_message: "must be an even number".to_string(),
+            destructure_fn: None,
+        };
+
+        let rules =
+            ValidationRules::new("even_param").add_rule(ValidationRule::PatternGuard(guard));
+
+        // Even number passes.
+        assert!(rules.validate_numeric(&4.0f64).is_ok());
+        // Odd number fails.
+        assert!(rules.validate_numeric(&3.0f64).is_err());
+    }
+
+    #[test]
+    fn test_pattern_guard_string_passes() {
+        // Guard that rejects strings starting with digits.
+        let guard = PatternGuardRule {
+            pattern_name: "no_leading_digit".to_string(),
+            guard_fn: Box::new(|value: &dyn std::any::Any| {
+                if let Some(s) = value.downcast_ref::<String>() {
+                    Ok(!s.starts_with(char::is_numeric))
+                } else {
+                    Ok(false)
+                }
+            }),
+            error_message: "must not start with a digit".to_string(),
+            destructure_fn: None,
+        };
+
+        let rules =
+            ValidationRules::new("identifier").add_rule(ValidationRule::PatternGuard(guard));
+
+        // Valid — no leading digit.
+        assert!(rules.validate_string("alpha_param").is_ok());
+        // Invalid — starts with digit.
+        assert!(rules.validate_string("1_bad").is_err());
+    }
+
+    #[test]
+    fn test_pattern_guard_array_length() {
+        // Guard that enforces the array has an odd length.
+        let guard = PatternGuardRule {
+            pattern_name: "odd_length".to_string(),
+            guard_fn: Box::new(|value: &dyn std::any::Any| {
+                // validate_array passes value.len() as a usize.
+                if let Some(len) = value.downcast_ref::<usize>() {
+                    Ok(len % 2 == 1)
+                } else {
+                    Ok(false)
+                }
+            }),
+            error_message: "array must have an odd number of elements".to_string(),
+            destructure_fn: None,
+        };
+
+        let rules = ValidationRules::new("odd_array").add_rule(ValidationRule::PatternGuard(guard));
+
+        // Length 3 → odd → passes.
+        assert!(rules.validate_array(&[1, 2, 3]).is_ok());
+        // Length 4 → even → fails.
+        assert!(rules.validate_array(&[1, 2, 3, 4]).is_err());
+    }
+
+    #[test]
+    fn test_pattern_guard_error_message_propagated() {
+        let expected_reason = "value must be the answer to everything";
+        let guard = PatternGuardRule {
+            pattern_name: "answer".to_string(),
+            guard_fn: Box::new(|value: &dyn std::any::Any| {
+                if let Some(v) = value.downcast_ref::<f64>() {
+                    Ok((*v - 42.0).abs() < f64::EPSILON)
+                } else {
+                    Ok(false)
+                }
+            }),
+            error_message: expected_reason.to_string(),
+            destructure_fn: None,
+        };
+
+        let rules =
+            ValidationRules::new("cosmic_number").add_rule(ValidationRule::PatternGuard(guard));
+
+        // 42 passes.
+        assert!(rules.validate_numeric(&42.0f64).is_ok());
+
+        // Any other value fails and propagates the error message.
+        let err = rules.validate_numeric(&7.0f64).expect_err("7 is not 42");
+        assert!(err.to_string().contains(expected_reason));
     }
 }

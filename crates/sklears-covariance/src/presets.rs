@@ -94,7 +94,7 @@ impl CovariancePresets {
     }
 
     /// Group sparse estimation for structured features
-    pub fn group_sparse(groups: Vec<Vec<usize>>) -> GroupLassoCovariance {
+    pub fn group_sparse(_groups: Vec<Vec<usize>>) -> GroupLassoCovariance {
         GroupLassoCovariance::new()
             .alpha(0.1)
             .max_iter(1000)
@@ -185,7 +185,7 @@ impl Genomics {
     }
 
     /// Pathway analysis
-    pub fn pathways(pathway_groups: Vec<Vec<usize>>) -> GroupLassoCovariance {
+    pub fn pathways(_pathway_groups: Vec<Vec<usize>>) -> GroupLassoCovariance {
         GroupLassoCovariance::new()
             .alpha(0.05)
             .max_iter(2000)
@@ -286,8 +286,6 @@ impl PresetRecommendations {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_preset_creation() {

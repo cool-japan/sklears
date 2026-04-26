@@ -427,7 +427,7 @@ pub fn admm_isotonic_regression(
         .ok_or_else(|| SklearsError::NotFitted {
             operation: "admm_isotonic_regression".to_string(),
         })
-        .map(|v| v.clone())
+        .cloned()
 }
 
 #[allow(non_snake_case)]

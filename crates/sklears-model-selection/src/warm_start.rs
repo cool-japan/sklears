@@ -626,13 +626,8 @@ fn parameter_distance(p1: &ParameterValue, p2: &ParameterValue) -> f64 {
     match (p1, p2) {
         (ParameterValue::Float(v1), ParameterValue::Float(v2)) => (v1 - v2).abs(),
         (ParameterValue::Integer(v1), ParameterValue::Integer(v2)) => (*v1 - *v2).abs() as f64,
-        (ParameterValue::String(s1), ParameterValue::String(s2)) => {
-            if s1 == s2 {
-                0.0
-            } else {
-                1.0
-            }
-        }
+        (ParameterValue::String(s1), ParameterValue::String(s2)) if s1 == s2 => 0.0,
+        (ParameterValue::String(_), ParameterValue::String(_)) => 1.0,
         _ => 1.0, // Different types are maximally distant
     }
 }

@@ -4,10 +4,13 @@
 //! choose the best covariance estimator for given data characteristics, and ensemble
 //! methods that combine multiple estimators for improved robustness and accuracy.
 
-use scirs2_core::ndarray::{Array2, ArrayView2, Axis, NdFloat};
+use scirs2_core::ndarray::{Array2, ArrayView2, NdFloat};
 use sklears_core::error::{Result as SklResult, SklearsError};
 use std::collections::HashMap;
 use std::fmt::Debug;
+
+/// Type alias for custom stratification function
+type StratificationFn = Box<dyn Fn(&ArrayView2<f64>) -> Vec<usize> + Send + Sync>;
 
 /// Automatic model selection framework for covariance estimators
 #[derive(Debug, Clone)]
@@ -166,7 +169,7 @@ pub enum StratificationStrategy {
     /// Stratify by feature correlation structure
     Correlation,
     /// Custom stratification function
-    Custom(Box<dyn Fn(&ArrayView2<f64>) -> Vec<usize> + Send + Sync>),
+    Custom(StratificationFn),
 }
 
 impl std::fmt::Debug for StratificationStrategy {
@@ -256,7 +259,7 @@ pub struct OutlierInfo {
 }
 
 /// Correlation structure analysis
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CorrelationStructure {
     /// Block diagonal structure detected
     pub has_block_structure: bool,
@@ -300,11 +303,11 @@ pub enum MissingDataPattern {
 #[derive(Debug, Clone)]
 pub enum MissingDataMechanism {
     /// Missing Completely At Random
-    MCAR,
+    Mcar,
     /// Missing At Random
-    MAR,
+    Mar,
     /// Missing Not At Random
-    MNAR,
+    Mnar,
     /// Unknown mechanism
     Unknown,
 }
@@ -436,7 +439,7 @@ pub enum OutlierDetectionMethod {
         threshold: f64,
     },
     /// IQR based detection
-    IQR {
+    Iqr {
         multiplier: f64,
     },
     /// Isolation Forest
@@ -444,7 +447,7 @@ pub enum OutlierDetectionMethod {
         contamination: f64,
     },
     /// Local Outlier Factor
-    LOF {
+    Lof {
         n_neighbors: usize,
     },
     /// Mahalanobis distance
@@ -543,6 +546,12 @@ pub struct PerformanceComparison {
     pub effect_sizes: HashMap<(String, String), f64>,
     /// Ranking stability across CV folds
     pub ranking_stability: f64,
+}
+
+impl<F: NdFloat> Default for AutoCovarianceSelector<F> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: NdFloat> AutoCovarianceSelector<F> {
@@ -933,7 +942,7 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
         characteristics: &DataCharacteristics,
     ) -> bool {
         // Simplified suitability check
-        let rec = &candidate.recommended_for;
+        let _rec = &candidate.recommended_for;
 
         // Check sample size suitability
         if characteristics.n_samples < 10 || characteristics.n_features < 1 {
@@ -1192,8 +1201,6 @@ pub mod presets {
 
     /// Create a basic selector with common estimators
     pub fn basic_selector() -> AutoCovarianceSelector<f64> {
-        use crate::{EmpiricalCovariance, LedoitWolf};
-
         let mut selector = AutoCovarianceSelector::new();
 
         // Add empirical covariance
@@ -1367,24 +1374,12 @@ impl Default for OutlierInfo {
     }
 }
 
-impl Default for CorrelationStructure {
-    fn default() -> Self {
-        Self {
-            has_block_structure: false,
-            n_blocks: None,
-            is_sparse: false,
-            has_factor_structure: false,
-            n_factors: None,
-        }
-    }
-}
-
 impl Default for MissingDataInfo {
     fn default() -> Self {
         Self {
             missing_fraction: 0.0,
             pattern: MissingDataPattern::Complete,
-            mechanism: MissingDataMechanism::MCAR,
+            mechanism: MissingDataMechanism::Mcar,
         }
     }
 }

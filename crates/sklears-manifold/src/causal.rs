@@ -45,22 +45,22 @@
 //! // let fitted = discovery.fit(&data.view(), &()).unwrap();
 //! ```
 
-use scirs2_core::essentials::{Normal, Uniform};
 use scirs2_linalg::compat::ArrayLinalgExt;
 
-use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
 use scirs2_core::random::thread_rng;
-use scirs2_core::Distribution;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
     types::Float,
 };
-use std::collections::{HashMap, HashSet};
 
 // ================================================================================================
 // Causal Graph Representation
 // ================================================================================================
+
+/// Type alias for fitted structural equation parameters (coefficients, intercepts, noise_std)
+type SEMParams = (Vec<Array1<Float>>, Array1<Float>, Array1<Float>);
 
 /// Causal Graph (Directed Acyclic Graph)
 ///
@@ -88,10 +88,10 @@ impl CausalGraph {
     /// Add a directed edge from i to j (i causes j)
     pub fn add_edge(&mut self, from: usize, to: usize) -> Result<(), String> {
         if from >= self.n_variables || to >= self.n_variables {
-            return Err(format!("Invalid node index"));
+            return Err("Invalid node index".to_string());
         }
         if from == to {
-            return Err(format!("Self-loops not allowed"));
+            return Err("Self-loops not allowed".to_string());
         }
         self.edges[from][to] = true;
         Ok(())
@@ -152,10 +152,10 @@ impl CausalGraph {
         }
 
         let mut in_degree = vec![0; self.n_variables];
-        for i in 0..self.n_variables {
-            for j in 0..self.n_variables {
+        for (j, count) in in_degree.iter_mut().enumerate() {
+            for i in 0..self.n_variables {
                 if self.edges[i][j] {
-                    in_degree[j] += 1;
+                    *count += 1;
                 }
             }
         }
@@ -248,6 +248,7 @@ impl CausalDiscovery<Untrained> {
     }
 
     /// Test conditional independence using partial correlation
+    #[allow(non_snake_case)] // standard ML notation
     fn conditional_independence_test(
         &self,
         X: &ArrayView2<Float>,
@@ -272,6 +273,7 @@ impl CausalDiscovery<Untrained> {
     }
 
     /// Compute correlation between variables i and j
+    #[allow(non_snake_case)] // standard ML notation
     fn correlation(&self, X: &ArrayView2<Float>, i: usize, j: usize) -> Float {
         let xi = X.column(i);
         let xj = X.column(j);
@@ -299,6 +301,7 @@ impl CausalDiscovery<Untrained> {
     }
 
     /// Discover causal structure using PC algorithm (simplified)
+    #[allow(non_snake_case)] // standard ML notation
     fn discover_structure(&self, X: &ArrayView2<Float>) -> SklResult<CausalGraph> {
         let n_vars = X.ncols();
         let mut graph = CausalGraph::new(n_vars);
@@ -377,7 +380,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for CausalDiscovery<Untrained> {
 }
 
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for CausalDiscovery<CausalDiscoveryTrained> {
-    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
+    fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
         // Return adjacency matrix representation
         let n_vars = self.state.n_variables;
         let mut adj_matrix = Array2::zeros((n_vars, n_vars));
@@ -452,11 +455,12 @@ impl StructuralEquationModel<Untrained> {
     }
 
     /// Fit structural equations
+    #[allow(non_snake_case)] // standard ML notation
     fn fit_structural_equations(
         &self,
         X: &ArrayView2<Float>,
         graph: &CausalGraph,
-    ) -> SklResult<(Vec<Array1<Float>>, Array1<Float>, Array1<Float>)> {
+    ) -> SklResult<SEMParams> {
         let n_vars = X.ncols();
         let n_samples = X.nrows();
 
@@ -665,12 +669,14 @@ impl CausalEmbedding<Untrained> {
     }
 
     /// Learn causal-aware embeddings
+    #[allow(non_snake_case)] // standard ML notation
     fn learn_embeddings(
         &self,
         X: &ArrayView2<Float>,
         graph: &CausalGraph,
     ) -> SklResult<Array2<Float>> {
-        let n_vars = X.ncols();
+        let _n_vars = X.ncols();
+        let _graph = graph;
 
         // Use SVD for initial embedding
         let svd = X
@@ -681,7 +687,7 @@ impl CausalEmbedding<Untrained> {
         let vt = svd.2;
 
         let k = self.embedding_dim.min(vt.nrows());
-        let mut embeddings = vt.slice(s![..k, ..]).t().to_owned();
+        let embeddings = vt.slice(s![..k, ..]).t().to_owned();
 
         // Adjust embeddings to respect causal structure (simplified)
         // In practice, would use more sophisticated methods

@@ -162,21 +162,31 @@ pub struct SchedulerConfig {
 /// such as fairness, throughput, latency, or resource utilization.
 #[derive(Debug, Clone)]
 pub enum SchedulingAlgorithm {
+    /// Variant value.
     FIFO,
 
+    /// Variant value.
     LIFO,
 
+    /// Variant value.
     Priority,
 
+    /// Variant value.
     ShortestJobFirst,
 
+    /// Variant value.
     FairShare,
 
+    /// Variant value.
     WorkConservingCFS,
 
+    /// Variant value.
     MultiLevelFeedback {
+        /// The levels.
         levels: usize,
+        /// The time quantum.
         time_quantum: Duration,
+        /// The aging factor.
         aging_factor: f64,
     },
 
@@ -188,13 +198,17 @@ pub enum SchedulingAlgorithm {
 
     /// Machine learning optimized scheduling
     MLOptimized {
+        /// The model type.
         model_type: String,
+        /// The learning rate.
         learning_rate: f64,
     },
 
     /// Custom scheduling algorithm
     Custom {
+        /// The algorithm name.
         algorithm_name: String,
+        /// The parameters.
         parameters: HashMap<String, String>,
     },
 }
@@ -242,10 +256,16 @@ pub enum QueueOverflowStrategy {
     Reject,
 
     /// Spill to external storage
-    Spill { storage_path: String },
+    Spill {
+        /// The storage path.
+        storage_path: String,
+    },
 
     /// Scale queue size dynamically
-    DynamicScale { max_scale_factor: f64 },
+    DynamicScale {
+        /// The max scale factor.
+        max_scale_factor: f64,
+    },
 }
 
 /// Queue persistence options
@@ -256,20 +276,27 @@ pub enum QueuePersistence {
 
     /// Persistent disk-based storage
     Disk {
+        /// The path.
         path: String,
+        /// The sync interval.
         sync_interval: Duration,
     },
 
     /// Hybrid approach with memory and disk
     Hybrid {
+        /// The memory limit.
         memory_limit: usize,
+        /// The disk path.
         disk_path: String,
+        /// The spill threshold.
         spill_threshold: f64,
     },
 
     /// Database-backed persistence
     Database {
+        /// The connection string.
         connection_string: String,
+        /// The table name.
         table_name: String,
     },
 }
@@ -290,7 +317,10 @@ pub enum QueuePartitioning {
     ByResourceRequirements,
 
     /// Custom partitioning scheme
-    Custom { scheme_name: String },
+    Custom {
+        /// The scheme name.
+        scheme_name: String,
+    },
 }
 
 /// Queue compaction configuration
@@ -322,7 +352,10 @@ pub enum CompactionStrategy {
     OptimizeOrder,
 
     /// Custom compaction logic
-    Custom { strategy_name: String },
+    Custom {
+        /// The strategy name.
+        strategy_name: String,
+    },
 }
 
 /// Queue rebalancing configuration
@@ -354,7 +387,10 @@ pub enum RebalancingStrategy {
     PriorityAware,
 
     /// Custom rebalancing logic
-    Custom { strategy_name: String },
+    Custom {
+        /// The strategy name.
+        strategy_name: String,
+    },
 }
 
 /// Priority handling configuration
@@ -387,25 +423,35 @@ pub enum AgingStrategy {
 
     /// Linear priority increase over time
     Linear {
+        /// The increment interval.
         increment_interval: Duration,
+        /// The increment amount.
         increment_amount: i32,
     },
 
     /// Exponential priority increase
     Exponential {
+        /// The base.
         base: f64,
+        /// The interval.
         interval: Duration,
+        /// The max boost.
         max_boost: i32,
     },
 
     /// Adaptive aging based on wait time
     Adaptive {
+        /// The threshold.
         threshold: Duration,
+        /// The boost factor.
         boost_factor: f64,
     },
 
     /// Custom aging algorithm
-    Custom { algorithm_name: String },
+    Custom {
+        /// The algorithm name.
+        algorithm_name: String,
+    },
 }
 
 /// Priority inversion handling strategies
@@ -437,7 +483,10 @@ pub enum PriorityInversionResolution {
     ResourceReallocation,
 
     /// Custom resolution logic
-    Custom { strategy_name: String },
+    Custom {
+        /// The strategy name.
+        strategy_name: String,
+    },
 }
 
 /// Dynamic priority adjustment configuration
@@ -529,7 +578,10 @@ pub enum GraphOptimizationAlgorithm {
     ResourceAware,
 
     /// Custom optimization algorithm
-    Custom { algorithm_name: String },
+    Custom {
+        /// The algorithm name.
+        algorithm_name: String,
+    },
 }
 
 /// Dependency caching configuration
@@ -560,7 +612,10 @@ pub enum CacheEvictionStrategy {
     /// TTL
     TTL,
     /// Custom
-    Custom { strategy_name: String },
+    Custom {
+        /// The strategy name.
+        strategy_name: String,
+    },
 }
 
 /// Load balancing configuration for distributed scheduling
@@ -589,7 +644,10 @@ pub enum LoadBalancingAlgorithm {
     RoundRobin,
 
     /// Weighted round-robin
-    WeightedRoundRobin { weights: Vec<f64> },
+    WeightedRoundRobin {
+        /// The weights.
+        weights: Vec<f64>,
+    },
 
     /// Least connections
     LeastConnections,
@@ -601,10 +659,16 @@ pub enum LoadBalancingAlgorithm {
     ResourceBased,
 
     /// Predictive scaling
-    PredictiveScaling { prediction_window: Duration },
+    PredictiveScaling {
+        /// The prediction window.
+        prediction_window: Duration,
+    },
 
     /// Custom load balancing
-    Custom { algorithm_name: String },
+    Custom {
+        /// The algorithm name.
+        algorithm_name: String,
+    },
 }
 
 /// Load balancer health check configuration
@@ -643,13 +707,19 @@ pub enum FailbackPolicy {
     Immediate,
 
     /// Delayed failback
-    Delayed { delay: Duration },
+    Delayed {
+        /// The delay.
+        delay: Duration,
+    },
 
     /// Manual failback only
     Manual,
 
     /// Load-based failback
-    LoadBased { threshold: f64 },
+    LoadBased {
+        /// The threshold.
+        threshold: f64,
+    },
 }
 
 /// Scheduler performance tuning configuration
@@ -710,7 +780,10 @@ pub enum CleanupStrategy {
     CompactStructures,
 
     /// Custom cleanup logic
-    Custom { strategy_name: String },
+    Custom {
+        /// The strategy name.
+        strategy_name: String,
+    },
 }
 
 /// Scheduler cache configuration
@@ -802,16 +875,28 @@ pub enum SchedulerHealth {
     Healthy,
 
     /// Scheduler overloaded but functional
-    Overloaded { queue_size: usize },
+    Overloaded {
+        /// The queue size.
+        queue_size: usize,
+    },
 
     /// Scheduler blocked or deadlocked
-    Blocked { reason: String },
+    Blocked {
+        /// The reason.
+        reason: String,
+    },
 
     /// Scheduler degraded performance
-    Degraded { performance_impact: f64 },
+    Degraded {
+        /// The performance impact.
+        performance_impact: f64,
+    },
 
     /// Scheduler failed
-    Failed { reason: String },
+    Failed {
+        /// The reason.
+        reason: String,
+    },
 }
 
 /// Scheduler performance metrics
@@ -985,6 +1070,7 @@ impl Default for SchedulerConfig {
 ///
 /// Provides a comprehensive scheduling implementation with configurable
 /// algorithms, priority handling, dependency resolution, and queue management.
+#[allow(dead_code)]
 pub struct DefaultTaskScheduler {
     /// Scheduler configuration
     config: SchedulerConfig,
@@ -1013,6 +1099,7 @@ pub struct DefaultTaskScheduler {
 
 /// Internal scheduler statistics
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct SchedulerStatistics {
     total_scheduled: u64,
     total_completed: u64,
@@ -1060,7 +1147,7 @@ impl DefaultTaskScheduler {
     fn generate_handle(&mut self, task: &ExecutionTask) -> TaskHandle {
         self.task_id_counter += 1;
 
-        /// TaskHandle
+        // TaskHandle
         TaskHandle {
             task_id: format!("{}_{}", task.id, self.task_id_counter),
             scheduled_at: SystemTime::now(),
@@ -1075,6 +1162,7 @@ impl DefaultTaskScheduler {
     }
 
     /// Check if task dependencies are satisfied
+    #[allow(dead_code)]
     fn dependencies_satisfied(&self, handle: &TaskHandle) -> bool {
         for dependency_id in &handle.dependencies {
             if let Some(dep_handle) = self.handles.get(dependency_id) {
@@ -1090,7 +1178,7 @@ impl DefaultTaskScheduler {
 
     /// Update queue positions for all tasks
     fn update_queue_positions(&mut self) {
-        for (priority, queue) in &mut self.queues {
+        for queue in self.queues.values_mut() {
             for (pos, (_, handle)) in queue.iter_mut().enumerate() {
                 handle.queue_position = Some(pos);
                 handle.last_updated = SystemTime::now();
@@ -1102,7 +1190,7 @@ impl DefaultTaskScheduler {
     fn apply_priority_aging(&mut self) {
         if let AgingStrategy::Linear {
             increment_interval,
-            increment_amount,
+            increment_amount: _,
         } = &self.config.priority_handling.aging_strategy
         {
             let now = SystemTime::now();
@@ -1129,6 +1217,7 @@ impl DefaultTaskScheduler {
     }
 
     /// Optimize task execution order
+    #[allow(dead_code)]
     fn optimize_execution_order(&mut self) -> SklResult<()> {
         // Placeholder for execution order optimization
         Ok(())
@@ -1244,7 +1333,7 @@ impl TaskScheduler for DefaultTaskScheduler {
 
                 (
                     priority.clone(),
-                    /// QueueStatistics
+                    // QueueStatistics
                     QueueStatistics {
                         task_count: queue.len(),
                         avg_wait_time,
@@ -1255,7 +1344,7 @@ impl TaskScheduler for DefaultTaskScheduler {
             })
             .collect();
 
-        /// SchedulerStatus
+        // SchedulerStatus
         SchedulerStatus {
             queued_tasks,
             running_tasks,
@@ -1300,7 +1389,7 @@ impl TaskScheduler for DefaultTaskScheduler {
         }
 
         // Find highest priority queue with ready tasks
-        for (priority, queue) in self.queues.iter_mut().rev() {
+        for (_priority, queue) in self.queues.iter_mut().rev() {
             if let Some((task, mut handle)) = queue.pop_front() {
                 // Check dependencies inline to avoid borrowing conflicts
                 let dependencies_satisfied = handle.dependencies.iter().all(|dep_id| {

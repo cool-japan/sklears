@@ -19,20 +19,15 @@ use std::marker::PhantomData;
 // ============================================
 
 /// Strategy for building nested dichotomies tree
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DichotomyStrategy {
     /// StdRng splits at each node
+    #[default]
     StdRng,
     /// Balanced splits (try to keep equal-sized subtrees)
     Balanced,
     /// Class-distance based splits (cluster similar classes)
     Distance,
-}
-
-impl Default for DichotomyStrategy {
-    fn default() -> Self {
-        Self::StdRng
-    }
 }
 
 /// Configuration for Nested Dichotomies Classifier
@@ -304,9 +299,10 @@ where
 // ============================================
 
 /// Strategy for selecting which class to partition at each step
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PartitioningStrategy {
     /// Select classes in order (0, 1, 2, ...)
+    #[default]
     Sequential,
     /// Select the class with the most samples
     MostFrequent,
@@ -314,12 +310,6 @@ pub enum PartitioningStrategy {
     LeastFrequent,
     /// StdRng selection
     StdRng,
-}
-
-impl Default for PartitioningStrategy {
-    fn default() -> Self {
-        Self::Sequential
-    }
 }
 
 /// Configuration for Recursive Binary Partitioning Classifier
@@ -1102,8 +1092,10 @@ pub struct TrainedHierarchical<C> {
     /// The class hierarchy
     hierarchy: ClassHierarchy,
     /// Configuration used for training
+    #[allow(dead_code)] // intentionally deferred: config retrieval not yet exposed
     config: HierarchicalConfig,
     /// Number of features seen during training
+    #[allow(dead_code)] // intentionally deferred: n_features not yet exposed
     n_features: usize,
 }
 
@@ -1636,6 +1628,7 @@ mod tests {
 
     // Mock classifier for testing
     #[derive(Debug, Clone)]
+    #[allow(dead_code)] // test helper struct
     struct MockClassifier {
         weights: Option<Array1<Float>>,
         intercept: Option<Float>,
@@ -1661,6 +1654,7 @@ mod tests {
     }
 
     #[derive(Debug, Clone)]
+    #[allow(dead_code)] // test helper struct
     struct MockClassifierTrained {
         weights: Array1<Float>,
         intercept: Float,
@@ -1684,6 +1678,7 @@ mod tests {
     }
 
     #[derive(Debug, Clone)]
+    #[allow(dead_code)] // test helper struct
     struct MockNativeClassifier {
         max_classes: Option<usize>,
     }
@@ -1797,7 +1792,9 @@ mod tests {
         let mut hierarchy = ClassHierarchy::new();
 
         // Root node
-        hierarchy.add_node(HierarchyNode::new(0, None, 0)).expect("operation should succeed");
+        hierarchy
+            .add_node(HierarchyNode::new(0, None, 0))
+            .expect("operation should succeed");
 
         // Level 1 nodes
         hierarchy
@@ -1835,10 +1832,14 @@ mod tests {
     fn test_hierarchy_path_to_leaf() {
         let hierarchy = create_simple_hierarchy();
 
-        let path = hierarchy.get_path_to_leaf(3).expect("operation should succeed");
+        let path = hierarchy
+            .get_path_to_leaf(3)
+            .expect("operation should succeed");
         assert_eq!(path, vec![0, 1, 3]);
 
-        let path = hierarchy.get_path_to_leaf(5).expect("operation should succeed");
+        let path = hierarchy
+            .get_path_to_leaf(5)
+            .expect("operation should succeed");
         assert_eq!(path, vec![0, 2, 5]);
     }
 

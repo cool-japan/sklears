@@ -11,7 +11,7 @@
 //! - [`BiasDetectionBaseline`] - Bias detection and measurement baseline
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{prelude::*, thread_rng, RngExt};
+use scirs2_core::random::{rngs::StdRng, thread_rng, Rng, RngExt, SeedableRng};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::error::SklearsError;
@@ -146,6 +146,7 @@ pub struct FairnessAwareBaseline {
 
 /// Fitted fairness-aware baseline
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct FittedFairnessAwareBaseline {
     strategy: FairnessStrategy,
     protected_attribute_columns: Vec<usize>,
@@ -157,6 +158,7 @@ pub struct FittedFairnessAwareBaseline {
 
 /// Demographic parity baseline estimator
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct DemographicParityBaseline {
     strategy: DemographicParityStrategy,
     protected_attribute_columns: Vec<usize>,
@@ -165,6 +167,7 @@ pub struct DemographicParityBaseline {
 
 /// Fitted demographic parity baseline
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct FittedDemographicParityBaseline {
     strategy: DemographicParityStrategy,
     protected_attribute_columns: Vec<usize>,
@@ -175,6 +178,7 @@ pub struct FittedDemographicParityBaseline {
 
 /// Equalized odds baseline estimator
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct EqualizedOddsBaseline {
     strategy: EqualizedOddsStrategy,
     protected_attribute_columns: Vec<usize>,
@@ -183,6 +187,7 @@ pub struct EqualizedOddsBaseline {
 
 /// Fitted equalized odds baseline
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct FittedEqualizedOddsBaseline {
     strategy: EqualizedOddsStrategy,
     protected_attribute_columns: Vec<usize>,
@@ -193,6 +198,7 @@ pub struct FittedEqualizedOddsBaseline {
 
 /// Individual fairness baseline estimator
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct IndividualFairnessBaseline {
     strategy: IndividualFairnessStrategy,
     sensitive_features: Vec<usize>,
@@ -201,6 +207,7 @@ pub struct IndividualFairnessBaseline {
 
 /// Fitted individual fairness baseline
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct FittedIndividualFairnessBaseline {
     strategy: IndividualFairnessStrategy,
     sensitive_features: Vec<usize>,
@@ -211,6 +218,7 @@ pub struct FittedIndividualFairnessBaseline {
 
 /// Bias detection baseline estimator
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct BiasDetectionBaseline {
     strategy: BiasDetectionStrategy,
     protected_attribute_columns: Vec<usize>,
@@ -219,6 +227,7 @@ pub struct BiasDetectionBaseline {
 
 /// Fitted bias detection baseline
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct FittedBiasDetectionBaseline {
     strategy: BiasDetectionStrategy,
     protected_attribute_columns: Vec<usize>,
@@ -462,7 +471,7 @@ impl Predict<Array2<f64>, Array1<i32>> for FittedFairnessAwareBaseline {
     fn predict(&self, x: &Array2<f64>) -> Result<Array1<i32>, SklearsError> {
         let mut predictions = Vec::with_capacity(x.nrows());
         let mut rng = self.random_state.map_or_else(
-            || Box::new(thread_rng()) as Box<dyn RngCore>,
+            || Box::new(thread_rng()) as Box<dyn Rng>,
             |seed| Box::new(StdRng::seed_from_u64(seed)),
         );
 
@@ -517,9 +526,8 @@ impl Predict<Array2<f64>, Array1<i32>> for FittedFairnessAwareBaseline {
                         // Apply adversarial debiasing
                         let adversarial_adjustment =
                             adversarial_weight * (0.5 - group_stats.outcome_rate);
-                        let adjusted_rate = (group_stats.outcome_rate + adversarial_adjustment)
-                            .max(0.0)
-                            .min(1.0);
+                        let adjusted_rate =
+                            (group_stats.outcome_rate + adversarial_adjustment).clamp(0.0, 1.0);
                         if rng.random::<f64>() < adjusted_rate {
                             1
                         } else {
@@ -685,7 +693,7 @@ impl Predict<Array2<f64>, Array1<i32>> for FittedDemographicParityBaseline {
     fn predict(&self, x: &Array2<f64>) -> Result<Array1<i32>, SklearsError> {
         let mut predictions = Vec::with_capacity(x.nrows());
         let mut rng = self.random_state.map_or_else(
-            || Box::new(thread_rng()) as Box<dyn RngCore>,
+            || Box::new(thread_rng()) as Box<dyn Rng>,
             |seed| Box::new(StdRng::seed_from_u64(seed)),
         );
 
@@ -702,7 +710,7 @@ impl Predict<Array2<f64>, Array1<i32>> for FittedDemographicParityBaseline {
                 self.group_outcome_rates.get(&group_key),
                 self.parity_adjustments.get(&group_key),
             ) {
-                let adjusted_rate = (group_rate + adjustment).max(0.0).min(1.0);
+                let adjusted_rate = (group_rate + adjustment).clamp(0.0, 1.0);
                 if rng.random::<f64>() < adjusted_rate {
                     1
                 } else {
@@ -752,7 +760,7 @@ mod tests {
         let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
-        assert!(fitted.group_statistics.len() > 0);
+        assert!(!fitted.group_statistics.is_empty());
     }
 
     #[test]
@@ -772,7 +780,7 @@ mod tests {
         let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
-        assert!(fitted.group_outcome_rates.len() > 0);
+        assert!(!fitted.group_outcome_rates.is_empty());
     }
 
     #[test]

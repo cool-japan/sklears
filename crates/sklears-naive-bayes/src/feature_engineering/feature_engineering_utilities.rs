@@ -383,7 +383,7 @@ impl StatisticalUtils {
     where
         T: Clone + Copy + Into<f64> + std::fmt::Debug,
     {
-        let covariance = Self::covariance_matrix(data)?;
+        let _covariance = Self::covariance_matrix(data)?;
 
         // Simplified eigendecomposition - return identity matrix as placeholder
         let (_, n_features) = data.dim();
@@ -411,7 +411,6 @@ impl StatisticalUtils {
         let mut importance = Array1::zeros(n_features);
 
         for j in 0..n_features {
-            let mut correlation = 0.0;
             let feature_mean: f64 =
                 (0..n_samples).map(|i| data[(i, j)].into()).sum::<f64>() / n_samples as f64;
             let target_mean: f64 =
@@ -430,7 +429,7 @@ impl StatisticalUtils {
             }
 
             if den_x > f64::EPSILON && den_y > f64::EPSILON {
-                correlation = num / (den_x.sqrt() * den_y.sqrt());
+                let correlation = num / (den_x.sqrt() * den_y.sqrt());
                 importance[j] = correlation.abs();
             }
         }
@@ -444,7 +443,7 @@ pub struct ValidationUtils;
 
 impl ValidationUtils {
     /// Check for missing values
-    pub fn has_missing_values<T>(data: &ArrayView2<T>) -> bool
+    pub fn has_missing_values<T>(_data: &ArrayView2<T>) -> bool
     where
         T: Clone + Copy + PartialEq + std::fmt::Debug,
     {
@@ -546,7 +545,7 @@ impl SamplingUtils {
     pub fn random_sample<T>(
         data: &ArrayView2<T>,
         n_samples: usize,
-        seed: Option<u64>,
+        _seed: Option<u64>,
     ) -> Result<Array2<T>>
     where
         T: Clone + Copy + Default + std::fmt::Debug,
@@ -604,7 +603,7 @@ impl SamplingUtils {
     pub fn bootstrap_sample<T>(
         data: &ArrayView2<T>,
         n_bootstrap: usize,
-        seed: Option<u64>,
+        _seed: Option<u64>,
     ) -> Result<Vec<Array2<T>>>
     where
         T: Clone + Copy + Default + std::fmt::Debug,
@@ -677,7 +676,7 @@ impl FeatureEngineeringUtils {
         data: &ArrayView2<T>,
         labels: &ArrayView1<T>,
         test_size: f64,
-        seed: Option<u64>,
+        _seed: Option<u64>,
     ) -> Result<TrainTestSplitGeneric<T>>
     where
         T: Clone + Copy + Default + std::fmt::Debug,

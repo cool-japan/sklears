@@ -160,7 +160,7 @@ impl MixedTypeFeatureExtractor {
                 let mut sorted = valid_values.clone();
                 sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let mid = sorted.len() / 2;
-                if sorted.len() % 2 == 0 {
+                if sorted.len().is_multiple_of(2) {
                     (sorted[mid - 1] + sorted[mid]) / 2.0
                 } else {
                     sorted[mid]
@@ -393,6 +393,7 @@ impl Estimator<Untrained> for MixedTypeFeatureExtractor {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl Fit<Array2<f64>, ()> for MixedTypeFeatureExtractor {
     type Fitted = FittedMixedTypeFeatureExtractor;
 
@@ -461,6 +462,7 @@ impl Fit<Array2<f64>, ()> for MixedTypeFeatureExtractor {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl Transform<Array2<f64>, Array2<f64>> for FittedMixedTypeFeatureExtractor {
     fn transform(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         self.extractor.transform_data(X)
@@ -486,13 +488,13 @@ impl Default for MixedTypeFeatureExtractor {
 /// use sklears_core::traits::Transform;
 /// use scirs2_core::ndarray::Array2;
 ///
-/// let data = Array2::from_shape_vec((100, 3), (0..300).map(|x| (x % 50) as f64).collect()).unwrap();
+/// let data = Array2::from_shape_vec((100, 3), (0..300).map(|x| (x % 50) as f64).collect()).expect("shape and data length match");
 /// let sketch = CountMinSketch::new()
 ///     .width(100)
 ///     .depth(5)
 ///     .include_frequency_statistics(true);
 ///
-/// let features = sketch.transform(&data.view()).unwrap();
+/// let features = sketch.transform(&data.view()).expect("valid input produces transform output");
 /// ```
 #[derive(Debug, Clone)]
 pub struct CountMinSketch {
@@ -575,6 +577,7 @@ impl CountMinSketch {
     }
 
     /// Estimate frequency of an item
+    #[allow(dead_code)] // estimate_frequency retained as public count-min sketch query API
     fn estimate_frequency(&self, sketch: &Array2<u32>, item: f64) -> u32 {
         let item_hash = (item * 1000.0) as u64;
         let mut min_count = u32::MAX;

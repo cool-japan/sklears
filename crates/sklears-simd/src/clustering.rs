@@ -179,11 +179,11 @@ pub fn update_centroids(
     );
 
     // Initialize centroids and counts
-    for i in 0..n_clusters {
-        if centroids[i].len() != n_features {
-            centroids[i] = vec![0.0; n_features];
+    for centroid in centroids.iter_mut().take(n_clusters) {
+        if centroid.len() != n_features {
+            *centroid = vec![0.0; n_features];
         } else {
-            centroids[i].fill(0.0);
+            centroid.fill(0.0);
         }
     }
 
@@ -229,10 +229,10 @@ fn update_centroids_scalar(
     }
 
     // Compute averages
-    for i in 0..n_clusters {
-        if counts[i] > 0 {
-            for j in 0..n_features {
-                centroids[i][j] /= counts[i] as f32;
+    for (centroid, &count) in centroids.iter_mut().zip(counts.iter()).take(n_clusters) {
+        if count > 0 {
+            for v in centroid.iter_mut() {
+                *v /= count as f32;
             }
         }
     }
@@ -529,7 +529,7 @@ fn silhouette_score_scalar(
     silhouette_scores: &mut [f32],
 ) {
     let n_samples = points.len();
-    let n_features = points[0].len();
+    let _n_features = points[0].len();
 
     for i in 0..n_samples {
         let cluster_i = assignments[i];
@@ -540,11 +540,11 @@ fn silhouette_score_scalar(
 
         for j in 0..n_samples {
             if i != j && assignments[j] == cluster_i {
-                let mut dist = 0.0;
-                for k in 0..n_features {
-                    let diff = points[i][k] - points[j][k];
-                    dist += diff * diff;
-                }
+                let dist: f32 = points[i]
+                    .iter()
+                    .zip(points[j].iter())
+                    .map(|(a, b)| (a - b).powi(2))
+                    .sum::<f32>();
                 intra_distance += dist.sqrt();
                 intra_count += 1;
             }
@@ -566,11 +566,11 @@ fn silhouette_score_scalar(
 
                 for j in 0..n_samples {
                     if assignments[j] == c {
-                        let mut dist = 0.0;
-                        for k in 0..n_features {
-                            let diff = points[i][k] - points[j][k];
-                            dist += diff * diff;
-                        }
+                        let dist: f32 = points[i]
+                            .iter()
+                            .zip(points[j].iter())
+                            .map(|(a, b)| (a - b).powi(2))
+                            .sum::<f32>();
                         inter_distance += dist.sqrt();
                         inter_count += 1;
                     }
@@ -862,18 +862,18 @@ pub fn dbscan_neighbors(
 
 fn dbscan_neighbors_scalar(points: &[&[f32]], eps_squared: f32, neighbors: &mut [Vec<usize>]) {
     let n_samples = points.len();
-    let n_features = points[0].len();
+    let _n_features = points[0].len();
 
     for i in 0..n_samples {
         neighbors[i].clear();
 
         for j in 0..n_samples {
             if i != j {
-                let mut dist_squared = 0.0;
-                for k in 0..n_features {
-                    let diff = points[i][k] - points[j][k];
-                    dist_squared += diff * diff;
-                }
+                let dist_squared: f32 = points[i]
+                    .iter()
+                    .zip(points[j].iter())
+                    .map(|(a, b)| (a - b).powi(2))
+                    .sum();
 
                 if dist_squared <= eps_squared {
                     neighbors[i].push(j);
@@ -1034,16 +1034,16 @@ fn hierarchical_linkage_distances_scalar(
     linkage: LinkageType,
 ) -> f32 {
     let n_features = points[0].len();
-    let mut distances = Vec::new();
+    let mut distances: Vec<f32> = Vec::new();
 
     // Compute all pairwise distances between clusters
     for &i in cluster1 {
         for &j in cluster2 {
-            let mut dist_squared = 0.0;
-            for k in 0..n_features {
-                let diff = points[i][k] - points[j][k];
-                dist_squared += diff * diff;
-            }
+            let dist_squared: f32 = points[i]
+                .iter()
+                .zip(points[j].iter())
+                .map(|(a, b)| (a - b).powi(2))
+                .sum();
             distances.push(dist_squared.sqrt());
         }
     }
@@ -1059,29 +1059,29 @@ fn hierarchical_linkage_distances_scalar(
 
             // Compute centroids
             for &i in cluster1 {
-                for j in 0..n_features {
-                    centroid1[j] += points[i][j];
+                for (c, &p) in centroid1.iter_mut().zip(points[i].iter()) {
+                    *c += p;
                 }
             }
-            for j in 0..n_features {
-                centroid1[j] /= cluster1.len() as f32;
+            for c in centroid1.iter_mut() {
+                *c /= cluster1.len() as f32;
             }
 
             for &i in cluster2 {
-                for j in 0..n_features {
-                    centroid2[j] += points[i][j];
+                for (c, &p) in centroid2.iter_mut().zip(points[i].iter()) {
+                    *c += p;
                 }
             }
-            for j in 0..n_features {
-                centroid2[j] /= cluster2.len() as f32;
+            for c in centroid2.iter_mut() {
+                *c /= cluster2.len() as f32;
             }
 
             // Compute distance between centroids
-            let mut dist_squared = 0.0;
-            for j in 0..n_features {
-                let diff = centroid1[j] - centroid2[j];
-                dist_squared += diff * diff;
-            }
+            let dist_squared: f32 = centroid1
+                .iter()
+                .zip(centroid2.iter())
+                .map(|(a, b)| (a - b).powi(2))
+                .sum();
 
             // Ward distance includes cluster sizes
             let n1 = cluster1.len() as f32;
@@ -1205,12 +1205,12 @@ mod tests {
 
     #[test]
     fn test_kmeans_distances() {
-        let p1 = vec![1.0, 2.0];
-        let p2 = vec![3.0, 4.0];
+        let p1 = [1.0, 2.0];
+        let p2 = [3.0, 4.0];
         let points = vec![&p1[..], &p2[..]];
 
-        let c1 = vec![0.0, 0.0];
-        let c2 = vec![2.0, 3.0];
+        let c1 = [0.0, 0.0];
+        let c2 = [2.0, 3.0];
         let centroids = vec![&c1[..], &c2[..]];
 
         let mut distances = vec![vec![]; 2];
@@ -1226,9 +1226,9 @@ mod tests {
 
     #[test]
     fn test_update_centroids() {
-        let p1 = vec![1.0, 2.0];
-        let p2 = vec![3.0, 4.0];
-        let p3 = vec![5.0, 6.0];
+        let p1 = [1.0, 2.0];
+        let p2 = [3.0, 4.0];
+        let p3 = [5.0, 6.0];
         let points = vec![&p1[..], &p2[..], &p3[..]];
 
         let assignments = vec![0, 1, 0]; // Points 1 and 3 in cluster 0, point 2 in cluster 1
@@ -1247,11 +1247,11 @@ mod tests {
 
     #[test]
     fn test_wcss() {
-        let p1 = vec![1.0, 1.0];
-        let p2 = vec![2.0, 2.0];
+        let p1 = [1.0, 1.0];
+        let p2 = [2.0, 2.0];
         let points = vec![&p1[..], &p2[..]];
 
-        let c1 = vec![0.0, 0.0];
+        let c1 = [0.0, 0.0];
         let centroids = vec![&c1[..]];
 
         let assignments = vec![0, 0]; // Both points assigned to cluster 0
@@ -1265,10 +1265,10 @@ mod tests {
     #[test]
     fn test_silhouette_score() {
         // Create two clear clusters
-        let p1 = vec![1.0, 1.0];
-        let p2 = vec![1.1, 1.1];
-        let p3 = vec![5.0, 5.0];
-        let p4 = vec![5.1, 5.1];
+        let p1 = [1.0, 1.0];
+        let p2 = [1.1, 1.1];
+        let p3 = [5.0, 5.0];
+        let p4 = [5.1, 5.1];
         let points = vec![&p1[..], &p2[..], &p3[..], &p4[..]];
 
         let assignments = vec![0, 0, 1, 1]; // Two clusters with 2 points each
@@ -1283,10 +1283,10 @@ mod tests {
     #[test]
     fn test_dbscan_neighbors() {
         // Create points in two clear clusters
-        let p1 = vec![1.0, 1.0];
-        let p2 = vec![1.1, 1.1];
-        let p3 = vec![5.0, 5.0];
-        let p4 = vec![5.1, 5.1];
+        let p1 = [1.0, 1.0];
+        let p2 = [1.1, 1.1];
+        let p3 = [5.0, 5.0];
+        let p4 = [5.1, 5.1];
         let points = vec![&p1[..], &p2[..], &p3[..], &p4[..]];
 
         let mut neighbors = vec![vec![]; 4];
@@ -1331,10 +1331,10 @@ mod tests {
 
     #[test]
     fn test_hierarchical_linkage_single() {
-        let p1 = vec![1.0, 1.0];
-        let p2 = vec![2.0, 2.0];
-        let p3 = vec![5.0, 5.0];
-        let p4 = vec![6.0, 6.0];
+        let p1 = [1.0, 1.0];
+        let p2 = [2.0, 2.0];
+        let p3 = [5.0, 5.0];
+        let p4 = [6.0, 6.0];
         let points = vec![&p1[..], &p2[..], &p3[..], &p4[..]];
 
         let cluster1 = vec![0, 1]; // Points 0 and 1
@@ -1351,10 +1351,10 @@ mod tests {
 
     #[test]
     fn test_hierarchical_linkage_complete() {
-        let p1 = vec![1.0, 1.0];
-        let p2 = vec![2.0, 2.0];
-        let p3 = vec![5.0, 5.0];
-        let p4 = vec![6.0, 6.0];
+        let p1 = [1.0, 1.0];
+        let p2 = [2.0, 2.0];
+        let p3 = [5.0, 5.0];
+        let p4 = [6.0, 6.0];
         let points = vec![&p1[..], &p2[..], &p3[..], &p4[..]];
 
         let cluster1 = vec![0, 1]; // Points 0 and 1
@@ -1371,9 +1371,9 @@ mod tests {
 
     #[test]
     fn test_hierarchical_linkage_average() {
-        let p1 = vec![0.0, 0.0];
-        let p2 = vec![1.0, 0.0];
-        let p3 = vec![3.0, 0.0];
+        let p1 = [0.0, 0.0];
+        let p2 = [1.0, 0.0];
+        let p3 = [3.0, 0.0];
         let points = vec![&p1[..], &p2[..], &p3[..]];
 
         let cluster1 = vec![0]; // Point 0
@@ -1390,9 +1390,9 @@ mod tests {
 
     #[test]
     fn test_hierarchical_linkage_ward() {
-        let p1 = vec![0.0, 0.0];
-        let p2 = vec![2.0, 0.0];
-        let p3 = vec![4.0, 0.0];
+        let p1 = [0.0, 0.0];
+        let p2 = [2.0, 0.0];
+        let p3 = [4.0, 0.0];
         let points = vec![&p1[..], &p2[..], &p3[..]];
 
         let cluster1 = vec![0]; // Point (0,0)

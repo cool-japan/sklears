@@ -25,15 +25,22 @@ pub struct AutoMLBenchmark {
 /// Benchmark dataset configuration
 #[derive(Debug, Clone)]
 pub struct BenchmarkDataset {
+    /// name
     pub name: String,
+    /// dataset_type
     pub dataset_type: DatasetType,
+    /// difficulty_level
     pub difficulty_level: DifficultyLevel,
+    /// X
     pub X: Array2<f64>,
+    /// y
     pub y: Array1<f64>,
+    /// characteristics
     pub characteristics: DataCharacteristics,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// DatasetType
 pub enum DatasetType {
     /// Synthetic
     Synthetic,
@@ -52,6 +59,7 @@ pub enum DatasetType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// DifficultyLevel
 pub enum DifficultyLevel {
     /// Easy
     Easy, // Well-separated features, low noise
@@ -64,6 +72,7 @@ pub enum DifficultyLevel {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// BenchmarkMetric
 pub enum BenchmarkMetric {
     /// Accuracy
     Accuracy,
@@ -85,79 +94,115 @@ pub enum BenchmarkMetric {
     FeatureReduction,
     /// ComputationalTime
     ComputationalTime,
+    /// MemoryUsage
     MemoryUsage,
+    /// FeatureStability
     FeatureStability,
 }
 
 /// Benchmark results for all methods and datasets
 #[derive(Debug, Clone)]
 pub struct BenchmarkResults {
+    /// overall_rankings
     pub overall_rankings: HashMap<AutoMLMethod, f64>,
+    /// detailed_results
     pub detailed_results: Vec<DetailedBenchmarkResults>,
+    /// performance_metrics
     pub performance_metrics: PerformanceMetrics,
+    /// improvement_ratios
     pub improvement_ratios: ImprovementRatios,
+    /// statistical_significance
     pub statistical_significance: HashMap<(AutoMLMethod, AutoMLMethod), f64>,
 }
 
 /// Performance metrics aggregated across all benchmarks
 #[derive(Debug, Clone)]
 pub struct PerformanceMetrics {
+    /// mean_accuracy
     pub mean_accuracy: HashMap<AutoMLMethod, f64>,
+    /// std_accuracy
     pub std_accuracy: HashMap<AutoMLMethod, f64>,
+    /// mean_feature_reduction
     pub mean_feature_reduction: HashMap<AutoMLMethod, f64>,
+    /// mean_computational_time
     pub mean_computational_time: HashMap<AutoMLMethod, f64>,
+    /// convergence_rate
     pub convergence_rate: HashMap<AutoMLMethod, f64>,
 }
 
 /// Improvement ratios compared to baseline methods
 #[derive(Debug, Clone)]
 pub struct ImprovementRatios {
+    /// accuracy_improvement
     pub accuracy_improvement: HashMap<AutoMLMethod, f64>,
+    /// speed_improvement
     pub speed_improvement: HashMap<AutoMLMethod, f64>,
+    /// memory_improvement
     pub memory_improvement: HashMap<AutoMLMethod, f64>,
+    /// stability_improvement
     pub stability_improvement: HashMap<AutoMLMethod, f64>,
 }
 
 /// Detailed results for a specific method-dataset combination
 #[derive(Debug, Clone)]
 pub struct DetailedBenchmarkResults {
+    /// method
     pub method: AutoMLMethod,
+    /// dataset_name
     pub dataset_name: String,
+    /// scores
     pub scores: HashMap<BenchmarkMetric, f64>,
+    /// method_comparison
     pub method_comparison: MethodComparison,
+    /// optimization_details
     pub optimization_details: OptimizationDetails,
+    /// error_analysis
     pub error_analysis: ErrorAnalysis,
+    /// evaluation_time
     pub evaluation_time: Duration,
 }
 
 /// Comparison between methods on the same dataset
 #[derive(Debug, Clone)]
 pub struct MethodComparison {
+    /// relative_performance
     pub relative_performance: f64,
+    /// rank
     pub rank: usize,
+    /// confidence_interval
     pub confidence_interval: (f64, f64),
+    /// statistical_significance
     pub statistical_significance: f64,
 }
 
 /// Optimization process details
 #[derive(Debug, Clone)]
 pub struct OptimizationDetails {
+    /// iterations_used
     pub iterations_used: usize,
+    /// convergence_achieved
     pub convergence_achieved: bool,
+    /// hyperparameter_history
     pub hyperparameter_history: Vec<HashMap<String, f64>>,
+    /// score_history
     pub score_history: Vec<f64>,
 }
 
 /// Error analysis and diagnostics
 #[derive(Debug, Clone)]
 pub struct ErrorAnalysis {
+    /// bias
     pub bias: f64,
+    /// variance
     pub variance: f64,
+    /// overfitting_score
     pub overfitting_score: f64,
+    /// feature_importance_stability
     pub feature_importance_stability: f64,
 }
 
 impl AutoMLBenchmark {
+    /// new
     pub fn new() -> Self {
         Self {
             datasets: Vec::new(),
@@ -180,26 +225,31 @@ impl AutoMLBenchmark {
         }
     }
 
+    /// add_dataset
     pub fn add_dataset(&mut self, dataset: BenchmarkDataset) {
         self.datasets.push(dataset);
     }
 
+    /// add_method
     pub fn add_method(&mut self, method: AutoMLMethod) {
         if !self.methods.contains(&method) {
             self.methods.push(method);
         }
     }
 
+    /// with_methods
     pub fn with_methods(mut self, methods: Vec<AutoMLMethod>) -> Self {
         self.methods = methods;
         self
     }
 
+    /// with_metrics
     pub fn with_metrics(mut self, metrics: Vec<BenchmarkMetric>) -> Self {
         self.metrics = metrics;
         self
     }
 
+    /// with_cv_folds
     pub fn with_cv_folds(mut self, folds: usize) -> Self {
         self.cross_validation_folds = folds;
         self

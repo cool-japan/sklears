@@ -14,6 +14,13 @@ use sklears_core::{
 };
 use std::collections::HashMap;
 
+/// Type alias for multi-modal initialization parameters result
+type ModalInitResult = SklResult<(
+    Array1<f64>,
+    HashMap<String, Array2<f64>>,
+    HashMap<String, Array3<f64>>,
+)>;
+
 /// Type of multi-modal data fusion strategy
 #[derive(Debug, Clone, PartialEq)]
 pub enum FusionStrategy {
@@ -244,6 +251,7 @@ impl Estimator<Trained> for MultiModalGaussianMixture<Trained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Fit<HashMap<String, Array2<f64>>, Option<Array1<usize>>>
     for MultiModalGaussianMixture<Untrained>
 {
@@ -295,16 +303,10 @@ impl Fit<HashMap<String, Array2<f64>>, Option<Array1<usize>>>
     }
 }
 
+#[allow(non_snake_case)]
 impl MultiModalGaussianMixture<Untrained> {
     /// Initialize parameters using K-means++ style initialization
-    fn initialize_parameters(
-        &self,
-        X: &HashMap<String, Array2<f64>>,
-    ) -> SklResult<(
-        Array1<f64>,
-        HashMap<String, Array2<f64>>,
-        HashMap<String, Array3<f64>>,
-    )> {
+    fn initialize_parameters(&self, X: &HashMap<String, Array2<f64>>) -> ModalInitResult {
         let n_samples = X.values().next().expect("sampling should succeed").nrows();
         let n_components = self.config.n_components;
 
@@ -382,8 +384,9 @@ impl MultiModalGaussianMixture<Untrained> {
             concatenated_features.push(X[&modality.name].clone());
         }
 
-        // Stack horizontally
+        // Stack horizontally — i indexes concatenated_features; range form is needed for starting at 1
         let mut combined_data = concatenated_features[0].clone();
+        #[allow(clippy::needless_range_loop)]
         for i in 1..concatenated_features.len() {
             let current_cols = combined_data.ncols();
             let new_cols = concatenated_features[i].ncols();
@@ -835,10 +838,9 @@ impl MultiModalGaussianMixture<Untrained> {
                             }
                             _ => {
                                 // Simplified diagonal covariance
+                                let last_cov_idx = covariances.dim().2 - 1;
                                 let log_det = (0..modality.n_features)
-                                    .map(|j| {
-                                        covariances[[k, j, 0.min(covariances.dim().2 - 1)]].ln()
-                                    })
+                                    .map(|j| covariances[[k, j, last_cov_idx.min(j)]].ln())
                                     .sum::<f64>();
                                 let inv_quad = diff.dot(&diff); // Simplified
                                 (log_det, inv_quad)
@@ -980,6 +982,7 @@ impl MultiModalGaussianMixture<Untrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<HashMap<String, Array2<f64>>, Array1<usize>> for MultiModalGaussianMixtureTrained {
     fn predict(&self, X: &HashMap<String, Array2<f64>>) -> SklResult<Array1<usize>> {
         let probabilities = self.predict_proba(X)?;
@@ -1003,6 +1006,7 @@ impl Predict<HashMap<String, Array2<f64>>, Array1<usize>> for MultiModalGaussian
     }
 }
 
+#[allow(non_snake_case)]
 impl MultiModalGaussianMixtureTrained {
     /// Predict class probabilities for multi-modal data
     pub fn predict_proba(&self, X: &HashMap<String, Array2<f64>>) -> SklResult<Array2<f64>> {

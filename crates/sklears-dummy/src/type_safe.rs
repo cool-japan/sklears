@@ -59,6 +59,7 @@ where
 
 /// Fitted classifier with type-safe state
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct TypeSafeFittedClassifier<Strategy>
 where
     Strategy: StrategyValid<Classification>,
@@ -70,6 +71,7 @@ where
 
 /// Fitted regressor with type-safe state
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct TypeSafeFittedRegressor<Strategy>
 where
     Strategy: StrategyValid<Regression>,
@@ -170,6 +172,7 @@ impl<S: StrategyValid<Regression>> EstimatorConfig for RegressionConfig<S> {
 
 /// Builder for type-safe dummy estimators with compile-time validation
 #[derive(Debug)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct TypeSafeEstimatorBuilder<Task, Strategy>
 where
     Task: TaskType,
@@ -329,7 +332,7 @@ where
         // Calculate median
         let mut sorted_targets = y.to_vec();
         sorted_targets.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
-        let target_median = if sorted_targets.len() % 2 == 0 {
+        let target_median = if sorted_targets.len().is_multiple_of(2) {
             let mid = sorted_targets.len() / 2;
             (sorted_targets[mid - 1] + sorted_targets[mid]) / 2.0
         } else {
@@ -370,7 +373,7 @@ where
             self.fitted_data
                 .class_counts
                 .iter()
-                .flat_map(|(&class, &count)| std::iter::repeat(class).take(count)),
+                .flat_map(|(&class, &count)| std::iter::repeat_n(class, count)),
         );
 
         let fitted_legacy = legacy_classifier.fit(&fake_x, &fake_y)?;
@@ -830,6 +833,7 @@ pub trait StrategyProperties {
 
 /// Enhanced type-safe estimator with statistical properties
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct StatisticallyTypedEstimator<State, Task, Strategy, Properties>
 where
     State: EstimatorState,
@@ -1146,13 +1150,13 @@ mod tests {
     #[test]
     fn test_const_generic_estimator() {
         // Most frequent classifier (ID = 0)
-        let classifier = ConstGenericEstimator::<Untrained, Classification, 0>::new();
+        let _classifier = ConstGenericEstimator::<Untrained, Classification, 0>::new();
         let strategy = ConstGenericEstimator::<Untrained, Classification, 0>::strategy();
 
         assert_eq!(format!("{:?}", strategy), "MostFrequent");
 
         // Mean regressor (ID = 10)
-        let regressor = ConstGenericEstimator::<Untrained, Regression, 10>::new();
+        let _regressor = ConstGenericEstimator::<Untrained, Regression, 10>::new();
         let reg_strategy = ConstGenericEstimator::<Untrained, Regression, 10>::strategy();
 
         assert_eq!(format!("{:?}", reg_strategy), "Mean");
@@ -1171,13 +1175,13 @@ mod tests {
     #[test]
     fn test_statistical_phantom() {
         // Test deterministic, stateless strategy
-        let phantom = SimpleDeterministicStrategy::new();
+        let _phantom = SimpleDeterministicStrategy::new();
         assert!(SimpleDeterministicStrategy::is_deterministic());
         assert!(SimpleDeterministicStrategy::is_stateless());
         assert!(!SimpleDeterministicStrategy::requires_fitting());
 
         // Test stochastic, fitted strategy
-        let stochastic = StochasticFittedStrategy::new();
+        let _stochastic = StochasticFittedStrategy::new();
         assert!(!StochasticFittedStrategy::is_deterministic());
         assert!(!StochasticFittedStrategy::is_stateless());
         assert!(StochasticFittedStrategy::requires_fitting());

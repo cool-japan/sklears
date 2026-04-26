@@ -442,7 +442,7 @@ impl BenchmarkSuite {
                 (None, None)
             };
 
-        let passed = relative_error.map_or(true, |err| err <= self.config.max_relative_error);
+        let passed = relative_error.is_none_or(|err| err <= self.config.max_relative_error);
 
         let mut metadata = HashMap::new();
         metadata.insert("data_size".to_string(), y_true.len() as f64);
@@ -520,7 +520,7 @@ impl BenchmarkSuite {
                 (None, None)
             };
 
-        let passed = relative_error.map_or(true, |err| err <= self.config.max_relative_error);
+        let passed = relative_error.is_none_or(|err| err <= self.config.max_relative_error);
 
         let mut metadata = HashMap::new();
         metadata.insert("data_size".to_string(), y_true.len() as f64);

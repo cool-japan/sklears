@@ -474,7 +474,7 @@ impl SklearnComparisonFramework {
         sorted_y.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = sorted_y.len();
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             (sorted_y[n / 2 - 1] + sorted_y[n / 2]) / 2.0
         } else {
             sorted_y[n / 2]

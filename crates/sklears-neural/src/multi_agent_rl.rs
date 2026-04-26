@@ -18,9 +18,9 @@
 //! - Rashid, T., et al. (2018). "QMIX: Monotonic Value Function Factorisation for Decentralised Multi-Agent Reinforcement Learning"
 
 use crate::NeuralResult;
-use scirs2_core::ndarray::{Array1, Array2, Array3, Axis, ScalarOperand};
-use scirs2_core::random::{thread_rng, CoreRandom, Rng, Uniform};
-use sklears_core::{error::SklearsError, types::FloatBounds};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ScalarOperand};
+use scirs2_core::random::thread_rng;
+use sklears_core::types::FloatBounds;
 use std::collections::VecDeque;
 
 #[cfg(feature = "serde")]
@@ -77,6 +77,7 @@ pub struct MultiAgentExperience<T: FloatBounds> {
 
 /// Multi-agent replay buffer
 #[derive(Debug)]
+#[allow(dead_code)] // n_agents retained for validation and future per-agent buffer partitioning
 pub struct MultiAgentReplayBuffer<T: FloatBounds> {
     /// Buffer storage
     buffer: VecDeque<MultiAgentExperience<T>>,
@@ -134,6 +135,7 @@ impl<T: FloatBounds> MultiAgentReplayBuffer<T> {
 
 /// Independent Q-Learning agent (IQL)
 #[derive(Debug)]
+#[allow(dead_code)] // State/agent dimension fields retained for agent architecture validation
 pub struct IndependentQLearner<T: FloatBounds> {
     /// Q-network weights for each agent
     agent_networks: Vec<Array2<T>>,
@@ -243,7 +245,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> Inde
             let gradient = state.mapv(|s| s * td_error * T::from(2.0).unwrap_or_else(|| T::zero()));
             let mut row = self.agent_networks[agent_idx].row_mut(action);
             for (w, &g) in row.iter_mut().zip(gradient.iter()) {
-                *w = *w + g * self.learning_rate;
+                *w += g * self.learning_rate;
             }
         }
 
@@ -252,7 +254,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> Inde
 
     /// Decay exploration rate
     pub fn decay_epsilon(&mut self, decay_rate: T) {
-        self.epsilon = self.epsilon * decay_rate;
+        self.epsilon *= decay_rate;
         let min_epsilon = T::from(0.01).unwrap_or_else(|| T::zero());
         if self.epsilon < min_epsilon {
             self.epsilon = min_epsilon;
@@ -311,7 +313,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> VDN<
 
         for (agent_idx, (state, &action)) in states.iter().zip(actions.iter()).enumerate() {
             let q_values = self.agent_networks[agent_idx].dot(state);
-            total_q = total_q + q_values[action];
+            total_q += q_values[action];
         }
 
         total_q
@@ -383,7 +385,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> VDN<
             let gradient = state.mapv(|s| s * td_error * T::from(2.0).unwrap_or_else(|| T::zero()));
             let mut row = self.agent_networks[agent_idx].row_mut(action);
             for (w, &g) in row.iter_mut().zip(gradient.iter()) {
-                *w = *w + g * self.learning_rate;
+                *w += g * self.learning_rate;
             }
         }
 
@@ -446,7 +448,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> QMIX
         });
 
         // First layer mixing
-        let agent_q_array = Array1::from(agent_q_values.iter().map(|&q| q).collect::<Vec<T>>());
+        let agent_q_array = Array1::from(agent_q_values.to_vec());
 
         let h = w1
             .iter()
@@ -464,6 +466,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> QMIX
 
 /// Multi-Agent Deep Deterministic Policy Gradient (MADDPG)
 #[derive(Debug)]
+#[allow(dead_code)] // Hyperparameter fields retained for policy gradient updates in future full implementation
 pub struct MADDPG<T: FloatBounds> {
     /// Actor networks (policy) for each agent
     actors: Vec<Array2<T>>,

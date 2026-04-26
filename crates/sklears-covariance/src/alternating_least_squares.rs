@@ -43,7 +43,7 @@ pub struct ALSCovariance<S = Untrained> {
 #[derive(Debug, Clone)]
 pub enum ALSInitMethod {
     Random,
-    SVD,
+    Svd,
     Normal,
 }
 
@@ -92,7 +92,7 @@ impl ALSCovariance<Untrained> {
             reg_param: 0.01,
             random_state: None,
             non_negative: false,
-            init_method: ALSInitMethod::SVD,
+            init_method: ALSInitMethod::Svd,
         }
     }
 
@@ -254,7 +254,7 @@ impl ALSCovariance<Untrained> {
         let (n_features, _) = matrix.dim();
 
         match self.init_method {
-            ALSInitMethod::SVD => self.initialize_svd(matrix),
+            ALSInitMethod::Svd => self.initialize_svd(matrix),
             ALSInitMethod::Random => self.initialize_random(n_features),
             ALSInitMethod::Normal => self.initialize_normal(n_features),
         }
@@ -534,7 +534,7 @@ impl ALSCovariance<ALSCovarianceTrained> {
 
     /// Transform data to factor space
     pub fn transform(&self, x: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         if n_features != self.state.left_factors.nrows() {
             return Err(SklearsError::FeatureMismatch {
@@ -550,7 +550,7 @@ impl ALSCovariance<ALSCovarianceTrained> {
 
     /// Reconstruct data from factor space
     pub fn inverse_transform(&self, factor_scores: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
-        let (n_samples, n_factors) = factor_scores.dim();
+        let (_n_samples, n_factors) = factor_scores.dim();
 
         if n_factors != self.state.n_factors {
             return Err(SklearsError::InvalidInput(format!(
@@ -579,7 +579,6 @@ impl ALSCovariance<ALSCovarianceTrained> {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::array;
-    use scirs2_linalg::compat::ArrayLinalgExt;
 
     #[test]
     fn test_als_covariance_basic() {
@@ -646,7 +645,7 @@ mod tests {
         ];
 
         for init_method in [
-            ALSInitMethod::SVD,
+            ALSInitMethod::Svd,
             ALSInitMethod::Random,
             ALSInitMethod::Normal,
         ] {
@@ -681,9 +680,9 @@ mod tests {
         assert_eq!(estimator.n_factors, 3);
         assert_eq!(estimator.max_iter, 200);
         assert_eq!(estimator.tol, 1e-8);
-        assert_eq!(estimator.assume_centered, true);
+        assert!(estimator.assume_centered);
         assert_eq!(estimator.reg_param, 0.05);
         assert_eq!(estimator.random_state, Some(42));
-        assert_eq!(estimator.non_negative, true);
+        assert!(estimator.non_negative);
     }
 }

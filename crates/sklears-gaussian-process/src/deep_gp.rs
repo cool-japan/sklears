@@ -33,8 +33,8 @@
 //! let x_train = array![[0.0], [1.0], [2.0], [3.0]];
 //! let y_train = array![0.0, 1.0, 0.5, 2.0];
 //!
-//! let trained_model = deep_gp.fit(&x_train, &y_train).unwrap();
-//! let predictions = trained_model.predict(&x_train).unwrap();
+//! let trained_model = deep_gp.fit(&x_train, &y_train).expect("fit should succeed with valid training data");
+//! let predictions = trained_model.predict(&x_train).expect("predict should succeed on trained model");
 //! ```
 
 use crate::kernels::Kernel;
@@ -963,7 +963,7 @@ mod tests {
             .max_epochs(50)
             .build();
 
-        assert_eq!(deep_gp.use_attention, true);
+        assert!(deep_gp.use_attention);
         assert_eq!(deep_gp.n_attention_heads, 2);
         assert_eq!(deep_gp.attention_dim, 32);
 
@@ -975,9 +975,9 @@ mod tests {
             .doubly_stochastic(32, 5)
             .build();
 
-        assert_eq!(deep_gp_combo.use_attention, true);
-        assert_eq!(deep_gp_combo.use_residual_connections, true);
-        assert_eq!(deep_gp_combo.use_doubly_stochastic, true);
+        assert!(deep_gp_combo.use_attention);
+        assert!(deep_gp_combo.use_residual_connections);
+        assert!(deep_gp_combo.use_doubly_stochastic);
     }
 
     #[test]

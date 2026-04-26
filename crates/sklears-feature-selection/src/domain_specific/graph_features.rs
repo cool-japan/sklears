@@ -90,15 +90,17 @@ type Result<T> = SklResult<T>;
 type Float = f64;
 
 #[derive(Debug, Clone)]
+/// Untrained
 pub struct Untrained;
 
 #[derive(Debug, Clone)]
+/// Trained
 pub struct Trained {
     selected_features: Vec<usize>,
-    feature_scores: Array1<Float>,
-    centrality_scores: Option<HashMap<String, Array1<Float>>>,
-    community_assignments: Option<Array1<usize>>,
-    structural_scores: Option<Array1<Float>>,
+    _feature_scores: Array1<Float>,
+    _centrality_scores: Option<HashMap<String, Array1<Float>>>,
+    _community_assignments: Option<Array1<usize>>,
+    _structural_scores: Option<Array1<Float>>,
     n_features: usize,
 }
 
@@ -190,6 +192,7 @@ impl Default for GraphFeatureSelectorBuilder {
 }
 
 impl GraphFeatureSelectorBuilder {
+    /// new
     pub fn new() -> Self {
         Self {
             include_centrality: true,
@@ -424,10 +427,10 @@ impl Fit<Array2<Float>, Array1<Float>> for GraphFeatureSelector<Untrained> {
 
         let trained_state = Trained {
             selected_features,
-            feature_scores: combined_scores,
-            centrality_scores,
-            community_assignments,
-            structural_scores,
+            _feature_scores: combined_scores,
+            _centrality_scores: centrality_scores,
+            _community_assignments: community_assignments,
+            _structural_scores: structural_scores,
             n_features,
         };
 

@@ -1,17 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(unused_mut)]
-#![allow(unused_assignments)]
-#![allow(unused_doc_comments)]
-#![allow(unused_parens)]
-#![allow(unused_comparisons)]
 //! Model inspection and interpretation tools
 //!
 //! This crate provides comprehensive tools for understanding and interpreting machine learning models,
@@ -371,6 +357,7 @@ pub fn create_feature_importance_data(
 }
 
 /// Utility function to compute feature statistics
+#[allow(non_snake_case)] // standard ML notation: X is feature matrix
 pub fn compute_feature_statistics(X: &ArrayView2<Float>) -> Vec<(Float, Float, Float, Float)> {
     let mut stats = Vec::new();
 
@@ -395,6 +382,7 @@ pub fn compute_feature_statistics(X: &ArrayView2<Float>) -> Vec<(Float, Float, F
 }
 
 /// Utility function to validate input dimensions
+#[allow(non_snake_case)] // standard ML notation: X is feature matrix, y is target
 pub fn validate_input_dimensions(X: &ArrayView2<Float>, y: &ArrayView1<Float>) -> SklResult<()> {
     if X.nrows() != y.len() {
         return Err(SklearsError::InvalidInput(

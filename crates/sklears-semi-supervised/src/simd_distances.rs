@@ -29,7 +29,7 @@
 //! ```
 
 use rayon::prelude::*;
-use scirs2_core::ndarray_ext::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray_ext::{Array2, ArrayView2};
 use sklears_core::error::{Result as SklResult, SklearsError};
 
 /// Convert f64 slice to f32 for SIMD processing
@@ -197,7 +197,7 @@ pub fn simd_pairwise_distances(
     X: &ArrayView2<f64>,
     metric: DistanceMetric,
 ) -> SklResult<Array2<f64>> {
-    let (n_samples, n_features) = X.dim();
+    let (n_samples, _n_features) = X.dim();
 
     // Use parallel processing for large matrices
     let use_parallel = n_samples > 100;
@@ -228,7 +228,7 @@ fn simd_pairwise_distances_serial(
     X: &ArrayView2<f64>,
     metric: DistanceMetric,
 ) -> SklResult<Array2<f64>> {
-    let (n_samples, n_features) = X.dim();
+    let (n_samples, _n_features) = X.dim();
     let mut distances = Array2::<f64>::zeros((n_samples, n_samples));
 
     for i in 0..n_samples {

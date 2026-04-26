@@ -14,6 +14,9 @@ use std::f64::consts::PI;
 
 use crate::common::{CovarianceType, ModelSelection};
 
+/// Type alias for mixture component parameters result
+type MixtureComponentsResult = SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)>;
+
 /// Student-t Mixture Model
 ///
 /// A mixture of multivariate Student-t distributions that provides robustness to outliers
@@ -45,8 +48,8 @@ use crate::common::{CovarianceType, ModelSelection};
 ///     .degrees_of_freedom(vec![3.0, 3.0])  // Heavy tails for robustness
 ///     .covariance_type(CovarianceType::Diagonal)
 ///     .max_iter(100);
-/// let fitted = model.fit(&X.view(), &()).unwrap();
-/// let labels = fitted.predict(&X.view()).unwrap();
+/// let fitted = model.fit(&X.view(), &()).expect("Student-t mixture fitting should succeed with valid data");
+/// let labels = fitted.predict(&X.view()).expect("prediction should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct StudentTMixture<S = Untrained> {
@@ -61,6 +64,7 @@ pub struct StudentTMixture<S = Untrained> {
     random_state: Option<u64>,
 }
 
+#[allow(non_snake_case, clippy::too_many_arguments)]
 impl StudentTMixture<Untrained> {
     /// Create a new StudentTMixture instance
     pub fn new() -> Self {
@@ -138,7 +142,7 @@ impl StudentTMixture<Untrained> {
         &self,
         X: &Array2<f64>,
         _seed: Option<u64>,
-    ) -> SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)> {
+    ) -> MixtureComponentsResult {
         let (n_samples, n_features) = X.dim();
 
         // Initialize weights uniformly
@@ -325,7 +329,7 @@ impl StudentTMixture<Untrained> {
         responsibilities: &Array2<f64>,
         means: &Array2<f64>,
         covariances: &[Array2<f64>],
-    ) -> SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)> {
+    ) -> MixtureComponentsResult {
         let (n_samples, n_features) = X.dim();
 
         // Update weights
@@ -870,9 +874,9 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>> for StudentTMixture<StudentTMix
     }
 }
 
+#[allow(non_snake_case)]
 impl StudentTMixture<StudentTMixtureTrained> {
     /// Predict class probabilities for samples
-    #[allow(non_snake_case)]
     pub fn predict_proba(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         let X = X.to_owned();
         let (n_samples, _) = X.dim();

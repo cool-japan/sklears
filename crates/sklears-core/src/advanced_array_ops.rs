@@ -260,11 +260,9 @@ impl MemoryOps {
         let chunk_size = chunk_size.unwrap_or(1024);
         let mut result = T::zero();
 
-        for (a_chunk, b_chunk) in a
-            .exact_chunks(chunk_size)
-            .into_iter()
-            .zip(b.exact_chunks(chunk_size).into_iter())
-        {
+        let a_chunks: Vec<_> = a.exact_chunks(chunk_size).into_iter().collect();
+        let b_chunks: Vec<_> = b.exact_chunks(chunk_size).into_iter().collect();
+        for (a_chunk, b_chunk) in a_chunks.iter().zip(b_chunks.iter()) {
             result += a_chunk
                 .iter()
                 .zip(b_chunk.iter())

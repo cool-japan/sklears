@@ -363,7 +363,7 @@ mod tests {
     fn test_categorical_nb_creation() {
         let nb = CategoricalNB::new();
         assert_eq!(nb.config.alpha, 1.0);
-        assert_eq!(nb.config.fit_prior, true);
+        assert!(nb.config.fit_prior);
     }
 
     #[test]

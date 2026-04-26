@@ -20,6 +20,7 @@ use super::{
 
 /// Main resource manager coordinating all resource allocation and management
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ResourceManager {
     /// Resource constraints configuration
     constraints: ResourceConstraints,
@@ -501,7 +502,7 @@ pub enum AllocationPriority {
 }
 
 /// Allocation constraints
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AllocationConstraints {
     /// NUMA affinity
     pub numa_affinity: Option<Vec<usize>>,
@@ -560,6 +561,7 @@ pub enum AllocationStatus {
 
 /// Resource usage tracking system
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ResourceUsageTracker {
     /// Usage history
     usage_history: VecDeque<ResourceUsageSnapshot>,
@@ -750,7 +752,7 @@ impl ResourceManager {
     /// Allocate resources for a task
     pub fn allocate_resources(
         &mut self,
-        requirements: &TaskRequirements,
+        _requirements: &TaskRequirements,
     ) -> SklResult<ResourceAllocation> {
         // Implementation placeholder - return a basic allocation
         let allocation_id = Uuid::new_v4().to_string();

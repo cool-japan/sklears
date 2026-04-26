@@ -21,6 +21,7 @@ pub struct PreprocessingIntegration {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// ScalerType
 pub enum ScalerType {
     /// StandardScaler
     StandardScaler,
@@ -33,10 +34,12 @@ pub enum ScalerType {
     /// QuantileNormal
     QuantileNormal,
 
+    /// None
     None,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// MissingValueStrategy
 pub enum MissingValueStrategy {
     /// Mean
     Mean,
@@ -53,33 +56,43 @@ pub enum MissingValueStrategy {
     /// Remove
     Remove,
     /// KNN
-    KNN { k: usize },
+    KNN {
+        /// k
+        k: usize,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// OutlierHandling
 pub enum OutlierHandling {
     /// IQR
     IQR {
+        /// multiplier
         multiplier: f64,
     },
     /// ZScore
     ZScore {
+        /// threshold
         threshold: f64,
     },
     /// Isolation
     Isolation,
     /// LocalOutlierFactor
     LocalOutlierFactor {
+        /// k
         k: usize,
     },
 
+    /// None
     None,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// FeatureEngineering
 pub enum FeatureEngineering {
     /// Polynomial
     Polynomial {
+        /// degree
         degree: usize,
     },
     /// Interaction
@@ -90,25 +103,41 @@ pub enum FeatureEngineering {
     FrequencyEncoding,
     /// BinDiscretization
     BinDiscretization {
+        /// bins
         bins: usize,
     },
 
+    /// None
     None,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// DimensionalityReduction
 pub enum DimensionalityReduction {
     /// PCA
-    PCA { n_components: usize },
+    PCA {
+        /// n_components
+        n_components: usize,
+    },
     /// ICA
-    ICA { n_components: usize },
+    ICA {
+        /// n_components
+        n_components: usize,
+    },
     /// TruncatedSVD
-    TruncatedSVD { n_components: usize },
+    TruncatedSVD {
+        /// n_components
+        n_components: usize,
+    },
     /// FactorAnalysis
-    FactorAnalysis { n_components: usize },
+    FactorAnalysis {
+        /// n_components
+        n_components: usize,
+    },
 }
 
 impl PreprocessingIntegration {
+    /// new
     pub fn new() -> Self {
         Self {
             scaler_type: ScalerType::StandardScaler,
@@ -119,26 +148,31 @@ impl PreprocessingIntegration {
         }
     }
 
+    /// with_scaler
     pub fn with_scaler(mut self, scaler_type: ScalerType) -> Self {
         self.scaler_type = scaler_type;
         self
     }
 
+    /// with_missing_value_strategy
     pub fn with_missing_value_strategy(mut self, strategy: MissingValueStrategy) -> Self {
         self.missing_value_strategy = strategy;
         self
     }
 
+    /// with_outlier_handling
     pub fn with_outlier_handling(mut self, handling: OutlierHandling) -> Self {
         self.outlier_handling = handling;
         self
     }
 
+    /// with_feature_engineering
     pub fn with_feature_engineering(mut self, engineering: FeatureEngineering) -> Self {
         self.feature_engineering = engineering;
         self
     }
 
+    /// with_dimensionality_reduction
     pub fn with_dimensionality_reduction(mut self, reduction: DimensionalityReduction) -> Self {
         self.dimensionality_reduction = Some(reduction);
         self
@@ -251,7 +285,7 @@ impl PreprocessingIntegration {
                     if !valid_values.is_empty() {
                         valid_values
                             .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
-                        let median = if valid_values.len() % 2 == 0 {
+                        let median = if valid_values.len().is_multiple_of(2) {
                             (valid_values[valid_values.len() / 2 - 1]
                                 + valid_values[valid_values.len() / 2])
                                 / 2.0
@@ -373,7 +407,7 @@ impl PreprocessingIntegration {
                     let mut values: Vec<f64> = X.column(col).to_vec();
                     values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
-                    let median = if values.len() % 2 == 0 {
+                    let median = if values.len().is_multiple_of(2) {
                         (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
                     } else {
                         values[values.len() / 2]

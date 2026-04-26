@@ -138,7 +138,7 @@ where
     }
 
     /// Get the coordinates as a view
-    pub fn coordinates(&self) -> ArrayView1<f64> {
+    pub fn coordinates(&self) -> ArrayView1<'_, f64> {
         self.coordinates.view()
     }
 
@@ -499,7 +499,7 @@ mod tests {
     #[test]
     fn test_point_creation() {
         let coords = array![1.0, 2.0, 3.0];
-        let point = Point::<Euclidean, 3>::new(coords).expect("operation should succeed");
+        let _point = Point::<Euclidean, 3>::new(coords).expect("operation should succeed");
 
         assert_eq!(Point::<Euclidean, 3>::dim(), 3);
         assert_eq!(Point::<Euclidean, 3>::space_name(), "Euclidean");
@@ -592,7 +592,7 @@ mod tests {
         let output_points =
             vec![EuclideanPoint2D::from_slice(&[1.0, 2.0]).expect("operation should succeed")];
 
-        let embedding =
+        let _embedding =
             Embedding::new(input_manifold, output_points).expect("operation should succeed");
         assert_eq!(Embedding::<Euclidean, 3, 2>::input_dim(), 3);
         assert_eq!(Embedding::<Euclidean, 3, 2>::output_dim(), 2);

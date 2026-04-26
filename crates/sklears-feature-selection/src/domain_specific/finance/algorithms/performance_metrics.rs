@@ -10,7 +10,7 @@ type Result<T> = SklResult<T>;
 type Float = f64;
 
 /// Compute feature returns (period-over-period changes)
-pub(crate) fn compute_feature_returns(feature: &ArrayView1<Float>) -> Vec<Float> {
+pub fn compute_feature_returns(feature: &ArrayView1<Float>) -> Vec<Float> {
     if feature.len() < 2 {
         return Vec::new();
     }
@@ -31,7 +31,7 @@ pub(crate) fn compute_feature_returns(feature: &ArrayView1<Float>) -> Vec<Float>
 }
 
 /// Compute volatility (standard deviation of returns)
-pub(crate) fn compute_volatility(returns: &[Float]) -> Float {
+pub fn compute_volatility(returns: &[Float]) -> Float {
     if returns.is_empty() {
         return 0.0;
     }
@@ -44,7 +44,7 @@ pub(crate) fn compute_volatility(returns: &[Float]) -> Float {
 }
 
 /// Compute tracking error relative to benchmark
-pub(crate) fn compute_tracking_error(returns: &[Float], benchmark: Float) -> Float {
+pub fn compute_tracking_error(returns: &[Float], benchmark: Float) -> Float {
     if returns.is_empty() {
         return 0.0;
     }
@@ -54,7 +54,7 @@ pub(crate) fn compute_tracking_error(returns: &[Float], benchmark: Float) -> Flo
 }
 
 /// Compute Sharpe ratios for all features
-pub(crate) fn compute_feature_sharpe_ratios(
+pub fn compute_feature_sharpe_ratios(
     x: &Array2<Float>,
     _y: &Array1<Float>,
 ) -> Result<Array1<Float>> {
@@ -84,10 +84,7 @@ pub(crate) fn compute_feature_sharpe_ratios(
 }
 
 /// Compute Information Ratios for all features
-pub(crate) fn compute_information_ratios(
-    x: &Array2<Float>,
-    y: &Array1<Float>,
-) -> Result<Array1<Float>> {
+pub fn compute_information_ratios(x: &Array2<Float>, y: &Array1<Float>) -> Result<Array1<Float>> {
     let n_features = x.ncols();
     let mut information_ratios = Array1::zeros(n_features);
 

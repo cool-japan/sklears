@@ -306,6 +306,7 @@ impl AutoMLAlgorithmSelector {
     }
 
     /// Analyze dataset characteristics
+    #[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
     pub fn analyze_dataset(&self, X: &Array2<f64>, y: &Array1<f64>) -> DatasetCharacteristics {
         let n_samples = X.nrows();
         let n_features = X.ncols();
@@ -351,6 +352,7 @@ impl AutoMLAlgorithmSelector {
     }
 
     /// Select best algorithms for the dataset
+    #[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
     pub fn select_algorithms(
         &self,
         X: &Array2<f64>,
@@ -1095,6 +1097,7 @@ impl AutoMLAlgorithmSelector {
     }
 
     /// Evaluate algorithms using cross-validation
+    #[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
     fn evaluate_algorithms(
         &self,
         algorithms: &[AlgorithmSpec],
@@ -1130,6 +1133,7 @@ impl AutoMLAlgorithmSelector {
     }
 
     /// Mock algorithm evaluation (replace with actual implementation)
+    #[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
     fn mock_evaluate_algorithm(
         &self,
         algorithm: &AlgorithmSpec,
@@ -1208,6 +1212,7 @@ impl AutoMLAlgorithmSelector {
     }
 
     /// Get baseline score for comparison
+    #[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
     fn get_baseline_score(&self, _X: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
         match self.config.task_type {
             TaskType::Classification => {
@@ -1266,18 +1271,21 @@ impl AutoMLAlgorithmSelector {
     }
 
     // Helper methods for dataset analysis
+    #[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
     fn calculate_missing_ratio(&self, X: &Array2<f64>) -> f64 {
         let total_values = X.len() as f64;
         let missing_count = X.iter().filter(|&&x| x.is_nan()).count() as f64;
         missing_count / total_values
     }
 
+    #[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
     fn calculate_sparsity(&self, X: &Array2<f64>) -> f64 {
         let total_values = X.len() as f64;
         let zero_count = X.iter().filter(|&&x| x == 0.0).count() as f64;
         zero_count / total_values
     }
 
+    #[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
     fn calculate_categorical_ratio(&self, X: &Array2<f64>) -> f64 {
         let n_features = X.ncols();
         if n_features == 0 {
@@ -1317,6 +1325,7 @@ impl AutoMLAlgorithmSelector {
         categorical_count as f64 / n_features as f64
     }
 
+    #[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
     fn calculate_correlation_condition_number(&self, _X: &Array2<f64>) -> f64 {
         // Mock implementation - would need actual correlation matrix computation
         //         use scirs2_core::random::Rng;
@@ -1356,6 +1365,7 @@ impl AutoMLAlgorithmSelector {
         }
     }
 
+    #[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
     fn estimate_linearity_score(&self, _X: &Array2<f64>, _y: &Array1<f64>) -> f64 {
         // Mock implementation - would need actual linearity testing
         //         use scirs2_core::random::Rng;
@@ -1363,6 +1373,7 @@ impl AutoMLAlgorithmSelector {
         rng.gen_range(0.0..1.0)
     }
 
+    #[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
     fn estimate_noise_level(&self, _X: &Array2<f64>, _y: &Array1<f64>) -> f64 {
         // Mock implementation - would need actual noise estimation
         //         use scirs2_core::random::Rng;
@@ -1370,6 +1381,7 @@ impl AutoMLAlgorithmSelector {
         rng.gen_range(0.0..0.5)
     }
 
+    #[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
     fn estimate_effective_dimensionality(&self, X: &Array2<f64>) -> Option<usize> {
         // Mock implementation - would need PCA analysis
         Some((X.ncols() as f64 * 0.8) as usize)
@@ -1377,6 +1389,7 @@ impl AutoMLAlgorithmSelector {
 }
 
 /// Convenience function for quick algorithm selection
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 pub fn select_best_algorithm(
     X: &Array2<f64>,
     y: &Array1<f64>,

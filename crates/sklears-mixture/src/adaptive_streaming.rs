@@ -122,7 +122,7 @@ impl Default for AdaptiveStreamingConfig {
 ///     .build();
 ///
 /// let X = array![[1.0, 2.0], [1.5, 2.5], [10.0, 11.0]];
-/// let fitted = model.fit(&X.view(), &()).unwrap();
+/// let fitted = model.fit(&X.view(), &()).expect("adaptive streaming GMM fitting should succeed with valid data");
 /// ```
 #[derive(Debug, Clone)]
 pub struct AdaptiveStreamingGMM<S = Untrained> {
@@ -324,30 +324,35 @@ impl AdaptiveStreamingGMM<AdaptiveStreamingGMMTrained> {
     }
 
     /// Check if a new component should be created
+    #[allow(dead_code)]
     fn should_create_component(&self, _x: &ArrayView1<'_, Float>) -> bool {
         // Placeholder - would check creation criterion
         false
     }
 
     /// Create a new component at the given location
+    #[allow(dead_code)]
     fn create_component(&mut self, _x: &ArrayView1<'_, Float>) -> SklResult<()> {
         // Placeholder - would add new component
         Ok(())
     }
 
     /// Check which components should be deleted
+    #[allow(dead_code)]
     fn components_to_delete(&self) -> Vec<usize> {
         // Placeholder - would check deletion criterion
         Vec::new()
     }
 
     /// Delete specified components
+    #[allow(dead_code)]
     fn delete_components(&mut self, _indices: &[usize]) -> SklResult<()> {
         // Placeholder - would remove components
         Ok(())
     }
 
     /// Detect concept drift
+    #[allow(dead_code)]
     fn detect_drift(&mut self, _log_likelihood: f64) -> bool {
         // Placeholder - would implement drift detection
         false
@@ -455,6 +460,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_adaptive_streaming_gmm_fit() {
         let X = array![[1.0, 2.0], [1.5, 2.5], [10.0, 11.0]];
 

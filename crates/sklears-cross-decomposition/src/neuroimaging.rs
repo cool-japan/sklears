@@ -4,11 +4,8 @@
 //! for neuroimaging data analysis, including functional connectivity analysis,
 //! brain-behavior correlation, and multi-modal brain imaging integration.
 
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, Axis};
-use sklears_core::{
-    error::SklearsError,
-    traits::{Fit, Predict},
-};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3};
+use sklears_core::error::SklearsError;
 
 /// Functional Connectivity Analysis using Cross-Decomposition
 ///
@@ -98,7 +95,7 @@ impl FunctionalConnectivity {
 
     /// Set overlap ratio for sliding windows
     pub fn overlap_ratio(mut self, ratio: f64) -> Self {
-        self.overlap_ratio = ratio.max(0.0).min(1.0);
+        self.overlap_ratio = ratio.clamp(0.0, 1.0);
         self
     }
 
@@ -480,7 +477,7 @@ impl FunctionalConnectivity {
         for i in 0..matrix.nrows() {
             for j in 0..matrix.ncols() {
                 if i != j {
-                    let r = matrix[[i, j]].max(-0.999).min(0.999); // Avoid numerical issues
+                    let r = matrix[[i, j]].clamp(-0.999, 0.999); // Avoid numerical issues
                     transformed[[i, j]] = 0.5 * ((1.0 + r) / (1.0 - r)).ln();
                 }
             }
@@ -982,6 +979,7 @@ impl BrainBehaviorCorrelation {
         Ok(standardized)
     }
 
+    #[allow(clippy::type_complexity)] // returns (brain_weights, behavior_weights, correlations) triple
     fn perform_cca(
         &self,
         brain_data: &Array2<f64>,
@@ -1004,6 +1002,7 @@ impl BrainBehaviorCorrelation {
         Ok((weights_brain, weights_behavior, canonical_correlations))
     }
 
+    #[allow(clippy::type_complexity)] // returns (brain_weights, behavior_weights, correlations) triple
     fn perform_pls(
         &self,
         brain_data: &Array2<f64>,
@@ -1026,6 +1025,7 @@ impl BrainBehaviorCorrelation {
         Ok((weights_brain, weights_behavior, canonical_correlations))
     }
 
+    #[allow(clippy::type_complexity)] // returns (brain_weights, behavior_weights, correlations) triple
     fn perform_ridge(
         &self,
         brain_data: &Array2<f64>,
@@ -1048,6 +1048,7 @@ impl BrainBehaviorCorrelation {
         Ok((weights_brain, weights_behavior, canonical_correlations))
     }
 
+    #[allow(clippy::type_complexity)] // returns (brain_weights, behavior_weights, correlations) triple
     fn perform_elastic_net(
         &self,
         brain_data: &Array2<f64>,
@@ -1139,7 +1140,7 @@ impl BrainBehaviorCorrelation {
                 // Permute behavior data
                 let mut permuted_behavior = behavior_data.clone();
                 for i in 0..behavior_data.nrows() {
-                    let perm_idx = ((i + perm * 7) % behavior_data.nrows()) as usize;
+                    let perm_idx = (i + perm * 7) % behavior_data.nrows();
                     permuted_behavior
                         .row_mut(i)
                         .assign(&behavior_data.row(perm_idx));

@@ -9,10 +9,13 @@
 //! These models can handle multiple target variables simultaneously,
 //! potentially leveraging correlations between targets for improved performance.
 
+// The nalgebra-tests feature is intentionally not declared in Cargo.toml —
+// it exists only as a gate for legacy test code that predates the ndarray migration.
+#![allow(unexpected_cfgs)]
+
 use crate::errors::{LinearModelError, OptimizationError, OptimizationErrorKind};
-use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_linalg::compat::ArrayLinalgExt;
-use std::ops::AddAssign;
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_linalg::compat::svd;
 
 /// Helper function to create OptimizationError instances
 fn optimization_error(
@@ -181,6 +184,8 @@ impl MultiOutputRegression {
     }
 
     /// Fit the model to training data
+    #[allow(non_snake_case)]
+    #[allow(clippy::result_large_err)]
     pub fn fit(&mut self, X: &Array2<f64>, Y: &Array2<f64>) -> Result<(), LinearModelError> {
         let n_samples = X.nrows();
         let n_features = X.ncols();
@@ -198,37 +203,70 @@ impl MultiOutputRegression {
         self.n_targets = Some(n_targets);
 
         // Center data if fitting intercept
-        let (X_centered, Y_centered, X_mean, Y_mean) = if self.config.fit_intercept {
-            let X_mean_row = X.column_mean();
-            let Y_mean_row = Y.column_mean();
+        let (x_centered, y_centered, x_mean_opt, y_mean_opt) = if self.config.fit_intercept {
+            let x_mean = X.mean_axis(Axis(0)).ok_or_else(|| {
+                optimization_error(
+                    OptimizationErrorKind::InvalidProblemDimensions,
+                    "MultiOutputRegression",
+                    "Cannot compute column means of X (empty matrix?)",
+                )
+            })?;
+            let y_mean = Y.mean_axis(Axis(0)).ok_or_else(|| {
+                optimization_error(
+                    OptimizationErrorKind::InvalidProblemDimensions,
+                    "MultiOutputRegression",
+                    "Cannot compute column means of Y (empty matrix?)",
+                )
+            })?;
 
-            // Convert to column vectors for proper matrix operations
-            let X_mean = DVector::from_iterator(n_features, X_mean_row.iter().cloned());
-            let Y_mean = DVector::from_iterator(n_targets, Y_mean_row.iter().cloned());
+            // Broadcast mean rows across all samples
+            let x_mean_mat = x_mean
+                .view()
+                .insert_axis(Axis(0))
+                .broadcast((n_samples, n_features))
+                .ok_or_else(|| {
+                    optimization_error(
+                        OptimizationErrorKind::InvalidProblemDimensions,
+                        "MultiOutputRegression",
+                        "Broadcast of X mean failed",
+                    )
+                })?
+                .to_owned();
+            let y_mean_mat = y_mean
+                .view()
+                .insert_axis(Axis(0))
+                .broadcast((n_samples, n_targets))
+                .ok_or_else(|| {
+                    optimization_error(
+                        OptimizationErrorKind::InvalidProblemDimensions,
+                        "MultiOutputRegression",
+                        "Broadcast of Y mean failed",
+                    )
+                })?
+                .to_owned();
 
-            // Create matrices with repeated means for subtraction
-            let X_mean_matrix = DMatrix::from_fn(n_samples, n_features, |_, j| X_mean[j]);
-            let Y_mean_matrix = DMatrix::from_fn(n_samples, n_targets, |_, j| Y_mean[j]);
-
-            let X_centered = X - X_mean_matrix;
-            let Y_centered = Y - Y_mean_matrix;
-            (X_centered, Y_centered, Some(X_mean), Some(Y_mean))
+            let xc = X - &x_mean_mat;
+            let yc = Y - &y_mean_mat;
+            (xc, yc, Some(x_mean), Some(y_mean))
         } else {
             (X.clone(), Y.clone(), None, None)
         };
 
         // Fit model based on strategy
         let result = match self.config.strategy {
-            MultiOutputStrategy::Independent => self.fit_independent(&X_centered, &Y_centered)?,
-            MultiOutputStrategy::Joint => self.fit_joint(&X_centered, &Y_centered)?,
-            MultiOutputStrategy::Chain => self.fit_chain(&X_centered, &Y_centered)?,
-            MultiOutputStrategy::ReducedRank => self.fit_reduced_rank(&X_centered, &Y_centered)?,
+            MultiOutputStrategy::Independent => self.fit_independent(&x_centered, &y_centered)?,
+            MultiOutputStrategy::Joint => self.fit_joint(&x_centered, &y_centered)?,
+            MultiOutputStrategy::Chain => self.fit_chain(&x_centered, &y_centered)?,
+            MultiOutputStrategy::ReducedRank => self.fit_reduced_rank(&x_centered, &y_centered)?,
         };
 
         // Compute intercept if needed
-        let intercept = if let (Some(x_mean), Some(y_mean)) = (X_mean, Y_mean) {
-            let pred_mean = result.coefficients.transpose() * x_mean;
-            Some(y_mean - pred_mean)
+        // intercept = y_mean - W^T * x_mean
+        let intercept = if let (Some(xm), Some(ym)) = (x_mean_opt, y_mean_opt) {
+            // result.coefficients is (n_features x n_targets)
+            // W^T * x_mean → shape (n_targets,)
+            let pred_mean = result.coefficients.t().dot(&xm);
+            Some(ym - pred_mean)
         } else {
             None
         };
@@ -248,6 +286,8 @@ impl MultiOutputRegression {
     }
 
     /// Predict using the fitted model
+    #[allow(non_snake_case)]
+    #[allow(clippy::result_large_err)]
     pub fn predict(&self, X: &Array2<f64>) -> Result<Array2<f64>, LinearModelError> {
         let result = self.result.as_ref().ok_or_else(|| {
             optimization_error(
@@ -273,12 +313,14 @@ impl MultiOutputRegression {
             ));
         }
 
-        let mut predictions = X * &result.coefficients;
+        // X is (n_samples x n_features), coefficients is (n_features x n_targets)
+        // predictions is (n_samples x n_targets)
+        let mut predictions = X.dot(&result.coefficients);
 
         if let Some(intercept) = &result.intercept {
             for i in 0..predictions.nrows() {
                 for j in 0..predictions.ncols() {
-                    predictions[(i, j)] += intercept[j];
+                    predictions[[i, j]] += intercept[j];
                 }
             }
         }
@@ -304,22 +346,23 @@ impl MultiOutputRegression {
     }
 
     /// Fit independent models for each target
+    #[allow(clippy::result_large_err)]
     fn fit_independent(
         &self,
-        X: &Array2<f64>,
-        Y: &Array2<f64>,
+        x: &Array2<f64>,
+        y: &Array2<f64>,
     ) -> Result<MultiOutputResult, LinearModelError> {
-        let n_features = X.ncols();
-        let n_targets = Y.ncols();
-        let mut coefficients = DMatrix::zeros(n_features, n_targets);
+        let n_features = x.ncols();
+        let n_targets = y.ncols();
+        let mut coefficients = Array2::<f64>::zeros((n_features, n_targets));
         let mut total_loss = 0.0;
         let mut total_iterations = 0;
         let mut all_converged = true;
 
         for target_idx in 0..n_targets {
-            let y = Y.column(target_idx).clone_owned();
-            let (coef, loss, iters, converged) = self.fit_single_target(X, &y)?;
-            coefficients.set_column(target_idx, &coef);
+            let y_col = y.column(target_idx).to_owned();
+            let (coef, loss, iters, converged) = self.fit_single_target(x, &y_col)?;
+            coefficients.column_mut(target_idx).assign(&coef);
             total_loss += loss;
             total_iterations += iters;
             all_converged &= converged;
@@ -338,13 +381,14 @@ impl MultiOutputRegression {
     }
 
     /// Fit joint model with shared regularization
+    #[allow(clippy::result_large_err)]
     fn fit_joint(
         &self,
-        X: &Array2<f64>,
-        Y: &Array2<f64>,
+        x: &Array2<f64>,
+        y: &Array2<f64>,
     ) -> Result<MultiOutputResult, LinearModelError> {
-        let n_features = X.ncols();
-        let n_targets = Y.ncols();
+        let n_features = x.ncols();
+        let n_targets = y.ncols();
 
         // Vectorize the problem: vec(Y) = kron(I, X) * vec(W)
         // Where W is the coefficient matrix (features x targets)
@@ -352,29 +396,30 @@ impl MultiOutputRegression {
         // For joint modeling, we solve: min ||Y - XW||_F^2 + alpha * R(W)
         // where R(W) is the regularization term
 
-        let mut W = DMatrix::zeros(n_features, n_targets);
+        let mut w = Array2::<f64>::zeros((n_features, n_targets));
         let mut converged = false;
         let mut iteration = 0;
         let mut prev_loss = f64::INFINITY;
 
         // Use coordinate descent for joint optimization
         while iteration < self.config.max_iter && !converged {
-            let mut current_loss = 0.0;
-
             // Update each coefficient
             for j in 0..n_features {
                 for k in 0..n_targets {
                     // Compute residual without current coefficient
-                    let mut residual = Y.column(k).clone_owned();
+                    let mut residual = y.column(k).to_owned();
                     for i in 0..n_features {
                         if i != j {
-                            residual -= W[(i, k)] * X.column(i).clone_owned();
+                            let xi = x.column(i).to_owned();
+                            let scale = w[[i, k]];
+                            residual.scaled_add(-scale, &xi);
                         }
                     }
 
                     // Compute correlation with feature j
-                    let correlation = X.column(j).dot(&residual);
-                    let norm_sq = X.column(j).norm_squared();
+                    let x_j = x.column(j);
+                    let correlation = x_j.dot(&residual);
+                    let norm_sq = x_j.dot(&x_j);
 
                     // Apply soft thresholding for Lasso component
                     let lasso_penalty = self.config.alpha * self.config.l1_ratio;
@@ -395,21 +440,23 @@ impl MultiOutputRegression {
                         0.0
                     };
 
-                    W[(j, k)] = new_coef;
+                    w[[j, k]] = new_coef;
                 }
             }
 
-            // Compute loss
-            let predictions = X * &W;
-            let residuals = Y - &predictions;
-            current_loss = 0.5 * residuals.norm_squared();
+            // Compute loss: 0.5 * ||Y - X*W||_F^2
+            let predictions = x.dot(&w);
+            let residuals = y - &predictions;
+            let current_loss_base: f64 = residuals.iter().map(|v| v * v).sum::<f64>() * 0.5;
 
             // Add regularization terms
             let l1_penalty =
-                self.config.alpha * self.config.l1_ratio * W.iter().map(|x| x.abs()).sum::<f64>();
-            let l2_penalty =
-                0.5 * self.config.alpha * (1.0 - self.config.l1_ratio) * W.norm_squared();
-            current_loss += l1_penalty + l2_penalty;
+                self.config.alpha * self.config.l1_ratio * w.iter().map(|x| x.abs()).sum::<f64>();
+            let l2_penalty = 0.5
+                * self.config.alpha
+                * (1.0 - self.config.l1_ratio)
+                * w.iter().map(|v| v * v).sum::<f64>();
+            let current_loss = current_loss_base + l1_penalty + l2_penalty;
 
             // Check convergence
             let loss_change = (prev_loss - current_loss).abs() / prev_loss.max(1.0);
@@ -420,13 +467,13 @@ impl MultiOutputRegression {
 
         // Compute target correlations if requested
         let target_correlations = if self.config.model_correlations {
-            Some(self.compute_target_correlations(Y)?)
+            Some(self.compute_target_correlations(y)?)
         } else {
             None
         };
 
         Ok(MultiOutputResult {
-            coefficients: W,
+            coefficients: w,
             intercept: None,
             target_correlations,
             rank_factors: None,
@@ -438,19 +485,20 @@ impl MultiOutputRegression {
     }
 
     /// Fit chain rule model
+    #[allow(clippy::result_large_err)]
     fn fit_chain(
         &self,
-        X: &Array2<f64>,
-        Y: &Array2<f64>,
+        x: &Array2<f64>,
+        y: &Array2<f64>,
     ) -> Result<MultiOutputResult, LinearModelError> {
-        let n_targets = Y.ncols();
+        let n_targets = y.ncols();
 
         // Determine chain order
         let chain_order = if let Some(order) = &self.config.chain_order {
             order.clone()
         } else {
             // Auto-determine order based on target correlations
-            self.auto_determine_chain_order(Y)?
+            self.auto_determine_chain_order(y)?
         };
 
         if chain_order.len() != n_targets {
@@ -461,35 +509,42 @@ impl MultiOutputRegression {
             ));
         }
 
-        let n_features = X.ncols();
-        let mut coefficients = DMatrix::zeros(n_features, n_targets);
+        let n_features = x.ncols();
+        let n_samples = x.nrows();
+        let mut coefficients = Array2::<f64>::zeros((n_features, n_targets));
         let mut total_loss = 0.0;
         let mut total_iterations = 0;
         let mut all_converged = true;
-        let mut augmented_X = X.clone();
 
         // Fit targets in chain order
         for (chain_idx, &target_idx) in chain_order.iter().enumerate() {
-            let y = Y.column(target_idx).clone_owned();
+            let y_col = y.column(target_idx).to_owned();
 
             // For targets after the first, include previous targets as features
-            let current_X = if chain_idx > 0 {
-                // Add previous targets as additional features
-                let mut extended_X = DMatrix::zeros(X.nrows(), X.ncols() + chain_idx);
-                extended_X.columns_mut(0, X.ncols()).copy_from(X);
-
+            let current_x: Array2<f64> = if chain_idx > 0 {
+                // Build extended feature matrix: original X + previous predicted targets
+                let extra_cols = chain_idx;
+                let mut extended_x = Array2::<f64>::zeros((n_samples, n_features + extra_cols));
+                extended_x
+                    .slice_mut(scirs2_core::ndarray::s![.., ..n_features])
+                    .assign(x);
                 for (prev_idx, &prev_target_idx) in chain_order[..chain_idx].iter().enumerate() {
-                    extended_X.set_column(X.ncols() + prev_idx, &Y.column(prev_target_idx));
+                    let prev_col = y.column(prev_target_idx).to_owned();
+                    extended_x
+                        .column_mut(n_features + prev_idx)
+                        .assign(&prev_col);
                 }
-                extended_X
+                extended_x
             } else {
-                X.clone()
+                x.clone()
             };
 
-            let (coef, loss, iters, converged) = self.fit_single_target(&current_X, &y)?;
+            let (coef, loss, iters, converged) = self.fit_single_target(&current_x, &y_col)?;
 
-            // Store only the original feature coefficients
-            coefficients.set_column(target_idx, &coef.rows(0, n_features));
+            // Store only the original feature coefficients (not the augmented target features)
+            coefficients
+                .column_mut(target_idx)
+                .assign(&coef.slice(scirs2_core::ndarray::s![..n_features]));
 
             total_loss += loss;
             total_iterations += iters;
@@ -509,13 +564,14 @@ impl MultiOutputRegression {
     }
 
     /// Fit reduced rank model
+    #[allow(clippy::result_large_err)]
     fn fit_reduced_rank(
         &self,
-        X: &Array2<f64>,
-        Y: &Array2<f64>,
+        x: &Array2<f64>,
+        y: &Array2<f64>,
     ) -> Result<MultiOutputResult, LinearModelError> {
-        let n_features = X.ncols();
-        let n_targets = Y.ncols();
+        let n_features = x.ncols();
+        let n_targets = y.ncols();
 
         // Determine rank
         let rank = self
@@ -532,34 +588,50 @@ impl MultiOutputRegression {
         }
 
         // First fit full rank model
-        let full_result = self.fit_joint(X, Y)?;
-        let W_full = full_result.coefficients;
+        let full_result = self.fit_joint(x, y)?;
+        let w_full = full_result.coefficients;
 
-        // Apply SVD to get reduced rank approximation
-        let svd = SVD::new(W_full, true, true);
-        let (u, singular_values, vt) = (svd.u?, svd.singular_values, svd.v_t?);
+        // Apply SVD to get reduced rank approximation: W = U * S * V^T
+        // svd returns (U, singular_values, Vt) where Vt is already V^T
+        let (u, singular_values, vt) = svd(&w_full.view(), true).map_err(|e| {
+            optimization_error(
+                OptimizationErrorKind::ConvergenceFailed,
+                "MultiOutputRegression",
+                &format!("SVD failed: {e}"),
+            )
+        })?;
 
         // Truncate to desired rank
-        let u_truncated = u.columns(0, rank);
-        let s_truncated = DMatrix::from_diagonal(&singular_values.rows(0, rank));
-        let vt_truncated = vt.rows(0, rank);
+        let u_truncated = u.slice(scirs2_core::ndarray::s![.., ..rank]).to_owned();
+        let sv_truncated = singular_values
+            .slice(scirs2_core::ndarray::s![..rank])
+            .to_owned();
+        let vt_truncated = vt.slice(scirs2_core::ndarray::s![..rank, ..]).to_owned();
 
-        // Reconstruct coefficient matrix
-        let coefficients = &u_truncated * &s_truncated * &vt_truncated;
+        // Build diagonal S matrix for rank factors storage
+        let mut s_mat = Array2::<f64>::zeros((rank, rank));
+        for i in 0..rank {
+            s_mat[[i, i]] = sv_truncated[i];
+        }
+
+        // Reconstruct coefficient matrix: W_r = U_r * S_r * Vt_r
+        // (n_features x rank) * (rank x rank) * (rank x n_targets)
+        let us = u_truncated.dot(&s_mat);
+        let coefficients = us.dot(&vt_truncated);
 
         // Compute loss with reduced rank model
-        let predictions = X * &coefficients;
-        let residuals = Y - &predictions;
-        let training_loss = 0.5 * residuals.norm_squared();
+        let predictions = x.dot(&coefficients);
+        let residuals = y - &predictions;
+        let training_loss: f64 = residuals.iter().map(|v| v * v).sum::<f64>() * 0.5;
+
+        // rank_factors = (U_r, S_r * Vt_r)
+        let sv_vt = s_mat.dot(&vt_truncated);
 
         Ok(MultiOutputResult {
             coefficients,
             intercept: None,
             target_correlations: None,
-            rank_factors: Some((
-                u_truncated.clone_owned(),
-                (&s_truncated * &vt_truncated).clone_owned(),
-            )),
+            rank_factors: Some((u_truncated, sv_vt)),
             chain_order: None,
             training_loss,
             iterations: full_result.iterations,
@@ -568,34 +640,35 @@ impl MultiOutputRegression {
     }
 
     /// Fit a single target variable
+    #[allow(clippy::result_large_err)]
     fn fit_single_target(
         &self,
-        X: &Array2<f64>,
+        x: &Array2<f64>,
         y: &Array1<f64>,
     ) -> Result<(Array1<f64>, f64, usize, bool), LinearModelError> {
-        let n_features = X.ncols();
-        let mut coef = DVector::zeros(n_features);
+        let n_features = x.ncols();
+        let mut coef = Array1::<f64>::zeros(n_features);
         let mut converged = false;
         let mut iteration = 0;
         let mut prev_loss = f64::INFINITY;
 
         // Use coordinate descent
         while iteration < self.config.max_iter && !converged {
-            let mut current_loss = 0.0;
-
             for j in 0..n_features {
                 // Compute residual without current coefficient
                 let mut residual = y.clone();
                 for i in 0..n_features {
                     if i != j {
-                        let col_i = X.column(i).clone_owned();
-                        residual -= coef[i] * col_i;
+                        let xi = x.column(i).to_owned();
+                        let scale = coef[i];
+                        residual.scaled_add(-scale, &xi);
                     }
                 }
 
                 // Compute correlation with feature j
-                let correlation = X.column(j).dot(&residual);
-                let norm_sq = X.column(j).norm_squared();
+                let x_j = x.column(j);
+                let correlation = x_j.dot(&residual);
+                let norm_sq = x_j.dot(&x_j);
 
                 // Apply soft thresholding for Lasso component
                 let lasso_penalty = self.config.alpha * self.config.l1_ratio;
@@ -617,18 +690,20 @@ impl MultiOutputRegression {
                 };
             }
 
-            // Compute loss
-            let predictions = X * &coef;
+            // Compute loss: 0.5 * ||y - X*coef||^2
+            let predictions = x.dot(&coef);
             let residuals = y - &predictions;
-            current_loss = 0.5 * residuals.norm_squared();
+            let current_loss_base: f64 = residuals.iter().map(|v| v * v).sum::<f64>() * 0.5;
 
             // Add regularization terms
             let l1_penalty = self.config.alpha
                 * self.config.l1_ratio
                 * coef.iter().map(|x| x.abs()).sum::<f64>();
-            let l2_penalty =
-                0.5 * self.config.alpha * (1.0 - self.config.l1_ratio) * coef.norm_squared();
-            current_loss += l1_penalty + l2_penalty;
+            let l2_penalty = 0.5
+                * self.config.alpha
+                * (1.0 - self.config.l1_ratio)
+                * coef.iter().map(|v| v * v).sum::<f64>();
+            let current_loss = current_loss_base + l1_penalty + l2_penalty;
 
             // Check convergence
             let loss_change = (prev_loss - current_loss).abs() / prev_loss.max(1.0);
@@ -641,23 +716,25 @@ impl MultiOutputRegression {
     }
 
     /// Compute target correlations
+    #[allow(clippy::result_large_err)]
     fn compute_target_correlations(
         &self,
-        Y: &Array2<f64>,
+        y: &Array2<f64>,
     ) -> Result<Array2<f64>, LinearModelError> {
-        let n_targets = Y.ncols();
-        let mut correlations = DMatrix::zeros(n_targets, n_targets);
+        let n_targets = y.ncols();
+        let mut correlations = Array2::<f64>::zeros((n_targets, n_targets));
 
         for i in 0..n_targets {
             for j in 0..n_targets {
                 if i == j {
-                    correlations[(i, j)] = 1.0;
+                    correlations[[i, j]] = 1.0;
                 } else {
-                    let yi = Y.column(i);
-                    let yj = Y.column(j);
+                    let yi = y.column(i);
+                    let yj = y.column(j);
 
-                    let mean_i = yi.mean();
-                    let mean_j = yj.mean();
+                    let n = yi.len() as f64;
+                    let mean_i = yi.iter().sum::<f64>() / n;
+                    let mean_j = yj.iter().sum::<f64>() / n;
 
                     let numerator: f64 = yi
                         .iter()
@@ -674,7 +751,7 @@ impl MultiOutputRegression {
                         0.0
                     };
 
-                    correlations[(i, j)] = correlation;
+                    correlations[[i, j]] = correlation;
                 }
             }
         }
@@ -683,9 +760,10 @@ impl MultiOutputRegression {
     }
 
     /// Auto-determine chain order based on target correlations
-    fn auto_determine_chain_order(&self, Y: &Array2<f64>) -> Result<Vec<usize>, LinearModelError> {
-        let correlations = self.compute_target_correlations(Y)?;
-        let n_targets = Y.ncols();
+    #[allow(clippy::result_large_err)]
+    fn auto_determine_chain_order(&self, y: &Array2<f64>) -> Result<Vec<usize>, LinearModelError> {
+        let correlations = self.compute_target_correlations(y)?;
+        let n_targets = y.ncols();
 
         // Use a greedy approach to order targets by correlation strength
         let mut order = Vec::new();
@@ -727,7 +805,7 @@ impl MultiOutputRegression {
                 // Find maximum correlation with already selected targets
                 let max_corr = order
                     .iter()
-                    .map(|&j| correlations[(i, j)].abs())
+                    .map(|&j| correlations[[i, j]].abs())
                     .fold(0.0, f64::max);
 
                 if max_corr > best_corr {

@@ -2,7 +2,7 @@
 
 use super::common::{Trained, Untrained};
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayD, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Transform},
@@ -125,6 +125,7 @@ impl Estimator for TensorCCA<Untrained> {
 impl Fit<Array3<Float>, Array3<Float>> for TensorCCA<Untrained> {
     type Fitted = TensorCCA<Trained>;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &Array3<Float>, Y: &Array3<Float>) -> Result<Self::Fitted> {
         // Validate input tensors
         if X.shape()[0] != Y.shape()[0] {
@@ -218,7 +219,7 @@ impl Fit<Array3<Float>, Array3<Float>> for TensorCCA<Untrained> {
 
                 // Update weights for X tensor
                 for mode in 0..2 {
-                    let scores_x =
+                    let _scores_x =
                         self.compute_tensor_scores(&X_centered, &weights_x, comp, mode)?;
                     let scores_y =
                         self.compute_tensor_scores(&Y_centered, &weights_y, comp, mode)?;
@@ -233,7 +234,7 @@ impl Fit<Array3<Float>, Array3<Float>> for TensorCCA<Untrained> {
                 for mode in 0..2 {
                     let scores_x =
                         self.compute_tensor_scores(&X_centered, &weights_x, comp, mode)?;
-                    let scores_y =
+                    let _scores_y =
                         self.compute_tensor_scores(&Y_centered, &weights_y, comp, mode)?;
 
                     // Update weights to maximize correlation
@@ -355,7 +356,7 @@ impl TensorCCA<Untrained> {
         tensor: &Array3<Float>,
         target_scores: &Array1<Float>,
         mode: usize,
-        comp: usize,
+        _comp: usize,
     ) -> Result<Array1<Float>> {
         let n_samples = tensor.shape()[0];
 
@@ -376,7 +377,7 @@ impl TensorCCA<Untrained> {
 
                 // Add regularization
                 if self.regularization > 0.0 {
-                    gradient = gradient * (1.0 - self.regularization);
+                    gradient *= 1.0 - self.regularization;
                 }
 
                 // Normalize
@@ -403,7 +404,7 @@ impl TensorCCA<Untrained> {
 
                 // Add regularization
                 if self.regularization > 0.0 {
-                    gradient = gradient * (1.0 - self.regularization);
+                    gradient *= 1.0 - self.regularization;
                 }
 
                 // Normalize
@@ -423,6 +424,7 @@ impl Transform<(Array3<Float>, Array3<Float>), (Array1<Float>, Array1<Float>)>
     for TensorCCA<Trained>
 {
     /// Transform tensor pair to canonical space
+    #[allow(non_snake_case)] // standard ML notation
     fn transform(
         &self,
         tensors: &(Array3<Float>, Array3<Float>),

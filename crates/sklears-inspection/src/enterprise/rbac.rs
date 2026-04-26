@@ -902,7 +902,7 @@ mod tests {
 
     #[test]
     fn test_effective_permissions() {
-        let mut manager = RoleManager::new();
+        let manager = RoleManager::new();
 
         let mut user = User::new(
             "user1".to_string(),

@@ -87,7 +87,7 @@ impl Fit<Array2<Float>, Array1<i32>> for SimpleStackingClassifier<Untrained> {
         }
 
         let (n_samples, n_features) = x.dim();
-        let n_base_estimators = self.n_base_estimators_.expect("operation should succeed");
+        let _n_base_estimators = self.n_base_estimators_.expect("operation should succeed");
 
         if n_samples < 10 {
             return Err(SklearsError::InvalidInput(
@@ -142,7 +142,7 @@ impl SimpleStackingClassifier<Untrained> {
         x: &Array2<Float>,
         y: &Array1<Float>,
     ) -> Result<(Array2<Float>, Array1<Float>)> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
         let n_base_estimators = self.n_base_estimators_.expect("operation should succeed");
 
         let mut base_weights = Array2::<Float>::zeros((n_base_estimators, n_features));
@@ -170,7 +170,7 @@ impl SimpleStackingClassifier<Untrained> {
     fn generate_meta_features(
         &self,
         x: &Array2<Float>,
-        y: &Array1<Float>,
+        _y: &Array1<Float>,
         base_weights: &Array2<Float>,
         base_intercepts: &Array1<Float>,
     ) -> Result<Array2<Float>> {
@@ -479,7 +479,7 @@ mod tests {
 
         assert_eq!(stacking.config.cv, 5);
         assert_eq!(stacking.config.random_state, Some(42));
-        assert_eq!(stacking.config.passthrough, true);
+        assert!(stacking.config.passthrough);
         assert_eq!(
             stacking
                 .n_base_estimators_

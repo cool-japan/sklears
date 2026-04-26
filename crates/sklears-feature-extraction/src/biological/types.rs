@@ -14,6 +14,7 @@ use super::functions::{
 #[derive(Debug, Clone)]
 pub struct PhylogeneticFeatures {
     tree_file: Option<String>,
+    #[allow(dead_code)] // distance_metric retained for future phylogenetic distance computation
     distance_metric: String,
 }
 impl PhylogeneticFeatures {
@@ -367,7 +368,7 @@ impl CompositionFeatureExtractor {
     }
     /// Calculate codon usage
     fn calculate_codon_usage(&self, sequence: &str) -> SklResult<Vec<Float>> {
-        if sequence.len() % 3 != 0 {
+        if !sequence.len().is_multiple_of(3) {
             return Err(SklearsError::InvalidInput(
                 "Sequence length must be divisible by 3 for codon analysis".to_string(),
             ));
@@ -1156,7 +1157,7 @@ impl DNASequenceFeatures {
         if !rc_indices.is_empty() {
             let (rc_counts, rc_total) = Self::count_kmers(rc_indices, k);
             total += rc_total;
-            for (acc, val) in counts.iter_mut().zip(rc_counts.into_iter()) {
+            for (acc, val) in counts.iter_mut().zip(rc_counts) {
                 *acc += val;
             }
         }

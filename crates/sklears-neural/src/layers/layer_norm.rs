@@ -5,7 +5,7 @@
 //! neural networks. This implementation follows the paper "Layer Normalization"
 //! by Ba, Kiros, and Hinton (2016).
 
-use super::{Layer, LayerConfig, ParameterizedLayer};
+use super::{Layer, ParameterizedLayer};
 use crate::NeuralResult;
 use scirs2_core::ndarray::{Array1, Array2, Axis, ScalarOperand};
 use scirs2_core::numeric::FromPrimitive;
@@ -163,6 +163,7 @@ impl<T: FloatBounds + ScalarOperand> LayerNorm<T> {
         self
     }
 
+    /// Enable or disable learnable affine parameters (gamma and beta)
     pub fn affine(mut self, affine: bool) -> Self {
         self.config.affine = affine;
         self
@@ -270,8 +271,7 @@ impl<T: FloatBounds + ScalarOperand> Layer<T> for LayerNorm<T> {
         // Apply affine transformation if enabled: gamma * normalized + beta
         let output = if self.config.affine {
             if let (Some(ref weight), Some(ref bias)) = (&self.weight, &self.bias) {
-                &normalized * &weight.view().insert_axis(Axis(0))
-                    + &bias.view().insert_axis(Axis(0))
+                &normalized * &weight.view().insert_axis(Axis(0)) + bias.view().insert_axis(Axis(0))
             } else {
                 normalized.clone()
             }
@@ -292,7 +292,7 @@ impl<T: FloatBounds + ScalarOperand> Layer<T> for LayerNorm<T> {
     }
 
     fn backward(&mut self, grad_output: &Array2<T>) -> NeuralResult<Array2<T>> {
-        let batch_size = grad_output.nrows();
+        let _batch_size = grad_output.nrows();
         let num_features = grad_output.ncols();
 
         if num_features != self.config.num_features {
@@ -314,7 +314,7 @@ impl<T: FloatBounds + ScalarOperand> Layer<T> for LayerNorm<T> {
             .cached_mean
             .as_ref()
             .ok_or_else(|| SklearsError::InvalidInput("No cached mean".to_string()))?;
-        let var = self
+        let _var = self
             .cached_var
             .as_ref()
             .ok_or_else(|| SklearsError::InvalidInput("No cached variance".to_string()))?;
@@ -484,6 +484,7 @@ mod tests {
     use scirs2_core::ndarray::{array, Array2};
 
     /// Helper to compare arrays element-by-element since approx doesn't implement AbsDiffEq for Array
+    #[allow(dead_code)] // Test utility available for future test cases that need element-wise comparison
     fn assert_arrays_close<D: scirs2_core::ndarray::Dimension>(
         a: &scirs2_core::ndarray::Array<f64, D>,
         b: &scirs2_core::ndarray::Array<f64, D>,
@@ -538,7 +539,7 @@ mod tests {
             .expect("forward pass should succeed");
 
         // Without affine, each row should have zero mean and unit variance
-        for (i, row) in output.axis_iter(Axis(0)).enumerate() {
+        for row in output.axis_iter(Axis(0)) {
             let mean = row.mean().expect("operation should succeed");
             let var = row
                 .mapv(|x| (x - mean) * (x - mean))
@@ -558,8 +559,8 @@ mod tests {
 
         let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
-        // Forward pass
-        let output = ln
+        // Forward pass (needed to populate cached values for backward pass)
+        let _output = ln
             .forward(&input, true)
             .expect("forward pass should succeed");
 
@@ -601,7 +602,7 @@ mod tests {
         assert!(ln.weight_grad.is_some());
         assert!(ln.bias_grad.is_some());
 
-        let weight_grad = ln.weight_grad().expect("operation should succeed");
+        let _weight_grad = ln.weight_grad().expect("operation should succeed");
         let bias_grad = ln.bias_grad().expect("operation should succeed");
 
         // Bias gradient should be sum of grad_output

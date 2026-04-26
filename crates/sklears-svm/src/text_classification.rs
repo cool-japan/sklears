@@ -8,6 +8,7 @@
 //! - Document similarity kernels
 //! - Text preprocessing utilities
 
+use std::cmp::Reverse;
 use std::collections::HashMap;
 
 #[cfg(feature = "parallel")]
@@ -182,7 +183,7 @@ impl NGramKernel {
             .collect();
 
         // Sort by frequency (descending) and limit features
-        ngram_features.sort_by(|a, b| b.1.cmp(&a.1));
+        ngram_features.sort_by_key(|item| Reverse(item.1));
         if let Some(max_features) = self.max_features {
             ngram_features.truncate(max_features);
         }
@@ -502,7 +503,7 @@ impl TfIdfVectorizer {
             })
             .collect();
 
-        terms_with_freq.sort_by(|a, b| b.1.cmp(&a.1)); // Sort by frequency (descending)
+        terms_with_freq.sort_by_key(|item| Reverse(item.1)); // Sort by frequency (descending)
 
         if let Some(max_features) = self.max_features {
             terms_with_freq.truncate(max_features);

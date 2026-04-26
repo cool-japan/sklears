@@ -517,11 +517,12 @@ impl ValidationFramework {
         };
 
         // Normality test on residuals (simplified Shapiro-Wilk approximation)
-        let normality_p_value = self.approximate_normality_test(
-            &residuals
-                .as_slice()
-                .expect("slice operation should succeed"),
-        );
+        let normality_p_value = if let Some(slice) = residuals.as_slice() {
+            self.approximate_normality_test(slice)
+        } else {
+            let flat: Vec<Float> = residuals.iter().copied().collect();
+            self.approximate_normality_test(&flat)
+        };
 
         // Perform significance tests
         let mut hypothesis_tests = Vec::new();
@@ -964,31 +965,20 @@ mod tests {
         let warning_issue = ValidationIssue::Warning("Test warning".to_string());
         let info_issue = ValidationIssue::Info("Test info".to_string());
 
-        match error_issue {
-            ValidationIssue::Error(_) => assert!(true),
-            _ => assert!(false),
-        }
-
-        match warning_issue {
-            ValidationIssue::Warning(_) => assert!(true),
-            _ => assert!(false),
-        }
-
-        match info_issue {
-            ValidationIssue::Info(_) => assert!(true),
-            _ => assert!(false),
-        }
+        assert!(matches!(error_issue, ValidationIssue::Error(_)));
+        assert!(matches!(warning_issue, ValidationIssue::Warning(_)));
+        assert!(matches!(info_issue, ValidationIssue::Info(_)));
     }
 
     #[test]
     fn test_parameter_values() {
         let int_param = ParameterValue::Integer(42);
-        let float_param = ParameterValue::Float(3.14);
+        let float_param = ParameterValue::Float(std::f64::consts::PI);
         let bool_param = ParameterValue::Boolean(true);
         let string_param = ParameterValue::String("test".to_string());
 
         assert_eq!(int_param, ParameterValue::Integer(42));
-        assert_eq!(float_param, ParameterValue::Float(3.14));
+        assert_eq!(float_param, ParameterValue::Float(std::f64::consts::PI));
         assert_eq!(bool_param, ParameterValue::Boolean(true));
         assert_eq!(string_param, ParameterValue::String("test".to_string()));
     }
@@ -1665,7 +1655,8 @@ impl StabilityAnalyzer {
         // Perform stability analysis with perturbations
         for _iter in 0..self.config.n_perturbations {
             // Add Gaussian noise to data
-            let normal_dist = Normal::new(0.0, noise_std as f64).expect("operation should succeed");
+            let normal_dist = Normal::new(0.0, noise_std)
+                .expect("invariant: noise_std is a valid f64 from data_std");
             let noise =
                 Array2::from_shape_fn(data.dim(), |_| normal_dist.sample(&mut rng) as Float);
             let perturbed_data = data + &noise;
@@ -1683,12 +1674,12 @@ impl StabilityAnalyzer {
             similarity_scores.push(similarity);
 
             // Track component-wise variations
-            for i in 0..n_components {
+            for (i, variations) in component_variations.iter_mut().enumerate() {
                 let comp_similarity = self.compute_vector_similarity(
                     &ref_components.row(i).to_owned(),
                     &components.row(i).to_owned(),
                 );
-                component_variations[i].push(comp_similarity);
+                variations.push(comp_similarity);
             }
         }
 
@@ -1751,7 +1742,7 @@ impl StabilityAnalyzer {
 
         if norm1 > 0.0 && norm2 > 0.0 {
             // Clamp to [0, 1] to handle numerical precision issues
-            (dot_product / (norm1 * norm2)).min(1.0).max(0.0)
+            (dot_product / (norm1 * norm2)).clamp(0.0, 1.0)
         } else {
             0.0
         }

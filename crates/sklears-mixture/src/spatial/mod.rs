@@ -255,21 +255,17 @@ pub mod utils {
         validate_coordinates(coords)?;
 
         match constraint {
-            SpatialConstraint::Grid { rows, cols } => {
-                if coords.nrows() != rows * cols {
-                    return Err(SklearsError::InvalidInput(format!(
-                        "Grid constraint requires {} samples but {} provided",
-                        rows * cols,
-                        coords.nrows()
-                    )));
-                }
+            SpatialConstraint::Grid { rows, cols } if coords.nrows() != rows * cols => {
+                return Err(SklearsError::InvalidInput(format!(
+                    "Grid constraint requires {} samples but {} provided",
+                    rows * cols,
+                    coords.nrows()
+                )));
             }
-            SpatialConstraint::Distance { radius } => {
-                if *radius <= 0.0 {
-                    return Err(SklearsError::InvalidInput(
-                        "Distance radius must be positive".to_string(),
-                    ));
-                }
+            SpatialConstraint::Distance { radius } if *radius <= 0.0 => {
+                return Err(SklearsError::InvalidInput(
+                    "Distance radius must be positive".to_string(),
+                ));
             }
             _ => {}
         }

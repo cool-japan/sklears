@@ -206,7 +206,7 @@ impl GpuContext {
     }
 
     pub fn get_optimal_grid_size(&self, problem_size: usize, block_size: usize) -> usize {
-        (problem_size + block_size - 1) / block_size
+        problem_size.div_ceil(block_size)
     }
 }
 
@@ -324,6 +324,7 @@ impl GpuRBFSampler {
         Ok(weights)
     }
 
+    #[allow(dead_code)] // GPU dispatch methods for future hardware acceleration
     fn transform_gpu(
         &self,
         x: &Array2<f64>,
@@ -339,6 +340,7 @@ impl GpuRBFSampler {
         }
     }
 
+    #[allow(dead_code)] // hardware-specific backend
     fn transform_cuda(
         &self,
         x: &Array2<f64>,
@@ -369,6 +371,7 @@ impl GpuRBFSampler {
         Ok(result)
     }
 
+    #[allow(dead_code)] // hardware-specific backend
     fn transform_opencl(
         &self,
         x: &Array2<f64>,
@@ -380,6 +383,7 @@ impl GpuRBFSampler {
         self.transform_cpu(x, weights, biases)
     }
 
+    #[allow(dead_code)] // hardware-specific backend
     fn transform_metal(
         &self,
         x: &Array2<f64>,
@@ -391,6 +395,7 @@ impl GpuRBFSampler {
         self.transform_cpu(x, weights, biases)
     }
 
+    #[allow(dead_code)] // CPU fallback backend
     fn transform_cpu(
         &self,
         x: &Array2<f64>,
@@ -943,68 +948,6 @@ impl GpuProfiler {
         summary
     }
 }
-
-#[allow(non_snake_case)]
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use scirs2_core::essentials::Normal;
-
-    use scirs2_core::ndarray::{Array, Array2};
-    use scirs2_core::random::thread_rng;
-
-    #[test]
-    fn test_gpu_context_initialization() {
-        let config = GpuConfig::default();
-        let mut context = GpuContext::new(config);
-
-        assert!(context.initialize().is_ok());
-        assert!(context.is_initialized);
-    }
-
-    #[test]
-    fn test_gpu_rbf_sampler() {
-        let x: Array2<f64> = Array::from_shape_fn((50, 10), |_| {
-            let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
-        });
-        let sampler = GpuRBFSampler::new(100).gamma(0.5);
-
-        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
-        let transformed = fitted.transform(&x).expect("operation should succeed");
-
-        assert_eq!(transformed.shape(), &[50, 100]);
-    }
-
-    #[test]
-    fn test_gpu_nystroem() {
-        let x: Array2<f64> = Array::from_shape_fn((30, 5), |_| {
-            let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
-        });
-        let nystroem = GpuNystroem::new(20).gamma(1.0);
-
-        let fitted = nystroem.fit(&x, &()).expect("operation should succeed");
-        let transformed = fitted.transform(&x).expect("operation should succeed");
-
-        assert_eq!(transformed.shape()[0], 30);
-        assert!(transformed.shape()[1] <= 20);
-    }
-
-    #[test]
-    fn test_gpu_profiler() {
-        let mut profiler = GpuProfiler::new().enable();
-
-        profiler.record_kernel_time("test_kernel", 5.5);
-        profiler.record_memory_usage("allocation", 1024);
-        profiler.record_transfer_time("host_to_device", 2.1);
-
-        let summary = profiler.get_summary();
-        assert!(summary.contains("Total kernel executions: 1"));
-        assert!(summary.contains("Total kernel time: 5.50"));
-    }
-}
-
 impl FittedGpuNystroem {
     fn compute_kernel_matrix_gpu(
         &self,
@@ -1042,5 +985,66 @@ impl FittedGpuNystroem {
         }
 
         Ok(kernel_matrix)
+    }
+}
+
+#[allow(non_snake_case)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::essentials::Normal;
+
+    use scirs2_core::ndarray::{Array, Array2};
+    use scirs2_core::random::thread_rng;
+
+    #[test]
+    fn test_gpu_context_initialization() {
+        let config = GpuConfig::default();
+        let mut context = GpuContext::new(config);
+
+        assert!(context.initialize().is_ok());
+        assert!(context.is_initialized);
+    }
+
+    #[test]
+    fn test_gpu_rbf_sampler() {
+        let x: Array2<f64> = Array::from_shape_fn((50, 10), |_| {
+            let mut rng = thread_rng();
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
+        });
+        let sampler = GpuRBFSampler::new(100).gamma(0.5);
+
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
+
+        assert_eq!(transformed.shape(), &[50, 100]);
+    }
+
+    #[test]
+    fn test_gpu_nystroem() {
+        let x: Array2<f64> = Array::from_shape_fn((30, 5), |_| {
+            let mut rng = thread_rng();
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
+        });
+        let nystroem = GpuNystroem::new(20).gamma(1.0);
+
+        let fitted = nystroem.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
+
+        assert_eq!(transformed.shape()[0], 30);
+        assert!(transformed.shape()[1] <= 20);
+    }
+
+    #[test]
+    fn test_gpu_profiler() {
+        let mut profiler = GpuProfiler::new().enable();
+
+        profiler.record_kernel_time("test_kernel", 5.5);
+        profiler.record_memory_usage("allocation", 1024);
+        profiler.record_transfer_time("host_to_device", 2.1);
+
+        let summary = profiler.get_summary();
+        assert!(summary.contains("Total kernel executions: 1"));
+        assert!(summary.contains("Total kernel time: 5.50"));
     }
 }

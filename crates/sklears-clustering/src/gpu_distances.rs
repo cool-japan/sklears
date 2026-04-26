@@ -31,6 +31,7 @@
 //! ```
 
 #[cfg(feature = "gpu")]
+/// GPU-accelerated distance computation implementations
 pub mod gpu {
     use std::collections::HashMap;
 
@@ -110,10 +111,10 @@ pub mod gpu {
         /// Create a new GPU distance computer with configuration
         pub async fn with_config(config: GpuConfig) -> Result<Self> {
             // Initialize wgpu
-            let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
                 backends: wgpu::Backends::all(),
                 flags: wgpu::InstanceFlags::default(),
-                ..Default::default()
+                ..wgpu::InstanceDescriptor::new_without_display_handle()
             });
 
             // Request adapter
@@ -221,7 +222,7 @@ pub mod gpu {
                 self.device
                     .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                         label: Some("Distance Compute Pipeline Layout"),
-                        bind_group_layouts: &[&self.bind_group_layout],
+                        bind_group_layouts: &[Some(&self.bind_group_layout)],
                         immediate_size: 0,
                     });
 
@@ -483,8 +484,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 );
                 compute_pass.set_bind_group(0, &bind_group, &[]);
 
-                let workgroups = ((n_points_a * n_points_b) + self.config.workgroup_size - 1)
-                    / self.config.workgroup_size;
+                let workgroups = (n_points_a * n_points_b).div_ceil(self.config.workgroup_size);
                 compute_pass.dispatch_workgroups(workgroups, 1, 1);
             }
 

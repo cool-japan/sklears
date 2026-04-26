@@ -15,7 +15,7 @@
 //!
 //! # Examples
 //!
-//! ```rust
+//! ```rust,no_run
 //! use sklears_gaussian_process::spatial::{SpatialGaussianProcessRegressor, SpatialKernel, KrigingType};
 //! use sklears_core::traits::{Fit, Predict};
 //! use scirs2_core::ndarray::array;
@@ -30,8 +30,8 @@
 //! let coords = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 //! let values = array![1.0, 2.0, 1.5, 2.5];
 //!
-//! let trained_model = spatial_gp.fit(&coords, &values).unwrap();
-//! let predictions = trained_model.predict(&array![[0.5, 0.5]]).unwrap();
+//! let trained_model = spatial_gp.fit(&coords, &values).expect("fit should succeed with valid spatial data");
+//! let predictions = trained_model.predict(&array![[0.5, 0.5]]).expect("predict should succeed on trained model");
 //! ```
 
 use crate::kernels::Kernel;
@@ -384,6 +384,7 @@ impl SpatialKernel {
     }
 }
 
+#[allow(non_snake_case)]
 impl Kernel for SpatialKernel {
     fn compute_kernel_matrix(
         &self,
@@ -815,6 +816,12 @@ impl Default for SpatialGPConfig {
     }
 }
 
+impl Default for SpatialGaussianProcessRegressor<Untrained> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SpatialGaussianProcessRegressor<Untrained> {
     /// Create a new spatial GP regressor
     pub fn new() -> Self {
@@ -874,6 +881,12 @@ pub struct SpatialGPBuilder {
     variogram_bins: usize,
     anisotropy_matrix: Option<Array2<f64>>,
     alpha: f64,
+}
+
+impl Default for SpatialGPBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SpatialGPBuilder {
@@ -963,6 +976,7 @@ impl Estimator for SpatialGaussianProcessRegressor<Trained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Fit<Array2<f64>, Array1<f64>> for SpatialGaussianProcessRegressor<Untrained> {
     type Fitted = SpatialGaussianProcessRegressor<Trained>;
 
@@ -1142,6 +1156,7 @@ impl Fit<Array2<f64>, Array1<f64>> for SpatialGaussianProcessRegressor<Untrained
     }
 }
 
+#[allow(non_snake_case)]
 impl SpatialGaussianProcessRegressor<Trained> {
     /// Access the trained state
     pub fn trained_state(&self) -> &Trained {
@@ -1305,6 +1320,7 @@ impl SpatialGaussianProcessRegressor<Trained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<Array2<f64>, Array1<f64>> for SpatialGaussianProcessRegressor<Trained> {
     fn predict(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
         let (predictions, _) = self.predict_with_variance(X)?;
@@ -1357,7 +1373,7 @@ mod tests {
         let variogram =
             Variogram::compute_empirical(&coords, &values, 5).expect("operation should succeed");
 
-        assert!(variogram.distances.len() > 0);
+        assert!(!variogram.distances.is_empty());
         assert_eq!(variogram.distances.len(), variogram.semivariances.len());
         assert_eq!(variogram.distances.len(), variogram.n_pairs.len());
     }
@@ -1472,7 +1488,7 @@ mod tests {
         let goodness = variogram
             .goodness_of_fit()
             .expect("operation should succeed");
-        assert!(goodness >= 0.0 && goodness <= 1.0);
+        assert!((0.0..=1.0).contains(&goodness));
     }
 
     #[test]

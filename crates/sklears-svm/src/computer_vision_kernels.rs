@@ -199,7 +199,7 @@ impl CVKernelFunction {
             });
         }
 
-        if x.len() % total_cells != 0 {
+        if !x.len().is_multiple_of(total_cells) {
             return Err(CVKernelError::InvalidParameters {
                 message: format!(
                     "Feature vector length {} is not divisible by spatial pyramid cell count {}",
@@ -245,7 +245,7 @@ impl CVKernelFunction {
         bins: usize,
         cell_size: usize,
     ) -> Result<f64, CVKernelError> {
-        if x.len() % (bins * cell_size) != 0 {
+        if !x.len().is_multiple_of(bins * cell_size) {
             return Err(CVKernelError::InvalidParameters {
                 message: "Feature vector length must be divisible by bins * cell_size".to_string(),
             });

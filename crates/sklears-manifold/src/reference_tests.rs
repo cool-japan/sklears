@@ -9,7 +9,7 @@ use scirs2_core::random::thread_rng;
 use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
 /// Test configuration for reference comparisons
-use sklears_core::{error::Result as SklResult, traits::Estimator, types::Float};
+use sklears_core::{error::Result as SklResult, types::Float};
 use std::collections::HashMap;
 use std::time::Instant;
 #[derive(Debug, Clone)]

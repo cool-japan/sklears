@@ -535,6 +535,7 @@ impl PenalizedDiscriminantAnalysis {
     }
 
     /// Backtracking line search
+    #[allow(clippy::too_many_arguments)] // all 7 args are distinct line-search inputs
     fn backtracking_line_search(
         &self,
         x: &Array2<Float>,

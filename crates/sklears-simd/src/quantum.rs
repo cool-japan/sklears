@@ -411,8 +411,9 @@ pub mod algorithms {
             let energy = estimate_energy(hamiltonian, &circuit);
             if energy < best_energy {
                 best_energy = energy;
-                for i in 0..best_params.len() {
-                    best_params[i] += 0.01 * (iteration as f64).cos();
+                let update = 0.01 * (iteration as f64).cos();
+                for p in best_params.iter_mut() {
+                    *p += update;
                 }
             }
         }
@@ -432,9 +433,9 @@ pub mod algorithms {
         let mut components = vec![vec![0.0; n_features]; num_components.min(n_features)];
 
         // For simplicity, return identity-like components
-        for i in 0..components.len() {
+        for (i, row) in components.iter_mut().enumerate() {
             if i < n_features {
-                components[i][i] = 1.0;
+                row[i] = 1.0;
             }
         }
 

@@ -21,6 +21,7 @@ pub mod mfcc {
 
     /// MFCC feature extractor
     pub struct MfccExtractor {
+        #[allow(dead_code)] // Stored for mel-filter recalculation on rate change
         sample_rate: f32,
         n_mfcc: usize,
         n_mels: usize,
@@ -115,9 +116,9 @@ pub mod mfcc {
         fn apply_dct(&self, log_mel: &[f32]) -> Vec<f32> {
             let mut mfcc = vec![0.0; self.n_mfcc];
 
-            for i in 0..self.n_mfcc {
-                for j in 0..log_mel.len() {
-                    mfcc[i] += log_mel[j] * self.dct_matrix[i][j];
+            for (i, mfcc_i) in mfcc.iter_mut().enumerate() {
+                for (j, &lm) in log_mel.iter().enumerate() {
+                    *mfcc_i += lm * self.dct_matrix[i][j];
                 }
             }
 
@@ -154,6 +155,7 @@ pub mod mfcc {
             let center = bin_points[m + 1];
             let right = bin_points[m + 2];
 
+            #[allow(clippy::needless_range_loop)] // k used in arithmetic: (k-left), (right-k)
             for k in left..=right {
                 if k < n_freqs {
                     if k <= center {
@@ -174,9 +176,9 @@ pub mod mfcc {
     fn create_dct_matrix(n_mfcc: usize, n_mels: usize) -> Vec<Vec<f32>> {
         let mut dct_matrix = vec![vec![0.0; n_mels]; n_mfcc];
 
-        for i in 0..n_mfcc {
-            for j in 0..n_mels {
-                dct_matrix[i][j] = (PI * i as f32 * (j as f32 + 0.5) / n_mels as f32).cos()
+        for (i, row) in dct_matrix.iter_mut().enumerate() {
+            for (j, cell) in row.iter_mut().enumerate() {
+                *cell = (PI * i as f32 * (j as f32 + 0.5) / n_mels as f32).cos()
                     * (2.0 / n_mels as f32).sqrt();
             }
         }
@@ -348,10 +350,15 @@ pub mod features {
         let mut max_autocorr = 0.0;
         let mut best_period = min_period;
 
-        for period in min_period..max_period.min(autocorr.len() / 2) {
-            if autocorr[period] > max_autocorr {
-                max_autocorr = autocorr[period];
-                best_period = period;
+        for (i, &val) in autocorr
+            .iter()
+            .enumerate()
+            .take(max_period.min(autocorr.len() / 2))
+            .skip(min_period)
+        {
+            if val > max_autocorr {
+                max_autocorr = val;
+                best_period = i;
             }
         }
 

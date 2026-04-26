@@ -76,10 +76,17 @@ pub struct ValidationRule {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ValidationRuleType {
     /// Range validation for numeric values
-    Range { min: Option<f64>, max: Option<f64> },
+    Range {
+        /// The min.
+        min: Option<f64>,
+        /// The max.
+        max: Option<f64>,
+    },
     /// Length validation for strings/arrays
     Length {
+        /// The min.
         min: Option<usize>,
+        /// The max.
         max: Option<usize>,
     },
     /// Pattern validation for strings
@@ -224,7 +231,14 @@ pub enum WidgetType {
     /// Dropdown/select
     Dropdown(Vec<String>),
     /// Slider
-    Slider { min: f64, max: f64, step: f64 },
+    Slider {
+        /// The min.
+        min: f64,
+        /// The max.
+        max: f64,
+        /// The step.
+        step: f64,
+    },
     /// File picker
     FilePicker,
     /// Color picker

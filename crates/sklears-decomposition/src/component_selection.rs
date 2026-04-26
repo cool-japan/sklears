@@ -10,7 +10,8 @@
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{thread_rng, RngExt};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{rng as make_rng, RngExt, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
@@ -179,9 +180,10 @@ impl CrossValidationSelector {
 
     /// Create cross-validation folds
     fn create_folds(&self, n_samples: usize) -> Result<Vec<(Vec<usize>, Vec<usize>)>> {
-        let mut rng = match self.config.random_state {
-            Some(_seed) => thread_rng(), // TODO: use seeded rng when available
-            None => thread_rng(),
+        let mut rng = if let Some(seed) = self.config.random_state {
+            StdRng::seed_from_u64(seed)
+        } else {
+            StdRng::from_rng(&mut make_rng())
         };
 
         match self.method {
@@ -440,9 +442,10 @@ impl BootstrapSelector {
         n_components: usize,
     ) -> Result<StabilityResult> {
         let (_n_samples, _) = data.dim();
-        let mut rng = match self.config.random_state {
-            Some(_seed) => thread_rng(), // TODO: use seeded rng when available
-            None => thread_rng(),
+        let mut rng = if let Some(seed) = self.config.random_state {
+            StdRng::seed_from_u64(seed)
+        } else {
+            StdRng::from_rng(&mut make_rng())
         };
 
         let mut component_similarities = Vec::new();
@@ -985,9 +988,10 @@ impl ParallelAnalysis {
     /// Perform parallel analysis to determine number of factors
     pub fn analyze(&self, data: &Array2<Float>) -> Result<ComponentSelectionResult> {
         let (n_samples, n_features) = data.dim();
-        let mut rng = match self.config.random_state {
-            Some(_seed) => thread_rng(), // TODO: use seeded rng when available
-            None => thread_rng(),
+        let mut rng = if let Some(seed) = self.config.random_state {
+            StdRng::seed_from_u64(seed)
+        } else {
+            StdRng::from_rng(&mut make_rng())
         };
 
         // Compute eigenvalues for original data
@@ -1185,7 +1189,7 @@ mod tests {
             .expect("operation should succeed");
 
         assert!(result.optimal_components >= 1);
-        assert!(result.cv_scores.len() > 0);
+        assert!(!result.cv_scores.is_empty());
     }
 
     #[test]

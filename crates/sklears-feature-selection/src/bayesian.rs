@@ -12,28 +12,60 @@ use sklears_core::{
 };
 use std::marker::PhantomData;
 
+/// Result type for model enumeration: (model_indices, model_probabilities, averaged_weights)
+pub type ModelEnumerationResult = SklResult<(Vec<Vec<usize>>, Vec<Float>, Array1<Float>)>;
+
 /// Prior type for Bayesian feature selection
 #[derive(Debug, Clone)]
 pub enum PriorType {
     /// Spike-and-slab prior with given spike and slab variances
-    SpikeAndSlab { spike_var: Float, slab_var: Float },
+    SpikeAndSlab {
+        /// spike_var
+        spike_var: Float,
+        /// slab_var
+        slab_var: Float,
+    },
     /// Horseshoe prior for sparse feature selection
-    Horseshoe { tau: Float },
+    Horseshoe {
+        /// tau
+        tau: Float,
+    },
     /// Laplace prior (equivalent to L1 regularization)
-    Laplace { scale: Float },
+    Laplace {
+        /// scale
+        scale: Float,
+    },
     /// Independent normal priors for features
-    Normal { var: Float },
+    Normal {
+        /// var
+        var: Float,
+    },
 }
 
 /// Inference method for Bayesian feature selection
 #[derive(Debug, Clone)]
 pub enum BayesianInferenceMethod {
     /// Variational Bayes with mean-field approximation
-    VariationalBayes { max_iter: usize, tol: Float },
+    VariationalBayes {
+        /// max_iter
+        max_iter: usize,
+        /// tol
+        tol: Float,
+    },
     /// Gibbs sampling MCMC
-    GibbsSampling { n_samples: usize, burn_in: usize },
+    GibbsSampling {
+        /// n_samples
+        n_samples: usize,
+        /// burn_in
+        burn_in: usize,
+    },
     /// Expectation-Maximization algorithm
-    ExpectationMaximization { max_iter: usize, tol: Float },
+    ExpectationMaximization {
+        /// max_iter
+        max_iter: usize,
+        /// tol
+        tol: Float,
+    },
     /// Laplace approximation for posterior
     LaplaceApproximation,
 }
@@ -695,6 +727,7 @@ impl Default for BayesianModelAveraging<Untrained> {
 }
 
 impl BayesianModelAveraging<Untrained> {
+    /// new
     pub fn new() -> Self {
         Self {
             max_models: 1000,
@@ -713,21 +746,25 @@ impl BayesianModelAveraging<Untrained> {
         }
     }
 
+    /// max_models
     pub fn max_models(mut self, max_models: usize) -> Self {
         self.max_models = max_models;
         self
     }
 
+    /// prior_inclusion_prob
     pub fn prior_inclusion_prob(mut self, prob: Float) -> Self {
         self.prior_inclusion_prob = prob;
         self
     }
 
+    /// inference_method
     pub fn inference_method(mut self, method: BayesianInferenceMethod) -> Self {
         self.inference_method = method;
         self
     }
 
+    /// random_state
     pub fn random_state(mut self, seed: u64) -> Self {
         self.random_state = Some(seed);
         self
@@ -738,7 +775,7 @@ impl BayesianModelAveraging<Untrained> {
         &self,
         features: &Array2<Float>,
         target: &Array1<Float>,
-    ) -> SklResult<(Vec<Vec<usize>>, Vec<Float>, Array1<Float>)> {
+    ) -> ModelEnumerationResult {
         let n_features = features.ncols();
         let mut models = Vec::new();
         let mut model_probs = Vec::new();
@@ -1138,7 +1175,7 @@ mod tests {
             .fit(&features, &target)
             .expect("operation should succeed");
         assert!(trained.n_features_out() > 0);
-        assert!(trained.model_probabilities().len() > 0);
+        assert!(!trained.model_probabilities().is_empty());
     }
 
     #[test]
@@ -1198,11 +1235,6 @@ mod tests {
                         .expect("operation should succeed")
                 })
             })
-        }
-
-        fn valid_target(n_samples: usize) -> impl Strategy<Value = Array1<Float>> {
-            prop::collection::vec(-10.0..10.0f64, n_samples)
-                .prop_map(|values| Array1::from_vec(values))
         }
 
         proptest! {

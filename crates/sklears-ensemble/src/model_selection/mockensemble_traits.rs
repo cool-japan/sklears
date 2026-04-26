@@ -8,7 +8,8 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
-use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2};
+use sklears_core::{error::Result, traits::Predict, types::Float};
 
 use super::types::MockEnsemble;
 
@@ -17,4 +18,3 @@ impl Predict<Array2<Float>, Array1<Float>> for MockEnsemble {
         Ok(Array1::from_elem(x.nrows(), self.mean_prediction))
     }
 }
-

@@ -6,7 +6,6 @@
 use crate::neural_naive_bayes::{ActivationFunction, NeuralLayer, NeuralNBError};
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{s, Array1, Array2};
-use scirs2_core::numeric::Float;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::SeedableRng;
@@ -227,6 +226,7 @@ impl VariationalAutoencoder {
 
 /// Normalizing Flow for distribution learning
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct NormalizingFlow {
     coupling_layers: Vec<CouplingLayer>,
     config: FlowConfig,
@@ -263,7 +263,7 @@ struct CouplingLayer {
 
 impl CouplingLayer {
     fn new(
-        dim: usize,
+        _dim: usize,
         hidden_units: usize,
         mask: Array1<bool>,
         rng: &mut scirs2_core::random::CoreRandom<StdRng>,
@@ -433,6 +433,7 @@ impl NormalizingFlow {
 
 /// Neural Posterior Estimation
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct NeuralPosteriorEstimator {
     density_network: Vec<NeuralLayer>,
     config: NPEConfig,
@@ -515,7 +516,7 @@ impl NeuralPosteriorEstimator {
             .into();
 
         let mut current_log_prob = self.log_posterior(&current_params, obs);
-        let mut accepted = 0;
+        let mut _accepted = 0usize;
 
         for i in 0..n_samples {
             // Propose new parameters
@@ -538,7 +539,7 @@ impl NeuralPosteriorEstimator {
             if log_ratio > 0.0 || uniform.sample(&mut self.rng) < log_ratio.exp() {
                 current_params = proposal;
                 current_log_prob = proposal_log_prob;
-                accepted += 1;
+                _accepted += 1;
             }
 
             samples.row_mut(i).assign(&current_params);
@@ -644,7 +645,7 @@ impl DeepGenerativeNaiveBayes {
                 .map(|(i, _)| i)
                 .collect();
 
-            let class_data = Array2::from_shape_fn((class_indices.len(), input_dim), |(i, j)| {
+            let _class_data = Array2::from_shape_fn((class_indices.len(), input_dim), |(i, j)| {
                 x[[class_indices[i], j]]
             });
 
@@ -752,7 +753,7 @@ impl DeepGenerativeNaiveBayes {
     }
 }
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::field_reassign_with_default)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -777,7 +778,7 @@ mod tests {
         let reconstruction = vae.decode(&z);
 
         assert_eq!(reconstruction.len(), 5);
-        assert!(reconstruction.iter().all(|&x| x >= 0.0 && x <= 1.0));
+        assert!(reconstruction.iter().all(|&x| (0.0..=1.0).contains(&x)));
     }
 
     #[test]

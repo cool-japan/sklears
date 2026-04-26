@@ -1,4 +1,5 @@
 //! Independence tests for missing data mechanisms
+#![allow(non_snake_case)]
 //!
 //! This module provides statistical tests to assess independence between
 //! missing data patterns and observed data values, helping to determine

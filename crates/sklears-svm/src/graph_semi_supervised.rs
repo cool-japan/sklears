@@ -45,8 +45,8 @@ use sklears_core::{
 ///
 /// let trained_model = model
 ///     .fit_semi_supervised(&X_labeled, &y_labeled, &X_unlabeled)
-///     .unwrap();
-/// let predictions = trained_model.predict(&X_labeled).unwrap();
+///     .expect("GraphSemiSupervisedSVM fit_semi_supervised should succeed on valid input");
+/// let predictions = trained_model.predict(&X_labeled).expect("GraphSemiSupervisedSVM predict should succeed on valid input");
 /// ```
 #[derive(Debug, Clone)]
 pub struct GraphSemiSupervisedSVM {

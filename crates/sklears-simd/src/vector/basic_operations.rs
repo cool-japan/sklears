@@ -820,6 +820,7 @@ unsafe fn dot_product_avx512(a: &[f32], b: &[f32]) -> f32 {
 // ============================================================================
 
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn dot_product_neon(a: &[f32], b: &[f32]) -> f32 {
     use core::arch::aarch64::*;
@@ -850,6 +851,7 @@ unsafe fn dot_product_neon(a: &[f32], b: &[f32]) -> f32 {
 }
 
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 unsafe fn norm_l1_neon(x: &[f32]) -> f32 {
     use core::arch::aarch64::*;

@@ -6,13 +6,13 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use sklears_core::{
     error::Result as SklResult,
-    prelude::{Predict, SklearsError},
+    prelude::SklearsError,
     traits::{Estimator, Fit, Untrained},
-    types::{Float, FloatBounds},
+    types::Float,
 };
 use std::collections::HashMap;
 
-use crate::{PipelinePredictor, PipelineStep};
+use crate::PipelinePredictor;
 
 /// Support set for few-shot learning
 #[derive(Debug, Clone)]
@@ -79,6 +79,7 @@ impl SupportSet {
 
 /// Prototype-based few-shot learner
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PrototypicalNetwork<S = Untrained> {
     state: S,
     distance_metric: DistanceMetric,
@@ -88,6 +89,7 @@ pub struct PrototypicalNetwork<S = Untrained> {
 
 /// Trained state for `PrototypicalNetwork`
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PrototypicalNetworkTrained {
     prototypes: HashMap<String, Array1<f64>>,
     distance_metric: DistanceMetric,
@@ -105,7 +107,10 @@ pub enum DistanceMetric {
     /// Manhattan distance
     Manhattan,
     /// Mahalanobis distance (with covariance matrix)
-    Mahalanobis { covariance: Array2<f64> },
+    Mahalanobis {
+        /// Field value.
+        covariance: Array2<f64>,
+    },
 }
 
 impl DistanceMetric {
@@ -292,6 +297,7 @@ pub struct MAMLLearner<S = Untrained> {
 
 /// Trained state for `MAMLLearner`
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct MAMLLearnerTrained {
     fitted_learner: Box<dyn PipelinePredictor>,
     inner_lr: f64,
@@ -425,6 +431,7 @@ impl MAMLLearner<MAMLLearnerTrained> {
 
 /// Few-shot learning pipeline
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct FewShotPipeline<S = Untrained> {
     state: S,
     learner_type: FewShotLearnerType,
@@ -433,6 +440,7 @@ pub struct FewShotPipeline<S = Untrained> {
 
 /// Trained state for `FewShotPipeline`
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct FewShotPipelineTrained {
     fitted_learner: MetaLearnerWrapper,
     n_features_in: usize,
@@ -443,11 +451,17 @@ pub struct FewShotPipelineTrained {
 #[derive(Debug, Clone)]
 pub enum FewShotLearnerType {
     /// Prototypical network
-    Prototypical { distance_metric: DistanceMetric },
+    Prototypical {
+        /// Field value.
+        distance_metric: DistanceMetric,
+    },
     /// MAML-based learner
     MAML {
+        /// Field value.
         inner_lr: f64,
+        /// Field value.
         outer_lr: f64,
+        /// Field value.
         inner_steps: usize,
     },
 }
@@ -610,7 +624,7 @@ mod tests {
 
         let cosine = DistanceMetric::Cosine;
         let distance = cosine.distance(&a.view(), &b.view());
-        assert!(distance >= 0.0 && distance <= 2.0);
+        assert!((0.0..=2.0).contains(&distance));
     }
 
     #[test]

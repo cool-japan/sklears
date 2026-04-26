@@ -30,8 +30,8 @@
 //! let times = array![[1.0], [2.0], [3.0], [4.0], [5.0]];
 //! let values = array![1.0, 1.5, 2.1, 1.8, 2.5];
 //!
-//! let trained_model = temporal_gp.fit(&times, &values).unwrap();
-//! let predictions = trained_model.predict(&array![[6.0], [7.0]]).unwrap();
+//! let trained_model = temporal_gp.fit(&times, &values).expect("fit should succeed with valid time series data");
+//! let predictions = trained_model.predict(&array![[6.0], [7.0]]).expect("predict should succeed on trained model");
 //! ```
 
 use crate::kernels::Kernel;

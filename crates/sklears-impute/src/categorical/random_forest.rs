@@ -1,4 +1,6 @@
 //! Categorical Random Forest Imputer
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! Imputation using Random Forest specifically designed for categorical data.
 //! Uses ensemble of categorical decision trees for robust imputation.

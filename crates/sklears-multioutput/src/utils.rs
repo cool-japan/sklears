@@ -170,6 +170,7 @@ pub fn euclidean_distance(x1: &ArrayView1<Float>, x2: &ArrayView1<Float>) -> Flo
 }
 
 /// Standardize features using provided means and standard deviations
+#[allow(non_snake_case)] // standard ML notation
 pub fn standardize_features_simple(
     X: &ArrayView2<Float>,
     means: &Array1<Float>,
@@ -188,6 +189,7 @@ pub fn standardize_features_simple(
 }
 
 /// Train a simple binary classifier using correlation-based approach
+#[allow(non_snake_case)] // standard ML notation
 pub fn train_binary_classifier(
     X: &ArrayView2<Float>,
     y: &Array1<i32>,
@@ -267,6 +269,7 @@ pub fn train_binary_classifier(
 }
 
 /// Train a simple linear classifier using least squares
+#[allow(non_snake_case)] // standard ML notation
 pub fn train_simple_linear_classifier(
     X: &ArrayView2<Float>,
     y: &Array1<Float>,
@@ -296,6 +299,7 @@ pub fn train_simple_linear_classifier(
 }
 
 /// Predict using a simple linear classifier
+#[allow(non_snake_case)] // standard ML notation
 pub fn predict_simple_linear(
     X: &ArrayView2<Float>,
     classifier: &SimpleLinearClassifier,
@@ -304,6 +308,7 @@ pub fn predict_simple_linear(
 }
 
 /// Solve linear system Ax = b using Gaussian elimination
+#[allow(non_snake_case)] // standard ML notation
 pub fn solve_linear_system(A: &Array2<Float>, b: &Array1<Float>) -> SklResult<Array1<Float>> {
     let n = A.nrows();
     if A.ncols() != n || b.len() != n {
@@ -585,6 +590,7 @@ pub fn omp_reconstruction(
 }
 
 /// Solve least squares problem for a subset of columns
+#[allow(non_snake_case)] // standard ML notation
 pub fn solve_least_squares_subset(
     y: &Array1<Float>,
     A: &Array2<Float>,
@@ -612,6 +618,7 @@ pub fn solve_least_squares_subset(
 }
 
 /// Train a weighted binary classifier
+#[allow(non_snake_case)] // standard ML notation
 pub fn train_weighted_binary_classifier_simple(
     X: &ArrayView2<Float>,
     y: &Array1<i32>,
@@ -691,6 +698,7 @@ pub fn train_weighted_binary_classifier_simple(
 }
 
 /// Predict binary probabilities using sigmoid function
+#[allow(non_snake_case)] // standard ML notation
 pub fn predict_binary_probabilities(
     X: &ArrayView2<Float>,
     model: &SimpleBinaryModel,
@@ -749,8 +757,8 @@ pub fn random_normal() -> Float {
 
         // Box-Muller transform
         let mag = (-2.0 * u1.ln()).sqrt();
-        let z0 = mag * (2.0 * std::f64::consts::PI * u2 as f64).cos() as Float;
-        let z1 = mag * (2.0 * std::f64::consts::PI * u2 as f64).sin() as Float;
+        let z0 = mag * (2.0 * std::f64::consts::PI * u2).cos();
+        let z1 = mag * (2.0 * std::f64::consts::PI * u2).sin();
 
         *saved.borrow_mut() = Some(z1);
         z0
@@ -773,6 +781,7 @@ fn rand_u32() -> u32 {
 }
 
 /// Train a Bayesian binary classifier
+#[allow(non_snake_case)] // standard ML notation
 pub fn train_bayesian_binary_classifier(
     X: &Array2<Float>,
     y: &Array1<i32>,
@@ -820,6 +829,7 @@ pub fn train_bayesian_binary_classifier(
 }
 
 /// Predict with Bayesian binary classifier (mean prediction)
+#[allow(non_snake_case)] // standard ML notation
 pub fn predict_bayesian_binary(
     X: &ArrayView2<Float>,
     model: &BayesianBinaryModel,
@@ -829,6 +839,7 @@ pub fn predict_bayesian_binary(
 }
 
 /// Predict with uncertainty quantification
+#[allow(non_snake_case)] // standard ML notation
 pub fn predict_bayesian_uncertainty(
     X: &ArrayView2<Float>,
     model: &BayesianBinaryModel,
@@ -854,6 +865,7 @@ pub fn predict_bayesian_uncertainty(
 }
 
 /// Predict mean of Bayesian model
+#[allow(non_snake_case)] // standard ML notation
 pub fn predict_bayesian_mean(X: &ArrayView2<Float>, model: &BayesianBinaryModel) -> Array1<Float> {
     X.dot(&model.weight_mean) + model.bias_mean
 }

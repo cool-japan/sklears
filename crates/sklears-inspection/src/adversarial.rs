@@ -7,7 +7,6 @@
 use crate::{types::Float, SklResult, SklearsError};
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
-use scirs2_core::random::Rng;
 use std::collections::HashMap;
 
 /// Configuration for adversarial analysis methods
@@ -245,7 +244,7 @@ where
 /// Test explanation robustness
 pub fn test_explanation_robustness<F, E>(
     input: &ArrayView2<Float>,
-    model_fn: F,
+    _model_fn: F,
     explanation_fn: E,
     config: &AdversarialConfig,
 ) -> SklResult<ExplanationRobustnessResult>
@@ -308,7 +307,7 @@ where
 /// Analyze explanation stability
 pub fn analyze_explanation_stability<F, E>(
     input: &ArrayView2<Float>,
-    model_fn: F,
+    _model_fn: F,
     explanation_fn: E,
     config: &AdversarialConfig,
 ) -> SklResult<StabilityAnalysisResult>
@@ -488,7 +487,7 @@ where
         // Project back to epsilon ball
         let perturbation_norm = total_perturbation.mapv(|x: Float| x.powi(2)).sum().sqrt();
         if perturbation_norm > config.epsilon {
-            total_perturbation *= (config.epsilon / perturbation_norm);
+            total_perturbation *= config.epsilon / perturbation_norm;
             adversarial_example = input.to_owned() + &total_perturbation;
         }
     }
@@ -700,7 +699,7 @@ fn compute_rank_correlation(a: &Array1<Float>, b: &Array1<Float>) -> SklResult<F
 /// Compute confidence interval
 fn compute_confidence_interval(
     perturbed_explanations: &[Array2<Float>],
-    metric: &RobustnessMetric,
+    _metric: &RobustnessMetric,
     confidence_level: Float,
 ) -> SklResult<(Float, Float)> {
     // Simplified confidence interval computation
@@ -711,8 +710,8 @@ fn compute_confidence_interval(
         return Ok((0.0, 1.0));
     }
 
-    // Placeholder computation
-    let alpha = 1.0 - confidence_level;
+    // Placeholder computation (alpha = 1 - confidence_level, not used directly here)
+    let _alpha = 1.0 - confidence_level;
     let margin = 1.96 * (0.1 / n.sqrt()); // Simplified standard error
 
     Ok((0.5 - margin, 0.5 + margin))
@@ -720,8 +719,8 @@ fn compute_confidence_interval(
 
 /// Perform statistical tests
 fn perform_statistical_tests(
-    original_explanations: &Array2<Float>,
-    perturbed_explanations: &[Array2<Float>],
+    _original_explanations: &Array2<Float>,
+    _perturbed_explanations: &[Array2<Float>],
 ) -> SklResult<HashMap<String, Float>> {
     let mut tests = HashMap::new();
 
@@ -1028,7 +1027,7 @@ mod tests {
         let consistency = compute_explanation_consistency(&original, &perturbed_explanations)
             .expect("operation should succeed");
 
-        assert!(consistency >= 0.0 && consistency <= 1.0);
+        assert!((0.0..=1.0).contains(&consistency));
         assert!(consistency > 0.8); // Should be high for similar explanations
     }
 
@@ -1039,7 +1038,7 @@ mod tests {
 
         let correlation = compute_rank_correlation(&a, &b).expect("operation should succeed");
 
-        assert!(correlation >= -1.0 && correlation <= 1.0);
+        assert!((-1.0..=1.0).contains(&correlation));
         assert!(correlation > 0.9); // Should be high for similar rankings
     }
 
@@ -1189,7 +1188,7 @@ mod tests {
     fn test_verification_status_variants() {
         use VerificationStatus::*;
 
-        let statuses = vec![Robust, NotRobust, Unknown];
+        let statuses = [Robust, NotRobust, Unknown];
 
         assert_eq!(statuses.len(), 3);
         assert_ne!(Robust, NotRobust);

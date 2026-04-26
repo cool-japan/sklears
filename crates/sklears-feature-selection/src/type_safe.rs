@@ -384,7 +384,7 @@ pub trait TypeSafeSelector<Method, State = data_states::Untrained> {
 /// Zero-cost wrapper for type-safe selectors
 #[derive(Debug, Clone)]
 pub struct TypeSafeSelectorWrapper<Method, State, const N_FEATURES: usize> {
-    method_params: MethodParameters,
+    _method_params: MethodParameters,
     selection_result: Option<FeatureMask<N_FEATURES>>,
     _phantom: PhantomData<(Method, State)>,
 }
@@ -393,7 +393,7 @@ impl<Method, State, const N_FEATURES: usize> TypeSafeSelectorWrapper<Method, Sta
     /// Create a new type-safe selector wrapper
     pub fn new(method_params: MethodParameters) -> Self {
         Self {
-            method_params,
+            _method_params: method_params,
             selection_result: None,
             _phantom: PhantomData,
         }
@@ -415,33 +415,49 @@ impl<Method, State, const N_FEATURES: usize> TypeSafeSelectorWrapper<Method, Sta
 pub enum MethodParameters {
     /// VarianceThreshold
     VarianceThreshold {
+        /// threshold
         threshold: f64,
     },
     /// UnivariateFilter
     UnivariateFilter {
+        /// k
         k: usize,
 
+        /// score_function
         score_function: String,
     },
     /// RecursiveElimination
     RecursiveElimination {
+        /// n_features
         n_features: usize,
 
+        /// step
         step: f64,
     },
+    /// LassoSelection
     LassoSelection {
+        /// alpha
         alpha: f64,
+        /// max_iter
         max_iter: usize,
     },
+    /// TreeBasedSelection
     TreeBasedSelection {
+        /// n_estimators
         n_estimators: usize,
+        /// max_depth
         max_depth: Option<usize>,
     },
+    /// CorrelationFilter
     CorrelationFilter {
+        /// threshold
         threshold: f64,
     },
+    /// MutualInfoSelection
     MutualInfoSelection {
+        /// k
         k: usize,
+        /// discrete_features
         discrete_features: Vec<bool>,
     },
 }
@@ -787,7 +803,7 @@ impl<const N_FEATURES: usize> TypeSafeSelectionPipeline<N_FEATURES, data_states:
         score_function: UnivariateScoreFunction,
     ) -> Self {
         self.steps.push(PipelineStep::UnivariateSelection {
-            k: K,
+            _k: K,
             score_function,
         });
         self
@@ -812,7 +828,7 @@ impl<const N_FEATURES: usize> TypeSafeSelectionPipeline<N_FEATURES, data_states:
                     selector.fit(X)?
                 }
                 PipelineStep::UnivariateSelection {
-                    k: _,
+                    _k: _,
                     score_function,
                 } => {
                     // This is a simplification - in practice we'd need to handle different K values
@@ -877,7 +893,7 @@ enum PipelineStep {
     VarianceThreshold(f64),
     CorrelationFilter(f64),
     UnivariateSelection {
-        k: usize,
+        _k: usize,
         score_function: UnivariateScoreFunction,
     },
 }
@@ -947,7 +963,7 @@ macro_rules! impl_type_safe_selector {
             fn select_features_typed(data: Self::FeatureMatrix) -> Result<Self::SelectionResult> {
                 // Default implementation using variance threshold
                 // This can be overridden by implementing the trait directly
-                use crate::type_safe::VarianceThresholdSelector;
+                use $crate::type_safe::VarianceThresholdSelector;
 
                 let mut selector = VarianceThresholdSelector::<$n_features>::new(0.0);
                 let mask = selector.fit(&data)?;
@@ -992,10 +1008,13 @@ pub const fn validate_selection_count<const N_FEATURES: usize, const K: usize>()
 
 /// Type-level boolean for compile-time feature validation
 pub trait TypeBool {
+    /// VALUE
     const VALUE: bool;
 }
 
+/// True
 pub struct True;
+/// False
 pub struct False;
 
 impl TypeBool for True {

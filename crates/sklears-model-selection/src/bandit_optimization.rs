@@ -16,6 +16,9 @@ use sklears_core::{
 };
 use std::collections::HashMap;
 
+/// Type alias for parameterized estimator configuration function
+type ParamConfigFn<E> = Option<Box<dyn Fn(E, &ParameterValue) -> Result<E>>>;
+
 /// Configuration for bandit-based optimization
 #[derive(Debug, Clone)]
 pub struct BanditConfig {
@@ -118,6 +121,7 @@ impl ArmStats {
         }
     }
 
+    #[allow(dead_code)] // intentionally deferred: CI not yet surfaced in the public API
     fn confidence_interval(&self, confidence: f64) -> f64 {
         if self.n_pulls == 0 {
             f64::INFINITY
@@ -367,7 +371,7 @@ pub struct BanditSearchCV<E> {
     /// Scoring method
     scoring: Option<Scoring>,
     /// Parameter configuration function
-    param_config_fn: Option<Box<dyn Fn(E, &ParameterValue) -> Result<E>>>,
+    param_config_fn: ParamConfigFn<E>,
 }
 
 impl<E> BanditSearchCV<E>
@@ -517,6 +521,7 @@ pub struct BanditOptimization<E, S> {
     estimator: E,
     parameter_space: Vec<ParameterValue>,
     scorer: Box<S>,
+    #[allow(dead_code)] // cv_folds retained for future cross-validation integration
     cv_folds: usize,
     n_iter: usize,
     strategy: BanditStrategy,

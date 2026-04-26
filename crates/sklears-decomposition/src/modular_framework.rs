@@ -146,7 +146,7 @@ pub enum ParamValue {
 }
 
 /// Decomposition components/results
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DecompositionComponents {
     pub components: Option<Array2<Float>>,
     pub singular_values: Option<Array1<Float>>,
@@ -157,27 +157,30 @@ pub struct DecompositionComponents {
     pub metadata: HashMap<String, String>,
 }
 
-impl Default for DecompositionComponents {
-    fn default() -> Self {
-        Self {
-            components: None,
-            singular_values: None,
-            eigenvalues: None,
-            mean: None,
-            explained_variance_ratio: None,
-            factor_loadings: None,
-            metadata: HashMap::new(),
-        }
-    }
-}
-
 /// Trait for preprocessing steps
 pub trait PreprocessingStep: Send + Sync {
     /// Get step name
     fn name(&self) -> &str;
 
-    /// Process input data
+    /// Fit the step to training data and return transformed output (fit + transform).
+    /// After this call, `is_fitted()` returns `true` and `apply` can be called.
     fn process(&mut self, data: &Array2<Float>) -> Result<Array2<Float>>;
+
+    /// Apply the already-fitted step to new data (transform only, no mutation).
+    /// Returns an error if the step has not been fitted yet.
+    fn apply(&self, data: &Array2<Float>) -> Result<Array2<Float>> {
+        if !self.is_fitted() {
+            return Err(SklearsError::InvalidInput(format!(
+                "Preprocessing step '{}' has not been fitted; call process() on training data first",
+                self.name()
+            )));
+        }
+        self.apply_fitted(data)
+    }
+
+    /// Internal implementation of the transform-only path used by `apply`.
+    /// Implementors must override this when the step learns parameters during fit.
+    fn apply_fitted(&self, data: &Array2<Float>) -> Result<Array2<Float>>;
 
     /// Inverse process if applicable
     fn inverse_process(&self, _data: &Array2<Float>) -> Result<Array2<Float>> {
@@ -405,19 +408,22 @@ impl DecompositionPipeline {
     }
 
     /// Transform new data using fitted pipeline
+    ///
+    /// Applies each preprocessing step's `apply` method (transform-only, no refitting),
+    /// then delegates to the main algorithm's `transform`.  The pipeline must have been
+    /// fitted via `fit_transform` before calling this method.
     pub fn transform(&self, data: &Array2<Float>) -> Result<Array2<Float>> {
         if !self.is_fitted() {
             return Err(SklearsError::InvalidInput(
-                "Pipeline not fitted".to_string(),
+                "Pipeline not fitted; call fit_transform on training data first".to_string(),
             ));
         }
 
-        // Apply preprocessing steps (if they support transform)
-        let processed_data = data.clone();
-        // We need to handle the borrow checker issue by temporarily taking ownership
-        // Since this is transform (not fit), preprocessing steps should be immutable
-        // For now, we'll skip preprocessing during transform to fix compilation
-        // TODO: Implement proper fit/transform separation for preprocessing steps
+        // Apply each fitted preprocessing step in order (transform only — no mutation)
+        let mut processed_data = data.clone();
+        for step in &self.preprocessing_steps {
+            processed_data = step.apply(&processed_data)?;
+        }
 
         // Transform using main algorithm
         self.algorithm.transform(&processed_data)
@@ -584,10 +590,12 @@ impl PreprocessingStep for StandardizationStep {
 
     fn process(&mut self, data: &Array2<Float>) -> Result<Array2<Float>> {
         if !self.fitted {
-            // Fit step - compute mean and std
+            // Fit step - compute mean and std from training data
             let mean = data
                 .mean_axis(scirs2_core::ndarray::Axis(0))
-                .expect("array should have elements for mean computation");
+                .ok_or_else(|| {
+                    SklearsError::InvalidInput("Cannot compute mean of empty array".to_string())
+                })?;
             let std = data
                 .var_axis(scirs2_core::ndarray::Axis(0), 0.0)
                 .mapv(|x| x.sqrt());
@@ -597,9 +605,17 @@ impl PreprocessingStep for StandardizationStep {
             self.fitted = true;
         }
 
-        // Transform step
-        let mean = self.mean.as_ref().expect("operation should succeed");
-        let std = self.std.as_ref().expect("operation should succeed");
+        // Transform step (applies fitted parameters)
+        self.apply_fitted(data)
+    }
+
+    fn apply_fitted(&self, data: &Array2<Float>) -> Result<Array2<Float>> {
+        let mean = self.mean.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput("Standardization step not fitted".to_string())
+        })?;
+        let std = self.std.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput("Standardization step not fitted".to_string())
+        })?;
 
         let mean_broadcast = mean.clone().insert_axis(scirs2_core::ndarray::Axis(0));
         let std_broadcast = std.clone().insert_axis(scirs2_core::ndarray::Axis(0));
@@ -615,8 +631,12 @@ impl PreprocessingStep for StandardizationStep {
             ));
         }
 
-        let mean = self.mean.as_ref().expect("operation should succeed");
-        let std = self.std.as_ref().expect("operation should succeed");
+        let mean = self.mean.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput("Standardization step not fitted".to_string())
+        })?;
+        let std = self.std.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput("Standardization step not fitted".to_string())
+        })?;
 
         let mean_broadcast = mean.clone().insert_axis(scirs2_core::ndarray::Axis(0));
         let std_broadcast = std.clone().insert_axis(scirs2_core::ndarray::Axis(0));
@@ -797,16 +817,19 @@ mod tests {
 
     #[test]
     fn test_decomposition_params() {
-        let mut params = DecompositionParams::default();
-        params.n_components = Some(5);
-        params
-            .algorithm_specific
-            .insert("test_param".to_string(), ParamValue::Float(3.14));
+        let mut params = DecompositionParams {
+            n_components: Some(5),
+            ..Default::default()
+        };
+        params.algorithm_specific.insert(
+            "test_param".to_string(),
+            ParamValue::Float(std::f64::consts::PI),
+        );
 
         assert_eq!(params.n_components, Some(5));
         assert_eq!(
             params.algorithm_specific.get("test_param"),
-            Some(&ParamValue::Float(3.14))
+            Some(&ParamValue::Float(std::f64::consts::PI))
         );
     }
 
@@ -861,8 +884,10 @@ mod tests {
         let step = VarimaxRotationStep::new();
         assert_eq!(step.name(), "varimax_rotation");
 
-        let mut components = DecompositionComponents::default();
-        components.components = Some(Array2::eye(3));
+        let components = DecompositionComponents {
+            components: Some(Array2::eye(3)),
+            ..Default::default()
+        };
 
         let processed = step.process(components).expect("operation should succeed");
         assert!(processed.metadata.contains_key("rotation_applied"));
@@ -938,13 +963,13 @@ mod tests {
     #[test]
     fn test_param_values() {
         let int_param = ParamValue::Integer(42);
-        let float_param = ParamValue::Float(3.14);
+        let float_param = ParamValue::Float(std::f64::consts::PI);
         let bool_param = ParamValue::Boolean(true);
         let string_param = ParamValue::String("test".to_string());
         let array_param = ParamValue::Array(vec![1.0, 2.0, 3.0]);
 
         assert_eq!(int_param, ParamValue::Integer(42));
-        assert_eq!(float_param, ParamValue::Float(3.14));
+        assert_eq!(float_param, ParamValue::Float(std::f64::consts::PI));
         assert_eq!(bool_param, ParamValue::Boolean(true));
         assert_eq!(string_param, ParamValue::String("test".to_string()));
         assert_eq!(array_param, ParamValue::Array(vec![1.0, 2.0, 3.0]));

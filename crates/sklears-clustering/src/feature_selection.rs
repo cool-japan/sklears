@@ -25,7 +25,7 @@
 
 use std::collections::HashSet;
 
-use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::error::{Result, SklearsError};
 
 /// Feature selection configuration

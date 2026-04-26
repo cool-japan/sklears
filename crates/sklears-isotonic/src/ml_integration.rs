@@ -209,6 +209,7 @@ impl IsotonicNeuralNetwork {
     }
 
     /// Train the network
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn fit(&mut self, X: &Array1<f64>, y: &Array1<f64>) -> Result<(), SklearsError> {
         if X.len() != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -256,6 +257,7 @@ impl IsotonicNeuralNetwork {
     }
 
     /// Predict using the trained network
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn predict(&self, X: &Array1<f64>) -> Result<Array1<f64>, SklearsError> {
         let mut predictions = Array1::zeros(X.len());
 
@@ -287,6 +289,7 @@ pub enum MonotonicArchitecture {
 #[derive(Debug, Clone)]
 pub struct MonotonicDeepLearning {
     /// Network architecture
+    #[allow(dead_code)] // intentionally deferred: architecture branching not yet implemented
     architecture: MonotonicArchitecture,
     /// Hidden layer sizes
     hidden_sizes: Vec<usize>,
@@ -295,8 +298,10 @@ pub struct MonotonicDeepLearning {
     /// Learning rate
     learning_rate: f64,
     /// Maximum iterations
+    #[allow(dead_code)] // intentionally deferred: iteration limit not yet checked
     max_iterations: usize,
     /// Tolerance
+    #[allow(dead_code)] // intentionally deferred: tolerance not yet checked
     tolerance: f64,
     /// Trained model parameters (simplified)
     weights: Option<Vec<Array1<f64>>>,
@@ -329,6 +334,7 @@ impl MonotonicDeepLearning {
     }
 
     /// Fit the model
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn fit(&mut self, _X: &Array1<f64>, _y: &Array1<f64>) -> Result<(), SklearsError> {
         // Simplified training - use isotonic regression as basis
         let mut weights = Vec::new();
@@ -349,6 +355,7 @@ impl MonotonicDeepLearning {
     }
 
     /// Predict using the fitted model
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn predict(&self, X: &Array1<f64>) -> Result<Array1<f64>, SklearsError> {
         if self.weights.is_none() {
             return Err(SklearsError::NotFitted {
@@ -393,6 +400,7 @@ pub struct IsotonicEnsemble {
     /// Learning rate (for boosting)
     learning_rate: f64,
     /// Maximum iterations
+    #[allow(dead_code)] // intentionally deferred: iteration limit not yet checked
     max_iterations: usize,
     /// Base models (simplified as isotonic curves)
     models: Vec<(Array1<f64>, Array1<f64>)>,
@@ -417,6 +425,7 @@ impl IsotonicEnsemble {
     }
 
     /// Fit the ensemble
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn fit(&mut self, X: &Array1<f64>, y: &Array1<f64>) -> Result<(), SklearsError> {
         if X.len() != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -435,6 +444,7 @@ impl IsotonicEnsemble {
     }
 
     /// Fit random forest
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     fn fit_random_forest(&mut self, X: &Array1<f64>, y: &Array1<f64>) -> Result<(), SklearsError> {
         let mut rng = thread_rng();
 
@@ -461,6 +471,7 @@ impl IsotonicEnsemble {
     }
 
     /// Fit gradient boosting
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     fn fit_gradient_boosting(
         &mut self,
         X: &Array1<f64>,
@@ -488,12 +499,14 @@ impl IsotonicEnsemble {
     }
 
     /// Fit bagging ensemble
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     fn fit_bagging(&mut self, X: &Array1<f64>, y: &Array1<f64>) -> Result<(), SklearsError> {
         // Similar to random forest but without feature sampling
         self.fit_random_forest(X, y)
     }
 
     /// Fit stacking ensemble
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     fn fit_stacking(&mut self, X: &Array1<f64>, y: &Array1<f64>) -> Result<(), SklearsError> {
         // Train base models
         for _ in 0..self.n_estimators {
@@ -508,6 +521,7 @@ impl IsotonicEnsemble {
     }
 
     /// Fit a single isotonic base model
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     fn fit_isotonic_base(
         &self,
         X: &Array1<f64>,
@@ -563,6 +577,7 @@ impl IsotonicEnsemble {
     }
 
     /// Predict using the ensemble
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn predict(&self, X: &Array1<f64>) -> Result<Array1<f64>, SklearsError> {
         if self.models.is_empty() {
             return Err(SklearsError::NotFitted {
@@ -654,6 +669,7 @@ impl IsotonicTransferLearning {
     }
 
     /// Load pre-trained model
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn load_pretrained(&mut self, X: Array1<f64>, y: Array1<f64>) -> Result<(), SklearsError> {
         if X.len() != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -668,6 +684,7 @@ impl IsotonicTransferLearning {
     }
 
     /// Fine-tune on new data
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn finetune(
         &mut self,
         X_new: &Array1<f64>,
@@ -732,6 +749,7 @@ impl IsotonicTransferLearning {
     }
 
     /// Predict using the fine-tuned model
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     pub fn predict(&self, X: &Array1<f64>) -> Result<Array1<f64>, SklearsError> {
         let model_x = self
             .finetuned_x
@@ -776,6 +794,7 @@ impl IsotonicTransferLearning {
 // ============================================================================
 
 /// Create and train an isotonic neural network
+#[allow(non_snake_case)] // X is standard ML feature matrix notation
 pub fn isotonic_neural_network(
     X: &Array1<f64>,
     y: &Array1<f64>,
@@ -788,6 +807,7 @@ pub fn isotonic_neural_network(
 }
 
 /// Create and train a monotonic deep learning model
+#[allow(non_snake_case)] // X is standard ML feature matrix notation
 pub fn monotonic_deep_learning(
     X: &Array1<f64>,
     y: &Array1<f64>,
@@ -800,6 +820,7 @@ pub fn monotonic_deep_learning(
 }
 
 /// Create and train an isotonic ensemble
+#[allow(non_snake_case)] // X is standard ML feature matrix notation
 pub fn isotonic_ensemble(
     X: &Array1<f64>,
     y: &Array1<f64>,
@@ -812,6 +833,7 @@ pub fn isotonic_ensemble(
 }
 
 /// Perform transfer learning for isotonic regression
+#[allow(non_snake_case)] // X is standard ML feature matrix notation
 pub fn isotonic_transfer_learning(
     X_pretrain: &Array1<f64>,
     y_pretrain: &Array1<f64>,
@@ -864,6 +886,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_isotonic_neural_network() {
         let X = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
@@ -880,6 +903,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_monotonic_deep_learning() {
         let X = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
@@ -895,6 +919,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_isotonic_ensemble_random_forest() {
         let X = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0]);
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0]);
@@ -912,6 +937,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_isotonic_ensemble_gradient_boosting() {
         let X = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
@@ -925,6 +951,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_transfer_learning() {
         // Pre-train on one dataset
         let X_pretrain = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0]);
@@ -950,6 +977,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_ensemble_feature_importance() {
         let X = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
@@ -966,6 +994,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation in tests
     fn test_ensemble_methods() {
         let X = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);

@@ -75,6 +75,7 @@ pub fn fast_mode(data: &[f64], bins: usize) -> f64 {
 }
 
 /// Scalar fallback mean implementation
+#[allow(dead_code)] // scalar fallback; SIMD path delegates to simd_dummy module
 #[inline]
 fn scalar_mean(data: &[f64]) -> f64 {
     let sum: f64 = data.iter().sum();
@@ -82,6 +83,7 @@ fn scalar_mean(data: &[f64]) -> f64 {
 }
 
 /// Scalar fallback variance implementation
+#[allow(dead_code)] // scalar fallback; SIMD path delegates to simd_dummy module
 #[inline]
 fn scalar_variance(data: &[f64], mean: f64) -> f64 {
     let sum_sq_diff: f64 = data.iter().map(|&x| (x - mean).powi(2)).sum();
@@ -89,6 +91,7 @@ fn scalar_variance(data: &[f64], mean: f64) -> f64 {
 }
 
 /// Scalar fallback sum implementation
+#[allow(dead_code)] // scalar fallback; SIMD path delegates to simd_dummy module
 #[inline]
 fn scalar_sum(data: &[f64]) -> f64 {
     data.iter().sum()

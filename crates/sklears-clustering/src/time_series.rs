@@ -24,8 +24,6 @@
 //! - Derivative-based shape distance
 //! - Angle-based shape similarity
 
-use std::f64::INFINITY;
-
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::random::thread_rng;
 use sklears_core::error::{Result, SklearsError};
@@ -78,6 +76,12 @@ pub struct DTWKMeans {
     config: DTWKMeansConfig,
 }
 
+impl Default for DTWKMeans {
+    fn default() -> Self {
+        Self::new(DTWKMeansConfig::default())
+    }
+}
+
 /// Fitted DTW K-Means model
 pub struct DTWKMeansFitted {
     /// Cluster centroids (time series)
@@ -96,11 +100,6 @@ impl DTWKMeans {
     /// Create a new DTW K-Means clusterer
     pub fn new(config: DTWKMeansConfig) -> Self {
         Self { config }
-    }
-
-    /// Create DTW K-Means with default configuration
-    pub fn default() -> Self {
-        Self::new(DTWKMeansConfig::default())
     }
 
     /// Builder pattern: set number of clusters
@@ -133,11 +132,11 @@ impl DTWKMeans {
         let m = ts2.len();
 
         if n == 0 || m == 0 {
-            return INFINITY;
+            return f64::INFINITY;
         }
 
         // Initialize DTW matrix with infinity
-        let mut dtw_matrix = Array2::<f64>::from_elem((n + 1, m + 1), INFINITY);
+        let mut dtw_matrix = Array2::<f64>::from_elem((n + 1, m + 1), f64::INFINITY);
         dtw_matrix[[0, 0]] = 0.0;
 
         // Apply window constraint if specified
@@ -220,7 +219,7 @@ impl DTWKMeans {
         }
 
         // Compute DTW matrix and backtrack path
-        let mut dtw_matrix = Array2::<f64>::from_elem((n + 1, m + 1), INFINITY);
+        let mut dtw_matrix = Array2::<f64>::from_elem((n + 1, m + 1), f64::INFINITY);
         dtw_matrix[[0, 0]] = 0.0;
 
         // Forward pass
@@ -277,7 +276,7 @@ impl DTWKMeans {
             return time_series[0].to_owned();
         }
 
-        let mut min_total_distance = INFINITY;
+        let mut min_total_distance = f64::INFINITY;
         let mut medoid_idx = 0;
 
         // Find time series with minimum total DTW distance to all others
@@ -338,7 +337,7 @@ impl DTWKMeans {
 
         for i in 0..n_samples {
             let ts = X.row(i);
-            let mut min_distance = INFINITY;
+            let mut min_distance = f64::INFINITY;
             let mut best_cluster = 0i32;
 
             for k in 0..self.config.n_clusters {
@@ -421,7 +420,7 @@ impl Fit<Array2<f64>, Array1<f64>> for DTWKMeans {
 
         // Initialize centroids
         let mut centroids = self.initialize_centroids(X)?;
-        let mut previous_inertia = INFINITY;
+        let mut previous_inertia = f64::INFINITY;
 
         let mut final_labels = Vec::new();
         let mut final_inertia = 0.0;
@@ -521,6 +520,12 @@ pub struct ShapeClustering {
     config: ShapeClusteringConfig,
 }
 
+impl Default for ShapeClustering {
+    fn default() -> Self {
+        Self::new(ShapeClusteringConfig::default())
+    }
+}
+
 /// Fitted Shape-based clustering model
 pub struct ShapeClusteringFitted {
     /// Cluster centroids
@@ -539,11 +544,6 @@ impl ShapeClustering {
     /// Create a new Shape-based clusterer
     pub fn new(config: ShapeClusteringConfig) -> Self {
         Self { config }
-    }
-
-    /// Create with default configuration
-    pub fn default() -> Self {
-        Self::new(ShapeClusteringConfig::default())
     }
 
     /// Builder pattern: set number of clusters
@@ -576,7 +576,7 @@ impl ShapeClustering {
         let deriv2 = self.compute_derivative(ts2);
 
         if deriv1.len() != deriv2.len() {
-            return INFINITY;
+            return f64::INFINITY;
         }
 
         deriv1
@@ -602,7 +602,7 @@ impl ShapeClustering {
         let angles2 = self.compute_angles(ts2);
 
         if angles1.len() != angles2.len() {
-            return INFINITY;
+            return f64::INFINITY;
         }
 
         angles1
@@ -643,7 +643,7 @@ impl ShapeClustering {
         let norm2 = self.z_normalize(ts2);
 
         if norm1.len() != norm2.len() {
-            return INFINITY;
+            return f64::INFINITY;
         }
 
         norm1
@@ -736,7 +736,7 @@ impl Fit<Array2<f64>, Array1<f64>> for ShapeClustering {
             centroids.row_mut(i).assign(&X.row(idx));
         }
 
-        let mut previous_inertia = INFINITY;
+        let mut previous_inertia = f64::INFINITY;
         let mut final_labels = Vec::new();
         let mut final_inertia = 0.0;
 
@@ -802,7 +802,7 @@ impl ShapeClustering {
 
         for i in 0..n_samples {
             let ts = X.row(i);
-            let mut min_distance = INFINITY;
+            let mut min_distance = f64::INFINITY;
             let mut best_cluster = 0i32;
 
             for k in 0..self.config.n_clusters {
@@ -955,6 +955,7 @@ mod tests {
 /// useful for identifying structural breaks in temporal patterns.
 #[derive(Debug, Clone)]
 pub struct RegimeChangeDetector {
+    /// Configuration for change detection
     pub config: RegimeChangeConfig,
 }
 
@@ -974,9 +975,13 @@ pub struct RegimeChangeConfig {
 /// Methods for detecting regime changes
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ChangeDetectionTest {
+    /// Detect changes in the mean of the time series
     MeanChange,
+    /// Detect changes in the variance of the time series
     VarianceChange,
+    /// Detect changes in the full distribution (non-parametric)
     DistributionChange,
+    /// Combine multiple tests for more robust detection
     Combined,
 }
 
@@ -1187,6 +1192,7 @@ impl RegimeChangeDetector {
 /// based on change points, then clustering the segments.
 #[derive(Debug, Clone)]
 pub struct TemporalSegmentationClustering {
+    /// Configuration parameters for segmentation clustering
     pub config: TemporalSegmentationConfig,
 }
 

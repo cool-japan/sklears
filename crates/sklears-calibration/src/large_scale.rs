@@ -205,7 +205,7 @@ impl ParallelCalibrator {
     /// Fit calibrator using parallel processing
     pub fn fit(&mut self, probabilities: &Array1<Float>, y_true: &Array1<i32>) -> Result<()> {
         let n_samples = probabilities.len();
-        let chunk_size = (n_samples + self.config.n_workers - 1) / self.config.n_workers;
+        let chunk_size = n_samples.div_ceil(self.config.n_workers);
 
         // Split data into chunks for parallel processing
         let mut chunks = Vec::new();
@@ -341,6 +341,7 @@ impl ParallelCalibrator {
 #[derive(Debug, Clone)]
 pub struct MemoryEfficientCalibrator {
     /// Configuration
+    #[allow(dead_code)] // intentionally deferred: config getter not yet exposed
     config: LargeScaleConfig,
     /// Reservoir sampling for data storage
     reservoir: VecDeque<(Float, i32)>,
@@ -459,6 +460,8 @@ impl CalibrationEstimator for MemoryEfficientCalibrator {
 #[derive(Debug)]
 pub struct DistributedCalibrator {
     /// Configuration
+    #[allow(dead_code)]
+    // intentionally deferred: distributed config access not yet implemented
     config: LargeScaleConfig,
     /// Node calibrators
     node_calibrators: HashMap<String, Box<dyn CalibrationEstimator>>,
@@ -608,7 +611,7 @@ impl MinibatchCalibrator {
         y_true: &Array1<i32>,
     ) -> Result<()> {
         let n_samples = probabilities.len();
-        let n_batches = (n_samples + self.config.chunk_size - 1) / self.config.chunk_size;
+        let n_batches = n_samples.div_ceil(self.config.chunk_size);
 
         for i in 0..n_batches {
             let start = i * self.config.chunk_size;

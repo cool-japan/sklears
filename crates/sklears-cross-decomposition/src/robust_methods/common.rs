@@ -1,11 +1,10 @@
 //! Common types and utilities for robust methods
 
-use std::marker::PhantomData;
-
 /// Types of M-estimators for robust estimation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum MEstimatorType {
     /// Huber M-estimator (bounded influence)
+    #[default]
     Huber,
     /// Bisquare (Tukey) M-estimator (redescending)
     Bisquare,
@@ -22,9 +21,3 @@ pub struct Untrained;
 /// Marker type for trained state
 #[derive(Debug, Clone)]
 pub struct Trained;
-
-impl Default for MEstimatorType {
-    fn default() -> Self {
-        MEstimatorType::Huber
-    }
-}

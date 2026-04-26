@@ -203,6 +203,7 @@ pub struct ParallelHierarchicalClustering<State = Untrained> {
     labels: Option<Array1<usize>>,
     linkage_matrix: Option<Array2<Float>>,
     n_clusters: Option<usize>,
+    #[allow(dead_code)] // Stored for future feature-dim checks in incremental updates
     n_features: Option<usize>,
 }
 
@@ -317,8 +318,7 @@ impl<State: Send + Sync> ParallelHierarchicalClustering<State> {
         let (n_samples, _) = x.dim();
 
         // Create parallel chunks and compute distances
-        let chunk_size =
-            (n_samples + self.config.distance_chunks - 1) / self.config.distance_chunks;
+        let chunk_size = n_samples.div_ceil(self.config.distance_chunks);
         let chunks: Vec<_> = (0..n_samples)
             .step_by(chunk_size)
             .map(|start| {

@@ -258,7 +258,7 @@ impl FederatedCovariance<FederatedCovarianceUntrained> {
 
     /// Compute local covariance for a party
     fn compute_local_covariance(&self, data: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = data.dim();
+        let (n_samples, _n_features) = data.dim();
         if n_samples < 2 {
             return Err(SklearsError::InvalidInput(
                 "Need at least 2 samples for covariance".to_string(),
@@ -367,7 +367,7 @@ impl FederatedCovariance<FederatedCovarianceUntrained> {
         let mut global_cov = Array2::zeros((n, m));
 
         for local_cov in local_covariances {
-            global_cov = global_cov + local_cov;
+            global_cov += local_cov;
         }
 
         global_cov /= local_covariances.len() as f64;
@@ -392,7 +392,7 @@ impl FederatedCovariance<FederatedCovarianceUntrained> {
 
         for (local_cov, party) in local_covariances.iter().zip(parties.iter()) {
             let weight = party.data.nrows() as f64 * party.sample_weight;
-            weighted_cov = weighted_cov + &(local_cov * weight);
+            weighted_cov += &(local_cov * weight);
             total_weight += weight;
         }
 
@@ -453,7 +453,7 @@ impl FederatedCovariance<FederatedCovarianceUntrained> {
                 values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
                 // Use median as robust aggregation
-                let median = if values.len() % 2 == 0 {
+                let median = if values.len().is_multiple_of(2) {
                     (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
                 } else {
                     values[values.len() / 2]
@@ -517,7 +517,7 @@ impl Fit<Vec<FederatedParty>, ()> for FederatedCovariance<FederatedCovarianceUnt
     type Fitted = FederatedCovariance<FederatedCovarianceTrained>;
 
     fn fit(self, parties: &Vec<FederatedParty>, _y: &()) -> Result<Self::Fitted, SklearsError> {
-        self.fit_federated(&parties)
+        self.fit_federated(parties)
     }
 }
 
@@ -613,8 +613,8 @@ pub fn create_federated_parties(data_splits: Vec<Array2<f64>>) -> Vec<FederatedP
 }
 
 /// Split data for federated simulation
-pub fn split_data_for_federation(X: ArrayView2<f64>, n_parties: usize) -> Vec<Array2<f64>> {
-    let (n_samples, n_features) = X.dim();
+pub fn split_data_for_federation(x: ArrayView2<f64>, n_parties: usize) -> Vec<Array2<f64>> {
+    let (n_samples, _n_features) = x.dim();
     let samples_per_party = n_samples / n_parties;
     let mut splits = Vec::new();
 
@@ -627,7 +627,7 @@ pub fn split_data_for_federation(X: ArrayView2<f64>, n_parties: usize) -> Vec<Ar
         };
 
         if start_idx < n_samples {
-            let party_data = X.slice(s![start_idx..end_idx, ..]).to_owned();
+            let party_data = x.slice(s![start_idx..end_idx, ..]).to_owned();
             splits.push(party_data);
         }
     }
@@ -646,8 +646,8 @@ mod tests {
         // Use deterministic seed for testing
         let mut local_rng = Random::seed(111);
         let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
-        let X = Array2::from_shape_fn((100, 4), |_| dist.sample(&mut local_rng));
-        let data_splits = split_data_for_federation(X.view(), 3);
+        let x = Array2::from_shape_fn((100, 4), |_| dist.sample(&mut local_rng));
+        let data_splits = split_data_for_federation(x.view(), 3);
         let parties = create_federated_parties(data_splits);
 
         let estimator = FederatedCovariance::new(3)
@@ -668,8 +668,8 @@ mod tests {
     fn test_privacy_mechanisms() {
         let mut local_rng = Random::seed(222);
         let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
-        let X = Array2::from_shape_fn((60, 3), |_| dist.sample(&mut local_rng));
-        let data_splits = split_data_for_federation(X.view(), 2);
+        let x = Array2::from_shape_fn((60, 3), |_| dist.sample(&mut local_rng));
+        let data_splits = split_data_for_federation(x.view(), 2);
         let parties = create_federated_parties(data_splits);
 
         let mechanisms = vec![
@@ -693,8 +693,8 @@ mod tests {
     fn test_aggregation_methods() {
         let mut local_rng = Random::seed(333);
         let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
-        let X = Array2::from_shape_fn((80, 3), |_| dist.sample(&mut local_rng));
-        let data_splits = split_data_for_federation(X.view(), 4);
+        let x = Array2::from_shape_fn((80, 3), |_| dist.sample(&mut local_rng));
+        let data_splits = split_data_for_federation(x.view(), 4);
         let parties = create_federated_parties(data_splits);
 
         let methods = vec![
@@ -716,8 +716,8 @@ mod tests {
     fn test_communication_cost() {
         let mut local_rng = Random::seed(444);
         let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
-        let X = Array2::from_shape_fn((40, 2), |_| dist.sample(&mut local_rng));
-        let data_splits = split_data_for_federation(X.view(), 2);
+        let x = Array2::from_shape_fn((40, 2), |_| dist.sample(&mut local_rng));
+        let data_splits = split_data_for_federation(x.view(), 2);
         let parties = create_federated_parties(data_splits);
 
         let estimator = FederatedCovariance::new(2).with_communication_rounds(3);

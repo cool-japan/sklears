@@ -42,7 +42,10 @@ impl Default for OutOfCoreConfig {
             tolerance: 1e-3,
             max_iter: 1000,
             shrinking: true,
-            work_dir: "/tmp/out_of_core_svm".to_string(),
+            work_dir: std::env::temp_dir()
+                .join("out_of_core_svm")
+                .display()
+                .to_string(),
         }
     }
 }
@@ -635,14 +638,15 @@ mod tests {
     #[test]
     fn test_data_iterator() -> Result<()> {
         // Create test data file
-        let test_file = "/tmp/test_data.txt";
-        let mut file = File::create(test_file)?;
+        let test_path = std::env::temp_dir().join("test_data.txt");
+        let test_file = test_path.to_string_lossy().into_owned();
+        let mut file = File::create(&test_file)?;
         writeln!(file, "1.0 2.0 1")?;
         writeln!(file, "2.0 3.0 -1")?;
         writeln!(file, "3.0 4.0 1")?;
         writeln!(file, "4.0 5.0 -1")?;
 
-        let mut iterator = OutOfCoreDataIterator::new(test_file, 2)?;
+        let mut iterator = OutOfCoreDataIterator::new(&test_file, 2)?;
 
         assert_eq!(iterator.total_samples(), 4);
         assert_eq!(iterator.n_features(), 2);
@@ -662,7 +666,7 @@ mod tests {
         assert!(chunk3.is_none());
 
         // Clean up
-        std::fs::remove_file(test_file)?;
+        std::fs::remove_file(&test_file)?;
 
         Ok(())
     }

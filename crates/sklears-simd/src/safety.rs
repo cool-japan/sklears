@@ -406,6 +406,7 @@ impl SafeSimdOps {
 #[derive(Debug, Clone)]
 pub struct DebugBoundsChecker<T> {
     data: Vec<T>,
+    #[allow(dead_code)] // Identifies the buffer in panic/debug messages
     name: String,
 }
 
@@ -469,7 +470,7 @@ pub struct MemorySafetyGuard;
 impl MemorySafetyGuard {
     /// Ensure proper alignment for SIMD operations
     pub fn check_alignment(ptr: *const u8, alignment: usize) -> bool {
-        (ptr as usize) % alignment == 0
+        (ptr as usize).is_multiple_of(alignment)
     }
 
     /// Create aligned vector for SIMD operations
@@ -481,7 +482,7 @@ impl MemorySafetyGuard {
         vec.resize(size, T::default());
 
         // Ensure alignment (simplified approach)
-        while (vec.as_ptr() as usize) % alignment != 0 {
+        while !(vec.as_ptr() as usize).is_multiple_of(alignment) {
             vec.reserve(1);
         }
 

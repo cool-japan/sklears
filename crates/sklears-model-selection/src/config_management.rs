@@ -142,6 +142,7 @@ pub struct ResourceConfig {
 
 /// Configuration manager for loading, saving, and validating configurations
 pub struct ConfigManager {
+    #[allow(dead_code)] // base_config reserved for future config inheritance chain
     base_config: Option<ModelSelectionConfig>,
     template_registry: HashMap<String, ModelSelectionConfig>,
 }

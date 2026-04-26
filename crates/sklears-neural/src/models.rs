@@ -4,12 +4,9 @@
 //! for easy composition of neural network layers.
 
 use crate::{layers::Layer, NeuralResult};
-use scirs2_core::ndarray::{Array2, Axis};
+use scirs2_core::ndarray::Array2;
 use sklears_core::types::FloatBounds;
 use std::collections::HashMap;
-
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 
 /// Sequential model for linear stack of layers
 pub struct Sequential<T: FloatBounds> {
@@ -35,6 +32,7 @@ impl<T: FloatBounds> Sequential<T> {
     }
 
     /// Add a layer to the sequential model
+    #[allow(clippy::should_implement_trait)] // builder-pattern add, not arithmetic add
     pub fn add(mut self, layer: Box<dyn Layer<T>>) -> Self {
         self.layers.push(layer);
         self
@@ -406,6 +404,7 @@ impl<T: FloatBounds> SequentialBuilder<T> {
     }
 
     /// Add a layer to the model
+    #[allow(clippy::should_implement_trait)] // builder-pattern add, not arithmetic add
     pub fn add(mut self, layer: Box<dyn Layer<T>>) -> Self {
         self.model = self.model.add(layer);
         self
@@ -428,7 +427,6 @@ impl<T: FloatBounds> Default for SequentialBuilder<T> {
 mod tests {
     use super::*;
     use crate::layers::dropout::Dropout;
-    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_sequential_model_creation() {
@@ -480,47 +478,78 @@ pub mod serialization {
     pub enum SerializableLayer {
         /// Dense/Linear layer
         Dense {
+            /// Number of input features to this layer
             input_size: usize,
+            /// Number of output features (neurons) in this layer
             output_size: usize,
+            /// Weight matrix stored as rows of output neurons
             weights: Vec<Vec<f64>>,
+            /// Bias vector, one entry per output neuron
             biases: Vec<f64>,
+            /// Name of the activation function applied after the linear transformation
             activation: String,
         },
         /// Dropout layer
-        Dropout { rate: f64 },
+        Dropout {
+            /// Probability of dropping each unit during training
+            rate: f64,
+        },
         /// Batch normalization layer
         BatchNorm {
+            /// Number of features (channels) normalized by this layer
             features: usize,
+            /// Momentum for updating running statistics
             momentum: f64,
+            /// Small constant added to the denominator for numerical stability
             epsilon: f64,
+            /// Whether learnable affine parameters (gamma, beta) are included
             affine: bool,
+            /// Learnable scale parameters, one per feature; `None` when `affine` is false
             gamma: Option<Vec<f64>>,
+            /// Learnable shift parameters, one per feature; `None` when `affine` is false
             beta: Option<Vec<f64>>,
+            /// Exponential moving average of batch means used at inference time
             running_mean: Option<Vec<f64>>,
+            /// Exponential moving average of batch variances used at inference time
             running_var: Option<Vec<f64>>,
         },
         /// Layer normalization
         LayerNorm {
+            /// Number of features normalized by this layer
             features: usize,
+            /// Small constant added to the denominator for numerical stability
             epsilon: f64,
+            /// Whether learnable affine parameters (gamma, beta) are included
             affine: bool,
+            /// Learnable scale parameters, one per feature; `None` when `affine` is false
             gamma: Option<Vec<f64>>,
+            /// Learnable shift parameters, one per feature; `None` when `affine` is false
             beta: Option<Vec<f64>>,
         },
         /// Conv2D layer
         Conv2D {
+            /// Number of input channels
             in_channels: usize,
+            /// Number of output channels (filters)
             out_channels: usize,
+            /// Height and width of the convolution kernel
             kernel_size: (usize, usize),
+            /// Stride of the convolution in height and width dimensions
             stride: (usize, usize),
+            /// Zero-padding applied to height and width dimensions before the convolution
             padding: (usize, usize),
+            /// Dilation factor for the convolution kernel in height and width dimensions
             dilation: (usize, usize),
+            /// Filter weights with shape `[out_channels][in_channels][kernel_h][kernel_w]`
             weights: Vec<Vec<Vec<Vec<f64>>>>,
+            /// Per-filter bias values; `None` when biases are disabled
             biases: Option<Vec<f64>>,
         },
         /// Other layer types can be added as needed
         Other {
+            /// String identifier of the layer type
             layer_type: String,
+            /// Layer-specific configuration as a JSON value map
             config: HashMap<String, serde_json::Value>,
         },
     }
@@ -528,31 +557,42 @@ pub mod serialization {
     /// Serializable representation of a Sequential model
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct SerializableSequential {
+        /// Human-readable name of the sequential model
         pub name: String,
+        /// Ordered list of layers from input to output
         pub layers: Vec<SerializableLayer>,
     }
 
     /// Serializable representation of a Functional model
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct SerializableFunctional {
+        /// Human-readable name of the functional model
         pub name: String,
+        /// Named layer configurations keyed by layer name
         pub layers: HashMap<String, SerializableLayer>,
+        /// Directed edges from each layer to its downstream layers (adjacency list)
         pub connections: HashMap<String, Vec<String>>,
     }
 
     /// Configuration for model saving/loading
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct ModelConfig {
+        /// Discriminator string indicating the model architecture class
         pub model_type: String,
+        /// Serialization format version string
         pub version: String,
+        /// RFC 3339 timestamp of when this model was saved
         pub created_at: String,
+        /// Arbitrary key-value metadata stored alongside the model
         pub metadata: HashMap<String, serde_json::Value>,
     }
 
     /// Complete model save format
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct SavedModel {
+        /// Model configuration and metadata
         pub config: ModelConfig,
+        /// The actual model architecture and weights
         pub model: ModelData,
     }
 
@@ -560,7 +600,9 @@ pub mod serialization {
     #[derive(Debug, Clone, Serialize, Deserialize)]
     #[serde(tag = "type")]
     pub enum ModelData {
+        /// A Sequential model with an ordered layer stack
         Sequential(SerializableSequential),
+        /// A Functional model with named layers and explicit connections
         Functional(SerializableFunctional),
     }
 
@@ -669,6 +711,7 @@ pub mod serialization {
 
     /// Trait for converting models to/from serializable format
     pub trait ModelSerialization<T: FloatBounds> {
+        /// The serializable representation of this model type
         type SerializableType;
 
         /// Convert to serializable format

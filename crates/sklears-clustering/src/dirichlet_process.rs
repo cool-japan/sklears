@@ -9,7 +9,7 @@
 //! and variational inference for efficient computation.
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{Distribution, Random, RngExt};
+use scirs2_core::random::{Random, RngExt};
 use scirs2_core::StandardNormal;
 use sklears_core::{
     error::{Result, SklearsError},
@@ -730,8 +730,6 @@ mod tests {
         )
         .expect("operation should succeed");
 
-        let y: Array1<usize> = Array::zeros(10);
-
         let model: DirichletProcessMixture<Untrained> = DirichletProcessMixture::new()
             .alpha(1.0)
             .max_components(10)
@@ -750,7 +748,7 @@ mod tests {
         let effective_comps = fitted_model
             .effective_components()
             .expect("operation should succeed");
-        assert!(effective_comps >= 1 && effective_comps <= 10);
+        assert!((1..=10).contains(&effective_comps));
 
         // Test prediction
         let predictions = fitted_model.predict(&x).expect("operation should succeed");
@@ -776,8 +774,6 @@ mod tests {
             vec![0.0, 0.0, 0.1, 0.1, 0.2, 0.0, 5.0, 5.0, 5.1, 5.1, 5.2, 5.0],
         )
         .expect("operation should succeed");
-
-        let y: Array1<usize> = Array::zeros(6);
 
         let model: DirichletProcessMixture<Untrained> = DirichletProcessMixture::new()
             .alpha(0.1) // Lower alpha should prefer fewer components

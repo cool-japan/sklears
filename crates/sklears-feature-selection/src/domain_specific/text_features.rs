@@ -73,6 +73,7 @@ pub struct TextFeatureSelector<State = Untrained> {
 }
 
 impl TextFeatureSelector<Untrained> {
+    /// new
     pub fn new() -> Self {
         Self {
             min_df: 0.01,
@@ -433,7 +434,7 @@ fn compute_chi2_score(feature: &ArrayView1<Float>, target: &Array1<Float>) -> Fl
 ///
 /// Document frequency is the number of documents containing the term
 /// divided by the total number of documents.
-fn compute_document_frequency(term_vector: &ArrayView1<Float>) -> Float {
+pub fn compute_document_frequency(term_vector: &ArrayView1<Float>) -> Float {
     let n_documents = term_vector.len() as Float;
     let documents_with_term = term_vector.iter().filter(|&&count| count > 0.0).count() as Float;
     documents_with_term / n_documents
@@ -444,7 +445,7 @@ fn compute_document_frequency(term_vector: &ArrayView1<Float>) -> Float {
 /// TF-IDF (Term Frequency-Inverse Document Frequency) is calculated as:
 /// tf-idf(t,d) = tf(t,d) * idf(t)
 /// where idf(t) = log(N / df(t))
-fn compute_tfidf_score(
+pub fn compute_tfidf_score(
     term_frequency: Float,
     document_frequency: Float,
     n_documents: usize,

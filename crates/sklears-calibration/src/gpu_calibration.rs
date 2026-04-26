@@ -377,7 +377,7 @@ impl GpuCalibratedClassifier {
 
         // Process data in batches to manage GPU memory
         let n_samples = probabilities.len();
-        let n_batches = (n_samples + self.batch_size - 1) / self.batch_size;
+        let n_batches = n_samples.div_ceil(self.batch_size);
 
         for batch_idx in 0..n_batches {
             let start_idx = batch_idx * self.batch_size;
@@ -407,7 +407,7 @@ impl GpuCalibratedClassifier {
         let start_time = std::time::Instant::now();
 
         let n_samples = probabilities.len();
-        let n_batches = (n_samples + self.batch_size - 1) / self.batch_size;
+        let n_batches = n_samples.div_ceil(self.batch_size);
 
         let mut all_predictions = Vec::new();
 
@@ -465,7 +465,7 @@ impl GpuCalibratedClassifier {
         let kernel_info = GpuKernelInfo {
             name: format!("calibration_{}", operation),
             device_id: self.device_id,
-            grid_size: ((probabilities.len() as u32 + 255) / 256, 1, 1),
+            grid_size: ((probabilities.len() as u32).div_ceil(256), 1, 1),
             block_size: (256, 1, 1),
             shared_memory: 0,
             parameters: {
@@ -513,15 +513,16 @@ impl GpuCalibratedClassifier {
     }
 
     /// GPU temperature scaling fitting
+    #[allow(dead_code)] // intentionally deferred: GPU-specific fitting path not yet called
     fn gpu_temperature_scaling_fit(
         &self,
-        X: &[f32],
+        x: &[f32], // standard ML feature matrix notation
         y: &[f32],
         n_samples: usize,
         _n_features: usize,
     ) -> Result<Vec<f32>, SklearsError> {
         // Compute optimal temperature using GPU operations
-        let logits = X; // Assume input is already logits
+        let logits = x; // Assume input is already logits
 
         // Find optimal temperature using binary search on GPU
         let mut temperature = 1.0f32;
@@ -556,10 +557,11 @@ impl GpuCalibratedClassifier {
         Ok(vec![temperature; n_samples * 2])
     }
 
-    /// GPU sigmoid calibration fitting  
+    /// GPU sigmoid calibration fitting
+    #[allow(dead_code)] // intentionally deferred: GPU-specific fitting path not yet called
     fn gpu_sigmoid_calibration_fit(
         &self,
-        X: &[f32],
+        x: &[f32], // standard ML feature matrix notation
         y: &[f32],
         n_samples: usize,
         _n_features: usize,
@@ -574,7 +576,7 @@ impl GpuCalibratedClassifier {
             for b in [-2.0, -1.0, 0.0, 1.0, 2.0] {
                 // Apply transformation: sigmoid(a * x + b)
                 let transformed: Array1<Float> =
-                    Array1::from_vec(X.iter().map(|&x| (a * x + b) as Float).collect());
+                    Array1::from_vec(x.iter().map(|&xi| (a * xi + b) as Float).collect());
 
                 // Apply sigmoid
                 let probs = GpuArrayOps::apply_activation(
@@ -599,8 +601,11 @@ impl GpuCalibratedClassifier {
         }
 
         // Return calibrated probabilities for each sample
-        let final_transformed: Array1<Float> =
-            Array1::from_vec(X.iter().map(|&x| (best_a * x + best_b) as Float).collect());
+        let final_transformed: Array1<Float> = Array1::from_vec(
+            x.iter()
+                .map(|&xi| (best_a * xi + best_b) as Float)
+                .collect(),
+        );
         let final_probs = GpuArrayOps::apply_activation(
             ActivationFunction::SIGMOID,
             &final_transformed,
@@ -619,9 +624,10 @@ impl GpuCalibratedClassifier {
     }
 
     /// Compute linear output for prediction
+    #[allow(dead_code)] // intentionally deferred: GPU linear prediction path not yet called
     fn compute_linear_output(
         &self,
-        X: &[f32],
+        x: &[f32], // standard ML feature matrix notation
         n_samples: usize,
         n_features: usize,
     ) -> Result<Vec<f32>, SklearsError> {
@@ -637,8 +643,9 @@ impl GpuCalibratedClassifier {
         for i in 0..n_samples {
             let start_idx = i * n_features;
             let end_idx = start_idx + n_features;
-            let sample_slice = &X[start_idx..end_idx];
-            let sample_array = Array1::from_vec(sample_slice.iter().map(|&x| x as Float).collect());
+            let sample_slice = &x[start_idx..end_idx];
+            let sample_array =
+                Array1::from_vec(sample_slice.iter().map(|&xi| xi as Float).collect());
             let weights_array = Array1::from_vec(weights.iter().map(|&x| x as Float).collect());
 
             // Compute dot product on GPU
@@ -656,6 +663,7 @@ impl GpuCalibratedClassifier {
     }
 
     /// Compute cross-entropy loss
+    #[allow(dead_code)] // intentionally deferred: GPU-specific loss computation not yet called
     fn compute_cross_entropy_loss(&self, probs: &[f32], y: &[f32]) -> Result<f32, SklearsError> {
         if probs.len() != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -674,6 +682,7 @@ impl GpuCalibratedClassifier {
     }
 
     /// Compute binary cross-entropy loss
+    #[allow(dead_code)] // intentionally deferred: GPU-specific loss computation not yet called
     fn compute_binary_cross_entropy_loss(
         &self,
         probs: &[f32],

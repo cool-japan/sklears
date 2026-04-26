@@ -41,9 +41,9 @@
 //!
 //! // Generate explanations from multiple clients
 //! let local_explanations = vec![
-//!     Array2::from_shape_vec((10, 5), vec![1.0; 50]).unwrap(),
-//!     Array2::from_shape_vec((10, 5), vec![0.8; 50]).unwrap(),
-//!     Array2::from_shape_vec((10, 5), vec![1.2; 50]).unwrap(),
+//!     Array2::from_shape_vec((10, 5), vec![1.0; 50]).expect("shape (10, 5) matches 50 elements"),
+//!     Array2::from_shape_vec((10, 5), vec![0.8; 50]).expect("shape (10, 5) matches 50 elements"),
+//!     Array2::from_shape_vec((10, 5), vec![1.2; 50]).expect("shape (10, 5) matches 50 elements"),
 //! ];
 //!
 //! // Securely aggregate explanations
@@ -54,10 +54,9 @@
 //! ```
 
 use crate::types::Float;
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, CoreRandom};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::{Result as SklResult, SklearsError};
-use std::collections::HashMap;
 
 /// Privacy mechanism for federated explanations
 #[derive(Debug, Clone)]
@@ -264,7 +263,7 @@ impl FederatedExplainer {
             let mean_exp = exp.mean_axis(Axis(0)).expect("operation should succeed");
             aggregated += &mean_exp;
         }
-        aggregated /= (local_explanations.len() as Float);
+        aggregated /= local_explanations.len() as Float;
 
         // Add Laplace noise for differential privacy
         let sensitivity = self.config.gradient_clip_threshold / (local_explanations.len() as Float);
@@ -296,7 +295,7 @@ impl FederatedExplainer {
             let mean_exp = exp.mean_axis(Axis(0)).expect("operation should succeed");
             aggregated += &mean_exp;
         }
-        aggregated /= (local_explanations.len() as Float);
+        aggregated /= local_explanations.len() as Float;
 
         Ok(aggregated)
     }
@@ -332,7 +331,7 @@ impl FederatedExplainer {
 
             aggregated += &noisy_exp;
         }
-        aggregated /= (local_explanations.len() as Float);
+        aggregated /= local_explanations.len() as Float;
 
         Ok(aggregated)
     }
@@ -352,7 +351,7 @@ impl FederatedExplainer {
             let mean_exp = exp.mean_axis(Axis(0)).expect("operation should succeed");
             aggregated += &mean_exp;
         }
-        aggregated /= (local_explanations.len() as Float);
+        aggregated /= local_explanations.len() as Float;
 
         Ok(aggregated)
     }
@@ -366,7 +365,7 @@ impl FederatedExplainer {
             let mean_exp = exp.mean_axis(Axis(0)).expect("operation should succeed");
             aggregated += &mean_exp;
         }
-        aggregated /= (local_explanations.len() as Float);
+        aggregated /= local_explanations.len() as Float;
 
         Ok(aggregated)
     }
@@ -375,7 +374,7 @@ impl FederatedExplainer {
     fn compute_aggregation_stats(
         &self,
         aggregated: &Array1<Float>,
-        num_clients: usize,
+        _num_clients: usize,
     ) -> AggregationStats {
         let mean = aggregated.mean().unwrap_or(0.0);
         let variance = aggregated.var(0.0);

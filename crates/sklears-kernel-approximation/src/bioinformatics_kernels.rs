@@ -42,7 +42,8 @@ pub struct GenomicKernel<State = Untrained> {
     normalize: bool,
     /// Random projection matrix (for trained state)
     projection: Option<Array2<Float>>,
-    /// K-mer vocabulary mapping (for trained state)
+    /// K-mer vocabulary mapping (for trained state, stored for future decoding)
+    #[allow(dead_code)]
     kmer_vocab: Option<HashMap<String, usize>>,
     /// State marker
     _state: PhantomData<State>,
@@ -731,7 +732,9 @@ impl Transform<Array2<Float>, Array2<Float>> for MultiOmicsKernel<Trained> {
             OmicsIntegrationMethod::Concatenation => {
                 // Project each omics type separately and concatenate
                 // For simplicity, we average instead of concatenating to maintain dimension
-                for omics_idx in 0..self.n_omics_types {
+                for (omics_idx, projection) in
+                    projections.iter().enumerate().take(self.n_omics_types)
+                {
                     let start_idx = omics_idx * features_per_omics;
                     let end_idx = ((omics_idx + 1) * features_per_omics).min(n_features);
 
@@ -742,7 +745,7 @@ impl Transform<Array2<Float>, Array2<Float>> for MultiOmicsKernel<Trained> {
                                 omics_data[[i, j]] = x[[i, start_idx + j]];
                             }
                         }
-                        let omics_features = omics_data.dot(&projections[omics_idx]);
+                        let omics_features = omics_data.dot(projection);
                         result += &omics_features;
                     }
                 }
@@ -750,7 +753,9 @@ impl Transform<Array2<Float>, Array2<Float>> for MultiOmicsKernel<Trained> {
             }
             OmicsIntegrationMethod::WeightedAverage => {
                 // Weighted combination of omics-specific features
-                for omics_idx in 0..self.n_omics_types {
+                for (omics_idx, projection) in
+                    projections.iter().enumerate().take(self.n_omics_types)
+                {
                     let start_idx = omics_idx * features_per_omics;
                     let end_idx = ((omics_idx + 1) * features_per_omics).min(n_features);
 
@@ -761,7 +766,7 @@ impl Transform<Array2<Float>, Array2<Float>> for MultiOmicsKernel<Trained> {
                                 omics_data[[i, j]] = x[[i, start_idx + j]];
                             }
                         }
-                        let omics_features = omics_data.dot(&projections[omics_idx]);
+                        let omics_features = omics_data.dot(projection);
                         let weight = omics_weights[omics_idx];
                         result += &(omics_features * weight);
                     }
@@ -772,7 +777,9 @@ impl Transform<Array2<Float>, Array2<Float>> for MultiOmicsKernel<Trained> {
             }
             OmicsIntegrationMethod::CrossCorrelation => {
                 // Include cross-correlation between omics types
-                for omics_idx in 0..self.n_omics_types {
+                for (omics_idx, projection) in
+                    projections.iter().enumerate().take(self.n_omics_types)
+                {
                     let start_idx = omics_idx * features_per_omics;
                     let end_idx = ((omics_idx + 1) * features_per_omics).min(n_features);
 
@@ -783,10 +790,12 @@ impl Transform<Array2<Float>, Array2<Float>> for MultiOmicsKernel<Trained> {
                                 omics_data[[i, j]] = x[[i, start_idx + j]];
                             }
                         }
-                        let mut omics_features = omics_data.dot(&projections[omics_idx]);
+                        let mut omics_features = omics_data.dot(projection);
 
                         // Add cross-correlation with other omics types
-                        for other_idx in 0..self.n_omics_types {
+                        for (other_idx, other_proj) in
+                            projections.iter().enumerate().take(self.n_omics_types)
+                        {
                             if other_idx != omics_idx {
                                 let other_start = other_idx * features_per_omics;
                                 let other_end =
@@ -800,7 +809,7 @@ impl Transform<Array2<Float>, Array2<Float>> for MultiOmicsKernel<Trained> {
                                             other_data[[i, j]] = x[[i, other_start + j]];
                                         }
                                     }
-                                    let other_features = other_data.dot(&projections[other_idx]);
+                                    let other_features = other_data.dot(other_proj);
                                     // Element-wise multiplication for cross-correlation
                                     omics_features += &(&other_features * 0.1);
                                 }
@@ -816,7 +825,9 @@ impl Transform<Array2<Float>, Array2<Float>> for MultiOmicsKernel<Trained> {
                 // Multi-view learning with view-specific and shared features
                 let mut view_features = Vec::new();
 
-                for omics_idx in 0..self.n_omics_types {
+                for (omics_idx, projection) in
+                    projections.iter().enumerate().take(self.n_omics_types)
+                {
                     let start_idx = omics_idx * features_per_omics;
                     let end_idx = ((omics_idx + 1) * features_per_omics).min(n_features);
 
@@ -827,7 +838,7 @@ impl Transform<Array2<Float>, Array2<Float>> for MultiOmicsKernel<Trained> {
                                 omics_data[[i, j]] = x[[i, start_idx + j]];
                             }
                         }
-                        let omics_features = omics_data.dot(&projections[omics_idx]);
+                        let omics_features = omics_data.dot(projection);
                         view_features.push(omics_features);
                     }
                 }

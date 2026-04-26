@@ -575,7 +575,7 @@ impl ExtensionContext {
         Ok(ExtensionRuntimeContext {
             context_id: Uuid::new_v4().to_string(),
             extension_id: extension_id.to_string(),
-            working_directory: PathBuf::from(format!("/tmp/extensions/{}", extension_id)),
+            working_directory: std::env::temp_dir().join("extensions").join(extension_id),
             configuration: serde_json::Value::Object(serde_json::Map::new()),
             environment_variables: HashMap::new(),
             resource_allocations: ResourceAllocations::default(),

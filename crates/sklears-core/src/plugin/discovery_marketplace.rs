@@ -114,7 +114,7 @@ impl PluginDiscoveryService {
         self.repositories.push(repository);
         // Sort by priority (higher priority first)
         self.repositories
-            .sort_by(|a, b| b.priority.cmp(&a.priority));
+            .sort_by_key(|r| std::cmp::Reverse(r.priority));
     }
 
     /// Discover plugins from all repositories
@@ -432,7 +432,11 @@ impl PluginDiscoveryService {
     /// file extraction, permission setup, and registration preparation.
     fn install_plugin_locally(&self, manifest: &PluginManifest, data: &[u8]) -> Result<String> {
         // Create plugin directory
-        let plugin_dir = format!("/tmp/plugins/{}", manifest.metadata.name);
+        let plugin_dir = std::env::temp_dir()
+            .join("plugins")
+            .join(&manifest.metadata.name)
+            .display()
+            .to_string();
         std::fs::create_dir_all(&plugin_dir).map_err(|e| {
             SklearsError::InvalidOperation(format!("Failed to create plugin directory: {}", e))
         })?;

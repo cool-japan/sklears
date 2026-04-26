@@ -24,7 +24,7 @@ use scirs2_core::ndarray::Array;
 /// ```rust
 /// use sklears_core::dataset::synthetic::load_iris;
 ///
-/// let iris = load_iris().unwrap();
+/// let iris = load_iris().expect("load_iris must succeed");
 /// assert_eq!(iris.data.dim(), (6, 4));
 /// assert_eq!(iris.target.len(), 6);
 /// assert_eq!(iris.feature_names.len(), 4);
@@ -83,7 +83,7 @@ pub fn load_iris() -> Result<Dataset> {
 /// ```rust
 /// use sklears_core::dataset::synthetic::make_regression;
 ///
-/// let dataset = make_regression(100, 5, 0.1).unwrap();
+/// let dataset = make_regression(100, 5, 0.1).expect("make_regression must succeed with valid parameters");
 /// assert_eq!(dataset.data.dim(), (100, 5));
 /// assert_eq!(dataset.target.len(), 100);
 /// ```
@@ -101,7 +101,7 @@ pub fn make_regression(n_samples: usize, n_features: usize, noise: f64) -> Resul
 
     // Generate random features using Box-Muller transform for normal distribution
     let mut x_data = Vec::with_capacity(n_samples * n_features);
-    for _ in 0..(n_samples * n_features + 1) / 2 {
+    for _ in 0..(n_samples * n_features).div_ceil(2) {
         let u1: f64 = rng.gen_range(0.0..1.0);
         let u2: f64 = rng.gen_range(0.0..1.0);
         let z0 = (-2.0f64 * u1.ln()).sqrt() * (2.0f64 * std::f64::consts::PI * u2).cos();
@@ -167,7 +167,7 @@ pub fn make_regression(n_samples: usize, n_features: usize, noise: f64) -> Resul
 /// ```rust
 /// use sklears_core::dataset::synthetic::make_blobs;
 ///
-/// let dataset = make_blobs(150, 2, 3, 1.0).unwrap();
+/// let dataset = make_blobs(150, 2, 3, 1.0).expect("make_blobs must succeed with valid parameters");
 /// assert_eq!(dataset.data.dim(), (150, 2));
 /// assert_eq!(dataset.target.len(), 150);
 /// ```
@@ -256,7 +256,7 @@ pub fn make_blobs(
 /// ```rust
 /// use sklears_core::dataset::synthetic::make_classification;
 ///
-/// let dataset = make_classification(200, 3, 2.0).unwrap();
+/// let dataset = make_classification(200, 3, 2.0).expect("make_classification must succeed with valid parameters");
 /// assert_eq!(dataset.data.dim(), (200, 3));
 /// assert_eq!(dataset.target.len(), 200);
 /// ```
@@ -278,14 +278,6 @@ pub fn make_classification(
             "Synthetic binary classification dataset with {n_samples} samples and {n_features} features"
         ))
     })
-}
-
-#[allow(non_snake_case)]
-#[cfg(test)]
-fn variance(data: &scirs2_core::ndarray::Array1<f64>) -> f64 {
-    let mean = data.mean().unwrap_or_default();
-    let sum_sq_diff: f64 = data.iter().map(|&x| (x - mean).powi(2)).sum();
-    sum_sq_diff / (data.len() as f64 - 1.0)
 }
 
 #[allow(non_snake_case)]

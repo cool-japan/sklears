@@ -62,7 +62,7 @@ fn test_signal_wavelet_transform() {
         .expect("operation should succeed");
 
     // Should have coefficients for each decomposition level
-    assert!(coefficients.len() > 0);
+    assert!(!coefficients.is_empty());
 
     // All coefficients should be finite
     for &coeff in coefficients.iter() {
@@ -434,7 +434,7 @@ fn test_signal_convolution() {
         .expect("operation should succeed");
 
     // Convolution result length depends on mode (full, same, valid)
-    assert!(convolved.len() > 0);
+    assert!(!convolved.is_empty());
 
     for &val in convolved.iter() {
         assert!(val.is_finite());

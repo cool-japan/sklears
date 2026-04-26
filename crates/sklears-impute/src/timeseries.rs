@@ -1,4 +1,6 @@
 //! Time series imputation methods
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides specialized imputation strategies for time series data,
 //! including seasonal decomposition, ARIMA-based imputation, state-space models, and Kalman filtering.

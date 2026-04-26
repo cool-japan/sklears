@@ -90,7 +90,7 @@ impl EmpiricalBayesEstimator {
         let mut log_likelihoods = Vec::new();
 
         // EM algorithm for empirical Bayes estimation
-        for iter in 0..self.max_iter {
+        for _iter in 0..self.max_iter {
             // E-step: compute expected sufficient statistics
             let mut expected_counts = Array1::<Float>::zeros(n_classes);
             for &label in y.iter() {
@@ -237,7 +237,7 @@ impl HierarchicalBayesEstimator {
             let mut group_class_counts = Array1::<Float>::zeros(n_classes);
             let mut group_total = 0;
 
-            for (i, (&label, &group_id)) in y.iter().zip(groups.iter()).enumerate() {
+            for (&label, &group_id) in y.iter().zip(groups.iter()) {
                 if group_id == group {
                     let class_idx = classes
                         .iter()
@@ -469,8 +469,9 @@ impl MCMCBayesEstimator {
             StdRng::seed_from_u64(0) // Use deterministic seed for reproducibility
         };
 
-        // Initialize parameters
-        let mut theta = Array1::<Float>::from_elem(n_classes, 1.0 / n_classes as Float);
+        // theta holds the current Dirichlet sample; initial value is overwritten each iteration
+        #[allow(unused_assignments)]
+        let mut theta = Array1::<Float>::zeros(n_classes);
         let total_samples = self.burn_in + self.n_samples * self.thin;
         let mut samples = Array2::<Float>::zeros((self.n_samples, n_classes));
 
@@ -498,7 +499,7 @@ impl MCMCBayesEstimator {
             theta = gamma_samples.mapv(|x| x / gamma_sum);
 
             // Store sample if past burn-in and at thinning interval
-            if iter >= self.burn_in && (iter - self.burn_in) % self.thin == 0 {
+            if iter >= self.burn_in && (iter - self.burn_in).is_multiple_of(self.thin) {
                 let sample_idx = (iter - self.burn_in) / self.thin;
                 if sample_idx < self.n_samples {
                     for j in 0..n_classes {

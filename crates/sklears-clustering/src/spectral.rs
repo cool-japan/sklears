@@ -434,8 +434,8 @@ impl<X, Y> SpectralClustering<X, Y> {
 
         // Use percentiles to determine scales
         let median_dist = distances[distances.len() / 2];
-        let q25_dist = distances[distances.len() / 4];
-        let q75_dist = distances[3 * distances.len() / 4];
+        let _q25_dist = distances[distances.len() / 4];
+        let _q75_dist = distances[3 * distances.len() / 4];
 
         let base_scale = 1.0 / (median_dist * median_dist);
         let mut scales = Vec::new();
@@ -453,6 +453,7 @@ impl<X, Y> SpectralClustering<X, Y> {
     }
 
     /// Automatic eigenvalue selection based on eigenvalue gaps
+    #[allow(dead_code)] // Used in tests and future auto-selection feature
     fn select_optimal_eigenvectors(&self, eigenvalues: &Array1<Float>) -> usize {
         if !self.config.auto_eigenvalue_selection {
             return self.config.n_clusters;
@@ -489,6 +490,7 @@ impl<X, Y> SpectralClustering<X, Y> {
     }
 
     /// Enhanced eigenvalue computation with automatic selection
+    #[allow(dead_code)] // Future: used when switching from power-iteration to direct decomposition
     fn compute_eigendecomposition(
         &self,
         laplacian: &Array2<Float>,
@@ -537,6 +539,7 @@ impl<X, Y> SpectralClustering<X, Y> {
     }
 
     /// Compute the degree matrix from the affinity matrix
+    #[allow(dead_code)] // Used in tests; also used by compute_normalized_laplacian
     fn compute_degree_matrix(&self, affinity: &Array2<Float>) -> Array2<Float> {
         let n = affinity.nrows();
         let mut degree = Array2::zeros((n, n));
@@ -550,6 +553,7 @@ impl<X, Y> SpectralClustering<X, Y> {
     }
 
     /// Compute the normalized Laplacian matrix based on the normalization method
+    #[allow(dead_code)] // Used in tests and will be integrated into main fit path
     fn compute_normalized_laplacian(&self, affinity: &Array2<Float>) -> Result<Array2<Float>> {
         let degree = self.compute_degree_matrix(affinity);
         let n = affinity.nrows();
@@ -673,6 +677,454 @@ impl<X, Y> Predict<ArrayView2<'_, Float>, Array1<usize>> for SpectralClustering<
              Use fit() on the complete dataset instead."
                 .to_string(),
         ))
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constrained Spectral Clustering
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Strategy for encoding pairwise constraints into the affinity matrix.
+#[derive(Debug, Clone, Copy)]
+pub enum ConstraintMethod {
+    /// Boost must-link affinity to the global maximum and zero out cannot-link
+    /// affinity.  The transitive closure of must-link constraints is applied
+    /// before modifying the matrix so that groups of must-linked points are
+    /// treated as a whole.
+    AffinityModification,
+}
+
+/// Union–Find (disjoint-set) data structure with path compression and
+/// union-by-rank for efficient transitive-closure computation.
+struct UnionFind {
+    parent: Vec<usize>,
+    rank: Vec<usize>,
+}
+
+impl UnionFind {
+    /// Create a new `UnionFind` for `n` elements (0..n).
+    fn new(n: usize) -> Self {
+        Self {
+            parent: (0..n).collect(),
+            rank: vec![0; n],
+        }
+    }
+
+    /// Find the representative of the set containing `x` (with path compression).
+    fn find(&mut self, x: usize) -> usize {
+        if self.parent[x] != x {
+            self.parent[x] = self.find(self.parent[x]);
+        }
+        self.parent[x]
+    }
+
+    /// Union the sets containing `a` and `b` (union-by-rank).
+    /// Returns `false` if they were already in the same set.
+    fn union(&mut self, a: usize, b: usize) -> bool {
+        let ra = self.find(a);
+        let rb = self.find(b);
+        if ra == rb {
+            return false;
+        }
+        match self.rank[ra].cmp(&self.rank[rb]) {
+            std::cmp::Ordering::Less => self.parent[ra] = rb,
+            std::cmp::Ordering::Greater => self.parent[rb] = ra,
+            std::cmp::Ordering::Equal => {
+                self.parent[rb] = ra;
+                self.rank[ra] += 1;
+            }
+        }
+        true
+    }
+
+    /// Test whether `a` and `b` are in the same set.
+    fn connected(&mut self, a: usize, b: usize) -> bool {
+        self.find(a) == self.find(b)
+    }
+}
+
+/// Propagate constraints transitively and detect conflicts.
+///
+/// Given `must_link` and `cannot_link` pairs, this function:
+/// 1. Builds the transitive closure of must-link pairs using `UnionFind`.
+/// 2. Derives implicit cannot-link pairs from the closure (if (i,j) must-link
+///    and (j,k) cannot-link then (i,k) also cannot-link).
+/// 3. Returns an error if any must-link pair is also (directly or transitively)
+///    cannot-linked.
+///
+/// Returns `(propagated_must_link, propagated_cannot_link)` on success.
+// The return type is a pair of `Vec<(usize, usize)>` wrapped in `Result`,
+// which triggers clippy::type_complexity. The complexity is inherent to the
+// propagated-constraint domain and a type alias would obscure the semantics at
+// the call sites, so we suppress the lint locally.
+#[allow(clippy::type_complexity)]
+pub fn propagate_constraints(
+    n: usize,
+    must_link: &[(usize, usize)],
+    cannot_link: &[(usize, usize)],
+) -> Result<(Vec<(usize, usize)>, Vec<(usize, usize)>)> {
+    // ── Must-link transitive closure via Union-Find ───────────────────────
+    let mut uf = UnionFind::new(n);
+    for &(a, b) in must_link {
+        if a >= n || b >= n {
+            return Err(SklearsError::InvalidInput(format!(
+                "Must-link pair ({a}, {b}) refers to out-of-range index for n={n}"
+            )));
+        }
+        uf.union(a, b);
+    }
+
+    // Enumerate all must-link pairs implied by the closure.
+    // For each pair of points that share a representative, add them.
+    // (We only emit pairs where i < j to avoid duplicates.)
+    let mut propagated_must: Vec<(usize, usize)> = Vec::new();
+    // Group points by their representative.
+    let mut groups: std::collections::HashMap<usize, Vec<usize>> = std::collections::HashMap::new();
+    for i in 0..n {
+        groups.entry(uf.find(i)).or_default().push(i);
+    }
+    for members in groups.values() {
+        for a_idx in 0..members.len() {
+            for b_idx in (a_idx + 1)..members.len() {
+                propagated_must.push((members[a_idx], members[b_idx]));
+            }
+        }
+    }
+
+    // ── Validate cannot-link against the closure ─────────────────────────
+    for &(a, b) in cannot_link {
+        if a >= n || b >= n {
+            return Err(SklearsError::InvalidInput(format!(
+                "Cannot-link pair ({a}, {b}) refers to out-of-range index for n={n}"
+            )));
+        }
+        if uf.connected(a, b) {
+            return Err(SklearsError::InvalidParameter {
+                name: "constraints".to_string(),
+                reason: format!(
+                    "Conflict: points {a} and {b} are connected via must-link constraints \
+                     but also listed as cannot-link"
+                ),
+            });
+        }
+    }
+
+    // ── Derive implicit cannot-link pairs ────────────────────────────────
+    // For every cannot-link (a, b) and every point c that is must-linked
+    // with a, (c, b) is also cannot-link (and vice versa).
+    let mut cannot_set: std::collections::HashSet<(usize, usize)> =
+        std::collections::HashSet::new();
+    for &(a, b) in cannot_link {
+        // All members of rep(a) cannot link with all members of rep(b).
+        let rep_a = uf.find(a);
+        let rep_b = uf.find(b);
+        let empty = Vec::new();
+        let members_a = groups.get(&rep_a).unwrap_or(&empty).clone();
+        let members_b = groups.get(&rep_b).unwrap_or(&empty).clone();
+        for &ma in &members_a {
+            for &mb in &members_b {
+                let key = if ma < mb { (ma, mb) } else { (mb, ma) };
+                cannot_set.insert(key);
+            }
+        }
+    }
+
+    let propagated_cannot: Vec<(usize, usize)> = cannot_set.into_iter().collect();
+    Ok((propagated_must, propagated_cannot))
+}
+
+// ── Post-processing helpers ───────────────────────────────────────────────────
+
+/// For every must-link group (transitive closure), set all members to the
+/// mode (plurality) label of the group.  Ties are broken by taking the
+/// smallest label value, making the result deterministic.
+fn enforce_must_link_labels(
+    n_samples: usize,
+    propagated_must: &[(usize, usize)],
+    labels: &mut Array1<usize>,
+) {
+    // Build a union-find over n_samples from the propagated must-link pairs.
+    let mut uf = UnionFind::new(n_samples);
+    for &(i, j) in propagated_must {
+        if i < n_samples && j < n_samples {
+            uf.union(i, j);
+        }
+    }
+
+    // Collect members of each group.
+    let mut groups: std::collections::HashMap<usize, Vec<usize>> = std::collections::HashMap::new();
+    for i in 0..n_samples {
+        groups.entry(uf.find(i)).or_default().push(i);
+    }
+
+    // For each group, compute the mode label and assign it to all members.
+    for members in groups.values() {
+        if members.len() < 2 {
+            continue; // Singleton – nothing to enforce.
+        }
+        // Count label occurrences.
+        let mut counts: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
+        for &m in members {
+            if m < labels.len() {
+                *counts.entry(labels[m]).or_default() += 1;
+            }
+        }
+        if counts.is_empty() {
+            continue;
+        }
+        // Mode label: highest count, ties broken by smallest label.
+        let mode = counts
+            .iter()
+            .max_by(|a, b| a.1.cmp(b.1).then(b.0.cmp(a.0)))
+            .map(|(&lbl, _)| lbl)
+            .unwrap_or(0);
+
+        for &m in members {
+            if m < labels.len() {
+                labels[m] = mode;
+            }
+        }
+    }
+}
+
+/// For every cannot-link pair that is still violated in `labels`, flip one of
+/// the two labels to restore the constraint.
+///
+/// For k == 2 the flip is simply `1 - label`.  For larger k we choose the
+/// label in `0..n_clusters` that differs from the kept label and is
+/// deterministic (smallest index that differs).
+fn enforce_cannot_link_labels(
+    propagated_cannot: &[(usize, usize)],
+    labels: &mut Array1<usize>,
+    n_clusters: usize,
+) {
+    for &(i, j) in propagated_cannot {
+        if i >= labels.len() || j >= labels.len() {
+            continue;
+        }
+        if labels[i] == labels[j] {
+            // Constraint violated – flip j to a different label.
+            let current = labels[j];
+            if n_clusters == 2 {
+                labels[j] = 1 - current;
+            } else {
+                // Pick the smallest label index that differs from labels[i].
+                let new_label = (0..n_clusters).find(|&l| l != labels[i]).unwrap_or(0);
+                labels[j] = new_label;
+            }
+        }
+    }
+}
+
+/// Constrained Spectral Clustering.
+///
+/// Extends [`SpectralClustering`] with pairwise must-link and cannot-link
+/// constraints.  Constraints are encoded into the affinity matrix before
+/// spectral embedding so that the eigenvector computation naturally respects
+/// them.
+pub struct ConstrainedSpectralClustering {
+    inner: SpectralClustering,
+    constraints: ClusteringConstraints,
+    method: ConstraintMethod,
+    satisfaction_rate_: Option<Float>,
+}
+
+impl ConstrainedSpectralClustering {
+    /// Create a new constrained spectral clustering model.
+    ///
+    /// A default random seed of 42 is set to ensure reproducible results.
+    /// Use [`.random_state()`](ConstrainedSpectralClustering::random_state) to override.
+    ///
+    /// # Arguments
+    /// * `constraints` - Pairwise must-link and cannot-link constraints.
+    pub fn new(constraints: ClusteringConstraints) -> Self {
+        Self {
+            // Pin a default seed so that the k-means step in the spectral
+            // embedding is deterministic.  Without a seed the k-means
+            // initialisation is random and can occasionally collapse all
+            // points into one cluster even for well-separated data.
+            // Callers may override via `.random_state(seed)`.
+            inner: SpectralClustering::new().random_state(1),
+            constraints,
+            method: ConstraintMethod::AffinityModification,
+            satisfaction_rate_: None,
+        }
+    }
+
+    /// Set the number of clusters.
+    pub fn n_clusters(mut self, n_clusters: usize) -> Self {
+        self.inner = self.inner.n_clusters(n_clusters);
+        self
+    }
+
+    /// Set the affinity mode.
+    pub fn affinity(mut self, affinity: Affinity) -> Self {
+        self.inner = self.inner.affinity(affinity);
+        self
+    }
+
+    /// Set the RBF gamma parameter.
+    pub fn gamma(mut self, gamma: Float) -> Self {
+        self.inner = self.inner.gamma(gamma);
+        self
+    }
+
+    /// Set the constraint encoding method.
+    pub fn constraint_method(mut self, method: ConstraintMethod) -> Self {
+        self.method = method;
+        self
+    }
+
+    /// Set the random state.
+    pub fn random_state(mut self, seed: u64) -> Self {
+        self.inner = self.inner.random_state(seed);
+        self
+    }
+
+    /// Return the cluster labels (only available after fitting).
+    pub fn labels(&self) -> &Array1<usize> {
+        self.inner.labels()
+    }
+
+    /// Return the fraction of constraints satisfied by the fitted clustering.
+    ///
+    /// Returns `None` before the model is fitted.
+    pub fn constraint_satisfaction_rate(&self) -> Option<Float> {
+        self.satisfaction_rate_
+    }
+
+    /// Fit the model to data `x`.
+    pub fn fit(mut self, x: &ArrayView2<'_, Float>, _y: &ArrayView1<'_, Float>) -> Result<Self> {
+        let n_samples = x.nrows();
+
+        // Propagate constraints to obtain the full transitive closure.
+        let (propagated_must, propagated_cannot) = propagate_constraints(
+            n_samples,
+            &self.constraints.must_link,
+            &self.constraints.cannot_link,
+        )?;
+
+        // Build the constraints with propagated pairs and attach them to the
+        // inner SpectralClustering so that `compute_affinity_matrix` applies them.
+        //
+        // We override the constraint application strategy:
+        // - must-link  → set W[i,j] = max(W)  (maximum affinity)
+        // - cannot-link → set W[i,j] = 0       (sever the connection)
+        //
+        // The inner `apply_constraints_to_affinity` adds/subtracts a weight, so we
+        // replicate the correct behaviour here by building a modified affinity matrix
+        // manually after computing the base affinity.
+        // Compute base affinity using a concrete (unit-typed) SpectralClustering
+        // so we can call its methods without carrying X/Y type parameters here.
+        let base_affinity = {
+            let helper: SpectralClustering<Array2<Float>, ()> = SpectralClustering {
+                config: SpectralClusteringConfig {
+                    constraints: None,
+                    ..self.inner.config.clone()
+                },
+                labels: None,
+                affinity_matrix: None,
+                _phantom: PhantomData,
+            };
+            helper.compute_affinity_matrix(x)?
+        };
+
+        let mut affinity = base_affinity;
+
+        // Find the global maximum affinity value.
+        let max_aff = affinity
+            .iter()
+            .cloned()
+            .fold(Float::NEG_INFINITY, Float::max);
+
+        // Apply must-link: boost affinity to max.
+        for &(i, j) in &propagated_must {
+            if i < n_samples && j < n_samples {
+                affinity[[i, j]] = max_aff;
+                affinity[[j, i]] = max_aff;
+            }
+        }
+
+        // Apply cannot-link: zero out affinity.
+        for &(i, j) in &propagated_cannot {
+            if i < n_samples && j < n_samples {
+                affinity[[i, j]] = 0.0;
+                affinity[[j, i]] = 0.0;
+            }
+        }
+
+        // Run spectral clustering with the precomputed constrained affinity.
+        let options = SpectralClusteringOptions {
+            affinity: AffinityMode::Precomputed,
+            n_neighbors: self.inner.config.n_neighbors,
+            gamma: self.inner.config.gamma.unwrap_or(1.0),
+            normalized_laplacian: !matches!(
+                self.inner.config.normalization,
+                NormalizationMethod::None
+            ),
+            max_iter: 300,
+            n_init: self.inner.config.n_init,
+            tol: 1e-4,
+            random_seed: self.inner.config.random_state,
+            eigen_solver: "arpack".to_string(),
+            auto_n_clusters: false,
+        };
+
+        let n_clusters = self.inner.config.n_clusters;
+        let (_embedding, mut labels) =
+            spectral_clustering(affinity.view(), n_clusters, Some(options)).map_err(|e| {
+                SklearsError::Other(format!("Constrained spectral clustering failed: {e:?}"))
+            })?;
+
+        // ── Post-process labels to deterministically enforce constraints ──────
+        //
+        // The spectral embedding + k-means step uses an unseeded global RNG in
+        // the Lanczos eigendecomposition (scirs2-linalg) that is beyond our
+        // control, making the raw labels non-deterministic.  We therefore
+        // enforce constraints directly on the returned label vector.
+        //
+        // Step 1: For every must-link group, assign all members the plurality
+        // (mode) label within the group.  Ties are broken by choosing the
+        // smallest label, which is deterministic.
+        enforce_must_link_labels(n_samples, &propagated_must, &mut labels);
+
+        // Step 2: For every cannot-link pair that is still violated after
+        // step 1, flip one of the labels to a different cluster.  For
+        // n_clusters == 2 this is simply `1 - label`.  For larger k we pick
+        // the most common label across the whole dataset that differs from the
+        // kept label.
+        enforce_cannot_link_labels(&propagated_cannot, &mut labels, n_clusters);
+
+        // Compute constraint satisfaction rate.
+        let total_constraints =
+            self.constraints.must_link.len() + self.constraints.cannot_link.len();
+        let satisfied = if total_constraints == 0 {
+            1.0
+        } else {
+            let must_ok = self
+                .constraints
+                .must_link
+                .iter()
+                .filter(|&&(i, j)| i < labels.len() && j < labels.len() && labels[i] == labels[j])
+                .count();
+            let cannot_ok = self
+                .constraints
+                .cannot_link
+                .iter()
+                .filter(|&&(i, j)| i < labels.len() && j < labels.len() && labels[i] != labels[j])
+                .count();
+            (must_ok + cannot_ok) as Float / total_constraints as Float
+        };
+
+        self.satisfaction_rate_ = Some(satisfied);
+        self.inner = SpectralClustering::<Array2<Float>, ()> {
+            config: self.inner.config.clone(),
+            labels: Some(labels),
+            affinity_matrix: Some(affinity),
+            _phantom: PhantomData,
+        };
+
+        Ok(self)
     }
 }
 
@@ -818,9 +1270,8 @@ mod tests {
         }
 
         // Check that closer points have higher affinity
-        let dist_01 = 1.0; // Distance between points 0 and 1
-        let dist_02 = 1.0; // Distance between points 0 and 2
-        let expected_affinity = (-1.0_f64 * dist_01 * dist_01).exp();
+        let dist_01 = 1.0f64; // Distance between points 0 and 1
+        let expected_affinity = (-(dist_01 * dist_01)).exp();
         assert!((affinity[[0, 1]] - expected_affinity).abs() < 1e-6);
         assert!((affinity[[0, 2]] - expected_affinity).abs() < 1e-6);
     }
@@ -1067,82 +1518,91 @@ mod tests {
         assert_eq!(model.labels().len(), x.nrows());
     }
 
-    // TODO: Implement constrained spectral clustering
-    // #[test]
-    // fn test_constrained_spectral_clustering() {
-    //     let x = array![
-    //         [0.0, 0.0],
-    //         [0.1, 0.1],
-    //         [0.2, 0.0],
-    //         [5.0, 5.0],
-    //         [5.1, 5.1],
-    //         [5.2, 5.0],
-    //     ];
-    //
-    //     // Create constraints: points 0 and 1 must be in same cluster
-    //     // points 0 and 3 cannot be in same cluster
-    //     let constraints = ClusteringConstraints {
-    //         must_link: vec![(0, 1)],
-    //         cannot_link: vec![(0, 3)],
-    //         weight: 1.0,
-    //     };
-    //
-    //     // TODO: Implement ConstrainedSpectralClustering and ConstraintMethod
-    //     // let model = ConstrainedSpectralClustering::new(constraints)
-    //     //     .n_clusters(2)
-    //     //     .affinity(Affinity::RBF)
-    //     //     .gamma(1.0)
-    //     //     .fit(&x.view(), &Array1::zeros(0).view())
-    //     //     .expect("operation should succeed");
-    //     //
-    //     // let labels = model.labels();
-    //     // assert_eq!(labels.len(), x.nrows());
-    //     //
-    //     // // Check that must-link constraint is satisfied (points 0 and 1 same cluster)
-    //     // assert_eq!(labels[0], labels[1]);
-    //     //
-    //     // // Check that cannot-link constraint is satisfied (points 0 and 3 different clusters)
-    //     // assert_ne!(labels[0], labels[3]);
-    //     //
-    //     // // Check constraint satisfaction rate
-    //     // let satisfaction_rate = model.constraint_satisfaction_rate().expect("operation should succeed");
-    //     // assert!(satisfaction_rate >= 0.0 && satisfaction_rate <= 1.0);
-    // }
+    #[test]
+    fn test_constrained_spectral_clustering() {
+        let x = array![
+            [0.0, 0.0],
+            [0.1, 0.1],
+            [0.2, 0.0],
+            [5.0, 5.0],
+            [5.1, 5.1],
+            [5.2, 5.0],
+        ];
 
-    // TODO: Implement constraint propagation for spectral clustering
-    // #[test]
-    // fn test_constraint_propagation() {
-    //     let x = array![
-    //         [0.0, 0.0],
-    //         [0.1, 0.1],
-    //         [0.2, 0.0],
-    //         [0.3, 0.1],
-    //         [5.0, 5.0],
-    //         [5.1, 5.1],
-    //     ];
-    //
-    //     // Create transitive must-link constraints: 0-1, 1-2 should imply 0-2
-    //     let constraints = ClusteringConstraints {
-    //         must_link: vec![(0, 1), (1, 2)],
-    //         cannot_link: vec![(0, 4)],
-    //         weight: 2.0,
-    //     };
-    //
-    //     // TODO: Implement ConstrainedSpectralClustering and ConstraintMethod
-    //     // let model = ConstrainedSpectralClustering::new(constraints)
-    //     //     .n_clusters(2)
-    //     //     .affinity(Affinity::RBF)
-    //     //     .fit(&x.view(), &Array1::zeros(0).view())
-    //     //     .expect("operation should succeed");
-    //     //
-    //     // let labels = model.labels();
-    //     //
-    //     // // Check that transitive constraint is satisfied
-    //     // assert_eq!(labels[0], labels[1]);
-    //     // assert_eq!(labels[1], labels[2]);
-    //     // assert_eq!(labels[0], labels[2]);
-    //     //
-    //     // // Check cannot-link constraint
-    //     // assert_ne!(labels[0], labels[4]);
-    // }
+        // Create constraints: points 0 and 1 must be in same cluster,
+        // points 0 and 3 cannot be in same cluster.
+        let constraints = ClusteringConstraints {
+            must_link: vec![(0, 1)],
+            cannot_link: vec![(0, 3)],
+            weight: 1.0,
+        };
+
+        let model = ConstrainedSpectralClustering::new(constraints)
+            .n_clusters(2)
+            .affinity(Affinity::RBF)
+            .gamma(1.0)
+            .fit(&x.view(), &Array1::zeros(0).view())
+            .expect("constrained spectral clustering should succeed");
+
+        let labels = model.labels();
+        assert_eq!(labels.len(), x.nrows());
+
+        // Check that must-link constraint is satisfied (points 0 and 1 same cluster).
+        assert_eq!(labels[0], labels[1]);
+
+        // Check that cannot-link constraint is satisfied (points 0 and 3 different clusters).
+        assert_ne!(labels[0], labels[3]);
+
+        // Check constraint satisfaction rate is in [0, 1].
+        let satisfaction_rate = model
+            .constraint_satisfaction_rate()
+            .expect("satisfaction rate should be set after fitting");
+        assert!((0.0..=1.0).contains(&satisfaction_rate));
+    }
+
+    #[test]
+    fn test_constraint_propagation() {
+        let n = 6;
+        // Transitive must-link: 0-1 and 1-2 should imply 0-2.
+        let must_link = vec![(0usize, 1usize), (1, 2)];
+        let cannot_link = vec![(0usize, 4usize)];
+
+        let (prop_must, prop_cannot) = propagate_constraints(n, &must_link, &cannot_link)
+            .expect("constraint propagation should succeed");
+
+        // The closure of {(0,1),(1,2)} should include (0,2).
+        assert!(
+            prop_must.contains(&(0, 2)) || prop_must.contains(&(2, 0)),
+            "Transitive must-link (0,2) should be present"
+        );
+
+        // The cannot-link (0,4) propagates: all of {0,1,2} cannot link with 4.
+        for i in 0..3usize {
+            assert!(
+                prop_cannot.contains(&(i, 4)) || prop_cannot.contains(&(4, i)),
+                "Propagated cannot-link ({i}, 4) should be present"
+            );
+        }
+    }
+
+    #[test]
+    fn test_constraint_propagation_conflict_detection() {
+        // Conflict: (0,1) must-link AND (0,1) cannot-link.
+        let result = propagate_constraints(3, &[(0, 1)], &[(0, 1)]);
+        assert!(
+            result.is_err(),
+            "Conflicting constraints should return an error"
+        );
+    }
+
+    #[test]
+    fn test_union_find() {
+        let mut uf = UnionFind::new(5);
+        assert!(!uf.connected(0, 1));
+        uf.union(0, 1);
+        assert!(uf.connected(0, 1));
+        uf.union(1, 2);
+        assert!(uf.connected(0, 2));
+        assert!(!uf.connected(0, 3));
+    }
 }

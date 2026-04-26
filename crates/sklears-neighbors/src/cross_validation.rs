@@ -14,6 +14,9 @@ use crate::NeighborsError;
 use sklears_core::traits::{Fit, Predict};
 use sklears_core::types::{Float, Int};
 
+/// Type alias for cross-validation splits: list of (train_indices, test_indices) pairs
+type SplitResult = Result<Vec<(Vec<usize>, Vec<usize>)>, NeighborsError>;
+
 /// Cross-validation strategy for neighbor algorithms
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CVStrategy {
@@ -206,7 +209,7 @@ impl NeighborCrossValidator {
     #[allow(non_snake_case)]
     pub fn validate_classifier(
         &self,
-        X: ArrayView2<Float>,
+        x: ArrayView2<Float>,
         y: ArrayView1<Int>,
         k: usize,
         distance: Distance,
@@ -214,16 +217,16 @@ impl NeighborCrossValidator {
     ) -> Result<CVResults, NeighborsError> {
         let start_time = std::time::Instant::now();
 
-        let splits = self.generate_splits(X, Some(y.view()))?;
+        let splits = self.generate_splits(x, Some(y.view()))?;
         let mut fold_results = Vec::new();
 
         for (fold, (train_indices, test_indices)) in splits.into_iter().enumerate() {
             let _fold_start = std::time::Instant::now();
 
             // Create train/test splits
-            let X_train = self.select_rows(&X, &train_indices);
+            let x_train = self.select_rows(&x, &train_indices);
             let y_train = self.select_elements(&y, &train_indices);
-            let X_test = self.select_rows(&X, &test_indices);
+            let x_test = self.select_rows(&x, &test_indices);
             let y_test = self.select_elements(&y, &test_indices);
 
             // Train classifier
@@ -231,12 +234,12 @@ impl NeighborCrossValidator {
             let classifier = KNeighborsClassifier::new(k)
                 .with_metric(distance.clone())
                 .with_algorithm(algorithm)
-                .fit(&X_train, &y_train)?;
+                .fit(&x_train, &y_train)?;
             let train_time = train_start.elapsed();
 
             // Make predictions
             let predict_start = std::time::Instant::now();
-            let predictions = classifier.predict(&X_test)?;
+            let predictions = classifier.predict(&x_test)?;
             let predict_time = predict_start.elapsed();
 
             // Calculate test score (accuracy)
@@ -244,7 +247,7 @@ impl NeighborCrossValidator {
 
             // Calculate train score if requested
             let train_score = if self.compute_train_score {
-                let train_predictions = classifier.predict(&X_train)?;
+                let train_predictions = classifier.predict(&x_train)?;
                 Some(self.calculate_classification_accuracy(&train_predictions, &y_train))
             } else {
                 None
@@ -271,7 +274,7 @@ impl NeighborCrossValidator {
     #[allow(non_snake_case)]
     pub fn validate_regressor(
         &self,
-        X: ArrayView2<Float>,
+        x: ArrayView2<Float>,
         y: ArrayView1<Float>,
         k: usize,
         distance: Distance,
@@ -279,14 +282,14 @@ impl NeighborCrossValidator {
     ) -> Result<CVResults, NeighborsError> {
         let start_time = std::time::Instant::now();
 
-        let splits = self.generate_splits(X, None)?;
+        let splits = self.generate_splits(x, None)?;
         let mut fold_results = Vec::new();
 
         for (fold, (train_indices, test_indices)) in splits.into_iter().enumerate() {
             // Create train/test splits
-            let X_train = self.select_rows(&X, &train_indices);
+            let x_train = self.select_rows(&x, &train_indices);
             let y_train = self.select_elements(&y, &train_indices);
-            let X_test = self.select_rows(&X, &test_indices);
+            let x_test = self.select_rows(&x, &test_indices);
             let y_test = self.select_elements(&y, &test_indices);
 
             // Train regressor
@@ -294,12 +297,12 @@ impl NeighborCrossValidator {
             let regressor = KNeighborsRegressor::new(k)
                 .with_metric(distance.clone())
                 .with_algorithm(algorithm)
-                .fit(&X_train, &y_train)?;
+                .fit(&x_train, &y_train)?;
             let train_time = train_start.elapsed();
 
             // Make predictions
             let predict_start = std::time::Instant::now();
-            let predictions = regressor.predict(&X_test)?;
+            let predictions = regressor.predict(&x_test)?;
             let predict_time = predict_start.elapsed();
 
             // Calculate test score (negative MSE)
@@ -307,7 +310,7 @@ impl NeighborCrossValidator {
 
             // Calculate train score if requested
             let train_score = if self.compute_train_score {
-                let train_predictions = regressor.predict(&X_train)?;
+                let train_predictions = regressor.predict(&x_train)?;
                 Some(-self.calculate_mse(&train_predictions, &y_train))
             } else {
                 None
@@ -333,7 +336,7 @@ impl NeighborCrossValidator {
     /// Compare multiple algorithms using cross-validation
     pub fn compare_algorithms(
         &self,
-        X: ArrayView2<Float>,
+        x: ArrayView2<Float>,
         y: ArrayView1<Int>,
         k: usize,
         algorithms: &[Algorithm],
@@ -342,7 +345,7 @@ impl NeighborCrossValidator {
         let mut results = HashMap::new();
 
         for &algorithm in algorithms {
-            let cv_result = self.validate_classifier(X, y, k, distance.clone(), algorithm)?;
+            let cv_result = self.validate_classifier(x, y, k, distance.clone(), algorithm)?;
             results.insert(algorithm, cv_result);
         }
 
@@ -352,7 +355,7 @@ impl NeighborCrossValidator {
     /// Compare multiple distance metrics using cross-validation
     pub fn compare_distances(
         &self,
-        X: ArrayView2<Float>,
+        x: ArrayView2<Float>,
         y: ArrayView1<Int>,
         k: usize,
         distances: &[Distance],
@@ -361,7 +364,7 @@ impl NeighborCrossValidator {
         let mut results = HashMap::new();
 
         for distance in distances {
-            let cv_result = self.validate_classifier(X, y, k, distance.clone(), algorithm)?;
+            let cv_result = self.validate_classifier(x, y, k, distance.clone(), algorithm)?;
             results.insert(distance.clone(), cv_result);
         }
 
@@ -371,7 +374,7 @@ impl NeighborCrossValidator {
     /// Find optimal k value using cross-validation
     pub fn optimize_k(
         &self,
-        X: ArrayView2<Float>,
+        x: ArrayView2<Float>,
         y: ArrayView1<Int>,
         k_values: &[usize],
         distance: Distance,
@@ -382,7 +385,7 @@ impl NeighborCrossValidator {
         let mut best_score = Float::NEG_INFINITY;
 
         for &k in k_values {
-            let cv_result = self.validate_classifier(X, y, k, distance.clone(), algorithm)?;
+            let cv_result = self.validate_classifier(x, y, k, distance.clone(), algorithm)?;
 
             if cv_result.mean_test_score > best_score {
                 best_score = cv_result.mean_test_score;
@@ -397,12 +400,8 @@ impl NeighborCrossValidator {
 
     // Helper methods
 
-    fn generate_splits(
-        &self,
-        X: ArrayView2<Float>,
-        y: Option<ArrayView1<Int>>,
-    ) -> Result<Vec<(Vec<usize>, Vec<usize>)>, NeighborsError> {
-        let n_samples = X.nrows();
+    fn generate_splits(&self, x: ArrayView2<Float>, y: Option<ArrayView1<Int>>) -> SplitResult {
+        let n_samples = x.nrows();
         let mut rng = if let Some(seed) = self.random_state {
             Random::seed(seed)
         } else {
@@ -445,7 +444,7 @@ impl NeighborCrossValidator {
         n_samples: usize,
         n_splits: usize,
         rng: &mut Random<scirs2_core::random::rngs::StdRng>,
-    ) -> Result<Vec<(Vec<usize>, Vec<usize>)>, NeighborsError> {
+    ) -> SplitResult {
         if n_splits > n_samples {
             return Err(NeighborsError::InvalidInput(format!(
                 "n_splits ({}) > n_samples ({})",
@@ -494,7 +493,7 @@ impl NeighborCrossValidator {
         y: ArrayView1<Int>,
         n_splits: usize,
         rng: &mut Random<scirs2_core::random::rngs::StdRng>,
-    ) -> Result<Vec<(Vec<usize>, Vec<usize>)>, NeighborsError> {
+    ) -> SplitResult {
         // Group indices by class
         let mut class_indices: HashMap<Int, Vec<usize>> = HashMap::new();
         for (i, &label) in y.iter().enumerate() {
@@ -518,7 +517,7 @@ impl NeighborCrossValidator {
             let remainder = class_size % n_splits;
 
             let mut start = 0;
-            for fold in 0..n_splits {
+            for (fold, split_entry) in splits.iter_mut().enumerate() {
                 let fold_size_adj = if fold < remainder {
                     fold_size + 1
                 } else {
@@ -527,7 +526,7 @@ impl NeighborCrossValidator {
                 let end = start + fold_size_adj;
 
                 for &idx in &indices[start..end] {
-                    splits[fold].1.push(idx); // Add to test set
+                    split_entry.1.push(idx); // Add to test set
                 }
 
                 start = end;
@@ -547,10 +546,7 @@ impl NeighborCrossValidator {
         Ok(splits)
     }
 
-    fn leave_one_out_splits(
-        &self,
-        n_samples: usize,
-    ) -> Result<Vec<(Vec<usize>, Vec<usize>)>, NeighborsError> {
+    fn leave_one_out_splits(&self, n_samples: usize) -> SplitResult {
         let mut splits = Vec::with_capacity(n_samples);
 
         for i in 0..n_samples {
@@ -562,11 +558,7 @@ impl NeighborCrossValidator {
         Ok(splits)
     }
 
-    fn leave_p_out_splits(
-        &self,
-        n_samples: usize,
-        p: usize,
-    ) -> Result<Vec<(Vec<usize>, Vec<usize>)>, NeighborsError> {
+    fn leave_p_out_splits(&self, n_samples: usize, p: usize) -> SplitResult {
         if p > n_samples {
             return Err(NeighborsError::InvalidInput(format!(
                 "p ({}) > n_samples ({})",
@@ -611,7 +603,7 @@ impl NeighborCrossValidator {
         bootstrap_n_samples: Option<usize>,
         n_iterations: usize,
         rng: &mut Random<scirs2_core::random::rngs::StdRng>,
-    ) -> Result<Vec<(Vec<usize>, Vec<usize>)>, NeighborsError> {
+    ) -> SplitResult {
         let bootstrap_size = bootstrap_n_samples.unwrap_or(n_samples);
         let mut splits = Vec::with_capacity(n_iterations);
 
@@ -642,7 +634,7 @@ impl NeighborCrossValidator {
         n_samples: usize,
         n_splits: usize,
         max_train_size: Option<usize>,
-    ) -> Result<Vec<(Vec<usize>, Vec<usize>)>, NeighborsError> {
+    ) -> SplitResult {
         let mut splits = Vec::new();
         let test_size = n_samples / n_splits;
 

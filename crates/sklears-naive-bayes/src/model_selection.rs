@@ -4,15 +4,20 @@
 //! cross-validation, hyperparameter tuning, and model comparison.
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
-use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Axis, Dim, OwnedRepr};
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use rayon::prelude::*;
 use scirs2_core::random::SeedableRng;
 use sklears_core::{
     error::Result,
     prelude::SklearsError,
-    traits::{Fit, Predict, PredictProba},
+    traits::{Fit, Predict, PredictProba, Untrained},
 };
+
+/// Concrete f64 matrix type (Array2<f64> expanded) for use in Fit trait bounds.
+/// Using the fully-expanded form avoids Rust's type alias default-param issues.
+type Mat2f64 = ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>, f64>;
+/// Concrete i32 vector type for label arrays.
+type Vec1i32 = ArrayBase<OwnedRepr<i32>, Dim<[usize; 1]>, i32>;
 use std::collections::HashMap;
 
 use crate::{BernoulliNB, ComplementNB, GaussianNB, MultinomialNB};
@@ -295,8 +300,8 @@ impl BayesianModelSelector {
     ) -> Result<f64>
     where
         M: Clone + Send + Sync,
-        M: Fit<Array2<f64>, Array1<i32>>,
-        <M as Fit<Array2<f64>, Array1<i32>>>::Fitted: PredictProba<Array2<f64>, Array2<f64>>,
+        M: Fit<Mat2f64, Vec1i32, Untrained>,
+        <M as Fit<Mat2f64, Vec1i32, Untrained>>::Fitted: PredictProba<Mat2f64, Mat2f64>,
     {
         // Fit the model
         let fitted_model = model.clone().fit(x, y)?;
@@ -390,8 +395,8 @@ impl BayesianModelSelector {
     pub fn compute_waic<M>(&self, model: &M, x: &Array2<f64>, y: &Array1<i32>) -> Result<f64>
     where
         M: Clone + Send + Sync,
-        M: Fit<Array2<f64>, Array1<i32>>,
-        <M as Fit<Array2<f64>, Array1<i32>>>::Fitted: PredictProba<Array2<f64>, Array2<f64>>,
+        M: Fit<Mat2f64, Vec1i32, Untrained>,
+        <M as Fit<Mat2f64, Vec1i32, Untrained>>::Fitted: PredictProba<Mat2f64, Mat2f64>,
     {
         // For simplicity, use a single model fit
         // In practice, WAIC requires multiple posterior samples
@@ -421,8 +426,8 @@ impl BayesianModelSelector {
     pub fn compute_looic<M>(&self, model: &M, x: &Array2<f64>, y: &Array1<i32>) -> Result<f64>
     where
         M: Clone + Send + Sync,
-        M: Fit<Array2<f64>, Array1<i32>>,
-        <M as Fit<Array2<f64>, Array1<i32>>>::Fitted: PredictProba<Array2<f64>, Array2<f64>>,
+        M: Fit<Mat2f64, Vec1i32, Untrained>,
+        <M as Fit<Mat2f64, Vec1i32, Untrained>>::Fitted: PredictProba<Mat2f64, Mat2f64>,
     {
         let n_samples = x.nrows();
         let mut log_lik_loo = 0.0;
@@ -461,8 +466,8 @@ impl BayesianModelSelector {
     ) -> Result<BayesianModelComparison>
     where
         M: Clone + Send + Sync,
-        M: Fit<Array2<f64>, Array1<i32>>,
-        <M as Fit<Array2<f64>, Array1<i32>>>::Fitted: PredictProba<Array2<f64>, Array2<f64>>,
+        M: Fit<Mat2f64, Vec1i32, Untrained>,
+        <M as Fit<Mat2f64, Vec1i32, Untrained>>::Fitted: PredictProba<Mat2f64, Mat2f64>,
     {
         let mut model_names = Vec::new();
         let mut log_marginal_likelihoods = Vec::new();
@@ -782,8 +787,8 @@ impl NaiveBayesModelSelector {
     pub fn cross_validate<M>(&self, model: M, x: &Array2<f64>, y: &Array1<i32>) -> Result<CVResults>
     where
         M: Clone + Send + Sync,
-        M: Fit<Array2<f64>, Array1<i32>>,
-        <M as Fit<Array2<f64>, Array1<i32>>>::Fitted: Predict<Array2<f64>, Array1<i32>>,
+        M: Fit<Mat2f64, Vec1i32, Untrained>,
+        <M as Fit<Mat2f64, Vec1i32, Untrained>>::Fitted: Predict<Mat2f64, Vec1i32>,
     {
         let splits = self.generate_cv_splits(x.nrows(), y)?;
         let mut test_scores = Vec::new();
@@ -891,7 +896,11 @@ impl NaiveBayesModelSelector {
         let best_idx = cv_results
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.mean_test_score.partial_cmp(&b.mean_test_score).expect("operation should succeed"))
+            .max_by(|(_, a), (_, b)| {
+                a.mean_test_score
+                    .partial_cmp(&b.mean_test_score)
+                    .expect("operation should succeed")
+            })
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
@@ -1000,8 +1009,9 @@ mod tests {
     #[test]
     fn test_kfold_splits() {
         let selector = NaiveBayesModelSelector::new();
-        let y = Array1::from_vec(vec![0, 1, 0, 1, 0, 1, 0, 1]);
-        let splits = selector.kfold_splits(8, 4, false, None).expect("operation should succeed");
+        let splits = selector
+            .kfold_splits(8, 4, false, None)
+            .expect("operation should succeed");
 
         assert_eq!(splits.len(), 4);
         for (train, test) in splits {
@@ -1011,8 +1021,8 @@ mod tests {
 
     #[test]
     fn test_cross_validate() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 1.0]).expect("operation should succeed");
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 1.0])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 1, 1, 0]);
 
         let selector = NaiveBayesModelSelector::new().cv_strategy(CVStrategy::KFold {
@@ -1022,7 +1032,9 @@ mod tests {
         });
 
         let model = GaussianNB::new();
-        let results = selector.cross_validate(model, &x, &y).expect("operation should succeed");
+        let results = selector
+            .cross_validate(model, &x, &y)
+            .expect("operation should succeed");
 
         assert_eq!(results.test_scores.len(), 2);
         assert!(results.mean_test_score >= 0.0 && results.mean_test_score <= 1.0);
@@ -1203,11 +1215,11 @@ impl NaiveBayesModelSelector {
     ) -> Result<NestedModelComparison>
     where
         S: Clone + Send + Sync,
-        S: Fit<Array2<f64>, Array1<i32>>,
-        <S as Fit<Array2<f64>, Array1<i32>>>::Fitted: PredictProba<Array2<f64>, Array2<f64>>,
+        S: Fit<Mat2f64, Vec1i32, Untrained>,
+        <S as Fit<Mat2f64, Vec1i32, Untrained>>::Fitted: PredictProba<Mat2f64, Mat2f64>,
         C: Clone + Send + Sync,
-        C: Fit<Array2<f64>, Array1<i32>>,
-        <C as Fit<Array2<f64>, Array1<i32>>>::Fitted: PredictProba<Array2<f64>, Array2<f64>>,
+        C: Fit<Mat2f64, Vec1i32, Untrained>,
+        <C as Fit<Mat2f64, Vec1i32, Untrained>>::Fitted: PredictProba<Mat2f64, Mat2f64>,
     {
         // Fit both models
         let simple_fitted = simple_model.clone().fit(x, y)?;
@@ -1288,13 +1300,13 @@ impl NaiveBayesModelSelector {
     ) -> Result<NestedModelValidation>
     where
         S: Clone + Send + Sync,
-        S: Fit<Array2<f64>, Array1<i32>>,
-        <S as Fit<Array2<f64>, Array1<i32>>>::Fitted:
-            PredictProba<Array2<f64>, Array2<f64>> + Predict<Array2<f64>, Array1<i32>>,
+        S: Fit<Mat2f64, Vec1i32, Untrained>,
+        <S as Fit<Mat2f64, Vec1i32, Untrained>>::Fitted:
+            PredictProba<Mat2f64, Mat2f64> + Predict<Mat2f64, Vec1i32>,
         C: Clone + Send + Sync,
-        C: Fit<Array2<f64>, Array1<i32>>,
-        <C as Fit<Array2<f64>, Array1<i32>>>::Fitted:
-            PredictProba<Array2<f64>, Array2<f64>> + Predict<Array2<f64>, Array1<i32>>,
+        C: Fit<Mat2f64, Vec1i32, Untrained>,
+        <C as Fit<Mat2f64, Vec1i32, Untrained>>::Fitted:
+            PredictProba<Mat2f64, Mat2f64> + Predict<Mat2f64, Vec1i32>,
     {
         // Perform cross-validation for both models
         let simple_cv_results = self.cross_validate(simple_model.clone(), x, y)?;
@@ -1336,7 +1348,7 @@ impl NaiveBayesModelSelector {
         y: &Array1<i32>,
     ) -> Result<f64>
     where
-        F: PredictProba<Array2<f64>, Array2<f64>>,
+        F: PredictProba<Mat2f64, Mat2f64>,
     {
         let proba = fitted_model.predict_proba(x)?;
         let mut log_likelihood = 0.0;
@@ -1556,7 +1568,7 @@ impl NaiveBayesModelSelector {
     /// Generate recommendation based on nested model comparison
     fn generate_nested_model_recommendation(
         &self,
-        likelihood_ratio: f64,
+        _likelihood_ratio: f64,
         p_value: f64,
         information_criteria: &HashMap<InformationCriterion, (f64, f64)>,
         alpha: f64,

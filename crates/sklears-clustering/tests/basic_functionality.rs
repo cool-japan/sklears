@@ -1,3 +1,4 @@
+//! Basic functionality integration tests for sklears-clustering.
 use scirs2_core::ndarray::{array, Array1};
 use sklears_clustering::{KMeans, KMeansConfig, SphericalKMeans, SphericalKMeansConfig};
 use sklears_core::traits::Fit;

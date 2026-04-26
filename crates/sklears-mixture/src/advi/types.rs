@@ -11,6 +11,16 @@ use sklears_core::{
 };
 use std::f64::consts::PI;
 
+/// Type alias for complex variational parameter tuple
+type VariationalParams = SklResult<(
+    Array1<f64>,
+    Array1<f64>,
+    Array2<f64>,
+    Array3<f64>,
+    Array1<f64>,
+    Array3<f64>,
+)>;
+
 /// Automatic differentiation backend
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ADBackend {
@@ -100,11 +110,12 @@ impl Dual {
 ///     .ad_backend(ADBackend::DualNumbers)
 ///     .optimizer(ADVIOptimizer::Adam)
 ///     .covariance_type(CovarianceType::Full);
-/// let fitted = model.fit(&X.view(), &()).unwrap();
-/// let labels = fitted.predict(&X.view()).unwrap();
+/// let fitted = model.fit(&X.view(), &()).expect("ADVI Gaussian mixture fitting should succeed with valid data");
+/// let labels = fitted.predict(&X.view()).expect("prediction should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct ADVIGaussianMixture<S = Untrained> {
+    #[allow(dead_code)]
     state: S,
     /// Number of mixture components
     pub(super) n_components: usize,
@@ -113,6 +124,7 @@ pub struct ADVIGaussianMixture<S = Untrained> {
     /// Optimization algorithm
     pub(super) optimizer: ADVIOptimizer,
     /// Covariance type
+    #[allow(dead_code)]
     covariance_type: CovarianceType,
     /// Convergence tolerance
     tol: f64,
@@ -283,20 +295,14 @@ impl ADVIGaussianMixture<Untrained> {
         self
     }
 }
+#[allow(non_snake_case, clippy::too_many_arguments)]
 impl ADVIGaussianMixture<Untrained> {
     /// Initialize parameters for ADVI
     pub(super) fn initialize_parameters(
         &self,
         X: &ArrayView2<f64>,
         rng: &mut scirs2_core::random::rngs::StdRng,
-    ) -> SklResult<(
-        Array1<f64>,
-        Array1<f64>,
-        Array2<f64>,
-        Array3<f64>,
-        Array1<f64>,
-        Array3<f64>,
-    )> {
+    ) -> VariationalParams {
         let (_n_samples, n_features) = X.dim();
         let weight_concentration = Array1::from_elem(self.n_components, self.weight_concentration);
         let mean_precision = Array1::from_elem(self.n_components, self.mean_precision);
@@ -564,18 +570,7 @@ impl ADVIGaussianMixture<Untrained> {
         Ok(Array1::from_vec(params))
     }
     /// Convert optimization vector to parameters
-    fn vector_to_params(
-        &self,
-        params: &Array1<f64>,
-        n_features: usize,
-    ) -> SklResult<(
-        Array1<f64>,
-        Array1<f64>,
-        Array2<f64>,
-        Array3<f64>,
-        Array1<f64>,
-        Array3<f64>,
-    )> {
+    fn vector_to_params(&self, params: &Array1<f64>, n_features: usize) -> VariationalParams {
         let mut idx = 0;
         let weight_concentration = params.slice(s![idx..idx + self.n_components]).to_owned();
         idx += self.n_components;
@@ -584,7 +579,7 @@ impl ADVIGaussianMixture<Untrained> {
         let mean_values = params
             .slice(s![idx..idx + self.n_components * n_features])
             .to_owned()
-            .into_shape((self.n_components, n_features))?;
+            .into_shape_with_order((self.n_components, n_features))?;
         idx += self.n_components * n_features;
         let mut precision_values = Array3::zeros((self.n_components, n_features, n_features));
         let tri_size = n_features * (n_features + 1) / 2;
@@ -1039,14 +1034,18 @@ pub struct ADVIGaussianMixtureTrained {
     /// Number of mixture components
     pub(super) n_components: usize,
     /// Automatic differentiation backend
+    #[allow(dead_code)]
     ad_backend: ADBackend,
     /// Optimization algorithm
+    #[allow(dead_code)]
     optimizer: ADVIOptimizer,
     /// Covariance type
+    #[allow(dead_code)]
     covariance_type: CovarianceType,
     /// Variational parameters for mixture weights
     weight_concentration: Array1<f64>,
     /// Variational parameters for means
+    #[allow(dead_code)]
     mean_precision: Array1<f64>,
     /// Variational parameters for means
     mean_values: Array2<f64>,
@@ -1057,6 +1056,7 @@ pub struct ADVIGaussianMixtureTrained {
     /// Scale matrices for Wishart distributions
     scale_matrices: Array3<f64>,
     /// Number of data points
+    #[allow(dead_code)]
     n_samples: usize,
     /// Number of features
     n_features: usize,
@@ -1071,6 +1071,7 @@ pub struct ADVIGaussianMixtureTrained {
     /// Parameter history for diagnostics
     parameter_history: Vec<Array1<f64>>,
 }
+#[allow(non_snake_case)]
 impl ADVIGaussianMixtureTrained {
     /// Predict class probabilities
     pub fn predict_proba(&self, X: &ArrayView2<f64>) -> SklResult<Array2<f64>> {

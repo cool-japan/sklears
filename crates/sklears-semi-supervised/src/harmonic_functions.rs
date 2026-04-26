@@ -92,6 +92,7 @@ impl HarmonicFunctions<Untrained> {
         self
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn build_affinity_matrix(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         let n_samples = X.nrows();
         let mut W = Array2::zeros((n_samples, n_samples));
@@ -252,7 +253,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for HarmonicFunctions<Untra
         let X = X.to_owned();
         let y = y.to_owned();
 
-        let (n_samples, _n_features) = X.dim();
+        let (_n_samples, _n_features) = X.dim();
 
         // Identify labeled and unlabeled samples
         let mut labeled_indices = Vec::new();
@@ -379,6 +380,7 @@ impl PredictProba<ArrayView2<'_, Float>, Array2<f64>>
 
 /// Trained state for HarmonicFunctions
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct HarmonicFunctionsTrained {
     /// X_train
     pub X_train: Array2<f64>,

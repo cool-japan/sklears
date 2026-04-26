@@ -265,7 +265,7 @@ impl<T: Clone + PartialEq> TypeSafeMissingOps<T, UnknownMechanism, WithMissing>
     fn is_complete(&self) -> bool {
         self.missing_mask
             .as_ref()
-            .map_or(true, |mask| !mask.iter().any(|&x| x))
+            .is_none_or(|mask| !mask.iter().any(|&x| x))
     }
 
     fn count_missing(&self) -> usize {

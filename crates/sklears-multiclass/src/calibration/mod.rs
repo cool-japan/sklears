@@ -43,9 +43,10 @@ pub use temperature_scaling::TemperatureScaling;
 use scirs2_core::random::seeded_rng;
 
 /// Calibration method configuration
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum CalibrationMethod {
     /// Platt scaling using sigmoid calibration
+    #[default]
     PlattScaling,
     /// Isotonic regression calibration
     IsotonicRegression,
@@ -53,12 +54,6 @@ pub enum CalibrationMethod {
     TemperatureScaling { initial_temperature: f64 },
     /// Dirichlet calibration for multiclass
     DirichletCalibration { l2_reg: f64 },
-}
-
-impl Default for CalibrationMethod {
-    fn default() -> Self {
-        Self::PlattScaling
-    }
 }
 
 /// Configuration for calibrated classifier
@@ -389,19 +384,15 @@ pub fn stratified_kfold_split(
 
 type TrainedCalibratedClassifier<T> = CalibratedClassifier<CalibratedTrainedData<T>, Trained>;
 
-impl<C> Fit<Array2<f64>, Array1<i32>> for CalibratedClassifier<C, Untrained>
+impl<C, CF> Fit<Array2<f64>, Array1<i32>> for CalibratedClassifier<C, Untrained>
 where
-    C: Clone + Fit<Array2<f64>, Array1<i32>> + Send + Sync,
-    C::Fitted: PredictProba<Array2<f64>, Array2<f64>> + Clone + Send + Sync,
+    C: Clone + Fit<Array2<f64>, Array1<i32>, Fitted = CF> + Send + Sync,
+    CF: PredictProba<Array2<f64>, Array2<f64>> + Clone + Send + Sync,
 {
-    type Fitted = TrainedCalibratedClassifier<C::Fitted>;
+    type Fitted = TrainedCalibratedClassifier<CF>;
 
     #[allow(non_snake_case)]
-    fn fit(
-        self,
-        X: &Array2<f64>,
-        y: &Array1<i32>,
-    ) -> SklResult<TrainedCalibratedClassifier<C::Fitted>> {
+    fn fit(self, X: &Array2<f64>, y: &Array1<i32>) -> SklResult<TrainedCalibratedClassifier<CF>> {
         if X.nrows() != y.len() {
             return Err(SklearsError::InvalidInput(
                 "X and y must have the same number of samples".to_string(),
@@ -577,6 +568,7 @@ impl<T> Predict<Array2<f64>, Array1<i32>>
 where
     T: PredictProba<Array2<f64>, Array2<f64>> + Clone + Send + Sync,
 {
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     fn predict(&self, X: &Array2<f64>) -> SklResult<Array1<i32>> {
         let probabilities = self.predict_proba(X)?;
         let (n_samples, _) = probabilities.dim();
@@ -602,6 +594,7 @@ impl<T> PredictProba<Array2<f64>, Array2<f64>>
 where
     T: PredictProba<Array2<f64>, Array2<f64>> + Clone + Send + Sync,
 {
+    #[allow(non_snake_case)] // X is standard ML feature matrix notation
     fn predict_proba(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         let (n_samples, _) = X.dim();
         let trained_data = &self.base_classifier;
@@ -974,11 +967,15 @@ mod tests {
             .method(CalibrationMethod::PlattScaling)
             .cv_folds(3);
 
-        let trained_platt = platt_calibrator.fit(&X, &y).expect("operation should succeed");
+        let trained_platt = platt_calibrator
+            .fit(&X, &y)
+            .expect("operation should succeed");
         let predictions = trained_platt.predict(&X).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
 
-        let probabilities = trained_platt.predict_proba(&X).expect("operation should succeed");
+        let probabilities = trained_platt
+            .predict_proba(&X)
+            .expect("operation should succeed");
         assert_eq!(probabilities.dim(), (6, 3));
 
         // Check probability constraints
@@ -992,8 +989,12 @@ mod tests {
             .method(CalibrationMethod::IsotonicRegression)
             .cv_folds(3);
 
-        let trained_isotonic = isotonic_calibrator.fit(&X, &y).expect("operation should succeed");
-        let iso_predictions = trained_isotonic.predict(&X).expect("operation should succeed");
+        let trained_isotonic = isotonic_calibrator
+            .fit(&X, &y)
+            .expect("operation should succeed");
+        let iso_predictions = trained_isotonic
+            .predict(&X)
+            .expect("operation should succeed");
         assert_eq!(iso_predictions.len(), 6);
 
         // Test with temperature scaling
@@ -1003,7 +1004,9 @@ mod tests {
             })
             .cv_folds(3);
 
-        let trained_temp = temp_calibrator.fit(&X, &y).expect("operation should succeed");
+        let trained_temp = temp_calibrator
+            .fit(&X, &y)
+            .expect("operation should succeed");
         let temp_predictions = trained_temp.predict(&X).expect("operation should succeed");
         assert_eq!(temp_predictions.len(), 6);
 
@@ -1012,8 +1015,12 @@ mod tests {
             .method(CalibrationMethod::DirichletCalibration { l2_reg: 0.01 })
             .cv_folds(3);
 
-        let trained_dirichlet = dirichlet_calibrator.fit(&X, &y).expect("operation should succeed");
-        let dirichlet_predictions = trained_dirichlet.predict(&X).expect("operation should succeed");
+        let trained_dirichlet = dirichlet_calibrator
+            .fit(&X, &y)
+            .expect("operation should succeed");
+        let dirichlet_predictions = trained_dirichlet
+            .predict(&X)
+            .expect("operation should succeed");
         assert_eq!(dirichlet_predictions.len(), 6);
     }
 

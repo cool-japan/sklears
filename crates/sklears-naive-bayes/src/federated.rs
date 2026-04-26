@@ -12,10 +12,8 @@ use scirs2_core::ndarray::{Array1, Array2};
 type DMatrix<T> = Array2<T>;
 type DVector<T> = Array1<T>;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use scirs2_core::random::essentials::Normal;
 use scirs2_core::random::{ChaCha20Rng, RngExt, SeedableRng};
 use serde::{Deserialize, Serialize};
-use sklears_core::traits::Fit;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
@@ -442,6 +440,7 @@ pub enum NoiseMechanism {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum SecretSharingScheme {
     /// Shamir
     Shamir,
@@ -449,31 +448,33 @@ pub enum SecretSharingScheme {
     Additive,
     /// Multiplicative
     Multiplicative,
-    /// SPDZ
+    /// SPDZ (Secure Powers of a Dealer with Zeus protocol)
     SPDZ,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum MPCProtocolType {
-    /// BGW
+    /// BGW (Ben-Or-Goldwasser-Wigderson) protocol
     BGW,
-    /// GMW
+    /// GMW (Goldreich-Micali-Wigderson) protocol
     GMW,
-    /// SPDZ
+    /// SPDZ (Secure Powers of a Dealer with Zeus) protocol
     SPDZ,
     /// ABY
     ABY,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum HomomorphicScheme {
     /// Paillier
     Paillier,
-    /// BGV
+    /// BGV (Brakerski-Gentry-Vaikuntanathan)
     BGV,
-    /// BFV
+    /// BFV (Brakerski-Fan-Vercauteren)
     BFV,
-    /// CKKS
+    /// CKKS (Cheon-Kim-Kim-Song)
     CKKS,
 }
 
@@ -597,7 +598,35 @@ impl<
             _phantom: PhantomData,
         }
     }
+}
 
+impl<
+        T: Float
+            + Default
+            + Display
+            + Debug
+            + std::iter::Sum
+            + std::iter::Sum<T>
+            + std::ops::AddAssign
+            + Copy,
+    > Default for FederatedNaiveBayes<T>
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<
+        T: Float
+            + Default
+            + Display
+            + Debug
+            + std::iter::Sum
+            + std::iter::Sum<T>
+            + std::ops::AddAssign
+            + Copy,
+    > FederatedNaiveBayes<T>
+{
     /// Add a client to the federation
     pub fn add_client(
         &mut self,
@@ -851,9 +880,7 @@ impl<
         // Aggregate feature statistics
         for update in &private_updates {
             for (&class_id, feature_stats) in update.feature_stat_updates.iter() {
-                let class_entry = aggregated_feature_stats
-                    .entry(class_id)
-                    .or_insert_with(HashMap::new);
+                let class_entry = aggregated_feature_stats.entry(class_id).or_default();
 
                 for (&feature_id, stats) in feature_stats.iter() {
                     let weight = update.client_weight / total_weight;
@@ -861,8 +888,8 @@ impl<
                     let weighted_variance = stats.variance * weight;
 
                     if let Some(existing_stats) = class_entry.get_mut(&feature_id) {
-                        existing_stats.mean = existing_stats.mean + weighted_mean;
-                        existing_stats.variance = existing_stats.variance + weighted_variance;
+                        existing_stats.mean += weighted_mean;
+                        existing_stats.variance += weighted_variance;
                         existing_stats.sample_count += stats.sample_count;
                     } else {
                         class_entry.insert(
@@ -1059,7 +1086,7 @@ impl<
         // Calculate change in priors
         for (&class_id, &new_prior) in aggregated_update.aggregated_priors.iter() {
             if let Some(&old_prior) = self.global_model.global_priors.get(&class_id) {
-                parameter_change = parameter_change + (new_prior - old_prior).abs();
+                parameter_change += (new_prior - old_prior).abs();
             }
         }
 
@@ -1649,10 +1676,6 @@ mod tests {
     use super::*;
     // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
     use scirs2_core::ndarray::{Array1, Array2};
-
-    // Type aliases for compatibility with DMatrix/DVector usage
-    type DMatrix<T> = Array2<T>;
-    type DVector<T> = Array1<T>;
 
     #[test]
     fn test_federated_naive_bayes_creation() {

@@ -416,7 +416,7 @@ impl SparseApproximationMethods {
         let k_mm_inv = KernelOps::invert_using_cholesky(&k_mm)?;
 
         // Build PIC system with block diagonal structure
-        let num_blocks = (n + block_size - 1) / block_size;
+        let num_blocks = n.div_ceil(block_size);
         let mut alpha = Array1::zeros(n);
 
         // Process each block independently

@@ -7,15 +7,14 @@
 //! - Matrix completion with side information
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{Rng, thread_rng, Random, SeedableRng};
 use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{rng as make_rng, RngExt, SeedableRng};
 use scirs2_linalg::compat::{svd, ArrayLinalgExt};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
     error::{Result, SklearsError},
-    traits::{Estimator, Fit, Transform, Untrained},
+    traits::{Fit, Transform, Untrained},
 };
 
 /// Type alias for complex completion result with side information
@@ -201,7 +200,7 @@ impl Fit<Array2<f64>, Array2<bool>> for MatrixCompletion<Untrained> {
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::from_rng(&mut thread_rng())
+            StdRng::from_rng(&mut make_rng())
         };
 
         // Run matrix completion algorithm
@@ -248,7 +247,7 @@ impl MatrixCompletion<Untrained> {
         matrix: &Array2<f64>,
         mask: &Array2<bool>,
         rank: usize,
-        _rng: &mut impl Rng,
+        _rng: &mut impl RngExt,
     ) -> Result<SideInfoCompletionResult> {
         let (n_users, n_items) = matrix.dim();
 
@@ -371,7 +370,7 @@ impl MatrixCompletion<Untrained> {
         matrix: &Array2<f64>,
         mask: &Array2<bool>,
         rank: usize,
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Result<SideInfoCompletionResult> {
         let (n_users, n_items) = matrix.dim();
 
@@ -381,13 +380,13 @@ impl MatrixCompletion<Untrained> {
 
         for i in 0..n_users {
             for k in 0..rank {
-                u[[i, k]] = rng.gen() - 0.5;
+                u[[i, k]] = rng.random::<f64>() - 0.5;
             }
         }
 
         for j in 0..n_items {
             for k in 0..rank {
-                v[[j, k]] = rng.gen() - 0.5;
+                v[[j, k]] = rng.random::<f64>() - 0.5;
             }
         }
 
@@ -428,8 +427,8 @@ impl MatrixCompletion<Untrained> {
                 for j in 0..n_items {
                     if mask[[i, j]] {
                         let rating = matrix[[i, j]] - global_bias;
-                        let rating = if self.use_bias {
-                            rating - item_bias.as_ref().expect("operation should succeed")[j]
+                        let rating = if let Some(ref ib) = item_bias {
+                            rating - ib[j]
                         } else {
                             rating
                         };
@@ -457,8 +456,8 @@ impl MatrixCompletion<Untrained> {
                 for i in 0..n_users {
                     if mask[[i, j]] {
                         let rating = matrix[[i, j]] - global_bias;
-                        let rating = if self.use_bias {
-                            rating - user_bias.as_ref().expect("operation should succeed")[i]
+                        let rating = if let Some(ref ub) = user_bias {
+                            rating - ub[i]
                         } else {
                             rating
                         };
@@ -488,7 +487,11 @@ impl MatrixCompletion<Untrained> {
                         for j in 0..n_items {
                             if mask[[i, j]] {
                                 let predicted = global_bias + u.row(i).dot(&v.row(j));
-                                let predicted = predicted + item_bias.as_ref().expect("operation should succeed")[j];
+                                let predicted = if let Some(ref ib) = item_bias {
+                                    predicted + ib[j]
+                                } else {
+                                    predicted
+                                };
                                 sum += matrix[[i, j]] - predicted;
                                 count += 1;
                             }
@@ -507,7 +510,11 @@ impl MatrixCompletion<Untrained> {
                         for i in 0..n_users {
                             if mask[[i, j]] {
                                 let predicted = global_bias + u.row(i).dot(&v.row(j));
-                                let predicted = predicted + user_bias.as_ref().expect("operation should succeed")[i];
+                                let predicted = if let Some(ref ub) = user_bias {
+                                    predicted + ub[i]
+                                } else {
+                                    predicted
+                                };
                                 sum += matrix[[i, j]] - predicted;
                                 count += 1;
                             }
@@ -527,9 +534,9 @@ impl MatrixCompletion<Untrained> {
                     if mask[[i, j]] {
                         let predicted = global_bias + u.row(i).dot(&v.row(j));
                         let predicted = if self.use_bias {
-                            predicted
-                                + user_bias.as_ref().expect("operation should succeed")[i]
-                                + item_bias.as_ref().expect("operation should succeed")[j]
+                            let ub = user_bias.as_deref().map(|a| a[i]).unwrap_or(0.0);
+                            let ib = item_bias.as_deref().map(|a| a[j]).unwrap_or(0.0);
+                            predicted + ub + ib
                         } else {
                             predicted
                         };
@@ -564,7 +571,7 @@ impl MatrixCompletion<Untrained> {
         matrix: &Array2<f64>,
         mask: &Array2<bool>,
         rank: usize,
-        _rng: &mut impl Rng,
+        _rng: &mut impl RngExt,
     ) -> Result<SideInfoCompletionResult> {
         // For simplicity, implement this as a variation of SVD completion with soft thresholding
         let (n_users, n_items) = matrix.dim();
@@ -691,7 +698,7 @@ impl MatrixCompletion<Untrained> {
         matrix: &Array2<f64>,
         mask: &Array2<bool>,
         rank: usize,
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Result<SideInfoCompletionResult> {
         // For now, implement this as regular ALS (can be extended with side information later)
         self.als_completion(matrix, mask, rank, rng)
@@ -704,16 +711,19 @@ impl MatrixCompletion<Untrained> {
         rank: usize,
     ) -> Result<(Array2<f64>, Array1<f64>, Array2<f64>)> {
         // Use scirs2-linalg SVD
-        let (u, s, vt) = svd(&matrix.view(), true).map_err(|e| {
-            SklearsError::NumericalError(format!("SVD failed: {}", e))
-        })?;
+        let (u, s, vt) = svd(&matrix.view(), true)
+            .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
         let actual_rank = rank.min(s.len());
 
         // Truncate to desired rank
-        let u_nd = u.slice(scirs2_core::ndarray::s![.., ..actual_rank]).to_owned();
+        let u_nd = u
+            .slice(scirs2_core::ndarray::s![.., ..actual_rank])
+            .to_owned();
         let s_nd = s.slice(scirs2_core::ndarray::s![..actual_rank]).to_owned();
-        let vt_nd = vt.slice(scirs2_core::ndarray::s![..actual_rank, ..]).to_owned();
+        let vt_nd = vt
+            .slice(scirs2_core::ndarray::s![..actual_rank, ..])
+            .to_owned();
 
         Ok((u_nd, s_nd, vt_nd))
     }
@@ -724,9 +734,8 @@ impl MatrixCompletion<Untrained> {
         matrix: &Array2<f64>,
     ) -> Result<(Array2<f64>, Array1<f64>, Array2<f64>)> {
         // Use scirs2-linalg SVD directly
-        svd(&matrix.view(), true).map_err(|e| {
-            SklearsError::NumericalError(format!("SVD failed: {}", e))
-        })
+        svd(&matrix.view(), true)
+            .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))
     }
 
     /// Solve linear system for ALS
@@ -745,9 +754,8 @@ impl MatrixCompletion<Untrained> {
         }
 
         // Final fallback: pseudoinverse using SVD
-        let (u, s, vt) = svd(&a.view(), true).map_err(|e| {
-            SklearsError::NumericalError(format!("SVD failed: {}", e))
-        })?;
+        let (u, s, vt) = svd(&a.view(), true)
+            .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
         let tolerance = 1e-12;
 
@@ -1030,53 +1038,96 @@ impl Transform<Array2<f64>, Array2<f64>> for LowRankMatrixRecovery<TrainedLowRan
 }
 
 impl LowRankMatrixRecovery<Untrained> {
-    /// Principal Component Pursuit using ADMM
+    /// Principal Component Pursuit using inexact ALM (ADMM with adaptive mu)
+    ///
+    /// Numerically stable implementation following Lin, Chen & Ma (2010):
+    /// - mu is initialised as `max(user_mu, 1.25 / ||M||_F)` so that the initial
+    ///   SVD threshold `tau = 1/mu` stays below the spectral norm and avoids the
+    ///   trivial decomposition (L=0, S=M).
+    /// - Adaptive mu schedule: mu_{k+1} = rho * mu_k (capped at mu_bar)
+    /// - SVD threshold tau = 1 / mu_k
+    /// - Sparse threshold: user-supplied lambda / mu_k
+    /// - Relative convergence: ||M - L - S||_F / max(1, ||M||_F) < tol
+    /// - Estimated rank uses threshold relative to largest singular value
     fn principal_component_pursuit(&self, x: &Array2<f64>) -> Result<RPCAResult> {
         let (m, n) = x.dim();
         let mut low_rank = Array2::zeros((m, n));
         let mut sparse = Array2::zeros((m, n));
         let mut y = Array2::zeros((m, n)); // Lagrange multipliers
 
-        let tau = 1.0 / self.mu;
+        // Frobenius norm of input (quick upper bound on spectral norm)
+        let x_frob = x.iter().map(|&v| v * v).sum::<f64>().sqrt();
+        // Scale tolerance relative to ||M||_F to avoid premature/delayed convergence
+        let rel_tol = self.tol * x_frob.max(1.0);
+
+        // Initialise mu: ensure tau = 1/mu is well below the spectral norm so
+        // the SVD soft-threshold puts meaningful content in L rather than zeroing
+        // all singular values and placing all signal in S (trivial solution).
+        //
+        // We use ||M||_F as a quick upper-bound on ||M||_2 and scale so that
+        // the initial threshold tau = 1/mu ≈ ||M||_F / 10, which is safely
+        // below the spectral norm for typical matrices while keeping tau large
+        // enough for the nuclear-norm penalty to have effect.  The user's mu
+        // is honoured if it already produces a smaller tau.
+        let mu_min = if x_frob > f64::EPSILON {
+            10.0 / x_frob
+        } else {
+            self.mu
+        };
+        let mut mu = self.mu.max(mu_min);
+        let rho = 1.5_f64;
+        // mu_bar: cap growth to avoid numeric overflow in y / mu
+        let mu_bar = mu * 1e6_f64;
 
         for iter in 0..self.max_iter {
+            let tau = 1.0 / mu;
+            let lambda_scaled = self.lambda / mu;
+
             // Update low-rank component using SVD soft thresholding
-            let temp1 = x - &sparse + &y / self.mu;
+            // Guard: y / mu is well-defined because mu > 0
+            let temp1 = x - &sparse + (&y * (1.0 / mu));
             low_rank = self.svd_soft_threshold(&temp1, tau)?;
 
             // Update sparse component using element-wise soft thresholding
-            let temp2 = x - &low_rank + &y / self.mu;
-            sparse = self.element_wise_soft_threshold(&temp2, self.lambda / self.mu);
+            let temp2 = x - &low_rank + (&y * (1.0 / mu));
+            sparse = self.element_wise_soft_threshold(&temp2, lambda_scaled);
 
             // Update Lagrange multipliers
             let residual = x - &low_rank - &sparse;
-            y = &y + self.mu * &residual;
+            y = &y + mu * &residual;
 
-            // Check convergence
-            let residual_norm = residual.iter().map(|&x| x * x).sum::<f64>().sqrt();
-            if residual_norm < self.tol {
+            // Relative convergence criterion: ||residual||_F / max(1, ||M||_F)
+            let residual_norm = residual.iter().map(|&v| v * v).sum::<f64>().sqrt();
+            if residual_norm < rel_tol {
                 let (u, s, vt) = self.compute_svd(&low_rank)?;
-                let estimated_rank = s.iter().filter(|&&x| x > 1e-12).count();
+                let s_max = s.iter().cloned().fold(0.0_f64, f64::max);
+                let rank_tol = s_max * (m.max(n) as f64) * f64::EPSILON * 1e4;
+                let estimated_rank = s.iter().filter(|&&v| v > rank_tol).count();
                 let objective = self.compute_pcp_objective(&low_rank, &sparse);
                 return Ok((
                     low_rank,
                     sparse,
                     Some((u, s, vt)),
-                    estimated_rank,
+                    estimated_rank.max(1),
                     iter + 1,
                     objective,
                 ));
             }
+
+            // Grow mu (inexact ALM schedule)
+            mu = (rho * mu).min(mu_bar);
         }
 
         let (u, s, vt) = self.compute_svd(&low_rank)?;
-        let estimated_rank = s.iter().filter(|&&x| x > 1e-12).count();
+        let s_max = s.iter().cloned().fold(0.0_f64, f64::max);
+        let rank_tol = s_max * (m.max(n) as f64) * f64::EPSILON * 1e4;
+        let estimated_rank = s.iter().filter(|&&v| v > rank_tol).count();
         let objective = self.compute_pcp_objective(&low_rank, &sparse);
         Ok((
             low_rank,
             sparse,
             Some((u, s, vt)),
-            estimated_rank,
+            estimated_rank.max(1),
             self.max_iter,
             objective,
         ))
@@ -1150,7 +1201,7 @@ impl LowRankMatrixRecovery<Untrained> {
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::from_rng(&mut thread_rng())
+            StdRng::from_rng(&mut make_rng())
         };
 
         // Initialize factors randomly
@@ -1159,13 +1210,13 @@ impl LowRankMatrixRecovery<Untrained> {
 
         for i in 0..m {
             for j in 0..target_rank {
-                u[[i, j]] = rng.gen() - 0.5;
+                u[[i, j]] = rng.random::<f64>() - 0.5;
             }
         }
 
         for i in 0..n {
             for j in 0..target_rank {
-                v[[i, j]] = rng.gen() - 0.5;
+                v[[i, j]] = rng.random::<f64>() - 0.5;
             }
         }
 
@@ -1180,13 +1231,13 @@ impl LowRankMatrixRecovery<Untrained> {
             v = self.update_factor_v(x, &u)?;
 
             // Check convergence
-            let u_diff = (&u - &old_u).iter().map(|&x| x * x).sum::<f64>().sqrt();
-            let v_diff = (&v - &old_v).iter().map(|&x| x * x).sum::<f64>().sqrt();
+            let u_diff = (&u - &old_u).iter().map(|&v| v * v).sum::<f64>().sqrt();
+            let v_diff = (&v - &old_v).iter().map(|&v| v * v).sum::<f64>().sqrt();
 
             if u_diff < self.tol && v_diff < self.tol {
                 let low_rank = u.dot(&v.t());
                 let sparse = x - &low_rank;
-                let (u_svd, s, vt) = self.compute_svd(&low_rank)?;
+                let (u_svd, s, vt) = self.truncated_svd_factors(&low_rank, target_rank)?;
                 let objective = self.compute_altmin_objective(&low_rank, &sparse);
                 return Ok((
                     low_rank,
@@ -1201,7 +1252,7 @@ impl LowRankMatrixRecovery<Untrained> {
 
         let low_rank = u.dot(&v.t());
         let sparse = x - &low_rank;
-        let (u_svd, s, vt) = self.compute_svd(&low_rank)?;
+        let (u_svd, s, vt) = self.truncated_svd_factors(&low_rank, target_rank)?;
         let objective = self.compute_altmin_objective(&low_rank, &sparse);
         Ok((
             low_rank,
@@ -1239,12 +1290,35 @@ impl LowRankMatrixRecovery<Untrained> {
         })
     }
 
-    /// Compute SVD decomposition
+    /// Compute SVD decomposition (full matrices)
     fn compute_svd(&self, matrix: &Array2<f64>) -> Result<(Array2<f64>, Array1<f64>, Array2<f64>)> {
-        // Use scirs2-linalg SVD directly
-        svd(&matrix.view(), true).map_err(|e| {
-            SklearsError::NumericalError(format!("SVD failed: {}", e))
-        })
+        // Use scirs2-linalg SVD directly (full_matrices = true)
+        svd(&matrix.view(), true)
+            .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))
+    }
+
+    /// Compute SVD and return truncated factors (U[:, :rank], s[:min(m,n)], Vt[:rank, :]).
+    ///
+    /// The returned tuple satisfies:
+    /// - `u.ncols() == rank`
+    /// - `vt.nrows() == rank`
+    /// - `s.len() == min(m, n)` (full singular value vector retained for inspection)
+    fn truncated_svd_factors(
+        &self,
+        matrix: &Array2<f64>,
+        rank: usize,
+    ) -> Result<(Array2<f64>, Array1<f64>, Array2<f64>)> {
+        let (u_full, s, vt_full) = self.compute_svd(matrix)?;
+        let (m, _) = u_full.dim();
+        let (_, n) = vt_full.dim();
+        // Clamp rank to valid range
+        let r = rank.min(m).min(n).min(s.len());
+        // Slice U to first r columns
+        use scirs2_core::ndarray::s as nds;
+        let u_trunc = u_full.slice(nds![.., ..r]).to_owned();
+        // Slice Vt to first r rows
+        let vt_trunc = vt_full.slice(nds![..r, ..]).to_owned();
+        Ok((u_trunc, s, vt_trunc))
     }
 
     /// Reconstruct matrix from SVD components
@@ -1444,7 +1518,9 @@ mod tests {
         assert!(trained.state.reconstruction_error.is_finite());
 
         // Test completion
-        let completed = trained.complete(&matrix, &mask).expect("operation should succeed");
+        let completed = trained
+            .complete(&matrix, &mask)
+            .expect("operation should succeed");
         assert_eq!(completed.dim(), matrix.dim());
 
         // Test prediction
@@ -1517,7 +1593,7 @@ mod tests {
         assert_eq!(mc.tol, 1e-8);
         assert_eq!(mc.learning_rate, 0.05);
         assert_eq!(mc.regularization, 0.05);
-        assert_eq!(mc.use_bias, false);
+        assert!(!mc.use_bias);
     }
 
     #[test]
@@ -1541,7 +1617,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // TODO: Fix PCP algorithm numerical stability
     fn test_low_rank_matrix_recovery_pcp() {
         // Create a low-rank matrix with sparse corruption
         let low_rank = array![[1.0, 2.0, 3.0], [2.0, 4.0, 6.0], [3.0, 6.0, 9.0]];
@@ -1555,7 +1630,9 @@ mod tests {
             .mu(0.1)
             .random_state(42);
 
-        let trained_lrmr = lrmr.fit(&corrupted, &()).expect("model fitting should succeed");
+        let trained_lrmr = lrmr
+            .fit(&corrupted, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(trained_lrmr.low_rank_component().dim(), (3, 3));
         assert_eq!(trained_lrmr.sparse_component().dim(), (3, 3));
@@ -1585,13 +1662,17 @@ mod tests {
             .max_iter(50)
             .random_state(42);
 
-        let trained_lrmr = lrmr.fit(&matrix, &()).expect("model fitting should succeed");
+        let trained_lrmr = lrmr
+            .fit(&matrix, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(trained_lrmr.estimated_rank(), 1);
         assert!(trained_lrmr.state.n_iter <= 50);
 
         // Test transform
-        let recovered = trained_lrmr.transform(&matrix).expect("transformation should succeed");
+        let recovered = trained_lrmr
+            .transform(&matrix)
+            .expect("transformation should succeed");
         assert_eq!(recovered.dim(), (2, 2));
 
         // All values should be finite
@@ -1601,7 +1682,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // TODO: Fix alternating minimization dimension handling
     fn test_low_rank_matrix_recovery_alternating_minimization() {
         let matrix = array![
             [1.0, 2.0, 3.0],
@@ -1616,7 +1696,9 @@ mod tests {
             .lambda(0.01)
             .random_state(42);
 
-        let trained_lrmr = lrmr.fit(&matrix, &()).expect("model fitting should succeed");
+        let trained_lrmr = lrmr
+            .fit(&matrix, &())
+            .expect("model fitting should succeed");
 
         assert!(trained_lrmr.estimated_rank() >= 1 && trained_lrmr.estimated_rank() <= 3);
         assert!(trained_lrmr.state.n_iter <= 20);
@@ -1624,7 +1706,10 @@ mod tests {
         // Check that factors are available
         assert!(trained_lrmr.factors().is_some());
 
-        let (u, s, vt) = trained_lrmr.factors().as_ref().expect("operation should succeed");
+        let (u, s, vt) = trained_lrmr
+            .factors()
+            .as_ref()
+            .expect("operation should succeed");
         assert_eq!(u.ncols(), 2);
         assert_eq!(vt.nrows(), 2);
         assert_eq!(s.len(), 3); // min(m, n)
@@ -1659,7 +1744,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // TODO: Fix PCP convergence and sparse component threshold
     fn test_low_rank_matrix_recovery_convergence() {
         // Create a simple rank-1 matrix
         let matrix = array![[1.0, 2.0], [2.0, 4.0]];
@@ -1672,7 +1756,9 @@ mod tests {
             .mu(0.1)
             .random_state(42);
 
-        let trained_lrmr = lrmr.fit(&matrix, &()).expect("model fitting should succeed");
+        let trained_lrmr = lrmr
+            .fit(&matrix, &())
+            .expect("model fitting should succeed");
 
         // Should converge quickly for a simple case
         assert!(trained_lrmr.state.n_iter <= 100);

@@ -442,6 +442,7 @@ pub fn train_dirichlet_calibrators(
 /// Adapter for OneVsOneCalibrator to make it compatible with CalibrationEstimator trait
 #[derive(Debug, Clone)]
 struct OneVsOneAdapter {
+    #[allow(dead_code)] // intentionally deferred: adapter predict_proba implementation pending
     calibrator: OneVsOneCalibrator,
 }
 
@@ -471,6 +472,7 @@ impl CalibrationEstimator for OneVsOneAdapter {
 /// Adapter for MulticlassTemperatureScaling to make it compatible with CalibrationEstimator trait
 #[derive(Debug, Clone)]
 struct MulticlassTemperatureAdapter {
+    #[allow(dead_code)] // intentionally deferred: adapter predict_proba implementation pending
     calibrator: MulticlassTemperatureScaling,
 }
 
@@ -499,6 +501,7 @@ impl CalibrationEstimator for MulticlassTemperatureAdapter {
 /// Adapter for MatrixScaling to make it compatible with CalibrationEstimator trait
 #[derive(Debug, Clone)]
 struct MatrixScalingAdapter {
+    #[allow(dead_code)] // intentionally deferred: adapter predict_proba implementation pending
     calibrator: MatrixScaling,
 }
 
@@ -527,6 +530,7 @@ impl CalibrationEstimator for MatrixScalingAdapter {
 /// Adapter for DirichletCalibration to make it compatible with CalibrationEstimator trait
 #[derive(Debug, Clone)]
 struct DirichletAdapter {
+    #[allow(dead_code)] // intentionally deferred: adapter predict_proba implementation pending
     calibrator: DirichletCalibration,
 }
 

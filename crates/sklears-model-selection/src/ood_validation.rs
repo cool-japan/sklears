@@ -397,12 +397,12 @@ impl OODValidator {
         let n_features = x_train.ncols();
         let mut importance = vec![0.0; n_features];
 
-        for j in 0..n_features {
+        for (j, imp) in importance.iter_mut().enumerate() {
             let train_feature = x_train.column(j);
             let ood_feature = x_ood.column(j);
 
             // Use KS test statistic as importance measure
-            importance[j] = self.kolmogorov_smirnov_statistic(&train_feature, &ood_feature)?;
+            *imp = self.kolmogorov_smirnov_statistic(&train_feature, &ood_feature)?;
         }
 
         Ok(importance)

@@ -13,7 +13,7 @@
 
 pub mod async_updates;
 
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, Axis};
+use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use sklears_core::error::SklearsError;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -30,6 +30,7 @@ pub use async_updates::{
 /// This thread pool uses work-stealing to balance load across threads.
 /// Each thread maintains a local work queue, and idle threads can steal
 /// work from busy threads to maintain high utilization.
+#[allow(clippy::type_complexity)] // Arc<Mutex<VecDeque<Box<dyn FnOnce>>>> is standard work-stealing queue type
 pub struct WorkStealingThreadPool {
     workers: Vec<WorkerThread>,
     shared_queue: Arc<Mutex<VecDeque<Box<dyn FnOnce() + Send + 'static>>>>,
@@ -38,6 +39,7 @@ pub struct WorkStealingThreadPool {
     n_threads: usize,
 }
 
+#[allow(clippy::type_complexity)] // Arc<Mutex<VecDeque<Box<dyn FnOnce>>>> is standard work-stealing queue type
 struct WorkerThread {
     handle: Option<thread::JoinHandle<()>>,
     local_queue: Arc<Mutex<VecDeque<Box<dyn FnOnce() + Send + 'static>>>>,
@@ -168,6 +170,7 @@ impl WorkStealingThreadPool {
 }
 
 impl WorkerThread {
+    #[allow(clippy::type_complexity)] // Arc<Mutex<VecDeque<Box<dyn FnOnce>>>> is standard work-stealing queue type
     fn spawn(
         worker_id: usize,
         local_queue: Arc<Mutex<VecDeque<Box<dyn FnOnce() + Send + 'static>>>>,
@@ -312,9 +315,9 @@ impl OptimizedMatrixOps {
         let (_, n) = b.dim();
 
         let block_size = self.block_size;
-        let m_blocks = (m + block_size - 1) / block_size;
-        let n_blocks = (n + block_size - 1) / block_size;
-        let k_blocks = (k + block_size - 1) / block_size;
+        let m_blocks = m.div_ceil(block_size);
+        let n_blocks = n.div_ceil(block_size);
+        let k_blocks = k.div_ceil(block_size);
 
         // Initialize result matrix
         let result = Arc::new(Mutex::new(Array2::zeros((m, n))));
@@ -429,7 +432,7 @@ impl OptimizedMatrixOps {
 
         // Process 4 elements at a time for better vectorization
         let chunks = n / 4;
-        let remainder = n % 4;
+        let _remainder = n % 4;
 
         for i in 0..chunks {
             let idx = i * 4;
@@ -636,9 +639,6 @@ impl ParallelEigenSolver {
         let mut v = Array2::eye(n);
 
         for _iteration in 0..self.max_iterations {
-            let mut max_off_diagonal = 0.0;
-            let mut rotation_pairs: Vec<(usize, usize, f64)> = Vec::new();
-
             // Find rotation pairs in parallel
             let pairs = Arc::new(Mutex::new(Vec::new()));
             let chunk_size = n / self.n_threads + 1;
@@ -676,7 +676,7 @@ impl ParallelEigenSolver {
             }
 
             // Find maximum off-diagonal element
-            max_off_diagonal = pairs_vec.iter().map(|&(_, _, val)| val).fold(0.0, f64::max);
+            let max_off_diagonal = pairs_vec.iter().map(|&(_, _, val)| val).fold(0.0, f64::max);
 
             if max_off_diagonal < self.tolerance {
                 break; // Converged
@@ -1221,6 +1221,7 @@ impl ParallelSVD {
     }
 
     /// Compute SVD: A = U * S * V^T
+    #[allow(clippy::type_complexity)] // returns standard SVD (U, S, V) decomposition triple
     pub fn decompose(
         &self,
         matrix: &Array2<f64>,
@@ -1232,6 +1233,7 @@ impl ParallelSVD {
         }
     }
 
+    #[allow(clippy::type_complexity)] // returns standard SVD (U, S, V) decomposition triple
     fn golub_kahan_svd(
         &self,
         matrix: &Array2<f64>,
@@ -1260,6 +1262,7 @@ impl ParallelSVD {
         Ok((u, singular_values, v))
     }
 
+    #[allow(clippy::type_complexity)] // returns standard SVD (U, S, V) decomposition triple
     fn jacobi_svd(
         &self,
         matrix: &Array2<f64>,
@@ -1288,6 +1291,7 @@ impl ParallelSVD {
         Ok((u, singular_values, v))
     }
 
+    #[allow(clippy::type_complexity)] // returns standard SVD (U, S, V) decomposition triple
     fn randomized_svd(
         &self,
         matrix: &Array2<f64>,
@@ -1308,7 +1312,7 @@ impl ParallelSVD {
         let y = matrix.dot(&omega);
 
         // QR decomposition of Y
-        let eigen_solver = ParallelEigenSolver::new().n_threads(self.n_threads);
+        let _eigen_solver = ParallelEigenSolver::new().n_threads(self.n_threads);
         let (q, _) = ParallelSVD::new().parallel_qr_thin(&y)?;
 
         // B = Q^T * A
@@ -1401,8 +1405,8 @@ impl ParallelMatrixOps {
 
     /// Parallel matrix multiplication
     pub fn matmul(&self, a: &Array2<f64>, b: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let (m, k) = a.dim();
-        let (k2, n) = b.dim();
+        let (_m, k) = a.dim();
+        let (k2, _n) = b.dim();
 
         if k != k2 {
             return Err(SklearsError::InvalidInput(
@@ -1429,14 +1433,14 @@ impl ParallelMatrixOps {
         let block_size = self.block_size;
 
         // Compute number of blocks in each dimension
-        let m_blocks = (m + block_size - 1) / block_size;
-        let n_blocks = (n + block_size - 1) / block_size;
+        let m_blocks = m.div_ceil(block_size);
+        let n_blocks = n.div_ceil(block_size);
 
         // Parallel block-wise transpose using Arc<Mutex> for safe shared access
         let result = Arc::new(Mutex::new(Array2::zeros((n, m))));
 
         thread::scope(|s| {
-            let chunks_per_thread = ((m_blocks * n_blocks) + self.n_threads - 1) / self.n_threads;
+            let chunks_per_thread = (m_blocks * n_blocks).div_ceil(self.n_threads);
 
             for thread_id in 0..self.n_threads {
                 let start_block = thread_id * chunks_per_thread;
@@ -1493,7 +1497,7 @@ impl Default for ParallelMatrixOps {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::{array, Array1, Array2};
+    use scirs2_core::ndarray::{array, Array2};
 
     #[test]
     fn test_work_stealing_thread_pool_creation() {

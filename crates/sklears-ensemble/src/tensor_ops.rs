@@ -4,11 +4,9 @@
 //! including batch operations, automatic differentiation support, and GPU acceleration.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayD, Axis, Dimension, IxDyn};
-use scirs2_core::random::RngExt;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::types::{Float, Int};
 use std::collections::HashMap;
-use std::ops::{Add, Mul};
 
 /// Multi-dimensional tensor type
 pub type Tensor = ArrayD<Float>;
@@ -54,6 +52,7 @@ pub enum MemoryLayout {
 }
 
 /// Tensor operations context
+#[allow(dead_code)] // planned API fields
 pub struct TensorOpsContext {
     config: TensorConfig,
     computation_graph: ComputationGraph,
@@ -62,6 +61,7 @@ pub struct TensorOpsContext {
 
 /// Computation graph for automatic differentiation
 #[derive(Debug, Default)]
+#[allow(dead_code)] // planned API fields for autograd
 pub struct ComputationGraph {
     nodes: Vec<GraphNode>,
     edges: Vec<GraphEdge>,
@@ -411,7 +411,7 @@ impl TensorOpsContext {
 
         let result = tensor
             .clone()
-            .into_shape(IxDyn(new_shape))
+            .into_shape_with_order(IxDyn(new_shape))
             .map_err(|e| SklearsError::InvalidInput(format!("Reshape error: {}", e)))?;
 
         if self.config.enable_autograd {
@@ -768,10 +768,10 @@ impl EnsembleTensorOps {
     pub fn train_ensemble_tensors(
         &mut self,
         x: &Array2<Float>,
-        y: &Array1<Int>,
+        _y: &Array1<Int>,
         n_estimators: usize,
     ) -> Result<Vec<Tensor>> {
-        let x_tensor = self.context.from_array(x)?;
+        let _x_tensor = self.context.from_array(x)?;
         let mut models = Vec::new();
 
         for _i in 0..n_estimators {
@@ -919,7 +919,7 @@ mod tests {
         );
 
         // Sigmoid should be between 0 and 1
-        assert!(sigmoid_result.iter().all(|&x| x >= 0.0 && x <= 1.0));
+        assert!(sigmoid_result.iter().all(|&x| (0.0..=1.0).contains(&x)));
     }
 
     #[test]
@@ -1027,6 +1027,6 @@ mod tests {
         let _c = ctx.add(&a, &b).expect("operation should succeed");
 
         let graph = ctx.get_computation_graph();
-        assert!(graph.nodes.len() > 0);
+        assert!(!graph.nodes.is_empty());
     }
 }

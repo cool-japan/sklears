@@ -1,4 +1,6 @@
 //! Approximate imputation algorithms for fast processing
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides fast approximation methods for imputation when speed
 //! is more important than perfect accuracy. These methods trade off some

@@ -4,11 +4,11 @@
 //! methods that can handle datasets larger than available RAM by processing
 //! data in chunks and using incremental algorithms.
 
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, Axis};
+use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use sklears_core::error::SklearsError;
 use std::collections::VecDeque;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 
 /// Out-of-core Partial Least Squares implementation
@@ -596,6 +596,7 @@ impl OutOfCorePLS {
         self.finalize_streaming_covariance()
     }
 
+    #[allow(clippy::type_complexity)] // returns (x_weights, y_weights, x_loadings, y_loadings) quad
     fn solve_pls_from_covariance(
         &self,
         cov_xx: &Array2<f64>,
@@ -716,9 +717,11 @@ impl OutOfCorePLSResults {
 pub struct OutOfCoreCCA {
     n_components: usize,
     chunk_size: usize,
-    max_memory_mb: usize,
+    /// Maximum memory budget in megabytes
+    pub max_memory_mb: usize,
     regularization: f64,
-    algorithm: OOCAlgorithm,
+    /// Algorithm variant for out-of-core computation
+    pub algorithm: OOCAlgorithm,
 
     // Incremental statistics (same as PLS)
     n_samples_seen: usize,
@@ -886,6 +889,7 @@ impl OutOfCoreCCA {
         })
     }
 
+    #[allow(clippy::type_complexity)] // returns (x_weights, y_weights, correlations) triple
     fn solve_cca_from_covariance(
         &self,
         cov_xx: &Array2<f64>,
@@ -959,7 +963,6 @@ impl OutOfCoreCCAResults {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
 
     #[test]
     fn test_out_of_core_pls_creation() {

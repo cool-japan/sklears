@@ -24,6 +24,7 @@ use std::marker::PhantomData;
 /// Backward pass: `∂L/∂x_i = 1 if x_i > 0, else α_i`
 /// Parameter update: `∂L/∂α_i = Σ(min(0, x_i) * ∂L/∂y_i)`
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // dropout_rate and config retained for layer configuration access and serialization
 pub struct PReLU<T: FloatBounds> {
     /// Learnable parameters (negative slope coefficients)
     alpha: Array1<T>,
@@ -140,7 +141,7 @@ impl<T: FloatBounds> Layer<T> for PReLU<T> {
                     // Negative input: gradient scaled by alpha
                     grad_input[[i, j]] = alpha * grad_out;
                     // Accumulate alpha gradient: ∂L/∂α = x * ∂L/∂y
-                    self.alpha_grad[alpha_idx] = self.alpha_grad[alpha_idx] + x * grad_out;
+                    self.alpha_grad[alpha_idx] += x * grad_out;
                 }
             }
         }
@@ -279,7 +280,7 @@ mod tests {
 
         // Check alpha gradients
         let alpha_grads = prelu.parameter_gradients();
-        let expected_alpha_grad = -2.0 * 1.0 + -1.0 * 1.0; // sum of (x * grad_out) for negative x
+        let expected_alpha_grad = -2.0 * 1.0 + (-1.0); // sum of (x * grad_out) for negative x
         assert_abs_diff_eq!(alpha_grads[0][0], expected_alpha_grad, epsilon = 1e-10);
     }
 

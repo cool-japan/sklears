@@ -218,7 +218,7 @@ fn run_custom_benchmarks() -> Result<(), Box<dyn std::error::Error>> {
     // Show best performing operations
     if !results.performance_results.is_empty() {
         let mut sorted_results = results.performance_results.clone();
-        sorted_results.sort_by(|a, b| a.duration.cmp(&b.duration));
+        sorted_results.sort_by_key(|a| a.duration);
 
         println!("  🏆 Top 3 Fastest Operations:");
         for (i, result) in sorted_results.iter().take(3).enumerate() {

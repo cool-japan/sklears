@@ -12,9 +12,9 @@
 //! likelihood computation through the change of variables formula.
 
 use crate::{activation::Activation, NeuralResult};
-use scirs2_core::ndarray::{s, Array1, Array2, Axis, ScalarOperand};
-use scirs2_core::random::{thread_rng, CoreRandom, Normal, Rng};
-use sklears_core::{error::SklearsError, types::FloatBounds};
+use scirs2_core::ndarray::{Array1, Array2, Axis, ScalarOperand};
+use scirs2_core::random::{thread_rng, Normal};
+use sklears_core::types::FloatBounds;
 use std::f64::consts::PI;
 
 #[cfg(feature = "serde")]
@@ -79,6 +79,7 @@ impl Default for CouplingLayerConfig {
 /// For affine coupling: y_b = x_b * exp(s(x_a)) + t(x_a)
 /// where x = [x_a, x_b] and s, t are neural networks.
 #[derive(Debug)]
+#[allow(dead_code)] // input_dim retained for shape validation and future Jacobian computations
 pub struct AffineCouplingLayer<T: FloatBounds> {
     /// Input dimension
     input_dim: usize,
@@ -509,7 +510,7 @@ impl<T: FloatBounds + ScalarOperand> NormalizingFlow<T> {
         for layer in &mut self.coupling_layers {
             let (z_new, log_det) = layer.forward(&z)?;
             z = z_new;
-            log_det_sum = log_det_sum + log_det;
+            log_det_sum += log_det;
         }
 
         Ok((z, log_det_sum))
@@ -761,7 +762,7 @@ mod tests {
         let mask2_true = layer2.mask.iter().filter(|&&x| x).count();
 
         // Both should have approximately half the dimensions masked
-        assert!(mask1_true >= 2 && mask1_true <= 4);
-        assert!(mask2_true >= 2 && mask2_true <= 4);
+        assert!((2..=4).contains(&mask1_true));
+        assert!((2..=4).contains(&mask2_true));
     }
 }

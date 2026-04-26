@@ -140,6 +140,7 @@ impl AutoencoderLayer {
         s * (1.0 - s)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn add_noise<R>(&self, X: &ArrayView2<f64>, rng: &mut Random<R>) -> Array2<f64>
     where
         R: Rng,
@@ -159,11 +160,13 @@ impl AutoencoderLayer {
         X + &noise
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn encode(&self, X: &ArrayView2<f64>) -> Array2<f64> {
         let linear = X.dot(&self.weights_encode) + &self.bias_encode;
         linear.mapv(|x| self.sigmoid(x))
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn decode(&self, H: &ArrayView2<f64>) -> Array2<f64> {
         let linear = H.dot(&self.weights_decode) + &self.bias_decode;
         linear.mapv(|x| self.sigmoid(x))
@@ -190,8 +193,6 @@ impl AutoencoderLayer {
 
         // Training loop
         for epoch in 0..self.epochs {
-            let mut total_loss = 0.0;
-
             // Add noise for denoising autoencoder
             let X_noisy = self.add_noise(X, &mut rng);
 
@@ -201,7 +202,7 @@ impl AutoencoderLayer {
 
             // Compute reconstruction loss (MSE)
             let reconstruction_error = X - &decoded;
-            total_loss = reconstruction_error.mapv(|x| x * x).sum() / n_samples as f64;
+            let total_loss = reconstruction_error.mapv(|x| x * x).sum() / n_samples as f64;
 
             // Backward pass
             // Output layer gradients
@@ -235,6 +236,7 @@ impl AutoencoderLayer {
         Ok(())
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn transform(&self, X: &ArrayView2<f64>) -> Result<Array2<f64>> {
         if !self.is_trained {
             return Err(StackedAutoencoderError::ModelNotTrained.into());
@@ -252,6 +254,7 @@ impl AutoencoderLayer {
         Ok(self.encode(X))
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn reconstruct(&self, X: &ArrayView2<f64>) -> Result<Array2<f64>> {
         if !self.is_trained {
             return Err(StackedAutoencoderError::ModelNotTrained.into());
@@ -368,6 +371,7 @@ impl StackedAutoencoders {
         }
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn pretrain(&mut self, X: &ArrayView2<f64>) -> Result<()> {
         let (_, n_features) = X.dim();
 
@@ -395,6 +399,7 @@ impl StackedAutoencoders {
         Ok(())
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn forward_pass(&self, X: &ArrayView2<f64>) -> Result<Array2<f64>> {
         if !self.is_pretrained {
             return Err(StackedAutoencoderError::ModelNotTrained.into());
@@ -409,6 +414,7 @@ impl StackedAutoencoders {
         Ok(current_data)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn softmax(&self, X: &ArrayView2<f64>) -> Array2<f64> {
         let mut result = X.to_owned();
 
@@ -426,6 +432,7 @@ impl StackedAutoencoders {
         result
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn finetune(&mut self, X: &ArrayView2<f64>, y: &ArrayView1<i32>) -> Result<()> {
         if !self.is_pretrained {
             return Err(StackedAutoencoderError::ModelNotTrained.into());
@@ -521,10 +528,12 @@ impl StackedAutoencoders {
         Ok(())
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn transform(&self, X: &ArrayView2<f64>) -> Result<Array2<f64>> {
         self.forward_pass(X)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn predict_proba(&self, X: &ArrayView2<f64>) -> Result<Array2<f64>> {
         if !self.is_finetuned {
             return Err(StackedAutoencoderError::ModelNotTrained.into());
@@ -535,6 +544,7 @@ impl StackedAutoencoders {
         Ok(self.softmax(&logits.view()))
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn predict(&self, X: &ArrayView2<f64>) -> Result<Array1<i32>> {
         let probabilities = self.predict_proba(X)?;
         let predictions = probabilities.map_axis(Axis(1), |row| {
@@ -558,6 +568,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>, FittedStackedAutoencoders>
 {
     type Fitted = FittedStackedAutoencoders;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(
         mut self,
         X: &ArrayView2<'_, f64>,
@@ -574,12 +585,14 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>, FittedStackedAutoencoders>
 }
 
 impl Predict<ArrayView2<'_, f64>, Array1<i32>> for FittedStackedAutoencoders {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, f64>) -> Result<Array1<i32>> {
         self.model.predict(X)
     }
 }
 
 impl Transform<ArrayView2<'_, f64>, Array2<f64>> for FittedStackedAutoencoders {
+    #[allow(non_snake_case)] // standard ML notation
     fn transform(&self, X: &ArrayView2<'_, f64>) -> Result<Array2<f64>> {
         self.model.transform(X)
     }

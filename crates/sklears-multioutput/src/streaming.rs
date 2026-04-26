@@ -2,10 +2,10 @@
 //!
 //! This module provides algorithms for learning from streaming data with multiple outputs,
 //! including incremental learning, online learning, and concept drift detection.
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::Rng;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -684,7 +684,6 @@ impl Estimator for StreamingMultiOutput<StreamingMultiOutputTrained> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
     use scirs2_core::ndarray::array;
 

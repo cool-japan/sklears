@@ -1,4 +1,6 @@
 //! Automated testing pipelines for continuous validation of imputation methods
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides comprehensive testing frameworks for validating imputation
 //! performance, correctness, and robustness across different datasets and scenarios.

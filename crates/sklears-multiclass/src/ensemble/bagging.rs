@@ -288,6 +288,7 @@ where
     ///
     /// # Errors
     /// Returns an error if warm start is not enabled or if training fails
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     pub fn partial_fit<C>(
         mut self,
         base_estimator: C,
@@ -363,6 +364,7 @@ where
     }
 
     /// Bootstrap sample helper method for warm start
+    #[allow(non_snake_case)] // X, X_bootstrap follow mathematical convention for feature matrices
     fn bootstrap_sample(
         &self,
         X: &Array2<f64>,
@@ -404,13 +406,14 @@ where
     }
 }
 
-impl<C> Fit<Array2<f64>, Array1<i32>> for BaggingClassifier<C, Untrained>
+impl<C, CF> Fit<Array2<f64>, Array1<i32>> for BaggingClassifier<C, Untrained>
 where
-    C: Clone + Fit<Array2<f64>, Array1<i32>> + Send + Sync,
-    C::Fitted: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
+    C: Clone + Fit<Array2<f64>, Array1<i32>, Fitted = CF> + Send + Sync,
+    CF: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
 {
-    type Fitted = TrainedBagging<C::Fitted>;
+    type Fitted = TrainedBagging<CF>;
 
+    #[allow(non_snake_case)] // X, X_bootstrap follow mathematical convention for feature matrices
     fn fit(self, X: &Array2<f64>, y: &Array1<i32>) -> SklResult<Self::Fitted> {
         validate::check_consistent_length(X, y)?;
         let (n_samples, _n_features) = X.dim();
@@ -435,7 +438,7 @@ where
         };
 
         // Train estimators in parallel or sequentially
-        let estimators: Vec<C::Fitted> = if self.config.n_jobs.is_some_and(|n| n != 1) {
+        let estimators: Vec<CF> = if self.config.n_jobs.is_some_and(|n| n != 1) {
             // Parallel training
             (0..self.config.n_estimators)
                 .into_par_iter()
@@ -477,11 +480,12 @@ where
     }
 }
 
-impl<C> BaggingClassifier<C, Untrained>
+impl<C, CF> BaggingClassifier<C, Untrained>
 where
-    C: Clone + Fit<Array2<f64>, Array1<i32>> + Send + Sync,
-    C::Fitted: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
+    C: Clone + Fit<Array2<f64>, Array1<i32>, Fitted = CF> + Send + Sync,
+    CF: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
 {
+    #[allow(non_snake_case)] // X, X_bootstrap follow mathematical convention for feature matrices
     fn bootstrap_sample(
         &self,
         X: &Array2<f64>,
@@ -517,6 +521,7 @@ impl<T> Predict<Array2<f64>, Array1<i32>> for TrainedBagging<T>
 where
     T: Predict<Array2<f64>, Array1<i32>>,
 {
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     fn predict(&self, X: &Array2<f64>) -> SklResult<Array1<i32>> {
         let n_samples = X.nrows();
         let trained_data = &self.base_estimator;
@@ -542,7 +547,9 @@ where
                 .row(i)
                 .iter()
                 .enumerate()
-                .max_by(|(_, a): &(_, &f64), (_, b): &(_, &f64)| a.partial_cmp(b).expect("operation should succeed"))
+                .max_by(|(_, a): &(_, &f64), (_, b): &(_, &f64)| {
+                    a.partial_cmp(b).expect("operation should succeed")
+                })
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             predictions[i] = trained_data.classes[class_idx];
@@ -556,6 +563,7 @@ impl<T> PredictProba<Array2<f64>, Array2<f64>> for TrainedBagging<T>
 where
     T: Predict<Array2<f64>, Array1<i32>>,
 {
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     fn predict_proba(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         let n_samples = X.nrows();
         let trained_data = &self.base_estimator;
@@ -596,13 +604,11 @@ mod tests {
 
     // Mock classifier for testing
     #[derive(Debug, Clone)]
-    struct MockClassifier {
-        fitted: bool,
-    }
+    struct MockClassifier;
 
     impl MockClassifier {
         fn new() -> Self {
-            Self { fitted: false }
+            Self
         }
     }
 
@@ -687,7 +693,7 @@ mod tests {
 
         assert_eq!(bagging.config().n_estimators, 8);
         assert_eq!(bagging.config().max_samples, Some(3));
-        assert_eq!(bagging.config().bootstrap, false);
+        assert!(!bagging.config().bootstrap);
         assert_eq!(bagging.config().random_state, Some(42));
         assert_eq!(bagging.config().n_jobs, Some(1));
     }
@@ -745,7 +751,7 @@ mod tests {
         let config = BaggingConfig::default();
         assert_eq!(config.n_estimators, 10);
         assert_eq!(config.max_samples, None);
-        assert_eq!(config.bootstrap, true);
+        assert!(config.bootstrap);
         assert_eq!(config.random_state, None);
         assert_eq!(config.n_jobs, None);
     }
@@ -757,7 +763,7 @@ mod tests {
 
         let config = bagging.config();
         assert_eq!(config.n_estimators, 10);
-        assert_eq!(config.bootstrap, true);
+        assert!(config.bootstrap);
     }
 
     #[test]
@@ -896,6 +902,6 @@ mod tests {
     #[test]
     fn test_bagging_warm_start_config_default() {
         let config = BaggingConfig::default();
-        assert_eq!(config.warm_start, false);
+        assert!(!config.warm_start);
     }
 }

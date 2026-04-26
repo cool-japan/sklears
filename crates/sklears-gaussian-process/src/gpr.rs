@@ -48,8 +48,8 @@ impl Default for GaussianProcessRegressorConfig {
 ///
 /// let kernel = RBF::new(1.0);
 /// let gpr = GaussianProcessRegressor::new().kernel(Box::new(kernel));
-/// let fitted = gpr.fit(&X, &y).unwrap();
-/// let (mean, std) = fitted.predict_with_std(&X).unwrap();
+/// let fitted = gpr.fit(&X, &y).expect("fit should succeed with valid training data");
+/// let (mean, std) = fitted.predict_with_std(&X).expect("predict_with_std should succeed on trained model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct GaussianProcessRegressor<S = Untrained> {
@@ -60,6 +60,7 @@ pub struct GaussianProcessRegressor<S = Untrained> {
 
 /// Trained state for Gaussian Process Regressor
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct GprTrained {
     /// X_train
     pub X_train: Option<Array2<f64>>, // Training inputs
@@ -223,6 +224,7 @@ impl Fit<Array2<f64>, Array1<f64>> for GaussianProcessRegressor<Untrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<Array2<f64>, Array1<f64>> for GaussianProcessRegressor<GprTrained> {
     fn predict(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
         let (mean, _) = self.predict_with_std(X)?;

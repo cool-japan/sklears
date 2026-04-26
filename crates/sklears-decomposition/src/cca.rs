@@ -5,8 +5,8 @@
 //! two sets of variables such that the correlations between the projections of the
 //! variables onto these basis vectors are mutually maximized.
 
-use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
+use scirs2_core::ndarray::{s, Array1, Array2, Axis};
+use scirs2_linalg::compat::ArrayLinalgExt;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -164,7 +164,13 @@ impl CanonicalCorrelationAnalysis {
         matrix
     }
 
-    /// Solve the CCA generalized eigenvalue problem using scirs2-linalg
+    /// Solve the CCA generalized eigenvalue problem using Cholesky + SVD.
+    ///
+    /// Algorithm:
+    /// 1. Cholesky factorize regularized covariance matrices: Sxx = Lx·Lxᵀ, Syy = Ly·Lyᵀ
+    /// 2. Form the cross-covariance in the whitened space: A = Lx⁻¹ · Sxy · Ly⁻ᵀ
+    /// 3. SVD: A = U · Σ · Vᵀ  — canonical correlations are the singular values
+    /// 4. Back-transform weights: x_weights = Lx⁻ᵀ · U, y_weights = Ly⁻ᵀ · V
     fn solve_cca_eigenvalue_problem(
         &self,
         sxx: &Array2<f64>,
@@ -175,72 +181,66 @@ impl CanonicalCorrelationAnalysis {
         let sxx_reg = self.regularize_matrix(sxx.clone());
         let syy_reg = self.regularize_matrix(syy.clone());
 
-        // Compute Cholesky decompositions
-        let sxx_chol = sxx_reg.cholesky().map_err(|_| {
-            SklearsError::NumericalError("Cholesky decomposition of Sxx failed".to_string())
+        // Cholesky factorization: Sxx = Lx · Lxᵀ, Syy = Ly · Lyᵀ
+        let lx = sxx_reg.cholesky().map_err(|_| {
+            SklearsError::NumericalError(
+                "Cholesky factorization of Sxx failed — matrix may not be positive definite"
+                    .to_string(),
+            )
         })?;
-        let syy_chol = syy_reg.cholesky().map_err(|_| {
-            SklearsError::NumericalError("Cholesky decomposition of Syy failed".to_string())
-        })?;
-
-        // Compute inverses using solve
-        let sxx_inv = sxx_reg.inv().map_err(|_| {
-            SklearsError::NumericalError("Failed to invert Sxx".to_string())
-        })?;
-        let syy_inv = syy_reg.inv().map_err(|_| {
-            SklearsError::NumericalError("Failed to invert Syy".to_string())
+        let ly = syy_reg.cholesky().map_err(|_| {
+            SklearsError::NumericalError(
+                "Cholesky factorization of Syy failed — matrix may not be positive definite"
+                    .to_string(),
+            )
         })?;
 
-        // Compute the matrix for eigenvalue decomposition
-        // M = Sxx^(-1) * Sxy * Syy^(-1) * Sxy^T
-        let temp1 = sxx_inv.dot(sxy);
-        let temp2 = temp1.dot(&syy_inv);
-        let m = temp2.dot(&sxy.t());
-
-        // Compute eigendecomposition (symmetric matrix)
-        let (eigenvalues, eigenvectors) = m.eigh(UPLO::Lower).map_err(|_| {
-            SklearsError::NumericalError("Eigenvalue decomposition failed".to_string())
+        // Compute Lx⁻¹ and Ly⁻¹ (lower-triangular inverses)
+        let lx_inv = lx.inv().map_err(|_| {
+            SklearsError::NumericalError("Failed to invert Cholesky factor Lx".to_string())
+        })?;
+        let ly_inv = ly.inv().map_err(|_| {
+            SklearsError::NumericalError("Failed to invert Cholesky factor Ly".to_string())
         })?;
 
-        // Sort by eigenvalues in descending order
-        let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| {
-            eigenvalues[j]
-                .partial_cmp(&eigenvalues[i])
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        // A = Lx⁻¹ · Sxy · Ly⁻ᵀ
+        // (the singular values of A are the canonical correlations)
+        let a = lx_inv.dot(sxy).dot(&ly_inv.t());
 
-        // Take the top n_components
-        let n_comp = self.n_components.min(eigenvalues.len());
-        let selected_eigenvalues: Vec<f64> = indices[..n_comp]
+        // Thin SVD: A = U · Σ · Vᵀ
+        // compute_uv = true → returns (U, s, Vt)
+        let (u, sigma, vt) = a.svd(true).map_err(|_| {
+            SklearsError::NumericalError(
+                "SVD of whitened cross-covariance matrix failed".to_string(),
+            )
+        })?;
+
+        // Number of components to return (bounded by rank of A)
+        let n_comp = self.n_components.min(sigma.len());
+
+        // Canonical correlations = σ_i clamped to [0, 1] (in descending order from SVD)
+        let correlations: Vec<f64> = sigma
             .iter()
-            .map(|&i| eigenvalues[i].sqrt().max(0.0))
+            .take(n_comp)
+            .map(|&sv| sv.clamp(0.0, 1.0))
             .collect();
 
-        // Compute canonical weights
-        let mut x_weights = Array2::zeros((sxx.ncols(), n_comp));
-        let mut y_weights = Array2::zeros((syy.ncols(), n_comp));
+        // Back-transform: x_weights = Lx⁻ᵀ · U,  y_weights = Ly⁻ᵀ · V
+        // Lx⁻ᵀ = (Lx⁻¹)ᵀ
+        let lx_inv_t = lx_inv.t().to_owned();
+        let ly_inv_t = ly_inv.t().to_owned();
 
-        for (k, &idx) in indices[..n_comp].iter().enumerate() {
-            // Extract eigenvector
-            let eigenvec = eigenvectors.column(idx);
-            let eigenvec_owned = eigenvec.to_owned();
+        // V = Vtᵀ
+        let v = vt.t().to_owned();
 
-            // X weights: already from eigenvector
-            for (i, val) in eigenvec_owned.iter().enumerate() {
-                x_weights[[i, k]] = *val;
-            }
+        // Select top n_comp columns of U and V
+        let u_top = u.slice(s![.., ..n_comp]).to_owned();
+        let v_top = v.slice(s![.., ..n_comp]).to_owned();
 
-            // Y weights: B_k = Syy^(-1) * Sxy^T * A_k
-            let temp = sxy.t().dot(&eigenvec_owned);
-            let y_weight = syy_inv.dot(&temp);
-            for (i, val) in y_weight.iter().enumerate() {
-                y_weights[[i, k]] = *val;
-            }
-        }
+        let x_weights = lx_inv_t.dot(&u_top);
+        let y_weights = ly_inv_t.dot(&v_top);
 
-        let correlations = Array1::from_vec(selected_eigenvalues);
-        Ok((x_weights, y_weights, correlations))
+        Ok((x_weights, y_weights, Array1::from_vec(correlations)))
     }
 }
 
@@ -354,7 +354,7 @@ mod tests {
     fn test_cca_creation() {
         let cca = CanonicalCorrelationAnalysis::new(2);
         assert_eq!(cca.n_components, 2);
-        assert_eq!(cca.copy, true);
+        assert!(cca.copy);
         assert_eq!(cca.regularization, 1e-6);
     }
 
@@ -367,7 +367,7 @@ mod tests {
             .tolerance(1e-8);
 
         assert_eq!(cca.n_components, 3);
-        assert_eq!(cca.copy, false);
+        assert!(!cca.copy);
         assert_eq!(cca.regularization, 1e-4);
         assert_eq!(cca.max_iter, 1000);
         assert_eq!(cca.tol, 1e-8);
@@ -375,17 +375,30 @@ mod tests {
 
     #[test]
     fn test_cca_fit_transform() {
+        // Use full-rank data: 6 samples, 3 features for X, 2 for Y.
+        // Rows chosen so the 3×3 covariance matrix Sxx has full rank.
         let x = array![
-            [1.0, 2.0, 3.0],
-            [4.0, 5.0, 6.0],
-            [7.0, 8.0, 9.0],
-            [10.0, 11.0, 12.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 2.0, 0.0],
+            [0.0, 0.0, 3.0],
+            [1.0, 1.0, 1.0],
+            [2.0, -1.0, 0.5],
+            [-1.0, 1.5, -0.5],
         ];
 
-        let y = array![[2.0, 3.0], [5.0, 6.0], [8.0, 9.0], [11.0, 12.0],];
+        let y = array![
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [0.5, 0.5],
+            [1.5, -0.5],
+            [-0.5, 1.0],
+        ];
 
         let cca = CanonicalCorrelationAnalysis::new(2);
-        let fitted = cca.fit(&(x.clone(), y.clone()), &()).expect("model fitting should succeed");
+        let fitted = cca
+            .fit(&(x.clone(), y.clone()), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features_x, 3);
         assert_eq!(fitted.n_features_y, 2);
@@ -396,10 +409,12 @@ mod tests {
 
         // Test transformation
         let x_transformed = fitted.transform(&x).expect("transformation should succeed");
-        let y_transformed = fitted.transform_y(&y).expect("operation should succeed");
+        let y_transformed = fitted
+            .transform_y(&y)
+            .expect("Y transformation should succeed");
 
-        assert_eq!(x_transformed.dim(), (4, 2));
-        assert_eq!(y_transformed.dim(), (4, 2));
+        assert_eq!(x_transformed.dim(), (6, 2));
+        assert_eq!(y_transformed.dim(), (6, 2));
     }
 
     #[test]
@@ -424,9 +439,15 @@ mod tests {
 
     #[test]
     fn test_cca_feature_mismatch() {
-        let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0],];
-
-        let y = array![[2.0, 3.0], [5.0, 6.0],];
+        // Use full-rank data: 5 samples gives rank-3 Sxx and rank-2 Syy
+        let x = array![
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 1.0],
+        ];
+        let y = array![[1.0, 0.0], [0.0, 1.0], [1.0, 1.0], [0.5, 0.5], [1.5, -0.5],];
 
         let cca = CanonicalCorrelationAnalysis::new(1);
         let fitted = cca.fit(&(x, y), &()).expect("model fitting should succeed");

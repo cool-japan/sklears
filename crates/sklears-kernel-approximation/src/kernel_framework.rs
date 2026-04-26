@@ -257,7 +257,8 @@ pub struct KMeansSampling {
     pub n_iterations: usize,
     /// Random seed
     pub random_state: Option<u64>,
-    /// Cluster centers (fitted)
+    /// Cluster centers (fitted, stored for potential reuse)
+    #[allow(dead_code)]
     centers: Option<Array2<f64>>,
 }
 
@@ -299,7 +300,7 @@ impl SamplingStrategy for KMeansSampling {
         let mut assignments = vec![0; n_rows];
         for _ in 0..self.n_iterations {
             // Assign points to nearest center
-            for i in 0..n_rows {
+            for (i, assignment) in assignments.iter_mut().enumerate().take(n_rows) {
                 let point = data.row(i);
                 let mut min_dist = f64::INFINITY;
                 let mut best_cluster = 0;
@@ -317,15 +318,14 @@ impl SamplingStrategy for KMeansSampling {
                         best_cluster = j;
                     }
                 }
-                assignments[i] = best_cluster;
+                *assignment = best_cluster;
             }
 
             // Update centers
             let mut counts = vec![0; n_samples];
             centers.fill(0.0);
 
-            for i in 0..n_rows {
-                let cluster = assignments[i];
+            for (i, &cluster) in assignments.iter().enumerate().take(n_rows) {
                 let point = data.row(i);
                 for (j, &val) in point.iter().enumerate() {
                     centers[[cluster, j]] += val;

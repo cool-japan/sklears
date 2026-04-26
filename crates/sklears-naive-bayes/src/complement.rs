@@ -350,8 +350,8 @@ mod tests {
     fn test_complement_nb_creation() {
         let nb = ComplementNB::new();
         assert_eq!(nb.config.alpha, 1.0);
-        assert_eq!(nb.config.fit_prior, true);
-        assert_eq!(nb.config.norm, false);
+        assert!(nb.config.fit_prior);
+        assert!(!nb.config.norm);
     }
 
     #[test]
@@ -373,8 +373,8 @@ mod tests {
             .fit(&x, &y)
             .expect("operation should succeed");
 
-        // Test predictions
-        let predictions = model.predict(&x).expect("operation should succeed");
+        // Test predictions (verify it runs without error)
+        let _ = model.predict(&x).expect("operation should succeed");
 
         // Test score - should perform well on imbalanced data
         let score = model.score(&x, &y).expect("operation should succeed");

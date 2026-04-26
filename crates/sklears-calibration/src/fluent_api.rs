@@ -655,32 +655,24 @@ impl CalibrationValidator {
         // Validate method-specific constraints
         if let Some(method) = &builder.method {
             match method {
-                CalibrationMethod::HistogramBinning { n_bins } => {
-                    if *n_bins < 1 {
-                        return Err("Number of bins must be positive".to_string());
-                    }
+                CalibrationMethod::HistogramBinning { n_bins } if *n_bins < 1 => {
+                    return Err("Number of bins must be positive".to_string());
                 }
-                CalibrationMethod::BBQ { min_bins, max_bins } => {
-                    if min_bins >= max_bins {
-                        return Err("min_bins must be less than max_bins".to_string());
-                    }
+                CalibrationMethod::BBQ { min_bins, max_bins } if min_bins >= max_bins => {
+                    return Err("min_bins must be less than max_bins".to_string());
                 }
-                CalibrationMethod::LocalKNN { k } => {
-                    if *k < 1 {
-                        return Err("k must be positive for k-NN".to_string());
-                    }
+                CalibrationMethod::LocalKNN { k } if *k < 1 => {
+                    return Err("k must be positive for k-NN".to_string());
                 }
-                CalibrationMethod::Dirichlet { concentration } => {
-                    if *concentration <= 0.0 {
-                        return Err("Dirichlet concentration must be positive".to_string());
-                    }
+                CalibrationMethod::Dirichlet { concentration } if *concentration <= 0.0 => {
+                    return Err("Dirichlet concentration must be positive".to_string());
                 }
                 CalibrationMethod::ConformalSplit { alpha }
                 | CalibrationMethod::ConformalCross { alpha, .. }
-                | CalibrationMethod::ConformalJackknife { alpha } => {
-                    if *alpha <= 0.0 || *alpha >= 1.0 {
-                        return Err("Conformal alpha must be in (0, 1)".to_string());
-                    }
+                | CalibrationMethod::ConformalJackknife { alpha }
+                    if *alpha <= 0.0 || *alpha >= 1.0 =>
+                {
+                    return Err("Conformal alpha must be in (0, 1)".to_string());
                 }
                 _ => {} // Other methods have internal validation
             }
@@ -696,23 +688,16 @@ impl CalibrationValidator {
     ) -> Result<(), String> {
         if let Some(method) = &builder.method {
             match method {
-                CalibrationMethod::GaussianProcess => {
-                    if n_samples > 5000 {
-                        return Err(
-                            "Gaussian Process calibration may be slow for large datasets"
-                                .to_string(),
-                        );
-                    }
+                CalibrationMethod::GaussianProcess if n_samples > 5000 => {
+                    return Err(
+                        "Gaussian Process calibration may be slow for large datasets".to_string(),
+                    );
                 }
-                CalibrationMethod::LocalKNN { k } => {
-                    if *k >= n_samples {
-                        return Err("k must be less than number of samples".to_string());
-                    }
+                CalibrationMethod::LocalKNN { k } if *k >= n_samples => {
+                    return Err("k must be less than number of samples".to_string());
                 }
-                CalibrationMethod::HistogramBinning { n_bins } => {
-                    if *n_bins > n_samples / 2 {
-                        return Err("Too many bins for dataset size".to_string());
-                    }
+                CalibrationMethod::HistogramBinning { n_bins } if *n_bins > n_samples / 2 => {
+                    return Err("Too many bins for dataset size".to_string());
                 }
                 _ => {}
             }

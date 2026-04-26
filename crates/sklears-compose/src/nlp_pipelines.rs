@@ -333,6 +333,7 @@ pub struct TfIdfExtractor {
 
 /// Bag of Words extractor
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct BagOfWordsExtractor {
     /// Configuration
     config: FeatureExtractionConfig,
@@ -346,6 +347,7 @@ pub struct BagOfWordsExtractor {
 
 /// Word embedding extractor
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct WordEmbeddingExtractor {
     /// Configuration
     config: FeatureExtractionConfig,
@@ -359,6 +361,7 @@ pub struct WordEmbeddingExtractor {
 
 /// Sentiment analyzer
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct SentimentAnalyzer {
     /// Model weights
     weights: Array1<Float>,
@@ -372,6 +375,7 @@ pub struct SentimentAnalyzer {
 
 /// Named Entity Recognition analyzer
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct NERAnalyzer {
     /// Model for entity recognition
     model: Box<dyn LanguageModel>,
@@ -383,6 +387,7 @@ pub struct NERAnalyzer {
 
 /// Language detector
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct LanguageDetector {
     /// Language models
     language_models: HashMap<String, Box<dyn LanguageModel>>,
@@ -394,6 +399,7 @@ pub struct LanguageDetector {
 
 /// Topic modeling analyzer
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TopicModelingAnalyzer {
     /// Number of topics
     num_topics: usize,
@@ -407,6 +413,7 @@ pub struct TopicModelingAnalyzer {
 
 /// Text classifier
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TextClassifier {
     /// Model type
     model_type: ModelType,
@@ -422,6 +429,7 @@ pub struct TextClassifier {
 
 /// Question answering model
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct QuestionAnsweringModel {
     /// Context encoder
     context_encoder: Box<dyn LanguageModel>,
@@ -435,6 +443,7 @@ pub struct QuestionAnsweringModel {
 
 /// Text summarization model
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TextSummarizationModel {
     /// Summarization model
     model: Box<dyn LanguageModel>,
@@ -459,6 +468,7 @@ pub enum SummarizationStrategy {
 
 /// Translation model
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TranslationModel {
     /// Source language
     source_language: String,
@@ -472,6 +482,7 @@ pub struct TranslationModel {
 
 /// Multi-language support
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct MultiLanguageSupport {
     /// Language-specific pipelines
     language_pipelines: HashMap<String, NLPPipeline>,
@@ -483,6 +494,7 @@ pub struct MultiLanguageSupport {
 
 /// Document processing pipeline
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct DocumentProcessor {
     /// NLP pipeline
     nlp_pipeline: NLPPipeline,
@@ -1024,7 +1036,7 @@ impl SentimentAnalyzer {
     }
 
     /// Train the sentiment analyzer
-    pub fn train(&mut self, texts: &[String], labels: &[String]) -> SklResult<()> {
+    pub fn train(&mut self, _texts: &[String], _labels: &[String]) -> SklResult<()> {
         // Placeholder training implementation
         // In a real implementation, this would train a classification model
         Ok(())
@@ -1185,7 +1197,7 @@ impl ConversationalAI {
         })
     }
 
-    fn parse_entities(&self, entity_result: &AnalysisResult) -> SklResult<Vec<Entity>> {
+    fn parse_entities(&self, _entity_result: &AnalysisResult) -> SklResult<Vec<Entity>> {
         // Parse entities from analysis result
         // This is a placeholder implementation
         Ok(Vec::new())
@@ -1276,6 +1288,7 @@ impl Default for SimpleLanguageModel {
 
 impl SimpleLanguageModel {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             name: "SimpleLanguageModel".to_string(),
@@ -1295,7 +1308,7 @@ impl LanguageModel for SimpleLanguageModel {
         })
     }
 
-    fn generate(&self, prompt: &str, max_length: usize) -> SklResult<String> {
+    fn generate(&self, prompt: &str, _max_length: usize) -> SklResult<String> {
         // Simple generation - echo with modification
         Ok(format!("Generated response for: {prompt}"))
     }
@@ -1338,7 +1351,7 @@ impl TextClassifier {
     }
 
     /// Classify text
-    pub fn classify(&self, text: &str) -> SklResult<ModelPrediction> {
+    pub fn classify(&self, _text: &str) -> SklResult<ModelPrediction> {
         // Simple classification implementation
         let prediction = serde_json::Value::String("intent_greeting".to_string());
 
@@ -1465,12 +1478,9 @@ mod tests {
         assert!(!result.contains(","));
         assert!(!result.contains("!"));
         assert!(!result.contains("."));
-        assert_eq!(
-            result
-                .chars()
-                .all(|c| c.is_lowercase() || c.is_whitespace()),
-            true
-        );
+        assert!(result
+            .chars()
+            .all(|c| c.is_lowercase() || c.is_whitespace()));
     }
 
     #[test]
@@ -1487,7 +1497,7 @@ mod tests {
         extractor.fit(&documents).unwrap_or_default();
 
         assert!(extractor.fitted);
-        assert!(extractor.vocabulary.len() > 0);
+        assert!(!extractor.vocabulary.is_empty());
 
         let features = extractor
             .extract_features("hello world")
@@ -1604,7 +1614,7 @@ mod tests {
 
         assert!(!result.original_text.is_empty());
         assert!(!result.processed_text.is_empty());
-        assert!(result.analysis_results.len() > 0);
+        assert!(!result.analysis_results.is_empty());
     }
 
     #[test]
@@ -1613,25 +1623,17 @@ mod tests {
         let ner_type = ModelType::NamedEntityRecognition;
         let custom_type = ModelType::Custom("test".to_string());
 
-        match sentiment_type {
-            ModelType::SentimentAnalysis => assert!(true),
-            _ => assert!(false),
-        }
-
-        match ner_type {
-            ModelType::NamedEntityRecognition => assert!(true),
-            _ => assert!(false),
-        }
-
+        assert!(matches!(sentiment_type, ModelType::SentimentAnalysis));
+        assert!(matches!(ner_type, ModelType::NamedEntityRecognition));
         match custom_type {
             ModelType::Custom(name) => assert_eq!(name, "test"),
-            _ => assert!(false),
+            _ => panic!("Expected ModelType::Custom"),
         }
     }
 
     #[test]
     fn test_evaluation_metrics() {
-        let metrics = vec![
+        let metrics = [
             EvaluationMetric::Accuracy,
             EvaluationMetric::F1Score,
             EvaluationMetric::BleuScore,

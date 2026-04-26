@@ -170,7 +170,7 @@ impl OAS<Untrained> {
 
         // Compute trace of empirical covariance
         let trace = covariance_emp.diag().sum();
-        let mu = trace / p;
+        let _mu = trace / p;
 
         // Compute trace of squared empirical covariance
         let trace_s2 = covariance_emp.mapv(|x| x * x).sum();

@@ -2,6 +2,7 @@
 //!
 //! This module provides tree-based algorithms for multi-output prediction problems,
 //! including decision trees, random forests, and structured predictors.
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 use crate::multi_label::{BinaryRelevance, BinaryRelevanceTrained};
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
@@ -56,7 +57,9 @@ pub struct ClassificationDecisionNode {
     threshold: Option<Float>,
     left: Option<Box<ClassificationDecisionNode>>,
     right: Option<Box<ClassificationDecisionNode>>,
+    #[allow(dead_code)]
     n_samples: usize,
+    #[allow(dead_code)]
     impurity: Float, // Combined impurity across all targets
 }
 
@@ -1099,6 +1102,7 @@ pub struct TreeStructuredPredictor<State = Untrained> {
     max_depth: usize,
     branching_factor: usize,
     tree_structure: Vec<Vec<usize>>, // Adjacency list representation
+    #[allow(dead_code)]
     node_classifiers: HashMap<usize, String>,
     state: State,
 }
@@ -1109,6 +1113,7 @@ pub struct TreeStructuredPredictorTrained {
     node_classifiers: HashMap<usize, BinaryRelevance<BinaryRelevanceTrained>>,
     tree_structure: Vec<Vec<usize>>,
     max_depth: usize,
+    #[allow(dead_code)]
     n_nodes: usize,
 }
 
@@ -1253,7 +1258,7 @@ impl TreeStructuredPredictor<Untrained> {
         X: &ArrayView2<Float>,
         y: &ArrayView2<i32>,
         node_id: usize,
-        tree_structure: &Vec<Vec<usize>>,
+        tree_structure: &[Vec<usize>],
         max_path_length: usize,
     ) -> SklResult<(Array2<Float>, Array2<i32>)> {
         let n_samples = X.nrows();
@@ -1364,6 +1369,7 @@ impl TreeStructuredPredictor<TreeStructuredPredictorTrained> {
 // Supporting functions for tree algorithms
 
 /// Build a classification decision tree recursively
+#[allow(clippy::too_many_arguments)]
 pub fn build_classification_tree(
     X: &Array2<Float>,
     y: &Array2<i32>,
@@ -1613,8 +1619,8 @@ pub fn predict_classification_probabilities(
 ) -> Vec<Array1<Float>> {
     if node.is_leaf {
         let mut result = Vec::new();
-        for target_idx in 0..classes_per_target.len() {
-            let n_classes = classes_per_target[target_idx].len();
+        for (target_idx, target_classes) in classes_per_target.iter().enumerate() {
+            let n_classes = target_classes.len();
             let mut target_probs = Array1::<Float>::zeros(n_classes);
             for class_idx in 0..n_classes {
                 target_probs[class_idx] = node

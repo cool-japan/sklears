@@ -260,7 +260,7 @@ impl CrossValidationSplitter {
 
     fn stratified_k_fold_split(
         &self,
-        n_samples: usize,
+        _n_samples: usize,
         labels: &Array1<usize>,
         k: usize,
         shuffle: bool,
@@ -303,10 +303,10 @@ impl CrossValidationSplitter {
                 }
 
                 // Add to train sets of other folds
-                for other_fold in 0..k {
+                for (other_fold, split) in splits.iter_mut().enumerate().take(k) {
                     if other_fold != fold {
                         for &idx in &indices[start..end] {
-                            splits[other_fold].0.push(idx);
+                            split.0.push(idx);
                         }
                     }
                 }
@@ -469,7 +469,7 @@ impl HyperparameterOptimizer {
         let best_idx = self.find_best_parameters(&cv_results);
         let best_result = cv_results[best_idx].clone();
 
-        /// OptimizationResult
+        // OptimizationResult
         OptimizationResult {
             best_parameters: best_result.parameters.clone(),
             best_score: self.extract_score(&best_result.mean_scores),
@@ -618,7 +618,7 @@ impl HyperparameterOptimizer {
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
-        /// CrossValidationResult
+        // CrossValidationResult
         CrossValidationResult {
             strategy: self.cv_strategy.clone(),
             parameters: parameters.clone(),

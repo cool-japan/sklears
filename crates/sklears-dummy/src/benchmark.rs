@@ -75,6 +75,7 @@ pub struct BenchmarkClassifier {
 
 /// Trained benchmark classifier
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct TrainedBenchmarkClassifier {
     strategy: BenchmarkStrategy,
     classes: Vec<i32>,
@@ -196,7 +197,7 @@ impl BenchmarkClassifier {
 
     fn build_random_stumps(
         x: &Array2<f64>,
-        y: &Array1<i32>,
+        _y: &Array1<i32>,
         n_stumps: usize,
         random_state: Option<u64>,
     ) -> Result<Vec<(usize, f64, i32)>, SklearsError> {
@@ -373,6 +374,7 @@ pub struct BenchmarkRegressor {
 
 /// Trained benchmark regressor
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct TrainedBenchmarkRegressor {
     strategy: BenchmarkStrategy,
     mean_value: f64,
@@ -417,7 +419,7 @@ impl Fit<Array2<f64>, Array1<f64>> for BenchmarkRegressor {
 
         let mut sorted_y = y.to_vec();
         sorted_y.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
-        let median_value = if sorted_y.len() % 2 == 0 {
+        let median_value = if sorted_y.len().is_multiple_of(2) {
             let mid = sorted_y.len() / 2;
             (sorted_y[mid - 1] + sorted_y[mid]) / 2.0
         } else {
@@ -542,6 +544,7 @@ impl Predict<Array2<f64>, Array1<f64>> for TrainedBenchmarkRegressor {
 
 /// Domain-specific benchmark classifier
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct DomainBenchmarkClassifier {
     strategy: DomainStrategy,
     random_state: Option<u64>,

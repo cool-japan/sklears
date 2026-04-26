@@ -7,10 +7,8 @@
 pub mod distance_based_analysis;
 pub mod higher_order_statistics;
 
-use scirs2_core::ndarray::{Array, Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::numeric::Float as FloatTrait;
-use scirs2_core::random::{thread_rng, Random, Rng};
-use sklears_core::types::Float;
 use std::fmt;
 
 pub use distance_based_analysis::{
@@ -62,10 +60,10 @@ fn mean<F: FloatTrait>(arr: &Array1<F>) -> F {
 
 /// Mutual Information based Canonical Correlation Analysis
 pub struct MutualInformationCCA<F: FloatTrait> {
-    n_components: usize,
-    max_iter: usize,
-    tolerance: F,
-    regularization: F,
+    pub n_components: usize,
+    pub max_iter: usize,
+    pub tolerance: F,
+    pub regularization: F,
 }
 
 impl<F: FloatTrait> Default for MutualInformationCCA<F> {
@@ -81,9 +79,9 @@ impl<F: FloatTrait> Default for MutualInformationCCA<F> {
 
 /// Fitted Mutual Information CCA model
 pub struct FittedMutualInformationCCA<F: FloatTrait> {
-    x_weights: Array2<F>,
-    y_weights: Array2<F>,
-    mutual_info_scores: Array1<F>,
+    pub x_weights: Array2<F>,
+    pub y_weights: Array2<F>,
+    pub mutual_info_scores: Array1<F>,
 }
 
 /// Configuration for Mutual Information CCA
@@ -107,9 +105,9 @@ impl<F: FloatTrait> Default for MutualInformationConfig<F> {
 
 /// Information-theoretic regularization methods
 pub struct InformationTheoreticRegularization<F: FloatTrait> {
-    method: RegularizationMethod,
-    lambda: F,
-    max_iter: usize,
+    pub method: RegularizationMethod,
+    pub lambda: F,
+    pub max_iter: usize,
 }
 
 /// Regularization configuration
@@ -139,9 +137,9 @@ pub struct RegularizationResults<F: FloatTrait> {
 
 /// Entropy-based component selection
 pub struct EntropyComponentSelection<F: FloatTrait> {
-    criterion: SelectionCriteria,
-    max_components: usize,
-    threshold: F,
+    pub criterion: SelectionCriteria,
+    pub max_components: usize,
+    pub threshold: F,
 }
 
 /// Component selection results
@@ -180,9 +178,9 @@ pub struct SelectionResults<F: FloatTrait> {
 
 /// Information geometry and Riemannian optimization
 pub struct InformationGeometry<F: FloatTrait> {
-    manifold: ManifoldStructure,
-    learning_rate: F,
-    max_iter: usize,
+    pub manifold: ManifoldStructure,
+    pub learning_rate: F,
+    pub max_iter: usize,
 }
 
 /// Geometry configuration
@@ -205,22 +203,21 @@ pub enum ManifoldStructure {
 
 /// Riemannian optimizer
 pub struct RiemannianOptimizer<F: FloatTrait> {
-    manifold: ManifoldStructure,
-
-    learning_rate: F,
+    pub manifold: ManifoldStructure,
+    pub learning_rate: F,
 }
 
 /// Natural gradient implementation
 pub struct NaturalGradient<F: FloatTrait> {
-    fisher_matrix: Array2<F>,
-    gradient: Array1<F>,
+    pub fisher_matrix: Array2<F>,
+    pub gradient: Array1<F>,
 }
 
 /// KL-divergence based methods
 pub struct KLDivergenceMethods<F: FloatTrait> {
     tolerance: F,
     smoothing: F,
-    max_bins: usize,
+    pub max_bins: usize,
 }
 
 impl<F: FloatTrait> Default for KLDivergenceMethods<F> {
@@ -361,7 +358,7 @@ pub struct DivergenceMetrics<F: FloatTrait> {
 pub struct FeatureImportanceAnalyzer<F: FloatTrait> {
     method: ImportanceMethod,
     n_permutations: usize,
-    threshold: F,
+    pub threshold: F,
 }
 
 impl<F: FloatTrait> Default for FeatureImportanceAnalyzer<F> {
@@ -514,7 +511,7 @@ pub struct FeatureRanking {
 /// Component interpretation and analysis
 pub struct ComponentInterpreter<F: FloatTrait> {
     threshold: F,
-    min_contribution: F,
+    pub min_contribution: F,
     feature_names: Option<Vec<String>>,
 }
 
@@ -567,7 +564,7 @@ impl<F: FloatTrait> ComponentInterpreter<F> {
         loadings: &scirs2_core::ndarray::ArrayView1<F>,
         component_id: usize,
     ) -> SingleComponentInterpretation<F> {
-        let n_features = loadings.len();
+        let _n_features = loadings.len();
         let mut feature_contributions = Vec::new();
 
         for (i, &loading) in loadings.iter().enumerate() {
@@ -769,7 +766,7 @@ pub fn mutual_information<F: FloatTrait>(x: &Array1<F>, y: &Array1<F>) -> Result
     }
 
     let n = x.len();
-    let bins = (n as f64).sqrt() as usize;
+    let _bins = (n as f64).sqrt() as usize;
 
     // Simple histogram-based MI estimation
     // In practice, would use more sophisticated estimators

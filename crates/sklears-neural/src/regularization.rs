@@ -3,10 +3,10 @@
 //! This module provides various regularization methods including L1, L2, elastic net,
 //! dropout, batch normalization, and other techniques to prevent overfitting.
 
-use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::numeric::{NumCast, One};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::NumCast;
 use scirs2_core::random::essentials::{Normal, Uniform};
-use scirs2_core::random::{thread_rng, Distribution, Rng};
+use scirs2_core::random::{thread_rng, Distribution};
 use sklears_core::types::FloatBounds;
 
 /// Types of regularization
@@ -102,14 +102,14 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Regularizer<T> {
         // Regularize weights
         match self.config.regularization_type {
             RegularizationType::L1 => {
-                loss = loss + self.config.l1_lambda * self.l1_norm_2d(weights);
+                loss += self.config.l1_lambda * self.l1_norm_2d(weights);
             }
             RegularizationType::L2 => {
-                loss = loss + self.config.l2_lambda * self.l2_norm_squared_2d(weights);
+                loss += self.config.l2_lambda * self.l2_norm_squared_2d(weights);
             }
             RegularizationType::ElasticNet => {
-                loss = loss + self.config.l1_lambda * self.l1_norm_2d(weights);
-                loss = loss + self.config.l2_lambda * self.l2_norm_squared_2d(weights);
+                loss += self.config.l1_lambda * self.l1_norm_2d(weights);
+                loss += self.config.l2_lambda * self.l2_norm_squared_2d(weights);
             }
             RegularizationType::None => {}
         }
@@ -119,14 +119,14 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Regularizer<T> {
             if let Some(bias_vec) = bias {
                 match self.config.regularization_type {
                     RegularizationType::L1 => {
-                        loss = loss + self.config.l1_lambda * self.l1_norm_1d(bias_vec);
+                        loss += self.config.l1_lambda * self.l1_norm_1d(bias_vec);
                     }
                     RegularizationType::L2 => {
-                        loss = loss + self.config.l2_lambda * self.l2_norm_squared_1d(bias_vec);
+                        loss += self.config.l2_lambda * self.l2_norm_squared_1d(bias_vec);
                     }
                     RegularizationType::ElasticNet => {
-                        loss = loss + self.config.l1_lambda * self.l1_norm_1d(bias_vec);
-                        loss = loss + self.config.l2_lambda * self.l2_norm_squared_1d(bias_vec);
+                        loss += self.config.l1_lambda * self.l1_norm_1d(bias_vec);
+                        loss += self.config.l2_lambda * self.l2_norm_squared_1d(bias_vec);
                     }
                     RegularizationType::None => {}
                 }
@@ -352,17 +352,29 @@ impl<T: FloatBounds> EarlyStopping<T> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum NoiseType {
     /// Gaussian noise with zero mean and specified standard deviation
-    Gaussian { std_dev: f64 },
+    Gaussian {
+        /// Standard deviation of the Gaussian noise distribution
+        std_dev: f64,
+    },
     /// Uniform noise in the range [-magnitude, magnitude]
-    Uniform { magnitude: f64 },
+    Uniform {
+        /// Half-width of the uniform noise range
+        magnitude: f64,
+    },
     /// Salt-and-pepper noise (random values set to min/max)
     SaltPepper {
+        /// Probability of each value being replaced by a salt or pepper sample
         probability: f64,
+        /// Value used for "pepper" (low-intensity) corruptions
         min_value: f64,
+        /// Value used for "salt" (high-intensity) corruptions
         max_value: f64,
     },
     /// Dropout noise (randomly set values to zero)
-    Dropout { probability: f64 },
+    Dropout {
+        /// Probability that each element is set to zero
+        probability: f64,
+    },
 }
 
 /// Noise injection configuration
@@ -651,6 +663,12 @@ pub struct SpectralNormalization<T: FloatBounds> {
     initialized: bool,
 }
 
+impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Default for SpectralNormalization<T> {
+    fn default() -> Self {
+        Self::new(1, T::from(1e-12).unwrap_or_else(|| T::epsilon()))
+    }
+}
+
 impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> SpectralNormalization<T> {
     /// Create a new spectral normalization instance
     pub fn new(power_iterations: usize, eps: T) -> Self {
@@ -661,11 +679,6 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> SpectralNormalization
             v: None,
             initialized: false,
         }
-    }
-
-    /// Create with default parameters
-    pub fn default() -> Self {
-        Self::new(1, T::from(1e-12).unwrap_or_else(|| T::epsilon()))
     }
 
     /// Apply spectral normalization to a weight matrix
@@ -733,7 +746,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> SpectralNormalization
                 weights.t().dot(u)
             };
             *self.v.as_mut().expect("v not available") = wt_u;
-            Self::normalize_vector_static(&mut self.v.as_mut().expect("v not available"), self.eps);
+            Self::normalize_vector_static(self.v.as_mut().expect("v not available"), self.eps);
 
             // u = W @ v / ||W @ v||
             let w_v = {
@@ -741,7 +754,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> SpectralNormalization
                 weights.dot(v)
             };
             *self.u.as_mut().expect("u not available") = w_v;
-            Self::normalize_vector_static(&mut self.u.as_mut().expect("u not available"), self.eps);
+            Self::normalize_vector_static(self.u.as_mut().expect("u not available"), self.eps);
         }
 
         // Compute spectral norm: σ = u^T @ W @ v
@@ -801,19 +814,20 @@ pub struct SpectralNormLayer<T: FloatBounds> {
     enabled: bool,
 }
 
+impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Default for SpectralNormLayer<T> {
+    fn default() -> Self {
+        Self {
+            spectral_norm: SpectralNormalization::default(),
+            enabled: true,
+        }
+    }
+}
+
 impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> SpectralNormLayer<T> {
     /// Create a new spectral normalization layer
     pub fn new(power_iterations: usize, eps: T) -> Self {
         Self {
             spectral_norm: SpectralNormalization::new(power_iterations, eps),
-            enabled: true,
-        }
-    }
-
-    /// Create with default parameters
-    pub fn default() -> Self {
-        Self {
-            spectral_norm: SpectralNormalization::default(),
             enabled: true,
         }
     }
@@ -854,7 +868,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> SpectralNormLayer<T> 
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::{array, Array1, Array2};
+    use scirs2_core::ndarray::{array, Array2};
 
     #[test]
     fn test_l1_regularization() {
@@ -1025,7 +1039,7 @@ mod tests {
         let config = NoiseConfig::gaussian(0.1);
         let injector = NoiseInjector::new(config);
 
-        let input = array![[1.0, 2.0], [3.0, 4.0]];
+        let input: scirs2_core::ndarray::Array2<f64> = array![[1.0, 2.0], [3.0, 4.0]];
         let noisy_output = injector.apply_noise(&input, true);
 
         // Check that output has same shape
@@ -1034,7 +1048,7 @@ mod tests {
         // Check that noise was actually applied (values should be different)
         let mut has_differences = false;
         for (original, noisy) in input.iter().zip(noisy_output.iter()) {
-            if ((*original - *noisy) as f64).abs() > 1e-6_f64 {
+            if (*original - *noisy).abs() > 1e-6_f64 {
                 has_differences = true;
                 break;
             }
@@ -1047,7 +1061,7 @@ mod tests {
         let config = NoiseConfig::uniform(0.5);
         let injector = NoiseInjector::new(config);
 
-        let input = array![[1.0, 2.0], [3.0, 4.0]];
+        let input: scirs2_core::ndarray::Array2<f64> = array![[1.0, 2.0], [3.0, 4.0]];
         let noisy_output = injector.apply_noise(&input, true);
 
         // Check that output has same shape
@@ -1055,7 +1069,7 @@ mod tests {
 
         // Check that noise is within expected bounds (roughly)
         for (original, noisy) in input.iter().zip(noisy_output.iter()) {
-            let diff = ((*original - *noisy) as f64).abs();
+            let diff = (*original - *noisy).abs();
             assert!(diff <= 0.6_f64); // Allow some tolerance for floating point
         }
     }
@@ -1142,7 +1156,7 @@ mod tests {
 
         // Check that spectral norm is approximately 1.0
         let spectral_norm = spec_norm.get_spectral_norm(&normalized);
-        assert!(spectral_norm >= 0.95 && spectral_norm <= 1.05);
+        assert!((0.95..=1.05).contains(&spectral_norm));
     }
 
     #[test]
@@ -1180,7 +1194,7 @@ mod tests {
 
         // Spectral norm should be approximately 1.0
         let spectral_norm = spec_norm.get_spectral_norm(&normalized);
-        assert!(spectral_norm >= 0.98 && spectral_norm <= 1.02);
+        assert!((0.98..=1.02).contains(&spectral_norm));
     }
 
     #[test]
@@ -1193,7 +1207,7 @@ mod tests {
         let normalized = layer.normalize(&weights);
         let spectral_norm = layer.spectral_norm(&normalized);
         assert!(
-            spectral_norm >= 0.9 && spectral_norm <= 1.3,
+            (0.9..=1.3).contains(&spectral_norm),
             "Expected spectral norm between 0.9 and 1.3, got {}",
             spectral_norm
         );

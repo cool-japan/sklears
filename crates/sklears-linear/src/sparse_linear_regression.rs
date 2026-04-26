@@ -44,8 +44,8 @@ impl Default for SparseLinearRegressionConfig {
 
 impl Validate for SparseLinearRegressionConfig {
     fn validate(&self) -> Result<()> {
-        // Note: LinearRegressionConfig doesn't implement Validate trait yet
-        // TODO: Add validation for base_config once Validate trait is implemented
+        // Delegate to base_config validation
+        self.base_config.validate()?;
 
         // Validate sparsity threshold
         ValidationRules::new("sparsity_threshold")

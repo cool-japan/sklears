@@ -222,7 +222,8 @@ impl LadderNetworks<Untrained> {
         x.mapv(|v| v.max(0.0))
     }
 
-    fn relu_derivative(&self, x: &Array2<f64>) -> Array2<f64> {
+    #[allow(dead_code)]
+    pub(crate) fn relu_derivative(&self, x: &Array2<f64>) -> Array2<f64> {
         x.mapv(|v| if v > 0.0 { 1.0 } else { 0.0 })
     }
 
@@ -435,22 +436,8 @@ impl LadderNetworks<Untrained> {
         targets: &Array2<f64>,
         weights: &LadderWeights,
     ) -> SklResult<LadderWeights> {
-        let batch_size = x.nrows() as f64;
-
-        // Forward pass through clean encoder
-        let clean_encoder_output = self.forward_encoder(x, weights, false);
-
         // Forward pass through noisy encoder
-        let noisy_encoder_output = self.forward_encoder(x, weights, true);
-
-        // Forward pass through decoder
-        let decoder_outputs = self.forward_decoder(
-            noisy_encoder_output
-                .activations
-                .last()
-                .expect("operation should succeed"),
-            weights,
-        );
+        let _noisy_encoder_output = self.forward_encoder(x, weights, true);
 
         // Initialize gradients
         let mut gradient_weights = LadderWeights {
@@ -588,7 +575,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for LadderNetworks<Untraine
     fn fit(self, X: &ArrayView2<'_, Float>, y: &ArrayView1<'_, i32>) -> SklResult<Self::Fitted> {
         let X = X.to_owned();
         let y = y.to_owned();
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
 
         // Identify classes
         let mut classes = std::collections::HashSet::new();
@@ -815,6 +802,7 @@ impl PredictProba<ArrayView2<'_, Float>, Array2<f64>> for LadderNetworks<LadderN
 
 /// Trained state for LadderNetworks
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation: X_train
 pub struct LadderNetworksTrained {
     /// X_train
     pub X_train: Array2<f64>,

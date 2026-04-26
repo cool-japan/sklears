@@ -1,4 +1,6 @@
 //! Reproducing Kernel Hilbert Space (RKHS) Imputer
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides advanced RKHS methods for missing value imputation.
 

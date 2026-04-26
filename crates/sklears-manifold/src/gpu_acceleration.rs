@@ -42,6 +42,7 @@ use wgpu;
 /// let mut accelerator = GpuAccelerator::new().unwrap();
 /// let distances = accelerator.pairwise_distances(&data, "euclidean").unwrap();
 /// ```
+#[allow(dead_code)] // retained for future GPU feature implementation
 pub struct GpuAccelerator {
     #[cfg(feature = "gpu")]
     device: Option<wgpu::Device>,

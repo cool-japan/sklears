@@ -114,6 +114,8 @@ pub fn chi_square_goodness_of_fit_test(
     }
 
     // Calculate expected frequencies
+    // i is used both for arithmetic (bin_start/bin_end) and for indexing
+    #[allow(clippy::needless_range_loop)]
     for i in 0..num_bins {
         let bin_start = min_val + i as f64 * bin_width;
         let bin_end = min_val + (i + 1) as f64 * bin_width;

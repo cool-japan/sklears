@@ -9,15 +9,17 @@ use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+/// Hook execution function type
+type HookExecuteFn =
+    Box<dyn Fn(&ExecutionContext, Option<&HookData>) -> SklResult<HookResult> + Send + Sync>;
+
 // Note: async_trait would normally be imported here for AsyncExecutionHook
 // use async_trait::async_trait;
 
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::{
-    error::Result as SklResult,
-    prelude::{Fit, Predict, SklearsError, Transform},
-    traits::Estimator,
-    types::{Float, FloatBounds},
+    error::{Result as SklResult, SklearsError},
+    types::Float,
 };
 use std::collections::HashMap;
 
@@ -170,7 +172,7 @@ impl HookManager {
 
             // Sort hooks by priority (descending)
             if let Some(hooks) = self.hooks.get_mut(&first_phase) {
-                hooks.sort_by(|a, b| b.priority().cmp(&a.priority()));
+                hooks.sort_by_key(|b| std::cmp::Reverse(b.priority()));
             }
         }
     }
@@ -205,7 +207,7 @@ impl HookManager {
     /// Create a new execution context
     #[must_use]
     pub fn create_context(&self, execution_id: String, total_steps: usize) -> ExecutionContext {
-        /// ExecutionContext
+        // ExecutionContext
         ExecutionContext {
             execution_id,
             step_name: None,
@@ -275,6 +277,7 @@ pub struct LoggingHook {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// Enumeration of log level variants.
 pub enum LogLevel {
     /// Debug
     Debug,
@@ -599,9 +602,7 @@ pub struct CustomHookBuilder {
     name: String,
     phases: Vec<HookPhase>,
     priority: i32,
-    execute_fn: Option<
-        Box<dyn Fn(&ExecutionContext, Option<&HookData>) -> SklResult<HookResult> + Send + Sync>,
-    >,
+    execute_fn: Option<HookExecuteFn>,
 }
 
 impl std::fmt::Debug for CustomHookBuilder {
@@ -673,8 +674,7 @@ pub struct CustomHook {
     name: String,
     phases: Vec<HookPhase>,
     priority: i32,
-    execute_fn:
-        Box<dyn Fn(&ExecutionContext, Option<&HookData>) -> SklResult<HookResult> + Send + Sync>,
+    execute_fn: HookExecuteFn,
 }
 
 impl std::fmt::Debug for CustomHook {
@@ -812,7 +812,7 @@ mod tests {
 
     #[test]
     fn test_execution_context() {
-        let mut manager = HookManager::new();
+        let manager = HookManager::new();
         let context = manager.create_context("test_id".to_string(), 5);
 
         assert_eq!(context.execution_id, "test_id");
@@ -872,14 +872,17 @@ pub trait DependentExecutionHook: ExecutionHook {
 /// Async execution hook trait for non-blocking operations
 /// Note: Would use `#[async_trait::async_trait]` in real implementation
 pub trait AsyncExecutionHook: Send + Sync + Debug {
+    /// Performs execute async.
     fn execute_async(
         &mut self,
         context: &ExecutionContext,
         data: Option<&HookData>,
     ) -> SklResult<HookResult>;
 
+    /// Performs name.
     fn name(&self) -> &str;
 
+    /// Performs priority.
     fn priority(&self) -> i32 {
         0
     }
@@ -904,22 +907,33 @@ pub struct ResourceManagerHook {
 }
 
 #[derive(Debug, Clone, Default)]
+/// Data structure for this component.
 pub struct ResourceUsage {
+    /// The current memory.
     pub current_memory: usize,
+    /// The peak memory.
     pub peak_memory: usize,
+    /// The cpu usage.
     pub cpu_usage: f64,
+    /// The execution time.
     pub execution_time: Duration,
+    /// The violations.
     pub violations: Vec<ResourceViolation>,
 }
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct ResourceViolation {
+    /// The violation type.
     pub violation_type: ViolationType,
+    /// The timestamp.
     pub timestamp: Instant,
+    /// The details.
     pub details: String,
 }
 
 #[derive(Debug, Clone)]
+/// Enumeration of violation type variants.
 pub enum ViolationType {
     /// MemoryLimit
     MemoryLimit,
@@ -1069,16 +1083,24 @@ pub struct SecurityAuditHook {
 }
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct AuditEntry {
+    /// The timestamp.
     pub timestamp: Instant,
+    /// The execution id.
     pub execution_id: String,
+    /// The operation.
     pub operation: String,
+    /// The user id.
     pub user_id: Option<String>,
+    /// The data summary.
     pub data_summary: String,
+    /// The result.
     pub result: AuditResult,
 }
 
 #[derive(Debug, Clone)]
+/// Enumeration of audit result variants.
 pub enum AuditResult {
     /// Success
     Success,
@@ -1143,7 +1165,7 @@ impl SecurityAuditHook {
         result: AuditResult,
         data_summary: String,
     ) -> AuditEntry {
-        /// AuditEntry
+        // AuditEntry
         AuditEntry {
             timestamp: Instant::now(),
             execution_id: context.execution_id.clone(),
@@ -1248,16 +1270,24 @@ pub struct ErrorRecoveryHook {
 }
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct ErrorRecord {
+    /// The timestamp.
     pub timestamp: Instant,
+    /// The execution id.
     pub execution_id: String,
+    /// The error type.
     pub error_type: String,
+    /// The error message.
     pub error_message: String,
+    /// The recovery attempted.
     pub recovery_attempted: bool,
+    /// The recovery successful.
     pub recovery_successful: bool,
 }
 
 #[derive(Debug, Clone)]
+/// Enumeration of fallback strategy variants.
 pub enum FallbackStrategy {
     /// RetryWithDelay
     RetryWithDelay(Duration),
@@ -1415,6 +1445,7 @@ pub struct HookComposition {
 }
 
 #[derive(Debug, Clone)]
+/// Enumeration of composition strategy variants.
 pub enum CompositionStrategy {
     /// Execute all hooks in sequence
     Sequential,
@@ -1441,7 +1472,7 @@ impl HookComposition {
     pub fn add_hook(&mut self, hook: Box<dyn ExecutionHook>) {
         self.hooks.push(hook);
         // Sort by priority
-        self.hooks.sort_by(|a, b| b.priority().cmp(&a.priority()));
+        self.hooks.sort_by_key(|b| std::cmp::Reverse(b.priority()));
     }
 }
 

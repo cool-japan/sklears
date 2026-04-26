@@ -4,7 +4,6 @@
 //! tools for pipeline execution, including real-time metrics collection,
 //! performance analysis, and anomaly detection.
 
-use sklears_core::{traits::Estimator, types::FloatBounds};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -55,10 +54,9 @@ impl PipelineMonitor {
     /// Get current metrics snapshot
     #[must_use]
     pub fn get_metrics_snapshot(&self) -> MetricsSnapshot {
-        if let Ok(metrics) = self.metrics.lock() {
-            metrics.snapshot()
-        } else {
-            MetricsSnapshot::empty()
+        match self.metrics.lock() {
+            Ok(metrics) => metrics.snapshot(),
+            _ => MetricsSnapshot::empty(),
         }
     }
 
@@ -126,10 +124,9 @@ impl PipelineMonitor {
     /// Get active execution contexts
     #[must_use]
     pub fn get_active_executions(&self) -> Vec<ExecutionContext> {
-        if let Ok(contexts) = self.active_contexts.lock() {
-            contexts.values().cloned().collect()
-        } else {
-            Vec::new()
+        match self.active_contexts.lock() {
+            Ok(contexts) => contexts.values().cloned().collect(),
+            _ => Vec::new(),
         }
     }
 }

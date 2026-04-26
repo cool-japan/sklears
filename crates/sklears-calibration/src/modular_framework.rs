@@ -93,6 +93,7 @@ pub struct CalibrationRegistry {
     /// Module aliases
     aliases: HashMap<String, String>,
     /// Module dependencies
+    #[allow(dead_code)] // intentionally deferred: dependency resolution not yet implemented
     dependencies: HashMap<String, Vec<String>>,
 }
 
@@ -373,6 +374,7 @@ pub struct CalibrationPipeline {
     /// Pipeline steps
     steps: Vec<PipelineStep>,
     /// Pipeline configuration
+    #[allow(dead_code)] // intentionally deferred: pipeline config accessor not yet exposed
     config: HashMap<String, String>,
     /// Execution history
     execution_history: Vec<StepResult>,

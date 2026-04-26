@@ -6,12 +6,10 @@
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, Axis};
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-// SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use rayon::prelude::*;
 use scirs2_core::random::CoreRandom;
 use sklears_core::{
     error::{Result, SklearsError},
-    traits::{Estimator, Fit, Predict, PredictProba},
+    traits::{Fit, Predict, PredictProba},
 };
 use std::collections::{HashMap, VecDeque};
 
@@ -105,7 +103,7 @@ impl TemporalFeatureExtractor {
         let mut derivatives = Vec::new();
         let mut current = series.clone();
 
-        for order in 1..=self.config.derivative_order {
+        for _order in 1..=self.config.derivative_order {
             let mut derivative = Array2::zeros(current.dim());
 
             // Compute finite differences
@@ -169,7 +167,7 @@ impl TemporalFeatureExtractor {
         if self.config.normalize_temporal {
             let (n_series, n_windows, n_features) = all_features.dim();
             let reshaped = all_features
-                .into_shape((n_series * n_windows, n_features))
+                .into_shape_with_order((n_series * n_windows, n_features))
                 .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
 
             self.feature_means = Some(
@@ -211,7 +209,7 @@ impl TemporalFeatureExtractor {
         // Reshape to 2D
         let (n_series, n_windows, n_features) = all_features.dim();
         let mut reshaped = all_features
-            .into_shape((n_series * n_windows, n_features))
+            .into_shape_with_order((n_series * n_windows, n_features))
             .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
 
         // Apply normalization if fitted
@@ -747,14 +745,14 @@ mod tests {
         });
 
         // Add some training data
-        let data_points = vec![
+        let data_points = [
             Array1::from_vec(vec![1.0]),
             Array1::from_vec(vec![2.0]),
             Array1::from_vec(vec![3.0]),
             Array1::from_vec(vec![4.0]),
             Array1::from_vec(vec![5.0]),
         ];
-        let labels = vec![0, 0, 0, 1, 1];
+        let labels = [0, 0, 0, 1, 1];
 
         for (data_point, label) in data_points.iter().zip(labels.iter()) {
             model
@@ -830,6 +828,7 @@ pub struct HMMNaiveBayes<State> {
     _state: std::marker::PhantomData<State>,
 }
 
+#[allow(non_snake_case)]
 impl HMMNaiveBayes<Untrained> {
     /// Create a new HMM Naive Bayes classifier
     pub fn new(config: HMMConfig) -> Self {
@@ -846,7 +845,7 @@ impl HMMNaiveBayes<Untrained> {
 
     /// Fit the HMM Naive Bayes model to time series data
     pub fn fit(mut self, X: &Array3<f64>, y: &Array1<i32>) -> Result<HMMNaiveBayes<Trained>> {
-        let (n_sequences, sequence_length, n_features) = X.dim();
+        let (n_sequences, _sequence_length, n_features) = X.dim();
         self.n_features = Some(n_features);
 
         // Get unique classes
@@ -855,16 +854,12 @@ impl HMMNaiveBayes<Untrained> {
         classes_vec.dedup();
         let classes = Array1::from_vec(classes_vec);
 
-        // Initialize HMM parameters
-        // SciRS2 Policy Compliance - Use compatible random generator during migration
-        // TODO: Migrate to full scirs2_core::random when API is stabilized
-        let mut rng = if let Some(seed) = self.config.random_state {
-            use scirs2_core::random::SeedableRng;
-            CoreRandom::seed_from_u64(seed)
-        } else {
-            use scirs2_core::random::SeedableRng;
-            CoreRandom::seed_from_u64(42) // Use fixed seed for reproducibility
-        };
+        // Initialize HMM parameters with seeded RNG for reproducibility.
+        // When random_state is None a fixed fallback seed is used so results
+        // are deterministic within a single run.
+        let effective_seed = self.config.random_state.unwrap_or(42);
+        use scirs2_core::random::SeedableRng;
+        let mut rng = CoreRandom::seed_from_u64(effective_seed);
 
         // Initialize transition probabilities
         let mut transition_probs = Array2::zeros((self.config.n_states, self.config.n_states));
@@ -938,8 +933,7 @@ impl HMMNaiveBayes<Untrained> {
 
         for seq_idx in 0..n_sequences {
             let class_label = y[seq_idx];
-            for t in 0..sequence_length {
-                let state = state_sequences[seq_idx][t];
+            for (t, &state) in state_sequences[seq_idx].iter().enumerate() {
                 let key = (state, class_label);
 
                 state_class_data
@@ -988,7 +982,7 @@ impl HMMNaiveBayes<Untrained> {
         let mut backward_probs = Vec::new();
         let mut scaling_factors = Vec::new();
 
-        for seq_idx in 0..n_sequences {
+        for _seq_idx in 0..n_sequences {
             let mut alpha = Array2::zeros((sequence_length, self.config.n_states));
             let mut beta = Array2::zeros((sequence_length, self.config.n_states));
             let mut scales = Array1::zeros(sequence_length);
@@ -1058,7 +1052,7 @@ impl HMMNaiveBayes<Untrained> {
     fn update_hmm_parameters(
         &self,
         X: &Array3<f64>,
-        y: &Array1<i32>,
+        _y: &Array1<i32>,
         forward_probs: &[Array2<f64>],
         backward_probs: &[Array2<f64>],
         scaling_factors: &[Array1<f64>],
@@ -1123,7 +1117,7 @@ impl HMMNaiveBayes<Untrained> {
         let (n_sequences, sequence_length, _) = X.dim();
         let mut state_sequences = Vec::new();
 
-        for seq_idx in 0..n_sequences {
+        for _seq_idx in 0..n_sequences {
             let mut viterbi_probs = Array2::zeros((sequence_length, self.config.n_states));
             let mut viterbi_path = Array2::zeros((sequence_length, self.config.n_states));
 
@@ -1178,6 +1172,7 @@ impl HMMNaiveBayes<Untrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl HMMNaiveBayes<Trained> {
     /// Predict class labels for time series sequences
     pub fn predict(&self, X: &Array3<f64>) -> Result<Array1<i32>> {
@@ -1241,7 +1236,7 @@ impl HMMNaiveBayes<Trained> {
                 for (class_idx, &class_label) in classes.iter().enumerate() {
                     if let Some(model) = emission_models.get(&(state, class_label)) {
                         let obs_2d = observation.clone().insert_axis(Axis(0));
-                        let obs_labels = Array1::from_elem(1, class_label);
+                        let _obs_labels = Array1::from_elem(1, class_label);
                         let proba = model.predict_proba(&obs_2d)?;
 
                         // Find the class probability (should be close to 1 for correct class)

@@ -8,9 +8,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Image data types for computer vision processing
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum ImageDataType {
     /// 8-bit unsigned integer (0-255)
+    #[default]
     UInt8,
     /// 16-bit unsigned integer (0-65535)
     UInt16,
@@ -20,16 +21,11 @@ pub enum ImageDataType {
     Float64,
 }
 
-impl Default for ImageDataType {
-    fn default() -> Self {
-        Self::UInt8
-    }
-}
-
 /// Color spaces for image processing
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum ColorSpace {
     /// Red, Green, Blue
+    #[default]
     RGB,
     /// Blue, Green, Red
     BGR,
@@ -47,18 +43,13 @@ pub enum ColorSpace {
     XYZ,
 }
 
-impl Default for ColorSpace {
-    fn default() -> Self {
-        Self::RGB
-    }
-}
-
 /// Supported image formats for input/output
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum ImageFormat {
     /// JPEG format
     JPEG,
     /// PNG format
+    #[default]
     PNG,
     /// BMP format
     BMP,
@@ -76,16 +67,11 @@ pub enum ImageFormat {
     Custom(String),
 }
 
-impl Default for ImageFormat {
-    fn default() -> Self {
-        Self::PNG
-    }
-}
-
 /// Processing modes for computer vision pipelines
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum ProcessingMode {
     /// Batch processing for multiple images
+    #[default]
     Batch,
     /// Real-time processing with low latency
     RealTime,
@@ -99,18 +85,15 @@ pub enum ProcessingMode {
     OnDemand,
 }
 
-impl Default for ProcessingMode {
-    fn default() -> Self {
-        Self::Batch
-    }
-}
-
 /// Processing complexity levels for adaptive processing
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
 pub enum ProcessingComplexity {
     /// Minimal processing for maximum speed
     Low,
     /// Balanced processing for good speed/quality trade-off
+    #[default]
     Medium,
     /// High-quality processing with moderate speed
     High,
@@ -118,20 +101,15 @@ pub enum ProcessingComplexity {
     Ultra,
 }
 
-impl Default for ProcessingComplexity {
-    fn default() -> Self {
-        Self::Medium
-    }
-}
-
 /// Memory optimization levels for resource management
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum MemoryOptimizationLevel {
     /// Minimal optimization, prioritize speed
     None,
     /// Basic memory management
     Low,
     /// Balanced memory optimization
+    #[default]
     Medium,
     /// Aggressive memory optimization
     High,
@@ -139,16 +117,11 @@ pub enum MemoryOptimizationLevel {
     Extreme,
 }
 
-impl Default for MemoryOptimizationLevel {
-    fn default() -> Self {
-        Self::Medium
-    }
-}
-
 /// Cache eviction policies for memory management
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum CacheEvictionPolicy {
     /// Least Recently Used
+    #[default]
     LRU,
     /// Least Frequently Used
     LFU,
@@ -162,18 +135,13 @@ pub enum CacheEvictionPolicy {
     TTL,
 }
 
-impl Default for CacheEvictionPolicy {
-    fn default() -> Self {
-        Self::LRU
-    }
-}
-
 /// Parallel processing strategies
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum ParallelStrategy {
     /// No parallelization
     None,
     /// Thread-based parallelization
+    #[default]
     Threading,
     /// Process-based parallelization
     Multiprocessing,
@@ -187,14 +155,8 @@ pub enum ParallelStrategy {
     Distributed,
 }
 
-impl Default for ParallelStrategy {
-    fn default() -> Self {
-        Self::Threading
-    }
-}
-
 /// Load balancing algorithms for parallel processing
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum LoadBalancingAlgorithm {
     /// Round-robin scheduling
     RoundRobin,
@@ -205,6 +167,7 @@ pub enum LoadBalancingAlgorithm {
     /// Least processing time
     LeastTime,
     /// Work stealing
+    #[default]
     WorkStealing,
     /// Random assignment
     Random,
@@ -212,16 +175,11 @@ pub enum LoadBalancingAlgorithm {
     Priority,
 }
 
-impl Default for LoadBalancingAlgorithm {
-    fn default() -> Self {
-        Self::WorkStealing
-    }
-}
-
 /// Buffer overflow strategies for real-time processing
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum BufferOverflowStrategy {
     /// Drop oldest frames when buffer is full
+    #[default]
     DropOldest,
     /// Drop newest frames when buffer is full
     DropNewest,
@@ -233,12 +191,6 @@ pub enum BufferOverflowStrategy {
     SkipFrames,
     /// Increase buffer size dynamically
     DynamicResize,
-}
-
-impl Default for BufferOverflowStrategy {
-    fn default() -> Self {
-        Self::DropOldest
-    }
 }
 
 /// Modalities for multi-modal processing
@@ -267,11 +219,12 @@ pub enum Modality {
 }
 
 /// Fusion strategies for multi-modal data
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum FusionStrategy {
     /// Early fusion at feature level
     EarlyFusion,
     /// Late fusion at decision level
+    #[default]
     LateFusion,
     /// Hybrid fusion combining early and late
     HybridFusion,
@@ -283,18 +236,13 @@ pub enum FusionStrategy {
     GraphFusion,
 }
 
-impl Default for FusionStrategy {
-    fn default() -> Self {
-        Self::LateFusion
-    }
-}
-
 /// Synchronization methods for temporal alignment
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum SyncMethod {
     /// Hardware synchronization
     Hardware,
     /// Software timestamps
+    #[default]
     Software,
     /// Network Time Protocol
     NTP,
@@ -306,18 +254,13 @@ pub enum SyncMethod {
     Manual,
 }
 
-impl Default for SyncMethod {
-    fn default() -> Self {
-        Self::Software
-    }
-}
-
 /// Interpolation methods for data alignment
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum InterpolationMethod {
     /// Nearest neighbor interpolation
     Nearest,
     /// Linear interpolation
+    #[default]
     Linear,
     /// Cubic interpolation
     Cubic,
@@ -329,16 +272,11 @@ pub enum InterpolationMethod {
     Gaussian,
 }
 
-impl Default for InterpolationMethod {
-    fn default() -> Self {
-        Self::Linear
-    }
-}
-
 /// Cross-modal learning strategies
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum CrossModalStrategy {
     /// Shared representation learning
+    #[default]
     SharedRepresentation,
     /// Canonical correlation analysis
     CCA,
@@ -354,18 +292,13 @@ pub enum CrossModalStrategy {
     Distillation,
 }
 
-impl Default for CrossModalStrategy {
-    fn default() -> Self {
-        Self::SharedRepresentation
-    }
-}
-
 /// Video streaming protocols
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum StreamingProtocol {
     /// Real-Time Messaging Protocol
     RTMP,
     /// Web Real-Time Communication
+    #[default]
     WebRTC,
     /// HTTP Live Streaming
     HLS,
@@ -379,16 +312,11 @@ pub enum StreamingProtocol {
     QUIC,
 }
 
-impl Default for StreamingProtocol {
-    fn default() -> Self {
-        Self::WebRTC
-    }
-}
-
 /// Video codecs for compression
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum VideoCodec {
     /// H.264/AVC
+    #[default]
     H264,
     /// H.265/HEVC
     H265,
@@ -404,18 +332,13 @@ pub enum VideoCodec {
     ProRes,
 }
 
-impl Default for VideoCodec {
-    fn default() -> Self {
-        Self::H264
-    }
-}
-
 /// Rate control methods for video encoding
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum RateControlMethod {
     /// Constant Bitrate
     CBR,
     /// Variable Bitrate
+    #[default]
     VBR,
     /// Constant Rate Factor
     CRF,
@@ -423,16 +346,11 @@ pub enum RateControlMethod {
     CQP,
 }
 
-impl Default for RateControlMethod {
-    fn default() -> Self {
-        Self::VBR
-    }
-}
-
 /// Quality adaptation algorithms
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum AdaptationAlgorithm {
     /// Simple threshold-based adaptation
+    #[default]
     Threshold,
     /// PID controller-based adaptation
     PID,
@@ -442,12 +360,6 @@ pub enum AdaptationAlgorithm {
     Reinforcement,
     /// Predictive adaptation
     Predictive,
-}
-
-impl Default for AdaptationAlgorithm {
-    fn default() -> Self {
-        Self::Threshold
-    }
 }
 
 /// Metrics for quality adaptation decisions
@@ -533,11 +445,12 @@ impl Default for TransformParameter {
 }
 
 /// Recovery strategies for error handling
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum RecoveryStrategy {
     /// Fail immediately on error
     FailFast,
     /// Skip failed items and continue
+    #[default]
     Skip,
     /// Retry with backoff
     Retry,
@@ -547,12 +460,6 @@ pub enum RecoveryStrategy {
     Degrade,
     /// Use cached results
     UseCache,
-}
-
-impl Default for RecoveryStrategy {
-    fn default() -> Self {
-        Self::Skip
-    }
 }
 
 // ========== Missing Types for CV Pipelines ==========
@@ -629,9 +536,10 @@ pub struct CameraSettings {
 }
 
 /// Compute device specification
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ComputeDevice {
     /// CPU processing
+    #[default]
     CPU,
     /// GPU processing
     GPU(u32), // GPU index
@@ -707,9 +615,10 @@ pub struct ExtractorConfig {
 }
 
 /// Feature extractor types
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ExtractorType {
     /// SIFT features
+    #[default]
     SIFT,
     /// SURF features
     SURF,
@@ -834,9 +743,10 @@ pub struct ModelConfig {
 }
 
 /// Model types for computer vision
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ModelType {
     /// Classification model
+    #[default]
     Classification,
     /// Object detection model
     ObjectDetection,
@@ -883,24 +793,6 @@ pub struct PredictionResult {
     pub confidence_scores: Option<ConfidenceScores>,
 }
 
-impl Default for ComputeDevice {
-    fn default() -> Self {
-        Self::CPU
-    }
-}
-
-impl Default for ExtractorType {
-    fn default() -> Self {
-        Self::SIFT
-    }
-}
-
-impl Default for ModelType {
-    fn default() -> Self {
-        Self::Classification
-    }
-}
-
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -929,7 +821,7 @@ mod tests {
     fn test_transform_parameter_variants() {
         let bool_param = TransformParameter::Bool(true);
         let int_param = TransformParameter::Int(42);
-        let float_param = TransformParameter::Float(3.14);
+        let float_param = TransformParameter::Float(std::f64::consts::PI);
         let string_param = TransformParameter::String("test".to_string());
 
         match bool_param {
@@ -943,7 +835,9 @@ mod tests {
         }
 
         match float_param {
-            TransformParameter::Float(val) => assert!((val - 3.14).abs() < f64::EPSILON),
+            TransformParameter::Float(val) => {
+                assert!((val - std::f64::consts::PI).abs() < f64::EPSILON)
+            }
             _ => panic!("Expected Float variant"),
         }
 

@@ -91,10 +91,10 @@ impl Default for MtgpConfig {
 ///     .task_kernel(Box::new(task_kernel))
 ///     .alpha(1e-6);
 ///
-/// let mut mtgp = mtgp.add_task("task1", &X1.view(), &y1.view()).unwrap();
-/// mtgp = mtgp.add_task("task2", &X2.view(), &y2.view()).unwrap();
-/// let fitted = mtgp.fit().unwrap();
-/// let predictions = fitted.predict_task("task1", &X1.view()).unwrap();
+/// let mut mtgp = mtgp.add_task("task1", &X1.view(), &y1.view()).expect("add_task should succeed with valid task data");
+/// mtgp = mtgp.add_task("task2", &X2.view(), &y2.view()).expect("add_task should succeed with valid task data");
+/// let fitted = mtgp.fit().expect("fit should succeed after tasks have been added");
+/// let predictions = fitted.predict_task("task1", &X1.view()).expect("predict_task should succeed for a registered task");
 /// ```
 #[derive(Debug, Clone)]
 pub struct MultiTaskGaussianProcessRegressor<S = Untrained> {
@@ -109,20 +109,26 @@ pub struct MultiTaskGaussianProcessRegressor<S = Untrained> {
 
 /// Trained state for Multi-Task Gaussian Process
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct MtgpTrained {
     tasks: HashMap<String, (Array2<f64>, Array1<f64>)>,
     shared_kernel: Box<dyn Kernel>,
     task_kernel: Box<dyn Kernel>,
+    #[allow(dead_code)]
     alpha: f64,
+    #[allow(dead_code)]
     shared_weight: f64,
+    #[allow(dead_code)]
     task_weight: f64,
     alpha_vector: Array1<f64>, // Solution to the linear system
     log_marginal_likelihood_values: HashMap<String, f64>, // Per-task log marginal likelihood
     task_indices: HashMap<String, (usize, usize)>, // task_name -> (start_idx, end_idx)
     all_X: Array2<f64>,        // Combined input data
-    all_y: Array1<f64>,        // Combined target data
+    #[allow(dead_code)]
+    all_y: Array1<f64>, // Combined target data
 }
 
+#[allow(non_snake_case)]
 impl MultiTaskGaussianProcessRegressor<Untrained> {
     /// Create a new Multi-Task Gaussian Process Regressor
     pub fn new() -> Self {
@@ -197,6 +203,7 @@ impl MultiTaskGaussianProcessRegressor<Untrained> {
     }
 
     /// Combine all task data into single arrays
+    #[allow(clippy::type_complexity)]
     fn combine_task_data(
         &self,
     ) -> SklResult<(Array2<f64>, Array1<f64>, HashMap<String, (usize, usize)>)> {
@@ -269,8 +276,8 @@ impl MultiTaskGaussianProcessRegressor<Untrained> {
         &self,
         X: &Array2<f64>,
         task_indices: &HashMap<String, (usize, usize)>,
-        shared_kernel: &Box<dyn Kernel>,
-        task_kernel: &Box<dyn Kernel>,
+        shared_kernel: &dyn Kernel,
+        task_kernel: &dyn Kernel,
     ) -> SklResult<Array2<f64>> {
         let n = X.nrows();
         let mut K = Array2::<f64>::zeros((n, n));
@@ -365,8 +372,12 @@ impl MultiTaskGaussianProcessRegressor<Untrained> {
         let (all_X, all_y, task_indices) = self.combine_task_data()?;
 
         // Compute multi-task covariance matrix
-        let K =
-            self.compute_multitask_covariance(&all_X, &task_indices, shared_kernel, task_kernel)?;
+        let K = self.compute_multitask_covariance(
+            &all_X,
+            &task_indices,
+            shared_kernel.as_ref(),
+            task_kernel.as_ref(),
+        )?;
 
         // Add regularization
         let mut K_reg = K.clone();

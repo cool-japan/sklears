@@ -4,15 +4,18 @@
 //! in cross-decomposition algorithms, including vectorized reductions, fused
 //! multiply-add operations, and auto-vectorization hints.
 
-use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Random, Rng, RngExt};
-// TODO: Check if these SIMD functions are available in scirs2_core
-// use scirs2_core::simd::{auto_vectorize, SimdOps};
-// use scirs2_core::simd_ops::{simd_dot_product, simd_matrix_multiply, SimdUnifiedOps};
+// SIMD functions available in scirs2_core:
+//   - `scirs2_core::simd_ops::matmul::simd_dot_product_f64` / `simd_dot_product_f32`
+//   - `scirs2_core::simd::SimdOps` trait
+//   - `scirs2_core::simd_ops::SimdUnifiedOps` trait (impl for f32/f64)
+//   - `scirs2_core::simd::blocked_gemm_f64` (requires `simd` feature)
+// Hot paths in this module use `simd_dot_product_f64`; blocked GEMM falls back to
+// the cache-blocked implementation below (compatible with default features).
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::random::thread_rng;
+use scirs2_core::simd_ops::matmul::simd_dot_product_f64;
 use sklears_core::error::SklearsError;
 use sklears_core::types::Float;
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
 
 /// Advanced SIMD configuration for optimal performance
 #[derive(Debug, Clone)]
@@ -117,45 +120,12 @@ impl AdvancedSimdOps {
         }
     }
 
-    /// SIMD implementation of dot product
+    /// SIMD implementation of dot product — delegates to `scirs2_core::simd_ops::simd_dot_product_f64`,
+    /// which uses hardware SIMD when the `simd` feature is enabled and falls back to a scalar
+    /// reduction otherwise.
     #[inline(always)]
     fn simd_dot_product_impl(&self, a: &[Float], b: &[Float]) -> Float {
-        let len = a.len();
-        let simd_len = len - (len % self.config.simd_width);
-        let mut sum = 0.0;
-
-        // SIMD portion
-        for i in (0..simd_len).step_by(self.config.simd_width) {
-            if self.config.use_fma {
-                // Use fused multiply-add for better precision and performance
-                sum += self.fma_accumulate(
-                    &a[i..i + self.config.simd_width],
-                    &b[i..i + self.config.simd_width],
-                );
-            } else {
-                for j in 0..self.config.simd_width {
-                    sum += a[i + j] * b[i + j];
-                }
-            }
-        }
-
-        // Handle remainder
-        for i in simd_len..len {
-            sum += a[i] * b[i];
-        }
-
-        sum
-    }
-
-    /// Fused multiply-add accumulation
-    #[inline(always)]
-    fn fma_accumulate(&self, a: &[Float], b: &[Float]) -> Float {
-        let mut sum = 0.0;
-        for (x, y) in a.iter().zip(b.iter()) {
-            // In a real implementation, this would use hardware FMA instructions
-            sum += x * y; // Placeholder - would be replaced with FMA intrinsics
-        }
-        sum
+        simd_dot_product_f64(a, b)
     }
 
     /// Scalar fallback for dot product
@@ -194,14 +164,24 @@ impl AdvancedSimdOps {
         vector: &Array1<Float>,
         result: &mut Array1<Float>,
     ) {
-        let (m, n) = matrix.dim();
+        let (m, _n) = matrix.dim();
 
-        for i in 0..m {
-            let row = matrix.row(i);
-            result[i] = self.simd_dot_product_impl(
-                row.as_slice().expect("operation should succeed"),
-                vector.as_slice().expect("operation should succeed"),
-            );
+        // Convert vector to contiguous slice; fall back to scalar if non-contiguous.
+        if let Some(vec_slice) = vector.as_slice() {
+            for i in 0..m {
+                let row = matrix.row(i);
+                if let Some(row_slice) = row.as_slice() {
+                    result[i] = self.simd_dot_product_impl(row_slice, vec_slice);
+                } else {
+                    // Non-contiguous row — use standard dot product.
+                    result[i] = row.dot(vector);
+                }
+            }
+        } else {
+            // Non-contiguous vector — fall back entirely.
+            for i in 0..m {
+                result[i] = matrix.row(i).dot(vector);
+            }
         }
     }
 
@@ -262,6 +242,7 @@ impl AdvancedSimdOps {
 
     /// Compute a single cache block with SIMD optimization
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)] // block-level matrix multiply requires all six index bounds as independent parameters
     fn compute_block(
         &self,
         a: &Array2<Float>,
@@ -363,7 +344,8 @@ impl AdvancedSimdOps {
         Ok(result)
     }
 
-    /// SIMD implementation of element-wise addition
+    /// SIMD implementation of element-wise addition.
+    /// Operates on contiguous slices when available; falls back to ndarray arithmetic otherwise.
     fn simd_elementwise_add(
         &self,
         a: &Array2<Float>,
@@ -372,23 +354,23 @@ impl AdvancedSimdOps {
     ) {
         let (m, n) = a.dim();
         let total_elements = m * n;
-        let simd_elements = total_elements - (total_elements % self.config.simd_width);
 
-        // Flatten arrays for SIMD processing
-        let a_flat = a.as_slice().expect("operation should succeed");
-        let b_flat = b.as_slice().expect("operation should succeed");
-        let result_flat = result.as_slice_mut().expect("operation should succeed");
-
-        // SIMD portion
-        for i in (0..simd_elements).step_by(self.config.simd_width) {
-            for j in 0..self.config.simd_width {
-                result_flat[i + j] = a_flat[i + j] + b_flat[i + j];
+        match (a.as_slice(), b.as_slice(), result.as_slice_mut()) {
+            (Some(a_flat), Some(b_flat), Some(result_flat)) => {
+                let simd_elements = total_elements - (total_elements % self.config.simd_width);
+                for i in (0..simd_elements).step_by(self.config.simd_width) {
+                    for j in 0..self.config.simd_width {
+                        result_flat[i + j] = a_flat[i + j] + b_flat[i + j];
+                    }
+                }
+                for i in simd_elements..total_elements {
+                    result_flat[i] = a_flat[i] + b_flat[i];
+                }
             }
-        }
-
-        // Handle remainder
-        for i in simd_elements..total_elements {
-            result_flat[i] = a_flat[i] + b_flat[i];
+            _ => {
+                // Non-contiguous arrays — delegate to ndarray arithmetic.
+                *result = a + b;
+            }
         }
     }
 
@@ -559,7 +541,7 @@ mod tests {
     use super::*;
     use scirs2_core::essentials::Normal;
     use scirs2_core::ndarray::Array2;
-    use scirs2_core::random::{thread_rng, RngExt};
+    use scirs2_core::random::thread_rng;
 
     #[test]
     fn test_vectorized_dot_product() {
@@ -597,11 +579,11 @@ mod tests {
         let simd_ops = AdvancedSimdOps::new();
         let a = Array2::from_shape_fn((50, 60), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let b = Array2::from_shape_fn((60, 40), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let result = simd_ops

@@ -5,7 +5,6 @@ use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::SeedableRng;
-use scirs2_core::Distribution;
 use scirs2_core::RngExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},

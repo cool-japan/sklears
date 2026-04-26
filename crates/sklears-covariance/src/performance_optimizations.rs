@@ -6,7 +6,7 @@
 
 use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{error::SklearsError, traits::Estimator, traits::Fit};
 use std::collections::VecDeque;
 
@@ -57,6 +57,12 @@ pub struct ComputationStats {
     pub threads_used: usize,
     /// Block size used
     pub block_size_used: usize,
+}
+
+impl Default for ParallelCovariance<ParallelCovarianceUntrained> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ParallelCovariance<ParallelCovarianceUntrained> {
@@ -144,7 +150,7 @@ impl Fit<Array2<f64>, ()> for ParallelCovariance<ParallelCovarianceUntrained> {
         stats.covariance_time_ms = cov_start.elapsed().as_secs_f64() * 1000.0;
 
         // Compute precision matrix if matrix is not too large
-        let precision_matrix = if n_features <= 1000 {
+        let _precision_matrix = if n_features <= 1000 {
             self.compute_precision_parallel(&covariance_matrix).ok()
         } else {
             None
@@ -227,7 +233,7 @@ impl ParallelCovariance<ParallelCovarianceUntrained> {
         let centered = x - &mean.clone().insert_axis(Axis(0));
 
         // Create blocks
-        let n_blocks = (n_features + block_size - 1) / block_size;
+        let n_blocks = n_features.div_ceil(block_size);
         let mut covariance = Array2::zeros((n_features, n_features));
 
         // Compute covariance blocks in parallel
@@ -256,7 +262,7 @@ impl ParallelCovariance<ParallelCovarianceUntrained> {
             .collect();
 
         // Assemble blocks into full covariance matrix
-        for (block_i, block_j, start_i, end_i, start_j, end_j, block_cov) in block_results {
+        for (_block_i, _block_j, start_i, end_i, start_j, end_j, block_cov) in block_results {
             // Fill upper triangle
             for (local_i, global_i) in (start_i..end_i).enumerate() {
                 for (local_j, global_j) in (start_j..end_j).enumerate() {
@@ -573,6 +579,12 @@ pub struct MemoryEfficientCovariance {
     pub temp_dir: Option<String>,
 }
 
+impl Default for MemoryEfficientCovariance {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MemoryEfficientCovariance {
     pub fn new() -> Self {
         Self {
@@ -704,6 +716,12 @@ pub struct SIMDCovariance {
     pub vector_size: usize,
 }
 
+impl Default for SIMDCovariance {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SIMDCovariance {
     pub fn new() -> Self {
         Self {
@@ -822,7 +840,7 @@ impl SIMDCovariance {
         &self,
         x: &ArrayView2<f64>,
     ) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
 
         // Compute mean
         let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
@@ -946,7 +964,7 @@ impl DistributedCovariance {
     ) -> Result<Array2<f64>, SklearsError> {
         // Simplified: compute cross-products between feature partitions
         let (n_samples, n_features) = x.dim();
-        let features_per_worker = n_features / self.n_workers;
+        let _features_per_worker = n_features / self.n_workers;
 
         let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
             SklearsError::NumericalError(

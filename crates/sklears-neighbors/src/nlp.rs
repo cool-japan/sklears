@@ -40,6 +40,7 @@
 
 use crate::{NeighborsError, NeighborsResult};
 use scirs2_core::ndarray::{Array1, Array2};
+use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
 use std::iter::Iterator;
 
@@ -244,7 +245,7 @@ impl TextPreprocessor {
             .collect();
 
         // Sort by frequency and take top terms
-        filtered_terms.sort_by(|a, b| b.1.cmp(&a.1));
+        filtered_terms.sort_by_key(|item| Reverse(item.1));
         filtered_terms.truncate(self.config.max_vocab_size);
 
         // Create vocabulary mapping
@@ -400,6 +401,7 @@ impl TfIdfExtractor {
 
 /// Document similarity search engine
 pub struct DocumentSimilaritySearch {
+    #[allow(dead_code)] // reserved for future configuration use
     config: NlpSearchConfig,
     feature_extractor: Box<dyn DocumentFeatureExtractor>,
     feature_database: Option<Array2<f64>>,
@@ -578,8 +580,7 @@ impl DocumentSimilaritySearch {
         let k_results = k.min(similarities_with_indices.len());
 
         let mut results = Vec::new();
-        for i in 0..k_results {
-            let (similarity, idx) = similarities_with_indices[i];
+        for &(similarity, idx) in similarities_with_indices.iter().take(k_results) {
             let distance = 1.0 - similarity; // Convert similarity to distance
 
             let features = database.row(idx).to_owned();
@@ -657,8 +658,7 @@ impl DocumentSimilaritySearch {
         let k_results = k.min(similarities_with_indices.len());
 
         let mut results = Vec::new();
-        for i in 0..k_results {
-            let (similarity, idx) = similarities_with_indices[i];
+        for &(similarity, idx) in similarities_with_indices.iter().take(k_results) {
             let distance = 1.0 - similarity;
 
             let features = database.row(idx).to_owned();
@@ -681,7 +681,7 @@ impl DocumentSimilaritySearch {
                 }
             };
 
-            let confidence = similarity.max(0.0).min(1.0);
+            let confidence = similarity.clamp(0.0, 1.0);
 
             results.push(DocumentSearchResult {
                 metadata,
@@ -808,8 +808,7 @@ impl WordEmbeddingSearch {
         let k_results = k.min(similarities.len());
 
         let mut results = Vec::new();
-        for i in 0..k_results {
-            let (similarity, idx) = similarities[i];
+        for &(similarity, idx) in similarities.iter().take(k_results) {
             if let Some(word) = self.index_to_word.get(&idx) {
                 results.push((word.clone(), similarity));
             }
@@ -984,8 +983,7 @@ impl SentenceSimilaritySearch {
         let k_results = k.min(similarities.len());
 
         let mut results = Vec::new();
-        for i in 0..k_results {
-            let (similarity, idx) = similarities[i];
+        for &(similarity, idx) in similarities.iter().take(k_results) {
             if idx < self.sentences.len() {
                 results.push((self.sentences[idx].clone(), similarity));
             }

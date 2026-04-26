@@ -8,7 +8,6 @@ use scirs2_core::random::thread_rng;
 use scirs2_core::random::RngExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
-    traits::Estimator,
     types::Float,
 };
 use std::collections::HashMap;
@@ -118,7 +117,7 @@ pub trait RobustObjective {
     fn gradient(&self, params: &ArrayView1<Float>) -> SklResult<Array1<Float>>;
 
     /// Compute Hessian (optional, for second-order methods)
-    fn hessian(&self, params: &ArrayView1<Float>) -> SklResult<Array2<Float>> {
+    fn hessian(&self, _params: &ArrayView1<Float>) -> SklResult<Array2<Float>> {
         Err(SklearsError::InvalidParameter {
             name: "hessian".to_string(),
             reason: "Hessian not implemented for this objective".to_string(),
@@ -143,6 +142,7 @@ impl RobustOptimizer {
     }
 
     /// Create with default configuration
+    #[allow(clippy::should_implement_trait)] // intentional non-trait default method
     pub fn default() -> Self {
         Self::new(RobustOptimConfig::default())
     }
@@ -614,7 +614,12 @@ impl RobustOptimizer {
     }
 
     /// Adaptive learning rate adjustment
-    fn adapt_learning_rate(&self, current_lr: Float, history: &[Float], iteration: usize) -> Float {
+    fn adapt_learning_rate(
+        &self,
+        current_lr: Float,
+        history: &[Float],
+        _iteration: usize,
+    ) -> Float {
         if history.len() < 3 {
             return current_lr;
         }
@@ -846,7 +851,6 @@ impl RobustObjective for RobustMDSObjective {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::array;
 
     #[test]

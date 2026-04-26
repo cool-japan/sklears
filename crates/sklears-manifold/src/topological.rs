@@ -16,6 +16,15 @@ use sklears_core::{
     types::Float,
 };
 
+/// Persistence diagram for a single homology dimension: list of (birth, death) pairs
+type PersistenceDiagram = Vec<(Float, Float)>;
+
+/// Betti number sequence across filtration values: list of counts per scale
+type BettiSequence = Vec<usize>;
+
+/// Persistence result: per-dimension diagrams and per-dimension Betti sequences
+type PersistenceResult = (Vec<PersistenceDiagram>, Vec<BettiSequence>);
+
 /// Persistent Homology computation
 ///
 /// Computes the persistent homology of a point cloud, which captures
@@ -464,7 +473,6 @@ impl Fit<ArrayView2<'_, Float>, ()> for Mapper<Untrained> {
 
         // Cluster points within each interval
         let mut nodes = Vec::new();
-        let mut node_id = 0;
 
         for interval in intervals {
             let points_in_interval: Vec<usize> = interval.point_indices;
@@ -482,7 +490,6 @@ impl Fit<ArrayView2<'_, Float>, ()> for Mapper<Untrained> {
                             center,
                             size,
                         });
-                        node_id += 1;
                     }
                 }
             }
@@ -550,8 +557,8 @@ fn compute_vietoris_rips_persistence(
     distance_matrix: &Array2<Float>,
     epsilon_values: &[Float],
     max_dimension: usize,
-) -> SklResult<(Vec<Vec<(Float, Float)>>, Vec<Vec<usize>>)> {
-    let n_samples = distance_matrix.nrows();
+) -> SklResult<PersistenceResult> {
+    let _n_samples = distance_matrix.nrows();
     let mut persistence_diagrams = vec![Vec::new(); max_dimension + 1];
     let mut betti_numbers = vec![Vec::new(); max_dimension + 1];
 
@@ -588,7 +595,7 @@ fn compute_alpha_complex_persistence(
     _x: &ArrayView2<'_, Float>,
     epsilon_values: &[Float],
     max_dimension: usize,
-) -> SklResult<(Vec<Vec<(Float, Float)>>, Vec<Vec<usize>>)> {
+) -> SklResult<PersistenceResult> {
     // Placeholder for Alpha complex implementation
     // This would require computational geometry algorithms
     let persistence_diagrams = vec![Vec::new(); max_dimension + 1];
@@ -793,6 +800,7 @@ fn compute_persistence_image(
 
 /// Interval for Mapper algorithm
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 struct MapperInterval {
     point_indices: Vec<usize>,
     start: Float,

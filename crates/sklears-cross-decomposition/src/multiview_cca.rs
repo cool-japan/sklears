@@ -5,7 +5,7 @@
 //! that maximize correlation across all views.
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Transform},
@@ -261,7 +261,7 @@ impl MultiViewCCA<Untrained> {
             }
 
             while !converged && iter_count < self.max_iter {
-                let mut old_weights = weights.clone();
+                let old_weights = weights.clone();
 
                 // Update weights for each view based on correlations with other views
                 for view_idx in 0..scaled_views.len() {
@@ -274,14 +274,14 @@ impl MultiViewCCA<Untrained> {
                             let other_score =
                                 scaled_views[other_idx].dot(&weights[other_idx].column(comp));
                             let correlation = scaled_views[view_idx].t().dot(&other_score);
-                            correlation_sum = correlation_sum + &correlation;
+                            correlation_sum += &correlation;
                         }
                     }
 
                     // Add regularization
                     if self.regularization > 0.0 {
                         let reg_term = &weights[view_idx].column(comp) * self.regularization;
-                        correlation_sum = correlation_sum + &reg_term;
+                        correlation_sum += &reg_term;
                     }
 
                     // Normalize the weight
@@ -366,8 +366,8 @@ impl MultiViewCCA<Untrained> {
 
         for comp in 0..self.n_components {
             let mut comp_var = 0.0;
-            for view_idx in 0..views.len() {
-                comp_var += scores[view_idx].column(comp).var(1.0);
+            for score in scores.iter().take(views.len()) {
+                comp_var += score.column(comp).var(1.0);
             }
             explained_var[comp] = comp_var;
         }
@@ -493,7 +493,6 @@ impl MultiViewCCA<Trained> {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::array;
-    use sklears_core::traits::Fit;
 
     #[test]
     fn test_multiview_cca_basic() {

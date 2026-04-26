@@ -49,20 +49,15 @@ impl Default for RotationForestConfig {
 }
 
 /// Feature selection strategies for Rotation Forest
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum FeatureSelectionStrategy {
     /// StdRng selection of features
+    #[default]
     StdRng,
     /// Select features based on variance
     Variance,
     /// Use all available features
     All,
-}
-
-impl Default for FeatureSelectionStrategy {
-    fn default() -> Self {
-        Self::StdRng
-    }
 }
 
 /// Rotation matrix and feature subset information
@@ -282,12 +277,12 @@ impl<C> Estimator for RotationForestClassifier<C, Untrained> {
 
 type TrainedRotationForest<T> = RotationForestClassifier<RotationForestTrainedData<T>, Trained>;
 
-impl<C> Fit<Array2<f64>, Array1<i32>> for RotationForestClassifier<C, Untrained>
+impl<C, CF> Fit<Array2<f64>, Array1<i32>> for RotationForestClassifier<C, Untrained>
 where
-    C: Clone + Fit<Array2<f64>, Array1<i32>> + Send + Sync,
-    C::Fitted: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
+    C: Clone + Fit<Array2<f64>, Array1<i32>, Fitted = CF> + Send + Sync,
+    CF: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
 {
-    type Fitted = TrainedRotationForest<C::Fitted>;
+    type Fitted = TrainedRotationForest<CF>;
 
     #[allow(non_snake_case)]
     fn fit(self, X: &Array2<f64>, y: &Array1<i32>) -> SklResult<Self::Fitted> {
@@ -366,10 +361,10 @@ where
     }
 }
 
-impl<C> RotationForestClassifier<C, Untrained>
+impl<C, CF> RotationForestClassifier<C, Untrained>
 where
-    C: Clone + Fit<Array2<f64>, Array1<i32>> + Send + Sync,
-    C::Fitted: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
+    C: Clone + Fit<Array2<f64>, Array1<i32>, Fitted = CF> + Send + Sync,
+    CF: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
 {
     pub fn generate_feature_subsets(
         &self,
@@ -450,7 +445,9 @@ where
             let X_subset = X.select(Axis(1), subset);
 
             // Apply simple PCA (mean centering and covariance-based rotation)
-            let mean = X_subset.mean_axis(Axis(0)).expect("operation should succeed");
+            let mean = X_subset
+                .mean_axis(Axis(0))
+                .expect("operation should succeed");
             let centered = &X_subset - &mean.insert_axis(Axis(0));
 
             // Compute covariance matrix
@@ -539,6 +536,7 @@ impl<T> Predict<Array2<f64>, Array1<i32>>
 where
     T: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
 {
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     fn predict(&self, X: &Array2<f64>) -> SklResult<Array1<i32>> {
         let probabilities = self.predict_proba(X)?;
         let (n_samples, _) = probabilities.dim();
@@ -631,6 +629,7 @@ where
     ///
     /// # Errors
     /// Returns an error if warm start is not enabled or if training fails
+    #[allow(non_snake_case)] // X, X_rotated, X_train follow mathematical convention for feature matrices
     pub fn partial_fit<C>(
         mut self,
         base_estimator: C,
@@ -707,6 +706,7 @@ where
         self.base_estimator.estimators.len()
     }
 
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     fn generate_rotation_info(
         &self,
         X: &Array2<f64>,
@@ -817,44 +817,28 @@ mod tests {
 
     // Mock classifier for testing
     #[derive(Debug, Clone)]
-    struct MockClassifier {
-        classes: Vec<i32>,
-        predictions: Vec<i32>,
-    }
+    struct MockClassifier;
 
     impl MockClassifier {
         fn new() -> Self {
-            Self {
-                classes: vec![],
-                predictions: vec![],
-            }
+            Self
         }
     }
 
     #[derive(Debug, Clone)]
     struct MockClassifierTrained {
         classes: Vec<i32>,
-        predictions: Vec<i32>,
     }
 
     impl Fit<Array2<f64>, Array1<i32>> for MockClassifier {
         type Fitted = MockClassifierTrained;
 
-        fn fit(self, X: &Array2<f64>, y: &Array1<i32>) -> SklResult<Self::Fitted> {
+        fn fit(self, _X: &Array2<f64>, y: &Array1<i32>) -> SklResult<Self::Fitted> {
             let mut classes = y.to_vec();
             classes.sort_unstable();
             classes.dedup();
 
-            // Simple prediction: alternate between classes
-            let mut predictions = Vec::new();
-            for i in 0..X.nrows() {
-                predictions.push(classes[i % classes.len()]);
-            }
-
-            Ok(MockClassifierTrained {
-                classes,
-                predictions,
-            })
+            Ok(MockClassifierTrained { classes })
         }
     }
 
@@ -923,7 +907,7 @@ mod tests {
         let config = RotationForestConfig::default();
         assert_eq!(config.n_estimators, 10);
         assert_eq!(config.max_features, None);
-        assert_eq!(config.bootstrap, true);
+        assert!(config.bootstrap);
         assert_eq!(config.random_state, None);
         assert_eq!(config.n_jobs, None);
         assert_eq!(
@@ -1144,6 +1128,6 @@ mod tests {
     #[test]
     fn test_rotation_forest_warm_start_config_default() {
         let config = RotationForestConfig::default();
-        assert_eq!(config.warm_start, false);
+        assert!(!config.warm_start);
     }
 }

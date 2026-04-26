@@ -355,7 +355,7 @@ pub fn generate_responsive_javascript() -> String {
 
 /// Detect device type based on screen dimensions
 pub fn detect_device_type(width: usize, height: usize) -> DeviceType {
-    let min_dimension = std::cmp::min(width, height);
+    let _min_dimension = std::cmp::min(width, height);
     let max_dimension = std::cmp::max(width, height);
 
     if max_dimension <= 768 {

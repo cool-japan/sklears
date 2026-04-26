@@ -83,7 +83,8 @@ pub struct TypeSafeTransformer<S: TransformState, InDim: Dimension, OutDim: Dime
     config: TypeSafeConfig,
     /// Input dimension (runtime value)
     input_dim: Option<usize>,
-    /// Output dimension (runtime value)
+    /// Output dimension (runtime value); retained for future API (e.g. `.output_dim()` accessor)
+    #[allow(dead_code)]
     output_dim: Option<usize>,
     /// Fitted parameters (only available in Fitted state)
     parameters: Option<TransformParameters>,
@@ -174,6 +175,7 @@ impl<InDim: Dimension, OutDim: Dimension> TypeSafeTransformer<Unfitted, InDim, O
 // Fit for dynamic dimensions
 impl TypeSafeTransformer<Unfitted, Dynamic, Dynamic> {
     /// Fit the transformer to data
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(self, X: &Array2<f64>) -> Result<TypeSafeTransformer<Fitted, Dynamic, Dynamic>> {
         let input_dim = X.ncols();
         let output_dim = X.ncols(); // Identity transform for this example
@@ -203,6 +205,7 @@ impl TypeSafeTransformer<Unfitted, Dynamic, Dynamic> {
 // Fit for known input dimension
 impl<const N: usize> TypeSafeTransformer<Unfitted, Known<N>, Dynamic> {
     /// Fit the transformer to data with compile-time input dimension check
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(self, X: &Array2<f64>) -> Result<TypeSafeTransformer<Fitted, Known<N>, Dynamic>> {
         if X.ncols() != N {
             return Err(SklearsError::InvalidInput(format!(
@@ -239,6 +242,7 @@ impl<const N: usize> TypeSafeTransformer<Unfitted, Known<N>, Dynamic> {
 // Fit for known input and output dimensions
 impl<const IN: usize, const OUT: usize> TypeSafeTransformer<Unfitted, Known<IN>, Known<OUT>> {
     /// Fit the transformer to data with compile-time dimension checks
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(
         self,
         X: &Array2<f64>,
@@ -280,6 +284,7 @@ impl<const IN: usize, const OUT: usize> TypeSafeTransformer<Unfitted, Known<IN>,
 // Transform for dynamic dimensions
 impl TypeSafeTransformer<Fitted, Dynamic, Dynamic> {
     /// Transform data using the fitted transformer
+    #[allow(non_snake_case)] // standard ML notation
     pub fn transform(&self, X: &Array2<f64>) -> Result<Array2<f64>> {
         if let Some(input_dim) = self.input_dim {
             if X.ncols() != input_dim {
@@ -308,6 +313,7 @@ impl TypeSafeTransformer<Fitted, Dynamic, Dynamic> {
 // Transform for known input dimension
 impl<const N: usize> TypeSafeTransformer<Fitted, Known<N>, Dynamic> {
     /// Transform data with compile-time input dimension check
+    #[allow(non_snake_case)] // standard ML notation
     pub fn transform(&self, X: &Array2<f64>) -> Result<Array2<f64>> {
         if X.ncols() != N {
             return Err(SklearsError::InvalidInput(format!(
@@ -334,6 +340,7 @@ impl<const N: usize> TypeSafeTransformer<Fitted, Known<N>, Dynamic> {
 // Transform for known input and output dimensions
 impl<const IN: usize, const OUT: usize> TypeSafeTransformer<Fitted, Known<IN>, Known<OUT>> {
     /// Transform data with compile-time dimension checks
+    #[allow(non_snake_case)] // standard ML notation
     pub fn transform(&self, X: &Array2<f64>) -> Result<Array2<f64>> {
         if X.ncols() != IN {
             return Err(SklearsError::InvalidInput(format!(
@@ -399,6 +406,7 @@ impl<D1: Dimension, D2: Dimension, D3: Dimension> TypeSafePipeline<Unfitted, Unf
 /// Fit pipeline with dynamic dimensions
 impl TypeSafePipeline<Unfitted, Unfitted, Dynamic, Dynamic, Dynamic> {
     /// Fit the entire pipeline to data
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(
         self,
         X: &Array2<f64>,
@@ -419,6 +427,7 @@ impl<const D1: usize, const D2: usize, const D3: usize>
     TypeSafePipeline<Unfitted, Unfitted, Known<D1>, Known<D2>, Known<D3>>
 {
     /// Fit the entire pipeline to data with compile-time dimension validation
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(
         self,
         X: &Array2<f64>,
@@ -437,6 +446,7 @@ impl<const D1: usize, const D2: usize, const D3: usize>
 /// Transform for fitted pipeline with dynamic dimensions
 impl TypeSafePipeline<Fitted, Fitted, Dynamic, Dynamic, Dynamic> {
     /// Transform data through the entire pipeline
+    #[allow(non_snake_case)] // standard ML notation
     pub fn transform(&self, X: &Array2<f64>) -> Result<Array2<f64>> {
         let X_intermediate = self.first.transform(X)?;
         self.second.transform(&X_intermediate)
@@ -448,6 +458,7 @@ impl<const D1: usize, const D2: usize, const D3: usize>
     TypeSafePipeline<Fitted, Fitted, Known<D1>, Known<D2>, Known<D3>>
 {
     /// Transform data through the entire pipeline with compile-time dimension validation
+    #[allow(non_snake_case)] // standard ML notation
     pub fn transform(&self, X: &Array2<f64>) -> Result<Array2<f64>> {
         let X_intermediate = self.first.transform(X)?;
         self.second.transform(&X_intermediate)
@@ -464,6 +475,7 @@ mod tests {
     use scirs2_core::ndarray::array;
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_dynamic_dimensions() {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
@@ -478,6 +490,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_known_input_dimension() {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
@@ -491,6 +504,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_known_input_dimension_mismatch() {
         let X = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
@@ -503,6 +517,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_known_dimensions() {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
@@ -517,6 +532,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_normalization() {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
@@ -539,6 +555,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_pipeline_dynamic() {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
@@ -564,6 +581,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_pipeline_known_dimensions() {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
@@ -586,6 +604,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_state_transitions() {
         let X = array![[1.0, 2.0], [3.0, 4.0]];
 

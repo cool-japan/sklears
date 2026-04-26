@@ -341,15 +341,21 @@ impl Fit<Array2<Float>, Array1<Float>> for BayesianRidge<Untrained> {
             (x.clone(), y.clone(), None, None)
         };
 
+        // Thin SVD of X_centered: X = U * S * Vt
+        // This ensures numerical stability even for rank-deficient feature matrices.
+        let (u, sv, vt) = scirs2_linalg::svd(&x_centered.view(), false, None).map_err(|e| {
+            SklearsError::NumericalError(format!("SVD decomposition failed: {}", e))
+        })?;
+
+        // d_i = s_i^2  (eigenvalues of X^T X)
+        let d: Array1<Float> = sv.mapv(|s| s * s);
+        // Projection of y onto left singular vectors: uy = U^T * y_centered
+        let uy: Array1<Float> = u.t().dot(&y_centered);
+
         // Initialize hyperparameters
         let mut alpha = self.config.alpha_init;
         let mut lambda = self.config.lambda_init;
         let mut scores = Vec::new();
-
-        // Precompute X^T X
-        let xtx = x_centered.t().dot(&x_centered);
-        let xty = x_centered.t().dot(&y_centered);
-
         let mut coef = Array::zeros(n_features);
         let mut sigma = Array::eye(n_features);
         let mut converged = false;
@@ -358,63 +364,82 @@ impl Fit<Array2<Float>, Array1<Float>> for BayesianRidge<Untrained> {
         for iter in 0..self.config.max_iter {
             n_iter = iter + 1;
 
-            // E-step: Update posterior mean and covariance
-            // Sigma = (lambda * X^T X + alpha * I)^{-1}
-            let mut a = &xtx * lambda;
-            for i in 0..n_features {
-                a[[i, i]] += alpha + 1e-10; // Add small regularization for numerical stability
-            }
-
-            // Check if matrix is well-conditioned
-            let diag_min = a.diag().fold(Float::INFINITY, |a, &b| a.min(b));
-            if diag_min <= 0.0 || !diag_min.is_finite() {
-                return Err(SklearsError::NumericalError(
-                    "Matrix is singular or poorly conditioned".to_string(),
-                ));
-            }
-
-            // Compute inverse (posterior covariance)
-            sigma = scirs2_linalg::inv(&a.view(), None).map_err(|e| {
-                SklearsError::NumericalError(format!("Failed to compute inverse: {}", e))
-            })?;
-
-            // Posterior mean: mu = Sigma * X^T * y
-            coef = sigma.dot(&xty);
-
-            // M-step: Update hyperparameters
             let alpha_old = alpha;
             let lambda_old = lambda;
 
-            // Update alpha
-            let gamma = n_features as f64 - alpha * sigma.diag().sum();
-            alpha = gamma / coef.dot(&coef);
+            // E-step: Update posterior mean and covariance via SVD eigenvalues.
+            //
+            // With X = U S Vt:
+            //   Sigma^{-1} = lambda * Vt^T * diag(d) * Vt + alpha * I
+            //   Sigma       = Vt^T * diag(1/(alpha + lambda*d_i)) * Vt
+            //
+            // Posterior mean:
+            //   mu = lambda * Sigma * Vt^T * S * U^T * y
+            //      = Vt^T * diag( lambda*s_i / (alpha + lambda*d_i) ) * (U^T y)
+            let inv_diag: Array1<Float> = d.mapv(|di| lambda * di.sqrt() / (alpha + lambda * di));
+            let coef_rotated: Array1<Float> = &inv_diag * &uy;
+            coef = vt.t().dot(&coef_rotated);
 
-            // Update lambda
+            // M-step: Update hyperparameters using eigenvalue expressions.
+            //
+            // gamma = sum_i( lambda*d_i / (alpha + lambda*d_i) )
+            //       = effective number of well-determined parameters
+            let gamma: Float = d
+                .iter()
+                .map(|&di| lambda * di / (alpha + lambda * di))
+                .sum();
+
+            // alpha = gamma / ||mu||^2   (clamped to avoid collapse)
+            let coef_norm_sq = coef.dot(&coef);
+            if coef_norm_sq > Float::EPSILON {
+                alpha = gamma / coef_norm_sq;
+            }
+            // Clamp alpha to a reasonable range to prevent runaway
+            alpha = alpha.clamp(1e-10, 1e10);
+
+            // lambda = (n - gamma) / RSS
             let residuals = &y_centered - x_centered.dot(&coef);
             let rss = residuals.dot(&residuals);
-            lambda = (n_samples as f64 - gamma) / rss;
+            let dof = (n_samples as Float - gamma).max(Float::EPSILON);
+            if rss > Float::EPSILON {
+                lambda = dof / rss;
+            }
+            // Clamp lambda to prevent explosion
+            lambda = lambda.clamp(1e-10, 1e12);
+
+            // Posterior covariance: Sigma = Vt^T * diag(1/(alpha + lambda*d_i)) * Vt
+            let sigma_diag: Array1<Float> = d.mapv(|di| 1.0 / (alpha + lambda * di));
+            sigma = {
+                // Sigma = Vt^T * diag(sigma_diag) * Vt
+                let scaled_vt: Array2<Float> = {
+                    let mut sv = vt.clone();
+                    for (i, mut row) in sv.rows_mut().into_iter().enumerate() {
+                        row *= sigma_diag[i];
+                    }
+                    sv
+                };
+                vt.t().dot(&scaled_vt)
+            };
 
             // Compute log marginal likelihood if requested
             if self.config.compute_score {
-                // Compute log determinant of sigma using eigenvalues
-                // Since sigma = A^{-1}, log|sigma| = -log|A|
-                // For now, use a simple approximation
-                let log_det_a = (0..n_features).map(|i| a[[i, i]].ln()).sum::<f64>();
-                let log_det_sigma = -log_det_a;
-
+                // log|Sigma| = sum_i log(1/(alpha + lambda*d_i))
+                //            = -sum_i log(alpha + lambda*d_i)
+                let log_det_sigma: Float = d.iter().map(|&di| -(alpha + lambda * di).ln()).sum();
                 let score = 0.5
-                    * (n_features as f64 * alpha.ln() + n_samples as f64 * lambda.ln()
+                    * (n_features as Float * alpha.ln() + n_samples as Float * lambda.ln()
                         - lambda * rss
-                        - alpha * coef.dot(&coef)
-                        - log_det_sigma
-                        - n_samples as f64 * (2.0 * std::f64::consts::PI).ln());
-
+                        - alpha * coef_norm_sq
+                        + log_det_sigma
+                        - n_samples as Float * (2.0 * std::f64::consts::PI).ln());
                 scores.push(score);
             }
 
             // Check convergence
-            if (alpha - alpha_old).abs() < self.config.tol * alpha.abs()
-                && (lambda - lambda_old).abs() < self.config.tol * lambda.abs()
+            let alpha_change = (alpha - alpha_old).abs();
+            let lambda_change = (lambda - lambda_old).abs();
+            if alpha_change < self.config.tol * alpha_old.abs().max(1e-10)
+                && lambda_change < self.config.tol * lambda_old.abs().max(1e-10)
             {
                 converged = true;
                 break;
@@ -422,8 +447,8 @@ impl Fit<Array2<Float>, Array1<Float>> for BayesianRidge<Untrained> {
         }
 
         if !converged {
-            eprintln!(
-                "Warning: Bayesian Ridge did not converge within {} iterations",
+            log::debug!(
+                "Bayesian Ridge did not converge within {} iterations",
                 self.config.max_iter
             );
         }
@@ -484,7 +509,7 @@ impl Fit<Array2<Float>, Array1<Float>> for ARDRegression<Untrained> {
             (x.clone(), y.clone(), None, None)
         };
 
-        // Initialize hyperparameters
+        // Initialize hyperparameters using config values.
         let mut alpha = Array::from_elem(n_features, self.config.alpha_init);
         let mut lambda = self.config.lambda_init;
         let mut scores = Vec::new();
@@ -514,14 +539,14 @@ impl Fit<Array2<Float>, Array1<Float>> for ARDRegression<Untrained> {
             let xty = x_active.t().dot(&y_centered);
 
             // E-step: Update posterior mean and covariance
-            // Sigma = (lambda * X^T X + diag(alpha))^{-1}
+            // Sigma^{-1} = lambda * X^T X + diag(alpha)
             let mut a = &xtx * lambda;
             for (i, &feat_idx) in active_features.iter().enumerate() {
-                a[[i, i]] += alpha[feat_idx] + 1e-10; // Add small regularization for numerical stability
+                a[[i, i]] += alpha[feat_idx];
             }
 
             // Check if matrix is well-conditioned
-            let diag_min = a.diag().fold(Float::INFINITY, |a, &b| a.min(b));
+            let diag_min = a.diag().fold(Float::INFINITY, |acc, &b| acc.min(b));
             if diag_min <= 0.0 || !diag_min.is_finite() {
                 // Remove features with too high alpha (effectively zero weight)
                 active_features.retain(|&feat_idx| alpha[feat_idx] < self.config.threshold_alpha);
@@ -533,8 +558,9 @@ impl Fit<Array2<Float>, Array1<Float>> for ARDRegression<Untrained> {
                 SklearsError::NumericalError(format!("Failed to compute inverse: {}", e))
             })?;
 
-            // Posterior mean for active features
-            let coef_active = sigma_active.dot(&xty);
+            // Posterior mean: mu = Sigma * (lambda * X^T y)
+            // The lambda factor is critical — without it the mean is off by lambda.
+            let coef_active = sigma_active.dot(&(&xty * lambda));
 
             // Update full coefficient vector
             coef.fill(0.0);
@@ -546,18 +572,50 @@ impl Fit<Array2<Float>, Array1<Float>> for ARDRegression<Untrained> {
             let alpha_old = alpha.clone();
             let lambda_old = lambda;
 
-            // Update alpha for each feature
+            // Update alpha for each feature.
+            //
+            // gamma_i = 1 - alpha_i * sigma_ii measures how well-determined
+            // feature i is.  It must lie in [0, 1] for the posterior to be
+            // proper; clamp to avoid negative values caused by round-off.
             let mut gamma_total = 0.0;
             for (i, &feat_idx) in active_features.iter().enumerate() {
-                let gamma_i = 1.0 - alpha[feat_idx] * sigma_active[[i, i]];
+                let gamma_i = (1.0 - alpha[feat_idx] * sigma_active[[i, i]]).clamp(0.0, 1.0);
                 gamma_total += gamma_i;
-                alpha[feat_idx] = gamma_i / (coef[feat_idx] * coef[feat_idx] + 1e-10);
+                // Denominator: use coef^2 scaled by feature norm for stability
+                let denom = coef[feat_idx] * coef[feat_idx];
+                // sklearn-style alpha update with weak Gamma(alpha_1, alpha_2) prior.
+                // The priors prevent alpha from collapsing to zero when coef is large,
+                // which would otherwise make sigma → ∞ and destabilize the iteration.
+                let alpha_1: Float = 1e-6;
+                let alpha_2: Float = 1e-6;
+                let numerator = gamma_i + 2.0 * alpha_1;
+                let denominator = denom + 2.0 * alpha_2;
+                if denominator > Float::EPSILON && numerator > 0.0 {
+                    alpha[feat_idx] = numerator / denominator;
+                } else {
+                    // Near-zero coefficient → feature is irrelevant; mark for pruning
+                    alpha[feat_idx] = self.config.threshold_alpha + 1.0;
+                }
             }
 
-            // Update lambda
+            // Update lambda (noise precision).
+            // Use sklearn-style empirical Bayes update with small priors
+            // lambda_1 and lambda_2 (both = 1e-6) to prevent divergence
+            // when RSS → 0 on near-noiseless datasets.
             let residuals = &y_centered - x_centered.dot(&coef);
             let rss = residuals.dot(&residuals);
-            lambda = (n_samples as f64 - gamma_total) / rss;
+            // Prior hyper-parameters (weak Jeffrey's-like priors)
+            let lambda_1: Float = 1e-6;
+            let lambda_2: Float = 1e-6;
+            let dof_numerator = n_samples as Float - gamma_total + 2.0 * lambda_1;
+            let dof_denominator = rss + 2.0 * lambda_2;
+            if dof_denominator > 0.0 && dof_numerator > 0.0 {
+                lambda = dof_numerator / dof_denominator;
+            }
+            // Keep lambda finite; no upper cap (lambda may grow large on low-noise data)
+            if !lambda.is_finite() || lambda <= 0.0 {
+                lambda = lambda_old;
+            }
 
             // Remove features with very high alpha (irrelevant features)
             active_features.retain(|&feat_idx| alpha[feat_idx] < self.config.threshold_alpha);
@@ -572,37 +630,33 @@ impl Fit<Array2<Float>, Array1<Float>> for ARDRegression<Untrained> {
 
             // Compute log marginal likelihood if requested
             if self.config.compute_score && n_active > 0 {
-                // Compute log determinant of sigma using eigenvalues
-                // Since sigma = A^{-1}, log|sigma| = -log|A|
-                // For now, use a simple approximation
-                let log_det_a = (0..n_features).map(|i| a[[i, i]].ln()).sum::<f64>();
-                let log_det_sigma = -log_det_a;
+                // log|Sigma| = -log|A| ≈ -sum_i log(a_ii) (diagonal approximation)
+                let log_det_sigma: Float = -(0..n_active).map(|i| a[[i, i]].ln()).sum::<Float>();
 
-                let alpha_sum: f64 = active_features.iter().map(|&i| alpha[i].ln()).sum();
+                let alpha_log_sum: Float = active_features.iter().map(|&i| alpha[i].ln()).sum();
 
-                let weighted_coef_norm: f64 = active_features
+                let weighted_coef_norm: Float = active_features
                     .iter()
                     .map(|&i| alpha[i] * coef[i] * coef[i])
                     .sum();
 
                 let score = 0.5
-                    * (alpha_sum + n_samples as f64 * lambda.ln()
+                    * (alpha_log_sum + n_samples as Float * lambda.ln()
                         - lambda * rss
                         - weighted_coef_norm
-                        - log_det_sigma
-                        - n_samples as f64 * (2.0 * std::f64::consts::PI).ln());
-
+                        + log_det_sigma
+                        - n_samples as Float * (2.0 * std::f64::consts::PI).ln());
                 scores.push(score);
             }
 
             // Check convergence
-            let alpha_change: f64 = active_features
+            let alpha_change: Float = active_features
                 .iter()
-                .map(|&i| (alpha[i] - alpha_old[i]).abs() / alpha[i].abs().max(1.0))
-                .sum::<f64>()
-                / active_features.len().max(1) as f64;
+                .map(|&i| (alpha[i] - alpha_old[i]).abs() / alpha[i].abs().max(1e-10))
+                .sum::<Float>()
+                / active_features.len().max(1) as Float;
 
-            let lambda_change = (lambda - lambda_old).abs() / lambda.abs();
+            let lambda_change = (lambda - lambda_old).abs() / lambda.abs().max(1e-10);
 
             if alpha_change < self.config.tol && lambda_change < self.config.tol {
                 converged = true;
@@ -611,8 +665,8 @@ impl Fit<Array2<Float>, Array1<Float>> for ARDRegression<Untrained> {
         }
 
         if !converged {
-            eprintln!(
-                "Warning: ARD Regression did not converge within {} iterations",
+            log::debug!(
+                "ARD Regression did not converge within {} iterations",
                 self.config.max_iter
             );
         }
@@ -861,17 +915,22 @@ pub struct VariationalBayesianRegression<State = Untrained> {
     coef_mean_: Option<Array1<Float>>, // Posterior mean of coefficients
     coef_cov_: Option<Array2<Float>>,  // Posterior covariance of coefficients
     intercept_: Option<Float>,
-    alpha_: Option<Float>,         // Posterior precision of weights
-    beta_: Option<Float>,          // Posterior precision of noise
+    alpha_: Option<Float>, // Posterior precision of weights
+    beta_: Option<Float>,  // Posterior precision of noise
+    #[allow(dead_code)] // posterior covariance matrix; populated after fit but accessed via trait
     sigma_: Option<Array2<Float>>, // Posterior covariance matrix
-    elbo_: Option<Vec<Float>>,     // Evidence Lower Bound history
+    elbo_: Option<Vec<Float>>, // Evidence Lower Bound history
     n_iter_: Option<usize>,
     n_features_: Option<usize>,
     // Variational parameters
+    #[allow(dead_code)] // variational parameter; maintained for future full ELBO computation
     q_alpha_a_: Option<Float>, // Variational alpha shape
+    #[allow(dead_code)] // variational parameter; maintained for future full ELBO computation
     q_alpha_b_: Option<Float>, // Variational alpha rate
-    q_beta_a_: Option<Float>,  // Variational beta shape
-    q_beta_b_: Option<Float>,  // Variational beta rate
+    #[allow(dead_code)] // variational parameter; maintained for future full ELBO computation
+    q_beta_a_: Option<Float>, // Variational beta shape
+    #[allow(dead_code)] // variational parameter; maintained for future full ELBO computation
+    q_beta_b_: Option<Float>, // Variational beta rate
 }
 
 impl VariationalBayesianRegression<Untrained> {
@@ -1495,7 +1554,6 @@ mod tests {
     use scirs2_core::ndarray::array;
 
     #[test]
-    #[ignore] // TODO: Fix numerical precision issues after migration to scirs2_linalg
     fn test_bayesian_ridge() {
         let x = array![[1.0, 0.0], [1.0, 1.0], [1.0, 2.0], [1.0, 3.0],];
         let y = array![1.0, 2.0, 3.0, 4.0]; // y = x2 + 1
@@ -1513,7 +1571,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // TODO: Fix numerical precision issues after migration to scirs2_linalg
     fn test_ard_regression_feature_selection() {
         // Create data where only first feature is relevant
         let x = array![

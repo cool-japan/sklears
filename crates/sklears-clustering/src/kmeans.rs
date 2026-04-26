@@ -75,7 +75,7 @@ impl KMeans {
 
     /// Initialize centroids using the specified method
     fn initialize_centroids(&self, X: &Array2<f64>) -> Result<Array2<f64>> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
         let mut rng = match self.config.random_seed {
             Some(seed) => Random::seed(seed),
             None => Random::seed(42), // Default seed for consistency
@@ -379,7 +379,6 @@ impl Fit<Array2<f64>, Array1<f64>> for MiniBatchKMeans {
     type Fitted = KMeansFitted;
 
     fn fit(self, X: &Array2<f64>, _y: &Array1<f64>) -> Result<KMeansFitted> {
-        let config = self.clone();
         // For now, use regular K-means as a placeholder
         let kmeans_config = KMeansConfig {
             n_clusters: self.config.n_clusters,
@@ -446,7 +445,6 @@ impl Fit<Array2<f64>, Array1<f64>> for XMeans {
     type Fitted = KMeansFitted;
 
     fn fit(self, X: &Array2<f64>, _y: &Array1<f64>) -> Result<KMeansFitted> {
-        let config = self.clone();
         let mut best_model: Option<KMeansFitted> = None;
         let mut best_score = f64::INFINITY;
 
@@ -542,7 +540,6 @@ impl Fit<Array2<f64>, Array1<f64>> for GMeans {
     type Fitted = KMeansFitted;
 
     fn fit(self, X: &Array2<f64>, _y: &Array1<f64>) -> Result<KMeansFitted> {
-        let config = self.clone();
         // Start with k=1 and recursively split clusters
         let mut current_k = self.config.k_min;
         let mut best_fitted: Option<KMeansFitted> = None;
@@ -582,14 +579,11 @@ impl Fit<Array2<f64>, Array1<f64>> for GMeans {
     }
 }
 
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
 
     #[test]
-    #[allow(non_snake_case)]
     fn test_kmeans_basic() {
         let X = Array2::from_shape_vec(
             (6, 2),
@@ -617,7 +611,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(non_snake_case)]
     fn test_kmeans_predict() {
         let X_train =
             Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.0, 2.0, 10.0, 10.0, 10.0, 11.0])
@@ -643,7 +636,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(non_snake_case)]
     fn test_kmeans_plus_plus_init() {
         let X = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, 10.0, 10.0, 11.0, 11.0])
             .expect("operation should succeed");
@@ -664,7 +656,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(non_snake_case)]
     fn test_xmeans_basic() {
         let X = Array2::from_shape_vec(
             (8, 2),

@@ -133,8 +133,8 @@ pub fn reference_histogram_binning(
     let mut bin_true_probs = vec![0.0; n_bins];
 
     // Create uniform bin boundaries
-    for i in 0..=n_bins {
-        bin_boundaries[i] = i as Float / n_bins as Float;
+    for (i, boundary) in bin_boundaries.iter_mut().enumerate() {
+        *boundary = i as Float / n_bins as Float;
     }
 
     // Compute empirical probabilities in each bin

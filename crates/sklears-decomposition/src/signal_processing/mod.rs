@@ -136,8 +136,8 @@ impl SignalProcessingFactory {
         let mut emd = EmpiricalModeDecomposition::new()
             .tolerance(self.default_emd_config.tolerance)?
             .max_sift_iter(self.default_emd_config.max_sift_iter)?
-            .boundary_condition(self.default_emd_config.boundary_condition.clone())
-            .interpolation(self.default_emd_config.interpolation.clone());
+            .boundary_condition(self.default_emd_config.boundary_condition)
+            .interpolation(self.default_emd_config.interpolation);
 
         if let Some(max_imfs) = self.default_emd_config.max_imfs {
             emd = emd.max_imfs(max_imfs)?;

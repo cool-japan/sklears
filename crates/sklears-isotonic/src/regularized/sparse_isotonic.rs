@@ -442,9 +442,9 @@ mod tests {
     #[test]
     fn test_sparse_isotonic_regression_creation() {
         let model = SparseIsotonicRegression::new();
-        assert_eq!(model.increasing, true);
+        assert!(model.increasing);
         assert_eq!(model.sparsity_threshold, 1e-10);
-        assert_eq!(model.fit_intercept, true);
+        assert!(model.fit_intercept);
         assert_eq!(model.alpha, 0.01);
     }
 
@@ -455,7 +455,7 @@ mod tests {
             .sparsity_threshold(0.1)
             .alpha(0.5);
 
-        assert_eq!(model.increasing, false);
+        assert!(!model.increasing);
         assert_eq!(model.sparsity_threshold, 0.1);
         assert_eq!(model.alpha, 0.5);
     }
@@ -490,7 +490,7 @@ mod tests {
         let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
         let sparsity_ratio = fitted_model.sparsity_ratio();
-        assert!(sparsity_ratio >= 0.0 && sparsity_ratio <= 1.0);
+        assert!((0.0..=1.0).contains(&sparsity_ratio));
 
         let eff_dof = fitted_model.effective_degrees_of_freedom();
         assert!(eff_dof >= 0.0 && eff_dof <= x.len() as Float);

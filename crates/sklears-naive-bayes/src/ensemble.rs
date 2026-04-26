@@ -6,8 +6,7 @@
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use rayon::prelude::*;
-use scirs2_core::random::{RngExt, SeedableRng};
+use scirs2_core::random::SeedableRng;
 use sklears_core::{
     error::Result,
     prelude::SklearsError,
@@ -226,7 +225,7 @@ impl VotingNaiveBayes {
     fn predict_hard_voting(&self, x: &Array2<f64>) -> Result<Array1<i32>> {
         let classes = self.classes_.as_ref().expect("operation should succeed");
         let n_samples = x.nrows();
-        let n_classes = classes.len();
+        let _n_classes = classes.len();
 
         // Collect predictions from all estimators
         let predictions: Result<Vec<_>> = self
@@ -562,9 +561,9 @@ impl AdaBoostNaiveBayes {
         estimator_errors: &mut Vec<f64>,
     ) -> Result<()> {
         let n_samples = x.nrows();
-        let classes = self.classes_.as_ref().expect("operation should succeed");
+        let _classes = self.classes_.as_ref().expect("operation should succeed");
 
-        for iteration in 0..self.n_estimators {
+        for _iteration in 0..self.n_estimators {
             // Create and fit weak learner with weighted samples
             let mut base_estimator = self.create_base_classifier()?;
 
@@ -624,7 +623,7 @@ impl AdaBoostNaiveBayes {
         &self,
         x: &Array2<f64>,
         y: &Array1<i32>,
-        sample_weights: &mut Array1<f64>,
+        _sample_weights: &mut Array1<f64>,
         estimators: &mut Vec<Box<dyn NaiveBayesEstimator>>,
         estimator_weights: &mut Vec<f64>,
         estimator_errors: &mut Vec<f64>,
@@ -638,7 +637,7 @@ impl AdaBoostNaiveBayes {
         // Initialize predictions to zero (log-odds)
         let mut f_values = Array1::zeros(n_samples);
 
-        for iteration in 0..self.n_estimators {
+        for _iteration in 0..self.n_estimators {
             // Compute probabilities and working response
             let probabilities: Array1<f64> = f_values.mapv(|f: f64| 1.0 / (1.0 + (-f).exp()));
             let working_response: Array1<f64> = y_signed
@@ -687,7 +686,7 @@ impl AdaBoostNaiveBayes {
         // Convert labels to {-1, +1}
         let y_signed: Array1<f64> = y.mapv(|label| if label == classes[0] { -1.0 } else { 1.0 });
 
-        for iteration in 0..self.n_estimators {
+        for _iteration in 0..self.n_estimators {
             // Create and fit weak learner
             let (x_weighted, y_weighted) = self.resample_with_weights(x, y, sample_weights)?;
             let mut base_estimator = self.create_base_classifier()?;
@@ -1039,6 +1038,7 @@ pub struct StackingNaiveBayes {
     random_state: Option<u64>,
 }
 
+#[allow(non_snake_case)]
 impl StackingNaiveBayes {
     pub fn new() -> Self {
         Self {
@@ -1369,19 +1369,7 @@ mod tests {
 
     #[test]
     fn test_voting_naive_bayes() {
-        let x = array![
-            [1.0, 2.0],
-            [2.0, 3.0],
-            [3.0, 4.0],
-            [4.0, 5.0],
-            [-1.0, -2.0],
-            [-2.0, -3.0],
-            [-3.0, -4.0],
-            [-4.0, -5.0]
-        ];
-        let y = array![0, 0, 0, 0, 1, 1, 1, 1];
-
-        let mut ensemble = VotingNaiveBayes::new(VotingStrategy::Soft);
+        let ensemble = VotingNaiveBayes::new(VotingStrategy::Soft);
 
         // For now, just test that the structure works
         // In a full implementation, we'd add actual estimators
@@ -1391,7 +1379,7 @@ mod tests {
     #[test]
     fn test_bootstrap_config() {
         let config = BootstrapConfig::default();
-        assert_eq!(config.with_replacement, true);
+        assert!(config.with_replacement);
         assert_eq!(config.sample_fraction, 1.0);
         assert!(config.random_state.is_none());
 
@@ -1400,7 +1388,7 @@ mod tests {
             sample_fraction: 0.8,
             random_state: Some(42),
         };
-        assert_eq!(custom_config.with_replacement, false);
+        assert!(!custom_config.with_replacement);
         assert_eq!(custom_config.sample_fraction, 0.8);
         assert_eq!(custom_config.random_state, Some(42));
     }
@@ -1531,7 +1519,7 @@ mod tests {
 
     #[test]
     fn test_adaboost_invalid_classifier() {
-        let mut adaboost = AdaBoostNaiveBayes::new("InvalidClassifier");
+        let adaboost = AdaBoostNaiveBayes::new("InvalidClassifier");
         let result = adaboost.create_base_classifier();
         assert!(result.is_err());
     }

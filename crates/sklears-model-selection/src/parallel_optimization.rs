@@ -211,6 +211,7 @@ pub struct SharedOptimizationState {
     pub evaluations: Vec<EvaluationResult>,
     pub best_score: Float,
     pub best_hyperparameters: HashMap<String, Float>,
+    #[allow(dead_code)] // pending_evaluations retained for future async parallel scheduling
     pub pending_evaluations: Vec<HashMap<String, Float>>,
     pub completed_count: usize,
     pub gaussian_process_model: Option<SimplifiedGP>,
@@ -218,6 +219,7 @@ pub struct SharedOptimizationState {
 
 /// Simplified Gaussian Process for parallel optimization
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // SimplifiedGP observations/hyperparameters/trained retained for future GP-based parallel acquisition
 pub struct SimplifiedGP {
     pub observations: Vec<(Vec<Float>, Float)>,
     pub hyperparameters: GPHyperparams,
@@ -226,6 +228,7 @@ pub struct SimplifiedGP {
 
 /// GP hyperparameters
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // GPHyperparams length_scale/signal_variance/noise_variance retained for future GP kernel tuning
 pub struct GPHyperparams {
     pub length_scale: Float,
     pub signal_variance: Float,
@@ -732,13 +735,13 @@ impl ParallelOptimizer {
 
             // Increment indices
             let mut carry = 1;
-            for i in 0..n_params {
-                indices[i] += carry;
-                if indices[i] < n_values_per_param {
+            for idx in &mut indices {
+                *idx += carry;
+                if *idx < n_values_per_param {
                     carry = 0;
                     break;
                 } else {
-                    indices[i] = 0;
+                    *idx = 0;
                 }
             }
 

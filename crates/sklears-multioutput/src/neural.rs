@@ -122,7 +122,7 @@ pub use crate::adversarial::{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::{array, Array3};
+    use scirs2_core::ndarray::array;
     use sklears_core::traits::{Fit, Predict};
     use std::collections::HashMap;
 

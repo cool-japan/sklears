@@ -160,12 +160,13 @@ impl Default for AnchorsConfig {
 ///     &instance.view(),
 ///     &X_train.view(),
 ///     &AnchorsConfig::default(),
-/// ).unwrap();
+/// ).expect("anchor explanation should succeed with valid inputs");
 ///
 /// assert!(result.precision >= 0.0);
 /// // Note: Anchor generation may not find rules for simple test cases
 /// println!("Generated {} anchor conditions", result.anchor.len());
 /// ```
+#[allow(non_snake_case)] // standard ML notation
 pub fn explain_with_anchors<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -242,6 +243,7 @@ where
 }
 
 /// Discretize continuous features for rule generation
+#[allow(non_snake_case)] // standard ML notation
 fn discretize_features(X_train: &ArrayView2<Float>, n_bins: usize) -> HashMap<usize, Vec<Float>> {
     let mut discretization = HashMap::new();
     let n_features = X_train.ncols();
@@ -275,6 +277,7 @@ fn discretize_features(X_train: &ArrayView2<Float>, n_bins: usize) -> HashMap<us
 }
 
 /// Generate candidate conditions for anchors
+#[allow(non_snake_case)] // standard ML notation
 fn generate_candidate_conditions(
     instance: &ArrayView1<Float>,
     X_train: &ArrayView2<Float>,
@@ -386,6 +389,7 @@ fn compute_quartiles(values: &[Float]) -> Vec<Float> {
 }
 
 /// Beam search for finding the best anchor
+#[allow(non_snake_case)] // standard ML notation
 fn beam_search_anchor<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -402,7 +406,7 @@ where
     let mut best_anchor = vec![];
     let mut best_score = 0.0;
 
-    for depth in 0..config.max_anchor_size {
+    for _depth in 0..config.max_anchor_size {
         let mut next_beam = Vec::new();
 
         for current_anchor in &current_beam {
@@ -493,6 +497,7 @@ where
 }
 
 /// Quick evaluation for beam search
+#[allow(non_snake_case)] // standard ML notation
 fn evaluate_anchor_quick<F>(
     predict_fn: &F,
     anchor: &[AnchorCondition],
@@ -523,6 +528,7 @@ where
 }
 
 /// Evaluate anchor precision and coverage
+#[allow(non_snake_case)] // standard ML notation
 fn evaluate_anchor<F>(
     predict_fn: &F,
     anchor: &[AnchorCondition],
@@ -547,6 +553,7 @@ where
 }
 
 /// Evaluate anchor with specific number of perturbations
+#[allow(non_snake_case)] // standard ML notation
 fn evaluate_anchor_with_n_perturbations<F>(
     predict_fn: &F,
     anchor: &[AnchorCondition],
@@ -609,6 +616,7 @@ where
 }
 
 /// Generate a perturbation of the instance
+#[allow(non_snake_case)] // standard ML notation
 fn generate_perturbation(
     instance: &ArrayView1<Float>,
     X_train: &ArrayView2<Float>,
@@ -697,9 +705,11 @@ mod tests {
             [0.9, 0.9]
         ];
 
-        let mut config = AnchorsConfig::default();
-        config.precision_threshold = 0.7; // More lenient for test reliability
-        config.n_perturbations = 2000; // More perturbations for better estimation
+        let config = AnchorsConfig {
+            precision_threshold: 0.7, // More lenient for test reliability
+            n_perturbations: 2000,    // More perturbations for better estimation
+            ..Default::default()
+        };
 
         let result = explain_with_anchors(&predict_fn, &instance.view(), &X_train.view(), &config)
             .expect("operation should succeed");

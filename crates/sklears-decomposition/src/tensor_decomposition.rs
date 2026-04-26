@@ -6,8 +6,8 @@
 //! - Higher-order SVD for tensor dimensionality reduction
 
 use scirs2_core::ndarray::{Array1, Array2, Array3};
-use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{Rng, thread_rng, Random};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{rng as make_rng, RngExt, SeedableRng};
 use scirs2_linalg::compat::{svd, ArrayLinalgExt};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -201,9 +201,11 @@ impl Fit<Array3<f64>, ()> for CPDecomposition<Untrained> {
 
         let (_n_mode1, _n_mode2, _n_mode3) = (tensor_shape[0], tensor_shape[1], tensor_shape[2]);
 
-        // Initialize random number generator
-        // TODO: Support seeding for reproducibility
-        let mut rng = thread_rng();
+        // Initialize random number generator with optional seeding for reproducibility
+        let mut rng: StdRng = match self.random_state {
+            Some(seed) => StdRng::seed_from_u64(seed),
+            None => StdRng::from_rng(&mut make_rng()),
+        };
 
         // Run CP decomposition algorithm
         let (factors, weights, n_iter, reconstruction_error) = match self.algorithm {
@@ -235,30 +237,30 @@ impl Fit<Array3<f64>, ()> for CPDecomposition<Untrained> {
 
 impl CPDecomposition<Untrained> {
     /// CP decomposition using Alternating Least Squares
-    fn cp_als(&self, tensor: &Array3<f64>, rng: &mut impl Rng) -> CPResult {
+    fn cp_als(&self, tensor: &Array3<f64>, rng: &mut impl RngExt) -> CPResult {
         let (n_mode1, n_mode2, n_mode3) = tensor.dim();
         let r = self.n_components;
 
         // Initialize factor matrices randomly
-        let mut factors = vec![
+        let mut factors: Vec<Array2<f64>> = vec![
             {
-                let mut arr = Array2::zeros((n_mode1, r));
+                let mut arr: Array2<f64> = Array2::zeros((n_mode1, r));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen() - 0.5;
+                    *elem = rng.random::<f64>() - 0.5;
                 }
                 arr
             },
             {
-                let mut arr = Array2::zeros((n_mode2, r));
+                let mut arr: Array2<f64> = Array2::zeros((n_mode2, r));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen() - 0.5;
+                    *elem = rng.random::<f64>() - 0.5;
                 }
                 arr
             },
             {
-                let mut arr = Array2::zeros((n_mode3, r));
+                let mut arr: Array2<f64> = Array2::zeros((n_mode3, r));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen() - 0.5;
+                    *elem = rng.random::<f64>() - 0.5;
                 }
                 arr
             },
@@ -353,30 +355,30 @@ impl CPDecomposition<Untrained> {
     }
 
     /// Non-negative CP decomposition
-    fn cp_nonnegative(&self, tensor: &Array3<f64>, rng: &mut impl Rng) -> CPResult {
+    fn cp_nonnegative(&self, tensor: &Array3<f64>, rng: &mut impl RngExt) -> CPResult {
         let (n_mode1, n_mode2, n_mode3) = tensor.dim();
         let r = self.n_components;
 
         // Initialize with non-negative random factors
-        let mut factors = vec![
+        let mut factors: Vec<Array2<f64>> = vec![
             {
-                let mut arr = Array2::zeros((n_mode1, r));
+                let mut arr: Array2<f64> = Array2::zeros((n_mode1, r));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen().abs();
+                    *elem = rng.random::<f64>().abs();
                 }
                 arr
             },
             {
-                let mut arr = Array2::zeros((n_mode2, r));
+                let mut arr: Array2<f64> = Array2::zeros((n_mode2, r));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen().abs();
+                    *elem = rng.random::<f64>().abs();
                 }
                 arr
             },
             {
-                let mut arr = Array2::zeros((n_mode3, r));
+                let mut arr: Array2<f64> = Array2::zeros((n_mode3, r));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen().abs();
+                    *elem = rng.random::<f64>().abs();
                 }
                 arr
             },
@@ -445,7 +447,7 @@ impl CPDecomposition<Untrained> {
     }
 
     /// Robust CP decomposition with outlier handling
-    fn cp_robust(&self, tensor: &Array3<f64>, rng: &mut impl Rng) -> CPResult {
+    fn cp_robust(&self, tensor: &Array3<f64>, rng: &mut impl RngExt) -> CPResult {
         // For now, implement as standard ALS with robust loss function
         // This is a simplified version - full robust CP would require more sophisticated methods
         self.cp_als(tensor, rng)
@@ -524,9 +526,8 @@ impl CPDecomposition<Untrained> {
     /// Solve linear system using pseudoinverse
     fn solve_linear_system(&self, a: &Array2<f64>, b: &Array2<f64>) -> Result<Array2<f64>> {
         // Compute pseudoinverse using SVD from scirs2-linalg
-        let (u, s, vt) = svd(&a.view(), true).map_err(|e| {
-            SklearsError::NumericalError(format!("SVD failed: {}", e))
-        })?;
+        let (u, s, vt) = svd(&a.view(), true)
+            .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
         let tolerance = 1e-12;
 
@@ -660,7 +661,9 @@ impl Fit<Array3<f64>, ()> for TuckerDecomposition<Untrained> {
 
         // Center tensor if requested
         let (centered_tensor, mean) = if self.center {
-            let mean_val = tensor.mean().expect("array should have elements for mean computation");
+            let mean_val = tensor.mean().ok_or_else(|| {
+                SklearsError::NumericalError("cannot compute mean of empty tensor".to_string())
+            })?;
             let centered = tensor.mapv(|x| x - mean_val);
             let mean_tensor = Array3::from_elem(tensor.dim(), mean_val);
             (centered, Some(mean_tensor))
@@ -668,9 +671,11 @@ impl Fit<Array3<f64>, ()> for TuckerDecomposition<Untrained> {
             (tensor.clone(), None)
         };
 
-        // Initialize random number generator
-        // TODO: Support seeding for reproducibility
-        let mut rng = thread_rng();
+        // Initialize random number generator with optional seeding for reproducibility
+        let mut rng: StdRng = match self.random_state {
+            Some(seed) => StdRng::seed_from_u64(seed),
+            None => StdRng::from_rng(&mut make_rng()),
+        };
 
         // Run Tucker decomposition algorithm
         let (core, factors, n_iter, reconstruction_error) = match self.algorithm {
@@ -732,29 +737,29 @@ impl TuckerDecomposition<Untrained> {
     }
 
     /// Tucker decomposition using Alternating Least Squares
-    fn tucker_als(&self, tensor: &Array3<f64>, rng: &mut impl Rng) -> TuckerResult {
+    fn tucker_als(&self, tensor: &Array3<f64>, rng: &mut impl RngExt) -> TuckerResult {
         let (n1, n2, n3) = tensor.dim();
 
         // Initialize factor matrices randomly
-        let mut factors = vec![
+        let mut factors: Vec<Array2<f64>> = vec![
             {
-                let mut arr = Array2::zeros((n1, self.n_components[0]));
+                let mut arr: Array2<f64> = Array2::zeros((n1, self.n_components[0]));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen() - 0.5;
+                    *elem = rng.random::<f64>() - 0.5;
                 }
                 arr
             },
             {
-                let mut arr = Array2::zeros((n2, self.n_components[1]));
+                let mut arr: Array2<f64> = Array2::zeros((n2, self.n_components[1]));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen() - 0.5;
+                    *elem = rng.random::<f64>() - 0.5;
                 }
                 arr
             },
             {
-                let mut arr = Array2::zeros((n3, self.n_components[2]));
+                let mut arr: Array2<f64> = Array2::zeros((n3, self.n_components[2]));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen() - 0.5;
+                    *elem = rng.random::<f64>() - 0.5;
                 }
                 arr
             },
@@ -899,9 +904,8 @@ impl TuckerDecomposition<Untrained> {
     /// Compute SVD of a matrix
     fn compute_svd(&self, matrix: &Array2<f64>) -> Result<(Array2<f64>, Array2<f64>, Array1<f64>)> {
         // Use scirs2-linalg SVD - returns (U, S, V^T)
-        let (u, s, vt) = svd(&matrix.view(), true).map_err(|e| {
-            SklearsError::NumericalError(format!("SVD failed: {}", e))
-        })?;
+        let (u, s, vt) = svd(&matrix.view(), true)
+            .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
         // This function expects (U, V^T, S) order
         Ok((u, vt, s))
@@ -1045,9 +1049,8 @@ impl TuckerDecomposition<Untrained> {
         }
 
         // Fallback to pseudoinverse using SVD
-        let (u, s, vt) = svd(&a.view(), true).map_err(|e| {
-            SklearsError::NumericalError(format!("SVD failed: {}", e))
-        })?;
+        let (u, s, vt) = svd(&a.view(), true)
+            .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
         let tolerance = 1e-12;
 
@@ -1185,7 +1188,7 @@ mod tests {
         assert_eq!(cp.tol, 1e-8);
         assert_eq!(cp.learning_rate, 0.05);
         assert_eq!(cp.regularization, 0.1);
-        assert_eq!(cp.normalize_factors, false);
+        assert!(!cp.normalize_factors);
     }
 
     #[test]
@@ -1201,7 +1204,7 @@ mod tests {
         assert_eq!(tucker.algorithm, TuckerAlgorithm::SequentialSVD);
         assert_eq!(tucker.max_iter, 150);
         assert_eq!(tucker.tol, 1e-7);
-        assert_eq!(tucker.center, false);
+        assert!(!tucker.center);
         assert_eq!(tucker.init_method, "svd");
     }
 }

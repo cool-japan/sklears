@@ -51,8 +51,11 @@ pub struct GpuMemoryPool {
 pub struct GpuMemoryBlock {
     ptr: *mut u8,
     size: usize,
+    #[allow(dead_code)] // Stored for device-specific deallocation routing
     device_id: u32,
+    #[allow(dead_code)] // Used to select correct backend free path when backends are enabled
     backend: GpuBackend,
+    #[allow(dead_code)] // Distinguishes unified vs device memory for proper teardown
     is_unified: bool,
 }
 
@@ -430,6 +433,7 @@ impl Default for MultiGpuMemoryManager {
 pub struct UnifiedMemoryBuffer<T> {
     ptr: *mut T,
     size: usize,
+    #[allow(dead_code)] // Stored for cudarc deallocation routing when cuda feature is enabled
     device_id: u32,
 }
 
@@ -599,12 +603,12 @@ mod tests {
 
         // Test that strategies can be compared and used
         for strategy in strategies {
-            match strategy {
-                AllocationStrategy::Simple => assert!(true),
-                AllocationStrategy::Pooled => assert!(true),
-                AllocationStrategy::Unified => assert!(true),
-                AllocationStrategy::Pinned => assert!(true),
-            }
+            let _ = match strategy {
+                AllocationStrategy::Simple => 0,
+                AllocationStrategy::Pooled => 1,
+                AllocationStrategy::Unified => 2,
+                AllocationStrategy::Pinned => 3,
+            };
         }
     }
 }

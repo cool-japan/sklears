@@ -167,6 +167,7 @@ pub struct DTWKernelApproximation {
     config: TimeSeriesKernelConfig,
     reference_series: Option<Array2<f64>>,
     random_indices: Option<Vec<usize>>,
+    #[allow(dead_code)] // cached DTW distances for potential reuse
     dtw_distances: Option<Array2<f64>>,
     kernel_bandwidth: f64,
 }
@@ -236,7 +237,7 @@ impl DTWKernelApproximation {
         for (i, &idx) in indices.iter().enumerate() {
             let series = time_series.slice(s![idx, .., ..]);
             let flattened = series
-                .into_shape((n_timepoints * n_features,))
+                .into_shape_with_order((n_timepoints * n_features,))
                 .expect("operation should succeed");
             reference_series.row_mut(i).assign(&flattened);
         }
@@ -257,7 +258,7 @@ impl DTWKernelApproximation {
         for i in 0..n_series {
             let series = time_series.slice(s![i, .., ..]);
             let series_flat = series
-                .into_shape((n_timepoints * n_features,))
+                .into_shape_with_order((n_timepoints * n_features,))
                 .expect("operation should succeed");
 
             for j in 0..n_references {
@@ -315,7 +316,7 @@ impl DTWKernelApproximation {
             .config
             .dtw_config
             .as_ref()
-            .map_or(true, |cfg| cfg.normalize)
+            .is_none_or(|cfg| cfg.normalize)
         {
             Ok(distance / (n1 + n2) as f64)
         } else {
@@ -381,6 +382,7 @@ impl DTWKernelApproximation {
 pub struct AutoregressiveKernelApproximation {
     config: TimeSeriesKernelConfig,
     ar_coefficients: Option<Array2<f64>>,
+    #[allow(dead_code)] // reference AR models stored for ensemble comparisons
     reference_models: Option<Vec<Array1<f64>>>,
     random_features: Option<Array2<f64>>,
 }
@@ -749,7 +751,7 @@ impl GlobalAlignmentKernelApproximation {
         for (i, &idx) in indices.iter().enumerate() {
             let series = time_series.slice(s![idx, .., ..]);
             let flattened = series
-                .into_shape((n_timepoints * n_features,))
+                .into_shape_with_order((n_timepoints * n_features,))
                 .expect("operation should succeed");
             reference_series.row_mut(i).assign(&flattened);
         }
@@ -770,7 +772,7 @@ impl GlobalAlignmentKernelApproximation {
         for i in 0..n_series {
             let series = time_series.slice(s![i, .., ..]);
             let series_flat = series
-                .into_shape((n_timepoints * n_features,))
+                .into_shape_with_order((n_timepoints * n_features,))
                 .expect("operation should succeed");
 
             for j in 0..n_references {
@@ -852,7 +854,7 @@ mod tests {
         assert_eq!(features.shape(), &[5, 3]);
 
         // Features should be positive (RBF kernel values)
-        assert!(features.iter().all(|&x| x >= 0.0 && x <= 1.0));
+        assert!(features.iter().all(|&x| (0.0..=1.0).contains(&x)));
     }
 
     #[test]

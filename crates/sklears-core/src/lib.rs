@@ -1,7 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
 //! # sklears-core - Core Traits and Utilities
 //!
 //! This crate provides the foundational traits, types, and utilities that power

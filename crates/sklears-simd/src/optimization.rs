@@ -18,6 +18,8 @@ use std::string::String;
 pub struct GradientDescent {
     learning_rate: f32,
     momentum: f32,
+    #[allow(dead_code)]
+    // Standard SGD dampening term (dampens gradient contribution to momentum); deferred
     dampening: f32,
     weight_decay: f32,
     nesterov: bool,

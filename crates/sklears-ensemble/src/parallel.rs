@@ -336,6 +336,7 @@ impl ParallelEnsembleTrainer {
     }
 
     /// Calculate efficiency metrics
+    #[cfg(feature = "parallel")]
     fn calculate_efficiency_metrics(&mut self) {
         let ideal_time =
             self.performance_metrics.total_time_secs / self.performance_metrics.workers_used as f64;
@@ -382,6 +383,7 @@ impl ParallelEnsembleTrainer {
 }
 
 /// Asynchronous training coordinator for distributed ensembles
+#[allow(dead_code)] // planned API fields
 pub struct AsyncEnsembleCoordinator {
     config: ParallelConfig,
     active_workers: Vec<usize>,
@@ -399,7 +401,7 @@ impl AsyncEnsembleCoordinator {
     }
 
     /// Submit training task asynchronously
-    pub fn submit_task(&mut self, worker_id: usize, task_id: usize) {
+    pub fn submit_task(&mut self, worker_id: usize, _task_id: usize) {
         self.active_workers.push(worker_id);
         // In a real implementation, this would submit to a job queue
     }
@@ -417,6 +419,7 @@ impl AsyncEnsembleCoordinator {
 }
 
 /// Federated ensemble learning coordinator
+#[allow(dead_code)] // planned API fields
 pub struct FederatedEnsembleCoordinator {
     nodes: Vec<String>,
     aggregation_strategy: String,

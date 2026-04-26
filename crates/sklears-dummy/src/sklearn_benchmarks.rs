@@ -10,7 +10,7 @@
 use crate::{ClassifierStrategy, DummyClassifier, DummyRegressor, RegressorStrategy};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::{RngExt, SeedableRng};
-use sklears_core::{error::SklearsError, traits::Estimator, traits::Fit, traits::Predict};
+use sklears_core::{error::SklearsError, traits::Fit, traits::Predict};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -206,7 +206,6 @@ impl BenchmarkConfig {
     /// Create default benchmark datasets
     fn default_datasets() -> Vec<DatasetConfig> {
         vec![
-            /// DatasetConfig
             DatasetConfig {
                 name: "small_balanced_classification".to_string(),
                 data_type: DatasetType::Classification { n_classes: 3 },
@@ -221,7 +220,6 @@ impl BenchmarkConfig {
                     random_state: Some(42),
                 },
             },
-            /// DatasetConfig
             DatasetConfig {
                 name: "large_classification".to_string(),
                 data_type: DatasetType::Classification { n_classes: 5 },
@@ -236,7 +234,6 @@ impl BenchmarkConfig {
                     random_state: Some(42),
                 },
             },
-            /// DatasetConfig
             DatasetConfig {
                 name: "imbalanced_classification".to_string(),
                 data_type: DatasetType::Imbalanced {
@@ -253,7 +250,6 @@ impl BenchmarkConfig {
                     random_state: Some(42),
                 },
             },
-            /// DatasetConfig
             DatasetConfig {
                 name: "small_regression".to_string(),
                 data_type: DatasetType::Regression,
@@ -268,7 +264,6 @@ impl BenchmarkConfig {
                     random_state: Some(42),
                 },
             },
-            /// DatasetConfig
             DatasetConfig {
                 name: "large_regression".to_string(),
                 data_type: DatasetType::Regression,
@@ -317,11 +312,11 @@ impl SklearnBenchmarkFramework {
             | DatasetType::Imbalanced { .. }
             | DatasetType::Multiclass { .. } = dataset_config.data_type
             {
-                let (X, y) = self.generate_classification_dataset(dataset_config)?;
+                let (x, y) = self.generate_classification_dataset(dataset_config)?;
 
                 for strategy in &strategies {
                     if let Ok(result) =
-                        self.benchmark_classifier_strategy(&X, &y, strategy.clone(), dataset_config)
+                        self.benchmark_classifier_strategy(&x, &y, strategy.clone(), dataset_config)
                     {
                         results.push(result);
                     }
@@ -346,11 +341,11 @@ impl SklearnBenchmarkFramework {
 
         for dataset_config in &self.config.datasets {
             if let DatasetType::Regression = dataset_config.data_type {
-                let (X, y) = self.generate_regression_dataset(dataset_config)?;
+                let (x, y) = self.generate_regression_dataset(dataset_config)?;
 
                 for strategy in &strategies {
                     if let Ok(result) =
-                        self.benchmark_regressor_strategy(&X, &y, *strategy, dataset_config)
+                        self.benchmark_regressor_strategy(&x, &y, *strategy, dataset_config)
                     {
                         results.push(result);
                     }
@@ -364,7 +359,7 @@ impl SklearnBenchmarkFramework {
     /// Benchmark a specific classifier strategy
     fn benchmark_classifier_strategy(
         &self,
-        X: &Array2<f64>,
+        x: &Array2<f64>,
         y: &Array1<i32>,
         strategy: ClassifierStrategy,
         dataset_config: &DatasetConfig,
@@ -381,12 +376,12 @@ impl SklearnBenchmarkFramework {
             }
 
             let start_fit = Instant::now();
-            let fitted_classifier = classifier.fit(X, y)?;
+            let fitted_classifier = classifier.fit(x, y)?;
             let fit_time = start_fit.elapsed();
             total_fit_time += fit_time;
 
             let start_predict = Instant::now();
-            let predictions = fitted_classifier.predict(X)?;
+            let predictions = fitted_classifier.predict(x)?;
             let predict_time = start_predict.elapsed();
             total_predict_time += predict_time;
 
@@ -405,7 +400,7 @@ impl SklearnBenchmarkFramework {
 
         // Generate reference predictions for comparison
         let reference_predictions =
-            self.generate_reference_classifier_predictions(X, y, &strategy)?;
+            self.generate_reference_classifier_predictions(x, y, &strategy)?;
         let reference_accuracy = Self::calculate_accuracy(y, &reference_predictions);
 
         // Calculate numerical accuracy metrics
@@ -436,7 +431,7 @@ impl SklearnBenchmarkFramework {
             memory_usage_reference: 0, // Would be measured with profiling
         };
 
-        let dataset_info = self.create_classification_dataset_info(dataset_config, X, y);
+        let dataset_info = self.create_classification_dataset_info(dataset_config, x, y);
 
         Ok(BenchmarkResult {
             strategy: format!("{:?}", strategy),
@@ -450,7 +445,7 @@ impl SklearnBenchmarkFramework {
     /// Benchmark a specific regressor strategy
     fn benchmark_regressor_strategy(
         &self,
-        X: &Array2<f64>,
+        x: &Array2<f64>,
         y: &Array1<f64>,
         strategy: RegressorStrategy,
         dataset_config: &DatasetConfig,
@@ -467,12 +462,12 @@ impl SklearnBenchmarkFramework {
             }
 
             let start_fit = Instant::now();
-            let fitted_regressor = regressor.fit(X, y)?;
+            let fitted_regressor = regressor.fit(x, y)?;
             let fit_time = start_fit.elapsed();
             total_fit_time += fit_time;
 
             let start_predict = Instant::now();
-            let predictions = fitted_regressor.predict(X)?;
+            let predictions = fitted_regressor.predict(x)?;
             let predict_time = start_predict.elapsed();
             total_predict_time += predict_time;
 
@@ -491,7 +486,7 @@ impl SklearnBenchmarkFramework {
 
         // Generate reference predictions for comparison
         let reference_predictions =
-            self.generate_reference_regressor_predictions(X, y, &strategy)?;
+            self.generate_reference_regressor_predictions(x, y, &strategy)?;
         let reference_r2 = Self::calculate_r2_score(y, &reference_predictions);
 
         // Calculate numerical accuracy metrics
@@ -522,7 +517,7 @@ impl SklearnBenchmarkFramework {
             memory_usage_reference: 0, // Would be measured with profiling
         };
 
-        let dataset_info = self.create_regression_dataset_info(dataset_config, X, y);
+        let dataset_info = self.create_regression_dataset_info(dataset_config, x, y);
 
         Ok(BenchmarkResult {
             strategy: format!("{:?}", strategy),
@@ -560,10 +555,10 @@ impl SklearnBenchmarkFramework {
         };
 
         // Generate features
-        let mut X = Array2::<f64>::zeros((n_samples, n_features));
+        let mut x = Array2::<f64>::zeros((n_samples, n_features));
         for i in 0..n_samples {
             for j in 0..n_features {
-                X[[i, j]] = rng.random_range(-1.0..1.0);
+                x[[i, j]] = rng.random_range(-1.0..1.0);
             }
         }
 
@@ -574,7 +569,7 @@ impl SklearnBenchmarkFramework {
                     let noise = rng.random_range(
                         -config.properties.noise_level..config.properties.noise_level,
                     );
-                    X[[i, j]] += noise;
+                    x[[i, j]] += noise;
                 }
             }
         }
@@ -602,7 +597,7 @@ impl SklearnBenchmarkFramework {
             }
         }
 
-        Ok((X, y))
+        Ok((x, y))
     }
 
     /// Generate synthetic regression dataset
@@ -620,10 +615,10 @@ impl SklearnBenchmarkFramework {
         let n_features = config.size.n_features;
 
         // Generate features
-        let mut X = Array2::<f64>::zeros((n_samples, n_features));
+        let mut x = Array2::<f64>::zeros((n_samples, n_features));
         for i in 0..n_samples {
             for j in 0..n_features {
-                X[[i, j]] = rng.random_range(-2.0..2.0);
+                x[[i, j]] = rng.random_range(-2.0..2.0);
             }
         }
 
@@ -633,7 +628,7 @@ impl SklearnBenchmarkFramework {
             let mut target = 0.0;
             for j in 0..n_features.min(3) {
                 // Use first 3 features for target
-                target += X[[i, j]] * (j + 1) as f64 * 0.3;
+                target += x[[i, j]] * (j + 1) as f64 * 0.3;
             }
 
             // Add noise
@@ -655,17 +650,17 @@ impl SklearnBenchmarkFramework {
             }
         }
 
-        Ok((X, y))
+        Ok((x, y))
     }
 
     /// Generate reference classifier predictions (simplified simulation)
     fn generate_reference_classifier_predictions(
         &self,
-        X: &Array2<f64>,
+        x: &Array2<f64>,
         y: &Array1<i32>,
         strategy: &ClassifierStrategy,
     ) -> Result<Array1<i32>, SklearsError> {
-        let n_samples = X.nrows();
+        let n_samples = x.nrows();
         let mut predictions = Array1::<i32>::zeros(n_samples);
 
         match strategy {
@@ -698,11 +693,11 @@ impl SklearnBenchmarkFramework {
     /// Generate reference regressor predictions (simplified simulation)
     fn generate_reference_regressor_predictions(
         &self,
-        X: &Array2<f64>,
+        x: &Array2<f64>,
         y: &Array1<f64>,
         strategy: &RegressorStrategy,
     ) -> Result<Array1<f64>, SklearsError> {
-        let n_samples = X.nrows();
+        let n_samples = x.nrows();
         let mut predictions = Array1::<f64>::zeros(n_samples);
 
         match strategy {
@@ -713,7 +708,7 @@ impl SklearnBenchmarkFramework {
             RegressorStrategy::Median => {
                 let mut sorted_y = y.to_vec();
                 sorted_y.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
-                let median = if sorted_y.len() % 2 == 0 {
+                let median = if sorted_y.len().is_multiple_of(2) {
                     (sorted_y[sorted_y.len() / 2 - 1] + sorted_y[sorted_y.len() / 2]) / 2.0
                 } else {
                     sorted_y[sorted_y.len() / 2]
@@ -915,7 +910,7 @@ impl SklearnBenchmarkFramework {
     fn create_classification_dataset_info(
         &self,
         config: &DatasetConfig,
-        X: &Array2<f64>,
+        x: &Array2<f64>,
         y: &Array1<i32>,
     ) -> DatasetInfo {
         let mut class_distribution = HashMap::new();
@@ -925,11 +920,10 @@ impl SklearnBenchmarkFramework {
 
         let n_classes = class_distribution.len();
 
-        /// DatasetInfo
         DatasetInfo {
             name: config.name.clone(),
-            n_samples: X.nrows(),
-            n_features: X.ncols(),
+            n_samples: x.nrows(),
+            n_features: x.ncols(),
             n_classes: Some(n_classes),
             class_distribution: Some(class_distribution),
             target_statistics: None,
@@ -940,7 +934,7 @@ impl SklearnBenchmarkFramework {
     fn create_regression_dataset_info(
         &self,
         config: &DatasetConfig,
-        X: &Array2<f64>,
+        x: &Array2<f64>,
         y: &Array1<f64>,
     ) -> DatasetInfo {
         let mean = y.mean().unwrap_or(0.0);
@@ -961,11 +955,10 @@ impl SklearnBenchmarkFramework {
             .sum::<f64>()
             / y.len() as f64;
 
-        /// DatasetInfo
         DatasetInfo {
             name: config.name.clone(),
-            n_samples: X.nrows(),
-            n_features: X.ncols(),
+            n_samples: x.nrows(),
+            n_features: x.ncols(),
             n_classes: None,
             class_distribution: None,
             target_statistics: Some(TargetStatistics {
@@ -1115,16 +1108,16 @@ mod tests {
             },
         };
 
-        let (X, y) = framework
+        let (x, y) = framework
             .generate_classification_dataset(&config)
             .expect("operation should succeed");
-        assert_eq!(X.nrows(), 100);
-        assert_eq!(X.ncols(), 4);
+        assert_eq!(x.nrows(), 100);
+        assert_eq!(x.ncols(), 4);
         assert_eq!(y.len(), 100);
 
         // Check that labels are in valid range
         for &label in &y {
-            assert!(label >= 0 && label < 3);
+            assert!((0..3).contains(&label));
         }
     }
 

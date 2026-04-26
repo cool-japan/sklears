@@ -59,6 +59,7 @@ pub struct HierarchicalManifold<S = Untrained> {
 }
 
 /// Trained state for HierarchicalManifold
+#[allow(dead_code)] // retained for serialization/introspection
 #[derive(Debug, Clone)]
 pub struct TrainedHierarchicalManifold {
     level_embeddings: Vec<Array2<f64>>,
@@ -264,7 +265,7 @@ impl HierarchicalManifold<Untrained> {
         &self,
         x: &ArrayView2<f64>,
         scale_factor: f64,
-        rng: &mut StdRng,
+        _rng: &mut StdRng,
     ) -> SklResult<Array2<f64>> {
         let n_samples = x.nrows();
         let k = ((n_samples as f64 * scale_factor).round() as usize)
@@ -287,7 +288,7 @@ impl HierarchicalManifold<Untrained> {
         &self,
         x: &ArrayView2<f64>,
         scale_factor: f64,
-        rng: &mut StdRng,
+        _rng: &mut StdRng,
     ) -> SklResult<Array2<f64>> {
         let n_samples = x.nrows();
         let k = ((n_samples as f64 * scale_factor).round() as usize)
@@ -312,7 +313,7 @@ impl HierarchicalManifold<Untrained> {
         current_embedding: &Array2<f64>,
         x: &ArrayView2<f64>,
         scale_factor: f64,
-        rng: &mut StdRng,
+        _rng: &mut StdRng,
     ) -> SklResult<Array2<f64>> {
         let n_samples = x.nrows();
         let mut refined = current_embedding.clone();
@@ -641,6 +642,7 @@ impl Transform<ArrayView2<'_, f64>, Array2<f64>>
 ///
 /// Implements a pyramidal approach where embeddings are computed at multiple
 /// resolutions and combined for comprehensive manifold representation.
+#[allow(dead_code)] // retained for serialization/introspection
 #[derive(Debug, Clone)]
 pub struct MultiScaleEmbedding<S = Untrained> {
     state: S,
@@ -653,6 +655,7 @@ pub struct MultiScaleEmbedding<S = Untrained> {
 
 /// Trained state for MultiScaleEmbedding
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedMultiScaleEmbedding {
     scale_embeddings: Vec<Array2<f64>>,
     scale_weights: Vec<f64>,
@@ -731,7 +734,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, ()>> for MultiScaleEmbedding<Untrai
             ));
         }
 
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let n_features = x.ncols();
 
         let mut scale_embeddings = Vec::new();
@@ -963,6 +966,7 @@ impl Transform<ArrayView2<'_, f64>, Array2<f64>>
 /// let fitted = adaptive.fit(&x.view(), &y.view()).unwrap();
 /// let embedded = fitted.transform(&x.view()).unwrap();
 /// ```
+#[allow(dead_code)] // retained for serialization/introspection
 #[derive(Debug, Clone)]
 pub struct AdaptiveResolutionManifold<S = Untrained> {
     state: S,
@@ -979,6 +983,7 @@ pub struct AdaptiveResolutionManifold<S = Untrained> {
 
 /// Trained state for AdaptiveResolutionManifold
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedAdaptiveResolutionManifold {
     optimal_levels: usize,
     optimal_scale_factors: Vec<f64>,
@@ -1144,7 +1149,7 @@ impl AdaptiveResolutionManifold<Untrained> {
                     .map(|i| {
                         let base = (i + 1) as f64 / levels as f64;
                         let noise = rng.random_range(-0.2..0.2);
-                        (base + noise).max(0.1).min(1.0)
+                        (base + noise).clamp(0.1, 1.0)
                     })
                     .collect();
                 random_scales.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
@@ -1215,7 +1220,7 @@ impl AdaptiveResolutionManifold<Untrained> {
             0.0
         };
 
-        Ok(stress.max(0.0).min(1.0))
+        Ok(stress.clamp(0.0, 1.0))
     }
 
     /// Compute neighborhood preservation (K-ary neighborhood preservation)
@@ -1324,7 +1329,7 @@ impl AdaptiveResolutionManifold<Untrained> {
                     * rank_sum;
         }
 
-        Ok((trustworthiness / n_samples as f64).max(0.0).min(1.0))
+        Ok((trustworthiness / n_samples as f64).clamp(0.0, 1.0))
     }
 
     /// Compute continuity metric
@@ -1374,7 +1379,7 @@ impl AdaptiveResolutionManifold<Untrained> {
                     * rank_sum;
         }
 
-        Ok((continuity / n_samples as f64).max(0.0).min(1.0))
+        Ok((continuity / n_samples as f64).clamp(0.0, 1.0))
     }
 
     /// Combine quality metrics into a single score
@@ -1537,7 +1542,6 @@ impl Transform<ArrayView2<'_, f64>, Array2<f64>>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::array;
 
     #[test]

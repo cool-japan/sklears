@@ -528,7 +528,7 @@ pub mod classifier_calibration {
 
             // Check that calibrated probabilities are in [0, 1]
             for &prob in analysis.calibrated_probs.iter() {
-                assert!(prob >= 0.0 && prob <= 1.0);
+                assert!((0.0..=1.0).contains(&prob));
             }
 
             // Check that calibration improves (or at least doesn't hurt)

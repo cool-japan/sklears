@@ -7,7 +7,7 @@
 use crate::SklResult;
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4, ArrayView2, ArrayView3, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
@@ -212,7 +212,7 @@ pub fn analyze_attention<M: AttentionAnalyzer>(
     // Extract attention weights
     let attention_weights = model.extract_attention_weights(input)?;
 
-    let (batch_size, n_heads, seq_len) = attention_weights.dim();
+    let (_batch_size, _n_heads, _seq_len) = attention_weights.dim();
 
     // Compute attention patterns (assuming self-attention)
     let attention_patterns = match config.attention_type {
@@ -394,9 +394,9 @@ pub fn visualize_features<M: AttentionAnalyzer>(
     model: &M,
     layer: &str,
     input_samples: &ArrayView3<Float>, // (samples, height, width)
-    config: &AttentionConfig,
+    _config: &AttentionConfig,
 ) -> SklResult<FeatureVisualizationResult> {
-    let (n_samples, height, width) = input_samples.dim();
+    let (n_samples, _height, _width) = input_samples.dim();
 
     // Get feature maps for all samples
     let mut all_feature_maps = Vec::new();
@@ -430,9 +430,9 @@ pub fn visualize_features<M: AttentionAnalyzer>(
     // Create averaged feature maps
     let mut feature_maps = Array3::zeros((n_filters, feature_height, feature_width));
     for filter_idx in 0..n_filters {
-        for i in 0..n_samples {
+        for feature_map in all_feature_maps.iter().take(n_samples) {
             let mut feature_slice = feature_maps.slice_mut(s![filter_idx, .., ..]);
-            feature_slice += &all_feature_maps[i].slice(s![filter_idx, .., ..]);
+            feature_slice += &feature_map.slice(s![filter_idx, .., ..]);
         }
         feature_maps
             .slice_mut(s![filter_idx, .., ..])
@@ -562,10 +562,10 @@ pub fn dissect_network<M: AttentionAnalyzer>(
     model: &M,
     concept_dataset: &ArrayView3<Float>, // (samples, height, width)
     concept_labels: &[String],
-    target_layer: &str,
+    _target_layer: &str,
 ) -> SklResult<NetworkDissectionResult> {
     let n_samples = concept_dataset.dim().0;
-    let n_concepts = concept_labels.len();
+    let _n_concepts = concept_labels.len();
 
     // Get activations for all concept samples
     let mut all_activations = Vec::new();
@@ -581,7 +581,7 @@ pub fn dissect_network<M: AttentionAnalyzer>(
     let mut concept_activations = HashMap::new();
     let mut alignment_scores = HashMap::new();
 
-    for (concept_idx, concept_name) in concept_labels.iter().enumerate() {
+    for concept_name in concept_labels.iter() {
         let mut concept_neuron_activations = Array1::zeros(n_neurons);
         let mut concept_alignment = Array1::zeros(n_neurons);
 
@@ -589,9 +589,9 @@ pub fn dissect_network<M: AttentionAnalyzer>(
         for neuron_idx in 0..n_neurons {
             let mut activations_for_concept = Vec::new();
 
-            for sample_idx in 0..n_samples {
+            for activation_mat in all_activations.iter().take(n_samples) {
                 // Assuming concept samples are organized somehow - this is simplified
-                let activation = all_activations[sample_idx][[0, neuron_idx]];
+                let activation = activation_mat[[0, neuron_idx]];
                 activations_for_concept.push(activation);
             }
 
@@ -609,6 +609,7 @@ pub fn dissect_network<M: AttentionAnalyzer>(
 
     // Find top concepts per neuron
     let mut top_concepts_per_neuron = Vec::new();
+    #[allow(clippy::needless_range_loop)]
     for neuron_idx in 0..n_neurons {
         let mut neuron_concept_scores: Vec<(Float, String)> = concept_labels
             .iter()
@@ -673,7 +674,6 @@ pub fn dissect_network<M: AttentionAnalyzer>(
 mod tests {
     use super::*;
     // ✅ SciRS2 Policy Compliant Import
-    use scirs2_core::ndarray::array;
     use scirs2_core::ndarray_ext::Ix3;
 
     // Mock analyzer for testing

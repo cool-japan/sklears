@@ -279,7 +279,7 @@ impl ChenSteinCovariance<ChenSteinCovarianceTrained> {
 
     /// Compare with Ledoit-Wolf shrinkage parameter
     /// This method can be used to understand the differences between the two approaches
-    pub fn compare_with_ledoit_wolf(&self, x: &ArrayView2<'_, Float>) -> SklResult<(f64, f64)> {
+    pub fn compare_with_ledoit_wolf(&self, _x: &ArrayView2<'_, Float>) -> SklResult<(f64, f64)> {
         // This would require implementing a simple Ledoit-Wolf calculation for comparison
         // For now, we return the Chen-Stein shrinkage and a placeholder
         let chen_stein_shrinkage = self.get_shrinkage();

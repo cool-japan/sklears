@@ -233,6 +233,7 @@ where
 
 /// Parallel SHAP value computation utility
 #[cfg(feature = "parallel")]
+#[allow(non_snake_case)] // standard ML notation
 pub fn compute_shap_parallel<F>(
     model: F,
     X: &ArrayView2<Float>,
@@ -267,6 +268,7 @@ where
 }
 
 /// Sequential SHAP computation fallback
+#[allow(non_snake_case)] // standard ML notation
 fn compute_shap_sequential<F>(
     model: F,
     X: &ArrayView2<Float>,
@@ -548,10 +550,10 @@ where
     let results: SklResult<Vec<_>> = batches
         .into_par_iter()
         .enumerate()
-        .map(|(batch_idx, batch)| {
+        .map(|(_batch_idx, batch)| {
             let batch_start = std::time::Instant::now();
             let batch_result = processor(batch);
-            let batch_time = batch_start.elapsed().as_millis();
+            let _batch_time = batch_start.elapsed().as_millis();
 
             // Update progress
             if let Some(ref callback) = progress_callback {
@@ -581,6 +583,7 @@ where
 #[cfg(feature = "parallel")]
 pub struct StreamingBatchProcessor<T, R> {
     batch_config: BatchConfig,
+    #[allow(dead_code)] // stored for parallel processing configuration
     parallel_config: ParallelConfig,
     buffer: Vec<T>,
     results: Vec<R>,
@@ -1425,7 +1428,7 @@ mod tests {
 
     #[test]
     fn test_memory_pool_creation() {
-        let mut pool: MemoryPool<i32> = MemoryPool::new(5);
+        let pool: MemoryPool<i32> = MemoryPool::new(5);
         let (allocations, reuses, reuse_rate) = pool.stats();
 
         assert_eq!(allocations, 0);
@@ -1479,8 +1482,8 @@ mod tests {
 
         // Check memory pool statistics
         let (pool_stats, result_pool_stats) = processor.memory_pool_stats();
-        assert!(pool_stats.0 >= 0); // allocations
-        assert!(result_pool_stats.0 >= 0); // result allocations
+        let _ = pool_stats.0; // allocations (usize, always non-negative)
+        let _ = result_pool_stats.0; // result allocations (usize, always non-negative)
     }
 
     #[test]
@@ -1516,7 +1519,7 @@ mod tests {
         assert_eq!(store.get(4), None);
 
         // Check cache statistics
-        let (hits, misses, hit_rate, hot_size, cold_size) = store.cache_stats();
+        let (hits, misses, hit_rate, hot_size, _cold_size) = store.cache_stats();
         assert!(hits >= 3);
         assert_eq!(misses, 1);
         assert!(hit_rate > 0.5);
@@ -1536,7 +1539,7 @@ mod tests {
             assert_eq!(store.get(2), Some(200));
         }
 
-        let (_, _, _, hot_size, cold_size) = store.cache_stats();
+        let (_, _, _, hot_size, _cold_size) = store.cache_stats();
         // Value should have been promoted to hot cache
         assert!(hot_size == 1); // Hot cache should contain promoted item
     }

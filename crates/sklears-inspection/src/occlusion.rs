@@ -110,9 +110,10 @@ pub struct OcclusionResult {
 ///     ..Default::default()
 /// };
 ///
-/// let result = analyze_occlusion(&model_fn, &X.view(), None, &config).unwrap();
+/// let result = analyze_occlusion(&model_fn, &X.view(), None, &config).expect("occlusion analysis should succeed with valid inputs");
 /// assert_eq!(result.importance_scores.len(), 2);
 /// ```
+#[allow(non_snake_case)] // standard ML notation
 pub fn analyze_occlusion<F>(
     model_fn: &F,
     X: &ArrayView2<Float>,
@@ -140,6 +141,7 @@ where
 }
 
 /// Feature occlusion-based importance analysis
+#[allow(non_snake_case)] // standard ML notation
 fn feature_occlusion_analysis<F>(
     model_fn: &F,
     X: &ArrayView2<Float>,
@@ -216,6 +218,7 @@ where
 }
 
 /// Integrated gradients analysis
+#[allow(non_snake_case)] // standard ML notation
 fn integrated_gradients_analysis<F>(
     model_fn: &F,
     X: &ArrayView2<Float>,
@@ -279,11 +282,12 @@ where
 }
 
 /// Saliency map analysis
+#[allow(non_snake_case)] // standard ML notation
 fn saliency_map_analysis<F>(
     model_fn: &F,
     X: &ArrayView2<Float>,
     _target_class: Option<usize>,
-    config: &OcclusionConfig,
+    _config: &OcclusionConfig,
 ) -> SklResult<OcclusionResult>
 where
     F: Fn(&ArrayView2<Float>) -> Vec<Float>,
@@ -317,6 +321,7 @@ where
 }
 
 /// Guided backpropagation analysis (approximated using modified gradients)
+#[allow(non_snake_case)] // standard ML notation
 fn guided_backpropagation_analysis<F>(
     model_fn: &F,
     X: &ArrayView2<Float>,
@@ -357,6 +362,7 @@ where
 }
 
 /// Layer-wise relevance propagation analysis (simplified version)
+#[allow(non_snake_case)] // standard ML notation
 fn lrp_analysis<F>(
     model_fn: &F,
     X: &ArrayView2<Float>,
@@ -472,6 +478,7 @@ pub fn create_patch_mask(
 }
 
 /// Sliding window occlusion analysis for image-like data
+#[allow(non_snake_case)] // standard ML notation
 pub fn sliding_window_occlusion<F>(
     model_fn: &F,
     X: &ArrayView2<Float>,

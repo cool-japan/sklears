@@ -32,10 +32,8 @@ pub mod community_detection;
 pub mod hypergraph_methods;
 pub mod temporal_network_analysis;
 
-use scirs2_core::error::{CoreError, ErrorContext};
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Rng, RngExt};
-use sklears_core::types::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
+use scirs2_core::random::thread_rng;
 use std::collections::HashMap;
 
 pub use community_detection::{
@@ -246,8 +244,8 @@ impl GraphRegularizedCCA {
 
     /// Fit graph-regularized CCA model
     pub fn fit(&self, x: &Array2<f64>, y: &Array2<f64>) -> GraphResult<GraphRegularizationResults> {
-        let (n_samples, n_x_features) = x.dim();
-        let n_y_features = y.ncols();
+        let (n_samples, _n_x_features) = x.dim();
+        let _n_y_features = y.ncols();
 
         if y.nrows() != n_samples {
             return Err(GraphRegularizationError::DimensionError(format!(
@@ -475,7 +473,7 @@ impl GraphRegularizedCCA {
         &self,
         cxx: &Array2<f64>,
         cyy: &Array2<f64>,
-        cxy: &Array2<f64>,
+        _cxy: &Array2<f64>,
     ) -> GraphResult<(Array2<f64>, Array2<f64>, Array1<f64>)> {
         // Simplified eigenvalue problem solution
         let n_x = cxx.nrows();
@@ -630,11 +628,11 @@ impl MultiGraphCCA {
                     "All graphs must have same dimensions".to_string(),
                 ));
             }
-            combined = combined + &graph.adjacency_matrix;
+            combined += &graph.adjacency_matrix;
         }
 
         // Average the combined matrix
-        combined = combined / graphs.len() as f64;
+        combined /= graphs.len() as f64;
 
         Ok(combined)
     }

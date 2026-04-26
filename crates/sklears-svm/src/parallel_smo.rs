@@ -78,10 +78,12 @@ struct ConvergenceInfo {
     max_violation: Float,
     n_updates: usize,
     objective_change: Float,
+    #[allow(dead_code)] // intentionally deferred: objective tracking pending
     last_objective: Float,
 }
 
 /// Working set for a parallel worker
+#[allow(dead_code)] // intentionally deferred: parallel working set not yet constructed
 struct WorkingSet {
     indices: Vec<usize>,
     local_alpha: Array1<Float>,
@@ -230,7 +232,7 @@ impl ParallelSmo {
     /// Create working sets for parallel workers
     fn create_working_sets(&self, n_samples: usize) -> Vec<Vec<usize>> {
         let n_workers = self.config.n_working_sets;
-        let samples_per_worker = (n_samples + n_workers - 1) / n_workers;
+        let samples_per_worker = n_samples.div_ceil(n_workers);
 
         let mut working_sets = Vec::with_capacity(n_workers);
 
@@ -534,6 +536,7 @@ impl ParallelSmo {
 /// Result from a parallel worker
 #[derive(Debug, Clone)]
 struct WorkerResult {
+    #[allow(dead_code)] // intentionally deferred: worker ID logging pending
     worker_id: usize,
     n_updates: usize,
     max_violation: Float,
@@ -545,7 +548,9 @@ struct WorkerResult {
 #[derive(Debug, Clone)]
 struct SynchronizationResult {
     max_violation: Float,
+    #[allow(dead_code)] // intentionally deferred: update count aggregation pending
     total_updates: usize,
+    #[allow(dead_code)] // intentionally deferred: objective delta tracking pending
     objective_change: Float,
 }
 

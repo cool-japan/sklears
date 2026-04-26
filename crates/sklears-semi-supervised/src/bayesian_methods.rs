@@ -128,7 +128,6 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for GaussianProcessSemiSupe
     fn fit(self, X: &ArrayView2<'_, Float>, y: &ArrayView1<'_, i32>) -> SklResult<Self::Fitted> {
         let X = X.to_owned();
         let y = y.to_owned();
-        let (n_samples, _n_features) = X.dim();
 
         // Identify labeled and unlabeled samples
         let mut labeled_indices = Vec::new();
@@ -217,6 +216,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for GaussianProcessSemiSupe
 
 impl GaussianProcessSemiSupervised<Untrained> {
     /// Compute kernel matrix between two sets of points
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_kernel_matrix(&self, X1: &Array2<f64>, X2: &Array2<f64>) -> SklResult<Array2<f64>> {
         let n1 = X1.nrows();
         let n2 = X2.nrows();
@@ -260,6 +260,7 @@ impl GaussianProcessSemiSupervised<Untrained> {
     }
 
     /// Solve GP system (simplified - would need proper numerical methods)
+    #[allow(non_snake_case)] // standard ML notation
     fn solve_gp_system(&self, K: &Array2<f64>, targets: &Array2<f64>) -> SklResult<Array2<f64>> {
         let n = K.nrows();
         let n_targets = targets.ncols();
@@ -388,6 +389,7 @@ impl PredictProba<ArrayView2<'_, Float>, Array2<f64>>
 
 impl GaussianProcessSemiSupervised<GaussianProcessTrained> {
     /// Compute kernel matrix between two sets of points (for prediction)
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_kernel_matrix(&self, X1: &Array2<f64>, X2: &Array2<f64>) -> SklResult<Array2<f64>> {
         let n1 = X1.nrows();
         let n2 = X2.nrows();
@@ -776,6 +778,7 @@ impl VariationalBayesianSemiSupervised<VariationalBayesianTrained> {
 
 /// Trained state for GaussianProcessSemiSupervised
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation: X_train, GP_weights
 pub struct GaussianProcessTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -793,6 +796,7 @@ pub struct GaussianProcessTrained {
 
 /// Trained state for VariationalBayesianSemiSupervised
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation: X_train
 pub struct VariationalBayesianTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -1092,7 +1096,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>>
     fn fit(self, X: &ArrayView2<'_, Float>, y: &ArrayView1<'_, i32>) -> SklResult<Self::Fitted> {
         let X = X.to_owned();
         let y = y.to_owned();
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
 
         // Identify labeled and unlabeled samples
         let mut labeled_indices = Vec::new();
@@ -1230,6 +1234,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
 
 /// Trained state for BayesianActiveLearning
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation: X_train
 pub struct BayesianActiveTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -1245,6 +1250,7 @@ pub struct BayesianActiveTrained {
 
 /// Trained state for HierarchicalBayesianSemiSupervised
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation: X_train
 pub struct HierarchicalBayesianTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -1284,7 +1290,7 @@ mod tests {
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(probas.dim(), (4, 2));
-        assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
+        assert!(predictions.iter().all(|&p| (0..=1).contains(&p)));
 
         // Check that probabilities sum to 1
         for i in 0..4 {
@@ -1314,7 +1320,7 @@ mod tests {
         let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
-        assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
+        assert!(predictions.iter().all(|&p| (0..=1).contains(&p)));
     }
 
     #[test]
@@ -1466,7 +1472,7 @@ mod tests {
         let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
-        assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
+        assert!(predictions.iter().all(|&p| (0..=1).contains(&p)));
         assert_eq!(fitted.state.query_indices.len(), 2);
     }
 
@@ -1504,7 +1510,7 @@ mod tests {
         let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
-        assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
+        assert!(predictions.iter().all(|&p| (0..=1).contains(&p)));
         assert_eq!(fitted.state.level_means.len(), 2);
     }
 

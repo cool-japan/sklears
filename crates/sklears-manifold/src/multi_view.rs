@@ -168,14 +168,8 @@ impl Fit<Vec<Array2<Float>>, ()> for MultiViewManifold {
         }
 
         // Compute cross-covariance matrices between views
-        let mut joint_covariance = Array2::zeros((0, 0));
-        let mut total_features = 0;
-
-        for view in &centered_views {
-            total_features += view.ncols();
-        }
-
-        joint_covariance = Array2::zeros((total_features, total_features));
+        let total_features: usize = centered_views.iter().map(|v| v.ncols()).sum();
+        let mut joint_covariance = Array2::zeros((total_features, total_features));
 
         // Build joint covariance matrix
         let mut row_offset = 0;
@@ -417,6 +411,7 @@ impl CanonicalCorrelationAnalysis {
 
 /// Fitted CCA model
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct FittedCanonicalCorrelationAnalysis {
     n_components: usize,
     projection_x: Array2<Float>,
@@ -662,6 +657,7 @@ impl MultiModalEmbedding {
 
 /// Fitted Multi-Modal Embedding model
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct FittedMultiModalEmbedding {
     n_components: usize,
     modal_embeddings: Vec<Array2<Float>>,
@@ -712,7 +708,7 @@ impl Fit<Vec<Array2<Float>>, ()> for MultiModalEmbedding {
         };
 
         let mut modal_embeddings = Vec::new();
-        for modality in modalities {
+        for _modality in modalities {
             let mut embedding = Array2::<Float>::zeros((n_samples, self.n_components));
             for elem in embedding.iter_mut() {
                 *elem = rng.sample::<Float, _>(scirs2_core::StandardNormal) * 0.01;
@@ -723,7 +719,7 @@ impl Fit<Vec<Array2<Float>>, ()> for MultiModalEmbedding {
         // Iterative optimization
         for iter in 0..self.max_iter {
             let mut converged = true;
-            let mut total_change = 0.0;
+            let mut _total_change = 0.0;
 
             for (m, modality) in modalities.iter().enumerate() {
                 let old_embedding = modal_embeddings[m].clone();
@@ -777,7 +773,7 @@ impl Fit<Vec<Array2<Float>>, ()> for MultiModalEmbedding {
                 let change = (&modal_embeddings[m] - &old_embedding)
                     .mapv(|x| x.abs())
                     .sum();
-                total_change += change;
+                _total_change += change;
 
                 if change > self.tol {
                     converged = false;
@@ -807,7 +803,7 @@ impl Fit<Vec<Array2<Float>>, ()> for MultiModalEmbedding {
 }
 
 impl Transform<Vec<Array2<Float>>, Array2<Float>> for FittedMultiModalEmbedding {
-    fn transform(&self, data: &Vec<Array2<Float>>) -> SklResult<Array2<Float>> {
+    fn transform(&self, _data: &Vec<Array2<Float>>) -> SklResult<Array2<Float>> {
         // For simplicity, return the joint embedding
         // In practice, we'd need to fit new data to the learned embedding space
         Ok(self.joint_embedding.clone())
@@ -957,6 +953,6 @@ mod tests {
 
         let correlations = fitted.canonical_correlations();
         assert_eq!(correlations.len(), 2);
-        assert!(correlations.iter().all(|&x| x >= 0.0 && x <= 1.0));
+        assert!(correlations.iter().all(|&x| (0.0..=1.0).contains(&x)));
     }
 }

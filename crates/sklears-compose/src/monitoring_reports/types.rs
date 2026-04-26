@@ -145,7 +145,7 @@ impl ReportGenerationSystem {
     pub fn new() -> Self {
         let config = ReportGeneratorConfig {
             default_template: "standard".to_string(),
-            output_directory: "/tmp/reports".to_string(),
+            output_directory: std::env::temp_dir().join("reports").display().to_string(),
             enable_caching: true,
             cache_duration: Duration::from_secs(3600),
         };

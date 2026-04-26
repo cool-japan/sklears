@@ -178,11 +178,13 @@ impl RTreeNode {
     }
 
     /// Check if this is a leaf node
+    #[allow(dead_code)] // reserved for tree traversal optimization
     fn is_leaf(&self) -> bool {
         matches!(self, RTreeNode::Leaf { .. })
     }
 
     /// Get the number of entries in this node
+    #[allow(dead_code)] // reserved for node capacity checks
     fn len(&self) -> usize {
         match self {
             RTreeNode::Internal { children, .. } => children.len(),
@@ -198,6 +200,7 @@ pub struct RTree {
     /// Maximum number of entries per node
     max_entries: usize,
     /// Minimum number of entries per node
+    #[allow(dead_code)] // reserved for node underflow detection
     min_entries: usize,
     /// Dimensionality of the space
     dimensions: usize,
@@ -1840,7 +1843,7 @@ mod spatial_hash_tests {
             .approximate_neighbors(&query.view(), 2, Some(1))
             .expect("operation should succeed");
 
-        assert!(neighbors.len() >= 1);
+        assert!(!neighbors.is_empty());
         // Should find nearby points (indices 0 and 1)
         assert!(neighbors[0].1 < 0.1); // Distance should be small
     }
@@ -1858,7 +1861,7 @@ mod spatial_hash_tests {
             .expect("operation should succeed");
 
         // Should find points within radius 0.5
-        assert!(neighbors.len() >= 1);
+        assert!(!neighbors.is_empty());
         for (_, distance) in &neighbors {
             assert!(*distance <= 0.5);
         }
@@ -1881,7 +1884,7 @@ mod spatial_hash_tests {
             .approximate_neighbors(&query.view(), 2, Some(1))
             .expect("operation should succeed");
 
-        assert!(neighbors.len() >= 1);
+        assert!(!neighbors.is_empty());
     }
 
     #[test]

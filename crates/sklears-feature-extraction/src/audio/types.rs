@@ -254,6 +254,7 @@ impl PitchExtractor {
 pub struct OnsetDetector {
     sample_rate: f64,
     hop_length: usize,
+    #[allow(dead_code)] // n_fft retained for future FFT-based onset spectral analysis
     n_fft: usize,
     threshold: f64,
     method: String,
@@ -720,6 +721,7 @@ impl ChromaFeaturesExtractor {
         )
     }
     /// Compute FFT magnitude
+    #[allow(clippy::needless_range_loop)] // k/n_idx used in arithmetic angle computation, not just indexing
     fn fft_magnitude(&self, signal: &[f64]) -> Vec<f64> {
         let n = signal.len();
         let n_freqs = n / 2 + 1;
@@ -883,6 +885,7 @@ impl MFCCExtractor {
         )
     }
     /// Compute FFT magnitude (simplified implementation)
+    #[allow(clippy::needless_range_loop)] // k/n_idx used in arithmetic angle computation, not just indexing
     fn fft_magnitude(&self, signal: &[f64]) -> Vec<f64> {
         let n = signal.len();
         let n_freqs = n / 2 + 1;
@@ -1099,6 +1102,7 @@ impl SpectralFeaturesExtractor {
         )
     }
     /// Compute FFT magnitude
+    #[allow(clippy::needless_range_loop)] // k/n_idx used in arithmetic angle computation, not just indexing
     fn fft_magnitude(&self, signal: &[f64]) -> Vec<f64> {
         let n = signal.len();
         let n_freqs = n / 2 + 1;
@@ -1265,6 +1269,7 @@ impl SpectralRolloffExtractor {
         )
     }
     /// Compute FFT magnitude
+    #[allow(clippy::needless_range_loop)] // k/n_idx used in arithmetic angle computation, not just indexing
     fn fft_magnitude(&self, signal: &[f64]) -> Vec<f64> {
         let n = signal.len();
         let n_freqs = n / 2 + 1;

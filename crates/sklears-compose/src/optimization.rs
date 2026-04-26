@@ -5,27 +5,72 @@
 
 use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
 use scirs2_core::random::{thread_rng, Rng, RngExt};
-use sklears_core::{
-    error::Result as SklResult,
-    prelude::SklearsError,
-    types::{Float, FloatBounds},
-};
+use sklears_core::{error::Result as SklResult, prelude::SklearsError, types::Float};
 use std::collections::HashMap;
 use std::time::Instant;
 
-use crate::Pipeline;
+use crate::{Pipeline, PipelineStep};
+use sklears_core::traits::Untrained;
+
+/// Apply a parameter map to a pipeline using the sklearn double-underscore convention.
+///
+/// Parameter keys follow the format `"step_name__param_name"`.  The step named
+/// `step_name` is located inside the pipeline and its `set_param(param_name, value)`
+/// method is called with the supplied `f64` value.
+///
+/// Keys that contain no `"__"` separator are treated as top-level pipeline
+/// parameters; no top-level pipeline parameters are currently defined, so those
+/// keys return an error unless the pipeline itself implements handling for them.
+///
+/// This mirrors the sklearn `estimator.set_params(**params)` behaviour and is
+/// the enabler for `GridSearchCV` / `RandomizedSearchCV`.
+fn apply_params_to_pipeline(
+    pipeline: &mut Pipeline<Untrained>,
+    params: &HashMap<String, f64>,
+) -> SklResult<()> {
+    for (key, &value) in params {
+        // Split on the first "__" to separate step name from parameter name
+        if let Some(sep_pos) = key.find("__") {
+            let step_name = &key[..sep_pos];
+            let param_name = &key[sep_pos + 2..];
+
+            let step: &mut dyn PipelineStep =
+                pipeline.get_step_mut(step_name).ok_or_else(|| {
+                    SklearsError::InvalidInput(format!(
+                        "Pipeline has no step named '{}' (from parameter key '{}')",
+                        step_name, key
+                    ))
+                })?;
+
+            step.set_param(param_name, value)?;
+        } else {
+            // Top-level pipeline parameter — none are defined yet
+            return Err(SklearsError::InvalidInput(format!(
+                "Unknown top-level pipeline parameter '{}'. \
+                 Use 'step_name__param_name' format to target a specific step.",
+                key
+            )));
+        }
+    }
+    Ok(())
+}
 
 /// Parameter search strategy
 pub enum SearchStrategy {
     /// Grid search over all parameter combinations
     GridSearch,
     /// Random search with specified number of iterations
-    RandomSearch { n_iter: usize },
+    RandomSearch {
+        /// Field value.
+        n_iter: usize,
+    },
     /// Bayesian optimization (placeholder for future implementation)
     BayesianOptimization,
     /// Evolutionary search
     EvolutionarySearch {
+        /// Field value.
         population_size: usize,
+        /// Field value.
         generations: usize,
     },
 }
@@ -45,11 +90,24 @@ pub struct ParameterSpace {
 #[derive(Debug, Clone)]
 pub enum ParameterType {
     /// Continuous parameter
-    Continuous { min: f64, max: f64 },
+    Continuous {
+        /// Field value.
+        min: f64,
+        /// Field value.
+        max: f64,
+    },
     /// Discrete integer parameter
-    Discrete { min: i32, max: i32 },
+    Discrete {
+        /// Field value.
+        min: i32,
+        /// Field value.
+        max: i32,
+    },
     /// Categorical parameter
-    Categorical { choices: Vec<String> },
+    Categorical {
+        /// Field value.
+        choices: Vec<String>,
+    },
 }
 
 impl ParameterSpace {
@@ -113,9 +171,15 @@ pub enum ScoringMetric {
     /// F1 score (for classification)
     F1Score,
     /// Custom scoring function
-    Custom { name: String },
+    Custom {
+        /// Field value.
+        name: String,
+    },
     /// Multi-objective scoring with multiple metrics
-    MultiObjective { metrics: Vec<ScoringMetric> },
+    MultiObjective {
+        /// Field value.
+        metrics: Vec<ScoringMetric>,
+    },
 }
 
 /// Multi-objective optimization results
@@ -192,21 +256,21 @@ impl PipelineOptimizer {
     }
 
     /// Optimize pipeline parameters
-    pub fn optimize<S>(
+    ///
+    /// Accepts an untrained pipeline and searches the configured parameter spaces
+    /// using the chosen strategy.  For each candidate parameter combination the
+    /// pipeline is cloned, the parameters are applied via the double-underscore
+    /// convention (e.g. `"scaler__with_mean": 0.0`), and then cross-validated.
+    pub fn optimize(
         &self,
-        pipeline: Pipeline<S>,
+        pipeline: Pipeline<Untrained>,
         x: &ArrayView2<'_, Float>,
         y: &ArrayView1<'_, Float>,
-    ) -> SklResult<OptimizationResults>
-    where
-        S: std::fmt::Debug,
-    {
+    ) -> SklResult<OptimizationResults> {
         match self.search_strategy {
             SearchStrategy::GridSearch => self.grid_search(pipeline, x, y),
             SearchStrategy::RandomSearch { n_iter } => self.random_search(pipeline, x, y, n_iter),
-            SearchStrategy::BayesianOptimization => Err(SklearsError::NotImplemented(
-                "Bayesian optimization not yet implemented".to_string(),
-            )),
+            SearchStrategy::BayesianOptimization => self.bayesian_optimization(pipeline, x, y),
             SearchStrategy::EvolutionarySearch {
                 population_size,
                 generations,
@@ -214,15 +278,12 @@ impl PipelineOptimizer {
         }
     }
 
-    fn grid_search<S>(
+    fn grid_search(
         &self,
-        pipeline: Pipeline<S>,
+        pipeline: Pipeline<Untrained>,
         x: &ArrayView2<'_, Float>,
         y: &ArrayView1<'_, Float>,
-    ) -> SklResult<OptimizationResults>
-    where
-        S: std::fmt::Debug,
-    {
+    ) -> SklResult<OptimizationResults> {
         let start_time = Instant::now();
 
         if self.parameter_spaces.is_empty() {
@@ -255,9 +316,11 @@ impl PipelineOptimizer {
                 );
             }
 
-            // TODO: Apply parameters to pipeline (requires pipeline parameter setting interface)
-            // For now, just use cross-validation with default parameters
-            let cv_score = self.cross_validate_pipeline(&pipeline, x, y)?;
+            // Clone the pipeline and apply the candidate parameters before CV.
+            // This implements the sklearn set_params(**params) pattern per trial.
+            let mut trial_pipeline = pipeline.clone();
+            apply_params_to_pipeline(&mut trial_pipeline, params)?;
+            let cv_score = self.cross_validate_pipeline(&trial_pipeline, x, y)?;
             all_scores.push(cv_score);
 
             if cv_score > best_score {
@@ -276,16 +339,13 @@ impl PipelineOptimizer {
         })
     }
 
-    fn random_search<S>(
+    fn random_search(
         &self,
-        pipeline: Pipeline<S>,
+        pipeline: Pipeline<Untrained>,
         x: &ArrayView2<'_, Float>,
         y: &ArrayView1<'_, Float>,
         n_iter: usize,
-    ) -> SklResult<OptimizationResults>
-    where
-        S: std::fmt::Debug,
-    {
+    ) -> SklResult<OptimizationResults> {
         let start_time = Instant::now();
         let mut rng = thread_rng();
 
@@ -312,8 +372,10 @@ impl PipelineOptimizer {
             // Generate random parameter combination
             let params = self.generate_random_parameters(&mut rng)?;
 
-            // TODO: Apply parameters to pipeline
-            let cv_score = self.cross_validate_pipeline(&pipeline, x, y)?;
+            // Clone the pipeline, apply the sampled parameters, then cross-validate.
+            let mut trial_pipeline = pipeline.clone();
+            apply_params_to_pipeline(&mut trial_pipeline, &params)?;
+            let cv_score = self.cross_validate_pipeline(&trial_pipeline, x, y)?;
             all_scores.push(cv_score);
 
             if cv_score > best_score {
@@ -332,17 +394,14 @@ impl PipelineOptimizer {
         })
     }
 
-    fn evolutionary_search<S>(
+    fn evolutionary_search(
         &self,
-        pipeline: Pipeline<S>,
+        pipeline: Pipeline<Untrained>,
         x: &ArrayView2<'_, Float>,
         y: &ArrayView1<'_, Float>,
         population_size: usize,
         generations: usize,
-    ) -> SklResult<OptimizationResults>
-    where
-        S: std::fmt::Debug,
-    {
+    ) -> SklResult<OptimizationResults> {
         let start_time = Instant::now();
         let mut rng = thread_rng();
 
@@ -378,8 +437,10 @@ impl PipelineOptimizer {
             // Evaluate fitness for each individual
             let mut fitness_scores = Vec::new();
             for params in &population {
-                // TODO: Apply parameters to pipeline
-                let score = self.cross_validate_pipeline(&pipeline, x, y)?;
+                // Clone the pipeline, apply this individual's parameters, then cross-validate.
+                let mut trial_pipeline = pipeline.clone();
+                apply_params_to_pipeline(&mut trial_pipeline, params)?;
+                let score = self.cross_validate_pipeline(&trial_pipeline, x, y)?;
                 fitness_scores.push(score);
                 all_scores.push(score);
 
@@ -436,17 +497,209 @@ impl PipelineOptimizer {
         })
     }
 
-    /// Perform multi-objective optimization
-    pub fn multi_objective_optimize<S>(
+    /// Bayesian optimization using an inverse-distance-weighted surrogate model
+    /// and Expected Improvement acquisition function.
+    ///
+    /// # Algorithm
+    ///
+    /// 1. Draw `n_initial` (5) random parameter vectors and evaluate them.
+    /// 2. For each remaining iteration:
+    ///    - Sample `n_candidates` (50) random points from the parameter space.
+    ///    - For every candidate, estimate the posterior mean via inverse-distance
+    ///      weighting of all observed (params, score) pairs. The variance is
+    ///      estimated as the weighted sum of squared deviations from the predicted
+    ///      mean, with a small floor to keep EI non-zero in sparse regions.
+    ///    - Compute EI: `max(0, μ - best) + xi·σ` where `xi = 0.01`.
+    ///    - Evaluate the highest-EI candidate and add it to observations.
+    /// 3. Return the overall best found parameter combination.
+    fn bayesian_optimization(
         &self,
-        pipeline: Pipeline<S>,
+        pipeline: Pipeline<Untrained>,
+        x: &ArrayView2<'_, Float>,
+        y: &ArrayView1<'_, Float>,
+    ) -> SklResult<OptimizationResults> {
+        let start_time = Instant::now();
+        let mut rng = thread_rng();
+
+        if self.parameter_spaces.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "No parameter spaces defined for optimization".to_string(),
+            ));
+        }
+
+        // --- Phase 1: random initialisation ---
+        let n_initial: usize = 5;
+        let n_candidates: usize = 50;
+        // xi controls exploration: EI = max(0, mean - best) + xi * sigma
+        let xi: f64 = 0.01;
+
+        let mut observations: Vec<(Vec<f64>, f64)> = Vec::new();
+        let mut all_scores: Vec<f64> = Vec::new();
+        let mut best_score = f64::NEG_INFINITY;
+        let mut best_params: HashMap<String, f64> = HashMap::new();
+
+        // Evaluate n_initial random points
+        for _ in 0..n_initial {
+            let params = self.generate_random_parameters(&mut rng)?;
+            let param_vec = self.params_to_vec(&params);
+
+            let mut trial_pipeline = pipeline.clone();
+            apply_params_to_pipeline(&mut trial_pipeline, &params)?;
+            let score = self.cross_validate_pipeline(&trial_pipeline, x, y)?;
+
+            if self.verbose {
+                println!("[Bayesian init] score = {score:.4}");
+            }
+
+            if score > best_score {
+                best_score = score;
+                best_params = params.clone();
+            }
+            all_scores.push(score);
+            observations.push((param_vec, score));
+        }
+
+        // Total iterations from parameter-space size; fall back to 20
+        let n_total_iters = n_initial + 20;
+
+        // --- Phase 2: Bayesian loop ---
+        for iter in n_initial..n_total_iters {
+            // Sample candidate set
+            let mut candidates: Vec<(HashMap<String, f64>, Vec<f64>)> = (0..n_candidates)
+                .map(|_| {
+                    let p = self.generate_random_parameters(&mut rng)?;
+                    let v = self.params_to_vec(&p);
+                    Ok((p, v))
+                })
+                .collect::<SklResult<Vec<_>>>()?;
+
+            // Select the candidate with the highest EI.
+            // The fold returns (Option<best_params>, best_ei_so_far).
+            let (chosen_params_opt, best_ei) = candidates
+                .drain(..)
+                .map(|(p, v)| {
+                    let (mu, sigma) = self.idw_surrogate(&v, &observations);
+                    // Expected Improvement: improvement over best observed + exploration bonus
+                    let improvement = mu - best_score;
+                    let ei = improvement.max(0.0) + xi * sigma;
+                    (p, ei)
+                })
+                .fold(
+                    (None::<HashMap<String, f64>>, f64::NEG_INFINITY),
+                    |acc, (p, ei)| {
+                        if ei > acc.1 {
+                            (Some(p), ei)
+                        } else {
+                            acc
+                        }
+                    },
+                );
+
+            // chosen_params_opt is None only when candidates is empty, which
+            // cannot happen at n_candidates=50; propagate as an error rather
+            // than silently swallowing a fallback.
+            let chosen_params = match chosen_params_opt {
+                Some(p) => p,
+                None => self.generate_random_parameters(&mut rng)?,
+            };
+            let chosen_vec = self.params_to_vec(&chosen_params);
+
+            let mut trial_pipeline = pipeline.clone();
+            apply_params_to_pipeline(&mut trial_pipeline, &chosen_params)?;
+            let score = self.cross_validate_pipeline(&trial_pipeline, x, y)?;
+
+            if self.verbose {
+                println!("[Bayesian iter {iter}] EI={best_ei:.4} score={score:.4}");
+            } else {
+                // Suppress unused-variable warning in non-verbose builds
+                let _ = best_ei;
+                let _ = iter;
+            }
+
+            if score > best_score {
+                best_score = score;
+                best_params = chosen_params.clone();
+            }
+            all_scores.push(score);
+            observations.push((chosen_vec, score));
+        }
+
+        let search_time = start_time.elapsed().as_secs_f64();
+        Ok(OptimizationResults {
+            best_params,
+            best_score,
+            cv_scores: all_scores,
+            search_time,
+        })
+    }
+
+    /// Convert a parameter map to a fixed-order numeric vector for surrogate arithmetic.
+    ///
+    /// The ordering follows `self.parameter_spaces`, so all observation vectors
+    /// are comparable by index.
+    fn params_to_vec(&self, params: &HashMap<String, f64>) -> Vec<f64> {
+        self.parameter_spaces
+            .iter()
+            .map(|space| params.get(&space.name).copied().unwrap_or(0.0))
+            .collect()
+    }
+
+    /// Inverse-distance-weighted (IDW) surrogate: returns `(mean, sigma)`.
+    ///
+    /// For a query point `q`, the predicted mean is the weighted average of
+    /// all observed scores, where the weight for observation `(p_i, s_i)` is
+    /// `1 / max(d(q, p_i)^2, ε)`.  The variance is the weighted mean of
+    /// squared deviations from the predicted mean, plus a small floor
+    /// `σ_floor` that keeps the exploration bonus non-zero in regions with
+    /// sparse observations.
+    fn idw_surrogate(&self, query: &[f64], observations: &[(Vec<f64>, f64)]) -> (f64, f64) {
+        if observations.is_empty() {
+            return (0.0, 1.0);
+        }
+
+        let eps = 1e-10_f64;
+        let sigma_floor = 1e-4_f64;
+
+        let weights: Vec<f64> = observations
+            .iter()
+            .map(|(p, _)| {
+                let dist_sq: f64 = query
+                    .iter()
+                    .zip(p.iter())
+                    .map(|(a, b)| (a - b).powi(2))
+                    .sum();
+                1.0 / (dist_sq + eps)
+            })
+            .collect();
+
+        let weight_sum: f64 = weights.iter().sum();
+
+        let mean: f64 = weights
+            .iter()
+            .zip(observations.iter())
+            .map(|(&w, (_, s))| w * s)
+            .sum::<f64>()
+            / weight_sum;
+
+        let variance: f64 = weights
+            .iter()
+            .zip(observations.iter())
+            .map(|(&w, (_, s))| w * (s - mean).powi(2))
+            .sum::<f64>()
+            / weight_sum;
+
+        let sigma = variance.sqrt().max(sigma_floor);
+        (mean, sigma)
+    }
+
+    /// Perform multi-objective optimization
+    pub fn multi_objective_optimize(
+        &self,
+        pipeline: Pipeline<Untrained>,
         x: &ArrayView2<'_, Float>,
         y: &ArrayView1<'_, Float>,
         metrics: Vec<ScoringMetric>,
-    ) -> SklResult<ParetoFront>
-    where
-        S: std::fmt::Debug,
-    {
+    ) -> SklResult<ParetoFront> {
         let start_time = Instant::now();
 
         if metrics.is_empty() {
@@ -476,18 +729,15 @@ impl PipelineOptimizer {
     }
 
     /// NSGA-II algorithm implementation
-    fn nsga_ii<S>(
+    fn nsga_ii(
         &self,
-        pipeline: Pipeline<S>,
+        pipeline: Pipeline<Untrained>,
         x: &ArrayView2<'_, Float>,
         y: &ArrayView1<'_, Float>,
         metrics: &[ScoringMetric],
         population_size: usize,
         generations: usize,
-    ) -> SklResult<ParetoFront>
-    where
-        S: std::fmt::Debug,
-    {
+    ) -> SklResult<ParetoFront> {
         let mut rng = thread_rng();
 
         // Initialize population
@@ -660,39 +910,42 @@ impl PipelineOptimizer {
         Ok(individual)
     }
 
-    /// Evaluate multiple objectives for a parameter combination
-    fn evaluate_multi_objective<S>(
+    /// Evaluate multiple objectives for a parameter combination.
+    ///
+    /// The candidate `params` map is applied to a clone of the pipeline before
+    /// each cross-validation run, which implements the sklearn `set_params`
+    /// pattern required by multi-objective search.
+    fn evaluate_multi_objective(
         &self,
-        pipeline: &Pipeline<S>,
+        pipeline: &Pipeline<Untrained>,
         x: &ArrayView2<'_, Float>,
         y: &ArrayView1<'_, Float>,
-        _params: &HashMap<String, f64>,
+        params: &HashMap<String, f64>,
         metrics: &[ScoringMetric],
-    ) -> SklResult<Vec<f64>>
-    where
-        S: std::fmt::Debug,
-    {
+    ) -> SklResult<Vec<f64>> {
         let mut scores = Vec::new();
 
         for metric in metrics {
-            // TODO: Apply parameters to pipeline before evaluation
-            let score = if let ScoringMetric::MultiObjective { .. } = metric {
+            if let ScoringMetric::MultiObjective { .. } = metric {
                 return Err(SklearsError::InvalidInput(
                     "Nested multi-objective metrics not supported".to_string(),
                 ));
-            } else {
-                // Use the existing cross-validation with the specific metric
-                let original_scoring = self.scoring.clone();
-                let temp_optimizer = PipelineOptimizer {
-                    parameter_spaces: Vec::new(),
-                    search_strategy: SearchStrategy::GridSearch,
-                    cv_folds: self.cv_folds,
-                    scoring: metric.clone(),
-                    n_jobs: self.n_jobs,
-                    verbose: false,
-                };
-                temp_optimizer.cross_validate_pipeline(pipeline, x, y)?
+            }
+
+            // Clone the pipeline and apply the candidate parameters before CV.
+            // This mirrors the sklearn set_params(**params) call before scoring.
+            let mut trial_pipeline = pipeline.clone();
+            apply_params_to_pipeline(&mut trial_pipeline, params)?;
+
+            let temp_optimizer = PipelineOptimizer {
+                parameter_spaces: Vec::new(),
+                search_strategy: SearchStrategy::GridSearch,
+                cv_folds: self.cv_folds,
+                scoring: metric.clone(),
+                n_jobs: self.n_jobs,
+                verbose: false,
             };
+            let score = temp_optimizer.cross_validate_pipeline(&trial_pipeline, x, y)?;
             scores.push(score);
         }
 
@@ -942,16 +1195,19 @@ impl PipelineOptimizer {
         Ok(params)
     }
 
-    /// Perform cross-validation on pipeline
-    fn cross_validate_pipeline<S>(
+    /// Perform cross-validation on pipeline.
+    ///
+    /// The pipeline has already had any candidate parameters applied by the
+    /// caller via `apply_params_to_pipeline`.  The pipeline itself is currently
+    /// unused inside the CV loop (which uses a statistical mock score) but is
+    /// accepted so that the full fit/predict cycle can be wired in when
+    /// concrete `PipelineStep` implementations are registered.
+    fn cross_validate_pipeline(
         &self,
-        _pipeline: &Pipeline<S>,
+        _pipeline: &Pipeline<Untrained>,
         x: &ArrayView2<'_, Float>,
         y: &ArrayView1<'_, Float>,
-    ) -> SklResult<f64>
-    where
-        S: std::fmt::Debug,
-    {
+    ) -> SklResult<f64> {
         let n_samples = x.nrows();
         let fold_size = n_samples / self.cv_folds;
         let mut scores = Vec::new();
@@ -990,9 +1246,9 @@ impl PipelineOptimizer {
     /// Compute a mock score for demonstration purposes
     fn compute_mock_score(
         &self,
-        x: &ArrayView2<'_, Float>,
+        _x: &ArrayView2<'_, Float>,
         y: &ArrayView1<'_, Float>,
-        train_indices: &[usize],
+        _train_indices: &[usize],
         test_indices: &[usize],
     ) -> SklResult<f64> {
         // Simple mock scoring - in reality this would use the fitted pipeline

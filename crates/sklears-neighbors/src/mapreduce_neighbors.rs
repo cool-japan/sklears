@@ -105,8 +105,7 @@ impl MapReduceNeighborSearch {
     /// Create data partitions based on the partition strategy
     fn create_partitions(&mut self, x: &Features, y: &Array1<Int>) -> NeighborsResult<()> {
         let n_samples = x.nrows();
-        let partition_size =
-            (n_samples + self.config.num_partitions - 1) / self.config.num_partitions;
+        let partition_size = n_samples.div_ceil(self.config.num_partitions);
 
         self.partitions.clear();
 

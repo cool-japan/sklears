@@ -511,7 +511,7 @@ impl AdaptiveRBFSampler {
             .iter()
             .filter_map(|&dim| quality_scores.get(&dim).map(|&score| (dim, score)))
             .collect();
-        dim_score_pairs.sort_by(|a, b| a.0.cmp(&b.0));
+        dim_score_pairs.sort_by_key(|a| a.0);
 
         // Find elbow using second derivative
         let mut best_elbow_idx = 1;

@@ -142,7 +142,6 @@ impl ModelSelector {
         n_folds: usize,
     ) -> Result<ModelSelectionResult> {
         let n_samples = x.nrows();
-        let fold_size = n_samples / n_folds;
 
         let mut criterion_values = Vec::new();
         let mut log_likelihoods = Vec::new();
@@ -268,7 +267,7 @@ impl ModelSelector {
 }
 
 /// Calculate AIC with SIMD acceleration
-pub fn calculate_aic_simd(log_likelihood: Float, n_parameters: usize, n_samples: usize) -> Float {
+pub fn calculate_aic_simd(log_likelihood: Float, n_parameters: usize, _n_samples: usize) -> Float {
     -2.0 * log_likelihood + 2.0 * n_parameters as Float
 }
 
@@ -315,9 +314,13 @@ pub struct GridSearch {
 /// Parameters for grid search
 #[derive(Debug, Clone)]
 pub struct GridSearchParams {
+    /// Range of component counts to evaluate
     pub n_components_range: Vec<usize>,
+    /// Covariance structure types to try
     pub covariance_types: Vec<super::types_config::CovarianceType>,
+    /// Regularization coefficient values to search
     pub regularization_range: Vec<Float>,
+    /// Maximum iteration counts to try
     pub max_iter_range: Vec<usize>,
 }
 
@@ -377,7 +380,7 @@ impl GridSearch {
         for &cov_type in &self.param_grid.covariance_types {
             for &reg_covar in &self.param_grid.regularization_range {
                 for &max_iter in &self.param_grid.max_iter_range {
-                    let mut config = GaussianMixtureConfig {
+                    let config = GaussianMixtureConfig {
                         n_components: min_components,
                         covariance_type: cov_type,
                         reg_covar,
@@ -434,16 +437,22 @@ impl GridSearch {
 /// Result of grid search cross-validation
 #[derive(Debug, Clone)]
 pub struct GridSearchResult {
+    /// Configuration that achieved the best score
     pub best_params: GaussianMixtureConfig,
+    /// Best score achieved (lower is better for information criteria)
     pub best_score: Float,
+    /// Full cross-validation results for all parameter combinations
     pub cv_results: Vec<GridSearchCV>,
 }
 
 /// Individual grid search CV result
 #[derive(Debug, Clone)]
 pub struct GridSearchCV {
+    /// Configuration that was evaluated
     pub config: GaussianMixtureConfig,
+    /// Model selection criterion score (AIC/BIC/ICL)
     pub score: Float,
+    /// Log-likelihood achieved with this configuration
     pub log_likelihood: Float,
 }
 

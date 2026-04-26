@@ -2,6 +2,7 @@
 //!
 //! This module provides chain-based approaches for multi-label and multi-output problems,
 //! including ClassifierChain, RegressorChain, EnsembleOfChains, and BayesianClassifierChain.
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 use crate::utils::*;
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
@@ -295,7 +296,7 @@ impl ClassifierChain<ClassifierChainTrained> {
         &self,
         X: &ArrayView2<'_, Float>,
         n_samples: usize,
-        random_state: Option<u64>,
+        _random_state: Option<u64>,
     ) -> SklResult<Array2<Float>> {
         if n_samples == 0 {
             return Err(SklearsError::InvalidInput(
@@ -311,7 +312,7 @@ impl ClassifierChain<ClassifierChainTrained> {
         &self,
         X: &ArrayView2<'_, Float>,
         n_samples: usize,
-        random_state: Option<u64>,
+        _random_state: Option<u64>,
     ) -> SklResult<Array2<i32>> {
         if n_samples == 0 {
             return Err(SklearsError::InvalidInput(
@@ -1071,6 +1072,7 @@ impl Fit<ArrayView2<'_, Float>, Array2<i32>, BayesianClassifierChainTrained>
 pub struct BayesianClassifierChainTrained {
     bayesian_models: Vec<BayesianBinaryModel>,
     order: Vec<usize>,
+    #[allow(dead_code)]
     n_features: usize,
     n_labels: usize,
     feature_means: Array1<Float>,

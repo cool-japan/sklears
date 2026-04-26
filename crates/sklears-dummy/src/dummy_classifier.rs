@@ -2,7 +2,7 @@
 
 use crate::validation::{analyze_classification_dataset, get_adaptive_classification_strategy};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{prelude::*, RngExt};
+use scirs2_core::random::prelude::*;
 use sklears_core::error::Result;
 use sklears_core::traits::{Estimator, Fit, Predict, PredictProba};
 use sklears_core::types::{Features, Float, Int};
@@ -242,7 +242,7 @@ impl Fit<Features, Array1<Int>> for DummyClassifier {
                 let uncertainty = posterior_mean
                     .iter()
                     .zip(posterior.iter())
-                    .map(|(&p, &a)| p * (1.0 - p) / (posterior_sum + 1.0))
+                    .map(|(&p, &_a)| p * (1.0 - p) / (posterior_sum + 1.0))
                     .collect::<Vec<_>>();
 
                 (
@@ -1011,7 +1011,7 @@ mod tests {
                     }
 
                     // With 50+ samples and uniform distribution, we should see variety
-                    prop_assert!(unique_predictions.len() >= 1);
+                    prop_assert!(!unique_predictions.is_empty());
                 }
             }
 

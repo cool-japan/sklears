@@ -7,6 +7,12 @@ use sklears_core::types::Float;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// Batch search result: per-query neighbor indices and distances
+type BatchSearchResult = (Vec<Vec<usize>>, Vec<Vec<Float>>);
+
+/// Partition search result with timing stats
+type PartitionSearchResult = (Vec<Vec<usize>>, Vec<Vec<Float>>, PartitionStats);
+
 #[derive(Debug, Clone)]
 pub struct DistributedConfiguration {
     pub num_partitions: usize,
@@ -59,7 +65,7 @@ pub trait DistributedWorker: Send + Sync {
         query_data: ArrayView2<Float>,
         k: usize,
         distance: &Distance,
-    ) -> NeighborsResult<(Vec<Vec<usize>>, Vec<Vec<Float>>)>;
+    ) -> NeighborsResult<BatchSearchResult>;
 
     fn get_partition_info(&self, partition_id: usize) -> NeighborsResult<PartitionInfo>;
     fn health_check(&self) -> bool;
@@ -70,6 +76,7 @@ pub struct DistributedNeighborSearch {
     config: DistributedConfiguration,
     partitions: Vec<PartitionInfo>,
     workers: HashMap<String, Arc<dyn DistributedWorker>>,
+    #[allow(dead_code)] // reserved for partition management
     data_partitioner: DataPartitioner,
 }
 
@@ -208,7 +215,7 @@ impl DistributedNeighborSearch {
         }
 
         // Collect partition statistics
-        for (_i, (_, _, stats)) in partition_results.iter().enumerate() {
+        for (_, _, stats) in partition_results.iter() {
             partition_stats.push(stats.clone());
             total_network_time += stats.search_time_ms;
         }
@@ -230,7 +237,7 @@ impl DistributedNeighborSearch {
         query_data: ArrayView2<Float>,
         k: usize,
         distance: &Distance,
-    ) -> NeighborsResult<(Vec<Vec<usize>>, Vec<Vec<Float>>, PartitionStats)> {
+    ) -> NeighborsResult<PartitionSearchResult> {
         let mut attempts = 0;
         let mut last_error = None;
 

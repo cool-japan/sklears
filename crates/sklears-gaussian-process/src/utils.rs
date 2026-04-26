@@ -1,4 +1,6 @@
 //! Utility functions for Gaussian Process computations
+// Mathematical notation (K, A, L, X, B) used throughout per GP convention
+#![allow(non_snake_case)]
 
 // SciRS2 Policy - Use scirs2-autograd for ndarray types and operations
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
@@ -191,6 +193,7 @@ pub fn kmeans_inducing_points(
     for _iter in 0..10 {
         // Assign points to closest centroids
         let mut assignments = vec![0; n_samples];
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n_samples {
             let mut min_dist = f64::INFINITY;
             for j in 0..n_inducing {
@@ -206,6 +209,7 @@ pub fn kmeans_inducing_points(
         for j in 0..n_inducing {
             let mut count = 0;
             let mut sum = Array1::<f64>::zeros(n_features);
+            #[allow(clippy::needless_range_loop)]
             for i in 0..n_samples {
                 if assignments[i] == j {
                     sum = sum + X.row(i);

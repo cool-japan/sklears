@@ -9,7 +9,6 @@ use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use serde::{Deserialize, Serialize};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
-    traits::Estimator,
     types::Float,
 };
 use std::collections::HashMap;
@@ -124,7 +123,7 @@ pub trait PipelineMiddleware: Send + Sync + Debug {
     }
 
     /// Check if middleware can be applied to the current context
-    fn can_apply(&self, context: &PipelineContext) -> bool {
+    fn can_apply(&self, _context: &PipelineContext) -> bool {
         true
     }
 
@@ -241,8 +240,7 @@ impl ManifoldPipeline {
 
         // Sort middleware by priority
         let mut sorted_middleware = self.middleware.clone();
-        sorted_middleware
-            .sort_by(|a, b| b.configuration().priority.cmp(&a.configuration().priority));
+        sorted_middleware.sort_by_key(|m| std::cmp::Reverse(m.configuration().priority));
 
         // Execute middleware in order
         for middleware in &sorted_middleware {
@@ -356,7 +354,7 @@ impl ManifoldPipeline {
 
     /// Get pipeline summary
     pub fn summary(&self) -> PipelineSummary {
-        /// PipelineSummary
+        // PipelineSummary
         PipelineSummary {
             middleware_count: self.middleware.len(),
             middleware_names: self

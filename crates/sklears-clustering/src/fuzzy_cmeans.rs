@@ -12,7 +12,7 @@ use scirs2_core::random::{Random, Rng, RngExt};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Predict, Trained, Untrained},
-    types::{Float, FloatBounds},
+    types::Float,
     validation::{ConfigValidation, Validate, ValidationRule, ValidationRules},
 };
 
@@ -220,8 +220,8 @@ impl Fit<Array2<Float>, ()> for FuzzyCMeans<Untrained> {
 
         // Initialize random number generator
         let mut rng = match self.config.random_state {
-            Some(seed) => Random::default(),
-            None => Random::default(),
+            Some(seed) => Random::seed(seed),
+            None => Random::seed(42),
         };
 
         // Initialize membership matrix randomly
@@ -338,7 +338,6 @@ impl FuzzyCMeans<Trained> {
 impl Predict<Array2<Float>, Array1<usize>> for FuzzyCMeans<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<usize>> {
         let centroids = self.centroids();
-        let n_samples = x.nrows();
 
         // Calculate membership matrix for new data
         let membership_matrix = update_membership_matrix(x, centroids, self.config.fuzziness)?;
@@ -665,7 +664,7 @@ mod tests {
             .fit(&data, &())
             .expect("operation should succeed");
 
-        let membership = model.membership_matrix();
+        let _membership = model.membership_matrix();
 
         // Test membership degree access
         assert!(model.membership_degree(0, 0).is_some());

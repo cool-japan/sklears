@@ -9,10 +9,11 @@ use scirs2_core::Distribution;
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
-    traits::{Estimator, Fit, Transform, Untrained},
+    traits::Untrained,
 };
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // model state fields; stored for future serialization/inspection
 pub struct TrainedPatchEmbedding {
     patch_size: (usize, usize),
     stride: (usize, usize),
@@ -72,6 +73,7 @@ impl PoseEstimationManifold<Untrained> {
         self.bone_constraints = Some(constraints);
         self
     }
+    #[allow(dead_code)] // utility method for validation; part of the pose estimation API
     fn validate_pose(&self, pose: &ArrayView1<f64>) -> SklResult<()> {
         let expected_dims = self.n_keypoints * 2;
         if pose.len() != expected_dims {
@@ -87,10 +89,9 @@ impl PoseEstimationManifold<Untrained> {
     pub(super) fn compute_pose_embedding(&self, poses: &Array2<f64>) -> SklResult<Array2<f64>> {
         match &self.embedding_method {
             PoseEmbeddingMethod::PCA => {
-                let n_samples = poses.nrows();
                 let mean = poses.mean_axis(Axis(0)).expect("operation should succeed");
                 let centered = poses - &mean.insert_axis(Axis(0));
-                let (_, s, vt) = centered
+                let (_, _s, vt) = centered
                     .svd(false)
                     .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
                 let v = vt.t().to_owned();
@@ -173,7 +174,6 @@ impl PoseEstimationManifold<Untrained> {
             }
             PoseEmbeddingMethod::LLE { n_neighbors } => {
                 let n_samples = poses.nrows();
-                let n_features = poses.ncols();
                 let mut dist_matrix = Array2::zeros((n_samples, n_samples));
                 for i in 0..n_samples {
                     for j in i + 1..n_samples {
@@ -381,7 +381,7 @@ impl ImagePatchEmbedding<Untrained> {
         &self,
         patches: &ArrayView2<f64>,
     ) -> SklResult<TrainedPatchEmbedding> {
-        let (n_patches, patch_dim) = patches.dim();
+        let (_n_patches, _patch_dim) = patches.dim();
         let patch_means = patches
             .mean_axis(Axis(0))
             .expect("operation should succeed");
@@ -512,6 +512,7 @@ pub enum FacePreprocessing {
     LocalBinaryPattern,
 }
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // model state fields; stored for future serialization/inspection
 pub struct TrainedVideoAnalysis {
     pub(super) frame_size: (usize, usize),
     pub(super) temporal_window: usize,
@@ -695,7 +696,7 @@ impl FaceManifoldLearning<TrainedFaceManifold> {
             .with_preprocessing(self.state.preprocessing.clone())
             .preprocess_face(face)?;
         let face_flat = processed_face
-            .into_shape(height * width)
+            .into_shape_with_order((height * width,))
             .expect("valid reshape dimensions");
         let centered_face = face_flat - &self.state.mean_face;
         let encoded = centered_face.dot(&self.state.face_embedding);
@@ -706,7 +707,7 @@ impl FaceManifoldLearning<TrainedFaceManifold> {
             encoding.dot(&self.state.face_embedding.t()) + &self.state.mean_face;
         let (height, width) = self.state.image_size;
         let reconstructed_face = reconstructed_flat
-            .into_shape((height, width))
+            .into_shape_with_order((height, width))
             .expect("valid reshape dimensions");
         Ok(reconstructed_face)
     }
@@ -759,14 +760,12 @@ impl ObjectRecognitionEmbedding<Untrained> {
     }
     pub(super) fn learn_contrastive_embedding(
         &self,
-        X: &Array2<f64>,
-        labels: &Array1<usize>,
-        margin: f64,
+        x: &Array2<f64>,
+        _labels: &Array1<usize>,
+        _margin: f64,
     ) -> SklResult<Array2<f64>> {
-        let n_samples = X.nrows();
-        let n_features = X.ncols();
-        let mean = X.mean_axis(Axis(0)).expect("operation should succeed");
-        let centered = X - &mean.insert_axis(Axis(0));
+        let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
+        let centered = x - &mean.insert_axis(Axis(0));
         let (_, _, vt) = centered
             .svd(false)
             .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
@@ -808,7 +807,7 @@ impl ObjectRecognitionEmbedding<TrainedObjectRecognition> {
             return Ok(1.0);
         }
         let separation = (distances[1] - distances[0]) / distances[1];
-        Ok(separation.max(0.0).min(1.0))
+        Ok(separation.clamp(0.0, 1.0))
     }
     /// Get embedding for visualization
     pub fn embed_features(&self, features: &ArrayView1<f64>) -> SklResult<Array1<f64>> {
@@ -893,6 +892,7 @@ impl VideoManifoldAnalysis<Untrained> {
         }
         Ok(features)
     }
+    #[allow(dead_code)] // temporal analysis helper; part of the video manifold API
     fn compute_optical_flow(
         &self,
         frame1: &ArrayView2<f64>,
@@ -984,6 +984,7 @@ impl VideoManifoldAnalysis<TrainedVideoAnalysis> {
     }
 }
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // model state fields; stored for future serialization/inspection
 pub struct TrainedPoseEstimation {
     pub(super) n_keypoints: usize,
     pub(super) n_components: usize,
@@ -995,6 +996,7 @@ pub struct TrainedPoseEstimation {
     pub(super) reference_poses: Array2<f64>,
 }
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // model state fields; stored for future serialization/inspection
 pub struct TrainedObjectRecognition {
     pub(super) n_components: usize,
     pub(super) embedding_method: ObjectEmbeddingMethod,

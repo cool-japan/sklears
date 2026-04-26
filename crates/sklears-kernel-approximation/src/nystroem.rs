@@ -155,8 +155,8 @@ impl Kernel {
 ///
 /// let nystroem = Nystroem::new(Kernel::Rbf { gamma: 1.0 }, 3)
 ///     .sampling_strategy(SamplingStrategy::LeverageScore);
-/// let fitted_nystroem = nystroem.fit(&X, &()).unwrap();
-/// let X_transformed = fitted_nystroem.transform(&X).unwrap();
+/// let fitted_nystroem = nystroem.fit(&X, &()).expect("fit should succeed with valid Nystroem input");
+/// let X_transformed = fitted_nystroem.transform(&X).expect("transform should succeed after Nystroem fitting");
 /// assert_eq!(X_transformed.shape(), &[3, 3]);
 /// ```
 #[derive(Debug, Clone)]
@@ -270,7 +270,7 @@ impl Nystroem<Untrained> {
             let mut assignments = vec![0; n_samples];
 
             // Assign points to nearest centers
-            for i in 0..n_samples {
+            for (i, assignment) in assignments.iter_mut().enumerate().take(n_samples) {
                 let mut min_dist = Float::INFINITY;
                 let mut best_center = 0;
 
@@ -282,7 +282,7 @@ impl Nystroem<Untrained> {
                         best_center = j;
                     }
                 }
-                assignments[i] = best_center;
+                *assignment = best_center;
             }
 
             // Update centers
@@ -437,6 +437,7 @@ impl Nystroem<Untrained> {
 
     /// Compute eigendecomposition using scirs2-linalg's eigh for symmetric matrices
     /// Returns (eigenvalues, eigenvectors) sorted in descending order by eigenvalue magnitude
+    #[allow(dead_code)] // alternative eigendecomposition path for future use
     fn compute_eigendecomposition(
         &self,
         matrix: &Array2<Float>,
@@ -472,6 +473,7 @@ impl Nystroem<Untrained> {
     }
 
     /// Power iteration method to find dominant eigenvalue and eigenvector
+    #[allow(dead_code)] // alternative eigendecomposition path for future use
     fn power_iteration(
         &self,
         matrix: &Array2<Float>,

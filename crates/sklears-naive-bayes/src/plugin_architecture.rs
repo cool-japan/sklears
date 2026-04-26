@@ -959,7 +959,7 @@ mod tests {
 
     #[test]
     fn test_laplace_smoothing() {
-        let smoothing = BuiltinLaplaceSmoothing::default();
+        let smoothing = BuiltinLaplaceSmoothing;
 
         let counts = Array1::from_vec(vec![1.0, 2.0, 0.0]);
         let smoothed = smoothing.smooth(&counts, 1.0);
@@ -969,7 +969,7 @@ mod tests {
 
     #[test]
     fn test_mle_estimator() {
-        let estimator = BuiltinMLEEstimator::default();
+        let estimator = BuiltinMLEEstimator;
 
         let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
             .expect("operation should succeed");
@@ -984,7 +984,7 @@ mod tests {
 
     #[test]
     fn test_model_selector() {
-        let selector = BuiltinCrossValidationSelector::default();
+        let selector = BuiltinCrossValidationSelector;
 
         let candidates = vec![
             ModelCandidate {

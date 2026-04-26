@@ -334,14 +334,14 @@ pub struct EnsembleShapExplainer {
     tree_weights: Array1<f64>,
     /// Expected value for the ensemble
     expected_value: f64,
-    /// Configuration
+    /// Configuration (controls approximation depth and features)
     config: ShapConfig,
 }
 
 impl EnsembleShapExplainer {
     /// Create SHAP explainer for Random Forest classifier (placeholder)
     pub fn from_random_forest_classifier(
-        n_features: usize,
+        _n_features: usize,
         n_trees: usize,
         config: ShapConfig,
     ) -> Result<Self> {
@@ -356,7 +356,7 @@ impl EnsembleShapExplainer {
 
     /// Create SHAP explainer for Random Forest regressor (placeholder)
     pub fn from_random_forest_regressor(
-        n_features: usize,
+        _n_features: usize,
         n_trees: usize,
         config: ShapConfig,
     ) -> Result<Self> {
@@ -371,7 +371,7 @@ impl EnsembleShapExplainer {
 
     /// Create SHAP explainer for Gradient Boosting classifier (placeholder)
     pub fn from_gradient_boosting_classifier(
-        n_features: usize,
+        _n_features: usize,
         n_trees: usize,
         config: ShapConfig,
     ) -> Result<Self> {
@@ -386,7 +386,7 @@ impl EnsembleShapExplainer {
 
     /// Create SHAP explainer for Gradient Boosting regressor (placeholder)
     pub fn from_gradient_boosting_regressor(
-        n_features: usize,
+        _n_features: usize,
         n_trees: usize,
         config: ShapConfig,
     ) -> Result<Self> {
@@ -455,6 +455,11 @@ impl EnsembleShapExplainer {
             feature_names: None,
             predictions,
         })
+    }
+
+    /// Return the SHAP configuration used by this explainer
+    pub fn config(&self) -> &ShapConfig {
+        &self.config
     }
 }
 

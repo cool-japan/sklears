@@ -14,7 +14,6 @@
 //! - Robust regression with L1 loss
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, CoreRandom, Rng};
 use sklears_core::types::Float;
 
 /// Configuration for geometric median computation
@@ -81,14 +80,14 @@ pub struct GeometricMedianCCA {
 #[derive(Debug, Clone)]
 pub struct FittedGeometricMedianCCA {
     /// Canonical vectors for X
-    x_weights: Array2<Float>,
+    pub x_weights: Array2<Float>,
     /// Canonical vectors for Y
-    y_weights: Array2<Float>,
+    pub y_weights: Array2<Float>,
     /// Canonical correlations
-    correlations: Array1<Float>,
+    pub correlations: Array1<Float>,
     /// Robust centers
-    x_center: Array1<Float>,
-    y_center: Array1<Float>,
+    pub x_center: Array1<Float>,
+    pub y_center: Array1<Float>,
 }
 
 impl GeometricMedian {
@@ -184,12 +183,12 @@ impl GeometricMedian {
                     let distance = Self::euclidean_norm(&diff);
 
                     if distance > 1e-10 {
-                        gradient = gradient - &(diff / distance);
+                        gradient -= &(diff / distance);
                     }
                 }
 
                 // Update with gradient descent
-                median = median - &(gradient * learning_rate);
+                median -= &(gradient * learning_rate);
 
                 // Adaptive learning rate
                 learning_rate *= 0.99;

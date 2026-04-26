@@ -1008,8 +1008,10 @@ mod tests {
 
     #[test]
     fn test_cross_validation_result_aggregation() {
-        let mut config = CrossValidationConfig::default();
-        config.return_train_score = true;
+        let config = CrossValidationConfig {
+            return_train_score: true,
+            ..Default::default()
+        };
         let cv = CrossValidator::new(config);
 
         let fold_results = vec![

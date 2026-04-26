@@ -50,6 +50,7 @@ impl Estimator for CLARE<Untrained> {
 impl Fit<ArrayView2<'_, Float>, Array2<i32>> for CLARE<Untrained> {
     type Fitted = CLARE<CLARETrained>;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &ArrayView2<'_, Float>, y: &Array2<i32>) -> SklResult<Self::Fitted> {
         let (n_samples, n_features) = X.dim();
         let n_labels = y.ncols();
@@ -130,6 +131,7 @@ impl CLARE<Untrained> {
 }
 
 impl Predict<ArrayView2<'_, Float>, Array2<i32>> for CLARE<CLARETrained> {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<i32>> {
         let (n_samples, n_features) = X.dim();
 
@@ -143,7 +145,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<i32>> for CLARE<CLARETrained> {
 
         for sample_idx in 0..n_samples {
             // Find nearest cluster center
-            let x = X.row(sample_idx);
+            let _x = X.row(sample_idx);
             let mut min_distance = Float::INFINITY;
             let mut nearest_cluster = 0;
 
@@ -216,10 +218,7 @@ fn kmeans_clustering(
     }
 
     // Use seeded RNG for reproducibility, random seed if none provided
-    let seed = random_state.unwrap_or_else(|| {
-        use scirs2_core::random::RngExt;
-        thread_rng().random()
-    });
+    let seed = random_state.unwrap_or_else(|| thread_rng().random());
     let mut rng = scirs2_core::random::seeded_rng(seed);
 
     // Initialize cluster centers randomly

@@ -9,6 +9,9 @@ use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{Normal, RngExt};
 use sklears_core::error::{Result, SklearsError};
 
+/// Result type for A/B testing simulation: (features, group, outcomes, conversion)
+type AbTestingResult = (Array2<f64>, Array1<i32>, Array1<f64>, Array1<i32>);
+
 /// A/B test configuration
 #[derive(Debug, Clone)]
 pub struct ABTestConfig {
@@ -20,12 +23,13 @@ pub struct ABTestConfig {
 }
 
 /// Generate A/B testing simulation data
+#[allow(non_snake_case)] // X follows mathematical convention for feature matrix
 pub fn make_ab_testing_simulation(
     config: ABTestConfig,
     n_samples: usize,
     n_features: usize,
     random_state: Option<u64>,
-) -> Result<(Array2<f64>, Array1<i32>, Array1<f64>, Array1<i32>)> {
+) -> Result<AbTestingResult> {
     if n_samples == 0 || n_features == 0 {
         return Err(SklearsError::InvalidInput(
             "n_samples and n_features must be positive".to_string(),
@@ -83,7 +87,7 @@ pub fn make_ab_testing_simulation(
             base_rate
         };
 
-        let converted = rng.random::<f64>() < conversion_probability.max(0.0).min(1.0);
+        let converted = rng.random::<f64>() < conversion_probability.clamp(0.0, 1.0);
         conversion[i] = if converted { 1 } else { 0 };
 
         // Outcome value (e.g., revenue) - higher for conversions

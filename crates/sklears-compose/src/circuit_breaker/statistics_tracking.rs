@@ -212,6 +212,7 @@ pub enum HealthTrend {
 
 /// Circuit breaker statistics aggregator for global statistics
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct CircuitBreakerStatsAggregator {
     /// Aggregated statistics
     stats: Arc<RwLock<AggregatedStats>>,
@@ -512,7 +513,7 @@ impl CircuitBreakerStatsTracker {
             .request_counters
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        /// CircuitBreakerStats
+        // CircuitBreakerStats
         CircuitBreakerStats {
             total_requests: counters.total.load(Ordering::Relaxed),
             successful_requests: counters.successful.load(Ordering::Relaxed),
@@ -533,7 +534,7 @@ impl CircuitBreakerStatsTracker {
             .request_counters
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        /// RequestCounters
+        // RequestCounters
         RequestCounters {
             total: AtomicU64::new(counters.total.load(Ordering::Relaxed)),
             successful: AtomicU64::new(counters.successful.load(Ordering::Relaxed)),
@@ -562,7 +563,7 @@ impl CircuitBreakerStatsTracker {
             response_times.sum / response_times.history.len() as u32
         };
 
-        /// ResponseTimeStats
+        // ResponseTimeStats
         ResponseTimeStats {
             average: avg,
             min: response_times.min,
@@ -577,7 +578,7 @@ impl CircuitBreakerStatsTracker {
     pub fn get_error_stats(&self) -> ErrorStats {
         let error_tracker = self.error_tracker.lock().unwrap_or_else(|e| e.into_inner());
 
-        /// ErrorStats
+        // ErrorStats
         ErrorStats {
             error_counts: error_tracker.error_counts.clone(),
             error_rate: error_tracker.error_rate,
@@ -650,7 +651,7 @@ impl CircuitBreakerStatsAggregator {
     #[must_use]
     pub fn get_stats(&self) -> AggregatedStats {
         let stats = self.stats.read().unwrap_or_else(|e| e.into_inner());
-        /// AggregatedStats
+        // AggregatedStats
         AggregatedStats {
             total_breakers: stats.total_breakers,
             active_breakers: stats.active_breakers,

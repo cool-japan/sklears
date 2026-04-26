@@ -27,7 +27,7 @@ pub struct KNeighborsDensityEstimator {
     /// Fitted nearest neighbors model
     nn_model: Option<NearestNeighbors<sklears_core::traits::Trained>>,
     /// Training data (stored for density computation)
-    X_train: Option<Array2<Float>>,
+    x_train: Option<Array2<Float>>,
     /// Computed bandwidths for each training point
     bandwidths: Option<Array1<Float>>,
 }
@@ -66,7 +66,7 @@ impl KNeighborsDensityEstimator {
             kernel: KernelType::Gaussian,
             bandwidth_method: BandwidthMethod::KthNeighbor,
             nn_model: None,
-            X_train: None,
+            x_train: None,
             bandwidths: None,
         }
     }
@@ -125,8 +125,8 @@ impl KNeighborsDensityEstimator {
     }
 
     /// Compute adaptive bandwidth for each training point
-    fn compute_adaptive_bandwidths(&self, X: &Features) -> NeighborsResult<Array1<Float>> {
-        let n_samples = X.nrows();
+    fn compute_adaptive_bandwidths(&self, x: &Features) -> NeighborsResult<Array1<Float>> {
+        let n_samples = x.nrows();
         let mut bandwidths = Array1::zeros(n_samples);
 
         match self.bandwidth_method {
@@ -136,11 +136,11 @@ impl KNeighborsDensityEstimator {
             BandwidthMethod::KthNeighbor => {
                 let nn = NearestNeighbors::new(self.k + 1).with_metric(self.distance.clone());
                 let fitted_nn = nn
-                    .fit(X, &())
+                    .fit(x, &())
                     .map_err(|e| NeighborsError::InvalidInput(format!("Fit error: {:?}", e)))?;
 
                 for i in 0..n_samples {
-                    let query = X.slice(s![i..i + 1, ..]).to_owned();
+                    let query = x.slice(s![i..i + 1, ..]).to_owned();
                     let (distances_opt, _) =
                         fitted_nn.kneighbors(&query, Some(self.k + 1), true)?;
                     let distances = distances_opt.expect("operation should succeed");
@@ -149,25 +149,25 @@ impl KNeighborsDensityEstimator {
                 }
             }
             BandwidthMethod::Silverman => {
-                let d = X.ncols() as Float;
+                let d = x.ncols() as Float;
                 let n = n_samples as Float;
-                let std_dev = self.compute_std_dev(&X.view());
+                let std_dev = self.compute_std_dev(&x.view());
                 let h = 1.06 * std_dev * n.powf(-1.0 / (d + 4.0));
                 bandwidths.fill(h);
             }
             BandwidthMethod::Scott => {
-                let d = X.ncols() as Float;
+                let d = x.ncols() as Float;
                 let n = n_samples as Float;
-                let std_dev = self.compute_std_dev(&X.view());
+                let std_dev = self.compute_std_dev(&x.view());
                 let h = std_dev * n.powf(-1.0 / (d + 4.0));
                 bandwidths.fill(h);
             }
             BandwidthMethod::CrossValidation => {
                 // Simplified cross-validation: use Silverman's rule for now
                 // In practice, you'd implement leave-one-out CV
-                let d = X.ncols() as Float;
+                let d = x.ncols() as Float;
                 let n = n_samples as Float;
-                let std_dev = self.compute_std_dev(&X.view());
+                let std_dev = self.compute_std_dev(&x.view());
                 let h = 1.06 * std_dev * n.powf(-1.0 / (d + 4.0));
                 bandwidths.fill(h);
             }
@@ -177,12 +177,12 @@ impl KNeighborsDensityEstimator {
     }
 
     /// Compute standard deviation for bandwidth calculation
-    fn compute_std_dev(&self, X: &ArrayView2<Float>) -> Float {
-        let mean = X.mean_axis(Axis(0)).expect("operation should succeed");
+    fn compute_std_dev(&self, x: &ArrayView2<Float>) -> Float {
+        let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let mut variance = 0.0;
-        let n = X.nrows() as Float;
+        let n = x.nrows() as Float;
 
-        for row in X.axis_iter(Axis(0)) {
+        for row in x.axis_iter(Axis(0)) {
             for (i, &val) in row.iter().enumerate() {
                 variance += (val - mean[i]).powi(2);
             }
@@ -192,10 +192,9 @@ impl KNeighborsDensityEstimator {
     }
 
     /// Compute density at query points
-    #[allow(non_snake_case)]
-    fn compute_density(&self, X_query: &Features) -> NeighborsResult<Array1<Float>> {
-        let X_train = self
-            .X_train
+    fn compute_density(&self, x_query: &Features) -> NeighborsResult<Array1<Float>> {
+        let x_train = self
+            .x_train
             .as_ref()
             .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
         let bandwidths = self
@@ -203,23 +202,23 @@ impl KNeighborsDensityEstimator {
             .as_ref()
             .ok_or_else(|| NeighborsError::InvalidInput("Bandwidths not computed".to_string()))?;
 
-        let n_query = X_query.nrows();
-        let n_train = X_train.nrows();
+        let n_query = x_query.nrows();
+        let n_train = x_train.nrows();
         let mut densities = Array1::zeros(n_query);
 
         for i in 0..n_query {
-            let query_point = X_query.row(i);
+            let query_point = x_query.row(i);
             let mut density = 0.0;
 
             for j in 0..n_train {
-                let train_point = X_train.row(j);
+                let train_point = x_train.row(j);
                 let distance = self.compute_distance(&query_point, &train_point);
                 let bandwidth = bandwidths[j];
 
                 if bandwidth > 0.0 {
                     let u = distance / bandwidth;
                     let kernel_val = self.kernel_function(u);
-                    density += kernel_val / bandwidth.powf(X_query.ncols() as Float);
+                    density += kernel_val / bandwidth.powf(x_query.ncols() as Float);
                 }
             }
 
@@ -269,23 +268,23 @@ impl KNeighborsDensityEstimator {
 impl Fit<Features, ()> for KNeighborsDensityEstimator {
     type Fitted = KNeighborsDensityEstimator;
 
-    fn fit(self, X: &Features, _y: &()) -> Result<Self::Fitted> {
-        if X.is_empty() {
+    fn fit(self, x: &Features, _y: &()) -> Result<Self::Fitted> {
+        if x.is_empty() {
             return Err(NeighborsError::EmptyInput.into());
         }
 
         // Fit nearest neighbors model
         let nn = NearestNeighbors::new(self.k + 1).with_metric(self.distance.clone());
-        let fitted_nn = nn.fit(X, &())?;
+        let fitted_nn = nn.fit(x, &())?;
 
         // Compute adaptive bandwidths
         let bandwidths = self
-            .compute_adaptive_bandwidths(X)
+            .compute_adaptive_bandwidths(x)
             .map_err(sklears_core::error::SklearsError::from)?;
 
         let mut fitted_model = self;
         fitted_model.nn_model = Some(fitted_nn);
-        fitted_model.X_train = Some(X.to_owned());
+        fitted_model.x_train = Some(x.to_owned());
         fitted_model.bandwidths = Some(bandwidths);
 
         Ok(fitted_model)
@@ -293,8 +292,8 @@ impl Fit<Features, ()> for KNeighborsDensityEstimator {
 }
 
 impl Predict<Features, Array1<Float>> for KNeighborsDensityEstimator {
-    fn predict(&self, X: &Features) -> Result<Array1<Float>> {
-        self.compute_density(X)
+    fn predict(&self, x: &Features) -> Result<Array1<Float>> {
+        self.compute_density(x)
             .map_err(sklears_core::error::SklearsError::from)
     }
 }
@@ -307,7 +306,7 @@ impl Clone for KNeighborsDensityEstimator {
             kernel: self.kernel,
             bandwidth_method: self.bandwidth_method,
             nn_model: self.nn_model.clone(),
-            X_train: self.X_train.clone(),
+            x_train: self.x_train.clone(),
             bandwidths: self.bandwidths.clone(),
         }
     }
@@ -342,17 +341,17 @@ impl LocalDensityEstimator {
     }
 
     /// Compute local density for query points
-    fn compute_local_density(&self, X_query: &ArrayView2<Float>) -> NeighborsResult<Array1<Float>> {
+    fn compute_local_density(&self, x_query: &ArrayView2<Float>) -> NeighborsResult<Array1<Float>> {
         let nn_model = self
             .nn_model
             .as_ref()
             .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
 
-        let n_query = X_query.nrows();
+        let n_query = x_query.nrows();
         let mut densities = Array1::zeros(n_query);
 
         for i in 0..n_query {
-            let query = X_query.slice(s![i..i + 1, ..]);
+            let query = x_query.slice(s![i..i + 1, ..]);
             let (distances_opt, _) =
                 nn_model.kneighbors(&query.to_owned(), Some(self.k + 1), true)?;
             let distances = distances_opt.expect("operation should succeed");
@@ -362,7 +361,7 @@ impl LocalDensityEstimator {
 
             if k_distance > 0.0 {
                 // Estimate density as k / (volume of k-neighborhood)
-                let d = X_query.ncols() as Float;
+                let d = x_query.ncols() as Float;
                 let volume = self.hypersphere_volume(k_distance, d);
                 densities[i] = self.k as Float / volume;
             }
@@ -392,13 +391,13 @@ impl LocalDensityEstimator {
 impl Fit<Features, ()> for LocalDensityEstimator {
     type Fitted = LocalDensityEstimator;
 
-    fn fit(self, X: &Features, _y: &()) -> Result<Self::Fitted> {
-        if X.is_empty() {
+    fn fit(self, x: &Features, _y: &()) -> Result<Self::Fitted> {
+        if x.is_empty() {
             return Err(NeighborsError::EmptyInput.into());
         }
 
         let nn = NearestNeighbors::new(self.k).with_metric(self.distance.clone());
-        let fitted_nn = nn.fit(X, &())?;
+        let fitted_nn = nn.fit(x, &())?;
 
         let mut fitted_model = self;
         fitted_model.nn_model = Some(fitted_nn);
@@ -408,8 +407,8 @@ impl Fit<Features, ()> for LocalDensityEstimator {
 }
 
 impl Predict<Features, Array1<Float>> for LocalDensityEstimator {
-    fn predict(&self, X: &Features) -> Result<Array1<Float>> {
-        self.compute_local_density(&X.view())
+    fn predict(&self, x: &Features) -> Result<Array1<Float>> {
+        self.compute_local_density(&x.view())
             .map_err(sklears_core::error::SklearsError::from)
     }
 }
@@ -437,7 +436,7 @@ pub struct VariableBandwidthKDE {
     /// Kernel type
     kernel: KernelType,
     /// Training data
-    X_train: Option<Array2<Float>>,
+    x_train: Option<Array2<Float>>,
     /// Pilot densities for each training point
     pilot_densities: Option<Array1<Float>>,
     /// Adaptive bandwidths for each training point
@@ -452,7 +451,7 @@ impl VariableBandwidthKDE {
             alpha: 0.5,
             distance: Distance::Euclidean,
             kernel: KernelType::Gaussian,
-            X_train: None,
+            x_train: None,
             pilot_densities: None,
             bandwidths: None,
         }
@@ -477,17 +476,17 @@ impl VariableBandwidthKDE {
     }
 
     /// Compute pilot density estimates
-    fn compute_pilot_densities(&self, X: &ArrayView2<Float>) -> NeighborsResult<Array1<Float>> {
+    fn compute_pilot_densities(&self, x: &ArrayView2<Float>) -> NeighborsResult<Array1<Float>> {
         let pilot_kde = KNeighborsDensityEstimator::new(self.k_pilot)
             .with_distance(self.distance.clone())
             .with_kernel(self.kernel)
             .with_bandwidth_method(BandwidthMethod::KthNeighbor);
 
         let fitted_pilot = pilot_kde
-            .fit(&X.to_owned(), &())
+            .fit(&x.to_owned(), &())
             .map_err(|e| NeighborsError::InvalidInput(format!("Pilot KDE fit error: {:?}", e)))?;
         fitted_pilot
-            .predict(&X.to_owned())
+            .predict(&x.to_owned())
             .map_err(|e| NeighborsError::InvalidInput(format!("Pilot KDE predict error: {:?}", e)))
     }
 
@@ -566,9 +565,9 @@ impl VariableBandwidthKDE {
 
     /// Compute density at query points
     #[allow(non_snake_case)]
-    fn compute_density(&self, X_query: &ArrayView2<Float>) -> NeighborsResult<Array1<Float>> {
-        let X_train = self
-            .X_train
+    fn compute_density(&self, x_query: &ArrayView2<Float>) -> NeighborsResult<Array1<Float>> {
+        let x_train = self
+            .x_train
             .as_ref()
             .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
         let bandwidths = self
@@ -576,23 +575,23 @@ impl VariableBandwidthKDE {
             .as_ref()
             .ok_or_else(|| NeighborsError::InvalidInput("Bandwidths not computed".to_string()))?;
 
-        let n_query = X_query.nrows();
-        let n_train = X_train.nrows();
+        let n_query = x_query.nrows();
+        let n_train = x_train.nrows();
         let mut densities = Array1::zeros(n_query);
 
         for i in 0..n_query {
-            let query_point = X_query.row(i);
+            let query_point = x_query.row(i);
             let mut density = 0.0;
 
             for j in 0..n_train {
-                let train_point = X_train.row(j);
+                let train_point = x_train.row(j);
                 let distance = self.compute_distance(&query_point, &train_point);
                 let bandwidth = bandwidths[j];
 
                 if bandwidth > 0.0 {
                     let u = distance / bandwidth;
                     let kernel_val = self.kernel_function(u);
-                    density += kernel_val / bandwidth.powf(X_query.ncols() as Float);
+                    density += kernel_val / bandwidth.powf(x_query.ncols() as Float);
                 }
             }
 
@@ -606,21 +605,21 @@ impl VariableBandwidthKDE {
 impl Fit<Features, ()> for VariableBandwidthKDE {
     type Fitted = VariableBandwidthKDE;
 
-    fn fit(self, X: &Features, _y: &()) -> Result<Self::Fitted> {
-        if X.is_empty() {
+    fn fit(self, x: &Features, _y: &()) -> Result<Self::Fitted> {
+        if x.is_empty() {
             return Err(NeighborsError::EmptyInput.into());
         }
 
         // Compute pilot densities
         let pilot_densities = self
-            .compute_pilot_densities(&X.view())
+            .compute_pilot_densities(&x.view())
             .map_err(sklears_core::error::SklearsError::from)?;
 
         // Compute adaptive bandwidths
         let bandwidths = self.compute_adaptive_bandwidths(&pilot_densities);
 
         let mut fitted_model = self;
-        fitted_model.X_train = Some(X.to_owned());
+        fitted_model.x_train = Some(x.to_owned());
         fitted_model.pilot_densities = Some(pilot_densities);
         fitted_model.bandwidths = Some(bandwidths);
 
@@ -629,8 +628,8 @@ impl Fit<Features, ()> for VariableBandwidthKDE {
 }
 
 impl Predict<Features, Array1<Float>> for VariableBandwidthKDE {
-    fn predict(&self, X: &Features) -> Result<Array1<Float>> {
-        self.compute_density(&X.view())
+    fn predict(&self, x: &Features) -> Result<Array1<Float>> {
+        self.compute_density(&x.view())
             .map_err(sklears_core::error::SklearsError::from)
     }
 }
@@ -642,7 +641,7 @@ impl Clone for VariableBandwidthKDE {
             alpha: self.alpha,
             distance: self.distance.clone(),
             kernel: self.kernel,
-            X_train: self.X_train.clone(),
+            x_train: self.x_train.clone(),
             pilot_densities: self.pilot_densities.clone(),
             bandwidths: self.bandwidths.clone(),
         }
@@ -665,7 +664,7 @@ pub struct DensityBasedClustering {
     /// Fitted model state
     fitted: bool,
     /// Training data
-    X_train: Option<Array2<Float>>,
+    x_train: Option<Array2<Float>>,
     /// Density estimates for training data
     densities: Option<Array1<Float>>,
     /// Cluster labels for training data
@@ -683,7 +682,7 @@ impl DensityBasedClustering {
             min_cluster_size: 2,
             connection_radius: 1.0,
             fitted: false,
-            X_train: None,
+            x_train: None,
             densities: None,
             labels: None,
             n_clusters: None,
@@ -738,9 +737,9 @@ impl DensityBasedClustering {
     }
 
     /// Find density peaks in the data
-    fn find_density_peaks(&self, densities: &Array1<Float>, X: &ArrayView2<Float>) -> Vec<usize> {
+    fn find_density_peaks(&self, densities: &Array1<Float>, x: &ArrayView2<Float>) -> Vec<usize> {
         let mut peaks = Vec::new();
-        let n_samples = X.nrows();
+        let n_samples = x.nrows();
 
         for i in 0..n_samples {
             let density_i = densities[i];
@@ -752,14 +751,14 @@ impl DensityBasedClustering {
 
             // Check if this point has higher density than its neighbors
             let mut is_peak = true;
-            let point_i = X.row(i);
+            let point_i = x.row(i);
 
             for j in 0..n_samples {
                 if i == j {
                     continue;
                 }
 
-                let point_j = X.row(j);
+                let point_j = x.row(j);
                 let distance = self.compute_distance(&point_i, &point_j);
 
                 if distance <= self.connection_radius && densities[j] > density_i {
@@ -780,17 +779,15 @@ impl DensityBasedClustering {
     fn assign_clusters(
         &self,
         densities: &Array1<Float>,
-        X: &ArrayView2<Float>,
+        x: &ArrayView2<Float>,
         peaks: &[usize],
     ) -> (Array1<i32>, usize) {
-        let n_samples = X.nrows();
+        let n_samples = x.nrows();
         let mut labels = Array1::from_elem(n_samples, -1); // -1 for noise
-        let mut cluster_id = 0;
 
         // Assign peak points to clusters
-        for &peak_idx in peaks {
-            labels[peak_idx] = cluster_id;
-            cluster_id += 1;
+        for (cluster_id, &peak_idx) in peaks.iter().enumerate() {
+            labels[peak_idx] = cluster_id as i32;
         }
 
         // Assign remaining points to nearest peak above threshold
@@ -799,12 +796,12 @@ impl DensityBasedClustering {
                 continue; // Already assigned or below threshold
             }
 
-            let point_i = X.row(i);
+            let point_i = x.row(i);
             let mut nearest_peak = None;
             let mut min_distance = Float::INFINITY;
 
             for &peak_idx in peaks {
-                let peak_point = X.row(peak_idx);
+                let peak_point = x.row(peak_idx);
                 let distance = self.compute_distance(&point_i, &peak_point);
 
                 if distance < min_distance && distance <= self.connection_radius {
@@ -878,27 +875,27 @@ impl DensityBasedClustering {
 impl Fit<Features, ()> for DensityBasedClustering {
     type Fitted = DensityBasedClustering;
 
-    fn fit(self, X: &Features, _y: &()) -> Result<Self::Fitted> {
-        if X.is_empty() {
+    fn fit(self, x: &Features, _y: &()) -> Result<Self::Fitted> {
+        if x.is_empty() {
             return Err(NeighborsError::EmptyInput.into());
         }
 
         let mut fitted_model = self;
-        fitted_model.X_train = Some(X.to_owned());
+        fitted_model.x_train = Some(x.to_owned());
 
         // Fit density estimator
-        let density_estimator = fitted_model.density_estimator.fit(X, &())?;
+        let density_estimator = fitted_model.density_estimator.fit(x, &())?;
         fitted_model.density_estimator = density_estimator;
 
         // Compute densities for all points
-        let densities = fitted_model.density_estimator.predict(X)?;
+        let densities = fitted_model.density_estimator.predict(x)?;
         fitted_model.densities = Some(densities.clone());
 
         // Find density peaks
-        let peaks = fitted_model.find_density_peaks(&densities, &X.view());
+        let peaks = fitted_model.find_density_peaks(&densities, &x.view());
 
         // Assign clusters
-        let (labels, n_clusters) = fitted_model.assign_clusters(&densities, &X.view(), &peaks);
+        let (labels, n_clusters) = fitted_model.assign_clusters(&densities, &x.view(), &peaks);
         fitted_model.labels = Some(labels);
         fitted_model.n_clusters = Some(n_clusters);
         fitted_model.fitted = true;
@@ -909,13 +906,13 @@ impl Fit<Features, ()> for DensityBasedClustering {
 
 impl Predict<Features, Array1<i32>> for DensityBasedClustering {
     #[allow(non_snake_case)]
-    fn predict(&self, X: &Features) -> Result<Array1<i32>> {
+    fn predict(&self, x: &Features) -> Result<Array1<i32>> {
         if !self.fitted {
             return Err(NeighborsError::InvalidInput("Model not fitted".to_string()).into());
         }
 
-        let X_train = self
-            .X_train
+        let x_train = self
+            .x_train
             .as_ref()
             .ok_or_else(|| NeighborsError::InvalidInput("No training data".to_string()))?;
 
@@ -930,16 +927,16 @@ impl Predict<Features, Array1<i32>> for DensityBasedClustering {
             .ok_or_else(|| NeighborsError::InvalidInput("No cluster labels".to_string()))?;
 
         // For new points, find nearest training point and assign its cluster
-        let n_test = X.nrows();
+        let n_test = x.nrows();
         let mut test_labels = Array1::from_elem(n_test, -1);
 
         for i in 0..n_test {
-            let test_point = X.row(i);
+            let test_point = x.row(i);
             let mut min_distance = Float::INFINITY;
             let mut nearest_label = -1;
 
-            for j in 0..X_train.nrows() {
-                let train_point = X_train.row(j);
+            for j in 0..x_train.nrows() {
+                let train_point = x_train.row(j);
                 let distance = self.compute_distance(&test_point, &train_point);
 
                 if distance < min_distance {
@@ -966,7 +963,7 @@ impl Clone for DensityBasedClustering {
             min_cluster_size: self.min_cluster_size,
             connection_radius: self.connection_radius,
             fitted: self.fitted,
-            X_train: self.X_train.clone(),
+            x_train: self.x_train.clone(),
             densities: self.densities.clone(),
             labels: self.labels.clone(),
             n_clusters: self.n_clusters,
@@ -983,7 +980,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_knn_density_estimator() {
-        let X = Array2::from_shape_vec(
+        let x = Array2::from_shape_vec(
             (6, 2),
             vec![1.0, 1.0, 1.1, 1.1, 1.2, 1.2, 5.0, 5.0, 5.1, 5.1, 5.2, 5.2],
         )
@@ -993,8 +990,8 @@ mod tests {
             .with_kernel(KernelType::Gaussian)
             .with_bandwidth_method(BandwidthMethod::KthNeighbor);
 
-        let fitted = kde.fit(&X, &()).expect("operation should succeed");
-        let densities = fitted.predict(&X).expect("operation should succeed");
+        let fitted = kde.fit(&x, &()).expect("operation should succeed");
+        let densities = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(densities.len(), 6);
         // Density should be positive
@@ -1006,12 +1003,12 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_local_density_estimator() {
-        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1])
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1])
             .expect("operation should succeed");
 
         let lde = LocalDensityEstimator::new(2);
-        let fitted = lde.fit(&X, &()).expect("operation should succeed");
-        let densities = fitted.predict(&X).expect("operation should succeed");
+        let fitted = lde.fit(&x, &()).expect("operation should succeed");
+        let densities = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(densities.len(), 4);
         for &density in densities.iter() {
@@ -1022,15 +1019,15 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_variable_bandwidth_kde() {
-        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1])
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1])
             .expect("operation should succeed");
 
         let vb_kde = VariableBandwidthKDE::new(2)
             .with_alpha(0.5)
             .with_kernel(KernelType::Gaussian);
 
-        let fitted = vb_kde.fit(&X, &()).expect("operation should succeed");
-        let densities = fitted.predict(&X).expect("operation should succeed");
+        let fitted = vb_kde.fit(&x, &()).expect("operation should succeed");
+        let densities = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(densities.len(), 4);
         for &density in densities.iter() {
@@ -1061,20 +1058,20 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_bandwidth_methods() {
-        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
             .expect("operation should succeed");
 
         // Test fixed bandwidth
         let kde_fixed =
             KNeighborsDensityEstimator::new(2).with_bandwidth_method(BandwidthMethod::Fixed(1.0));
-        let fitted = kde_fixed.fit(&X, &()).expect("operation should succeed");
+        let fitted = kde_fixed.fit(&x, &()).expect("operation should succeed");
         assert!(fitted.bandwidths.is_some());
 
         // Test Silverman's rule
         let kde_silverman =
             KNeighborsDensityEstimator::new(2).with_bandwidth_method(BandwidthMethod::Silverman);
         let fitted = kde_silverman
-            .fit(&X, &())
+            .fit(&x, &())
             .expect("operation should succeed");
         assert!(fitted.bandwidths.is_some());
     }
@@ -1083,7 +1080,7 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_density_based_clustering_basic() {
         // Create dataset with two clear clusters
-        let X = Array2::from_shape_vec(
+        let x = Array2::from_shape_vec(
             (8, 2),
             vec![
                 // Cluster 1
@@ -1097,8 +1094,8 @@ mod tests {
             .with_min_cluster_size(2)
             .with_connection_radius(2.0);
 
-        let fitted = clustering.fit(&X, &()).expect("operation should succeed");
-        let labels = fitted.predict(&X).expect("operation should succeed");
+        let fitted = clustering.fit(&x, &()).expect("operation should succeed");
+        let labels = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(labels.len(), 8);
 
@@ -1120,7 +1117,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_density_based_clustering_configuration() {
-        let X = Array2::from_shape_vec(
+        let x = Array2::from_shape_vec(
             (6, 2),
             vec![
                 1.0, 1.0, 1.1, 1.1, 1.2, 1.2, 5.0, 5.0, 5.1, 5.1, 10.0, 10.0, // Isolated point
@@ -1134,9 +1131,9 @@ mod tests {
             .with_connection_radius(2.0);
 
         let fitted = clustering_gaussian
-            .fit(&X, &())
+            .fit(&x, &())
             .expect("operation should succeed");
-        let labels = fitted.predict(&X).expect("operation should succeed");
+        let labels = fitted.predict(&x).expect("operation should succeed");
         assert_eq!(labels.len(), 6);
 
         // Test with Epanechnikov kernel
@@ -1145,9 +1142,9 @@ mod tests {
             .with_connection_radius(2.0);
 
         let fitted = clustering_epan
-            .fit(&X, &())
+            .fit(&x, &())
             .expect("operation should succeed");
-        let labels = fitted.predict(&X).expect("operation should succeed");
+        let labels = fitted.predict(&x).expect("operation should succeed");
         assert_eq!(labels.len(), 6);
     }
 
@@ -1155,13 +1152,13 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_density_based_clustering_edge_cases() {
         // Test with minimal data
-        let X = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
             .expect("operation should succeed");
 
         let clustering = DensityBasedClustering::new(1, 0.001).with_min_cluster_size(1);
 
-        let fitted = clustering.fit(&X, &()).expect("operation should succeed");
-        let labels = fitted.predict(&X).expect("operation should succeed");
+        let fitted = clustering.fit(&x, &()).expect("operation should succeed");
+        let labels = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(labels.len(), 3);
 
@@ -1175,13 +1172,13 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_density_based_clustering_identical_points() {
         // Test with identical points
-        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
             .expect("operation should succeed");
 
         let clustering = DensityBasedClustering::new(2, 0.001).with_connection_radius(0.1);
 
-        let fitted = clustering.fit(&X, &()).expect("operation should succeed");
-        let labels = fitted.predict(&X).expect("operation should succeed");
+        let fitted = clustering.fit(&x, &()).expect("operation should succeed");
+        let labels = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(labels.len(), 4);
 
@@ -1196,11 +1193,11 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_density_based_clustering_accessors() {
-        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
             .expect("operation should succeed");
 
         let clustering = DensityBasedClustering::new(2, 0.01);
-        let fitted = clustering.fit(&X, &()).expect("operation should succeed");
+        let fitted = clustering.fit(&x, &()).expect("operation should succeed");
 
         // Test accessor methods
         assert!(fitted.labels().is_some());

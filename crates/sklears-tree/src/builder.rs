@@ -13,6 +13,19 @@ use sklears_core::{
 };
 use std::collections::BinaryHeap;
 
+/// Internal helper: stores the winning surrogate candidate for a column
+#[derive(Debug, Clone)]
+struct SurrogateInfo {
+    surrogate_col: usize,
+    threshold: f64,
+    /// Fraction of observed-on-both-columns rows that this surrogate agrees with
+    /// the primary split direction (always in (0.5, 1.0] when actually chosen).
+    agreement: f64,
+    /// If true, values ≤ threshold map to the *left* side of the primary split;
+    /// if false, they map to the *right* side.
+    send_left: bool,
+}
+
 /// Handle missing values in the data based on the specified strategy
 pub fn handle_missing_values<T: Clone>(
     x: &Array2<f64>,
@@ -95,35 +108,211 @@ pub fn handle_missing_values<T: Clone>(
             Ok((x_imputed, y.clone()))
         }
         MissingValueStrategy::Surrogate => {
-            // TODO: Implement proper surrogate splits for missing value handling
-            // For now, fall back to mean imputation
+            // Surrogate-split imputation.
+            //
+            // For each column c that has missing values we:
+            //   1. Find the non-missing rows and compute a binarised "primary split"
+            //      on c using its median as threshold (left = ≤ median, right = > median).
+            //   2. For every other column j (that has no missing values in those same rows)
+            //      we find the threshold on j that best *mimics* the primary split
+            //      direction (maximises agreement = fraction of rows assigned the same
+            //      left/right side).
+            //   3. The surrogate with the highest agreement wins.
+            //   4. For rows where c is missing we use the winning surrogate to impute:
+            //      we replace the NaN with the median of c-values that fell on the
+            //      same side as the surrogate predicts.  If no surrogate beats 50 %
+            //      agreement (or no surrogate is available) we fall back to the column
+            //      mean of c.
+            let n_rows = x.nrows();
+            let n_cols = x.ncols();
             let mut x_imputed = x.clone();
-            for col_idx in 0..x.ncols() {
-                let mut sum = 0.0;
-                let mut count = 0;
-                // Calculate mean of non-missing values
-                for row_idx in 0..x.nrows() {
-                    let value = x[[row_idx, col_idx]];
-                    if !value.is_nan() {
-                        sum += value;
-                        count += 1;
-                    }
-                }
-                if count > 0 {
-                    let mean = sum / count as f64;
-                    // Replace missing values with mean
-                    for row_idx in 0..x.nrows() {
-                        if x_imputed[[row_idx, col_idx]].is_nan() {
-                            x_imputed[[row_idx, col_idx]] = mean;
+
+            // Pre-compute per-column means for the fallback
+            let col_means: Vec<f64> = (0..n_cols)
+                .map(|c| {
+                    let mut sum = 0.0f64;
+                    let mut cnt = 0usize;
+                    for r in 0..n_rows {
+                        let v = x[[r, c]];
+                        if !v.is_nan() {
+                            sum += v;
+                            cnt += 1;
                         }
                     }
+                    if cnt > 0 {
+                        sum / cnt as f64
+                    } else {
+                        0.0
+                    }
+                })
+                .collect();
+
+            for col_idx in 0..n_cols {
+                // Rows where this column is missing
+                let missing_rows: Vec<usize> =
+                    (0..n_rows).filter(|&r| x[[r, col_idx]].is_nan()).collect();
+
+                if missing_rows.is_empty() {
+                    continue;
+                }
+
+                // Rows where this column is observed
+                let obs_rows: Vec<usize> =
+                    (0..n_rows).filter(|&r| !x[[r, col_idx]].is_nan()).collect();
+
+                if obs_rows.is_empty() {
+                    // All values missing — use 0.0
+                    for &r in &missing_rows {
+                        x_imputed[[r, col_idx]] = 0.0;
+                    }
+                    continue;
+                }
+
+                // Primary split on col_idx: use median as threshold
+                let mut obs_vals: Vec<f64> = obs_rows.iter().map(|&r| x[[r, col_idx]]).collect();
+                obs_vals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                let median = if obs_vals.len().is_multiple_of(2) {
+                    (obs_vals[obs_vals.len() / 2 - 1] + obs_vals[obs_vals.len() / 2]) / 2.0
                 } else {
-                    // All values in this column are missing, use 0.0
-                    for row_idx in 0..x.nrows() {
-                        x_imputed[[row_idx, col_idx]] = 0.0;
+                    obs_vals[obs_vals.len() / 2]
+                };
+
+                // Primary direction: 0 = left (≤ median), 1 = right (> median)
+                let primary_dir: Vec<u8> = obs_rows
+                    .iter()
+                    .map(|&r| if x[[r, col_idx]] <= median { 0 } else { 1 })
+                    .collect();
+
+                // Find best surrogate among all other columns
+                let mut best_surrogate: Option<SurrogateInfo> = None;
+
+                for surr_col in 0..n_cols {
+                    if surr_col == col_idx {
+                        continue;
+                    }
+
+                    // Only use rows where *both* col_idx and surr_col are observed
+                    let joint_rows: Vec<usize> = obs_rows
+                        .iter()
+                        .filter(|&&r| !x[[r, surr_col]].is_nan())
+                        .cloned()
+                        .collect();
+
+                    if joint_rows.len() < 2 {
+                        continue;
+                    }
+
+                    // Index joint_rows back into primary_dir
+                    let joint_primary: Vec<u8> = joint_rows
+                        .iter()
+                        .map(|r| {
+                            let pos = obs_rows.iter().position(|o| o == r).unwrap_or(0);
+                            primary_dir[pos]
+                        })
+                        .collect();
+
+                    // Try all midpoints of surr_col values to find the threshold that
+                    // maximises agreement with the primary direction.
+                    let mut surr_vals: Vec<(f64, u8)> = joint_rows
+                        .iter()
+                        .zip(joint_primary.iter())
+                        .map(|(&r, &d)| (x[[r, surr_col]], d))
+                        .collect();
+                    surr_vals
+                        .sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
+                    let n_joint = joint_rows.len() as f64;
+                    let mut best_agree = 0.0f64;
+                    let mut best_thr = 0.0f64;
+                    let mut best_send_left = true; // default: ≤ thr → matches left
+
+                    for w in surr_vals.windows(2) {
+                        if (w[0].0 - w[1].0).abs() < f64::EPSILON {
+                            continue;
+                        }
+                        let thr = (w[0].0 + w[1].0) / 2.0;
+
+                        // agreement assuming ≤ thr goes left
+                        let agree_left = surr_vals
+                            .iter()
+                            .filter(|(v, d)| (*v <= thr && *d == 0) || (*v > thr && *d == 1))
+                            .count() as f64
+                            / n_joint;
+
+                        // agreement assuming ≤ thr goes right (flipped)
+                        let agree_right = 1.0 - agree_left;
+
+                        let (agree, send_left) = if agree_left >= agree_right {
+                            (agree_left, true)
+                        } else {
+                            (agree_right, false)
+                        };
+
+                        if agree > best_agree {
+                            best_agree = agree;
+                            best_thr = thr;
+                            best_send_left = send_left;
+                        }
+                    }
+
+                    if best_agree > best_surrogate.as_ref().map_or(0.0, |s| s.agreement) {
+                        best_surrogate = Some(SurrogateInfo {
+                            surrogate_col: surr_col,
+                            threshold: best_thr,
+                            agreement: best_agree,
+                            send_left: best_send_left,
+                        });
+                    }
+                }
+
+                // Impute missing values using the best surrogate (or mean fallback)
+                match best_surrogate.filter(|s| s.agreement > 0.5) {
+                    Some(surr) => {
+                        // Compute left-side and right-side means of col_idx from observed rows
+                        let left_vals: Vec<f64> = obs_rows
+                            .iter()
+                            .filter(|&&r| x[[r, col_idx]] <= median)
+                            .map(|&r| x[[r, col_idx]])
+                            .collect();
+                        let right_vals: Vec<f64> = obs_rows
+                            .iter()
+                            .filter(|&&r| x[[r, col_idx]] > median)
+                            .map(|&r| x[[r, col_idx]])
+                            .collect();
+
+                        let left_mean = if left_vals.is_empty() {
+                            col_means[col_idx]
+                        } else {
+                            left_vals.iter().sum::<f64>() / left_vals.len() as f64
+                        };
+                        let right_mean = if right_vals.is_empty() {
+                            col_means[col_idx]
+                        } else {
+                            right_vals.iter().sum::<f64>() / right_vals.len() as f64
+                        };
+
+                        for &r in &missing_rows {
+                            let surr_val = if !x[[r, surr.surrogate_col]].is_nan() {
+                                x[[r, surr.surrogate_col]]
+                            } else {
+                                // Surrogate also missing — use global mean
+                                x_imputed[[r, col_idx]] = col_means[col_idx];
+                                continue;
+                            };
+                            let goes_left = (surr_val <= surr.threshold) == surr.send_left;
+                            x_imputed[[r, col_idx]] =
+                                if goes_left { left_mean } else { right_mean };
+                        }
+                    }
+                    None => {
+                        // No good surrogate — fall back to column mean
+                        for &r in &missing_rows {
+                            x_imputed[[r, col_idx]] = col_means[col_idx];
+                        }
                     }
                 }
             }
+
             Ok((x_imputed, y.clone()))
         }
     }
@@ -187,6 +376,8 @@ impl BestFirstTreeBuilder {
             best_split,
             parent_id: None,
             is_leaf: false,
+            surrogate_splits: Vec::new(),
+            majority_direction: true,
         };
 
         let mut node_queue = BinaryHeap::new();
@@ -385,6 +576,8 @@ impl BestFirstTreeBuilder {
             best_split,
             parent_id: Some(parent_id),
             is_leaf: true,
+            surrogate_splits: Vec::new(),
+            majority_direction: true,
         }
     }
 }
@@ -679,7 +872,7 @@ pub fn mae_impurity(values: &[f64]) -> f64 {
         let mut sorted_values = values.to_vec();
         sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let len = sorted_values.len();
-        if len % 2 == 0 {
+        if len.is_multiple_of(2) {
             (sorted_values[len / 2 - 1] + sorted_values[len / 2]) / 2.0
         } else {
             sorted_values[len / 2]

@@ -87,16 +87,27 @@ pub trait TransformationFunction: Send + Sync {
 /// Plugin metadata
 #[derive(Debug, Clone)]
 pub struct PluginMetadata {
+    /// author
     pub author: String,
+    /// license
     pub license: String,
+    /// categories
     pub categories: Vec<String>,
+    /// tags
     pub tags: Vec<String>,
+    /// min_samples
     pub min_samples: Option<usize>,
+    /// max_features
     pub max_features: Option<usize>,
+    /// supports_sparse
     pub supports_sparse: bool,
+    /// supports_multiclass
     pub supports_multiclass: bool,
+    /// supports_regression
     pub supports_regression: bool,
+    /// computational_complexity
     pub computational_complexity: ComputationalComplexity,
+    /// memory_complexity
     pub memory_complexity: MemoryComplexity,
 }
 
@@ -118,11 +129,13 @@ impl Default for PluginMetadata {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
+/// ComputationalComplexity
 pub enum ComputationalComplexity {
     /// Constant
     Constant,
     /// Linear
+    #[default]
     Linear,
     /// Quadratic
     Quadratic,
@@ -134,28 +147,18 @@ pub enum ComputationalComplexity {
     Custom(String),
 }
 
-impl Default for ComputationalComplexity {
-    fn default() -> Self {
-        Self::Linear
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
+/// MemoryComplexity
 pub enum MemoryComplexity {
     /// Constant
     Constant,
     /// Linear
+    #[default]
     Linear,
     /// Quadratic
     Quadratic,
     /// Custom
     Custom(String),
-}
-
-impl Default for MemoryComplexity {
-    fn default() -> Self {
-        Self::Linear
-    }
 }
 
 /// Plugin registry for managing feature selection plugins
@@ -366,18 +369,26 @@ pub trait PluginMiddleware: Send + Sync {
 /// Context passed to middleware
 #[derive(Debug, Clone)]
 pub struct PluginContext {
+    /// operation
     pub operation: String,
+    /// data_shape
     pub data_shape: (usize, usize),
+    /// parameters
     pub parameters: HashMap<String, String>,
+    /// start_time
     pub start_time: std::time::Instant,
 }
 
 /// Result passed to middleware
 #[derive(Debug, Clone)]
 pub struct PluginResult {
+    /// success
     pub success: bool,
+    /// execution_time
     pub execution_time: std::time::Duration,
+    /// selected_features
     pub selected_features: Vec<usize>,
+    /// error_message
     pub error_message: Option<String>,
 }
 
@@ -388,22 +399,29 @@ pub struct PluginPipeline {
 }
 
 #[derive(Clone)]
+/// PipelineStep
 pub enum PipelineStep {
     /// Plugin
     Plugin {
+        /// name
         name: String,
 
+        /// config
         config: HashMap<String, String>,
     },
     /// Transformation
     Transformation {
+        /// name
         name: String,
 
+        /// config
         config: HashMap<String, String>,
     },
     /// Scoring
     Scoring {
+        /// name
         name: String,
+        /// config
         config: HashMap<String, String>,
     },
 }
@@ -540,22 +558,34 @@ impl PluginPipeline {
 /// Result of pipeline execution
 #[derive(Debug, Clone)]
 pub struct PipelineResult {
+    /// final_data
     pub final_data: Array2<f64>,
+    /// step_results
     pub step_results: Vec<StepResult>,
+    /// total_execution_time
     pub total_execution_time: std::time::Duration,
+    /// original_features
     pub original_features: usize,
+    /// final_features
     pub final_features: usize,
 }
 
 /// Result of individual pipeline step
 #[derive(Debug, Clone)]
 pub struct StepResult {
+    /// step_index
     pub step_index: usize,
+    /// step_type
     pub step_type: String,
+    /// step_name
     pub step_name: String,
+    /// execution_time
     pub execution_time: std::time::Duration,
+    /// input_features
     pub input_features: usize,
+    /// output_features
     pub output_features: usize,
+    /// selected_features
     pub selected_features: Vec<usize>,
 }
 
@@ -573,6 +603,7 @@ pub mod builtin {
     }
 
     impl VarianceThresholdPlugin {
+        /// new
         pub fn new(threshold: f64) -> Self {
             Self {
                 threshold,
@@ -750,6 +781,7 @@ pub struct LoggingMiddleware {
 }
 
 #[derive(Debug, Clone)]
+/// LogLevel
 pub enum LogLevel {
     /// Debug
     Debug,
@@ -762,6 +794,7 @@ pub enum LogLevel {
 }
 
 impl LoggingMiddleware {
+    /// new
     pub fn new(log_level: LogLevel) -> Self {
         Self { log_level }
     }
@@ -812,11 +845,17 @@ pub struct PerformanceMiddleware {
 }
 
 #[derive(Debug, Clone)]
+/// PerformanceMetrics
 pub struct PerformanceMetrics {
+    /// total_executions
     pub total_executions: usize,
+    /// total_time
     pub total_time: std::time::Duration,
+    /// average_time
     pub average_time: std::time::Duration,
+    /// min_time
     pub min_time: std::time::Duration,
+    /// max_time
     pub max_time: std::time::Duration,
 }
 
@@ -827,12 +866,14 @@ impl Default for PerformanceMiddleware {
 }
 
 impl PerformanceMiddleware {
+    /// new
     pub fn new() -> Self {
         Self {
             metrics: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
+    /// get_metrics
     pub fn get_metrics(&self) -> Result<HashMap<String, PerformanceMetrics>> {
         let metrics = self
             .metrics

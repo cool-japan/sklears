@@ -85,9 +85,12 @@ pub struct OutOfCoreDataManager {
 #[derive(Debug, Clone)]
 struct ChunkMetadata {
     file_path: PathBuf,
+    #[allow(dead_code)] // retained for future random-access chunk seeks
     start_row: usize,
+    #[allow(dead_code)] // retained for future random-access chunk seeks
     end_row: usize,
     num_features: usize,
+    #[allow(dead_code)] // retained for future transparent decompression on load
     compressed: bool,
 }
 
@@ -230,6 +233,7 @@ impl OutOfCoreDataManager {
     fn store_chunk_mmap(&self, file_path: &Path, data: &Array2<Float>) -> Result<()> {
         let file = OpenOptions::new()
             .create(true)
+            .truncate(true) // always overwrite when storing a new chunk
             .read(true)
             .write(true)
             .open(file_path)
@@ -409,6 +413,7 @@ impl OutOfCoreDataManager {
 /// Out-of-core Linear Discriminant Analysis
 pub struct OutOfCoreLDA {
     config: OutOfCoreConfig,
+    #[allow(dead_code)] // retained for reconfiguring LDA on incremental re-fit
     lda_config: LinearDiscriminantAnalysisConfig,
     data_manager: Option<OutOfCoreDataManager>,
     trained_model: Option<LinearDiscriminantAnalysis<Trained>>,
@@ -545,6 +550,7 @@ impl OutOfCoreLDA {
 /// Out-of-core Quadratic Discriminant Analysis
 pub struct OutOfCoreQDA {
     config: OutOfCoreConfig,
+    #[allow(dead_code)] // retained for reconfiguring QDA on incremental re-fit
     qda_config: QuadraticDiscriminantAnalysisConfig,
     data_manager: Option<OutOfCoreDataManager>,
     trained_model: Option<QuadraticDiscriminantAnalysis<Trained>>,
@@ -623,6 +629,7 @@ impl OutOfCoreQDA {
 
 /// Streaming discriminant analysis for continuously arriving data
 pub struct StreamingDiscriminant {
+    #[allow(dead_code)] // retained for future stream-window configuration
     config: OutOfCoreConfig,
     buffer: Array2<Float>,
     buffer_labels: Array1<usize>,

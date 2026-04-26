@@ -4,7 +4,7 @@
 //! efficiency in multi-output learning scenarios.
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -254,6 +254,7 @@ impl Default for WarmStartRegressor<Untrained> {
 impl Fit<ArrayView2<'_, Float>, ArrayView2<'_, Float>> for WarmStartRegressor<Untrained> {
     type Fitted = WarmStartRegressor<WarmStartRegressorTrained>;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &ArrayView2<Float>, y: &ArrayView2<Float>) -> SklResult<Self::Fitted> {
         if X.nrows() != y.nrows() {
             return Err(SklearsError::InvalidInput(
@@ -385,6 +386,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView2<'_, Float>> for WarmStartRegressor<Un
 
 impl WarmStartRegressor<WarmStartRegressorTrained> {
     /// Continue training from current state
+    #[allow(non_snake_case)] // standard ML notation
     pub fn continue_training(
         mut self,
         X: &ArrayView2<Float>,
@@ -504,6 +506,7 @@ impl WarmStartRegressor<WarmStartRegressorTrained> {
 impl Predict<ArrayView2<'_, Float>, Array2<Float>>
     for WarmStartRegressor<WarmStartRegressorTrained>
 {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
         if X.ncols() != self.state.n_features {
             return Err(SklearsError::InvalidInput(format!(
@@ -575,6 +578,7 @@ impl PredictionCache {
     }
 
     /// Get cached prediction
+    #[allow(non_snake_case)] // standard ML notation
     pub fn get(&mut self, X: &ArrayView2<Float>) -> Option<Array2<Float>> {
         let hash = self.hash_input(X);
         if let Some(pred) = self.cache.get(&hash) {
@@ -587,6 +591,7 @@ impl PredictionCache {
     }
 
     /// Store prediction in cache
+    #[allow(non_snake_case)] // standard ML notation
     pub fn put(&mut self, X: &ArrayView2<Float>, prediction: Array2<Float>) {
         if self.cache.len() >= self.max_size {
             // Simple eviction: remove first entry
@@ -615,6 +620,7 @@ impl PredictionCache {
     }
 
     /// Simple hash function for input
+    #[allow(non_snake_case)] // standard ML notation
     fn hash_input(&self, X: &ArrayView2<Float>) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
@@ -632,6 +638,7 @@ impl PredictionCache {
 // ============================================================================
 
 #[cfg(test)]
+#[allow(non_snake_case)] // standard ML notation used in tests
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;

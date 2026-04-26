@@ -6,7 +6,6 @@
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2};
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use scirs2_core::random::Rng;
 use sklears_core::{
     error::Result,
     prelude::SklearsError,

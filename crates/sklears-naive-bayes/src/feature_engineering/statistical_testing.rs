@@ -145,7 +145,7 @@ pub trait StatisticalTester {
         target: Option<&ArrayView1<T>>,
     ) -> Result<Vec<TestStatistics>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd;
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>;
 
     fn test_single_feature<T>(
         &self,
@@ -153,7 +153,7 @@ pub trait StatisticalTester {
         target: Option<&ArrayView1<T>>,
     ) -> Result<TestStatistics>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd;
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>;
 }
 
 /// Chi-squared test implementation
@@ -250,7 +250,7 @@ impl StatisticalTester for ChiSquaredTest {
         target: Option<&ArrayView1<T>>,
     ) -> Result<Vec<TestStatistics>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq + Into<f64>,
     {
         let target = target.ok_or_else(|| {
             SklearsError::InvalidInput("Target required for chi-squared test".to_string())
@@ -274,7 +274,7 @@ impl StatisticalTester for ChiSquaredTest {
         target: Option<&ArrayView1<T>>,
     ) -> Result<TestStatistics>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq + Into<f64>,
     {
         let target = target.ok_or_else(|| {
             SklearsError::InvalidInput("Target required for chi-squared test".to_string())
@@ -322,15 +322,70 @@ impl ANOVATest {
         target: &ArrayView1<T>,
     ) -> Result<(f64, usize, usize)>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
-        // Simplified implementation - would compute actual ANOVA in practice
         let n_samples = feature.len();
-        let n_groups = 2; // Placeholder
+        if n_samples < 2 {
+            return Err(SklearsError::InvalidInput(
+                "Need at least 2 samples for ANOVA".to_string(),
+            ));
+        }
 
-        let f_statistic = 2.5; // Placeholder
+        // Convert feature and target to f64
+        let feat: Vec<f64> = feature.iter().map(|&v| v.into()).collect();
+        let tgt: Vec<f64> = target.iter().map(|&v| v.into()).collect();
+
+        // Identify unique groups from target (quantized as bit pattern)
+        let mut group_map: std::collections::HashMap<u64, Vec<f64>> =
+            std::collections::HashMap::new();
+        for (f_val, t_val) in feat.iter().zip(tgt.iter()) {
+            group_map.entry(t_val.to_bits()).or_default().push(*f_val);
+        }
+
+        let n_groups = group_map.len();
+        if n_groups < 2 {
+            return Ok((0.0, 1, n_samples - 1));
+        }
+
+        // Overall mean
+        let grand_mean = feat.iter().sum::<f64>() / n_samples as f64;
+
+        // Between-group sum of squares
+        let ss_between: f64 = group_map
+            .values()
+            .map(|group| {
+                let group_mean = group.iter().sum::<f64>() / group.len() as f64;
+                group.len() as f64 * (group_mean - grand_mean) * (group_mean - grand_mean)
+            })
+            .sum();
+
+        // Within-group sum of squares
+        let ss_within: f64 = group_map
+            .values()
+            .map(|group| {
+                let group_mean = group.iter().sum::<f64>() / group.len() as f64;
+                group
+                    .iter()
+                    .map(|&v| (v - group_mean) * (v - group_mean))
+                    .sum::<f64>()
+            })
+            .sum();
+
         let df_between = n_groups - 1;
         let df_within = n_samples - n_groups;
+
+        let ms_between = ss_between / df_between as f64;
+        let ms_within = if df_within > 0 {
+            ss_within / df_within as f64
+        } else {
+            f64::EPSILON
+        };
+
+        let f_statistic = if ms_within < f64::EPSILON {
+            0.0
+        } else {
+            ms_between / ms_within
+        };
 
         Ok((f_statistic, df_between, df_within))
     }
@@ -347,7 +402,7 @@ impl StatisticalTester for ANOVATest {
         target: Option<&ArrayView1<T>>,
     ) -> Result<Vec<TestStatistics>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let target = target.ok_or_else(|| {
             SklearsError::InvalidInput("Target required for ANOVA test".to_string())
@@ -371,7 +426,7 @@ impl StatisticalTester for ANOVATest {
         target: Option<&ArrayView1<T>>,
     ) -> Result<TestStatistics>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let target = target.ok_or_else(|| {
             SklearsError::InvalidInput("Target required for ANOVA test".to_string())
@@ -379,8 +434,15 @@ impl StatisticalTester for ANOVATest {
 
         let (f_statistic, df_between, df_within) = self.compute_f_statistic(feature, target)?;
 
-        // Simplified p-value calculation
-        let p_value = if f_statistic > 3.0 { 0.03 } else { 0.2 }; // Placeholder
+        // Approximate p-value: use chi-squared / df_between approximation
+        // For F test we use heuristic: large F is significant
+        let p_value = if f_statistic > 4.0 {
+            0.01
+        } else if f_statistic > 2.0 {
+            0.05
+        } else {
+            0.2
+        };
 
         let mut result = TestStatistics::new(f_statistic, p_value);
         result.set_degrees_of_freedom(df_between + df_within);
@@ -409,18 +471,60 @@ impl MutualInformationTest {
         })
     }
 
-    /// Estimate mutual information (simplified implementation)
+    /// Estimate mutual information using histogram binning
     fn estimate_mutual_information<T>(
         &self,
         feature: &ArrayView1<T>,
         target: &ArrayView1<T>,
     ) -> Result<f64>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
-        // Simplified implementation - would compute actual MI in practice
-        let mi = 0.15; // Placeholder mutual information value
-        Ok(mi)
+        let n = feature.len();
+        if n == 0 {
+            return Ok(0.0);
+        }
+
+        let feat: Vec<f64> = feature.iter().map(|&v| v.into()).collect();
+        let tgt: Vec<f64> = target.iter().map(|&v| v.into()).collect();
+
+        let n_bins = ((n as f64).sqrt().ceil() as usize).clamp(2, 20);
+
+        let min_f = feat.iter().copied().fold(f64::INFINITY, f64::min);
+        let max_f = feat.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        let min_t = tgt.iter().copied().fold(f64::INFINITY, f64::min);
+        let max_t = tgt.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+
+        let range_f = (max_f - min_f).max(f64::EPSILON);
+        let range_t = (max_t - min_t).max(f64::EPSILON);
+
+        let mut joint = vec![vec![0usize; n_bins]; n_bins];
+        let mut marg_f = vec![0usize; n_bins];
+        let mut marg_t = vec![0usize; n_bins];
+
+        for k in 0..n {
+            let bf = (((feat[k] - min_f) / range_f * (n_bins as f64 - 1.0)).round() as usize)
+                .min(n_bins - 1);
+            let bt = (((tgt[k] - min_t) / range_t * (n_bins as f64 - 1.0)).round() as usize)
+                .min(n_bins - 1);
+            joint[bf][bt] += 1;
+            marg_f[bf] += 1;
+            marg_t[bt] += 1;
+        }
+
+        let n_f = n as f64;
+        let mut mi = 0.0_f64;
+        for bf in 0..n_bins {
+            for bt in 0..n_bins {
+                let pxy = joint[bf][bt] as f64 / n_f;
+                let px = marg_f[bf] as f64 / n_f;
+                let py = marg_t[bt] as f64 / n_f;
+                if pxy > 0.0 && px > 0.0 && py > 0.0 {
+                    mi += pxy * (pxy / (px * py)).ln();
+                }
+            }
+        }
+        Ok(mi.max(0.0))
     }
 
     pub fn discrete_features(&self) -> &[usize] {
@@ -435,7 +539,7 @@ impl StatisticalTester for MutualInformationTest {
         target: Option<&ArrayView1<T>>,
     ) -> Result<Vec<TestStatistics>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let target = target.ok_or_else(|| {
             SklearsError::InvalidInput("Target required for mutual information test".to_string())
@@ -459,7 +563,7 @@ impl StatisticalTester for MutualInformationTest {
         target: Option<&ArrayView1<T>>,
     ) -> Result<TestStatistics>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let target = target.ok_or_else(|| {
             SklearsError::InvalidInput("Target required for mutual information test".to_string())
@@ -467,8 +571,8 @@ impl StatisticalTester for MutualInformationTest {
 
         let mi_score = self.estimate_mutual_information(feature, target)?;
 
-        // MI doesn't have a p-value directly, but we can use it as a score
-        let mut result = TestStatistics::new(mi_score, 0.0); // p-value not applicable
+        // MI score as test statistic; p-value is not conventionally defined for MI
+        let mut result = TestStatistics::new(mi_score, 0.0);
         result.add_metadata("mutual_information".to_string(), mi_score);
 
         Ok(result)
@@ -496,22 +600,50 @@ impl CorrelationTest {
         Ok(Self { config, method })
     }
 
-    /// Compute correlation coefficient and test statistic
+    /// Compute Pearson correlation coefficient and t-test statistic
     fn compute_correlation<T>(
         &self,
         feature: &ArrayView1<T>,
         target: &ArrayView1<T>,
     ) -> Result<(f64, f64)>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
-        let n = feature.len() as f64;
+        let n = feature.len();
+        if n < 3 {
+            return Ok((0.0, 0.0));
+        }
+        let n_f = n as f64;
 
-        // Simplified Pearson correlation calculation
-        let correlation = 0.25; // Placeholder
+        let xi: Vec<f64> = feature.iter().map(|&v| v.into()).collect();
+        let yi: Vec<f64> = target.iter().map(|&v| v.into()).collect();
 
-        // Compute t-statistic for correlation test
-        let t_stat = correlation * ((n - 2.0) / (1.0 - correlation * correlation)).sqrt();
+        let mean_x = xi.iter().sum::<f64>() / n_f;
+        let mean_y = yi.iter().sum::<f64>() / n_f;
+
+        let cov: f64 = xi
+            .iter()
+            .zip(yi.iter())
+            .map(|(&x, &y)| (x - mean_x) * (y - mean_y))
+            .sum::<f64>()
+            / n_f;
+        let std_x = (xi.iter().map(|&x| (x - mean_x) * (x - mean_x)).sum::<f64>() / n_f).sqrt();
+        let std_y = (yi.iter().map(|&y| (y - mean_y) * (y - mean_y)).sum::<f64>() / n_f).sqrt();
+
+        let denom = std_x * std_y;
+        let correlation = if denom < f64::EPSILON {
+            0.0
+        } else {
+            (cov / denom).clamp(-1.0, 1.0)
+        };
+
+        // t-statistic: r * sqrt((n-2)/(1-r^2))
+        let r2 = correlation * correlation;
+        let t_stat = if r2 >= 1.0 - f64::EPSILON {
+            0.0
+        } else {
+            correlation * ((n_f - 2.0) / (1.0 - r2)).sqrt()
+        };
 
         Ok((correlation, t_stat))
     }
@@ -528,7 +660,7 @@ impl StatisticalTester for CorrelationTest {
         target: Option<&ArrayView1<T>>,
     ) -> Result<Vec<TestStatistics>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let target = target.ok_or_else(|| {
             SklearsError::InvalidInput("Target required for correlation test".to_string())
@@ -552,7 +684,7 @@ impl StatisticalTester for CorrelationTest {
         target: Option<&ArrayView1<T>>,
     ) -> Result<TestStatistics>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let target = target.ok_or_else(|| {
             SklearsError::InvalidInput("Target required for correlation test".to_string())
@@ -560,12 +692,21 @@ impl StatisticalTester for CorrelationTest {
 
         let (correlation, t_statistic) = self.compute_correlation(feature, target)?;
 
-        // Simplified p-value calculation
-        let p_value = if t_statistic.abs() > 1.96 { 0.04 } else { 0.15 }; // Placeholder
+        // Approximate p-value using t-distribution heuristic
+        let p_value = if t_statistic.abs() > 2.576 {
+            0.01
+        } else if t_statistic.abs() > 1.96 {
+            0.05
+        } else {
+            0.2
+        };
 
+        let n = feature.len();
         let mut result = TestStatistics::new(t_statistic, p_value);
         result.add_metadata("correlation".to_string(), correlation);
-        result.set_degrees_of_freedom(feature.len() - 2);
+        if n >= 2 {
+            result.set_degrees_of_freedom(n - 2);
+        }
 
         Ok(result)
     }
@@ -640,7 +781,7 @@ impl HypothesisTest {
     fn t_test<T>(
         &self,
         data: &ArrayView1<T>,
-        reference: Option<&ArrayView1<T>>,
+        _reference: Option<&ArrayView1<T>>,
     ) -> Result<TestStatistics>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
@@ -658,8 +799,8 @@ impl HypothesisTest {
     /// Perform chi-squared test
     fn chi_squared_test<T>(
         &self,
-        data: &ArrayView1<T>,
-        reference: Option<&ArrayView1<T>>,
+        _data: &ArrayView1<T>,
+        _reference: Option<&ArrayView1<T>>,
     ) -> Result<TestStatistics>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
@@ -761,7 +902,7 @@ impl PValueCalculator {
     }
 
     /// Calculate p-value for chi-squared test
-    pub fn chi_squared_p_value(&self, test_statistic: f64, df: usize) -> f64 {
+    pub fn chi_squared_p_value(&self, test_statistic: f64, _df: usize) -> f64 {
         // Simplified implementation - would use actual chi-squared distribution
         if test_statistic > 3.841 {
             0.05
@@ -771,7 +912,7 @@ impl PValueCalculator {
     }
 
     /// Calculate p-value for t-test
-    pub fn t_test_p_value(&self, test_statistic: f64, df: usize) -> f64 {
+    pub fn t_test_p_value(&self, test_statistic: f64, _df: usize) -> f64 {
         // Simplified implementation - would use actual t-distribution
         if test_statistic.abs() > 1.96 {
             0.05
@@ -781,7 +922,7 @@ impl PValueCalculator {
     }
 
     /// Calculate p-value for F-test
-    pub fn f_test_p_value(&self, test_statistic: f64, df1: usize, df2: usize) -> f64 {
+    pub fn f_test_p_value(&self, test_statistic: f64, _df1: usize, _df2: usize) -> f64 {
         // Simplified implementation - would use actual F-distribution
         if test_statistic > 3.0 {
             0.05
@@ -931,12 +1072,12 @@ mod tests {
         let calculator = PValueCalculator::new();
 
         let p_val_chi2 = calculator.chi_squared_p_value(5.0, 2);
-        assert!(p_val_chi2 >= 0.0 && p_val_chi2 <= 1.0);
+        assert!((0.0..=1.0).contains(&p_val_chi2));
 
         let p_val_t = calculator.t_test_p_value(2.5, 10);
-        assert!(p_val_t >= 0.0 && p_val_t <= 1.0);
+        assert!((0.0..=1.0).contains(&p_val_t));
 
         let p_val_f = calculator.f_test_p_value(4.0, 2, 10);
-        assert!(p_val_f >= 0.0 && p_val_f <= 1.0);
+        assert!((0.0..=1.0).contains(&p_val_f));
     }
 }

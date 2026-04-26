@@ -273,11 +273,7 @@ impl SklearnTransformer for SklearnPCA {
             .ok_or_else(|| SklearsError::InvalidInput("Failed to compute data mean".to_string()))?;
         self.mean_ = Some(mean.clone());
 
-        let centered_data = if self.copy {
-            x - &mean.insert_axis(Axis(0))
-        } else {
-            x - &mean.insert_axis(Axis(0))
-        };
+        let centered_data = x - &mean.insert_axis(Axis(0));
 
         // Perform SVD decomposition
         let (_u, s, vt) = self.compute_svd(&centered_data, n_components)?;
@@ -519,7 +515,7 @@ impl SklearnPCA {
 }
 
 /// Scikit-learn compatible pipeline wrapper
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SklearnPipeline {
     steps: Vec<(String, Box<dyn SklearnTransformer>)>,
     fitted: bool,
@@ -528,10 +524,7 @@ pub struct SklearnPipeline {
 impl SklearnPipeline {
     /// Create new empty pipeline
     pub fn new() -> Self {
-        Self {
-            steps: Vec::new(),
-            fitted: false,
-        }
+        Self::default()
     }
 
     /// Add a transformer step to the pipeline
@@ -665,12 +658,90 @@ impl CrossValidation {
     }
 }
 
+/// Scoring function used to evaluate estimator quality in [`GridSearchCV`].
+///
+/// Each variant converts raw reconstruction scores into a single comparable value
+/// where **higher is always better** (scores are negated where necessary).
+#[derive(Debug, Clone, PartialEq)]
+pub enum ScoringFn {
+    /// Negative mean squared error: `-MSE` (default sklearn `neg_mean_squared_error`)
+    NegMeanSquaredError,
+    /// Coefficient of determination R² (higher is better)
+    R2,
+    /// Negative root mean squared error: `-RMSE`
+    NegRootMeanSquaredError,
+    /// Negative mean absolute error: `-MAE`
+    NegMeanAbsoluteError,
+    /// Explained variance score
+    ExplainedVariance,
+}
+
+impl ScoringFn {
+    /// Parse a scoring string into a `ScoringFn`.
+    ///
+    /// Returns `None` for unrecognised strings so callers can fall back to a default.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "neg_mean_squared_error" | "mse" => Some(Self::NegMeanSquaredError),
+            "r2" => Some(Self::R2),
+            "neg_root_mean_squared_error" | "rmse" => Some(Self::NegRootMeanSquaredError),
+            "neg_mean_absolute_error" | "mae" => Some(Self::NegMeanAbsoluteError),
+            "explained_variance" => Some(Self::ExplainedVariance),
+            _ => None,
+        }
+    }
+
+    /// Compute the score for a reconstructed output vs. the original.
+    ///
+    /// All scoring functions return values where higher is better.
+    pub fn compute(&self, original: &Array2<Float>, reconstructed: &Array2<Float>) -> Float {
+        let n = original.len() as Float;
+        let diff = original - reconstructed;
+
+        match self {
+            Self::NegMeanSquaredError => {
+                let mse = diff.mapv(|x| x.powi(2)).sum() / n;
+                -mse
+            }
+            Self::R2 => {
+                let ss_res = diff.mapv(|x| x.powi(2)).sum();
+                let mean = original.sum() / n;
+                let ss_tot = original.mapv(|x| (x - mean).powi(2)).sum();
+                if ss_tot < Float::EPSILON {
+                    1.0 // perfect prediction
+                } else {
+                    1.0 - ss_res / ss_tot
+                }
+            }
+            Self::NegRootMeanSquaredError => {
+                let rmse = (diff.mapv(|x| x.powi(2)).sum() / n).sqrt();
+                -rmse
+            }
+            Self::NegMeanAbsoluteError => {
+                let mae = diff.mapv(|x| x.abs()).sum() / n;
+                -mae
+            }
+            Self::ExplainedVariance => {
+                let var_err = diff.mapv(|x| x.powi(2)).sum() / n;
+                let mean_orig = original.sum() / n;
+                let var_orig = original.mapv(|x| (x - mean_orig).powi(2)).sum() / n;
+                if var_orig < Float::EPSILON {
+                    1.0
+                } else {
+                    1.0 - var_err / var_orig
+                }
+            }
+        }
+    }
+}
+
 /// Grid search for hyperparameter optimization
 pub struct GridSearchCV<T> {
     estimator: T,
     param_grid: Vec<HashMap<String, Vec<ParameterValue>>>,
     cv: usize,
-    scoring: String,
+    /// Scoring function used during cross-validation to rank parameter combinations.
+    scoring: ScoringFn,
     best_params_: Option<HashMap<String, ParameterValue>>,
     best_score_: Option<Float>,
     best_estimator_: Option<T>,
@@ -680,7 +751,7 @@ impl<T> GridSearchCV<T>
 where
     T: SklearnTransformer + Clone,
 {
-    /// Create new grid search
+    /// Create new grid search with `"neg_mean_squared_error"` as default scoring.
     pub fn new(
         estimator: T,
         param_grid: Vec<HashMap<String, Vec<ParameterValue>>>,
@@ -690,11 +761,24 @@ where
             estimator,
             param_grid,
             cv,
-            scoring: "neg_mean_squared_error".to_string(),
+            scoring: ScoringFn::NegMeanSquaredError,
             best_params_: None,
             best_score_: None,
             best_estimator_: None,
         }
+    }
+
+    /// Set the scoring function by name (e.g. `"r2"`, `"neg_mean_squared_error"`).
+    ///
+    /// Falls back to [`ScoringFn::NegMeanSquaredError`] for unrecognised strings.
+    pub fn with_scoring(mut self, scoring: &str) -> Self {
+        self.scoring = ScoringFn::parse(scoring).unwrap_or(ScoringFn::NegMeanSquaredError);
+        self
+    }
+
+    /// Return the active scoring function.
+    pub fn scoring(&self) -> &ScoringFn {
+        &self.scoring
     }
 
     /// Fit grid search
@@ -710,9 +794,8 @@ where
             let mut candidate_estimator = self.estimator.clone();
             candidate_estimator.set_params(&params)?;
 
-            // Perform cross-validation
-            let scores =
-                CrossValidation::cross_val_score(candidate_estimator.clone(), x, y, self.cv)?;
+            // Perform cross-validation using the selected scoring function
+            let scores = self.cross_val_score_with_scoring(candidate_estimator.clone(), x, y)?;
             let mean_score = scores.iter().sum::<Float>() / scores.len() as Float;
 
             if mean_score > best_score {
@@ -788,6 +871,48 @@ where
 
         result
     }
+
+    /// Run k-fold cross-validation using the configured `scoring` function.
+    fn cross_val_score_with_scoring(
+        &self,
+        transformer: T,
+        x: &Array2<Float>,
+        y: Option<&Array1<Float>>,
+    ) -> Result<Vec<Float>> {
+        let (n_samples, _) = x.dim();
+        let cv = self.cv;
+        let fold_size = n_samples / cv;
+        let mut scores = Vec::with_capacity(cv);
+
+        for fold in 0..cv {
+            let start_test = fold * fold_size;
+            let end_test = if fold == cv - 1 {
+                n_samples
+            } else {
+                (fold + 1) * fold_size
+            };
+
+            let test_indices: Vec<usize> = (start_test..end_test).collect();
+            let train_indices: Vec<usize> = (0..start_test).chain(end_test..n_samples).collect();
+
+            let x_train = x.select(Axis(0), &train_indices);
+            let x_test = x.select(Axis(0), &test_indices);
+
+            let y_train = y.map(|y_arr| y_arr.select(Axis(0), &train_indices));
+
+            let mut fold_transformer = transformer.clone();
+            fold_transformer.fit(&x_train, y_train.as_ref())?;
+
+            let x_test_transformed = fold_transformer.transform(&x_test)?;
+            let x_test_reconstructed = fold_transformer.inverse_transform(&x_test_transformed)?;
+
+            // Use the selected scoring function
+            let score = self.scoring.compute(&x_test, &x_test_reconstructed);
+            scores.push(score);
+        }
+
+        Ok(scores)
+    }
 }
 
 #[allow(non_snake_case)]
@@ -797,7 +922,7 @@ mod tests {
 
     #[test]
     fn test_parameter_value_conversions() {
-        let float_param = ParameterValue::from(3.14);
+        let float_param = ParameterValue::from(std::f64::consts::PI);
         assert!(matches!(float_param, ParameterValue::Float(_)));
 
         let int_param = ParameterValue::from(42i64);
@@ -914,5 +1039,120 @@ mod tests {
 
         let score_values = scores.expect("operation should succeed");
         assert_eq!(score_values.len(), 3);
+    }
+
+    // ---- Tests for scoring function selection ----
+
+    /// ScoringFn::parse recognises all supported scoring strings.
+    #[test]
+    fn test_scoring_fn_from_str() {
+        assert_eq!(
+            ScoringFn::parse("neg_mean_squared_error"),
+            Some(ScoringFn::NegMeanSquaredError)
+        );
+        assert_eq!(
+            ScoringFn::parse("mse"),
+            Some(ScoringFn::NegMeanSquaredError)
+        );
+        assert_eq!(ScoringFn::parse("r2"), Some(ScoringFn::R2));
+        assert_eq!(
+            ScoringFn::parse("neg_root_mean_squared_error"),
+            Some(ScoringFn::NegRootMeanSquaredError)
+        );
+        assert_eq!(
+            ScoringFn::parse("rmse"),
+            Some(ScoringFn::NegRootMeanSquaredError)
+        );
+        assert_eq!(
+            ScoringFn::parse("neg_mean_absolute_error"),
+            Some(ScoringFn::NegMeanAbsoluteError)
+        );
+        assert_eq!(
+            ScoringFn::parse("mae"),
+            Some(ScoringFn::NegMeanAbsoluteError)
+        );
+        assert_eq!(
+            ScoringFn::parse("explained_variance"),
+            Some(ScoringFn::ExplainedVariance)
+        );
+        assert_eq!(ScoringFn::parse("unknown_metric"), None);
+    }
+
+    /// ScoringFn::compute returns 0.0 for a perfect reconstruction.
+    #[test]
+    fn test_scoring_fn_perfect_reconstruction() {
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape should match");
+        let recon = data.clone();
+
+        // neg_mse on perfect reconstruction should be 0
+        let mse = ScoringFn::NegMeanSquaredError.compute(&data, &recon);
+        assert!(
+            (mse - 0.0).abs() < 1e-10,
+            "neg_mse should be 0 for perfect recon"
+        );
+
+        // r2 on perfect reconstruction should be 1
+        let r2 = ScoringFn::R2.compute(&data, &recon);
+        assert!((r2 - 1.0).abs() < 1e-10, "r2 should be 1 for perfect recon");
+
+        // explained_variance on perfect reconstruction should be 1
+        let ev = ScoringFn::ExplainedVariance.compute(&data, &recon);
+        assert!(
+            (ev - 1.0).abs() < 1e-10,
+            "explained_variance should be 1 for perfect recon"
+        );
+    }
+
+    /// Different scoring functions produce different values for imperfect reconstruction.
+    #[test]
+    fn test_scoring_fn_different_metrics_differ() {
+        let original = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 2.0, 0.0, 3.0, 0.0, 4.0, 0.0])
+            .expect("shape should match");
+        let reconstructed =
+            Array2::from_shape_vec((4, 2), vec![1.5, 0.5, 2.5, 0.5, 3.5, 0.5, 4.5, 0.5])
+                .expect("shape should match");
+
+        let neg_mse = ScoringFn::NegMeanSquaredError.compute(&original, &reconstructed);
+        let r2 = ScoringFn::R2.compute(&original, &reconstructed);
+        let neg_rmse = ScoringFn::NegRootMeanSquaredError.compute(&original, &reconstructed);
+        let neg_mae = ScoringFn::NegMeanAbsoluteError.compute(&original, &reconstructed);
+
+        // All should be negative (reconstruction is imperfect) except R2 which can be in (-∞, 1]
+        assert!(
+            neg_mse < 0.0,
+            "neg_mse should be negative for imperfect recon"
+        );
+        assert!(neg_rmse < 0.0, "neg_rmse should be negative");
+        assert!(neg_mae < 0.0, "neg_mae should be negative");
+        // R2 can be anything; just verify it's finite
+        assert!(r2.is_finite(), "r2 should be finite");
+
+        // neg_mse and neg_rmse should not be equal (rmse = sqrt(mse))
+        assert!(
+            (neg_mse - neg_rmse).abs() > 1e-8,
+            "neg_mse and neg_rmse should differ"
+        );
+    }
+
+    /// with_scoring method sets the scoring function correctly on GridSearchCV.
+    #[test]
+    fn test_grid_search_with_scoring() {
+        let pca = SklearnPCA::new().with_n_components(2);
+        let grid_search = GridSearchCV::new(pca, vec![], 3).with_scoring("r2");
+        assert_eq!(grid_search.scoring(), &ScoringFn::R2);
+
+        let pca2 = SklearnPCA::new().with_n_components(2);
+        let grid_search_mse = GridSearchCV::new(pca2, vec![], 3).with_scoring("mse");
+        assert_eq!(grid_search_mse.scoring(), &ScoringFn::NegMeanSquaredError);
+
+        // Unknown scoring should fall back to NegMeanSquaredError
+        let pca3 = SklearnPCA::new().with_n_components(2);
+        let grid_search_fallback =
+            GridSearchCV::new(pca3, vec![], 3).with_scoring("some_unknown_metric");
+        assert_eq!(
+            grid_search_fallback.scoring(),
+            &ScoringFn::NegMeanSquaredError
+        );
     }
 }

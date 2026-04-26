@@ -2,14 +2,12 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
-use super::types::{BayesianCCA, HierarchicalBayesianCCA, VariationalPLS};
-
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::array;
+    use crate::{BayesianCCA, HierarchicalBayesianCCA, VariationalPLS};
+    use scirs2_core::ndarray::{array, Array2};
+    use sklears_core::types::Float;
     #[test]
     fn test_bayesian_cca_basic() {
         let x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0], [5.0, 6.0]];
@@ -152,7 +150,7 @@ mod tests {
         let y = array![[1.5], [2.5], [3.5], [4.5]];
         let vpls = VariationalPLS::new(1).max_iter(30).tolerance(1e-4);
         let result = vpls.fit(&x, &y).expect("fit should succeed");
-        let (std_wx, std_wy) = result.loading_standard_deviations();
+        let (std_wx, std_wy): (Array2<Float>, Array2<Float>) = result.loading_standard_deviations();
         assert_eq!(std_wx.shape(), &[2, 1]);
         assert_eq!(std_wy.shape(), &[1, 1]);
         assert!(std_wx.iter().all(|&x| x >= 0.0));

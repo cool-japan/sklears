@@ -2,6 +2,7 @@
 //!
 //! This method learns meta-parameters that can quickly adapt to new tasks.
 //! It uses a model-agnostic meta-learning (MAML) approach adapted for multi-task scenarios.
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
@@ -73,6 +74,7 @@ pub struct MetaLearningMultiTaskTrained {
     pub(crate) task_intercepts: HashMap<String, Array1<Float>>,
     /// Number of input features
     pub(crate) n_features: usize,
+    #[allow(dead_code)]
     /// Task configurations
     pub(crate) task_outputs: HashMap<String, usize>,
     /// Training parameters
@@ -192,7 +194,7 @@ impl Fit<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
         }
         let mut meta_intercepts = Array1::<Float>::zeros(first_task_outputs);
 
-        let task_names: Vec<String> = y.keys().cloned().collect();
+        let _task_names: Vec<String> = y.keys().cloned().collect();
         let mut task_parameters: HashMap<String, Array2<Float>> = HashMap::new();
         let mut task_intercepts: HashMap<String, Array1<Float>> = HashMap::new();
 
@@ -293,7 +295,7 @@ impl Predict<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
 {
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<HashMap<String, Array2<Float>>> {
         let x = X.to_owned();
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         if n_features != self.state.n_features {
             return Err(SklearsError::InvalidInput(

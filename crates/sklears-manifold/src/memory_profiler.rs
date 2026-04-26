@@ -187,7 +187,7 @@ impl MemoryProfiler {
             checkpoint_data.insert(label.clone(), *stats);
         }
 
-        /// MemoryProfileReport
+        // MemoryProfileReport
         MemoryProfileReport {
             algorithm_name: self.algorithm_name.clone(),
             dataset_info: self.dataset_info.clone(),
@@ -477,7 +477,7 @@ impl MemoryAnalyzer {
 
         let total_bytes = base_input + base_output + algorithm_overhead;
 
-        /// MemoryEstimate
+        // MemoryEstimate
         MemoryEstimate {
             algorithm: algorithm.to_string(),
             dataset_size: (n_samples, n_features, n_components),
@@ -741,7 +741,6 @@ mod tests {
         // Stable pattern
         checkpoints.insert(
             "step1".to_string(),
-            /// MemoryStats
             MemoryStats {
                 peak_bytes: 1000,
                 ..MemoryStats::new()
@@ -749,7 +748,6 @@ mod tests {
         );
         checkpoints.insert(
             "step2".to_string(),
-            /// MemoryStats
             MemoryStats {
                 peak_bytes: 1100,
                 ..MemoryStats::new()
@@ -757,7 +755,6 @@ mod tests {
         );
         checkpoints.insert(
             "step3".to_string(),
-            /// MemoryStats
             MemoryStats {
                 peak_bytes: 1050,
                 ..MemoryStats::new()

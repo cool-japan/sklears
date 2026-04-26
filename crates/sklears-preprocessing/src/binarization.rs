@@ -570,7 +570,7 @@ mod tests {
 
         // Each bin should have about 2 samples
         for count in bin_counts {
-            assert!(count >= 1 && count <= 3);
+            assert!((1..=3).contains(&count));
         }
     }
 

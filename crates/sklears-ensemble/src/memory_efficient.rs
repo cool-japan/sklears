@@ -12,9 +12,6 @@ use sklears_core::types::Float;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
-
 /// Configuration for memory-efficient ensemble methods
 #[derive(Debug, Clone)]
 pub struct MemoryEfficientConfig {
@@ -371,7 +368,15 @@ impl MemoryEfficientEnsemble<Untrained> {
             .lazy_evaluation(true)
             .memory_threshold_mb(1024)
             .compress_models(true)
-            .use_disk_cache(true, Some("/tmp/sklears_cache".to_string()))
+            .use_disk_cache(
+                true,
+                Some(
+                    std::env::temp_dir()
+                        .join("sklears_cache")
+                        .display()
+                        .to_string(),
+                ),
+            )
             .learning_rate_decay(0.995)
             .adaptive_batch_size(true)
     }
@@ -755,7 +760,7 @@ mod tests {
 
     #[test]
     fn test_incremental_learning() {
-        let mut ensemble = MemoryEfficientEnsemble::new()
+        let ensemble = MemoryEfficientEnsemble::new()
             .max_estimators_in_memory(3)
             .batch_size(2);
 

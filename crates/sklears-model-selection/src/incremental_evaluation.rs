@@ -252,6 +252,7 @@ pub struct IncrementalEvaluator {
     current_predictions: VecDeque<Float>,
     adaptive_parameters: AdaptiveParameters,
     drift_detector: Option<Box<dyn DriftDetector>>,
+    #[allow(dead_code)] // rng retained for future stochastic evaluation strategies
     rng: StdRng,
     start_time: Instant,
     sample_count: usize,
@@ -276,6 +277,7 @@ struct ADWINDetector {
 
 /// Page-Hinkley drift detector implementation
 #[derive(Debug)]
+#[allow(dead_code)] // PageHinkleyDetector is defined but construction currently deferred
 struct PageHinkleyDetector {
     threshold: Float,
     alpha: Float,
@@ -405,7 +407,10 @@ impl IncrementalEvaluator {
         model_update_fn(&features, true_label);
 
         // Check if evaluation should be performed
-        if self.sample_count % self.config.evaluation_frequency == 0 {
+        if self
+            .sample_count
+            .is_multiple_of(self.config.evaluation_frequency)
+        {
             if let Some(snapshot) = performance_snapshot {
                 self.performance_history.push(snapshot.clone());
                 Ok(Some(snapshot))
@@ -538,7 +543,7 @@ impl IncrementalEvaluator {
             _ => unreachable!(),
         };
 
-        if self.current_window.len() >= window_size && self.sample_count % step_size == 0 {
+        if self.current_window.len() >= window_size && self.sample_count.is_multiple_of(step_size) {
             let recent_predictions: Vec<Float> = self
                 .current_predictions
                 .iter()
@@ -634,7 +639,7 @@ impl IncrementalEvaluator {
             _ => unreachable!(),
         };
 
-        if self.sample_count % update_frequency == 0 && !self.current_window.is_empty() {
+        if self.sample_count.is_multiple_of(update_frequency) && !self.current_window.is_empty() {
             let holdout_size = (self.current_window.len() as Float * holdout_ratio) as usize;
 
             if holdout_size > 0 {
@@ -697,7 +702,7 @@ impl IncrementalEvaluator {
             _ => unreachable!(),
         };
 
-        if self.sample_count % block_size == 0 && self.current_window.len() >= block_size {
+        if self.sample_count.is_multiple_of(block_size) && self.current_window.len() >= block_size {
             let block_predictions: Vec<Float> = self
                 .current_predictions
                 .iter()
@@ -881,7 +886,7 @@ impl IncrementalEvaluator {
             _ => unreachable!(),
         };
 
-        if self.current_window.len() >= n_folds && self.sample_count % 10 == 0 {
+        if self.current_window.len() >= n_folds && self.sample_count.is_multiple_of(10) {
             // Simple streaming CV: evaluate on rotating folds
             let fold_size = self.current_window.len() / n_folds;
             let mut fold_scores = Vec::new();
@@ -1016,6 +1021,7 @@ impl DriftDetector for ADWINDetector {
 }
 
 impl PageHinkleyDetector {
+    #[allow(dead_code)] // new() currently not called; struct is reserved for future use
     fn new(threshold: Float, alpha: Float) -> Self {
         Self {
             threshold,
@@ -1146,7 +1152,7 @@ mod tests {
             let prediction = if i % 2 == 0 { 0.8 } else { 0.2 };
 
             let result = evaluator
-                .update(features, label, prediction, &model_update_fn)
+                .update(features, label, prediction, model_update_fn)
                 .expect("operation should succeed");
 
             if i == 4 {

@@ -19,6 +19,15 @@ use std::marker::PhantomData;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
+/// Convenience type alias for bootstrap sample data tuple
+type BootstrapSampleData = (Array2<Float>, Array1<Int>, Vec<usize>, Vec<usize>);
+/// Convenience type alias for trained classifier ensemble results
+type ClassifierEnsembleResult = (
+    Vec<DecisionTreeClassifier<Trained>>,
+    Vec<Vec<usize>>,
+    Vec<Vec<usize>>,
+);
+
 /// Configuration for bagging ensemble
 #[derive(Debug, Clone)]
 pub struct BaggingConfig {
@@ -71,6 +80,7 @@ impl Default for BaggingConfig {
 }
 
 /// Enhanced Bagging classifier with OOB estimation and feature bagging
+#[allow(dead_code)] // planned API fields (sklearn-compatible naming convention)
 pub struct BaggingClassifier<State = Untrained> {
     config: BaggingConfig,
     state: PhantomData<State>,
@@ -220,20 +230,18 @@ impl BaggingClassifier<Untrained> {
             class_indices.entry(class).or_default().push(idx);
         }
 
-        let mut sample_indices = Vec::new();
-
-        if self.config.bootstrap {
+        let mut sample_indices: Vec<usize> = if self.config.bootstrap {
             // First, do standard bootstrap sampling
-            sample_indices = (0..max_samples)
+            (0..max_samples)
                 .map(|_| rng.gen_range(0..n_samples))
-                .collect();
+                .collect()
         } else {
             // Random sampling without replacement
             let mut indices: Vec<usize> = (0..n_samples).collect();
             indices.shuffle(rng);
             indices.truncate(max_samples);
-            sample_indices = indices;
-        }
+            indices
+        };
 
         // Verify we have at least 2 classes in the sample
         let mut sampled_classes = std::collections::HashSet::new();
@@ -283,13 +291,9 @@ impl BaggingClassifier<Untrained> {
         &self,
         x: &Array2<Float>,
         y: &Array1<Int>,
-        rng: &mut StdRng,
+        _rng: &mut StdRng,
         n_features: usize,
-    ) -> Result<(
-        Vec<DecisionTreeClassifier<Trained>>,
-        Vec<Vec<usize>>,
-        Vec<Vec<usize>>,
-    )> {
+    ) -> Result<ClassifierEnsembleResult> {
         // Pre-generate all bootstrap samples and feature indices to maintain determinism
         let mut bootstrap_data = Vec::new();
         for i in 0..self.config.n_estimators {
@@ -354,12 +358,8 @@ impl BaggingClassifier<Untrained> {
     /// Train ensemble sequentially
     fn train_ensemble_sequential(
         &self,
-        bootstrap_data: Vec<(Array2<Float>, Array1<Int>, Vec<usize>, Vec<usize>)>,
-    ) -> Result<(
-        Vec<DecisionTreeClassifier<Trained>>,
-        Vec<Vec<usize>>,
-        Vec<Vec<usize>>,
-    )> {
+        bootstrap_data: Vec<BootstrapSampleData>,
+    ) -> Result<ClassifierEnsembleResult> {
         let mut estimators = Vec::new();
         let mut estimators_features = Vec::new();
         let mut estimators_samples = Vec::new();
@@ -454,10 +454,9 @@ impl BaggingClassifier<Untrained> {
         let mut oob_predictions: Array1<Float> = Array1::zeros(n_samples);
         let mut oob_counts: Array1<Float> = Array1::zeros(n_samples);
 
-        for (estimator_idx, (estimator, (features, samples))) in estimators
+        for (estimator, (features, samples)) in estimators
             .iter()
             .zip(estimators_features.iter().zip(estimators_samples.iter()))
-            .enumerate()
         {
             // Find out-of-bag samples (samples not used in training)
             let mut oob_mask = vec![true; n_samples];
@@ -567,7 +566,7 @@ impl Fit<Array2<Float>, Array1<Int>> for BaggingClassifier<Untrained> {
 
         // Calculate feature importances (average over all trees)
         let mut feature_importances = Array1::zeros(n_features);
-        for (estimator, features) in estimators.iter().zip(estimators_features.iter()) {
+        for (_estimator, features) in estimators.iter().zip(estimators_features.iter()) {
             // For now, use uniform importance within selected features
             let tree_importance = 1.0 / features.len() as Float;
             for &feature_idx in features {
@@ -868,6 +867,7 @@ impl<State> Estimator<State> for BaggingClassifier<State> {
 }
 
 /// Enhanced Bagging regressor with OOB estimation and feature bagging
+#[allow(dead_code)] // planned API fields (sklearn-compatible naming convention)
 pub struct BaggingRegressor<State = Untrained> {
     config: BaggingConfig,
     state: PhantomData<State>,
@@ -1029,7 +1029,7 @@ mod tests {
 
         assert_eq!(classifier.config.n_estimators, 20);
         assert_eq!(classifier.config.random_state, Some(42));
-        assert_eq!(classifier.config.oob_score, true);
+        assert!(classifier.config.oob_score);
     }
 
     #[test]
@@ -1087,7 +1087,7 @@ mod tests {
 
         assert!(fitted.oob_score().is_some());
         let oob_score = fitted.oob_score().expect("operation should succeed");
-        assert!(oob_score >= 0.0 && oob_score <= 1.0);
+        assert!((0.0..=1.0).contains(&oob_score));
 
         let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 10);
@@ -1167,9 +1167,9 @@ mod tests {
         let config = BaggingConfig::default();
 
         assert_eq!(config.n_estimators, 10);
-        assert_eq!(config.bootstrap, true);
-        assert_eq!(config.bootstrap_features, false);
-        assert_eq!(config.oob_score, false);
+        assert!(config.bootstrap);
+        assert!(!config.bootstrap_features);
+        assert!(!config.oob_score);
         assert_eq!(config.random_state, None);
         assert_eq!(config.min_samples_split, 2);
         assert_eq!(config.min_samples_leaf, 1);
@@ -1304,7 +1304,7 @@ mod tests {
 
             // Should have some diversity in bootstrap samples
             // (not all estimators use exactly the same samples)
-            prop_assert!(unique_sample_sets.len() >= 1);
+            prop_assert!(!unique_sample_sets.is_empty());
         }
 
         #[test]
@@ -1356,7 +1356,7 @@ mod tests {
 
             if let Some(oob_score) = classifier.oob_score() {
                 // OOB score should be between 0 and 1 (accuracy)
-                prop_assert!(oob_score >= 0.0 && oob_score <= 1.0);
+                prop_assert!((0.0..=1.0).contains(&oob_score));
             }
         }
 

@@ -290,8 +290,8 @@ impl VonMisesFisher {
 ///     .n_components(2)
 ///     .max_iter(100);
 ///
-/// let fitted = vmf_mixture.fit(&X.view(), &()).unwrap();
-/// let labels = fitted.predict(&X.view()).unwrap();
+/// let fitted = vmf_mixture.fit(&X.view(), &()).expect("VonMisesFisher mixture fitting should succeed with valid data");
+/// let labels = fitted.predict(&X.view()).expect("prediction should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct VonMisesFisherMixture<S = Untrained> {
@@ -310,6 +310,7 @@ pub struct VonMisesFisherMixture<S = Untrained> {
     pub reg_kappa: f64,
 }
 
+#[allow(non_snake_case)]
 impl VonMisesFisherMixture<Untrained> {
     /// Create a new von Mises-Fisher mixture model
     pub fn new() -> Self {
@@ -718,11 +719,13 @@ pub struct VonMisesFisherMixtureFitted {
     /// Akaike Information Criterion
     aic: f64,
     /// Number of components
+    #[allow(dead_code)]
     n_components: usize,
     /// Number of features
     n_features: usize,
 }
 
+#[allow(non_snake_case)]
 impl VonMisesFisherMixtureFitted {
     /// Get the mixture weights
     pub fn weights(&self) -> &Array1<f64> {
@@ -822,9 +825,9 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
     }
 }
 
+#[allow(non_snake_case)]
 impl VonMisesFisherMixture<VonMisesFisherMixtureFitted> {
     /// Predict class probabilities
-    #[allow(non_snake_case)]
     pub fn predict_proba(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         let X = X.to_owned();
         // Normalize input data

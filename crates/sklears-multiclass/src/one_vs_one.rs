@@ -171,12 +171,12 @@ impl<T: Clone> Clone for OneVsOneTrainedData<T> {
 pub type TrainedOneVsOne<T> = OneVsOneClassifier<OneVsOneTrainedData<T>, Trained>;
 
 /// Implementation for classifiers that can fit binary problems
-impl<C> Fit<Array2<Float>, Array1<i32>> for OneVsOneClassifier<C, Untrained>
+impl<C, F> Fit<Array2<Float>, Array1<i32>> for OneVsOneClassifier<C, Untrained>
 where
-    C: Clone + Send + Sync + Fit<Array2<Float>, Array1<Float>>,
-    C::Fitted: Predict<Array2<Float>, Array1<Float>> + Send,
+    C: Clone + Send + Sync + Fit<Array2<Float>, Array1<Float>, Fitted = F>,
+    F: Predict<Array2<Float>, Array1<Float>> + Send + Sync,
 {
-    type Fitted = TrainedOneVsOne<C::Fitted>;
+    type Fitted = TrainedOneVsOne<F>;
 
     fn fit(self, x: &Array2<Float>, y: &Array1<i32>) -> SklResult<Self::Fitted> {
         // Validate inputs
@@ -439,7 +439,9 @@ where
             let max_idx = votes
                 .iter()
                 .enumerate()
-                .max_by(|(_, a): &(_, &Float), (_, b)| (**a).partial_cmp(b).expect("operation should succeed"))
+                .max_by(|(_, a): &(_, &Float), (_, b)| {
+                    (**a).partial_cmp(b).expect("operation should succeed")
+                })
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
 
@@ -506,7 +508,9 @@ where
             let max_idx = weighted_votes
                 .iter()
                 .enumerate()
-                .max_by(|(_, a): &(_, &Float), (_, b)| (**a).partial_cmp(b).expect("operation should succeed"))
+                .max_by(|(_, a): &(_, &Float), (_, b)| {
+                    (**a).partial_cmp(b).expect("operation should succeed")
+                })
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
 
@@ -568,7 +572,9 @@ where
             let max_idx = distance_scores
                 .iter()
                 .enumerate()
-                .max_by(|(_, a): &(_, &Float), (_, b)| (**a).partial_cmp(b).expect("operation should succeed"))
+                .max_by(|(_, a): &(_, &Float), (_, b)| {
+                    (**a).partial_cmp(b).expect("operation should succeed")
+                })
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
 
@@ -669,7 +675,8 @@ where
                         }
                     }
 
-                    pairwise_scores.sort_by(|a, b| b.2.partial_cmp(&a.2).expect("operation should succeed"));
+                    pairwise_scores
+                        .sort_by(|a, b| b.2.partial_cmp(&a.2).expect("operation should succeed"));
 
                     for (rank, &(winner_idx, _loser_idx, confidence)) in
                         pairwise_scores.iter().enumerate()

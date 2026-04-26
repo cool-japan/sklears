@@ -2,10 +2,7 @@
 //!
 //! This module provides the main `ComposableExecutionEngine` and its core functionality.
 
-use sklears_core::{
-    error::{Result as SklResult, SklearsError},
-    traits::Estimator,
-};
+use sklears_core::error::{Result as SklResult, SklearsError};
 use std::any::Any;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
@@ -14,6 +11,7 @@ use std::time::{Duration, Instant};
 use super::config::{ExecutionEngineConfig, ResourceConstraints, StrategyConfig};
 
 /// Composable execution engine that can be configured with different strategies
+#[allow(dead_code)]
 pub struct ComposableExecutionEngine {
     /// Engine configuration
     config: ExecutionEngineConfig,
@@ -210,6 +208,7 @@ pub enum SchedulingAlgorithm {
 }
 
 /// Resource manager for controlling resource usage
+#[allow(dead_code)]
 pub struct ResourceManager {
     /// Current resource allocations
     allocations: Arc<RwLock<HashMap<String, ResourceAllocation>>>,
@@ -233,6 +232,7 @@ pub struct ResourceAllocation {
 }
 
 /// Resource monitor for tracking usage
+#[allow(dead_code)]
 pub struct ResourceMonitor {
     /// Resource usage history
     usage_history: Arc<RwLock<VecDeque<ResourceSnapshot>>>,

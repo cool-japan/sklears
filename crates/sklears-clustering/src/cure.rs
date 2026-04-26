@@ -297,6 +297,12 @@ pub struct CURE {
     config: CUREConfig,
 }
 
+impl Default for CURE {
+    fn default() -> Self {
+        Self::new(CUREConfig::default())
+    }
+}
+
 /// Fitted CURE model
 #[derive(Debug, Clone)]
 pub struct CUREFitted {
@@ -311,11 +317,6 @@ impl CURE {
     /// Create a new CURE clustering algorithm
     pub fn new(config: CUREConfig) -> Self {
         Self { config }
-    }
-
-    /// Create CURE with default configuration
-    pub fn default() -> Self {
-        Self::new(CUREConfig::default())
     }
 
     /// Get configuration builder
@@ -333,9 +334,9 @@ impl CURE {
             }
 
             let mut rng = if let Some(seed) = self.config.random_seed {
-                Random::default()
+                Random::seed(seed)
             } else {
-                Random::default() // Use a default seed to maintain same type
+                Random::seed(42) // Default seed for reproducibility
             };
 
             // Simple random sampling

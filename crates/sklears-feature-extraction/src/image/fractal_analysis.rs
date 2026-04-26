@@ -57,12 +57,12 @@ pub enum FractalMethod {
 /// use sklears_feature_extraction::image::fractal_analysis::{FractalDimensionExtractor, FractalMethod};
 /// use scirs2_core::ndarray::Array2;
 ///
-/// let image = Array2::from_shape_vec((64, 64), (0..4096).map(|x| x as f64 / 4096.0).collect()).unwrap();
+/// let image = Array2::from_shape_vec((64, 64), (0..4096).map(|x| x as f64 / 4096.0).collect()).expect("shape and data length match");
 /// let extractor = FractalDimensionExtractor::new()
 ///     .method(FractalMethod::Combined)
 ///     .box_sizes(vec![2, 4, 8, 16, 32])
 ///     .epsilon_values(vec![0.1, 0.2, 0.5, 1.0]);
-/// let dimension = extractor.compute_fractal_dimension(&image.view()).unwrap();
+/// let dimension = extractor.compute_fractal_dimension(&image.view()).expect("valid image produces fractal dimension estimate");
 /// ```
 #[derive(Debug, Clone)]
 pub struct FractalDimensionExtractor {
@@ -79,6 +79,8 @@ pub struct FractalDimensionExtractor {
     /// Minimum number of points for regression
     min_regression_points: usize,
     /// Whether to compute confidence intervals
+    #[allow(dead_code)]
+    // compute_confidence retained for future confidence interval implementation
     compute_confidence: bool,
 }
 
@@ -136,7 +138,7 @@ impl FractalDimensionExtractor {
     /// Only used when auto_threshold is disabled.
     /// Value should be in range [0, 1] for normalized images.
     pub fn binary_threshold(mut self, threshold: f64) -> Self {
-        self.binary_threshold = threshold.max(0.0).min(1.0);
+        self.binary_threshold = threshold.clamp(0.0, 1.0);
         self
     }
 
@@ -460,10 +462,10 @@ impl FractalDimensionExtractor {
         let mut mean = 0.0;
         let mut sum = 0.0;
 
-        for i in start..end {
-            let count = histogram[i] as f64;
+        for (i, &h) in histogram[start..end].iter().enumerate() {
+            let count = h as f64;
             weight += count;
-            sum += i as f64 * count;
+            sum += (start + i) as f64 * count;
         }
 
         if weight > 0.0 {
@@ -774,7 +776,7 @@ mod tests {
         .expect("operation should succeed");
 
         let threshold = extractor.otsu_threshold(&image.view());
-        assert!(threshold >= 0.0 && threshold <= 1.0);
+        assert!((0.0..=1.0).contains(&threshold));
     }
 
     #[test]
@@ -867,7 +869,7 @@ mod tests {
             .extract_fractal_features(&image.view())
             .expect("operation should succeed");
 
-        assert!(features.len() >= 1); // Should extract at least primary dimension
+        assert!(!features.is_empty()); // Should extract at least primary dimension
         assert!(features.iter().all(|&x| x.is_finite())); // All features should be finite
     }
 

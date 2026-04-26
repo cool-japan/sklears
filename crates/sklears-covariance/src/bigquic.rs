@@ -6,7 +6,7 @@
 //! computational speed are critical.
 
 use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
-use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
@@ -257,7 +257,7 @@ impl BigQUIC<Untrained> {
         empirical_cov: &Array2<f64>,
         precision: &mut Array2<f64>,
     ) -> SklResult<(Array2<f64>, usize, f64)> {
-        let n_features = empirical_cov.nrows();
+        let _n_features = empirical_cov.nrows();
         let mut prev_objective = f64::INFINITY;
 
         for iter in 0..self.max_iter {
@@ -542,9 +542,9 @@ mod tests {
         assert_eq!(estimator.lambda, 0.2);
         assert_eq!(estimator.max_iter, 200);
         assert_eq!(estimator.tol, 1e-5);
-        assert_eq!(estimator.assume_centered, true);
+        assert!(estimator.assume_centered);
         assert_eq!(estimator.block_size, 500);
-        assert_eq!(estimator.warm_start, true);
+        assert!(estimator.warm_start);
     }
 
     #[test]

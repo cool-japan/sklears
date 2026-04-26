@@ -35,7 +35,10 @@ impl Default for OutOfCoreConfig {
             max_memory_bytes: 1024 * 1024 * 1024, // 1GB
             chunk_size: 10000,
             n_workers: num_cpus::get(),
-            temp_dir: "/tmp/sklears_out_of_core".to_string(),
+            temp_dir: std::env::temp_dir()
+                .join("sklears_out_of_core")
+                .display()
+                .to_string(),
             use_compression: true,
             buffer_size: 64 * 1024, // 64KB
         }
@@ -59,6 +62,7 @@ pub enum OutOfCoreStrategy {
 /// Out-of-core data loader for large datasets
 pub struct OutOfCoreLoader {
     config: OutOfCoreConfig,
+    #[allow(dead_code)] // file path stored for chunk loading operations
     data_path: String,
     n_samples: usize,
     n_features: usize,
@@ -110,7 +114,7 @@ impl OutOfCoreLoader {
 
     /// Get total number of chunks
     pub fn n_chunks(&self) -> usize {
-        (self.n_samples + self.config.chunk_size - 1) / self.config.chunk_size
+        self.n_samples.div_ceil(self.config.chunk_size)
     }
 }
 
@@ -363,6 +367,7 @@ pub struct OutOfCoreNystroem {
     config: OutOfCoreConfig,
     strategy: OutOfCoreStrategy,
     basis_indices: Option<Vec<usize>>,
+    #[allow(dead_code)] // stored basis kernel for potential reuse in prediction
     basis_kernel: Option<Array2<f64>>,
     normalization: Option<Array2<f64>>,
 }

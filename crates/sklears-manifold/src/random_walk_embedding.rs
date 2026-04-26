@@ -306,11 +306,14 @@ impl RandomWalkEmbedding<Untrained> {
                 for (i, &center_word) in walk.iter().enumerate() {
                     let center_idx = vocab[&center_word];
 
-                    for j in (i.saturating_sub(self.window_size))
-                        ..(i + self.window_size + 1).min(walk.len())
+                    let window_start = i.saturating_sub(self.window_size);
+                    let window_end = (i + self.window_size + 1).min(walk.len());
+                    for (j, &context_word) in walk[window_start..window_end]
+                        .iter()
+                        .enumerate()
+                        .map(|(k, w)| (window_start + k, w))
                     {
                         if i != j {
-                            let context_word = walk[j];
                             let context_idx = vocab[&context_word];
 
                             // Simple gradient update (simplified)

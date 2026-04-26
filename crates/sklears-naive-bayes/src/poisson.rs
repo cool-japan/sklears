@@ -365,7 +365,7 @@ mod tests {
     fn test_poisson_nb_creation() {
         let nb = PoissonNB::new();
         assert_abs_diff_eq!(nb.config.alpha, 1e-10, epsilon = 1e-12);
-        assert_eq!(nb.config.fit_prior, true);
+        assert!(nb.config.fit_prior);
     }
 
     #[test]

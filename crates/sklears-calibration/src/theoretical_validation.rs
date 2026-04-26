@@ -138,6 +138,7 @@ pub struct TheoreticalCalibrationValidator {
     /// Computed theoretical bounds
     bounds_cache: HashMap<String, TheoreticalBounds>,
     /// Ultra-precision arithmetic for proofs
+    #[allow(dead_code)] // intentionally deferred: high-precision proof path not yet exercised
     ultra_precision: SafeProbabilityOps,
 }
 

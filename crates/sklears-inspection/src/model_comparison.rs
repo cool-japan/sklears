@@ -5,7 +5,7 @@
 
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{RngExt, SeedableRng};
+use scirs2_core::random::RngExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -124,6 +124,7 @@ pub enum EnsembleMethod {
 ///
 /// Provides comprehensive comparison including performance metrics, agreement analysis,
 /// and diversity assessment.
+#[allow(non_snake_case)] // standard ML notation
 pub fn compare_models<F>(
     models: &[F],
     model_ids: &[String],
@@ -146,7 +147,7 @@ where
         ));
     }
 
-    let n_models = models.len();
+    let _n_models = models.len();
     let n_samples = X.nrows();
 
     // Get predictions from all models
@@ -197,6 +198,7 @@ where
 }
 
 /// Analyze ensemble model performance and characteristics
+#[allow(non_snake_case)] // standard ML notation
 pub fn analyze_ensemble<F>(
     models: &[F],
     weights: Option<&ArrayView1<Float>>,
@@ -257,7 +259,7 @@ where
                 let mut values: Vec<Float> =
                     individual_predictions.iter().map(|pred| pred[i]).collect();
                 values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
-                ensemble[i] = if values.len() % 2 == 0 {
+                ensemble[i] = if values.len().is_multiple_of(2) {
                     (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
                 } else {
                     values[values.len() / 2]
@@ -322,15 +324,16 @@ pub struct BiasVarianceDecomposition {
 }
 
 /// Compute model agreement metrics
+#[allow(non_snake_case)] // standard ML notation
 pub fn compute_model_agreement<F>(
     models: &[F],
     X: &ArrayView2<Float>,
-    agreement_threshold: Float,
+    _agreement_threshold: Float,
 ) -> SklResult<Array2<Float>>
 where
     F: Fn(&ArrayView2<Float>) -> Vec<Float>,
 {
-    let n_models = models.len();
+    let _n_models = models.len();
     let mut predictions = Vec::new();
 
     for model in models {
@@ -341,6 +344,7 @@ where
 }
 
 /// Assess prediction stability across different data subsets
+#[allow(non_snake_case)] // standard ML notation
 pub fn assess_prediction_stability<F>(
     model: &F,
     X: &ArrayView2<Float>,
@@ -451,7 +455,7 @@ fn compute_model_metrics(
 
 fn compute_agreement_metrics(
     predictions: &[Array1<Float>],
-    y_true: &ArrayView1<Float>,
+    _y_true: &ArrayView1<Float>,
 ) -> SklResult<Array2<Float>> {
     let n_models = predictions.len();
     let mut agreement_matrix = Array2::zeros((n_models, n_models));
@@ -478,7 +482,7 @@ fn compute_correlation(x: &ArrayView1<Float>, y: &ArrayView1<Float>) -> SklResul
         ));
     }
 
-    let n = x.len() as Float;
+    let _n = x.len() as Float;
     let x_mean = x.mean().expect("operation should succeed");
     let y_mean = y.mean().expect("operation should succeed");
 
@@ -526,7 +530,7 @@ fn create_ensemble_predictions(
             for i in 0..n_samples {
                 let mut values: Vec<Float> = predictions.iter().map(|pred| pred[i]).collect();
                 values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
-                ensemble[i] = if values.len() % 2 == 0 {
+                ensemble[i] = if values.len().is_multiple_of(2) {
                     (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
                 } else {
                     values[values.len() / 2]
@@ -542,7 +546,7 @@ fn create_ensemble_predictions(
 
 fn compute_diversity_metrics(
     predictions: &[Array1<Float>],
-    y_true: &ArrayView1<Float>,
+    _y_true: &ArrayView1<Float>,
 ) -> SklResult<DiversityMetrics> {
     let n_models = predictions.len();
 
@@ -568,6 +572,7 @@ fn compute_diversity_metrics(
     let mut disagreements = 0;
     let mut total_pairs = 0;
 
+    #[allow(clippy::needless_range_loop)]
     for sample_idx in 0..predictions[0].len() {
         for i in 0..n_models {
             for j in (i + 1)..n_models {
@@ -594,10 +599,11 @@ fn compute_diversity_metrics(
     })
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_stability_metrics<F>(
     models: &[F],
     X: &ArrayView2<Float>,
-    y_true: &ArrayView1<Float>,
+    _y_true: &ArrayView1<Float>,
     config: &ModelComparisonConfig,
 ) -> SklResult<StabilityMetrics>
 where
@@ -632,6 +638,7 @@ fn compute_mean_predictions(predictions: &[Array1<Float>]) -> Array1<Float> {
     mean_pred / n_predictions
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn assess_perturbation_robustness<F>(
     model: &F,
     X: &ArrayView2<Float>,
@@ -714,7 +721,7 @@ fn compute_bias_variance_decomposition(
 
 fn compute_model_contributions(
     individual_predictions: &[Array1<Float>],
-    ensemble_prediction: &Array1<Float>,
+    _ensemble_prediction: &Array1<Float>,
     weights: Option<&ArrayView1<Float>>,
 ) -> SklResult<Vec<Float>> {
     let n_models = individual_predictions.len();
@@ -803,8 +810,10 @@ mod tests {
 
         let X = array![[1.0], [2.0], [3.0], [4.0]];
 
-        let mut config = ModelComparisonConfig::default();
-        config.n_bootstrap_samples = 10; // Small for test
+        let config = ModelComparisonConfig {
+            n_bootstrap_samples: 10, // Small for test
+            ..Default::default()
+        };
 
         let result = assess_prediction_stability(&model, &X.view(), &config)
             .expect("operation should succeed");

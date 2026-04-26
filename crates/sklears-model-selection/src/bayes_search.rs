@@ -866,24 +866,24 @@ mod tests {
 
         let uniform = ParamDistribution::Uniform { min: 0.0, max: 1.0 };
         let sample = uniform.sample(&mut rng);
-        assert!(sample >= 0.0 && sample <= 1.0);
+        assert!((0.0..=1.0).contains(&sample));
 
         let log_uniform = ParamDistribution::LogUniform {
             min: 1e-3,
             max: 1e3,
         };
         let sample = log_uniform.sample(&mut rng);
-        assert!(sample >= 1e-3 && sample <= 1e3);
+        assert!((1e-3..=1e3).contains(&sample));
 
         let choice = ParamDistribution::Choice {
             values: vec![1.0, 2.0, 3.0],
         };
         let sample = choice.sample(&mut rng);
-        assert!(vec![1.0, 2.0, 3.0].contains(&sample));
+        assert!([1.0, 2.0, 3.0].contains(&sample));
 
         let int_uniform = ParamDistribution::IntUniform { min: 1, max: 10 };
         let sample = int_uniform.sample(&mut rng);
-        assert!(sample >= 1.0 && sample <= 10.0);
+        assert!((1.0..=10.0).contains(&sample));
     }
 
     #[test]
@@ -978,7 +978,7 @@ mod tests {
         // Test that erf is bounded between -1 and 1
         for x in [-5.0, -2.0, -1.0, 0.0, 1.0, 2.0, 5.0] {
             let result = erf(x);
-            assert!(result >= -1.0 && result <= 1.0);
+            assert!((-1.0..=1.0).contains(&result));
         }
     }
 
@@ -1034,7 +1034,7 @@ mod tests {
 
         // Check that scores are reasonable
         if let Some(best_score) = tpe.best_score() {
-            assert!(best_score >= 0.0 && best_score <= 1.0);
+            assert!((0.0..=1.0).contains(&best_score));
         }
     }
 }

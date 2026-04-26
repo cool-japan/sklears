@@ -10,6 +10,7 @@ use sklears_core::error::{Result as SklResult, SklearsError};
 pub struct FeatureSetDiversityMeasures;
 
 impl FeatureSetDiversityMeasures {
+    /// compute_diversity
     pub fn compute_diversity(_feature_indices: &[usize]) -> SklResult<f64> {
         Err(SklearsError::NotImplemented(
             "FeatureSetDiversityMeasures::compute_diversity is not yet implemented".to_string(),
@@ -22,6 +23,7 @@ impl FeatureSetDiversityMeasures {
 pub struct DiversityIndex;
 
 impl DiversityIndex {
+    /// compute
     pub fn compute(_features: &[usize]) -> SklResult<f64> {
         Err(SklearsError::NotImplemented(
             "DiversityIndex::compute is not yet implemented".to_string(),
@@ -34,6 +36,7 @@ impl DiversityIndex {
 pub struct FeatureSpacing;
 
 impl FeatureSpacing {
+    /// compute_spacing
     pub fn compute_spacing(_features: &[usize]) -> SklResult<f64> {
         Err(SklearsError::NotImplemented(
             "FeatureSpacing::compute_spacing is not yet implemented".to_string(),
@@ -46,6 +49,7 @@ impl FeatureSpacing {
 pub struct DiversityMatrix;
 
 impl DiversityMatrix {
+    /// compute
     pub fn compute(_features: &[usize]) -> SklResult<Vec<Vec<f64>>> {
         Err(SklearsError::NotImplemented(
             "DiversityMatrix::compute is not yet implemented".to_string(),
@@ -58,6 +62,7 @@ impl DiversityMatrix {
 pub struct EnsembleDiversity;
 
 impl EnsembleDiversity {
+    /// compute_ensemble_diversity
     pub fn compute_ensemble_diversity(_feature_sets: &[Vec<usize>]) -> SklResult<f64> {
         Err(SklearsError::NotImplemented(
             "EnsembleDiversity::compute_ensemble_diversity is not yet implemented".to_string(),

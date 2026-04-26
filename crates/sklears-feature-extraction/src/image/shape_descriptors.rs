@@ -44,12 +44,12 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 /// use sklears_feature_extraction::image::shape_descriptors::ShapeDescriptorExtractor;
 /// use scirs2_core::ndarray::Array2;
 ///
-/// let image = Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64 / 1024.0).collect()).unwrap();
+/// let image = Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64 / 1024.0).collect()).expect("shape and data length match");
 /// let extractor = ShapeDescriptorExtractor::new()
 ///     .max_moment_order(3)
 ///     .binary_threshold(0.5)
 ///     .normalize_moments(true);
-/// let features = extractor.extract_features(&image.view()).unwrap();
+/// let features = extractor.extract_features(&image.view()).expect("valid image produces shape descriptor features");
 /// ```
 #[derive(Debug, Clone)]
 pub struct ShapeDescriptorExtractor {
@@ -93,7 +93,7 @@ impl ShapeDescriptorExtractor {
     /// increase computational cost and sensitivity to noise.
     /// Typical range: 2-6 for most applications.
     pub fn max_moment_order(mut self, order: usize) -> Self {
-        self.max_moment_order = order.max(1).min(10); // Reasonable bounds
+        self.max_moment_order = order.clamp(1, 10); // Reasonable bounds
         self
     }
 
@@ -102,7 +102,7 @@ impl ShapeDescriptorExtractor {
     /// Threshold determines which pixels are considered part of the object.
     /// Values should be in range [0, 1] for normalized images.
     pub fn binary_threshold(mut self, threshold: f64) -> Self {
-        self.binary_threshold = threshold.max(0.0).min(1.0);
+        self.binary_threshold = threshold.clamp(0.0, 1.0);
         self
     }
 
@@ -357,13 +357,11 @@ impl ShapeDescriptorExtractor {
         perimeter: f64,
         binary_image: &Array2<bool>,
     ) -> Vec<f64> {
-        let mut features = Vec::new();
-
-        // Basic measurements
-        features.push(area);
-        features.push(centroid.0); // Centroid X
-        features.push(centroid.1); // Centroid Y
-        features.push(perimeter);
+        let mut features = vec![
+            area, centroid.0, // Centroid X
+            centroid.1, // Centroid Y
+            perimeter,
+        ];
 
         // Derived shape properties
         let compactness = if perimeter > 0.0 {
@@ -431,7 +429,7 @@ impl ShapeDescriptorExtractor {
         // Estimate solidity based on extent and shape regularity
         // This is a simplified approximation
         let irregularity_penalty = self.compute_shape_irregularity(binary_image);
-        (extent * (1.0 - irregularity_penalty)).max(0.0).min(1.0)
+        (extent * (1.0 - irregularity_penalty)).clamp(0.0, 1.0)
     }
 
     /// Find bounding box coordinates
@@ -782,7 +780,7 @@ mod tests {
             .extract_features(&image.view())
             .expect("operation should succeed");
 
-        assert!(features.len() > 0);
+        assert!(!features.is_empty());
         // Should extract multiple shape features
     }
 

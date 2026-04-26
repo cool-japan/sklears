@@ -20,8 +20,8 @@
 //! use scirs2_core::ndarray::Array2;
 //!
 //! // Create two views of data
-//! let view1 = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 1.0, 4.0, 2.0]).unwrap();
-//! let view2 = Array2::from_shape_vec((4, 2), vec![5.0, 6.0, 6.0, 7.0, 7.0, 5.0, 8.0, 6.0]).unwrap();
+//! let view1 = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 1.0, 4.0, 2.0]).expect("shape matches data length");
+//! let view2 = Array2::from_shape_vec((4, 2), vec![5.0, 6.0, 6.0, 7.0, 7.0, 5.0, 8.0, 6.0]).expect("shape matches data length");
 //! let views = vec![view1, view2];
 //! # let y = scirs2_core::ndarray::Array1::from_vec(vec![0, 0, 1, 1]);
 //! # let configs = vec![ViewConfig::new(Distance::Euclidean, 1.0); 2];
@@ -300,12 +300,12 @@ impl MultiViewKNeighborsClassifier<Trained> {
                     let query = view.row(sample_idx);
                     let proba = self.predict_proba_for_view(view_idx, &query)?;
                     let weight = self.state.view_weights[view_idx];
-                    combined_proba = combined_proba + &(proba * weight);
+                    combined_proba += &(proba * weight);
                     total_weight += weight;
                 }
 
                 if total_weight > 0.0 {
-                    combined_proba = combined_proba / total_weight;
+                    combined_proba /= total_weight;
                 }
 
                 Ok(combined_proba)
@@ -316,13 +316,13 @@ impl MultiViewKNeighborsClassifier<Trained> {
                 for (view_idx, view) in x_views.iter().enumerate() {
                     let query = view.row(sample_idx);
                     let proba = self.predict_proba_for_view(view_idx, &query)?;
-                    combined_proba = combined_proba * proba;
+                    combined_proba *= &proba;
                 }
 
                 // Normalize
                 let sum: Float = combined_proba.sum();
                 if sum > 0.0 {
-                    combined_proba = combined_proba / sum;
+                    combined_proba /= sum;
                 }
 
                 Ok(combined_proba)
@@ -347,7 +347,7 @@ impl MultiViewKNeighborsClassifier<Trained> {
                 // Normalize votes to probabilities
                 let total: Float = votes.sum();
                 if total > 0.0 {
-                    votes = votes / total;
+                    votes /= total;
                 }
 
                 Ok(votes)
@@ -360,10 +360,10 @@ impl MultiViewKNeighborsClassifier<Trained> {
                 for (view_idx, view) in x_views.iter().enumerate() {
                     let query = view.row(sample_idx);
                     let proba = self.predict_proba_for_view(view_idx, &query)?;
-                    combined_proba = combined_proba + &proba;
+                    combined_proba += &proba;
                 }
 
-                combined_proba = combined_proba / (x_views.len() as Float);
+                combined_proba /= x_views.len() as Float;
                 Ok(combined_proba)
             }
         }
@@ -405,7 +405,7 @@ impl MultiViewKNeighborsClassifier<Trained> {
         // Normalize to probabilities
         let total: Float = class_counts.sum();
         if total > 0.0 {
-            class_counts = class_counts / total;
+            class_counts /= total;
         }
 
         Ok(class_counts)
@@ -470,7 +470,7 @@ impl MultiViewKNeighborsClassifier<Trained> {
 
         // Normalize view agreements
         if n_samples > 0 {
-            view_agreements = view_agreements / (n_samples as Float);
+            view_agreements /= n_samples as Float;
         }
 
         let mean_consensus =

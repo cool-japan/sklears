@@ -1,10 +1,9 @@
 //! Multi-block Partial Least Squares
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, Random, Rng};
 use sklears_core::{
     error::{Result, SklearsError},
-    traits::{Estimator, Fit, Predict, Trained, Transform, Untrained},
+    traits::{Fit, Predict, Trained, Transform, Untrained},
     types::Float,
 };
 use std::marker::PhantomData;
@@ -263,36 +262,6 @@ impl MultiBlockPLS<Trained> {
         Ok(scaled_blocks)
     }
 
-    /// Scale Y according to fitted parameters
-    fn scale_y(&self, y: &Array2<Float>) -> Result<Array2<Float>> {
-        if !self.scale_y {
-            return Ok(y.clone());
-        }
-
-        let y_mean = self.y_mean_.as_ref().ok_or(SklearsError::NotFitted {
-            operation: "accessing model attribute".to_string(),
-        })?;
-        let y_std = self.y_std_.as_ref().ok_or(SklearsError::NotFitted {
-            operation: "accessing model attribute".to_string(),
-        })?;
-
-        let mut y_scaled = y.clone();
-
-        // Center Y
-        for (mut row, mean) in y_scaled.axis_iter_mut(Axis(0)).zip(y_mean.iter()) {
-            row -= *mean;
-        }
-
-        // Scale Y
-        for (mut row, std) in y_scaled.axis_iter_mut(Axis(0)).zip(y_std.iter()) {
-            if *std > 0.0 {
-                row /= *std;
-            }
-        }
-
-        Ok(y_scaled)
-    }
-
     /// Transform blocks to get super scores
     fn transform_blocks(&self, x_blocks: &[Array2<Float>]) -> Result<Array2<Float>> {
         let scaled_blocks = self.scale_blocks(x_blocks)?;
@@ -470,7 +439,7 @@ impl Fit<Vec<Array2<Float>>, Array2<Float>> for MultiBlockPLS<Untrained> {
 
         let mut y_weights = Array2::zeros((n_targets, self.n_components));
         let mut y_loadings = Array2::zeros((n_targets, self.n_components));
-        let mut super_weights = Array1::ones(n_blocks) / (n_blocks as Float);
+        let super_weights = Array1::ones(n_blocks) / (n_blocks as Float);
         let mut x_scores = Array2::zeros((n_samples, self.n_components));
         let mut y_scores = Array2::zeros((n_samples, self.n_components));
         let mut n_iter = Vec::new();
@@ -709,9 +678,9 @@ impl Predict<Vec<Array2<Float>>, Array2<Float>> for MultiBlockPLS<Trained> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use proptest::prelude::*;
     use scirs2_core::ndarray::array;
+    use scirs2_core::random::thread_rng;
 
     #[test]
     fn test_multiblock_pls_basic() {

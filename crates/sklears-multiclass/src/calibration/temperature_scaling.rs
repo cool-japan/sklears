@@ -387,7 +387,9 @@ mod tests {
         ];
         let y_true = array![0, 1, 2, 0];
 
-        scaler.fit(&logits, &y_true, 100, 1e-6, 0.01).expect("operation should succeed");
+        scaler
+            .fit(&logits, &y_true, 100, 1e-6, 0.01)
+            .expect("operation should succeed");
 
         let calibrated = scaler.transform(&logits).expect("operation should succeed");
 
@@ -402,7 +404,7 @@ mod tests {
 
         // Check that all probabilities are between 0 and 1
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
 
         // Temperature should be positive
@@ -420,7 +422,9 @@ mod tests {
             [0.6, 0.3, 0.1]
         ];
 
-        let calibrated = scaler.transform_probabilities(&probabilities).expect("operation should succeed");
+        let calibrated = scaler
+            .transform_probabilities(&probabilities)
+            .expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(calibrated.dim(), (4, 3));
@@ -444,7 +448,9 @@ mod tests {
         ];
         let y_true = array![0, 1, 2, 0];
 
-        scaler.fit(&logits, &y_true, 100, 1e-6, 0.01).expect("operation should succeed");
+        scaler
+            .fit(&logits, &y_true, 100, 1e-6, 0.01)
+            .expect("operation should succeed");
 
         let calibrated = scaler.transform(&logits).expect("operation should succeed");
 
@@ -477,7 +483,9 @@ mod tests {
             .fit_probabilities(&probabilities, &y_true, 100, 1e-6, 0.01)
             .expect("operation should succeed");
 
-        let calibrated = scaler.transform_probabilities(&probabilities).expect("operation should succeed");
+        let calibrated = scaler
+            .transform_probabilities(&probabilities)
+            .expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(calibrated.dim(), (4, 3));
@@ -494,11 +502,13 @@ mod tests {
         let scaler = TemperatureScaling::new(2.0);
 
         let uncalibrated = array![0.9, 0.1, 0.7, 0.3];
-        let calibrated = scaler.calibrate(&uncalibrated).expect("operation should succeed");
+        let calibrated = scaler
+            .calibrate(&uncalibrated)
+            .expect("operation should succeed");
 
         assert_eq!(calibrated.len(), 4);
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 
@@ -510,7 +520,9 @@ mod tests {
         let logits = array![[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]];
         let y_true = array![0, 1, 2];
 
-        scaler.fit(&logits, &y_true, 100, 1e-6, 0.01).expect("operation should succeed");
+        scaler
+            .fit(&logits, &y_true, 100, 1e-6, 0.01)
+            .expect("operation should succeed");
 
         let calibrated = scaler.transform(&logits).expect("operation should succeed");
 
@@ -551,7 +563,9 @@ mod tests {
         let y_true = array![0, 1, 0, 1];
 
         let _initial_temp = scaler.temperature;
-        scaler.fit(&logits, &y_true, 1000, 1e-8, 0.01).expect("operation should succeed");
+        scaler
+            .fit(&logits, &y_true, 1000, 1e-8, 0.01)
+            .expect("operation should succeed");
 
         // Temperature should change during optimization
         // Note: This might not always be true if data is already well-calibrated
@@ -572,12 +586,14 @@ mod tests {
 
         let logits = array![[1000.0, 999.0, 998.0]];
 
-        let result = scaler.apply_temperature_scaling(&logits, 0.1).expect("operation should succeed");
+        let result = scaler
+            .apply_temperature_scaling(&logits, 0.1)
+            .expect("operation should succeed");
 
         // Should not produce NaN or Inf
         for &val in result.iter() {
             assert!(val.is_finite());
-            assert!(val >= 0.0 && val <= 1.0);
+            assert!((0.0..=1.0).contains(&val));
         }
 
         // Row should sum to 1

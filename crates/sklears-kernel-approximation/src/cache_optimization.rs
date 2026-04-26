@@ -99,7 +99,8 @@ pub struct CacheFriendlyMatrix {
     n_cols: usize,
     /// Memory layout
     layout: MemoryLayout,
-    /// Cache configuration
+    /// Cache configuration (stored for potential reconfiguration)
+    #[allow(dead_code)]
     config: CacheConfig,
 }
 
@@ -138,8 +139,8 @@ impl CacheFriendlyMatrix {
         let (n_rows, n_cols) = array.dim();
         let mut data = vec![0.0; n_rows * n_cols];
 
-        let n_row_blocks = (n_rows + tile_size - 1) / tile_size;
-        let n_col_blocks = (n_cols + tile_size - 1) / tile_size;
+        let n_row_blocks = n_rows.div_ceil(tile_size);
+        let n_col_blocks = n_cols.div_ceil(tile_size);
 
         let mut offset = 0;
         for block_row in 0..n_row_blocks {
@@ -178,7 +179,7 @@ impl CacheFriendlyMatrix {
                 let in_block_row = row % tile_size;
                 let in_block_col = col % tile_size;
 
-                let n_col_blocks = (self.n_cols + tile_size - 1) / tile_size;
+                let n_col_blocks = self.n_cols.div_ceil(tile_size);
                 let block_idx = block_row * n_col_blocks + block_col;
                 let block_offset = block_idx * tile_size * tile_size;
 
@@ -427,7 +428,7 @@ pub mod utils {
 
     /// Align size to cache line boundary
     pub fn align_to_cache_line(size: usize, cache_line_size: usize) -> usize {
-        ((size + cache_line_size - 1) / cache_line_size) * cache_line_size
+        size.div_ceil(cache_line_size) * cache_line_size
     }
 }
 

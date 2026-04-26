@@ -646,7 +646,7 @@ pub struct IsEven<const N: usize>;
 
 impl<const N: usize> Predicate for IsEven<N> {
     fn holds() -> bool {
-        N % 2 == 0
+        N.is_multiple_of(2)
     }
 }
 

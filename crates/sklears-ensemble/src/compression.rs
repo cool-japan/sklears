@@ -11,20 +11,13 @@ use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::SeedableRng;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::prelude::Predict;
-use sklears_core::traits::{Estimator, PredictProba};
+use sklears_core::traits::PredictProba;
 use sklears_core::types::{Float, Int};
 use std::collections::HashMap;
 
-/// Helper function to generate random f64 from scirs2_core::random::RngCore
-fn gen_f64(rng: &mut impl scirs2_core::random::RngCore) -> f64 {
-    let mut bytes = [0u8; 8];
-    rng.fill_bytes(&mut bytes);
-    f64::from_le_bytes(bytes) / f64::from_le_bytes([255u8; 8])
-}
-
-/// Helper function to generate random value in range from scirs2_core::random::RngCore
+/// Helper function to generate random value in range from scirs2_core::random::Rng
 fn gen_range_usize(
-    rng: &mut impl scirs2_core::random::RngCore,
+    rng: &mut impl scirs2_core::random::Rng,
     range: std::ops::Range<usize>,
 ) -> usize {
     let mut bytes = [0u8; 8];
@@ -193,6 +186,7 @@ pub struct SparsityInfo {
 }
 
 /// Knowledge distillation trainer
+#[allow(dead_code)] // planned API fields
 pub struct KnowledgeDistillationTrainer {
     temperature: Float,
     alpha: Float, // Weight for distillation loss
@@ -200,6 +194,7 @@ pub struct KnowledgeDistillationTrainer {
 }
 
 /// Ensemble pruning algorithm
+#[allow(dead_code)] // planned API fields
 pub struct EnsemblePruner {
     /// Diversity threshold for pruning
     diversity_threshold: Float,
@@ -712,7 +707,7 @@ impl KnowledgeDistillationTrainer {
         teachers: &[Teacher],
         student: Student,
         x_train: &Array2<Float>,
-        y_train: &Array1<Int>,
+        _y_train: &Array1<Int>,
     ) -> Result<Student>
     where
         Teacher: PredictProba<Array2<Float>, Array2<Float>>,
@@ -1260,7 +1255,6 @@ fn erf(x: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::array;
 
     // Mock model for testing
     #[derive(Clone)]
@@ -1442,7 +1436,7 @@ mod tests {
             CompressionStrategy::BayesianOptimization
         );
         assert!(compressed.models.len() <= ensemble.len());
-        assert!(compressed.models.len() >= 1);
+        assert!(!compressed.models.is_empty());
 
         // Should have compression statistics
         let stats = compressor.stats().expect("operation should succeed");
@@ -1522,7 +1516,7 @@ mod tests {
         // Test that erf is bounded between -1 and 1
         for x in [-5.0, -2.0, -1.0, 0.0, 1.0, 2.0, 5.0] {
             let result = erf(x);
-            assert!(result >= -1.0 && result <= 1.0);
+            assert!((-1.0..=1.0).contains(&result));
         }
     }
 }

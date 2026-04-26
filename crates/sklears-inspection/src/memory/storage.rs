@@ -40,6 +40,7 @@ pub struct MemoryMapConfig {
 }
 
 /// Memory-mapped file handle
+#[allow(dead_code)] // fields used through cfg-gated mmap operations
 struct MappedFile {
     /// File handle
     file: File,

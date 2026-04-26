@@ -143,7 +143,7 @@ fn test_voting_strategies() {
     let x = array![[1.0, 2.0], [0.0, 0.0]];
     let y = array![1.0, 0.0];
 
-    let fitted_classifier = classifier
+    let _fitted_classifier = classifier
         .fit(&x, &y)
         .expect("model fitting should succeed");
 
@@ -195,7 +195,7 @@ fn test_predict_with_confidence() {
 
     // Confidence should be in [0, 1]
     for &conf in confidence.iter() {
-        assert!(conf >= 0.0 && conf <= 1.0);
+        assert!((0.0..=1.0).contains(&conf));
     }
 }
 
@@ -489,7 +489,7 @@ fn test_ensemble_diversity_calculation() {
     let diversity = ensemble_utils::calculate_ensemble_diversity(&estimators, &x)
         .expect("operation should succeed");
 
-    assert!(diversity >= 0.0 && diversity <= 1.0);
+    assert!((0.0..=1.0).contains(&diversity));
 }
 
 #[test]

@@ -239,15 +239,15 @@ pub struct PhylogeneticCovarianceUntrained;
 #[derive(Debug, Clone)]
 pub struct PhylogeneticCovarianceTrained {
     /// Phylogenetic covariance matrix
-    phylogenetic_covariance: Array2<f64>,
+    pub phylogenetic_covariance: Array2<f64>,
     /// Evolutionary parameters
-    evolutionary_parameters: Array1<f64>,
+    pub evolutionary_parameters: Array1<f64>,
     /// Branch lengths
-    branch_lengths: Array1<f64>,
+    pub branch_lengths: Array1<f64>,
     /// Ancestral states
-    ancestral_states: Option<Array2<f64>>,
+    pub ancestral_states: Option<Array2<f64>>,
     /// Model fit statistics
-    model_fit_stats: ModelFitStatistics,
+    pub model_fit_stats: ModelFitStatistics,
 }
 
 /// Model fit statistics
@@ -313,15 +313,15 @@ pub struct PathwayAnalysisUntrained;
 #[derive(Debug, Clone)]
 pub struct PathwayAnalysisTrained {
     /// Pathway enrichment scores
-    enrichment_scores: HashMap<String, f64>,
+    pub enrichment_scores: HashMap<String, f64>,
     /// P-values for pathways
-    pathway_p_values: HashMap<String, f64>,
+    pub pathway_p_values: HashMap<String, f64>,
     /// Adjusted p-values
-    adjusted_p_values: HashMap<String, f64>,
+    pub adjusted_p_values: HashMap<String, f64>,
     /// Enriched pathways
-    enriched_pathways: Vec<String>,
+    pub enriched_pathways: Vec<String>,
     /// Pathway gene sets
-    pathway_gene_sets: HashMap<String, Vec<String>>,
+    pub pathway_gene_sets: HashMap<String, Vec<String>>,
 }
 
 /// Multi-omics covariance estimation
@@ -391,15 +391,15 @@ pub struct MultiOmicsCovarianceUntrained;
 #[derive(Debug, Clone)]
 pub struct MultiOmicsCovarianceTrained {
     /// Cross-omics covariance matrix
-    cross_omics_covariance: Array2<f64>,
+    pub cross_omics_covariance: Array2<f64>,
     /// Within-omics covariance matrices
-    within_omics_covariances: HashMap<String, Array2<f64>>,
+    pub within_omics_covariances: HashMap<String, Array2<f64>>,
     /// Integration factors
-    integration_factors: Array2<f64>,
+    pub integration_factors: Array2<f64>,
     /// Explained variance ratios
-    explained_variance_ratios: Array1<f64>,
+    pub explained_variance_ratios: Array1<f64>,
     /// Omics loadings
-    omics_loadings: HashMap<String, Array2<f64>>,
+    pub omics_loadings: HashMap<String, Array2<f64>>,
 }
 
 // Implementations for GeneExpressionNetwork
@@ -677,8 +677,7 @@ impl GeneExpressionNetwork {
 
         let mut adjusted_p_vec = vec![0.0; n_tests];
 
-        for k in 0..n_tests {
-            let idx = sorted_indices[k];
+        for (k, &idx) in sorted_indices.iter().enumerate() {
             let rank = k + 1;
             adjusted_p_vec[idx] = p_vec[idx] * (n_tests as f64) / (rank as f64);
         }
@@ -756,7 +755,7 @@ impl GeneExpressionNetwork {
         correlation_matrix: &Array2<f64>,
     ) -> Result<Vec<usize>, SklearsError> {
         let n_genes = correlation_matrix.nrows();
-        let n_clusters = (n_genes as f64).sqrt() as usize;
+        let _n_clusters = (n_genes as f64).sqrt() as usize;
 
         // Simplified hierarchical clustering
         let mut clusters = vec![0; n_genes];
@@ -792,8 +791,8 @@ impl GeneExpressionNetwork {
         let mut rng = scirs2_core::random::thread_rng();
         let mut clusters = vec![0; n_genes];
 
-        for i in 0..n_genes {
-            clusters[i] = rng.gen_range(0..k);
+        for c in clusters.iter_mut() {
+            *c = rng.gen_range(0..k);
         }
 
         Ok(clusters)
@@ -807,8 +806,8 @@ impl GeneExpressionNetwork {
         let n_genes = correlation_matrix.nrows();
         let mut clusters = vec![0; n_genes];
 
-        for i in 0..n_genes {
-            clusters[i] = i % 3; // Simple assignment
+        for (i, c) in clusters.iter_mut().enumerate() {
+            *c = i % 3; // Simple assignment
         }
 
         Ok(clusters)
@@ -822,8 +821,8 @@ impl GeneExpressionNetwork {
         let n_genes = correlation_matrix.nrows();
         let mut clusters = vec![0; n_genes];
 
-        for i in 0..n_genes {
-            clusters[i] = i / 10; // Simple assignment
+        for (i, c) in clusters.iter_mut().enumerate() {
+            *c = i / 10; // Simple assignment
         }
 
         Ok(clusters)

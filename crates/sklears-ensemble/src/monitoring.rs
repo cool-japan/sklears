@@ -6,7 +6,6 @@
 
 use sklears_core::{
     error::{Result, SklearsError},
-    traits::Estimator,
     types::Float,
 };
 use std::collections::{HashMap, VecDeque};
@@ -187,6 +186,7 @@ pub struct DegradationIndicators {
 }
 
 /// Ensemble performance monitor
+#[allow(dead_code)] // planned API fields (monitoring infrastructure)
 pub struct EnsembleMonitor {
     /// Monitoring configuration
     config: MonitoringConfig,
@@ -746,7 +746,7 @@ impl EnsembleMonitor {
 
 impl DriftDetector {
     /// Create a new drift detector
-    fn new(config: &MonitoringConfig) -> Self {
+    fn new(_config: &MonitoringConfig) -> Self {
         Self {
             adwin_detector: ADWINDetector::new(0.002, 100), // delta=0.002, min_window=100
             page_hinkley: PageHinkleyDetector::new(0.01, 30), // threshold=0.01, min_samples=30
@@ -1272,7 +1272,7 @@ mod tests {
     #[test]
     fn test_recommendation_generation() {
         let config = MonitoringConfig::default();
-        let mut monitor = EnsembleMonitor::new(config);
+        let monitor = EnsembleMonitor::new(config);
 
         let health_status = ModelHealth::Critical;
         let performance_trend = PerformanceTrend {

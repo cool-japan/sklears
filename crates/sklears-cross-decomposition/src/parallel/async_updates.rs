@@ -14,8 +14,8 @@
 //! - Asynchronous parallel PLS
 //! - Non-blocking optimization
 
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, CoreRandom, Rng};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::random::thread_rng;
 use sklears_core::types::Float;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
@@ -84,7 +84,8 @@ struct AsyncUpdate {
     gradient: Array1<Float>,
     /// Version when gradient was computed
     version: usize,
-    /// Worker ID
+    /// Worker ID that produced this update
+    #[allow(dead_code)] // worker_id carried for debugging/tracing purposes
     worker_id: usize,
 }
 
@@ -481,7 +482,7 @@ mod tests {
 
     #[test]
     fn test_async_admm_residuals() {
-        let mut admm = AsyncADMM::new(2, 3, 1.0);
+        let admm = AsyncADMM::new(2, 3, 1.0);
 
         let prev_consensus = admm.consensus.clone();
 
@@ -561,7 +562,7 @@ mod tests {
         let results = async_sgd_simulation(objective, gradient, config, initial);
 
         // Should converge
-        assert!(results.convergence_history.len() > 0);
+        assert!(!results.convergence_history.is_empty());
 
         // Final objective should be smaller than initial
         let final_obj = results

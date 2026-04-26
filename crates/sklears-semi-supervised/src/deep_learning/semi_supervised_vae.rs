@@ -155,6 +155,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for SemiSupervisedVAE<Untra
 }
 
 impl Predict<ArrayView2<'_, Float>, Array1<i32>> for SemiSupervisedVAE<SemiSupervisedVAETrained> {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array1<i32>> {
         let n_test = X.nrows();
         let n_classes = self.state.classes.len();
@@ -171,6 +172,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>> for SemiSupervisedVAE<SemiSuper
 impl PredictProba<ArrayView2<'_, Float>, Array2<f64>>
     for SemiSupervisedVAE<SemiSupervisedVAETrained>
 {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_proba(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         let n_test = X.nrows();
         let n_classes = self.state.classes.len();
@@ -188,6 +190,7 @@ impl PredictProba<ArrayView2<'_, Float>, Array2<f64>>
 
 /// Trained state for SemiSupervisedVAE
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation: X_train
 pub struct SemiSupervisedVAETrained {
     /// encoder_weights
     pub encoder_weights: Array2<f64>,

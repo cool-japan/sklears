@@ -293,7 +293,7 @@ mod tests {
     fn test_distributed_lda_basic() {
         let x = Array::from_shape_vec((100, 2), (0..200).map(|i| i as Float).collect())
             .expect("array shape mismatch");
-        let y = Array::from_shape_vec(100, (0..100).map(|i| (i % 2) as i32).collect())
+        let y = Array::from_shape_vec(100, (0..100).map(|i| i % 2).collect())
             .expect("array shape mismatch");
 
         let config = DistributedDiscriminantConfig {
@@ -317,7 +317,7 @@ mod tests {
     fn test_distributed_qda_basic() {
         let x = Array::from_shape_vec((100, 2), (0..200).map(|i| i as Float).collect())
             .expect("array shape mismatch");
-        let y = Array::from_shape_vec(100, (0..100).map(|i| (i % 2) as i32).collect())
+        let y = Array::from_shape_vec(100, (0..100).map(|i| i % 2).collect())
             .expect("array shape mismatch");
 
         let config = DistributedDiscriminantConfig {
@@ -348,7 +348,7 @@ mod tests {
 
         let x = Array::from_shape_vec((100, 2), (0..200).map(|i| i as Float).collect())
             .expect("array shape mismatch");
-        let y = Array::from_shape_vec(100, (0..100).map(|i| (i % 2) as i32).collect())
+        let y = Array::from_shape_vec(100, (0..100).map(|i| i % 2).collect())
             .expect("array shape mismatch");
 
         let distributed_lda = DistributedLinearDiscriminantAnalysis::new(config);

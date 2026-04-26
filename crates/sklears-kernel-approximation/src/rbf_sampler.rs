@@ -34,8 +34,8 @@ use std::marker::PhantomData;
 /// let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 ///
 /// let rbf = RBFSampler::new(100);
-/// let fitted_rbf = rbf.fit(&X, &()).unwrap();
-/// let X_transformed = fitted_rbf.transform(&X).unwrap();
+/// let fitted_rbf = rbf.fit(&X, &()).expect("fit should succeed with valid RBF sampler input");
+/// let X_transformed = fitted_rbf.transform(&X).expect("transform should succeed after RBF sampler fitting");
 /// assert_eq!(X_transformed.shape(), &[3, 100]);
 /// ```
 #[derive(Debug, Clone)]
@@ -214,8 +214,8 @@ impl RBFSampler<Trained> {
 /// let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 ///
 /// let laplacian = LaplacianSampler::new(100);
-/// let fitted_laplacian = laplacian.fit(&X, &()).unwrap();
-/// let X_transformed = fitted_laplacian.transform(&X).unwrap();
+/// let fitted_laplacian = laplacian.fit(&X, &()).expect("fit should succeed with valid Laplacian sampler input");
+/// let X_transformed = fitted_laplacian.transform(&X).expect("transform should succeed after Laplacian sampler fitting");
 /// assert_eq!(X_transformed.shape(), &[3, 100]);
 /// ```
 #[derive(Debug, Clone)]
@@ -396,8 +396,8 @@ impl LaplacianSampler<Trained> {
 /// let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 ///
 /// let poly = PolynomialSampler::new(100).degree(3).gamma(1.0).coef0(1.0);
-/// let fitted_poly = poly.fit(&X, &()).unwrap();
-/// let X_transformed = fitted_poly.transform(&X).unwrap();
+/// let fitted_poly = poly.fit(&X, &()).expect("fit should succeed with valid polynomial sampler input");
+/// let X_transformed = fitted_poly.transform(&X).expect("transform should succeed after polynomial sampler fitting");
 /// assert_eq!(X_transformed.shape(), &[3, 100]);
 /// ```
 #[derive(Debug, Clone)]
@@ -633,8 +633,8 @@ impl PolynomialSampler<Trained> {
 /// let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 ///
 /// let arc_cosine = ArcCosineSampler::new(100).degree(1);
-/// let fitted_arc_cosine = arc_cosine.fit(&X, &()).unwrap();
-/// let X_transformed = fitted_arc_cosine.transform(&X).unwrap();
+/// let fitted_arc_cosine = arc_cosine.fit(&X, &()).expect("fit should succeed with valid arc-cosine sampler input");
+/// let X_transformed = fitted_arc_cosine.transform(&X).expect("transform should succeed after arc-cosine sampler fitting");
 /// assert_eq!(X_transformed.shape(), &[3, 100]);
 /// ```
 #[derive(Debug, Clone)]

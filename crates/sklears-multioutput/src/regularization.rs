@@ -54,23 +54,33 @@ pub use task_relationship::{
 /// Note: This is a placeholder struct - implementation is not yet complete.
 #[derive(Debug, Clone)]
 pub struct MultiTaskElasticNet<S = Untrained> {
+    #[allow(dead_code)]
     state: S,
+    #[allow(dead_code)]
     /// L1 regularization strength
     alpha: Float,
+    #[allow(dead_code)]
     /// L1 vs L2 balance (0 = Ridge, 1 = Lasso)
     l1_ratio: Float,
+    #[allow(dead_code)]
     /// Feature groups for group penalties
     feature_groups: Vec<Vec<usize>>,
+    #[allow(dead_code)]
     /// Group penalty strength
     group_alpha: Float,
+    #[allow(dead_code)]
     /// Maximum number of iterations
     max_iter: usize,
+    #[allow(dead_code)]
     /// Convergence tolerance
     tolerance: Float,
+    #[allow(dead_code)]
     /// Learning rate
     learning_rate: Float,
+    #[allow(dead_code)]
     /// Task configurations
     task_outputs: HashMap<String, usize>,
+    #[allow(dead_code)]
     /// Include intercept term
     fit_intercept: bool,
 }
@@ -80,18 +90,26 @@ pub struct MultiTaskElasticNet<S = Untrained> {
 /// Note: This is a placeholder struct - implementation is not yet complete.
 #[derive(Debug, Clone)]
 pub struct MultiTaskElasticNetTrained {
+    #[allow(dead_code)]
     /// Coefficients for each task
     coefficients: HashMap<String, Array2<Float>>,
+    #[allow(dead_code)]
     /// Intercepts for each task
     intercepts: HashMap<String, Array1<Float>>,
+    #[allow(dead_code)]
     /// Number of input features
     n_features: usize,
+    #[allow(dead_code)]
     /// Task configurations
     task_outputs: HashMap<String, usize>,
+    #[allow(dead_code)]
     /// Training parameters
     alpha: Float,
+    #[allow(dead_code)]
     l1_ratio: Float,
+    #[allow(dead_code)]
     group_alpha: Float,
+    #[allow(dead_code)]
     /// Training iterations performed
     n_iter: usize,
 }
@@ -200,7 +218,7 @@ mod regularization_tests {
 
         // Test group sparsity
         let sparsity = trained.group_sparsity();
-        assert!(sparsity >= 0.0 && sparsity <= 1.0); // Should be a percentage
+        assert!((0.0..=1.0).contains(&sparsity)); // Should be a percentage
 
         // Test accessors
         assert!(trained.task_coefficients("task1").is_some());
@@ -258,7 +276,7 @@ mod regularization_tests {
 
         // Test accessors
         assert!(trained.task_coefficient_matrix("task1").is_some());
-        assert!(trained.effective_rank() >= 0);
+        assert!(trained.effective_rank() < usize::MAX); // effective_rank is always non-negative (usize)
         assert!(!trained.singular_values().is_empty());
         assert!(trained.n_iter() <= 50);
     }
@@ -298,7 +316,7 @@ mod regularization_tests {
 
     #[test]
     fn test_task_similarity_methods() {
-        let methods = vec![
+        let methods = [
             TaskSimilarityMethod::Correlation,
             TaskSimilarityMethod::Cosine,
             TaskSimilarityMethod::Euclidean,

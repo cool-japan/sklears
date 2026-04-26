@@ -7,7 +7,7 @@ use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::Result as SklResult,
-    prelude::{Predict, SklearsError, Transform},
+    prelude::SklearsError,
     traits::{Estimator, Fit, Untrained},
     types::Float,
 };
@@ -61,7 +61,9 @@ pub enum ThreadPoolType {
     FixedSize,
     /// Dynamic thread pool that adapts to load
     Dynamic {
+        /// Field value.
         min_threads: usize,
+        /// Field value.
         max_threads: usize,
     },
     /// Single-threaded execution
@@ -205,6 +207,7 @@ impl Default for WorkerStatistics {
 
 /// Parallel executor for pipeline tasks
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ParallelExecutor {
     /// Configuration
     config: ParallelConfig,
@@ -320,7 +323,7 @@ impl TaskDispatcher {
     }
 
     /// Find least loaded worker
-    fn find_least_loaded_worker(&self, workers: &[WorkerState]) -> usize {
+    fn find_least_loaded_worker(&self, _workers: &[WorkerState]) -> usize {
         let loads = self.worker_loads.read().unwrap_or_else(|e| e.into_inner());
         loads
             .iter()
@@ -471,7 +474,7 @@ impl ParallelExecutor {
     fn worker_loop(
         worker_id: usize,
         task_queue: Arc<Mutex<VecDeque<ParallelTask>>>,
-        steal_deque: Arc<Mutex<VecDeque<ParallelTask>>>,
+        _steal_deque: Arc<Mutex<VecDeque<ParallelTask>>>,
         other_workers: Vec<Arc<Mutex<VecDeque<ParallelTask>>>>,
         completed_tasks: Arc<Mutex<HashMap<String, TaskResult>>>,
         is_running: Arc<Mutex<bool>>,
@@ -518,7 +521,7 @@ impl ParallelExecutor {
                     }
                     Err(e) => {
                         local_stats.tasks_failed += 1;
-                        /// TaskResult
+                        // TaskResult
                         TaskResult {
                             task_id: task_id.clone(),
                             data: Vec::new(),
@@ -623,6 +626,7 @@ impl ParallelExecutor {
 
 /// Parallel pipeline for executing multiple pipeline steps concurrently
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ParallelPipeline<S = Untrained> {
     state: S,
     steps: Vec<(String, Box<dyn PipelineStep>)>,
@@ -638,15 +642,22 @@ pub enum ParallelExecutionStrategy {
     /// Execute all steps in parallel (where dependencies allow)
     FullParallel,
     /// Execute steps in parallel batches
-    BatchParallel { batch_size: usize },
+    BatchParallel {
+        /// Field value.
+        batch_size: usize,
+    },
     /// Pipeline parallelism (different data through different steps)
     PipelineParallel,
     /// Data parallelism (same step on different data chunks)
-    DataParallel { chunk_size: usize },
+    DataParallel {
+        /// Field value.
+        chunk_size: usize,
+    },
 }
 
 /// Trained state for parallel pipeline
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ParallelPipelineTrained {
     fitted_steps: Vec<(String, Box<dyn PipelineStep>)>,
     fitted_estimator: Option<Box<dyn PipelinePredictor>>,
@@ -771,7 +782,7 @@ impl ParallelPipeline<Untrained> {
         &mut self,
         x: &ArrayView2<'_, Float>,
         y: &Option<&ArrayView1<'_, Float>>,
-        executor: &mut ParallelExecutor,
+        _executor: &mut ParallelExecutor,
     ) -> SklResult<Vec<(String, Box<dyn PipelineStep>)>> {
         let mut fitted_steps = Vec::new();
 
@@ -792,7 +803,7 @@ impl ParallelPipeline<Untrained> {
         &mut self,
         x: &ArrayView2<'_, Float>,
         y: &Option<&ArrayView1<'_, Float>>,
-        executor: &mut ParallelExecutor,
+        _executor: &mut ParallelExecutor,
         batch_size: usize,
     ) -> SklResult<Vec<(String, Box<dyn PipelineStep>)>> {
         let mut fitted_steps = Vec::new();
@@ -830,8 +841,8 @@ impl ParallelPipeline<Untrained> {
         &mut self,
         x: &ArrayView2<'_, Float>,
         y: &Option<&ArrayView1<'_, Float>>,
-        executor: &mut ParallelExecutor,
-        chunk_size: usize,
+        _executor: &mut ParallelExecutor,
+        _chunk_size: usize,
     ) -> SklResult<Vec<(String, Box<dyn PipelineStep>)>> {
         let mut fitted_steps = Vec::new();
 
@@ -873,7 +884,7 @@ impl ParallelPipeline<ParallelPipelineTrained> {
         chunk_size: usize,
     ) -> SklResult<Array2<f64>> {
         let n_rows = x.nrows();
-        let n_chunks = (n_rows + chunk_size - 1) / chunk_size;
+        let n_chunks = n_rows.div_ceil(chunk_size);
         let mut results = Vec::with_capacity(n_chunks);
 
         // Process chunks in parallel (simplified sequential implementation)
@@ -973,7 +984,7 @@ mod tests {
 
         // Test round-robin selection
         let mut workers = vec![
-            /// WorkerState
+            // WorkerState
             WorkerState {
                 worker_id: 0,
                 thread_handle: None,
@@ -982,7 +993,7 @@ mod tests {
                 stats: WorkerStatistics::default(),
                 steal_deque: Arc::new(Mutex::new(VecDeque::new())),
             },
-            /// WorkerState
+            // WorkerState
             WorkerState {
                 worker_id: 1,
                 thread_handle: None,
@@ -1016,7 +1027,7 @@ mod tests {
 
     #[test]
     fn test_worker_statistics() {
-        let mut stats = WorkerStatistics::default();
+        let stats = WorkerStatistics::default();
         assert_eq!(stats.tasks_completed, 0);
         assert_eq!(stats.tasks_failed, 0);
         assert_eq!(stats.work_stolen, 0);

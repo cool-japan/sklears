@@ -77,6 +77,7 @@ pub struct MmapVector {
 pub struct MmapVectorMut {
     mmap: MmapMut,
     len: usize,
+    #[allow(dead_code)] // mmap config reserved for tunable page-lock and advise hints
     config: MmapConfig,
 }
 

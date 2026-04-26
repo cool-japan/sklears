@@ -31,7 +31,7 @@ use sklears_core::prelude::{SklearsError, Transform};
 ///     .degree(2)
 ///     .include_bias(true);
 ///
-/// let features = poly.transform(&X.view()).unwrap();
+/// let features = poly.transform(&X.view()).expect("valid input produces transform output");
 /// ```
 #[derive(Debug, Clone)]
 pub struct PolynomialFeatures {
@@ -40,6 +40,7 @@ pub struct PolynomialFeatures {
     include_bias: bool,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl PolynomialFeatures {
     /// Create a new PolynomialFeatures transformer
     pub fn new() -> Self {
@@ -264,6 +265,7 @@ impl Default for PolynomialFeatures {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for PolynomialFeatures {
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
         self.transform(X)
@@ -296,7 +298,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>> for PolynomialFeatures {
 ///     .degree(3)
 ///     .spline_type(SplineType::BSpline);
 ///
-/// let features = spline.transform(&X.view()).unwrap();
+/// let features = spline.transform(&X.view()).expect("valid input produces transform output");
 /// ```
 #[derive(Debug, Clone)]
 pub struct SplineBasisFunctions {
@@ -331,6 +333,7 @@ pub enum ExtrapolationMode {
     Polynomial,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl SplineBasisFunctions {
     /// Create a new SplineBasisFunctions transformer
     pub fn new() -> Self {
@@ -558,6 +561,7 @@ impl Default for SplineBasisFunctions {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for SplineBasisFunctions {
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
         self.transform(X)

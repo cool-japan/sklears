@@ -38,8 +38,8 @@ num_cpus = { workspace = true }
 memmap2 = { workspace = true, optional = true }
 oxicode = { workspace = true, optional = true }
 rmp-serde = { workspace = true, optional = true }
-flate2 = { workspace = true, optional = true }
-zstd = { workspace = true, optional = true }
+oxiarc-deflate = { workspace = true, optional = true }
+oxiarc-zstd = { workspace = true, optional = true }
 arrow = { workspace = true, optional = true }
 arrow-ipc = { workspace = true, optional = true }
 arrow-csv = { workspace = true, optional = true }
@@ -78,7 +78,7 @@ no_std = []
 serde = ["dep:serde", "dep:serde_json", "dep:serde_yaml", "chrono/serde"]
 binary = ["dep:oxicode", "serde"]
 messagepack = ["dep:rmp-serde", "serde"]
-compression = ["dep:flate2", "dep:zstd"]
+compression = ["dep:oxiarc-deflate", "dep:oxiarc-zstd"]
 binary_full = ["binary", "messagepack", "compression"]
 
 # Data format support

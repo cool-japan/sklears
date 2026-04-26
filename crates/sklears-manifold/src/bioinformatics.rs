@@ -1,11 +1,8 @@
-use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::thread_rng;
-use scirs2_core::Distribution;
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
-    traits::{Estimator, Fit, Transform, Untrained},
+    traits::{Fit, Transform, Untrained},
 };
 
 /// Genomic Manifold Analysis
@@ -44,6 +41,7 @@ pub enum GenomicNormalization {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedGenomicManifold {
     n_genes: usize,
     n_components: usize,
@@ -139,7 +137,10 @@ impl GenomicManifoldAnalysis<Untrained> {
 
                 Ok(centered.dot(&projection))
             }
-            GenomicEmbeddingMethod::TSNE { perplexity, n_iter } => {
+            GenomicEmbeddingMethod::TSNE {
+                perplexity: _,
+                n_iter,
+            } => {
                 // Simplified t-SNE
                 let n_samples = data.nrows();
 
@@ -175,8 +176,8 @@ impl GenomicManifoldAnalysis<Untrained> {
                 Ok(embedding)
             }
             GenomicEmbeddingMethod::UMAP {
-                n_neighbors,
-                min_dist,
+                n_neighbors: _,
+                min_dist: _,
             } => {
                 // Simplified UMAP (use PCA as placeholder)
                 let mean = data.mean_axis(Axis(0)).expect("operation should succeed");
@@ -336,6 +337,7 @@ pub enum ProteinRepresentation {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedProteinStructure {
     n_residues: usize,
     n_components: usize,
@@ -584,6 +586,7 @@ pub enum PhylogeneticDistance {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedPhylogenetic {
     n_taxa: usize,
     n_components: usize,
@@ -802,6 +805,7 @@ pub enum TrajectoryMethod {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedSingleCellTrajectory {
     n_genes: usize,
     n_components: usize,
@@ -882,8 +886,8 @@ impl SingleCellTrajectory<Untrained> {
 
                     for i in 0..n_cells {
                         if visited[i] {
-                            for j in 0..n_cells {
-                                if !visited[j] {
+                            for (j, &is_visited) in visited.iter().enumerate() {
+                                if !is_visited {
                                     let diff = embedding.row(i).to_owned() - embedding.row(j);
                                     let dist = diff.mapv(|x| x * x).sum().sqrt();
                                     if dist < min_dist {
@@ -1021,6 +1025,7 @@ pub enum PathwayRepresentation {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedMetabolicPathway {
     n_metabolites: usize,
     n_components: usize,
@@ -1258,7 +1263,7 @@ mod tests {
             .expect("operation should succeed");
 
         let pseudotime = fitted.cell_pseudotime(0).expect("operation should succeed");
-        assert!(pseudotime >= 0.0 && pseudotime <= 1.0);
+        assert!((0.0..=1.0).contains(&pseudotime));
     }
 
     #[test]
@@ -1296,7 +1301,7 @@ mod tests {
             .expect("operation should succeed");
 
         let diff_genes = fitted.differential_genes(0.5);
-        assert!(diff_genes.len() > 0);
+        assert!(!diff_genes.is_empty());
     }
 
     #[test]
@@ -1376,6 +1381,6 @@ mod tests {
         let similarity = fitted
             .structural_similarity(&struct1.view(), &struct2.view())
             .expect("operation should succeed");
-        assert!(similarity >= 0.0 && similarity <= 1.0);
+        assert!((0.0..=1.0).contains(&similarity));
     }
 }

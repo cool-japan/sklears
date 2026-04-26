@@ -83,6 +83,7 @@ impl DiversityBasedSampling {
         self
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn query(
         &self,
         X: &ArrayView2<f64>,
@@ -101,10 +102,7 @@ impl DiversityBasedSampling {
         };
 
         let indices: Vec<usize> = (0..n_samples).collect();
-        let selected: Vec<usize> = indices
-            .choose_multiple(&mut rng, self.batch_size)
-            .cloned()
-            .collect();
+        let selected: Vec<usize> = indices.sample(&mut rng, self.batch_size).cloned().collect();
 
         Ok(selected)
     }

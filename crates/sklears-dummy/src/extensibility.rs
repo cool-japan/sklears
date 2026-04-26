@@ -9,7 +9,6 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::error::{Result, SklearsError};
-use sklears_core::traits::Estimator;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -248,8 +247,8 @@ impl PluginRegistry {
             .write()
             .expect("operation should succeed");
 
-        if let Some(plugin) = plugins.get(name) {
-            if let Some(config) = plugin_configs.get(name) {
+        if let Some(_plugin) = plugins.get(name) {
+            if let Some(_config) = plugin_configs.get(name) {
                 // Initialize plugin (would need mutable reference in real implementation)
                 active_plugins.insert(name.to_string(), true);
                 Ok(())
@@ -577,7 +576,7 @@ pub trait PipelineMiddleware: Send + Sync + Debug {
     fn after(&self, context: &mut MiddlewareContext, result: &mut MiddlewareResult) -> Result<()>;
 
     /// Handle errors
-    fn on_error(&self, context: &MiddlewareContext, error: &SklearsError) -> Result<()> {
+    fn on_error(&self, _context: &MiddlewareContext, error: &SklearsError) -> Result<()> {
         // Default implementation logs the error
         eprintln!("Middleware '{}' error: {:?}", self.name(), error);
         Ok(())
@@ -628,10 +627,13 @@ pub enum MiddlewareParameter {
     Array(Vec<MiddlewareParameter>),
 }
 
+/// Error handler type alias for the middleware pipeline
+type MiddlewareErrorHandler = Option<Box<dyn Fn(&SklearsError) -> Result<()> + Send + Sync>>;
+
 /// Middleware pipeline for chaining middleware components
 pub struct MiddlewarePipeline {
     middleware: Vec<Box<dyn PipelineMiddleware>>,
-    error_handler: Option<Box<dyn Fn(&SklearsError) -> Result<()> + Send + Sync>>,
+    error_handler: MiddlewareErrorHandler,
 }
 
 impl Default for MiddlewarePipeline {
@@ -804,16 +806,13 @@ pub mod middleware {
             if self.validate_inputs {
                 // Validate input parameters
                 for (key, value) in &context.parameters {
-                    match value {
-                        MiddlewareParameter::Float(f) => {
-                            if f.is_nan() || f.is_infinite() {
-                                return Err(SklearsError::InvalidInput(format!(
-                                    "Invalid float value for parameter '{}': {}",
-                                    key, f
-                                )));
-                            }
+                    if let MiddlewareParameter::Float(f) = value {
+                        if f.is_nan() || f.is_infinite() {
+                            return Err(SklearsError::InvalidInput(format!(
+                                "Invalid float value for parameter '{}': {}",
+                                key, f
+                            )));
                         }
-                        _ => {} // Add more validation as needed
                     }
                 }
             }
@@ -1338,7 +1337,6 @@ mod tests {
         }
 
         fn metadata(&self) -> PluginMetadata {
-            /// PluginMetadata
             PluginMetadata {
                 author: "Test Author".to_string(),
                 license: "MIT".to_string(),

@@ -284,10 +284,10 @@ impl Fit<Array2<Float>, Array2<Float>> for PLSCanonical<Untrained> {
             let c_norm = c_k.dot(&c_k).sqrt();
 
             if w_norm > 0.0 {
-                w_k = w_k / w_norm;
+                w_k /= w_norm;
             }
             if c_norm > 0.0 {
-                c_k = c_k / c_norm;
+                c_k /= c_norm;
             }
 
             x_rotations.column_mut(k).assign(&w_k);
@@ -429,6 +429,11 @@ impl PLSCanonical<Trained> {
         self.y_rotations_
             .as_ref()
             .expect("value should be set after fitting")
+    }
+
+    /// Get the number of iterations per component (sklearn-style fitted attribute)
+    pub fn n_iter(&self) -> Option<&[usize]> {
+        self.n_iter_.as_deref()
     }
 }
 

@@ -118,6 +118,7 @@ impl TargetOptimizedOps {
     }
 
     /// Detect FMA support
+    #[allow(dead_code)] // Used in offline detection queries; not yet wired to the config
     fn detect_fma() -> bool {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -130,6 +131,7 @@ impl TargetOptimizedOps {
     }
 
     /// Detect AVX-512 support
+    #[allow(dead_code)] // Used in offline detection queries; not yet wired to the config
     fn detect_avx512() -> bool {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -248,10 +250,8 @@ impl TargetOptimizedOps {
                 }
             }
             OptimizationTarget::GraniteRapids | OptimizationTarget::DiamondRapids => {
-                if self.config.enable_avx10 {
-                    16 // AVX10 unified 512-bit operations
-                } else if self.config.enable_avx512 {
-                    16
+                if self.config.enable_avx10 || self.config.enable_avx512 {
+                    16 // AVX10 unified or AVX-512 512-bit operations
                 } else {
                     8
                 }
@@ -434,6 +434,7 @@ impl VectorArithmetic<f32> for TargetOptimizedOps {
 }
 
 /// AVX-512 implementations
+#[allow(dead_code)]
 impl TargetOptimizedOps {
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx512f")]
@@ -632,8 +633,8 @@ impl TargetOptimizedOps {
             }
 
             // Handle remaining elements
-            for i in (chunks * 16)..vector.len() {
-                result.push(vector[i] * scalar);
+            for val in vector.iter().skip(chunks * 16) {
+                result.push(*val * scalar);
             }
 
             Ok(result)
@@ -772,6 +773,7 @@ impl VectorReduction<f32> for TargetOptimizedOps {
 
 /// Target-specific sum implementations
 impl TargetOptimizedOps {
+    #[allow(dead_code)] // Placeholder for dedicated AVX-512 sum path; not yet dispatched
     fn sum_avx512(&self, vector: &[f32]) -> Result<f32, SimdError> {
         Ok(crate::vector::sum(vector))
     }
@@ -826,6 +828,7 @@ pub mod compile_time {
     }
 
     /// Get CPU-specific optimization flags
+    #[allow(clippy::vec_init_then_push)]
     pub fn get_optimization_flags() -> Vec<&'static str> {
         #[allow(unused_mut)]
         let mut flags = Vec::new();

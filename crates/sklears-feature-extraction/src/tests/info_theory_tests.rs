@@ -31,7 +31,7 @@ fn test_topological_persistence_diagram() {
         .expect("operation should succeed");
 
     // Should have birth-death pairs for 0-dimensional and 1-dimensional features
-    assert!(persistence.len() > 0);
+    assert!(!persistence.is_empty());
 
     // All persistence values should be finite and birth <= death
     for diagram in persistence.iter() {
@@ -191,7 +191,7 @@ fn test_gc_content_features() {
     // All GC content values should be between 0 and 1
     for &gc in features.iter() {
         assert!(gc.is_finite());
-        assert!(gc >= 0.0 && gc <= 1.0);
+        assert!((0.0..=1.0).contains(&gc));
     }
 }
 
@@ -403,13 +403,10 @@ fn test_tda_empty_input() {
     let result = tda.compute_persistence(&empty_points);
     // This might error or return empty results, both are acceptable
     // We just ensure it doesn't panic
-    match result {
-        Ok(diagrams) => {
-            let betti = tda.compute_betti_numbers(&diagrams);
-            assert!(betti.is_empty() || betti.iter().all(|&b| b == 0));
-        }
-        Err(_) => (), // Error is acceptable for empty input
-    }
+    if let Ok(diagrams) = result {
+        let betti = tda.compute_betti_numbers(&diagrams);
+        assert!(betti.is_empty() || betti.iter().all(|&b| b == 0));
+    } // Error is acceptable for empty input
 }
 
 #[test]
@@ -472,7 +469,7 @@ fn test_tda_performance_large_dataset() {
     assert!(duration.as_secs() < 10);
 
     // Should produce some features
-    assert!(features.len() > 0);
+    assert!(!features.is_empty());
 
     // All features should be finite
     for &feat in features.iter() {

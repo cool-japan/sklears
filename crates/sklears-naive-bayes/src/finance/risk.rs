@@ -22,16 +22,12 @@ pub struct RiskAssessmentNB<T: Float> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RiskLevel {
     /// Low
-
     Low,
     /// Medium
-
     Medium,
     /// High
-
     High,
     /// VeryHigh
-
     VeryHigh,
 }
 
@@ -71,7 +67,19 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
             _phantom: PhantomData,
         }
     }
+}
 
+impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std::iter::Sum> Default
+    for RiskAssessmentNB<T>
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std::iter::Sum>
+    RiskAssessmentNB<T>
+{
     /// Fit the risk assessment model
     pub fn fit(
         &mut self,
@@ -170,7 +178,8 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
     /// Calculate volatility from returns
     fn calculate_volatility_from_returns(&self, returns: &[T]) -> T {
         let variance = self.calculate_variance(returns);
-        variance.sqrt() * T::from(252.0).expect("operation should succeed").sqrt() // Annualized
+        variance.sqrt() * T::from(252.0).expect("operation should succeed").sqrt()
+        // Annualized
     }
 
     /// Calculate Value at Risk
@@ -321,7 +330,8 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
     fn gaussian_pdf(&self, x: T, mean: T, variance: T) -> T {
         let two_pi = T::from(2.0 * std::f64::consts::PI).expect("operation should succeed");
         let coefficient = T::one() / (two_pi * variance).sqrt();
-        let exponent = -((x - mean).powi(2)) / (T::from(2.0).expect("operation should succeed") * variance);
+        let exponent =
+            -((x - mean).powi(2)) / (T::from(2.0).expect("operation should succeed") * variance);
         coefficient * exponent.exp()
     }
 

@@ -6,9 +6,6 @@
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::numeric::Float;
-// SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use sklears_core::traits::Estimator;
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -635,7 +632,7 @@ impl ProteinStructureNB {
         // Process sequences to build amino acid and dipeptide frequencies
         let mut aa_counts = vec![Array1::zeros(21); n_classes];
 
-        let seq_idx = 0;
+        let _seq_idx = 0;
         for (protein, structure) in proteins.iter().zip(structures.iter()) {
             for (i, (aa_char, ss_char)) in
                 protein.sequence.chars().zip(structure.chars()).enumerate()
@@ -1346,11 +1343,11 @@ mod tests {
         let empty_labels = Array1::from_vec(vec![]);
 
         // Test mismatched dimensions
-        let result = nb.fit(&vec![seq], &empty_labels);
+        let result = nb.fit(&[seq], &empty_labels);
         assert!(result.is_err());
 
         // Test prediction before fitting
-        let prediction_result = nb.predict(&vec![]);
+        let prediction_result = nb.predict(&[]);
         assert!(prediction_result.is_err());
     }
 }

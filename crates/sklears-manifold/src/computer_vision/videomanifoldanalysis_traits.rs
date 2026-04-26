@@ -9,11 +9,11 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
-use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3, Axis};
+use scirs2_core::ndarray::{Array2, Array3, Axis};
 use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
-    traits::{Estimator, Fit, Transform, Untrained},
+    traits::{Fit, Transform, Untrained},
 };
 
 use super::types::{TrainedVideoAnalysis, VideoManifoldAnalysis};
@@ -21,7 +21,7 @@ use super::types::{TrainedVideoAnalysis, VideoManifoldAnalysis};
 impl Fit<Array3<f64>, ()> for VideoManifoldAnalysis<Untrained> {
     type Fitted = VideoManifoldAnalysis<TrainedVideoAnalysis>;
     fn fit(self, x: &Array3<f64>, _y: &()) -> SklResult<Self::Fitted> {
-        let (n_frames, height, width) = x.dim();
+        let (_n_frames, height, width) = x.dim();
         if height != self.frame_size.0 || width != self.frame_size.1 {
             return Err(SklearsError::InvalidInput(format!(
                 "Frame size mismatch: expected {:?}, got ({}, {})",

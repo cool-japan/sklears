@@ -10,6 +10,7 @@ use sklears_core::error::Result as SklResult;
 ///
 /// All kernel functions implement this trait to provide consistent interface
 /// for computing kernel matrices, gradients, and parameter management.
+#[allow(non_snake_case)]
 pub trait Kernel: std::fmt::Debug + Send + Sync {
     /// Compute the kernel matrix between X1 and X2
     fn compute_kernel_matrix(

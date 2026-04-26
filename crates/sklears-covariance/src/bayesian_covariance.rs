@@ -15,6 +15,14 @@ use crate::utils::{matrix_determinant, matrix_inverse, regularize_matrix, valida
 use sklears_core::prelude::*;
 use sklears_core::traits::Fit;
 
+/// Return type for internal Bayesian fit methods: (covariance, samples, variational_params, log_likelihood)
+type BayesianFitResult<F> = Result<(
+    Array2<F>,
+    Option<Vec<Array2<F>>>,
+    Option<VariationalParameters<F>>,
+    F,
+)>;
+
 /// Bayesian covariance estimation methods
 #[derive(Debug, Clone, PartialEq)]
 pub enum BayesianMethod {
@@ -379,16 +387,7 @@ impl<F: NdFloat + FromPrimitive> Fit<Array2<F>, ()> for BayesianCovariance<F> {
 
 impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
     /// Fit using inverse-Wishart conjugate prior
-    fn fit_inverse_wishart(
-        &self,
-        x: &Array2<F>,
-        prior: &BayesianPrior<F>,
-    ) -> Result<(
-        Array2<F>,
-        Option<Vec<Array2<F>>>,
-        Option<VariationalParameters<F>>,
-        F,
-    )> {
+    fn fit_inverse_wishart(&self, x: &Array2<F>, prior: &BayesianPrior<F>) -> BayesianFitResult<F> {
         let (n_samples, n_features) = x.dim();
 
         // Compute sample covariance
@@ -435,12 +434,7 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         &self,
         x: &Array2<F>,
         prior: &BayesianPrior<F>,
-    ) -> Result<(
-        Array2<F>,
-        Option<Vec<Array2<F>>>,
-        Option<VariationalParameters<F>>,
-        F,
-    )> {
+    ) -> BayesianFitResult<F> {
         let config = self
             .config
             .variational_config
@@ -518,13 +512,8 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         &self,
         x: &Array2<F>,
         prior: &BayesianPrior<F>,
-        rng: &mut scirs2_core::random::CoreRandom,
-    ) -> Result<(
-        Array2<F>,
-        Option<Vec<Array2<F>>>,
-        Option<VariationalParameters<F>>,
-        F,
-    )> {
+        _rng: &mut scirs2_core::random::CoreRandom,
+    ) -> BayesianFitResult<F> {
         // Simplified hierarchical model with hyperpriors
         let (n_samples, _) = x.dim();
 
@@ -557,12 +546,7 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         x: &Array2<F>,
         prior: &BayesianPrior<F>,
         rng: &mut scirs2_core::random::CoreRandom,
-    ) -> Result<(
-        Array2<F>,
-        Option<Vec<Array2<F>>>,
-        Option<VariationalParameters<F>>,
-        F,
-    )> {
+    ) -> BayesianFitResult<F> {
         let mcmc_config = self
             .config
             .mcmc_config
@@ -582,15 +566,14 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
             let diff_t = diff.insert_axis(Axis(0));
             sample_cov = sample_cov + diff_t.dot(&diff_2d);
         }
-        sample_cov = sample_cov
-            / F::from(n_samples)
-                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
+        sample_cov /= F::from(n_samples)
+            .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
 
         let mut current_cov = regularize_matrix(&sample_cov, self.config.regularization)?;
         let mut current_log_posterior = self.compute_log_posterior(x, &current_cov, prior)?;
 
         let mut samples = Vec::new();
-        let mut n_accepted = 0;
+        let mut _n_accepted: usize = 0;
 
         // MCMC sampling
         for iteration in 0..(mcmc_config.burn_in + mcmc_config.n_samples * mcmc_config.thin) {
@@ -613,7 +596,7 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
             if sample_f < accept_prob {
                 current_cov = proposal;
                 current_log_posterior = proposal_log_posterior;
-                n_accepted += 1;
+                _n_accepted += 1;
             }
 
             // Store samples after burn-in
@@ -625,13 +608,12 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         }
 
         // Compute posterior mean
-        let mut mean_cov = Array2::zeros((n_features, n_features));
+        let mut mean_cov: Array2<F> = Array2::zeros((n_features, n_features));
         for sample in &samples {
-            mean_cov = mean_cov + sample;
+            mean_cov += sample;
         }
-        mean_cov = mean_cov
-            / F::from(samples.len())
-                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
+        mean_cov /= F::from(samples.len())
+            .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
 
         let log_likelihood = current_log_posterior;
 
@@ -644,12 +626,7 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         x: &Array2<F>,
         prior: &BayesianPrior<F>,
         rng: &mut scirs2_core::random::CoreRandom,
-    ) -> Result<(
-        Array2<F>,
-        Option<Vec<Array2<F>>>,
-        Option<VariationalParameters<F>>,
-        F,
-    )> {
+    ) -> BayesianFitResult<F> {
         // For Gibbs sampling with inverse-Wishart, we can sample directly from conjugate posterior
         // This is more efficient than Metropolis-Hastings for this case
         let mcmc_config = self
@@ -693,13 +670,12 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         }
 
         // Compute posterior mean
-        let mut mean_cov = Array2::zeros((n_features, n_features));
+        let mut mean_cov: Array2<F> = Array2::zeros((n_features, n_features));
         for sample in &samples {
-            mean_cov = mean_cov + sample;
+            mean_cov += sample;
         }
-        mean_cov = mean_cov
-            / F::from(samples.len())
-                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
+        mean_cov /= F::from(samples.len())
+            .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
 
         let log_likelihood = self.compute_inverse_wishart_log_likelihood(
             x,
@@ -833,27 +809,24 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         for i in 0..n_samples {
             let diff = &x.slice(s![i, ..]) - &mean;
             let mahalanobis = diff.dot(&inv_cov).dot(&diff);
-            log_likelihood = log_likelihood
-                - mahalanobis
-                    / F::from(2.0).ok_or_else(|| {
-                        SklearsError::NumericalError("numeric conversion failed".into())
-                    })?;
+            log_likelihood -= -mahalanobis
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?;
         }
 
-        log_likelihood = log_likelihood
-            - F::from(n_samples)
+        log_likelihood -= F::from(n_samples)
+            .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
+            * (F::from(n_features)
                 .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
-                * (F::from(n_features).ok_or_else(|| {
-                    SklearsError::NumericalError("numeric conversion failed".into())
-                })? * F::from(2.0 * std::f64::consts::PI)
+                * F::from(2.0 * std::f64::consts::PI)
                     .ok_or_else(|| {
                         SklearsError::NumericalError("numeric conversion failed".into())
                     })?
                     .ln()
-                    + det_cov.ln())
-                / F::from(2.0).ok_or_else(|| {
-                    SklearsError::NumericalError("numeric conversion failed".into())
-                })?;
+                + det_cov.ln())
+            / F::from(2.0)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
 
         // Log prior (inverse-Wishart)
         let log_prior = self.compute_inverse_wishart_log_prior(
@@ -1144,7 +1117,7 @@ impl<F: NdFloat + FromPrimitive> BayesianCovarianceBuilder<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
+
     use scirs2_core::ndarray::Array2;
     use scirs2_core::Random;
     use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};

@@ -2,6 +2,7 @@
 //!
 //! This module provides transfer learning algorithms for multi-task scenarios,
 //! including domain adaptation, progressive transfer, and continual learning methods.
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
@@ -49,7 +50,9 @@ pub struct CrossTaskTransferLearningTrained {
     target_weights: Array2<Float>,
     transfer_matrix: Array2<Float>,
     n_features: usize,
+    #[allow(dead_code)]
     n_source_tasks: usize,
+    #[allow(dead_code)]
     n_target_tasks: usize,
 }
 
@@ -295,6 +298,7 @@ pub struct DomainAdaptationTrained {
     classifier: Array2<Float>,
     domain_discriminator: Array2<Float>,
     n_features: usize,
+    #[allow(dead_code)]
     n_tasks: usize,
 }
 
@@ -411,7 +415,7 @@ impl DomainAdaptation<Untrained> {
             // Extract features
             let features = combined_X.dot(&feature_extractor);
             let source_features = features.slice(s![..n_source_samples, ..]);
-            let target_features = features.slice(s![n_source_samples.., ..]);
+            let _target_features = features.slice(s![n_source_samples.., ..]);
 
             // Train classifier on source domain
             let source_pred = source_features.dot(&classifier);
@@ -775,6 +779,7 @@ pub struct ContinualLearningTrained {
     fisher_information: Array2<Float>,
     optimal_weights: Array2<Float>,
     n_features: usize,
+    #[allow(dead_code)]
     n_tasks: usize,
 }
 
@@ -982,6 +987,7 @@ pub struct KnowledgeDistillationTrained {
     student_weights: Array2<Float>,
     teacher_weights: Array2<Float>,
     n_features: usize,
+    #[allow(dead_code)]
     n_tasks: usize,
 }
 

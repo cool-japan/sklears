@@ -26,10 +26,9 @@
 
 use std::collections::HashMap;
 
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::Array2;
 use scirs2_core::random::{thread_rng, Rng, RngExt};
 use sklears_core::error::{Result, SklearsError};
-use sklears_core::prelude::*;
 
 /// Configuration for ensemble clustering
 #[derive(Debug, Clone)]
@@ -94,6 +93,7 @@ pub struct EnsembleResult {
 /// that measures how frequently pairs of points are assigned to the same cluster.
 #[derive(Clone)]
 pub struct EvidenceAccumulationClustering {
+    #[allow(dead_code)] // Config reserved for future EAC-specific parameters
     config: EnsembleConfig,
 }
 
@@ -158,10 +158,6 @@ impl EvidenceAccumulationClustering {
 
         // Simple agglomerative clustering on distance matrix
         let mut labels = vec![-1i32; n_samples];
-        let mut cluster_id = 0;
-
-        // Find most similar pairs iteratively
-        let mut assigned = vec![false; n_samples];
         let mut cluster_members: Vec<Vec<usize>> = Vec::new();
 
         // Start with each point as its own cluster
@@ -302,7 +298,6 @@ impl EvidenceAccumulationClustering {
             return 1.0;
         }
 
-        let n_samples = partitions[0].len();
         let mut agreement_sum = 0.0;
         let mut count = 0;
 
@@ -353,6 +348,7 @@ impl EvidenceAccumulationClustering {
 /// multiple base clusterings.
 #[derive(Clone)]
 pub struct VotingEnsemble {
+    #[allow(dead_code)] // Config reserved for future weighted voting parameters
     config: EnsembleConfig,
 }
 

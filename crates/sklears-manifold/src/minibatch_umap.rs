@@ -6,7 +6,6 @@ use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::{seq::SliceRandom, SeedableRng};
 use scirs2_core::RngExt;
-use scirs2_core::SliceRandomExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -204,7 +203,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MiniBatchUMAP<Untrained> {
 }
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for MiniBatchUMAP<MBUMAPTrained> {
-    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
+    fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         // For fitted data, return the stored embedding
         // For new data, this would require out-of-sample extension (not implemented here)
         Ok(self.state.embedding.clone())

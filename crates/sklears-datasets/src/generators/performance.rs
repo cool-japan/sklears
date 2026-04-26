@@ -14,6 +14,23 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
+/// Boxed dynamic error type for parallel/distributed operations
+type BoxedError = Box<dyn std::error::Error + Send + Sync>;
+/// Generator function type: takes chunk size and seed, returns data or error
+type GeneratorFn<T> = Box<dyn Fn(usize, Option<u64>) -> Result<T, BoxedError>>;
+/// Result type for parallel classification: ParallelGenerationResult of (features, labels)
+type ParallelClassResult = Result<ParallelGenerationResult<(Array2<f64>, Array1<i32>)>, BoxedError>;
+/// Result type for parallel regression: ParallelGenerationResult of (features, targets)
+type ParallelRegrResult = Result<ParallelGenerationResult<(Array2<f64>, Array1<f64>)>, BoxedError>;
+/// Result type for parallel blobs: same as classification
+type ParallelBlobsResult = ParallelClassResult;
+/// Result type for distributed classification
+type DistClassResult = Result<DistributedGenerationResult<(Array2<f64>, Array1<i32>)>, BoxedError>;
+/// Result type for distributed regression
+type DistRegrResult = Result<DistributedGenerationResult<(Array2<f64>, Array1<f64>)>, BoxedError>;
+/// Result type for distributed blobs
+type DistBlobsResult = DistClassResult;
+
 /// Configuration for streaming dataset generation
 #[derive(Debug, Clone)]
 pub struct StreamConfig {
@@ -51,7 +68,7 @@ impl<T> DatasetStream<T> {
     where
         F: Fn(usize, usize, Option<u64>) -> T + Send + Sync + 'static,
     {
-        let total_chunks = (config.total_samples + config.chunk_size - 1) / config.chunk_size;
+        let total_chunks = config.total_samples.div_ceil(config.chunk_size);
 
         Self {
             config,
@@ -149,18 +166,14 @@ pub fn parallel_generate<T, F>(
     n_samples: usize,
     n_workers: usize,
     generator_fn: F,
-) -> Result<ParallelGenerationResult<T>, Box<dyn std::error::Error + Send + Sync>>
+) -> Result<ParallelGenerationResult<T>, BoxedError>
 where
     T: Send + 'static,
-    F: Fn(usize, Option<u64>) -> Result<T, Box<dyn std::error::Error + Send + Sync>>
-        + Send
-        + Sync
-        + Copy
-        + 'static,
+    F: Fn(usize, Option<u64>) -> Result<T, BoxedError> + Send + Sync + Copy + 'static,
 {
     let start_time = std::time::Instant::now();
 
-    let chunk_size = (n_samples + n_workers - 1) / n_workers;
+    let chunk_size = n_samples.div_ceil(n_workers);
     let (tx, rx) = mpsc::channel();
 
     let mut handles = Vec::new();
@@ -237,10 +250,7 @@ pub fn parallel_classification(
     n_features: usize,
     n_classes: usize,
     n_workers: usize,
-) -> Result<
-    ParallelGenerationResult<(Array2<f64>, Array1<i32>)>,
-    Box<dyn std::error::Error + Send + Sync>,
-> {
+) -> ParallelClassResult {
     parallel_generate(n_samples, n_workers, move |chunk_size, seed| {
         make_classification(
             chunk_size, n_features, n_features, // n_informative
@@ -256,10 +266,7 @@ pub fn parallel_regression(
     n_samples: usize,
     n_features: usize,
     n_workers: usize,
-) -> Result<
-    ParallelGenerationResult<(Array2<f64>, Array1<f64>)>,
-    Box<dyn std::error::Error + Send + Sync>,
-> {
+) -> ParallelRegrResult {
     parallel_generate(n_samples, n_workers, move |chunk_size, seed| {
         make_regression(
             chunk_size, n_features, n_features, // n_informative
@@ -276,10 +283,7 @@ pub fn parallel_blobs(
     n_features: usize,
     centers: usize,
     n_workers: usize,
-) -> Result<
-    ParallelGenerationResult<(Array2<f64>, Array1<i32>)>,
-    Box<dyn std::error::Error + Send + Sync>,
-> {
+) -> ParallelBlobsResult {
     parallel_generate(n_samples, n_workers, move |chunk_size, seed| {
         make_blobs(
             chunk_size, n_features, centers, 1.0, // cluster_std
@@ -294,8 +298,7 @@ pub struct LazyDatasetGenerator<T> {
     chunk_size: usize,
     total_samples: usize,
     generated_samples: usize,
-    generator_fn:
-        Box<dyn Fn(usize, Option<u64>) -> Result<T, Box<dyn std::error::Error + Send + Sync>>>,
+    generator_fn: GeneratorFn<T>,
     random_state: Option<u64>,
 }
 
@@ -307,7 +310,7 @@ impl<T> LazyDatasetGenerator<T> {
         generator_fn: F,
     ) -> Self
     where
-        F: Fn(usize, Option<u64>) -> Result<T, Box<dyn std::error::Error + Send + Sync>> + 'static,
+        F: Fn(usize, Option<u64>) -> Result<T, BoxedError> + 'static,
     {
         Self {
             chunk_size,
@@ -319,7 +322,7 @@ impl<T> LazyDatasetGenerator<T> {
     }
 
     /// Generate the next chunk of data
-    pub fn next_chunk(&mut self) -> Option<Result<T, Box<dyn std::error::Error + Send + Sync>>> {
+    pub fn next_chunk(&mut self) -> Option<Result<T, BoxedError>> {
         if self.generated_samples >= self.total_samples {
             return None;
         }
@@ -641,10 +644,7 @@ pub fn distributed_classification(
     n_features: usize,
     n_classes: usize,
     config: DistributedConfig,
-) -> Result<
-    DistributedGenerationResult<(Array2<f64>, Array1<i32>)>,
-    Box<dyn std::error::Error + Send + Sync>,
-> {
+) -> DistClassResult {
     let start_time = Instant::now();
 
     let mut generator = DistributedGenerator::new(config.clone())?;
@@ -699,13 +699,7 @@ pub fn distributed_classification(
 }
 
 /// Generate distributed regression dataset
-pub fn distributed_regression(
-    n_features: usize,
-    config: DistributedConfig,
-) -> Result<
-    DistributedGenerationResult<(Array2<f64>, Array1<f64>)>,
-    Box<dyn std::error::Error + Send + Sync>,
-> {
+pub fn distributed_regression(n_features: usize, config: DistributedConfig) -> DistRegrResult {
     let start_time = Instant::now();
 
     let mut generator = DistributedGenerator::new(config.clone())?;
@@ -763,10 +757,7 @@ pub fn distributed_blobs(
     n_features: usize,
     centers: usize,
     config: DistributedConfig,
-) -> Result<
-    DistributedGenerationResult<(Array2<f64>, Array1<i32>)>,
-    Box<dyn std::error::Error + Send + Sync>,
-> {
+) -> DistBlobsResult {
     let start_time = Instant::now();
 
     let mut generator = DistributedGenerator::new(config.clone())?;
@@ -939,10 +930,12 @@ mod tests {
 
     #[test]
     fn test_distributed_generator_sample_distribution() {
-        let mut config = DistributedConfig::default();
-        config.total_samples = 1000;
-        config.n_nodes = 3;
-        config.node_id = 0;
+        let config = DistributedConfig {
+            total_samples: 1000,
+            n_nodes: 3,
+            node_id: 0,
+            ..Default::default()
+        };
 
         let mut generator = DistributedGenerator::new(config).expect("operation should succeed");
         generator
@@ -965,11 +958,13 @@ mod tests {
 
     #[test]
     fn test_distributed_generator_weighted_distribution() {
-        let mut config = DistributedConfig::default();
-        config.total_samples = 1000;
-        config.n_nodes = 3;
-        config.node_id = 0;
-        config.load_balancing = LoadBalancingStrategy::Weighted(vec![0.5, 0.3, 0.2]);
+        let config = DistributedConfig {
+            total_samples: 1000,
+            n_nodes: 3,
+            node_id: 0,
+            load_balancing: LoadBalancingStrategy::Weighted(vec![0.5, 0.3, 0.2]),
+            ..Default::default()
+        };
 
         let mut generator = DistributedGenerator::new(config).expect("operation should succeed");
         generator
@@ -1080,9 +1075,11 @@ mod tests {
 
     #[test]
     fn test_distributed_generator_weighted_validation() {
-        let mut config = DistributedConfig::default();
-        config.n_nodes = 3;
-        config.load_balancing = LoadBalancingStrategy::Weighted(vec![0.5, 0.3]); // Wrong length
+        let config = DistributedConfig {
+            n_nodes: 3,
+            load_balancing: LoadBalancingStrategy::Weighted(vec![0.5, 0.3]), // Wrong length
+            ..Default::default()
+        };
 
         let mut generator = DistributedGenerator::new(config).expect("operation should succeed");
         let result = generator.calculate_sample_distribution();
@@ -1095,9 +1092,11 @@ mod tests {
 
     #[test]
     fn test_load_balance_efficiency_calculation() {
-        let mut config = DistributedConfig::default();
-        config.n_nodes = 2;
-        config.node_id = 0;
+        let config = DistributedConfig {
+            n_nodes: 2,
+            node_id: 0,
+            ..Default::default()
+        };
 
         let mut generator = DistributedGenerator::new(config).expect("operation should succeed");
 

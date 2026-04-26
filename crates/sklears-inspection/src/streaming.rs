@@ -288,6 +288,7 @@ pub struct StreamingShapExplainer {
     /// Base configuration
     config: StreamingConfig,
     /// Sample buffer for baseline computation
+    #[allow(dead_code)] // stored for sliding window baseline computation
     sample_buffer: Arc<Mutex<VecDeque<Array1<Float>>>>,
     /// Background statistics
     background_stats: Arc<Mutex<BackgroundStatistics>>,

@@ -12,16 +12,22 @@ use sklears_core::traits::{Estimator, Fit, Transform};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
+/// FilterError
 pub enum FilterError {
     #[error("Invalid number of features to select: {0}")]
+    /// InvalidFeatureCount
     InvalidFeatureCount(usize),
     #[error("Invalid percentile: {0}, must be between 0 and 100")]
+    /// InvalidPercentile
     InvalidPercentile(f64),
     #[error("Insufficient variance for threshold: {0}")]
+    /// InsufficientVariance
     InsufficientVariance(f64),
     #[error("Empty feature matrix")]
+    /// EmptyFeatureMatrix
     EmptyFeatureMatrix,
     #[error("Feature selection failed: {0}")]
+    /// SelectionFailed
     SelectionFailed(String),
 }
 
@@ -37,9 +43,13 @@ pub type ScoreFunc = fn(ArrayView2<f64>, ArrayView1<f64>) -> Result<Array1<f64>>
 /// Configuration for filter methods
 #[derive(Debug, Clone)]
 pub struct FilterConfig {
+    /// score_func
     pub score_func: String,
+    /// k
     pub k: Option<usize>,
+    /// percentile
     pub percentile: Option<f64>,
+    /// threshold
     pub threshold: Option<f64>,
 }
 
@@ -57,19 +67,25 @@ impl Default for FilterConfig {
 /// Results from filter-based selection
 #[derive(Debug, Clone)]
 pub struct FilterResults {
+    /// scores
     pub scores: Array1<f64>,
+    /// selected_features
     pub selected_features: Vec<usize>,
+    /// feature_names
     pub feature_names: Option<Vec<String>>,
 }
 
 /// Select K best features based on univariate statistical tests
 #[derive(Debug, Clone)]
 pub struct SelectKBest {
+    /// k
     pub k: usize,
+    /// score_func
     pub score_func: String,
 }
 
 impl SelectKBest {
+    /// new
     pub fn new(k: usize, score_func: &str) -> Self {
         Self {
             k,
@@ -191,8 +207,11 @@ impl SelectKBest {
 /// Trained SelectKBest selector
 #[derive(Debug, Clone)]
 pub struct SelectKBestTrained {
+    /// selected_features
     pub selected_features: Vec<usize>,
+    /// scores
     pub scores: Array1<f64>,
+    /// k
     pub k: usize,
 }
 
@@ -258,11 +277,14 @@ impl SelectKBestTrained {
 /// Select features based on percentile of highest scores
 #[derive(Debug, Clone)]
 pub struct SelectPercentile {
+    /// percentile
     pub percentile: f64,
+    /// score_func
     pub score_func: String,
 }
 
 impl SelectPercentile {
+    /// new
     pub fn new(percentile: f64, score_func: &str) -> Self {
         Self {
             percentile,
@@ -367,9 +389,13 @@ impl SelectPercentile {
 /// Trained SelectPercentile selector
 #[derive(Debug, Clone)]
 pub struct SelectPercentileTrained {
+    /// selected_features
     pub selected_features: Vec<usize>,
+    /// scores
     pub scores: Array1<f64>,
+    /// percentile
     pub percentile: f64,
+    /// threshold
     pub threshold: f64,
 }
 
@@ -395,10 +421,12 @@ impl Transform<ArrayView2<'_, f64>, Array2<f64>> for SelectPercentileTrained {
 /// Remove features with low variance
 #[derive(Debug, Clone)]
 pub struct VarianceThreshold {
+    /// threshold
     pub threshold: f64,
 }
 
 impl VarianceThreshold {
+    /// new
     pub fn new(threshold: f64) -> Self {
         Self { threshold }
     }
@@ -476,8 +504,11 @@ impl VarianceThreshold {
 /// Trained VarianceThreshold selector
 #[derive(Debug, Clone)]
 pub struct VarianceThresholdTrained {
+    /// selected_features
     pub selected_features: Vec<usize>,
+    /// variances
     pub variances: Array1<f64>,
+    /// threshold
     pub threshold: f64,
 }
 
@@ -547,12 +578,16 @@ impl VarianceThresholdTrained {
 /// Generic univariate selection (stub implementation)
 #[derive(Debug, Clone)]
 pub struct GenericUnivariateSelect {
+    /// score_func
     pub score_func: String,
+    /// mode
     pub mode: String,
+    /// param
     pub param: f64,
 }
 
 impl GenericUnivariateSelect {
+    /// new
     pub fn new(score_func: &str, mode: &str, param: f64) -> Self {
         Self {
             score_func: score_func.to_string(),
@@ -596,8 +631,11 @@ impl<'a> Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>> for GenericUnivariateSele
 }
 
 #[derive(Debug, Clone)]
+/// GenericUnivariateSelectTrained
 pub struct GenericUnivariateSelectTrained {
+    /// selected_features
     pub selected_features: Vec<usize>,
+    /// scores
     pub scores: Array1<f64>,
 }
 
@@ -621,10 +659,12 @@ impl Transform<ArrayView2<'_, f64>, Array2<f64>> for GenericUnivariateSelectTrai
 /// Correlation threshold filtering (stub implementation)
 #[derive(Debug, Clone)]
 pub struct CorrelationThreshold {
+    /// threshold
     pub threshold: f64,
 }
 
 impl CorrelationThreshold {
+    /// new
     pub fn new(threshold: f64) -> Self {
         Self { threshold }
     }
@@ -653,13 +693,14 @@ impl<'a> Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>> for CorrelationThreshold 
     fn fit(self, _X: &ArrayView2<'a, f64>, _y: &ArrayView1<'a, f64>) -> Result<Self::Fitted> {
         Err(SklearsError::NotImplemented(
             "CorrelationThreshold selector not yet implemented".to_string(),
-        )
-        .into())
+        ))
     }
 }
 
 #[derive(Debug, Clone)]
+/// CorrelationThresholdTrained
 pub struct CorrelationThresholdTrained {
+    /// selected_features
     pub selected_features: Vec<usize>,
 }
 
@@ -681,6 +722,7 @@ impl Transform<ArrayView2<'_, f64>, Array2<f64>> for CorrelationThresholdTrained
 macro_rules! impl_stub_selector {
     ($name:ident, $trained:ident) => {
         #[derive(Debug, Clone)]
+        /// pub
         pub struct $name;
 
         impl Estimator for $name {
@@ -709,7 +751,9 @@ macro_rules! impl_stub_selector {
         }
 
         #[derive(Debug, Clone)]
+        /// pub
         pub struct $trained {
+            /// selected_features
             pub selected_features: Vec<usize>,
         }
 
@@ -744,6 +788,7 @@ impl_stub_selector!(SelectKBestParallel, SelectKBestParallelTrained);
 
 // Enum for compressed sensing algorithms
 #[derive(Debug, Clone)]
+/// CompressedSensingAlgorithm
 pub enum CompressedSensingAlgorithm {
     /// OMP
     OMP,
@@ -757,6 +802,7 @@ pub enum CompressedSensingAlgorithm {
 
 // Enum for inference methods
 #[derive(Debug, Clone)]
+/// InferenceMethod
 pub enum InferenceMethod {
     /// Lasso
     Lasso,
@@ -770,6 +816,7 @@ pub enum InferenceMethod {
 
 // Enum for knockoff types
 #[derive(Debug, Clone)]
+/// KnockoffType
 pub enum KnockoffType {
     /// Equicorrelated
     Equicorrelated,
@@ -781,6 +828,7 @@ pub enum KnockoffType {
 
 // Enum for imbalanced strategies
 #[derive(Debug, Clone)]
+/// ImbalancedStrategy
 pub enum ImbalancedStrategy {
     /// MinorityFocused
     MinorityFocused,

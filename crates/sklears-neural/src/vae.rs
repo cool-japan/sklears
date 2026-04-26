@@ -29,8 +29,8 @@
 use crate::activation::Activation;
 use crate::utils::{initialize_weights, WeightInit};
 use crate::{NeuralResult, SklearsError};
-use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, ChaCha8Rng, SeedableRng, StandardNormal};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::{thread_rng, StandardNormal};
 use sklears_core::{
     traits::{Estimator, Fit, Trained, Transform, Untrained},
     types::Float,
@@ -119,6 +119,7 @@ impl VAEConfig {
 
 /// Variational Autoencoder model
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // n_features_in retained for input dimension validation during inference
 pub struct VAE<State = Untrained> {
     config: VAEConfig,
     state: PhantomData<State>,
@@ -137,6 +138,7 @@ pub struct VAE<State = Untrained> {
     n_features_in: Option<usize>,
 }
 
+#[allow(dead_code)] // Implementation methods pre-written for v0.2.0; fit() not yet calls them
 impl VAE<Untrained> {
     /// Create a new VAE with the given configuration
     pub fn new(config: VAEConfig) -> Self {

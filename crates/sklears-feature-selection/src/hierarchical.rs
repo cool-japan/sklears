@@ -17,10 +17,15 @@ use std::marker::PhantomData;
 /// Represents a node in the feature hierarchy
 #[derive(Debug, Clone)]
 pub struct HierarchyNode {
+    /// feature_id
     pub feature_id: usize,
+    /// parent
     pub parent: Option<usize>,
+    /// children
     pub children: Vec<usize>,
+    /// level
     pub level: usize,
+    /// group_id
     pub group_id: Option<usize>,
 }
 
@@ -181,7 +186,7 @@ pub struct HierarchicalFeatureSelector<State = Untrained> {
 
     // Fitted state
     selected_features_: Option<Vec<usize>>,
-    feature_scores_: Option<HashMap<usize, Float>>,
+    _feature_scores_: Option<HashMap<usize, Float>>,
 
     state: PhantomData<State>,
 }
@@ -221,7 +226,7 @@ impl HierarchicalFeatureSelector<Untrained> {
             selection_strategy: HierarchicalSelectionStrategy::TopDown,
             score_aggregation: ScoreAggregation::Sum,
             selected_features_: None,
-            feature_scores_: None,
+            _feature_scores_: None,
             state: PhantomData,
         }
     }
@@ -290,7 +295,7 @@ impl Fit<Array2<Float>, Array1<Float>> for HierarchicalFeatureSelector<Untrained
             selection_strategy: self.selection_strategy,
             score_aggregation: self.score_aggregation,
             selected_features_: Some(selected_features),
-            feature_scores_: Some(feature_scores),
+            _feature_scores_: Some(feature_scores),
             state: PhantomData,
         })
     }
@@ -537,7 +542,7 @@ pub struct MultiLevelHierarchicalSelector<State = Untrained> {
 
     // Fitted state
     selected_features_: Option<HashMap<usize, Vec<usize>>>,
-    level_scores_: Option<HashMap<usize, HashMap<usize, Float>>>,
+    _level_scores_: Option<HashMap<usize, HashMap<usize, Float>>>,
 
     state: PhantomData<State>,
 }
@@ -550,7 +555,7 @@ impl MultiLevelHierarchicalSelector<Untrained> {
             k_per_level: HashMap::new(),
             level_weights: HashMap::new(),
             selected_features_: None,
-            level_scores_: None,
+            _level_scores_: None,
             state: PhantomData,
         }
     }
@@ -640,7 +645,7 @@ impl Fit<Array2<Float>, Array1<Float>> for MultiLevelHierarchicalSelector<Untrai
             k_per_level: self.k_per_level,
             level_weights: self.level_weights,
             selected_features_: Some(selected_features),
-            level_scores_: Some(level_scores),
+            _level_scores_: Some(level_scores),
             state: PhantomData,
         })
     }

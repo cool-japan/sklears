@@ -199,7 +199,7 @@ impl WassersteinKernelSampler {
             // Sample a subset of points for comparison
             let subset_size = (n_samples as f64).sqrt() as usize + 1;
             let indices: Vec<usize> = (0..n_samples)
-                .choose_multiple(&mut rng, subset_size)
+                .sample(&mut rng, subset_size)
                 .into_iter()
                 .collect();
 
@@ -445,7 +445,8 @@ pub struct GromovWassersteinSampler {
     n_components: usize,
     /// Loss function for Gromov-Wasserstein
     loss_function: GWLossFunction,
-    /// Number of iterations for optimization
+    /// Number of iterations for optimization (stored for use during fitting)
+    #[allow(dead_code)]
     max_iter: usize,
     /// Random state
     random_state: Option<u64>,
@@ -467,6 +468,7 @@ pub enum GWLossFunction {
 
 #[derive(Debug, Clone)]
 struct GWFittedParams {
+    #[allow(dead_code)] // stored for inspection/serialization
     reference_distances: Array2<f64>,
     projections: Array2<f64>,
 }
@@ -616,7 +618,7 @@ mod tests {
         assert_eq!(features.shape(), &[4, 10]);
 
         // Features should be bounded
-        assert!(features.iter().all(|&f| f >= 0.0 && f <= 1.0));
+        assert!(features.iter().all(|&f| (0.0..=1.0).contains(&f)));
     }
 
     #[test]
@@ -646,7 +648,7 @@ mod tests {
         assert_eq!(features.shape(), &[4, 8]);
 
         // Features should be bounded by tanh
-        assert!(features.iter().all(|&f| f >= -1.0 && f <= 1.0));
+        assert!(features.iter().all(|&f| (-1.0..=1.0).contains(&f)));
     }
 
     #[test]

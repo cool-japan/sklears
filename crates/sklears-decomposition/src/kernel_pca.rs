@@ -3,9 +3,10 @@
 //! Kernel PCA is a non-linear dimensionality reduction technique that uses
 //! kernel methods to perform PCA in a higher-dimensional feature space.
 
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
-use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{Rng, thread_rng, Random};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::random::rng as make_rng;
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{SeedableRng, SliceRandom};
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result, SklearsError},
@@ -343,9 +344,15 @@ impl KernelPCA<Untrained> {
         }
 
         // Compute row means
-        let row_means = k.mean_axis(Axis(1)).expect("array should have elements for mean computation");
+        let row_means = k.mean_axis(Axis(1)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "cannot compute row means of empty kernel matrix".to_string(),
+            )
+        })?;
         // Compute overall mean
-        let overall_mean = k.mean().expect("array should have elements for mean computation");
+        let overall_mean = k.mean().ok_or_else(|| {
+            SklearsError::NumericalError("cannot compute mean of empty kernel matrix".to_string())
+        })?;
 
         // Center the kernel matrix: K_centered = K - K_row_means - K_col_means + K_overall_mean
         for i in 0..n {
@@ -438,9 +445,12 @@ impl KernelPCA<Untrained> {
         let (n_samples, _) = x.dim();
         let m = nystrom_components.min(n_samples);
 
-        // Initialize random number generator
-        // TODO: Support seeding for reproducibility
-        let mut rng = thread_rng();
+        // Initialize random number generator with optional seeding for reproducibility
+        let mut rng = if let Some(seed) = self.config.random_state {
+            StdRng::seed_from_u64(seed)
+        } else {
+            StdRng::from_rng(&mut make_rng())
+        };
 
         // Randomly sample m landmark points
         let mut landmark_indices: Vec<usize> = (0..n_samples).collect();
@@ -520,9 +530,12 @@ impl KernelPCA<Untrained> {
         let (n_samples, n_features) = x.dim();
         let m = n_samples_approx.min(n_samples);
 
-        // Initialize random number generator
-        // TODO: Support seeding for reproducibility
-        let mut rng = thread_rng();
+        // Initialize random number generator with optional seeding for reproducibility
+        let mut rng = if let Some(seed) = self.config.random_state {
+            StdRng::seed_from_u64(seed)
+        } else {
+            StdRng::from_rng(&mut make_rng())
+        };
 
         // Randomly sample points
         let mut sample_indices: Vec<usize> = (0..n_samples).collect();
@@ -587,9 +600,18 @@ impl Transform<Array2<Float>, Array2<Float>> for KernelPCA<Trained> {
             });
         }
 
-        let x_fit = self.x_fit_.as_ref().expect("operation should succeed");
-        let alphas = self.alphas_.as_ref().expect("operation should succeed");
-        let lambdas = self.lambdas_.as_ref().expect("operation should succeed");
+        let x_fit = self
+            .x_fit_
+            .as_ref()
+            .expect("invariant: x_fit_ is Some in Trained state");
+        let alphas = self
+            .alphas_
+            .as_ref()
+            .expect("invariant: alphas_ is Some in Trained state");
+        let lambdas = self
+            .lambdas_
+            .as_ref()
+            .expect("invariant: lambdas_ is Some in Trained state");
         let n_components = self.n_components();
 
         // Compute kernel matrix between x and training data
@@ -636,32 +658,41 @@ impl Transform<Array2<Float>, Array2<Float>> for KernelPCA<Trained> {
 impl KernelPCA<Trained> {
     /// Get the eigenvalues
     pub fn eigenvalues(&self) -> &Array1<Float> {
-        self.lambdas_.as_ref().expect("operation should succeed")
+        self.lambdas_
+            .as_ref()
+            .expect("invariant: lambdas_ is Some in Trained state")
     }
 
     /// Get the eigenvectors (alphas)
     pub fn eigenvectors(&self) -> &Array2<Float> {
-        self.alphas_.as_ref().expect("operation should succeed")
+        self.alphas_
+            .as_ref()
+            .expect("invariant: alphas_ is Some in Trained state")
     }
 
     /// Get the number of components
     pub fn n_components(&self) -> usize {
-        self.n_components_.expect("operation should succeed")
+        self.n_components_
+            .expect("invariant: n_components_ is Some in Trained state")
     }
 
     /// Get the number of features in the input
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.expect("operation should succeed")
+        self.n_features_in_
+            .expect("invariant: n_features_in_ is Some in Trained state")
     }
 
     /// Get the number of samples in the training data
     pub fn n_samples(&self) -> usize {
-        self.n_samples_.expect("sampling should succeed")
+        self.n_samples_
+            .expect("invariant: n_samples_ is Some in Trained state")
     }
 
     /// Get the training data
     pub fn x_fit(&self) -> &Array2<Float> {
-        self.x_fit_.as_ref().expect("operation should succeed")
+        self.x_fit_
+            .as_ref()
+            .expect("invariant: x_fit_ is Some in Trained state")
     }
 
     /// Pre-image reconstruction using fixed-point iteration
@@ -764,7 +795,11 @@ impl KernelPCA<Trained> {
 
         for i in 0..n_samples {
             // Initialize with mean of training data
-            let mut x_current = x_fit.mean_axis(Axis(0)).expect("array should have elements for mean computation");
+            let mut x_current = x_fit.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "cannot compute mean of empty training data".to_string(),
+                )
+            })?;
             let target_transformed = x_transformed.slice(scirs2_core::ndarray::s![i, ..]);
 
             for _iter in 0..max_iter {
@@ -936,7 +971,7 @@ impl KernelPCA<Trained> {
             }
 
             // Sort by distance and take k nearest
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
             // Weighted average of k nearest neighbors
             let mut weight_sum = 0.0;
@@ -978,7 +1013,11 @@ impl KernelPCA<Trained> {
         // Center the kernel values if the model was trained with centering
         if self.config.center {
             // This is approximate centering for a single sample
-            let mean_k = k_test.mean().expect("array should have elements for mean computation");
+            let mean_k = k_test.mean().ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "cannot compute mean of empty k_test array".to_string(),
+                )
+            })?;
             for val in k_test.iter_mut() {
                 *val -= mean_k;
             }
@@ -1377,7 +1416,7 @@ mod tests {
 
         assert_eq!(kpca.config.n_components, Some(2));
         assert_eq!(kpca.config.tol, 1e-6);
-        assert_eq!(kpca.config.center, false);
+        assert!(!kpca.config.center);
     }
 
     #[test]
@@ -1469,7 +1508,9 @@ mod tests {
         let x_train = array![[1.0, 2.0], [3.0, 4.0]];
         let x_test = array![[1.0, 2.0, 3.0]]; // Wrong number of features
 
-        let kpca = KernelPCA::new().fit(&x_train, &()).expect("model fitting should succeed");
+        let kpca = KernelPCA::new()
+            .fit(&x_train, &())
+            .expect("model fitting should succeed");
         let result = kpca.transform(&x_test);
 
         assert!(result.is_err());
@@ -1480,7 +1521,9 @@ mod tests {
     fn test_kernel_pca_default() {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
-        let kpca = KernelPCA::default().fit(&x, &()).expect("model fitting should succeed");
+        let kpca = KernelPCA::default()
+            .fit(&x, &())
+            .expect("model fitting should succeed");
 
         // Should use default parameters
         assert_eq!(kpca.n_components(), 2); // min(n_samples, n_features)

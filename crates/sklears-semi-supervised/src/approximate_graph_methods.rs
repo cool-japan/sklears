@@ -76,9 +76,9 @@ impl ApproximateKNN {
     }
 
     /// Construct approximate k-NN graph using LSH
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(&self, X: &ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
         let n_samples = X.nrows();
-        let n_features = X.ncols();
 
         if n_samples == 0 {
             return Err(SklearsError::InvalidInput(
@@ -106,6 +106,7 @@ impl ApproximateKNN {
     }
 
     /// Exact k-NN computation for small datasets
+    #[allow(non_snake_case)] // standard ML notation
     fn exact_knn(&self, X: &ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
         let n_samples = X.nrows();
         let mut graph = Array2::<f64>::zeros((n_samples, n_samples));
@@ -133,6 +134,7 @@ impl ApproximateKNN {
     }
 
     /// Sampled k-NN computation for medium datasets
+    #[allow(non_snake_case)] // standard ML notation
     fn sampled_knn<R>(
         &self,
         X: &ArrayView2<f64>,
@@ -175,6 +177,7 @@ impl ApproximateKNN {
     }
 
     /// LSH-based k-NN computation for large datasets
+    #[allow(non_snake_case)] // standard ML notation
     fn lsh_knn<R>(
         &self,
         X: &ArrayView2<f64>,
@@ -369,6 +372,7 @@ impl ApproximateSpectralClustering {
     }
 
     /// Perform approximate spectral clustering
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit_predict(&self, X: &ArrayView2<f64>) -> Result<Array1<i32>, SklearsError> {
         let n_samples = X.nrows();
 
@@ -481,6 +485,7 @@ impl ApproximateSpectralClustering {
     }
 
     /// Simplified QR decomposition using Gram-Schmidt
+    #[allow(non_snake_case)] // standard ML notation
     fn qr_decomposition(&self, matrix: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
         let (m, n) = matrix.dim();
         let mut Q = matrix.clone();
@@ -750,7 +755,7 @@ mod tests {
 
         // Check that labels are valid
         for &label in labels.iter() {
-            assert!(label >= 0 && label < 2);
+            assert!((0..2).contains(&label));
         }
     }
 

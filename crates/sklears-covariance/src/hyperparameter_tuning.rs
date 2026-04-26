@@ -10,6 +10,9 @@ use sklears_core::error::{Result as SklResult, SklearsError};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+/// Type alias for custom scoring function
+type CustomScoringFn = Box<dyn Fn(&Array2<f64>, Option<&Array2<f64>>) -> f64 + Send + Sync>;
+
 /// Hyperparameter tuning configuration
 #[derive(Debug, Clone)]
 pub struct TuningConfig {
@@ -99,7 +102,7 @@ pub enum ScoringMetric {
     /// Cross-validation score
     CrossValidationScore,
     /// Custom scoring function
-    Custom(Box<dyn Fn(&Array2<f64>, Option<&Array2<f64>>) -> f64 + Send + Sync>),
+    Custom(CustomScoringFn),
 }
 
 impl std::fmt::Debug for ScoringMetric {
@@ -267,7 +270,7 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
     pub fn tune<E>(
         &self,
         estimator_factory: E,
-        X: &ArrayView2<F>,
+        x: &ArrayView2<F>,
         y: Option<&ArrayView2<F>>,
     ) -> SklResult<TuningResult>
     where
@@ -278,7 +281,7 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
         let start_time = std::time::Instant::now();
 
         // Validate inputs
-        self.validate_inputs(X)?;
+        self.validate_inputs(x)?;
 
         // Generate parameter configurations based on search strategy
         let param_configs = self.generate_parameter_configs()?;
@@ -307,7 +310,7 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
             let estimator = estimator_factory(params)?;
 
             // Perform cross-validation
-            let cv_result = self.cross_validate(estimator.as_ref(), X, y)?;
+            let cv_result = self.cross_validate(estimator.as_ref(), x, y)?;
 
             let eval_time = eval_start.elapsed().as_secs_f64();
             let cv_result_with_time = CVResult {
@@ -372,8 +375,8 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
     }
 
     /// Validate input data
-    fn validate_inputs(&self, X: &ArrayView2<F>) -> SklResult<()> {
-        let (n_samples, n_features) = X.dim();
+    fn validate_inputs(&self, x: &ArrayView2<F>) -> SklResult<()> {
+        let (n_samples, n_features) = x.dim();
 
         if n_samples < self.config.cv_config.n_folds {
             return Err(SklearsError::InvalidInput(format!(
@@ -547,10 +550,10 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
     fn cross_validate(
         &self,
         estimator: &dyn CovarianceEstimatorTunable<F>,
-        X: &ArrayView2<F>,
+        x: &ArrayView2<F>,
         y: Option<&ArrayView2<F>>,
     ) -> SklResult<CVResult> {
-        let n_samples = X.nrows();
+        let n_samples = x.nrows();
         let fold_size = n_samples / self.config.cv_config.n_folds;
         let mut fold_scores = Vec::new();
         let additional_metrics = HashMap::new();
@@ -564,7 +567,7 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
             };
 
             // Create train/validation splits
-            let (X_train, X_val) = self.create_cv_split(X, start_idx, end_idx)?;
+            let (x_train, x_val) = self.create_cv_split(x, start_idx, end_idx)?;
             let (y_train, y_val) = if let Some(y) = y {
                 let (y_tr, y_v) = self.create_cv_split(y, start_idx, end_idx)?;
                 (Some(y_tr), Some(y_v))
@@ -574,10 +577,10 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
 
             // Fit estimator and compute score
             let fitted_estimator =
-                estimator.fit(&X_train.view(), y_train.as_ref().map(|y| y.view()))?;
+                estimator.fit(&x_train.view(), y_train.as_ref().map(|y| y.view()))?;
             let score = self.compute_score(
                 fitted_estimator.as_ref(),
-                &X_val.view(),
+                &x_val.view(),
                 y_val.as_ref().map(|y| y.view()),
             )?;
 
@@ -605,46 +608,46 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
     /// Create cross-validation train/test split
     fn create_cv_split(
         &self,
-        X: &ArrayView2<F>,
+        x: &ArrayView2<F>,
         val_start: usize,
         val_end: usize,
     ) -> SklResult<(Array2<F>, Array2<F>)> {
-        let n_samples = X.nrows();
-        let n_features = X.ncols();
+        let n_samples = x.nrows();
+        let n_features = x.ncols();
 
         // Validation set
-        let X_val = X.slice(s![val_start..val_end, ..]).to_owned();
+        let x_val = x.slice(s![val_start..val_end, ..]).to_owned();
 
         // Training set (all samples except validation)
         let train_size = n_samples - (val_end - val_start);
-        let mut X_train = Array2::zeros((train_size, n_features));
+        let mut x_train = Array2::zeros((train_size, n_features));
 
         // Copy samples before validation set
         if val_start > 0 {
-            let before_slice = X.slice(s![..val_start, ..]);
-            X_train.slice_mut(s![..val_start, ..]).assign(&before_slice);
+            let before_slice = x.slice(s![..val_start, ..]);
+            x_train.slice_mut(s![..val_start, ..]).assign(&before_slice);
         }
 
         // Copy samples after validation set
         if val_end < n_samples {
-            let after_slice = X.slice(s![val_end.., ..]);
-            X_train.slice_mut(s![val_start.., ..]).assign(&after_slice);
+            let after_slice = x.slice(s![val_end.., ..]);
+            x_train.slice_mut(s![val_start.., ..]).assign(&after_slice);
         }
 
-        Ok((X_train, X_val))
+        Ok((x_train, x_val))
     }
 
     /// Compute score for a fitted estimator
     fn compute_score(
         &self,
         estimator: &dyn CovarianceEstimatorFitted<F>,
-        X_val: &ArrayView2<F>,
+        x_val: &ArrayView2<F>,
         y_val: Option<ArrayView2<F>>,
     ) -> SklResult<f64> {
         let covariance = estimator.get_covariance();
 
         match &self.config.scoring {
-            ScoringMetric::LogLikelihood => self.compute_log_likelihood(covariance, X_val),
+            ScoringMetric::LogLikelihood => self.compute_log_likelihood(covariance, x_val),
             ScoringMetric::FrobeniusError => {
                 if let Some(y_val) = y_val {
                     self.compute_frobenius_error(covariance, &y_val)
@@ -676,10 +679,10 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
                 }
             }
             ScoringMetric::PredictiveLikelihood => {
-                self.compute_predictive_likelihood(estimator, X_val)
+                self.compute_predictive_likelihood(estimator, x_val)
             }
             ScoringMetric::CrossValidationScore => {
-                self.compute_log_likelihood(covariance, X_val) // Default to log-likelihood
+                self.compute_log_likelihood(covariance, x_val) // Default to log-likelihood
             }
             ScoringMetric::Custom(func) => {
                 // Cast to f64 if necessary
@@ -693,10 +696,10 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
     }
 
     /// Compute log-likelihood score
-    fn compute_log_likelihood(&self, covariance: &Array2<F>, X: &ArrayView2<F>) -> SklResult<f64> {
+    fn compute_log_likelihood(&self, covariance: &Array2<F>, x: &ArrayView2<F>) -> SklResult<f64> {
         // Simplified log-likelihood computation
-        let n_samples = X.nrows() as f64;
-        let n_features = X.ncols() as f64;
+        let n_samples = x.nrows() as f64;
+        let n_features = x.ncols() as f64;
 
         // Compute determinant (simplified)
         let det = self.compute_determinant(covariance)?;
@@ -798,9 +801,9 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
     fn compute_predictive_likelihood(
         &self,
         estimator: &dyn CovarianceEstimatorFitted<F>,
-        X_val: &ArrayView2<F>,
+        x_val: &ArrayView2<F>,
     ) -> SklResult<f64> {
-        self.compute_log_likelihood(estimator.get_covariance(), X_val)
+        self.compute_log_likelihood(estimator.get_covariance(), x_val)
     }
 
     /// Compute determinant (simplified)
@@ -907,7 +910,7 @@ pub trait CovarianceEstimatorTunable<F: NdFloat> {
     /// Fit the estimator to data
     fn fit(
         &self,
-        X: &ArrayView2<F>,
+        x: &ArrayView2<F>,
         y: Option<ArrayView2<F>>,
     ) -> SklResult<Box<dyn CovarianceEstimatorFitted<F>>>;
 }
@@ -927,8 +930,8 @@ pub mod presets {
 
     /// Create a grid search configuration for regularization parameter
     pub fn grid_search_regularization(
-        min_alpha: f64,
-        max_alpha: f64,
+        _min_alpha: f64,
+        _max_alpha: f64,
         n_points: usize,
     ) -> TuningConfig {
         TuningConfig {
@@ -1039,7 +1042,6 @@ pub mod presets {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_parameter_value_equality() {

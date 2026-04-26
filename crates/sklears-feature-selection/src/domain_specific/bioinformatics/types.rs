@@ -10,8 +10,13 @@ pub use sklears_core::traits::{Estimator, Fit, Transform};
 pub use std::collections::HashMap;
 pub use std::marker::PhantomData;
 
+/// Result
 pub type Result<T> = SklResult<T>;
+/// Float
 pub type Float = f64;
+
+/// Type alias for sample index partition by group: (group0_indices, group1_indices)
+pub type GroupIndexPartition<'a> = (Vec<(usize, &'a Float)>, Vec<(usize, &'a Float)>);
 
 /// Complex return type for bioinformatics analysis methods
 /// (scores, p_values, fold_changes, metrics, additional_data)
@@ -53,6 +58,7 @@ pub struct BioinformaticsFeatureSelector<State = Untrained> {
     pub(crate) prior_knowledge_weight: Float,
     pub(crate) batch_effect_correction: bool,
     pub(crate) normalization_method: String,
+    /// k
     pub k: usize,
     pub(crate) max_features: Option<usize>,
     pub(crate) strategy: BioinformaticsStrategy,
@@ -144,6 +150,38 @@ impl BioinformaticsFeatureSelector<Trained> {
             .as_ref()
             .and_then(|trained| trained.pathway_scores.as_ref())
     }
+    /// Get the computed feature scores from the last fit
+    pub fn feature_scores(&self) -> Option<&Array1<Float>> {
+        self.trained_state.as_ref().map(|t| &t.feature_scores)
+    }
+    /// Get adjusted p-values from multiple testing correction
+    pub fn adjusted_p_values(&self) -> Option<&Array1<Float>> {
+        self.trained_state
+            .as_ref()
+            .and_then(|t| t.adjusted_p_values.as_ref())
+    }
+    /// Get fold changes computed during differential expression analysis
+    pub fn fold_changes(&self) -> Option<&Array1<Float>> {
+        self.trained_state
+            .as_ref()
+            .and_then(|t| t.fold_changes.as_ref())
+    }
+    /// Get biological relevance scores from network or pathway integration
+    pub fn biological_relevance_scores(&self) -> Option<&Array1<Float>> {
+        self.trained_state
+            .as_ref()
+            .and_then(|t| t.biological_relevance_scores.as_ref())
+    }
+    /// Get the data type used during fitting
+    pub fn data_type(&self) -> Option<&str> {
+        self.trained_state.as_ref().map(|t| t.data_type.as_str())
+    }
+    /// Get the analysis method used during fitting
+    pub fn analysis_method(&self) -> Option<&str> {
+        self.trained_state
+            .as_ref()
+            .map(|t| t.analysis_method.as_str())
+    }
 }
 impl BioinformaticsFeatureSelector<Untrained> {
     pub(crate) fn analyze_gene_expression(
@@ -196,7 +234,8 @@ impl BioinformaticsFeatureSelector<Untrained> {
     ) -> Result<BioinformaticsAnalysisResult> {
         self.differential_expression_analysis(x, y)
     }
-    fn differential_expression_analysis(
+    /// differential_expression_analysis
+    pub fn differential_expression_analysis(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -249,7 +288,8 @@ impl BioinformaticsFeatureSelector<Untrained> {
             None,
         ))
     }
-    fn co_expression_analysis(
+    /// co_expression_analysis
+    pub fn co_expression_analysis(
         &self,
         x: &Array2<Float>,
         _y: &Array1<Float>,
@@ -270,7 +310,8 @@ impl BioinformaticsFeatureSelector<Untrained> {
         }
         Ok((scores, None, None, None, None))
     }
-    fn pathway_enrichment_analysis(
+    /// pathway_enrichment_analysis
+    pub fn pathway_enrichment_analysis(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -287,7 +328,8 @@ impl BioinformaticsFeatureSelector<Untrained> {
             Some(biological_scores),
         ))
     }
-    fn snp_association_analysis(
+    /// snp_association_analysis
+    pub fn snp_association_analysis(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -315,7 +357,8 @@ impl BioinformaticsFeatureSelector<Untrained> {
         }
         Ok((scores, Some(p_values), None, None, None))
     }
-    fn linkage_disequilibrium_analysis(
+    /// linkage_disequilibrium_analysis
+    pub fn linkage_disequilibrium_analysis(
         &self,
         x: &Array2<Float>,
         _y: &Array1<Float>,
@@ -339,7 +382,8 @@ impl BioinformaticsFeatureSelector<Untrained> {
         }
         Ok((scores, None, None, None, None))
     }
-    fn protein_network_analysis(
+    /// protein_network_analysis
+    pub fn protein_network_analysis(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -370,7 +414,8 @@ impl BioinformaticsFeatureSelector<Untrained> {
             Some(functional_scores),
         ))
     }
-    fn protein_functional_analysis(
+    /// protein_functional_analysis
+    pub fn protein_functional_analysis(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -382,7 +427,7 @@ impl BioinformaticsFeatureSelector<Untrained> {
     /// This method implements a simplified version of DESeq2's approach for differential
     /// expression analysis, modeling count data with a negative binomial distribution and
     /// estimating dispersion parameters for robust statistical testing.
-    fn deseq2_analysis(
+    pub fn deseq2_analysis(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -391,7 +436,7 @@ impl BioinformaticsFeatureSelector<Untrained> {
         let mut scores = Array1::zeros(n_features);
         let mut p_values = Array1::zeros(n_features);
         let mut fold_changes = Array1::zeros(n_features);
-        let (group0_indices, group1_indices): (Vec<(usize, &Float)>, Vec<(usize, &Float)>) =
+        let (group0_indices, group1_indices): GroupIndexPartition<'_> =
             y.iter().enumerate().partition(|(_, &val)| val == 0.0);
         for j in 0..n_features {
             let feature = x.column(j);
@@ -430,7 +475,7 @@ impl BioinformaticsFeatureSelector<Untrained> {
     ///
     /// Implements a simplified version of edgeR's exact test for comparing two groups,
     /// using a negative binomial model with empirical Bayes dispersion estimation.
-    fn edger_analysis(
+    pub fn edger_analysis(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -478,7 +523,7 @@ impl BioinformaticsFeatureSelector<Untrained> {
     ///
     /// Implements empirical Bayes moderated t-statistics for differential expression,
     /// borrowing information across genes to improve statistical power.
-    fn limma_analysis(
+    pub fn limma_analysis(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -554,7 +599,7 @@ impl BioinformaticsFeatureSelector<Untrained> {
     ///
     /// Determines whether a priori defined sets of genes show statistically significant,
     /// concordant differences between two biological states.
-    fn gsea_analysis(
+    pub fn gsea_analysis(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -594,7 +639,7 @@ impl BioinformaticsFeatureSelector<Untrained> {
     ///
     /// Tests whether genes in a predefined set are over-represented in a list of
     /// differentially expressed genes using hypergeometric or Fisher's exact test.
-    fn ora_analysis(
+    pub fn ora_analysis(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -653,7 +698,7 @@ impl BioinformaticsFeatureSelector<Untrained> {
     ///
     /// Integrates protein interaction network topology with expression data to identify
     /// functionally important proteins based on network centrality and expression changes.
-    fn ppi_network_analysis(
+    pub fn ppi_network_analysis(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -701,7 +746,7 @@ impl BioinformaticsFeatureSelector<Untrained> {
     ///
     /// Predicts the functional impact of genetic variants based on conservation,
     /// protein structure, and functional domain information.
-    fn variant_effect_prediction(
+    pub fn variant_effect_prediction(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -751,7 +796,7 @@ impl BioinformaticsFeatureSelector<Untrained> {
     ///
     /// Integrates multiple omics data types (transcriptomics, proteomics, metabolomics)
     /// to identify features with concordant signals across different molecular layers.
-    fn multi_omics_integration(
+    pub fn multi_omics_integration(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -888,6 +933,7 @@ impl BioinformaticsFeatureSelector<Untrained> {
     }
 }
 #[derive(Debug, Clone)]
+/// Untrained
 pub struct Untrained;
 /// Strategy for bioinformatics feature selection
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -922,6 +968,7 @@ pub enum BioinformaticsStrategy {
     MultiOmics,
 }
 #[derive(Debug, Clone)]
+/// Trained
 pub struct Trained {
     pub(crate) selected_features: Vec<usize>,
     pub(crate) feature_scores: Array1<Float>,
@@ -959,6 +1006,7 @@ pub struct BioinformaticsFeatureSelectorBuilder {
     pub(crate) max_features: Option<usize>,
 }
 impl BioinformaticsFeatureSelectorBuilder {
+    /// new
     pub fn new() -> Self {
         Self {
             data_type: "gene_expression".to_string(),

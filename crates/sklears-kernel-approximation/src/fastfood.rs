@@ -50,8 +50,8 @@ use crate::structured_random_features::FastWalshHadamardTransform;
 /// let X = array![[1.0, 2.0, 3.0, 4.0], [2.0, 3.0, 4.0, 5.0]];
 ///
 /// let fastfood = FastfoodTransform::new(8).gamma(0.5);
-/// let fitted = fastfood.fit(&X, &()).unwrap();
-/// let X_transformed = fitted.transform(&X).unwrap();
+/// let fitted = fastfood.fit(&X, &()).expect("fit should succeed with valid Fastfood transform input");
+/// let X_transformed = fitted.transform(&X).expect("transform should succeed after Fastfood fitting");
 /// assert_eq!(X_transformed.shape(), &[2, 8]);
 /// ```
 #[derive(Debug, Clone)]
@@ -131,7 +131,7 @@ impl Fit<Array2<Float>, ()> for FastfoodTransform<Untrained> {
         let padded_dim = next_power_of_2(n_features);
 
         // Number of Fastfood blocks needed
-        let n_blocks = (self.n_components + padded_dim - 1) / padded_dim;
+        let n_blocks = self.n_components.div_ceil(padded_dim);
 
         // Generate random diagonal scaling matrices B and G
         let scaling_b = self.generate_random_scaling(padded_dim * n_blocks, &mut rng);
@@ -253,6 +253,7 @@ impl Transform<Array2<Float>> for FastfoodTransform<Trained> {
 
 impl FastfoodTransform<Trained> {
     /// Apply the full Fastfood transform: G * H * Π * B * H * x
+    #[allow(clippy::too_many_arguments)] // all 8 args are distinct Fastfood transform components
     fn apply_fastfood_transform(
         &self,
         x: &scirs2_core::ndarray::ArrayBase<

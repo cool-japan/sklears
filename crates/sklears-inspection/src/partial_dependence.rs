@@ -31,10 +31,11 @@ use crate::types::{PartialDependenceKind, PartialDependenceResult};
 ///     &features,
 ///     &grid,
 ///     PartialDependenceKind::Average,
-/// ).unwrap();
+/// ).expect("partial dependence computation should succeed with valid inputs");
 ///
 /// assert_eq!(result.values.len(), 5); // 5 grid points
 /// ```
+#[allow(non_snake_case)] // standard ML notation
 pub fn partial_dependence<F>(
     predict_fn: &F,
     X: &ArrayView2<Float>,

@@ -12,6 +12,9 @@ use sklears_core::{
     types::Float,
 };
 
+/// Type alias for SVD result: (singular values, U matrix, Vt matrix, effective rank)
+type SvdResult = SklResult<(Array1<f64>, Array2<f64>, Array2<f64>, usize)>;
+
 /// Configuration for RobustPCA estimator
 #[derive(Debug, Clone)]
 pub struct RobustPCAConfig {
@@ -570,10 +573,7 @@ impl RobustPCA<Untrained> {
         result
     }
 
-    fn compute_svd(
-        &self,
-        matrix: &Array2<f64>,
-    ) -> SklResult<(Array1<f64>, Array2<f64>, Array2<f64>, usize)> {
+    fn compute_svd(&self, matrix: &Array2<f64>) -> SvdResult {
         let (u, sigma, vt) = self.compute_svd_full(matrix)?;
 
         // Count effective rank

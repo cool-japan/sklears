@@ -77,16 +77,16 @@ impl ProgressCallback {
 }
 
 impl EmbeddingCallback for ProgressCallback {
-    fn on_event(&mut self, event: &CallbackEvent, context: &CallbackContext) -> SklResult<()> {
+    fn on_event(&mut self, event: &CallbackEvent, _context: &CallbackContext) -> SklResult<()> {
         match event {
             CallbackEvent::TrainingStarted => {
                 println!("Training started...");
             }
-            CallbackEvent::IterationCompleted { iteration, loss } => {
-                if iteration - self.last_printed >= self.print_every {
-                    println!("Iteration {}: loss = {:.6}", iteration, loss);
-                    self.last_printed = *iteration;
-                }
+            CallbackEvent::IterationCompleted { iteration, loss }
+                if iteration - self.last_printed >= self.print_every =>
+            {
+                println!("Iteration {}: loss = {:.6}", iteration, loss);
+                self.last_printed = *iteration;
             }
             CallbackEvent::TrainingCompleted { final_loss } => {
                 println!("Training completed with final loss: {:.6}", final_loss);
@@ -173,7 +173,7 @@ impl SaveEmbeddingCallback {
 }
 
 impl EmbeddingCallback for SaveEmbeddingCallback {
-    fn on_event(&mut self, event: &CallbackEvent, context: &CallbackContext) -> SklResult<()> {
+    fn on_event(&mut self, event: &CallbackEvent, _context: &CallbackContext) -> SklResult<()> {
         if let CallbackEvent::IterationCompleted { iteration, .. } = event {
             if iteration - self.last_saved >= self.save_every {
                 // Here you would implement actual saving logic

@@ -13,6 +13,9 @@ use sklears_core::{
 };
 use std::f64::consts::PI;
 
+/// Type alias for component parameters tuple result
+type ComponentsResult = SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)>;
+
 /// Utility function for log-sum-exp computation
 fn log_sum_exp(a: f64, b: f64) -> f64 {
     let max_val = a.max(b);
@@ -56,8 +59,8 @@ fn log_sum_exp(a: f64, b: f64) -> f64 {
 ///     .outlier_fraction(0.15)
 ///     .covariance_type(CovarianceType::Diagonal)
 ///     .max_iter(100);
-/// let fitted = rgmm.fit(&X.view(), &()).unwrap();
-/// let labels = fitted.predict(&X.view()).unwrap();
+/// let fitted = rgmm.fit(&X.view(), &()).expect("Robust GMM fitting should succeed with valid data");
+/// let labels = fitted.predict(&X.view()).expect("prediction should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct RobustGaussianMixture<S = Untrained> {
@@ -297,13 +300,10 @@ impl Fit<ArrayView2<'_, Float>, ()> for RobustGaussianMixture<Untrained> {
     }
 }
 
+#[allow(non_snake_case, clippy::too_many_arguments)]
 impl RobustGaussianMixture<Untrained> {
     /// Initialize parameters for robust EM algorithm
-    fn initialize_parameters(
-        &self,
-        X: &Array2<f64>,
-        seed: Option<u64>,
-    ) -> SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)> {
+    fn initialize_parameters(&self, X: &Array2<f64>, seed: Option<u64>) -> ComponentsResult {
         // Initialize weights (uniform)
         let weights = Array1::from_elem(self.n_components, 1.0 / self.n_components as f64);
 
@@ -525,7 +525,7 @@ impl RobustGaussianMixture<Untrained> {
         X: &Array2<f64>,
         responsibilities: &Array2<f64>,
         outlier_mask: &Array1<bool>,
-    ) -> SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)> {
+    ) -> ComponentsResult {
         let (n_samples, n_features) = X.dim();
 
         // Calculate effective sample weights (down-weight outliers)
@@ -890,6 +890,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
     }
 }
 
+#[allow(non_snake_case)]
 impl RobustGaussianMixture<RobustGaussianMixtureTrained> {
     /// Get the mixture weights
     pub fn weights(&self) -> &Array1<f64> {

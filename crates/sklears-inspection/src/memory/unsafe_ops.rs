@@ -12,6 +12,7 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::SeedableRng;
 
 /// Cache-friendly feature importance computation with unsafe optimizations
+#[allow(non_snake_case)] // standard ML notation
 pub fn compute_feature_importance_unsafe<F>(
     model_fn: &F,
     X: &ArrayView2<Float>,
@@ -42,7 +43,7 @@ where
     let mut importance_scores = memory_manager.allocate_aligned(n_features);
 
     // Compute importance for each feature
-    for feature_idx in 0..n_features {
+    for (feature_idx, score_slot) in importance_scores.iter_mut().enumerate().take(n_features) {
         let mut feature_importance = 0.0;
 
         for _ in 0..n_repeats {
@@ -67,7 +68,7 @@ where
         }
 
         // Average over repeats
-        importance_scores[feature_idx] = feature_importance / n_repeats as Float;
+        *score_slot = feature_importance / n_repeats as Float;
     }
 
     // Convert to ndarray
@@ -121,6 +122,7 @@ unsafe fn compute_r2_score_unsafe(
 /// This function is safe when:
 /// - `X` is a valid mutable array
 /// - `feature_idx` is a valid column index
+#[allow(non_snake_case)] // standard ML notation
 unsafe fn permute_column_unsafe(
     X: &mut Array2<Float>,
     feature_idx: usize,
@@ -268,8 +270,8 @@ mod tests {
 
     #[test]
     fn test_unsafe_r2_score() {
-        let y_true = vec![1.0, 2.0, 3.0, 4.0];
-        let y_pred = vec![1.1, 1.9, 3.1, 3.9];
+        let y_true = [1.0, 2.0, 3.0, 4.0];
+        let y_pred = [1.1, 1.9, 3.1, 3.9];
 
         let r2 = unsafe { compute_r2_score_unsafe(y_true.as_ptr(), y_pred.as_ptr(), y_true.len()) };
 
@@ -279,15 +281,15 @@ mod tests {
 
     #[test]
     fn test_unsafe_column_permutation() {
-        let mut X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-        let original_col0 = X.column(0).to_owned();
+        let mut x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
+        let original_col0 = x.column(0).to_owned();
 
         unsafe {
-            permute_column_unsafe(&mut X, 0, Some(42)); // Fixed seed for reproducibility
+            permute_column_unsafe(&mut x, 0, Some(42)); // Fixed seed for reproducibility
         }
 
         // Column should be permuted (different order, but same values)
-        let permuted_col0 = X.column(0);
+        let permuted_col0 = x.column(0);
 
         // Check that all original values are still present
         let mut original_sorted = original_col0.to_vec();
@@ -302,9 +304,9 @@ mod tests {
 
     #[test]
     fn test_unsafe_array_ops() {
-        let a = vec![1.0, 2.0, 3.0, 4.0];
-        let b = vec![2.0, 3.0, 4.0, 5.0];
-        let mut result = vec![0.0; 4];
+        let a = [1.0, 2.0, 3.0, 4.0];
+        let b = [2.0, 3.0, 4.0, 5.0];
+        let mut result = [0.0; 4];
 
         unsafe {
             // Test multiplication

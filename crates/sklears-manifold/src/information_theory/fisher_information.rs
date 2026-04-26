@@ -30,7 +30,9 @@ pub struct FisherInformationEmbedding<S = Untrained> {
 #[derive(Debug, Clone)]
 pub struct FIETrained {
     embedding: Array2<f64>,
+    #[allow(dead_code)] // deferred: exposed in future introspection/transform API
     fisher_matrix: Array2<f64>,
+    #[allow(dead_code)] // deferred: exposed in future introspection API
     eigenvalues: Array1<f64>,
 }
 
@@ -105,7 +107,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for FisherInformationEmbedding<Untrained> {
     type Fitted = FisherInformationEmbedding<FIETrained>;
 
     fn fit(self, x: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
         let x_f64 = x.mapv(|v| v);
 
         // Compute Fisher information matrix
@@ -166,7 +168,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for FisherInformationEmbedding<Untrained> {
 }
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for FisherInformationEmbedding<FIETrained> {
-    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
+    fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         // For fitted data, return the stored embedding
         // For new data, would need to compute projection
         Ok(self.state.embedding.clone())

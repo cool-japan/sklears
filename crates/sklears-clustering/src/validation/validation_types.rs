@@ -641,7 +641,7 @@ mod tests {
         // Test Cosine distance
         let cosine = ValidationMetric::Cosine;
         let dist = cosine.compute_distance(&a, &b);
-        assert!(dist >= 0.0 && dist <= 2.0);
+        assert!((0.0..=2.0).contains(&dist));
     }
 
     #[test]

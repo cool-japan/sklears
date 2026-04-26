@@ -1,11 +1,11 @@
 //! Permutation tests for statistical significance
 
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::Array2;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Random, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
-    traits::{Estimator, Fit, Predict},
+    traits::{Fit, Predict},
     types::Float,
 };
 use std::collections::HashMap;
@@ -28,7 +28,7 @@ pub struct PermutationTestResults {
 }
 
 /// Test statistic for permutation tests
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum TestStatistic {
     /// Explained variance ratio
     ExplainedVarianceRatio,
@@ -130,15 +130,15 @@ impl PermutationTest {
     }
 
     /// Perform permutation test
-    pub fn test<E>(
+    pub fn test<E, F>(
         &self,
         estimator_factory: impl Fn() -> E + Clone,
         x: &Array2<Float>,
         y: &Array2<Float>,
     ) -> Result<PermutationTestResults>
     where
-        E: Fit<Array2<Float>, Array2<Float>>,
-        E::Fitted: ComputeStatistic,
+        E: Fit<Array2<Float>, Array2<Float>, Fitted = F>,
+        F: ComputeStatistic,
     {
         // Fit model on original data and compute observed statistic
         let original_model = estimator_factory().fit(x, y)?;
@@ -187,15 +187,15 @@ impl PermutationTest {
     }
 
     /// Perform permutation test for multi-block models
-    pub fn test_multiblock<E>(
+    pub fn test_multiblock<E, F>(
         &self,
         estimator_factory: impl Fn() -> E + Clone,
         x_blocks: &[Array2<Float>],
         y: &Array2<Float>,
     ) -> Result<PermutationTestResults>
     where
-        E: Fit<Vec<Array2<Float>>, Array2<Float>>,
-        E::Fitted: ComputeStatistic,
+        E: Fit<Vec<Array2<Float>>, Array2<Float>, Fitted = F>,
+        F: ComputeStatistic,
     {
         // Fit model on original data
         let x_blocks_vec = x_blocks.to_vec();
@@ -311,15 +311,15 @@ impl StabilitySelection {
     }
 
     /// Perform stability selection
-    pub fn select_stable_components<E>(
+    pub fn select_stable_components<E, F>(
         &self,
         estimator_factory: impl Fn(usize) -> E + Clone,
         x: &Array2<Float>,
         y: &Array2<Float>,
     ) -> Result<StabilityResults>
     where
-        E: Fit<Array2<Float>, Array2<Float>>,
-        E::Fitted: ComputeStatistic,
+        E: Fit<Array2<Float>, Array2<Float>, Fitted = F>,
+        F: ComputeStatistic,
     {
         let mut component_selections = HashMap::new();
         let mut rng = if let Some(seed) = self.random_state {
@@ -466,7 +466,7 @@ mod tests {
     use super::*;
     use crate::PLSRegression;
     use scirs2_core::ndarray::array;
-    use sklears_core::traits::{Fit, Predict};
+    use sklears_core::traits::Fit;
 
     // Mock implementation for testing
     struct MockModel {
@@ -610,7 +610,9 @@ mod tests {
             .alpha(0.05)
             .random_state(42);
 
-        let result = perm_test.test(|| PLSRegression::new(1), &x, &y).expect("operation should succeed");
+        let result = perm_test
+            .test(|| PLSRegression::new(1), &x, &y)
+            .expect("operation should succeed");
 
         // Check that the test runs and produces reasonable results
         assert_eq!(result.n_permutations, 50);

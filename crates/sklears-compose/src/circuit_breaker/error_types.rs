@@ -623,7 +623,7 @@ mod tests {
 
     #[test]
     fn test_error_conversions() {
-        let io_error = std::io::Error::new(std::io::ErrorKind::Other, "test");
+        let io_error = std::io::Error::other("test");
         let cb_error: CircuitBreakerError = io_error.into();
         match cb_error {
             CircuitBreakerError::ExecutionError(_) => {}

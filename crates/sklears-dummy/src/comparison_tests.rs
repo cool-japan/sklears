@@ -9,12 +9,13 @@ use crate::{
 };
 use approx::assert_abs_diff_eq;
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{prelude::*, thread_rng, Distribution, Rng, StandardNormal};
+use scirs2_core::random::{rngs::StdRng, Distribution, RngExt, SeedableRng, StandardNormal};
 use sklears_core::traits::{Fit, Predict};
 use std::collections::HashMap;
 
 /// Statistical tolerance for floating point comparisons
 const STATISTICAL_TOLERANCE: f64 = 1e-6;
+#[allow(dead_code)] // used in some test configurations
 const LARGE_TOLERANCE: f64 = 1e-2;
 
 /// Generate synthetic regression data
@@ -70,7 +71,7 @@ fn generate_classification_data(
 
     let mut y_data = Vec::with_capacity(n_samples);
     for _ in 0..n_samples {
-        y_data.push(rng.gen_range(0..n_classes) as i32);
+        y_data.push(rng.random_range(0..n_classes) as i32);
     }
     let y = Array1::from_vec(y_data);
 

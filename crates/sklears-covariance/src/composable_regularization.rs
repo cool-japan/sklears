@@ -642,7 +642,7 @@ impl RegularizationStrategy for CompositeRegularization {
                 }
 
                 if total_weight > 0.0 {
-                    result = result / total_weight;
+                    result /= total_weight;
                 }
 
                 Ok(result)

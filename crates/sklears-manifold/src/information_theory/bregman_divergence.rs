@@ -42,6 +42,7 @@ pub enum BregmanDivergenceType {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct BregmanTrained {
     embedding: Array2<f64>,
     divergence_matrix: Array2<f64>,

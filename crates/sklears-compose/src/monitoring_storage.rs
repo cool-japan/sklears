@@ -1350,7 +1350,7 @@ mod tests {
             default_retention: Duration::from_secs(3600),
             policies: HashMap::new(),
             archive: ArchiveConfig {
-                location: "/tmp/archive".to_string(),
+                location: std::env::temp_dir().join("archive").display().to_string(),
                 format: ArchiveFormat::Tar,
                 compression: CompressionConfig::default(),
             },

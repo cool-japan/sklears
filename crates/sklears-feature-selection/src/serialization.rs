@@ -16,103 +16,169 @@ use std::path::Path;
 /// Serializable version of FluentSelectionResult
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerializableSelectionResult {
+    /// selected_features
     pub selected_features: Vec<usize>,
+    /// feature_scores
     pub feature_scores: Vec<f64>,
+    /// step_results
     pub step_results: Vec<SerializableStepResult>,
+    /// total_execution_time
     pub total_execution_time: f64,
+    /// config_used
     pub config_used: SerializableFluentConfig,
+    /// metadata
     pub metadata: SelectionMetadata,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// SerializableStepResult
 pub struct SerializableStepResult {
+    /// step_name
     pub step_name: String,
+    /// features_before
     pub features_before: usize,
+    /// features_after
     pub features_after: usize,
+    /// execution_time
     pub execution_time: f64,
+    /// step_scores
     pub step_scores: Option<Vec<f64>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// SerializableFluentConfig
 pub struct SerializableFluentConfig {
+    /// parallel
     pub parallel: bool,
+    /// random_state
     pub random_state: Option<u64>,
+    /// verbose
     pub verbose: bool,
+    /// cache_results
     pub cache_results: bool,
+    /// validation_split
     pub validation_split: Option<f64>,
+    /// scoring_metric
     pub scoring_metric: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// SelectionMetadata
 pub struct SelectionMetadata {
+    /// timestamp
     pub timestamp: String,
+    /// dataset_name
     pub dataset_name: Option<String>,
+    /// dataset_shape
     pub dataset_shape: (usize, usize),
+    /// selection_method
     pub selection_method: String,
+    /// sklearn_version
     pub sklearn_version: String,
+    /// rust_version
     pub rust_version: String,
+    /// system_info
     pub system_info: SystemInfo,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// SystemInfo
 pub struct SystemInfo {
+    /// os
     pub os: String,
+    /// cpu_cores
     pub cpu_cores: usize,
+    /// memory_gb
     pub memory_gb: f64,
+    /// architecture
     pub architecture: String,
 }
 
 /// Serializable benchmark results
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerializableBenchmarkResults {
+    /// summary
     pub summary: BenchmarkSummarySerializable,
+    /// detailed_results
     pub detailed_results: Vec<DetailedMethodResultSerializable>,
+    /// execution_metadata
     pub execution_metadata: ExecutionMetadataSerializable,
+    /// format_version
     pub format_version: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// BenchmarkSummarySerializable
 pub struct BenchmarkSummarySerializable {
+    /// best_method_overall
     pub best_method_overall: String,
+    /// best_methods_by_metric
     pub best_methods_by_metric: HashMap<String, String>,
+    /// method_rankings
     pub method_rankings: HashMap<String, f64>,
+    /// dataset_difficulty_rankings
     pub dataset_difficulty_rankings: HashMap<String, f64>,
+    /// execution_time_total_seconds
     pub execution_time_total_seconds: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// DetailedMethodResultSerializable
 pub struct DetailedMethodResultSerializable {
+    /// method_name
     pub method_name: String,
+    /// dataset_name
     pub dataset_name: String,
+    /// metric_scores
     pub metric_scores: HashMap<String, f64>,
+    /// execution_times_seconds
     pub execution_times_seconds: Vec<f64>,
+    /// memory_usage_mb
     pub memory_usage_mb: Vec<f64>,
+    /// selected_features
     pub selected_features: Vec<Vec<usize>>,
+    /// convergence_info
     pub convergence_info: ConvergenceInfoSerializable,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// ConvergenceInfoSerializable
 pub struct ConvergenceInfoSerializable {
+    /// converged
     pub converged: bool,
+    /// iterations
     pub iterations: usize,
+    /// final_objective_value
     pub final_objective_value: Option<f64>,
+    /// convergence_history
     pub convergence_history: Vec<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// ExecutionMetadataSerializable
 pub struct ExecutionMetadataSerializable {
+    /// start_time
     pub start_time: String,
+    /// end_time
     pub end_time: String,
+    /// total_duration_seconds
     pub total_duration_seconds: f64,
+    /// system_info
     pub system_info: SystemInfo,
+    /// configuration_summary
     pub configuration_summary: ConfigurationSummary,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// ConfigurationSummary
 pub struct ConfigurationSummary {
+    /// num_runs
     pub num_runs: usize,
+    /// cross_validation_folds
     pub cross_validation_folds: usize,
+    /// parallel_execution
     pub parallel_execution: bool,
+    /// random_state
     pub random_state: u64,
 }
 
@@ -484,12 +550,66 @@ impl SelectionResultsIO {
     }
 
     fn export_parquet<P: AsRef<Path>>(
-        _data: &SerializableSelectionResult,
-        _path: P,
+        data: &SerializableSelectionResult,
+        path: P,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // Placeholder for Parquet export
-        // Would require arrow/parquet dependencies
-        Err("Parquet export not yet implemented".into())
+        #[cfg(feature = "parquet")]
+        {
+            use arrow::array::{Float64Array, Int64Array, StringArray};
+            use arrow::datatypes::{DataType, Field, Schema};
+            use arrow::record_batch::RecordBatch;
+            use parquet::arrow::ArrowWriter;
+            use std::sync::Arc;
+
+            // Build schema: feature_index (Int64), feature_score (Float64)
+            let schema = Arc::new(Schema::new(vec![
+                Field::new("feature_index", DataType::Int64, false),
+                Field::new("feature_score", DataType::Float64, false),
+                Field::new("dataset_name", DataType::Utf8, true),
+                Field::new("selection_method", DataType::Utf8, false),
+            ]));
+
+            let n = data.selected_features.len();
+
+            let feature_indices: Int64Array =
+                data.selected_features.iter().map(|&i| i as i64).collect();
+
+            let feature_scores: Float64Array = (0..n)
+                .map(|i| data.feature_scores.get(i).copied().unwrap_or(0.0))
+                .collect();
+
+            let dataset_names: StringArray =
+                std::iter::repeat_n(data.metadata.dataset_name.as_deref(), n).collect();
+
+            let methods: StringArray =
+                std::iter::repeat_n(Some(data.metadata.selection_method.as_str()), n).collect();
+
+            let batch = RecordBatch::try_new(
+                schema.clone(),
+                vec![
+                    Arc::new(feature_indices),
+                    Arc::new(feature_scores),
+                    Arc::new(dataset_names),
+                    Arc::new(methods),
+                ],
+            )?;
+
+            let file = File::create(path)?;
+            let mut writer = ArrowWriter::try_new(file, schema, None)?;
+            writer.write(&batch)?;
+            writer.close()?;
+            Ok(())
+        }
+        #[cfg(not(feature = "parquet"))]
+        {
+            let _ = data;
+            let _ = path;
+            Err(concat!(
+                "Parquet export requires the 'parquet' feature — ",
+                "add features = [\"parquet\"] to sklears-feature-selection in your Cargo.toml"
+            )
+            .into())
+        }
     }
 
     fn import_json<P: AsRef<Path>>(
@@ -621,18 +741,6 @@ mod serde_yaml {
 
     pub fn from_str<T>(_s: &str) -> Result<T, Box<dyn std::error::Error>> {
         Err("YAML parsing not implemented".into())
-    }
-}
-
-mod bincode {
-    // #[cfg(feature = "serde")]
-
-    pub fn serialize<T>(_value: &T) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        Ok(vec![0u8; 100]) // Placeholder
-    }
-
-    pub fn deserialize<T>(_bytes: &[u8]) -> Result<T, Box<dyn std::error::Error>> {
-        Err("Binary deserialization not implemented".into())
     }
 }
 

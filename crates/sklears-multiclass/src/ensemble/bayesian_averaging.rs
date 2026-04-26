@@ -68,7 +68,7 @@ impl BayesianModelAveraging {
     ///
     /// # Arguments
     /// * `predictions` - Predictions from each model [n_models, n_samples, n_classes]
-    /// * `y_true` - True labels [n_samples]
+    /// * `y_true` - True labels \[n_samples\]
     pub fn fit(&mut self, predictions: &[Array2<f64>], y_true: &Array1<i32>) -> SklResult<()> {
         if predictions.is_empty() {
             return Err(SklearsError::InvalidInput(
@@ -330,9 +330,12 @@ mod tests {
         let predictions = vec![pred1.clone(), pred2.clone()];
 
         let y_true = array![0, 1];
-        bma.fit(&predictions, &y_true).expect("operation should succeed");
+        bma.fit(&predictions, &y_true)
+            .expect("operation should succeed");
 
-        let combined = bma.predict_proba(&predictions).expect("operation should succeed");
+        let combined = bma
+            .predict_proba(&predictions)
+            .expect("operation should succeed");
         assert_eq!(combined.dim(), (2, 2));
 
         // Check probabilities sum to 1
@@ -351,7 +354,8 @@ mod tests {
         let predictions = vec![pred1.clone(), pred2.clone()];
 
         let y_true = array![0, 1];
-        bma.fit(&predictions, &y_true).expect("operation should succeed");
+        bma.fit(&predictions, &y_true)
+            .expect("operation should succeed");
 
         let labels = bma.predict(&predictions).expect("operation should succeed");
         assert_eq!(labels.len(), 2);
@@ -370,7 +374,8 @@ mod tests {
         let predictions = vec![pred1, pred2];
 
         let y_true = array![0, 0];
-        bma.fit(&predictions, &y_true).expect("operation should succeed");
+        bma.fit(&predictions, &y_true)
+            .expect("operation should succeed");
 
         let weights = bma.model_weights().expect("operation should succeed");
         // Both models should have non-zero weight
@@ -390,11 +395,12 @@ mod tests {
         let predictions = vec![pred1, pred2, pred3];
 
         let y_true = array![0];
-        bma.fit(&predictions, &y_true).expect("operation should succeed");
+        bma.fit(&predictions, &y_true)
+            .expect("operation should succeed");
 
         let eff = bma.effective_n_models().expect("operation should succeed");
         // Effective number should be between 1 and 3
-        assert!(eff >= 1.0 && eff <= 3.0);
+        assert!((1.0..=3.0).contains(&eff));
     }
 
     #[test]
@@ -415,9 +421,12 @@ mod tests {
         let predictions = vec![pred1.clone(), pred2.clone()];
 
         let y_true = array![0, 0];
-        bma.fit(&predictions, &y_true).expect("operation should succeed");
+        bma.fit(&predictions, &y_true)
+            .expect("operation should succeed");
 
-        let evidence = bma.model_evidence(&predictions, &y_true).expect("operation should succeed");
+        let evidence = bma
+            .model_evidence(&predictions, &y_true)
+            .expect("operation should succeed");
         assert!(evidence > 0.0);
     }
 }

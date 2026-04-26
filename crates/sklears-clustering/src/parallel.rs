@@ -134,7 +134,7 @@ impl SimpleParallelKMeans {
         &self,
         x: &Array2<f64>,
         labels: &Array1<usize>,
-        config: &ParallelConfig,
+        _config: &ParallelConfig,
     ) -> Result<Array2<f64>> {
         let (_, n_features) = x.dim();
         let mut new_centers = Array2::zeros((self.config.n_clusters, n_features));

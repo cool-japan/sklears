@@ -113,7 +113,7 @@ pub fn biweight_midvariance(
     let mut sorted_residuals = residuals.clone();
     sorted_residuals.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let n = sorted_residuals.len();
-    let median = if n % 2 == 0 {
+    let median = if n.is_multiple_of(2) {
         (sorted_residuals[n / 2 - 1] + sorted_residuals[n / 2]) / 2.0
     } else {
         sorted_residuals[n / 2]
@@ -123,7 +123,7 @@ pub fn biweight_midvariance(
     let mad_values: Vec<f64> = residuals.iter().map(|r| (r - median).abs()).collect();
     let mut sorted_mad = mad_values;
     sorted_mad.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
-    let mad = if n % 2 == 0 {
+    let mad = if n.is_multiple_of(2) {
         (sorted_mad[n / 2 - 1] + sorted_mad[n / 2]) / 2.0
     } else {
         sorted_mad[n / 2]

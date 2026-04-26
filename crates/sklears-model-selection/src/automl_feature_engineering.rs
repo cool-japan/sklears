@@ -286,6 +286,7 @@ impl Default for AutoFeatureEngineer {
     }
 }
 
+#[allow(non_snake_case)] // X follows mathematical convention for feature matrix throughout this impl
 impl AutoFeatureEngineer {
     /// Create a new automated feature engineer
     pub fn new(config: AutoFeatureEngineering) -> Self {
@@ -1334,6 +1335,7 @@ impl AutoFeatureEngineer {
 }
 
 /// Convenience function for quick feature engineering
+#[allow(non_snake_case)] // X follows mathematical convention for feature matrix
 pub fn engineer_features(
     X: &Array2<f64>,
     y: &Array1<f64>,

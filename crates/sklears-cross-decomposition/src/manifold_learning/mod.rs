@@ -22,10 +22,8 @@
 pub mod advanced_manifold;
 
 // Re-export from the original manifold_learning.rs file content
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::simd::SimdOps;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use sklears_core::types::Float;
-use std::collections::HashMap;
 
 // Re-export the advanced manifold learning components
 pub use advanced_manifold::{
@@ -249,6 +247,7 @@ impl ManifoldAwareCCA {
         })
     }
 
+    #[allow(clippy::type_complexity)] // returns (x_weights, y_weights, correlations) triple
     fn compute_canonical_correlation(
         &self,
         x_embedding: &Array2<Float>,
@@ -329,11 +328,12 @@ impl ManifoldAwareCCA {
         Ok(covariance)
     }
 
+    #[allow(clippy::type_complexity)] // returns (eigenvalues, x_eigenvectors, y_eigenvectors) triple
     fn solve_cca_eigenvalue_problem(
         &self,
         cxx: &Array2<Float>,
         cyy: &Array2<Float>,
-        cxy: &Array2<Float>,
+        _cxy: &Array2<Float>,
         n_components: usize,
     ) -> Result<(Array1<Float>, Array2<Float>, Array2<Float>), ManifoldError> {
         // Simplified CCA eigenvalue solution

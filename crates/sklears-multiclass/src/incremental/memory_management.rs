@@ -201,6 +201,7 @@ impl<T: FloatBounds> MemoryEfficient<T> for AdaptiveBuffer<T> {
 #[derive(Debug)]
 pub struct MemoryManager<T: FloatBounds> {
     buffer: AdaptiveBuffer<T>,
+    #[allow(dead_code)] // config retained for future extension of memory strategies
     config: MemoryConfig,
     class_weights: HashMap<usize, f64>,
 }

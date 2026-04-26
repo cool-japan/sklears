@@ -704,6 +704,7 @@ impl CalibrationEstimator for PlattScalingWrapper {
 
 #[derive(Debug, Clone)]
 struct HistogramWrapper {
+    #[allow(dead_code)] // intentionally deferred: bin count not yet used in calibration readout
     n_bins: usize,
     is_fitted: bool,
 }

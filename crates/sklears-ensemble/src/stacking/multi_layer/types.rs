@@ -5,8 +5,8 @@
 use super::super::config::{
     MetaFeatureStrategy, MetaLearningStrategy, MultiLayerStackingConfig, StackingLayerConfig,
 };
-use scirs2_core::ndarray::{s, Array1, Array2, Axis};
-use sklears_core::error::{Result, SklearsError};
+use scirs2_core::ndarray::{s, Array1, Array2};
+use sklears_core::error::Result;
 use sklears_core::traits::{Trained, Untrained};
 use sklears_core::types::Float;
 use std::marker::PhantomData;
@@ -104,7 +104,7 @@ impl MultiLayerStackingClassifier<Untrained> {
         self
     }
 }
-impl MultiLayerStackingClassifier<Untrained> {
+impl<State> MultiLayerStackingClassifier<State> {
     /// Train a single stacking layer
     pub(super) fn train_stacking_layer(
         &self,
@@ -642,7 +642,7 @@ impl MultiLayerStackingClassifier<Untrained> {
         for i in 0..n_samples {
             let row = predictions.row(i);
             let mean_pred = row.mean().unwrap_or(0.0);
-            let x = (mean_pred * 2.0 - 1.0).max(-1.0).min(1.0);
+            let x = (mean_pred * 2.0 - 1.0).clamp(-1.0, 1.0);
             let p0 = 1.0;
             let p1 = x;
             let p2 = 0.5 * (3.0 * x * x - 1.0);
@@ -942,7 +942,7 @@ impl MultiLayerStackingClassifier<Untrained> {
         x: &Array2<Float>,
         y: &Array1<Float>,
     ) -> Result<(Array1<Float>, Float)> {
-        let (_, n_features) = x.dim();
+        let (_, _n_features) = x.dim();
         let (weights, intercept) = self.train_linear_regression(x, y, 0.1)?;
         let noise_factor = 0.01;
         let bayesian_weights = weights.mapv(|w| w * (1.0 + noise_factor));
@@ -1005,7 +1005,7 @@ impl MultiLayerStackingClassifier<Untrained> {
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
-        seed: u64,
+        _seed: u64,
         estimator_idx: usize,
         regularization: Float,
     ) -> Result<(Array1<Float>, Float)> {
@@ -1054,12 +1054,18 @@ impl MultiLayerStackingClassifier<Untrained> {
         diversity_scores: &Array1<Float>,
         threshold: Float,
     ) -> Vec<usize> {
-        diversity_scores
+        let pruned: Vec<usize> = diversity_scores
             .iter()
             .enumerate()
             .filter(|(_, &score)| score > threshold)
             .map(|(idx, _)| idx)
-            .collect()
+            .collect();
+        if pruned.is_empty() {
+            // All estimators are too similar; keep all to avoid zero-column matrices
+            (0..diversity_scores.len()).collect()
+        } else {
+            pruned
+        }
     }
     fn select_columns(&self, array: &Array2<Float>, indices: &[usize]) -> Array2<Float> {
         let (n_rows, _) = array.dim();
@@ -1160,7 +1166,8 @@ impl MultiLayerStackingClassifier<Trained> {
         }
         Ok(result)
     }
-    /// Generate predictions for a single layer
+    /// Generate predictions for a single layer, applying the same feature engineering
+    /// strategy that was used during training so column counts match.
     fn generate_layer_predictions(
         &self,
         x: &Array2<Float>,
@@ -1168,7 +1175,7 @@ impl MultiLayerStackingClassifier<Trained> {
     ) -> Result<Array2<Float>> {
         let (n_samples, _) = x.dim();
         let n_estimators = layer.base_weights.nrows();
-        let mut predictions = Array2::<Float>::zeros((n_samples, n_estimators));
+        let mut base_predictions = Array2::<Float>::zeros((n_samples, n_estimators));
         for estimator_idx in 0..n_estimators {
             let weights = layer.base_weights.row(estimator_idx);
             let intercept = layer.base_intercepts[estimator_idx];
@@ -1180,10 +1187,45 @@ impl MultiLayerStackingClassifier<Trained> {
                 } else {
                     weights.dot(&x_sample) + intercept
                 };
-                predictions[[sample_idx, estimator_idx]] = prediction;
+                base_predictions[[sample_idx, estimator_idx]] = prediction;
             }
         }
-        Ok(predictions)
+        // Apply the same feature engineering strategy used during training so that
+        // the column count of the output matches the weights learned during fit.
+        match layer.config.meta_feature_strategy {
+            MetaFeatureStrategy::Raw => Ok(base_predictions),
+            MetaFeatureStrategy::Statistical => {
+                self.generate_statistical_features(&base_predictions)
+            }
+            MetaFeatureStrategy::Interactions => {
+                self.generate_interaction_features(&base_predictions)
+            }
+            MetaFeatureStrategy::ConfidenceBased => {
+                self.generate_confidence_features(&base_predictions)
+            }
+            MetaFeatureStrategy::DiversityBased => {
+                self.generate_diversity_features(&base_predictions)
+            }
+            MetaFeatureStrategy::Comprehensive => {
+                self.generate_comprehensive_features(&base_predictions)
+            }
+            MetaFeatureStrategy::Temporal => self.generate_temporal_features(&base_predictions),
+            MetaFeatureStrategy::Spatial => self.generate_diversity_features(&base_predictions),
+            MetaFeatureStrategy::Spectral => self.generate_spectral_features(&base_predictions),
+            MetaFeatureStrategy::InformationTheoretic => {
+                self.generate_information_theoretic_features(&base_predictions)
+            }
+            MetaFeatureStrategy::NeuralEmbedding => {
+                self.generate_neural_embedding_features(&base_predictions)
+            }
+            MetaFeatureStrategy::KernelBased => self.generate_kernel_features(&base_predictions),
+            MetaFeatureStrategy::BasisExpansion => {
+                self.generate_basis_expansion_features(&base_predictions)
+            }
+            MetaFeatureStrategy::MetaLearning => {
+                self.generate_meta_learning_features(&base_predictions)
+            }
+        }
     }
     /// Get feature importances for each layer
     pub fn get_layer_feature_importances(&self) -> Option<&Vec<Array1<Float>>> {

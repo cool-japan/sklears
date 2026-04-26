@@ -100,6 +100,7 @@ pub trait CompressedKernelMatrix: Send + Sync {
 pub struct LowRankKernelMatrix {
     left_factors: Array2<Float>,
     right_factors: Array2<Float>,
+    #[allow(dead_code)] // intentionally deferred: singular value spectrum analysis pending
     singular_values: Array1<Float>,
     dimensions: (usize, usize),
     approximation_error: Float,
@@ -575,6 +576,7 @@ pub struct HierarchicalKernelMatrix {
     blocks: Vec<Vec<Box<dyn CompressedKernelMatrix>>>,
     block_size: usize,
     dimensions: (usize, usize),
+    #[allow(dead_code)] // intentionally deferred: compression config access not yet exposed
     compression_config: CompressionConfig,
 }
 
@@ -584,8 +586,8 @@ impl HierarchicalKernelMatrix {
         let dimensions = kernel_matrix.dim();
         let block_size = config.block_size;
 
-        let num_block_rows = (dimensions.0 + block_size - 1) / block_size;
-        let num_block_cols = (dimensions.1 + block_size - 1) / block_size;
+        let num_block_rows = dimensions.0.div_ceil(block_size);
+        let num_block_cols = dimensions.1.div_ceil(block_size);
 
         let mut blocks = Vec::with_capacity(num_block_rows);
 

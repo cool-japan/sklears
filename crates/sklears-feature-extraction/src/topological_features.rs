@@ -406,14 +406,14 @@ impl PersistentHomologyExtractor {
 
         let step_size = (max_death - min_birth) / self.resolution as Float;
 
-        for i in 0..self.resolution {
+        for (i, val) in curve.iter_mut().enumerate() {
             let filtration_value = min_birth + i as Float * step_size;
             let betti_number = diagram
                 .points
                 .iter()
                 .filter(|p| p.birth <= filtration_value && filtration_value < p.death)
                 .count();
-            curve[i] = betti_number as Float;
+            *val = betti_number as Float;
         }
 
         curve
@@ -428,6 +428,7 @@ impl Default for PersistentHomologyExtractor {
 
 /// A step in the filtration process
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // FiltrationStep dimension retained for future topological dimension tracking
 struct FiltrationStep {
     simplex: Vec<usize>,
     filtration_value: Float,
@@ -436,6 +437,7 @@ struct FiltrationStep {
 
 /// Persistence diagram for a specific dimension
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // PersistenceDiagram dimension retained for future dimension-specific persistence queries
 struct PersistenceDiagram {
     dimension: usize,
     points: Vec<PersistencePoint>,
@@ -452,6 +454,7 @@ impl PersistenceDiagram {
 
 /// A point in a persistence diagram
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // PersistencePoint dimension retained for future multi-dimensional persistence analysis
 struct PersistencePoint {
     birth: Float,
     death: Float,
@@ -759,12 +762,9 @@ impl MapperExtractor {
 
         // Group indices by cluster
         let mut clusters = std::collections::HashMap::new();
-        for i in 0..indices.len() {
+        for (i, &idx) in indices.iter().enumerate() {
             let root = find(&mut parent, i);
-            clusters
-                .entry(root)
-                .or_insert_with(Vec::new)
-                .push(indices[i]);
+            clusters.entry(root).or_insert_with(Vec::new).push(idx);
         }
 
         clusters.into_values().collect()
@@ -1165,6 +1165,7 @@ impl SimplicialComplexExtractor {
         }
 
         // Find triangles
+        #[allow(clippy::needless_range_loop)] // i/j/k used as multi-dimensional adjacency indices
         for i in 0..n_points {
             for j in i + 1..n_points {
                 if adjacency[i][j] {
@@ -1194,6 +1195,7 @@ impl SimplicialComplexExtractor {
         }
 
         // Find tetrahedra
+        #[allow(clippy::needless_range_loop)] // i/j/k/l used as multi-dimensional adjacency indices
         for i in 0..n_points {
             for j in i + 1..n_points {
                 if adjacency[i][j] {

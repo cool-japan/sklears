@@ -48,26 +48,47 @@ pub mod simd_fallback {
 /// Ensemble prediction statistics computed using SIMD
 #[derive(Debug, Clone)]
 pub struct EnsembleStatistics {
+    /// The mean.
     pub mean: Float,
+    /// The variance.
     pub variance: Float,
+    /// The confidence.
     pub confidence: Float,
+    /// The diversity.
     pub diversity: Float,
+    /// The bias.
     pub bias: Float,
+    /// The prediction entropy.
     pub prediction_entropy: Float,
+    /// The disagreement.
     pub disagreement: Float,
+    /// The average confidence.
     pub average_confidence: Float,
+    /// The min confidence.
     pub min_confidence: Float,
+    /// The max confidence.
     pub max_confidence: Float,
+    /// The std confidence.
     pub std_confidence: Float,
+    /// The skew confidence.
     pub skew_confidence: Float,
+    /// The kurtosis confidence.
     pub kurtosis_confidence: Float,
+    /// The median confidence.
     pub median_confidence: Float,
+    /// The iqr confidence.
     pub iqr_confidence: Float,
+    /// The prediction stability.
     pub prediction_stability: Float,
+    /// The convergence rate.
     pub convergence_rate: Float,
+    /// The ensemble complexity.
     pub ensemble_complexity: Float,
+    /// The overfitting risk.
     pub overfitting_risk: Float,
+    /// The generalization error.
     pub generalization_error: Float,
+    /// The calibration score.
     pub calibration_score: Float,
 }
 

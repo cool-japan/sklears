@@ -20,6 +20,7 @@ impl NumericalStability {
         Self
     }
 
+    #[allow(dead_code)] // placeholder; called in future numerical health checks
     fn check_condition_number(&self, _matrix: &Array2<Float>) -> Result<()> {
         // Placeholder implementation
         Ok(())
@@ -219,6 +220,7 @@ impl LinearDiscriminantAnalysis<Untrained> {
     }
 
     /// Compute robust mean using iterative reweighting
+    #[allow(dead_code)] // used in robust LDA variant; may be called by future adaptive methods
     fn robust_mean(&self, data: &Array2<Float>, weights: &Array1<Float>) -> Array1<Float> {
         let (_n_samples, n_features) = data.dim();
         let mut robust_mean = Array1::zeros(n_features);
@@ -330,6 +332,7 @@ impl LinearDiscriminantAnalysis<Untrained> {
     }
 
     /// Solve LDA using SVD method
+    #[allow(clippy::too_many_arguments)] // all parameters are distinct solver inputs
     fn solve_svd(
         &self,
         x: &Array2<Float>,
@@ -404,6 +407,7 @@ impl LinearDiscriminantAnalysis<Untrained> {
     }
 
     /// Solve LDA using eigendecomposition method
+    #[allow(clippy::too_many_arguments)] // all parameters are distinct solver inputs
     fn solve_eigen(
         &self,
         x: &Array2<Float>,
@@ -777,11 +781,8 @@ impl LinearDiscriminantAnalysis<Untrained> {
             for j in 0..n_features {
                 for k in 0..n_features {
                     let term = centered[j] * centered[k];
-                    let deviation = if j == k {
-                        term - sample_cov[[j, k]]
-                    } else {
-                        term - sample_cov[[j, k]]
-                    };
+                    // both branches of the original if/else were identical
+                    let deviation = term - sample_cov[[j, k]];
                     beta2 += deviation * deviation;
                 }
             }
@@ -790,7 +791,7 @@ impl LinearDiscriminantAnalysis<Untrained> {
 
         // Compute shrinkage intensity
         let shrinkage = if alpha2 > 0.0 {
-            (beta2 / alpha2).min(1.0).max(0.0)
+            (beta2 / alpha2).clamp(0.0, 1.0)
         } else {
             1.0
         };
@@ -826,8 +827,7 @@ impl LinearDiscriminantAnalysis<Untrained> {
         // OAS shrinkage formula
         let rho = ((1.0 - 2.0 / n_features as Float)
             / (n_samples as Float + 1.0 - 2.0 / n_features as Float))
-            .min(1.0)
-            .max(0.0);
+            .clamp(0.0, 1.0);
 
         Ok(rho)
     }

@@ -71,42 +71,61 @@ pub struct PolicyRule {
 pub enum PolicyCondition {
     /// Resource usage threshold
     ResourceThreshold {
+        /// The resource type.
         resource_type: String,
+        /// The threshold.
         threshold: f64,
+        /// The operator.
         operator: ComparisonOperator,
     },
     /// User or group constraint
     UserConstraint {
+        /// The users.
         users: Vec<String>,
+        /// The groups.
         groups: Vec<String>,
+        /// The operation.
         operation: SetOperation,
     },
     /// Time-based constraint
     TimeConstraint {
-        start_time: u32,       // seconds since midnight
-        end_time: u32,         // seconds since midnight
+        /// The start time.
+        start_time: u32, // seconds since midnight
+        /// The end time.
+        end_time: u32, // seconds since midnight
+        /// The days of week.
         days_of_week: Vec<u8>, // 0-6, Sunday = 0
     },
     /// Security constraint
     SecurityConstraint {
+        /// The security level.
         security_level: SecurityLevel,
+        /// The isolation required.
         isolation_required: bool,
+        /// The encryption required.
         encryption_required: bool,
     },
     /// Performance constraint
     PerformanceConstraint {
+        /// The min performance.
         min_performance: f64,
+        /// The max latency.
         max_latency: Duration,
+        /// The min throughput.
         min_throughput: f64,
     },
     /// Custom constraint
     Custom {
+        /// The expression.
         expression: String,
+        /// The parameters.
         parameters: HashMap<String, String>,
     },
     /// Logical combination of conditions
     Composite {
+        /// The operator.
         operator: LogicalOperator,
+        /// The conditions.
         conditions: Vec<PolicyCondition>,
     },
 }
@@ -173,27 +192,43 @@ pub enum PolicyAction {
     /// Allow the allocation
     Allow,
     /// Deny the allocation
-    Deny { reason: String },
+    Deny {
+        /// The reason.
+        reason: String,
+    },
     /// Modify the allocation
     Modify {
+        /// The modifications.
         modifications: AllocationModifications,
     },
     /// Require approval
     RequireApproval {
+        /// The approvers.
         approvers: Vec<String>,
+        /// The timeout.
         timeout: Duration,
     },
     /// Log the allocation
-    Log { level: LogLevel, message: String },
+    Log {
+        /// The level.
+        level: LogLevel,
+        /// The message.
+        message: String,
+    },
     /// Alert on the allocation
     Alert {
+        /// The severity.
         severity: AlertSeverity,
+        /// The message.
         message: String,
+        /// The channels.
         channels: Vec<String>,
     },
     /// Rate limit the allocation
     RateLimit {
+        /// The max allocations.
         max_allocations: u32,
+        /// The time window.
         time_window: Duration,
     },
 }
@@ -368,7 +403,7 @@ impl ResourceConstraintChecker {
         self.policy_rules.push(rule);
         // Sort by priority (higher priority first)
         self.policy_rules
-            .sort_by(|a, b| b.priority.cmp(&a.priority));
+            .sort_by_key(|b| std::cmp::Reverse(b.priority));
     }
 
     /// Remove a policy rule
@@ -450,7 +485,7 @@ impl ResourceConstraintChecker {
     fn validate_global_constraints(
         &self,
         requirements: &TaskRequirements,
-        context: &ValidationContext,
+        _context: &ValidationContext,
         result: &mut ValidationResult,
     ) -> SklResult<()> {
         // Check CPU constraints
@@ -548,7 +583,7 @@ impl ResourceConstraintChecker {
                             context: HashMap::new(),
                         });
                     }
-                    PolicyAction::Modify { modifications } => {
+                    PolicyAction::Modify { modifications: _ } => {
                         // Apply modifications - this would modify the allocation
                         result.warnings.push(ValidationWarning {
                             code: "ALLOCATION_MODIFIED".to_string(),
@@ -614,7 +649,7 @@ impl ResourceConstraintChecker {
     fn evaluate_condition(
         &self,
         condition: &PolicyCondition,
-        requirements: &TaskRequirements,
+        _requirements: &TaskRequirements,
         context: &ValidationContext,
     ) -> SklResult<bool> {
         match condition {
@@ -712,7 +747,7 @@ impl ResourceConstraintChecker {
             } => match operator {
                 LogicalOperator::And => {
                     for cond in conditions {
-                        if !self.evaluate_condition(cond, requirements, context)? {
+                        if !self.evaluate_condition(cond, _requirements, context)? {
                             return Ok(false);
                         }
                     }
@@ -720,7 +755,7 @@ impl ResourceConstraintChecker {
                 }
                 LogicalOperator::Or => {
                     for cond in conditions {
-                        if self.evaluate_condition(cond, requirements, context)? {
+                        if self.evaluate_condition(cond, _requirements, context)? {
                             return Ok(true);
                         }
                     }
@@ -732,7 +767,7 @@ impl ResourceConstraintChecker {
                             "NOT operator requires exactly one condition".to_string(),
                         ));
                     }
-                    Ok(!self.evaluate_condition(&conditions[0], requirements, context)?)
+                    Ok(!self.evaluate_condition(&conditions[0], _requirements, context)?)
                 }
             },
         }
@@ -750,30 +785,80 @@ impl ResourceConstraintChecker {
         }
     }
 
-    /// Validate security constraints
+    /// Validate security constraints declared in `requirements` against the
+    /// capabilities present in `context.security_context`.
+    ///
+    /// Errors are appended to `result.errors` and `result.valid` is set to
+    /// `false` for each violation; the function always returns `Ok(())` so
+    /// that all violations are collected before the caller decides how to
+    /// surface them.
     fn validate_security_constraints(
         &self,
         requirements: &TaskRequirements,
         context: &ValidationContext,
         result: &mut ValidationResult,
     ) -> SklResult<()> {
-        // Check if security requirements can be met
-        // TODO: Add security_constraints field to TaskRequirements
-        // TODO: Implement security validation when security_constraints field is added to TaskRequirements
-        /*
-        if let Some(security_constraints) = &requirements.security_constraints {
-            if security_constraints.isolation_required && !context.security_context.tee_available {
-                result.errors.push(ValidationError {
-                    code: "ISOLATION_NOT_AVAILABLE".to_string(),
-                    message: "Isolation required but TEE not available".to_string(),
-                    policy_rule_id: None,
-                    severity: ErrorSeverity::High,
-                    context: HashMap::new(),
-                });
-                result.valid = false;
-            }
+        let Some(sec) = &requirements.security_constraints else {
+            // No security constraints declared — nothing to validate.
+            return Ok(());
+        };
+
+        // 1. Isolation / TEE requirement
+        if sec.isolation_required && !context.security_context.tee_available {
+            result.errors.push(ValidationError {
+                code: "ISOLATION_NOT_AVAILABLE".to_string(),
+                message: "Task requires process-level isolation but TEE is not available \
+                          in the current execution environment"
+                    .to_string(),
+                policy_rule_id: None,
+                severity: ErrorSeverity::High,
+                context: HashMap::new(),
+            });
+            result.valid = false;
         }
-        */
+
+        // 2. TEE requirement (stricter than isolation alone)
+        if sec.tee_required && !context.security_context.tee_available {
+            result.errors.push(ValidationError {
+                code: "TEE_NOT_AVAILABLE".to_string(),
+                message: "Task requires a Trusted Execution Environment but none is available"
+                    .to_string(),
+                policy_rule_id: None,
+                severity: ErrorSeverity::Critical,
+                context: HashMap::new(),
+            });
+            result.valid = false;
+        }
+
+        // 3. Encryption requirement
+        if sec.encryption_required && !context.security_context.encryption_available {
+            result.errors.push(ValidationError {
+                code: "ENCRYPTION_NOT_AVAILABLE".to_string(),
+                message: "Task requires data encryption but the environment does not \
+                          support it"
+                    .to_string(),
+                policy_rule_id: None,
+                severity: ErrorSeverity::High,
+                context: HashMap::new(),
+            });
+            result.valid = false;
+        }
+
+        // 4. Minimum security level
+        let env_level = security_level_to_u8(&context.security_context.level);
+        if env_level < sec.minimum_security_level {
+            result.errors.push(ValidationError {
+                code: "INSUFFICIENT_SECURITY_LEVEL".to_string(),
+                message: format!(
+                    "Task requires security level {} but environment provides level {}",
+                    sec.minimum_security_level, env_level,
+                ),
+                policy_rule_id: None,
+                severity: ErrorSeverity::High,
+                context: HashMap::new(),
+            });
+            result.valid = false;
+        }
 
         Ok(())
     }
@@ -864,5 +949,28 @@ impl Default for ValidationStats {
             policy_rule_hits: HashMap::new(),
             cache_hit_rate: 0.0,
         }
+    }
+}
+
+/// Convert a [`SecurityLevel`] variant to a comparable integer.
+///
+/// The mapping is intentionally public so that external policy code can
+/// compare levels numerically without matching on the enum directly.
+///
+/// | Variant     | Value |
+/// |-------------|-------|
+/// | Public      |   0   |
+/// | Internal    |   1   |
+/// | Confidential|   2   |
+/// | Secret      |   3   |
+/// | TopSecret   |   4   |
+#[must_use]
+pub fn security_level_to_u8(level: &SecurityLevel) -> u8 {
+    match level {
+        SecurityLevel::Public => 0,
+        SecurityLevel::Internal => 1,
+        SecurityLevel::Confidential => 2,
+        SecurityLevel::Secret => 3,
+        SecurityLevel::TopSecret => 4,
     }
 }

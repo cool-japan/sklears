@@ -151,7 +151,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for SimpleImputer<Untrained> {
                     sorted_values
                         .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                     let len = sorted_values.len();
-                    if len % 2 == 0 {
+                    if len.is_multiple_of(2) {
                         (sorted_values[len / 2 - 1] + sorted_values[len / 2]) / 2.0
                     } else {
                         sorted_values[len / 2]

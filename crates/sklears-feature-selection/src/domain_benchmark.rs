@@ -14,47 +14,74 @@ use crate::domain_specific::*;
 /// Result of a single benchmark run
 #[derive(Debug, Clone)]
 pub struct BenchmarkResult {
+    /// method_name
     pub method_name: String,
+    /// domain
     pub domain: String,
+    /// strategy
     pub strategy: String,
+    /// dataset_size
     pub dataset_size: (usize, usize), // (n_samples, n_features)
+    /// k_features
     pub k_features: usize,
+    /// fit_time
     pub fit_time: Duration,
+    /// transform_time
     pub transform_time: Duration,
+    /// total_time
     pub total_time: Duration,
+    /// memory_usage_mb
     pub memory_usage_mb: f64,
+    /// selected_features_count
     pub selected_features_count: usize,
+    /// feature_quality_score
     pub feature_quality_score: f64,
 }
 
 /// Collection of benchmark results
 #[derive(Debug, Clone)]
 pub struct BenchmarkSuite {
+    /// results
     pub results: Vec<BenchmarkResult>,
+    /// summary
     pub summary: BenchmarkSummary,
 }
 
 /// Summary statistics for benchmark results
 #[derive(Debug, Clone)]
 pub struct BenchmarkSummary {
+    /// total_methods_tested
     pub total_methods_tested: usize,
+    /// fastest_method
     pub fastest_method: String,
+    /// slowest_method
     pub slowest_method: String,
+    /// most_memory_efficient
     pub most_memory_efficient: String,
+    /// highest_quality_score
     pub highest_quality_score: String,
+    /// average_fit_time
     pub average_fit_time: Duration,
+    /// average_transform_time
     pub average_transform_time: Duration,
 }
 
 /// Configuration for benchmarking
 #[derive(Debug, Clone)]
 pub struct BenchmarkConfig {
+    /// dataset_sizes
     pub dataset_sizes: Vec<(usize, usize)>,
+    /// k_values
     pub k_values: Vec<usize>,
+    /// repetitions
     pub repetitions: usize,
+    /// include_bioinformatics
     pub include_bioinformatics: bool,
+    /// include_finance
     pub include_finance: bool,
+    /// include_nlp
     pub include_nlp: bool,
+    /// measure_memory
     pub measure_memory: bool,
 }
 
@@ -622,7 +649,7 @@ mod tests {
         });
 
         let quality = framework.calculate_feature_quality(&X, &y);
-        assert!(quality >= 0.0 && quality <= 1.0);
+        assert!((0.0..=1.0).contains(&quality));
     }
 
     #[test]

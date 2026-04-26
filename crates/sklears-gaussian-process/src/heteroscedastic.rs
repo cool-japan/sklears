@@ -38,8 +38,8 @@
 //! let x_train = array![[0.0], [1.0], [2.0], [3.0]];
 //! let y_train = array![0.0, 1.0, 2.5, 4.2];
 //!
-//! let trained_model = het_gp.fit(&x_train, &y_train).unwrap();
-//! let predictions = trained_model.predict(&x_train).unwrap();
+//! let trained_model = het_gp.fit(&x_train, &y_train).expect("fit should succeed with valid training data");
+//! let predictions = trained_model.predict(&x_train).expect("predict should succeed on trained model");
 //! ```
 
 use crate::kernels::Kernel;
@@ -497,6 +497,7 @@ impl NoiseFunction for GaussianProcessNoise {
 pub struct NeuralNetworkNoise {
     weights: Vec<Array2<f64>>,
     biases: Vec<Array1<f64>>,
+    #[allow(dead_code)]
     layer_sizes: Vec<usize>,
 }
 
@@ -860,7 +861,8 @@ impl HeteroscedasticGaussianProcessRegressor<Untrained> {
             }
 
             // Update noise function parameters
-            let residuals = self.compute_residuals(x_train, y_train, &signal_kernel, &alpha)?;
+            let residuals =
+                self.compute_residuals(x_train, y_train, signal_kernel.as_ref(), &alpha)?;
             noise_function.update_parameters(x_train, &residuals, self.learning_rate)?;
 
             log_likelihood = new_log_likelihood;
@@ -957,7 +959,7 @@ impl HeteroscedasticGaussianProcessRegressor<Untrained> {
         &self,
         x: &Array2<f64>,
         y: &Array1<f64>,
-        kernel: &Box<dyn Kernel>,
+        kernel: &dyn Kernel,
         alpha: &Array1<f64>,
     ) -> SklResult<Array1<f64>> {
         let k_matrix = kernel.compute_kernel_matrix(x, None)?;
@@ -1214,7 +1216,7 @@ mod tests {
         assert!(noise_vals.iter().all(|&val| val >= 1e-12));
 
         let params = noise.get_parameters();
-        assert!(params.len() > 0);
+        assert!(!params.is_empty());
 
         // Test parameter setting
         let result = noise.set_parameters(&params);
@@ -1444,7 +1446,7 @@ mod tests {
         assert_abs_diff_eq!(updated_params[1], 0.1, epsilon = 1e-10);
 
         // Test invalid parameter count
-        let result = linear_noise.set_parameters(&vec![0.1]);
+        let result = linear_noise.set_parameters(&[0.1]);
         assert!(result.is_err());
     }
 

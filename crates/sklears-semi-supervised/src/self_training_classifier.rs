@@ -280,6 +280,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>> for SelfTrainingClassifier<Self
 
 /// Trained state for SelfTrainingClassifier
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct SelfTrainingTrained {
     /// X_train
     pub X_train: Array2<f64>,

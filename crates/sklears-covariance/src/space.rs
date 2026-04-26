@@ -486,7 +486,9 @@ impl SPACE<Untrained> {
                         new_precision[[i, j]] = 1.0; // Will be scaled later
                     } else if partial_corr[[i, j]] != 0.0 {
                         // Use partial correlation to estimate precision element
-                        let scale: f64 = ((precision[[i, i]] * precision[[j, j]]) as f64).sqrt();
+                        let p_ii: f64 = precision[[i, i]];
+                        let p_jj: f64 = precision[[j, j]];
+                        let scale: f64 = (p_ii * p_jj).sqrt();
                         new_precision[[i, j]] = -partial_corr[[i, j]] * scale;
                     }
                 }

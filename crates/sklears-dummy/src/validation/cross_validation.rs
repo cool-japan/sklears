@@ -4,7 +4,7 @@ use super::validation_core::{
     ValidationConfig,
 };
 use super::validation_utils::{
-    calculate_classification_score, calculate_regression_score, validate_cv_params,
+    calculate_accuracy_score, calculate_r2_score, validate_cv_params_strict,
 };
 
 use scirs2_core::ndarray::Array1;
@@ -22,7 +22,7 @@ pub fn cross_validate_dummy_classifier(
     y: &Array1<Int>,
     cv: usize,
 ) -> Result<DummyValidationResult> {
-    validate_cv_params(x.nrows(), cv)?;
+    validate_cv_params_strict(x.nrows(), cv)?;
 
     let fold_size = x.nrows() / cv;
     let mut fold_scores = Vec::with_capacity(cv);
@@ -90,7 +90,7 @@ pub fn cross_validate_dummy_regressor(
     y: &Array1<Float>,
     cv: usize,
 ) -> Result<DummyValidationResult> {
-    validate_cv_params(x.nrows(), cv)?;
+    validate_cv_params_strict(x.nrows(), cv)?;
 
     let fold_size = x.nrows() / cv;
     let mut fold_scores = Vec::with_capacity(cv);
@@ -158,7 +158,7 @@ pub fn comprehensive_cross_validate_classifier(
     y: &Array1<Int>,
     config: &ValidationConfig,
 ) -> Result<ComprehensiveValidationResult> {
-    validate_cv_params(x.nrows(), config.cv_folds)?;
+    validate_cv_params_strict(x.nrows(), config.cv_folds)?;
 
     let indices = if config.shuffle {
         create_shuffled_indices(x.nrows(), config.random_state)
@@ -171,7 +171,7 @@ pub fn comprehensive_cross_validate_classifier(
     let mut fold_scores = Vec::new();
 
     for (fold_idx, (train_indices, test_indices)) in folds.iter().enumerate() {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
 
         // Extract train/test data
         let x_train = x.select(scirs2_core::ndarray::Axis(0), train_indices);
@@ -190,7 +190,7 @@ pub fn comprehensive_cross_validate_classifier(
         let predict_time = predict_start.elapsed().as_secs_f64();
 
         // Calculate score
-        let score = calculate_classification_score(&predictions, &y_test);
+        let score = calculate_accuracy_score(&predictions, &y_test);
 
         fold_results.push(FoldResult {
             fold_index: fold_idx,
@@ -230,7 +230,7 @@ pub fn comprehensive_cross_validate_regressor(
     y: &Array1<Float>,
     config: &ValidationConfig,
 ) -> Result<ComprehensiveValidationResult> {
-    validate_cv_params(x.nrows(), config.cv_folds)?;
+    validate_cv_params_strict(x.nrows(), config.cv_folds)?;
 
     let indices = if config.shuffle {
         create_shuffled_indices(x.nrows(), config.random_state)
@@ -260,7 +260,7 @@ pub fn comprehensive_cross_validate_regressor(
         let predict_time = predict_start.elapsed().as_secs_f64();
 
         // Calculate score
-        let score = calculate_regression_score(&predictions, &y_test);
+        let score = calculate_r2_score(&predictions, &y_test);
 
         fold_results.push(FoldResult {
             fold_index: fold_idx,
@@ -301,7 +301,7 @@ pub fn stratified_cross_validate_classifier(
     cv: usize,
     random_state: Option<u64>,
 ) -> Result<DummyValidationResult> {
-    validate_cv_params(x.nrows(), cv)?;
+    validate_cv_params_strict(x.nrows(), cv)?;
 
     let folds = create_stratified_folds(y, cv, random_state)?;
     let mut fold_scores = Vec::new();

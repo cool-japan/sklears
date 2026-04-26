@@ -8,7 +8,6 @@ use scirs2_core::RngExt;
 use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
-    traits::Estimator,
     types::Float,
 };
 use std::collections::HashMap;
@@ -95,6 +94,7 @@ impl ConditionMonitor {
     }
 
     /// Create with default configuration
+    #[allow(clippy::should_implement_trait)] // intentional non-trait default method
     pub fn default() -> Self {
         Self::new(ConditionMonitorConfig::default())
     }
@@ -664,7 +664,6 @@ impl ConditionUtils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::array;
 
     #[test]
@@ -683,11 +682,13 @@ mod tests {
     #[test]
     fn test_ill_conditioned_matrix() {
         let matrix = array![[1.0, 1.0], [1.0, 1.0 + 1e-14]]; // Extremely ill-conditioned
-        let mut config = ConditionMonitorConfig::default();
-        config.exact_computation = true; // Use exact SVD computation
-                                         // Lower thresholds to account for numerical differences across BLAS backends
-        config.warning_threshold = 5e7; // OxiBLAS gives ~9.5e7 for this matrix
-        config.critical_threshold = 1e10;
+        let config = ConditionMonitorConfig {
+            exact_computation: true, // Use exact SVD computation
+            // Lower thresholds to account for numerical differences across BLAS backends
+            warning_threshold: 5e7, // OxiBLAS gives ~9.5e7 for this matrix
+            critical_threshold: 1e10,
+            ..ConditionMonitorConfig::default()
+        };
         let mut monitor = ConditionMonitor::new(config);
 
         let analysis = monitor
@@ -714,8 +715,10 @@ mod tests {
     #[test]
     fn test_singular_matrix() {
         let matrix = array![[1.0, 2.0], [2.0, 4.0]]; // Singular matrix (exact linear dependence)
-        let mut config = ConditionMonitorConfig::default();
-        config.exact_computation = true; // Use exact SVD computation
+        let config = ConditionMonitorConfig {
+            exact_computation: true, // Use exact SVD computation
+            ..ConditionMonitorConfig::default()
+        };
         let mut monitor = ConditionMonitor::new(config);
 
         let analysis = monitor

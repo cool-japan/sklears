@@ -528,8 +528,8 @@ impl OverfittingDetector {
 
         // Check if validation score increases for higher complexity
         let mut overfitting_detected = false;
-        for i in (min_val_idx + 1)..val_scores.len() {
-            if val_scores[i] > min_val_score + self.config.overfitting_threshold {
+        for &score in val_scores.iter().skip(min_val_idx + 1) {
+            if score > min_val_score + self.config.overfitting_threshold {
                 overfitting_detected = true;
                 break;
             }

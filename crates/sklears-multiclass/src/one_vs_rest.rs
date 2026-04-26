@@ -172,12 +172,12 @@ impl<T: Clone> Clone for OneVsRestTrainedData<T> {
 pub type TrainedOneVsRest<T> = OneVsRestClassifier<OneVsRestTrainedData<T>, Trained>;
 
 /// Implementation for classifiers that can fit binary problems
-impl<C> Fit<Array2<Float>, Array1<i32>> for OneVsRestClassifier<C, Untrained>
+impl<C, F> Fit<Array2<Float>, Array1<i32>> for OneVsRestClassifier<C, Untrained>
 where
-    C: Clone + Send + Sync + Fit<Array2<Float>, Array1<Float>>,
-    C::Fitted: Predict<Array2<Float>, Array1<Float>> + Send,
+    C: Clone + Send + Sync + Fit<Array2<Float>, Array1<Float>, Fitted = F>,
+    F: Predict<Array2<Float>, Array1<Float>> + Send + Sync,
 {
-    type Fitted = TrainedOneVsRest<C::Fitted>;
+    type Fitted = TrainedOneVsRest<F>;
 
     fn fit(self, x: &Array2<Float>, y: &Array1<i32>) -> SklResult<Self::Fitted> {
         // Validate inputs

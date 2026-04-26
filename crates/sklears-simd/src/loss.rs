@@ -1099,7 +1099,7 @@ mod tests {
         mse_gradient(&y_true, &y_pred, &mut gradient);
 
         // Expected: 2 * (y_pred - y_true) / n = 2 * [0.5, -0.2, 0.2, 0.1] / 4
-        let expected = vec![0.25, -0.1, 0.1, 0.05];
+        let expected = [0.25, -0.1, 0.1, 0.05];
 
         for i in 0..gradient.len() {
             assert_relative_eq!(gradient[i], expected[i], epsilon = 1e-6);
@@ -1139,7 +1139,7 @@ mod tests {
         // 0.0 <= 1.0: gradient = 0.0
         // 1.5 > 1.0: gradient = 1.0 * sign(1.5) = 1.0
         // Scale by 1/n = 1/4
-        let expected = vec![0.125, -0.2, 0.0, 0.25];
+        let expected = [0.125, -0.2, 0.0, 0.25];
 
         for i in 0..gradient.len() {
             assert_relative_eq!(gradient[i], expected[i], epsilon = 1e-6);

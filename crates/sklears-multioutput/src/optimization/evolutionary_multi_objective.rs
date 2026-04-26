@@ -6,7 +6,7 @@
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
-use scirs2_core::random::{Rng, RngExt};
+use scirs2_core::random::Rng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -200,7 +200,7 @@ impl NSGAII {
         let mut generation_stats = Vec::new();
 
         // Evolution loop
-        for generation in 0..self.n_generations {
+        for _generation in 0..self.n_generations {
             // Create offspring through crossover and mutation
             let offspring = self.create_offspring(&population, &mut rng, n_variables)?;
 
@@ -271,7 +271,7 @@ impl NSGAII {
         &self,
         population: &[Individual],
         rng: &mut scirs2_core::random::CoreRandom<R>,
-        n_variables: usize,
+        _n_variables: usize,
     ) -> SklResult<Vec<Individual>> {
         let mut offspring = Vec::with_capacity(self.population_size);
 
@@ -417,7 +417,6 @@ impl NSGAII {
             }
         }
 
-        let mut front_index = 0;
         while !current_front.is_empty() {
             fronts.push(current_front.clone());
             let mut next_front = Vec::new();
@@ -440,7 +439,6 @@ impl NSGAII {
             }
 
             current_front = next_front;
-            front_index += 1;
         }
 
         fronts
@@ -449,7 +447,7 @@ impl NSGAII {
     /// Environmental selection using NSGA-II
     fn environmental_selection(
         &self,
-        population: Vec<Individual>,
+        _population: Vec<Individual>,
         fronts: Vec<Vec<Individual>>,
     ) -> SklResult<Vec<Individual>> {
         let mut selected = Vec::new();
@@ -762,7 +760,7 @@ mod tests {
 
         let fronts = nsga2.non_dominated_sort(&population);
 
-        assert!(fronts.len() >= 1);
+        assert!(!fronts.is_empty());
         assert_eq!(fronts[0].len(), 3); // First three form Pareto front
         if fronts.len() > 1 {
             assert_eq!(fronts[1].len(), 1); // Last one is dominated

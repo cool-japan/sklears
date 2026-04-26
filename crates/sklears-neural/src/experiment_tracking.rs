@@ -6,11 +6,9 @@
 //! and experiment comparison utilities.
 
 use crate::versioning::ModelVersion;
-use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::Rng;
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(feature = "serde")]
@@ -68,7 +66,10 @@ pub enum ExperimentStatus {
     /// Experiment completed successfully
     Completed,
     /// Experiment failed with error
-    Failed { error: String },
+    Failed {
+        /// Human-readable error message or traceback describing the failure
+        error: String,
+    },
     /// Experiment was cancelled
     Cancelled,
     /// Experiment is queued for execution
@@ -79,12 +80,19 @@ pub enum ExperimentStatus {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum HyperparameterValue {
+    /// Single 64-bit floating-point value
     Float(f64),
+    /// Single 64-bit signed integer value
     Int(i64),
+    /// UTF-8 string value
     String(String),
+    /// Boolean flag
     Bool(bool),
+    /// Array of floating-point values (e.g., layer sizes as floats)
     FloatArray(Vec<f64>),
+    /// Array of integer values (e.g., layer sizes)
     IntArray(Vec<i64>),
+    /// Array of string values (e.g., activation names per layer)
     StringArray(Vec<String>),
 }
 
@@ -122,13 +130,18 @@ impl From<Vec<f64>> for HyperparameterValue {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct MetricValue {
+    /// Numeric scalar value of the metric at this observation
     pub value: f64,
+    /// Training step or epoch at which this value was recorded, if applicable
     pub step: Option<u64>,
+    /// Unix timestamp (seconds) when this metric was recorded
     pub timestamp: u64,
+    /// Arbitrary key-value tags associated with this metric observation
     pub tags: HashMap<String, String>,
 }
 
 impl MetricValue {
+    /// Create a new metric value observed at the current wall-clock time with no step or tags
     pub fn new(value: f64) -> Self {
         Self {
             value,
@@ -141,11 +154,13 @@ impl MetricValue {
         }
     }
 
+    /// Attach a training step or epoch index to this metric observation
     pub fn with_step(mut self, step: u64) -> Self {
         self.step = Some(step);
         self
     }
 
+    /// Attach a single key-value tag to this metric observation
     pub fn with_tag(mut self, key: String, value: String) -> Self {
         self.tags.insert(key, value);
         self
@@ -156,16 +171,24 @@ impl MetricValue {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Artifact {
+    /// Human-readable name identifying this artifact
     pub name: String,
+    /// Category of the artifact (e.g., `"model"`, `"dataset"`, `"plot"`)
     pub artifact_type: String,
+    /// Filesystem path where the artifact is stored
     pub path: PathBuf,
+    /// Size of the artifact file in bytes, or 0 if the path was not accessible at creation time
     pub size_bytes: u64,
+    /// Optional content checksum (e.g., SHA-256 hex string) for integrity verification
     pub checksum: Option<String>,
+    /// Arbitrary key-value metadata attached to this artifact
     pub metadata: HashMap<String, String>,
+    /// Unix timestamp (seconds) when this artifact record was created
     pub created_at: u64,
 }
 
 impl Artifact {
+    /// Create an artifact record pointing to the given path, auto-detecting file size
     pub fn new(name: String, artifact_type: String, path: PathBuf) -> Self {
         let size_bytes = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
 
@@ -183,11 +206,13 @@ impl Artifact {
         }
     }
 
+    /// Attach a checksum string (e.g., SHA-256 hex) to this artifact for integrity verification
     pub fn with_checksum(mut self, checksum: String) -> Self {
         self.checksum = Some(checksum);
         self
     }
 
+    /// Replace this artifact's metadata map with the provided key-value pairs
     pub fn with_metadata(mut self, metadata: HashMap<String, String>) -> Self {
         self.metadata = metadata;
         self
@@ -222,14 +247,17 @@ pub struct Experiment {
     pub parent_id: Option<ExperimentId>,
     /// Child experiments
     pub child_ids: Vec<ExperimentId>,
-    /// Timestamps
+    /// Unix timestamp (seconds) when this experiment record was created
     pub created_at: u64,
+    /// Unix timestamp (seconds) when the experiment began executing; `None` if not yet started
     pub started_at: Option<u64>,
+    /// Unix timestamp (seconds) when the experiment finished; `None` if still running or not started
     pub finished_at: Option<u64>,
     /// Environment information
     pub environment: HashMap<String, String>,
-    /// Git information (if available)
+    /// Git commit hash at experiment time, if determinable
     pub git_commit: Option<String>,
+    /// Name of the active Git branch at experiment time, if determinable
     pub git_branch: Option<String>,
     /// Notes and observations
     pub notes: Vec<String>,
@@ -241,13 +269,18 @@ pub struct Experiment {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ResourceUsage {
+    /// Total CPU-hours consumed by the experiment
     pub cpu_hours: f64,
+    /// Peak RAM usage in gigabytes during the experiment
     pub memory_peak_gb: f64,
+    /// Total GPU-hours consumed by the experiment
     pub gpu_hours: f64,
+    /// Disk space used by experiment artifacts in gigabytes
     pub disk_usage_gb: f64,
 }
 
 impl Experiment {
+    /// Create a new experiment with the given name, auto-generating an ID and capturing environment info
     pub fn new(name: String) -> Self {
         let id = ExperimentId::generate();
         let created_at = SystemTime::now()
@@ -279,21 +312,25 @@ impl Experiment {
         }
     }
 
+    /// Override the auto-generated experiment ID with a specific value
     pub fn with_id(mut self, id: ExperimentId) -> Self {
         self.id = id;
         self
     }
 
+    /// Attach a human-readable description to this experiment
     pub fn with_description(mut self, description: String) -> Self {
         self.description = Some(description);
         self
     }
 
+    /// Record which model version was used in this experiment
     pub fn with_model_version(mut self, version: ModelVersion) -> Self {
         self.model_version = Some(version);
         self
     }
 
+    /// Link this experiment as a child of the given parent experiment
     pub fn with_parent(mut self, parent_id: ExperimentId) -> Self {
         self.parent_id = Some(parent_id);
         self
@@ -354,11 +391,9 @@ impl Experiment {
     }
 
     /// Log a metric value
+    /// Log a metric value to the experiment
     pub fn log_metric(&mut self, name: String, value: MetricValue) {
-        self.metrics
-            .entry(name)
-            .or_insert_with(Vec::new)
-            .push(value);
+        self.metrics.entry(name).or_default().push(value);
     }
 
     /// Log a simple metric value with current timestamp
@@ -466,7 +501,7 @@ impl Experiment {
     /// Get git commit hash (if available)
     fn get_git_commit() -> Option<String> {
         std::process::Command::new("git")
-            .args(&["rev-parse", "HEAD"])
+            .args(["rev-parse", "HEAD"])
             .output()
             .ok()
             .and_then(|output| {
@@ -483,7 +518,7 @@ impl Experiment {
     /// Get git branch (if available)
     fn get_git_branch() -> Option<String> {
         std::process::Command::new("git")
-            .args(&["branch", "--show-current"])
+            .args(["branch", "--show-current"])
             .output()
             .ok()
             .and_then(|output| {
@@ -522,15 +557,22 @@ pub trait ExperimentBackend {
 /// Query criteria for searching experiments
 #[derive(Debug, Clone)]
 pub struct ExperimentQuery {
+    /// Substring pattern that the experiment name must contain; `None` matches all names
     pub name_pattern: Option<String>,
+    /// Required experiment status; `None` matches all statuses
     pub status: Option<ExperimentStatus>,
+    /// Required tag key-value pairs; all entries must be present on a matching experiment
     pub tags: HashMap<String, String>,
+    /// Lower bound on creation timestamp (Unix seconds, inclusive); `None` disables the lower bound
     pub created_after: Option<u64>,
+    /// Upper bound on creation timestamp (Unix seconds, inclusive); `None` disables the upper bound
     pub created_before: Option<u64>,
+    /// Required parent experiment ID; `None` matches experiments regardless of parent
     pub parent_id: Option<ExperimentId>,
 }
 
 impl ExperimentQuery {
+    /// Create an empty query that matches all experiments
     pub fn new() -> Self {
         Self {
             name_pattern: None,
@@ -542,21 +584,25 @@ impl ExperimentQuery {
         }
     }
 
+    /// Restrict matches to experiments whose name contains the given substring pattern
     pub fn with_name_pattern(mut self, pattern: String) -> Self {
         self.name_pattern = Some(pattern);
         self
     }
 
+    /// Restrict matches to experiments in the given status
     pub fn with_status(mut self, status: ExperimentStatus) -> Self {
         self.status = Some(status);
         self
     }
 
+    /// Add a required tag key-value pair that matching experiments must possess
     pub fn with_tag(mut self, key: String, value: String) -> Self {
         self.tags.insert(key, value);
         self
     }
 
+    /// Restrict matches to experiments that are children of the given parent
     pub fn with_parent(mut self, parent_id: ExperimentId) -> Self {
         self.parent_id = Some(parent_id);
         self
@@ -576,6 +622,7 @@ pub struct InMemoryBackend {
 }
 
 impl InMemoryBackend {
+    /// Create an empty in-memory backend with no stored experiments
     pub fn new() -> Self {
         Self {
             experiments: HashMap::new(),
@@ -689,6 +736,7 @@ pub struct ExperimentTracker<B: ExperimentBackend> {
 }
 
 impl<B: ExperimentBackend> ExperimentTracker<B> {
+    /// Create a new tracker backed by the given storage backend
     pub fn new(backend: B) -> Self {
         Self {
             backend,
@@ -825,7 +873,9 @@ impl<B: ExperimentBackend> ExperimentTracker<B> {
 /// Experiment comparison results
 #[derive(Debug, Clone)]
 pub struct ExperimentComparison {
+    /// Full experiment records included in this comparison
     pub experiments: Vec<Experiment>,
+    /// Per-metric list of `(experiment_id, final_value)` pairs for side-by-side comparison
     pub metric_comparison: HashMap<String, Vec<(ExperimentId, Option<f64>)>>,
 }
 

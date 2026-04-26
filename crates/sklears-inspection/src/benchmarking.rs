@@ -666,11 +666,11 @@ impl BenchmarkingSuite {
     }
 
     fn generate_recommendations(&self) -> Vec<String> {
-        let mut recommendations = Vec::new();
-
-        recommendations.push("Consider using parallel processing for large datasets".to_string());
-        recommendations.push("Enable caching for repeated computations".to_string());
-        recommendations.push("Profile memory usage for memory-intensive operations".to_string());
+        let recommendations = vec![
+            "Consider using parallel processing for large datasets".to_string(),
+            "Enable caching for repeated computations".to_string(),
+            "Profile memory usage for memory-intensive operations".to_string(),
+        ];
 
         recommendations
     }

@@ -418,8 +418,7 @@ impl DatasetQualityMetrics {
             .zip(weights.iter())
             .map(|(score, weight)| score * weight)
             .sum::<f64>()
-            .max(0.0)
-            .min(100.0);
+            .clamp(0.0, 100.0);
     }
 
     /// Add a quality issue with recommendation
@@ -431,7 +430,7 @@ impl DatasetQualityMetrics {
     /// Generate quality report summary
     pub fn generate_report(&self) -> String {
         let mut report = String::new();
-        report.push_str(&"=== Dataset Quality Report ===\n".to_string());
+        report.push_str("=== Dataset Quality Report ===\n");
         report.push_str(&format!(
             "Overall Quality Score: {:.2}/100\n",
             self.overall_quality_score
@@ -445,7 +444,7 @@ impl DatasetQualityMetrics {
         report.push_str(&format!("Accuracy: {:.2}/100\n", self.accuracy_score));
         report.push_str(&format!("Uniqueness: {:.2}/100\n", self.uniqueness_score));
         report.push_str(&format!("Timeliness: {:.2}/100\n", self.timeliness_score));
-        report.push_str(&"\nData Issues:\n".to_string());
+        report.push_str("\nData Issues:\n");
         report.push_str(&format!(
             "- Missing Data: {:.2}%\n",
             self.missing_data_ratio * 100.0
@@ -467,14 +466,14 @@ impl DatasetQualityMetrics {
         report.push_str(&format!("\nFingerprint: {}\n", self.fingerprint));
 
         if !self.quality_issues.is_empty() {
-            report.push_str(&"\nQuality Issues:\n".to_string());
+            report.push_str("\nQuality Issues:\n");
             for issue in &self.quality_issues {
                 report.push_str(&format!("- {}\n", issue));
             }
         }
 
         if !self.recommendations.is_empty() {
-            report.push_str(&"\nRecommendations:\n".to_string());
+            report.push_str("\nRecommendations:\n");
             for rec in &self.recommendations {
                 report.push_str(&format!("- {}\n", rec));
             }

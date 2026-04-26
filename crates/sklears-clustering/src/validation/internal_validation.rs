@@ -22,6 +22,7 @@ pub struct ClusteringValidator {
 }
 
 impl ClusteringValidator {
+    /// Create a new clustering validator with the given distance metric.
     pub fn new(metric: ValidationMetric) -> Self {
         Self {
             metric,
@@ -779,7 +780,7 @@ mod tests {
         assert_eq!(result.cluster_sizes.len(), 3);
 
         // Check that all cluster sizes are correct
-        for (_, &size) in &result.cluster_sizes {
+        for &size in result.cluster_sizes.values() {
             assert_eq!(size, 3);
         }
     }
@@ -852,7 +853,7 @@ mod tests {
 
         // Test composite score
         let score = metrics.composite_score();
-        assert!(score >= 0.0 && score <= 1.0);
+        assert!((0.0..=1.0).contains(&score));
 
         // Test quality assessment
         let quality = metrics.overall_quality();
@@ -890,7 +891,7 @@ mod tests {
         labels.push(-1);
         labels.push(-1);
         data = data
-            .into_shape((9, 2))
+            .into_shape_with_order((9, 2))
             .expect("operation should succeed")
             .into_owned();
         let noise_data = Array2::from_shape_vec((2, 2), vec![10.0, 10.0, 15.0, 15.0])
@@ -964,7 +965,7 @@ mod tests {
         assert_eq!(distances[&(1, 2)], distances[&(2, 1)]);
 
         // All distances should be positive
-        for (_, &distance) in &distances {
+        for &distance in distances.values() {
             assert!(distance > 0.0);
             assert!(distance.is_finite());
         }
@@ -986,7 +987,7 @@ mod tests {
         assert!(distances.contains_key(&2));
 
         // Each cluster should have pairwise distances
-        for (_, cluster_distances) in &distances {
+        for cluster_distances in distances.values() {
             // For 3 points, should have 3 pairwise distances
             assert_eq!(cluster_distances.len(), 3);
 

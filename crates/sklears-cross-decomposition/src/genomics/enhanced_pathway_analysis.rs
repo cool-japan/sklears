@@ -7,11 +7,10 @@ use crate::genomics::pathway_analysis::{
     EnrichmentMethod, MultipleTestingCorrection, PathwayDatabase,
 };
 use crate::multi_omics::GenomicsError;
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::ndarray_ext::stats;
-use scirs2_core::random::{thread_rng, Random, Rng, RngExt};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::random::thread_rng;
 use sklears_core::types::Float;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashMap;
 
 /// Enhanced pathway analysis with network integration and temporal dynamics
 pub struct EnhancedPathwayAnalysis {
@@ -147,24 +146,24 @@ pub struct EnhancedPathwayResults {
 #[derive(Debug, Clone)]
 pub struct PPINetwork {
     /// Adjacency matrix
-    adjacency: Array2<Float>,
+    pub adjacency: Array2<Float>,
     /// Gene/protein names
-    gene_names: Vec<String>,
+    pub gene_names: Vec<String>,
     /// Confidence scores for interactions
-    confidence_scores: Array2<Float>,
+    pub confidence_scores: Array2<Float>,
 }
 
 /// Gene regulatory network
 #[derive(Debug, Clone)]
 pub struct GeneRegulatoryNetwork {
     /// Regulatory interactions matrix
-    regulatory_matrix: Array2<Float>,
+    pub regulatory_matrix: Array2<Float>,
     /// Transcription factor indices
-    tf_indices: Vec<usize>,
+    pub tf_indices: Vec<usize>,
     /// Target gene indices
-    target_indices: Vec<usize>,
+    pub target_indices: Vec<usize>,
     /// Regulatory relationship types (activation/repression)
-    interaction_types: Array2<i8>, // 1 for activation, -1 for repression, 0 for unknown
+    pub interaction_types: Array2<i8>, // 1 for activation, -1 for repression, 0 for unknown
 }
 
 impl EnhancedPathwayAnalysis {
@@ -340,7 +339,7 @@ impl EnhancedPathwayAnalysis {
             if gene_count > 0 {
                 pathway_score /= gene_count as Float;
                 // Convert to p-value (simplified)
-                let p_value = (1.0 - pathway_score.abs()).max(0.001).min(1.0);
+                let p_value = (1.0 - pathway_score.abs()).clamp(0.001, 1.0);
                 enrichment_results.insert(pathway_name.to_string(), p_value);
             }
         }
@@ -1215,7 +1214,7 @@ mod tests {
 
     #[test]
     fn test_temporal_analysis() {
-        let mut temporal_config = TemporalAnalysisConfig {
+        let temporal_config = TemporalAnalysisConfig {
             n_timepoints: 4,
             window_size: 2,
             trend_threshold: 0.1,
@@ -1316,7 +1315,7 @@ mod tests {
 
         // All correlation values should be between 0 and 1 (absolute values)
         for &correlation in results.pathway_interactions.values() {
-            assert!(correlation >= 0.0 && correlation <= 1.0);
+            assert!((0.0..=1.0).contains(&correlation));
         }
     }
 }

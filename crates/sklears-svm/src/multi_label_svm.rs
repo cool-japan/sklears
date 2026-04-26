@@ -826,11 +826,9 @@ impl LabelPowersetSVM {
                             best_scores[sample_idx] = score;
                             best_classes[sample_idx] = class_id;
                         }
-                        Some(Ordering::Equal) => {
-                            if class_id < best_classes[sample_idx] {
-                                best_scores[sample_idx] = score;
-                                best_classes[sample_idx] = class_id;
-                            }
+                        Some(Ordering::Equal) if class_id < best_classes[sample_idx] => {
+                            best_scores[sample_idx] = score;
+                            best_classes[sample_idx] = class_id;
                         }
                         _ => {}
                     }

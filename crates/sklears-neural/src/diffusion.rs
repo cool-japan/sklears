@@ -10,8 +10,8 @@
 //! learning to reverse the process, enabling high-quality sample generation.
 
 use crate::NeuralResult;
-use scirs2_core::ndarray::{Array1, Array2, Axis, ScalarOperand};
-use scirs2_core::random::{thread_rng, CoreRandom, Normal, Rng};
+use scirs2_core::ndarray::{Array1, Array2, ScalarOperand};
+use scirs2_core::random::{thread_rng, Normal};
 use sklears_core::{error::SklearsError, types::FloatBounds};
 use std::f64::consts::PI;
 
@@ -80,6 +80,7 @@ impl Default for DiffusionConfig {
 
 /// Noise scheduler for diffusion process
 #[derive(Debug)]
+#[allow(dead_code)] // All schedule coefficients stored for completeness; some are for future sampling methods
 pub struct NoiseScheduler<T: FloatBounds> {
     /// Beta values at each timestep
     betas: Array1<T>,
@@ -120,7 +121,7 @@ impl<T: FloatBounds> NoiseScheduler<T> {
         let mut alphas_cumprod = Array1::ones(num_timesteps);
         let mut cumprod = T::one();
         for i in 0..num_timesteps {
-            cumprod = cumprod * alphas[i];
+            cumprod *= alphas[i];
             alphas_cumprod[i] = cumprod;
         }
 
@@ -299,6 +300,7 @@ pub trait DenoisingNetwork<T: FloatBounds> {
 }
 
 /// Simple MLP denoising network for demonstration
+#[allow(dead_code)] // Dimension fields stored for shape validation and future serialization
 pub struct MLPDenoiser<T: FloatBounds> {
     /// Network weights (list of weight matrices)
     weights: Vec<Array2<T>>,
@@ -460,7 +462,7 @@ impl<T: FloatBounds + ScalarOperand, N: DenoisingNetwork<T>> DDPM<T, N> {
 
     /// Training step: compute loss for a batch
     pub fn train_step(&mut self, x0: &Array2<T>) -> NeuralResult<T> {
-        let batch_size = x0.nrows();
+        let _batch_size = x0.nrows();
         let mut rng = thread_rng();
 
         // Sample random timesteps

@@ -145,6 +145,7 @@ pub trait CircuitBreaker: Send + Sync {
 /// └── Analytics Engine
 /// ```
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct AdvancedCircuitBreaker {
     /// Circuit breaker identifier
     ///
@@ -558,7 +559,7 @@ impl CircuitBreakerBuilder {
 
     /// Set recovery timeout
     #[must_use]
-    pub fn recovery_timeout(self, timeout: Duration) -> Self {
+    pub fn recovery_timeout(self, _timeout: Duration) -> Self {
         // self.config.recovery_timeout = timeout; // Field doesn't exist
         self
     }

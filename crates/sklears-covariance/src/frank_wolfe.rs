@@ -6,6 +6,10 @@
 
 use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
 
+/// Return type for Frank-Wolfe algorithm
+type FrankWolfeRunResult =
+    Result<(Array2<f64>, usize, Vec<f64>, Vec<f64>, Vec<f64>, f64, f64), SklearsError>;
+
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
@@ -166,6 +170,12 @@ pub struct FrankWolfeCovarianceTrained {
     step_size_history: Vec<f64>,
 }
 
+impl Default for FrankWolfeCovariance<Untrained> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FrankWolfeCovariance<Untrained> {
     /// Create new Frank-Wolfe covariance estimator
     pub fn new() -> Self {
@@ -262,7 +272,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for FrankWolfeCovariance<Untrained> {
     type Fitted = FrankWolfeCovariance<FrankWolfeCovarianceTrained>;
 
     fn fit(self, x: &ArrayView2<Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
 
         // Compute empirical covariance as starting point
         let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
@@ -358,7 +368,7 @@ impl FrankWolfeCovariance<Untrained> {
         &self,
         mut current_matrix: Array2<f64>,
         empirical_cov: &Array2<f64>,
-    ) -> Result<(Array2<f64>, usize, Vec<f64>, Vec<f64>, Vec<f64>, f64, f64), SklearsError> {
+    ) -> FrankWolfeRunResult {
         let mut convergence_history = Vec::new();
         let mut dual_gap_history = Vec::new();
         let mut step_size_history = Vec::new();
@@ -369,7 +379,7 @@ impl FrankWolfeCovariance<Untrained> {
             let gradient = self.compute_gradient(&current_matrix, empirical_cov)?;
 
             // Solve linear minimization oracle
-            let (lmo_solution, lmo_value) = self.linear_minimization_oracle(&gradient)?;
+            let (lmo_solution, _lmo_value) = self.linear_minimization_oracle(&gradient)?;
 
             // Compute dual gap
             let dual_gap = self.compute_dual_gap(&gradient, &current_matrix, &lmo_solution);
@@ -613,7 +623,7 @@ impl FrankWolfeCovariance<Untrained> {
         &self,
         current: &Array2<f64>,
         lmo_solution: &Array2<f64>,
-        active_set: &[(Array2<f64>, f64)],
+        _active_set: &[(Array2<f64>, f64)],
     ) -> Result<(Array2<f64>, f64), SklearsError> {
         // Simplified away-step: choose between forward and away step
         let forward_direction = lmo_solution - current;
@@ -711,8 +721,8 @@ impl FrankWolfeCovariance<Untrained> {
     /// Exact line search (for quadratic objectives)
     fn exact_line_search(
         &self,
-        current: &Array2<f64>,
-        direction: &Array2<f64>,
+        _current: &Array2<f64>,
+        _direction: &Array2<f64>,
     ) -> Result<f64, SklearsError> {
         // For quadratic f(x) = x^T A x + b^T x + c
         // Optimal step size is -(g^T d) / (d^T A d) where g is gradient
@@ -723,11 +733,11 @@ impl FrankWolfeCovariance<Untrained> {
     /// Backtracking line search
     fn backtracking_line_search(
         &self,
-        current: &Array2<f64>,
-        direction: &Array2<f64>,
+        _current: &Array2<f64>,
+        _direction: &Array2<f64>,
     ) -> Result<f64, SklearsError> {
         let mut step_size: f64 = 1.0;
-        let c1 = 1e-4; // Armijo constant
+        let _c1 = 1e-4; // Armijo constant
         let rho = 0.5; // Backtracking factor
 
         // Simplified backtracking (would need proper function evaluation)

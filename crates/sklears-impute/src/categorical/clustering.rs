@@ -1,4 +1,6 @@
 //! Categorical Clustering Imputer
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! Imputation based on clustering categorical data into homogeneous groups
 //! and using cluster centroids or most frequent values within clusters.

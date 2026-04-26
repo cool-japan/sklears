@@ -179,16 +179,16 @@ impl Fit<Array2<Float>, Array1<Float>> for TimeSeriesSelector<Untrained> {
         }
 
         // Compute seasonal importances if requested
-        let seasonal_importances = if self.include_seasonal && self.seasonal_period.is_some() {
-            let period = self.seasonal_period.expect("operation should succeed");
-            let mut importances = Array1::zeros(n_features);
-            for (i, feature) in x.axis_iter(Axis(1)).enumerate() {
-                importances[i] = compute_seasonal_importance(&feature, period);
-            }
-            Some(importances)
-        } else {
-            None
-        };
+        let seasonal_importances =
+            if let (true, Some(period)) = (self.include_seasonal, self.seasonal_period) {
+                let mut importances = Array1::zeros(n_features);
+                for (i, feature) in x.axis_iter(Axis(1)).enumerate() {
+                    importances[i] = compute_seasonal_importance(&feature, period);
+                }
+                Some(importances)
+            } else {
+                None
+            };
 
         // Select features based on combined score
         let feature_scores =

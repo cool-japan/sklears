@@ -290,7 +290,9 @@ impl HoeffdingNode {
         for (&feature_idx, feature_stats) in &self.feature_stats {
             if let Some(splits) = self.get_candidate_splits(feature_stats) {
                 for (threshold, gain) in splits {
-                    if best_split.is_none() || gain > best_split.as_ref().expect("operation should succeed").2 {
+                    if best_split.is_none()
+                        || gain > best_split.as_ref().expect("operation should succeed").2
+                    {
                         if let Some((_, _, prev_best_gain)) = best_split {
                             second_best_gain = prev_best_gain;
                         }
@@ -362,7 +364,7 @@ impl HoeffdingNode {
         let mut left_class_counts: HashMap<i32, usize> = HashMap::new();
         let mut right_class_counts: HashMap<i32, usize> = HashMap::new();
 
-        for (_, bin) in bins {
+        for bin in bins.values() {
             let bin_center = (bin.boundaries.0 + bin.boundaries.1) / 2.0;
 
             if bin_center <= threshold {
@@ -555,6 +557,11 @@ impl HoeffdingTree {
             max_depth: self.nodes.iter().map(|n| n.depth).max().unwrap_or(0),
             memory_usage: self.estimate_memory_usage(),
         }
+    }
+
+    /// Get feature importance scores
+    pub fn get_feature_importances(&self) -> &HashMap<usize, f64> {
+        &self.feature_importances
     }
 
     /// Estimate memory usage

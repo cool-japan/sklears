@@ -10,7 +10,7 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use scirs2_core::random::{RngCore, SeedableRng};
+use scirs2_core::random::{rngs::StdRng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use sklears_core::error::Result;
 use sklears_core::prelude::SklearsError;
@@ -102,7 +102,7 @@ where
         x: &ArrayView2<T>,
         y: &ArrayView1<T>,
     ) -> Result<(Array2<T>, Array1<T>)> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
 
         // Count class distribution
         let mut class_counts = HashMap::new();
@@ -122,7 +122,7 @@ where
 
         // For simplicity, duplicate some minority samples
         for i in 0..samples_to_generate.min(n_samples / 2) {
-            let src_idx = i % n_samples;
+            let _src_idx = i % n_samples;
             // Add synthetic sample (simplified - just copy existing sample)
             // In practice, SMOTE would interpolate between neighbors
         }
@@ -161,15 +161,13 @@ where
 /// Random oversampler
 pub struct RandomOversampler {
     config: ResamplingConfig,
-    rng: Box<dyn RngCore>,
+    rng: StdRng,
 }
 
 impl RandomOversampler {
     pub fn new(config: ResamplingConfig) -> Result<Self> {
         ResamplingValidator::validate_config(&config)?;
-        let rng: Box<dyn RngCore> = Box::new(scirs2_core::random::rngs::StdRng::seed_from_u64(
-            config.random_state.unwrap_or(42),
-        ));
+        let rng = StdRng::seed_from_u64(config.random_state.unwrap_or(42));
         Ok(Self { config, rng })
     }
 }
@@ -191,15 +189,13 @@ where
 /// Random undersampler
 pub struct RandomUndersampler {
     config: ResamplingConfig,
-    rng: Box<dyn RngCore>,
+    rng: StdRng,
 }
 
 impl RandomUndersampler {
     pub fn new(config: ResamplingConfig) -> Result<Self> {
         ResamplingValidator::validate_config(&config)?;
-        let rng: Box<dyn RngCore> = Box::new(scirs2_core::random::rngs::StdRng::seed_from_u64(
-            config.random_state.unwrap_or(42),
-        ));
+        let rng = StdRng::seed_from_u64(config.random_state.unwrap_or(42));
         Ok(Self { config, rng })
     }
 }
@@ -453,7 +449,7 @@ mod tests {
         .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0, 0.0, 1.0, 1.0, 1.0, 1.0]);
 
-        let (new_x, new_y) = resampler
+        let (new_x, _new_y) = resampler
             .fit_resample(&x.view(), &y.view())
             .expect("operation should succeed");
         assert_eq!(new_x.dim().1, x.dim().1); // Same number of features

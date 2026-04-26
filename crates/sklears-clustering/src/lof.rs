@@ -14,9 +14,6 @@ use sklears_core::{
     types::Float,
 };
 
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
-
 /// Configuration for Local Outlier Factor
 #[derive(Debug, Clone)]
 pub struct LOFConfig {
@@ -44,8 +41,11 @@ impl Default for LOFConfig {
 /// Distance metrics for LOF
 #[derive(Debug, Clone, Copy)]
 pub enum DistanceMetric {
+    /// Standard Euclidean (L2) distance
     Euclidean,
+    /// Manhattan (L1) distance
     Manhattan,
+    /// Chebyshev (L∞) distance
     Chebyshev,
 }
 
@@ -434,7 +434,7 @@ mod tests {
             .fit(&data, &())
             .expect("operation should succeed");
 
-        let outliers = model.predict_outliers();
+        let _outliers = model.predict_outliers();
         let lof_scores = model.lof_scores();
 
         // Last two points should have higher LOF scores

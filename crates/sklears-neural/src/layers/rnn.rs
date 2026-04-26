@@ -5,10 +5,7 @@
 
 use crate::activation::Activation;
 use crate::weight_init::{InitStrategy, WeightInitializer};
-use crate::{
-    layers::{Layer, ParameterizedLayer},
-    NeuralResult,
-};
+use crate::{layers::Layer, NeuralResult};
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, Axis};
 use scirs2_core::random::thread_rng;
 use sklears_core::error::SklearsError;

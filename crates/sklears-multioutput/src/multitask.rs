@@ -3,6 +3,7 @@
 //! This module implements multi-task learning where multiple related tasks share
 //! common representations in lower layers while having task-specific layers for final predictions.
 //! This approach allows for better generalization and improved performance when tasks are related.
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
@@ -110,27 +111,38 @@ pub struct MultiTaskNeuralNetwork<S = Untrained> {
 /// Trained state for MultiTaskNeuralNetwork
 #[derive(Debug, Clone)]
 pub struct MultiTaskNeuralNetworkTrained {
+    #[allow(dead_code)]
     /// Weights for shared layers
     shared_weights: Vec<Array2<Float>>,
+    #[allow(dead_code)]
     /// Biases for shared layers
     shared_biases: Vec<Array1<Float>>,
+    #[allow(dead_code)]
     /// Task-specific weights per task
     task_weights: HashMap<String, Vec<Array2<Float>>>,
+    #[allow(dead_code)]
     /// Task-specific biases per task
     task_biases: HashMap<String, Vec<Array1<Float>>>,
+    #[allow(dead_code)]
     /// Output layer weights per task
     output_weights: HashMap<String, Array2<Float>>,
+    #[allow(dead_code)]
     /// Output layer biases per task
     output_biases: HashMap<String, Array1<Float>>,
     /// Number of input features
     n_features: usize,
     /// Task configurations
     task_outputs: HashMap<String, usize>,
+    #[allow(dead_code)]
     /// Network architecture
     shared_layer_sizes: Vec<usize>,
+    #[allow(dead_code)]
     task_specific_layer_sizes: Vec<usize>,
+    #[allow(dead_code)]
     shared_activation: ActivationFunction,
+    #[allow(dead_code)]
     task_activation: ActivationFunction,
+    #[allow(dead_code)]
     output_activations: HashMap<String, ActivationFunction>,
     /// Training history per task
     task_loss_curves: HashMap<String, Vec<Float>>,
@@ -350,7 +362,7 @@ impl Fit<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
         }
 
         let n_features = x.ncols();
-        let rng = thread_rng();
+        let _rng = thread_rng();
 
         // Initialize network parameters (simplified)
         let shared_weights = vec![Array2::<Float>::zeros((n_features, 50))];

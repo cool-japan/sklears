@@ -585,6 +585,7 @@ impl Transform<Vec<String>, Array2<Float>> for FittedTfidfVectorizer {
 #[derive(Debug, Clone)]
 pub struct HashingVectorizer {
     n_features: usize,
+    #[allow(dead_code)] // ngram_range retained for future n-gram tokenization support
     ngram_range: (usize, usize),
 }
 
@@ -1064,6 +1065,7 @@ impl LSA {
         self
     }
 
+    #[allow(non_snake_case)]
     pub fn fit(&self, _X: &ArrayView2<f64>) -> SklResult<LSATrained> {
         // Placeholder implementation
         Ok(LSATrained {
@@ -1074,6 +1076,7 @@ impl LSA {
 
 #[derive(Debug, Clone)]
 pub struct LSATrained {
+    #[allow(dead_code)] // components retained for future transform/inverse_transform API
     components: Array2<f64>,
 }
 
@@ -1420,10 +1423,7 @@ impl EmotionDetector {
 
     /// Add words to an emotion lexicon
     fn add_emotion_words(&mut self, emotion: EmotionType, words: Vec<&str>) {
-        let word_set = self
-            .emotion_lexicons
-            .entry(emotion)
-            .or_insert_with(std::collections::HashSet::new);
+        let word_set = self.emotion_lexicons.entry(emotion).or_default();
 
         for word in words {
             word_set.insert(word.to_string());
@@ -1438,22 +1438,19 @@ impl EmotionDetector {
 
     /// Set minimum confidence threshold for emotion detection
     pub fn min_confidence(mut self, min_confidence: f64) -> Self {
-        self.min_confidence = min_confidence.max(0.0).min(1.0);
+        self.min_confidence = min_confidence.clamp(0.0, 1.0);
         self
     }
 
     /// Set intensity weight (how much to weight emotion word density vs raw counts)
     pub fn intensity_weight(mut self, weight: f64) -> Self {
-        self.intensity_weight = weight.max(0.0).min(1.0);
+        self.intensity_weight = weight.clamp(0.0, 1.0);
         self
     }
 
     /// Add custom words to an emotion lexicon
     pub fn add_custom_emotion_words(mut self, emotion: EmotionType, words: Vec<String>) -> Self {
-        let word_set = self
-            .emotion_lexicons
-            .entry(emotion)
-            .or_insert_with(std::collections::HashSet::new);
+        let word_set = self.emotion_lexicons.entry(emotion).or_default();
 
         for word in words {
             word_set.insert(word);
@@ -1707,7 +1704,7 @@ impl AspectBasedSentimentAnalyzer {
 
     /// Set minimum confidence threshold
     pub fn min_confidence(mut self, confidence: f64) -> Self {
-        self.min_confidence = confidence.max(0.0).min(1.0);
+        self.min_confidence = confidence.clamp(0.0, 1.0);
         self
     }
 
@@ -1948,7 +1945,7 @@ impl AspectBasedSentimentAnalyzer {
             for sentiment in sentiments {
                 aggregated
                     .entry(sentiment.aspect.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(sentiment);
             }
         }
@@ -1971,7 +1968,7 @@ impl AspectBasedSentimentAnalyzer {
             .collect();
 
         // Sort by frequency
-        summary.sort_by(|a, b| b.2.cmp(&a.2));
+        summary.sort_by_key(|b| std::cmp::Reverse(b.2));
         summary
     }
 }

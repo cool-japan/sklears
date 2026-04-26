@@ -30,6 +30,7 @@ pub(crate) fn ensure_valid_frame_parameters(
     }
     Ok((signal_len - frame_length) / hop_length + 1)
 }
+pub type ChromaExtractor = ChromaFeaturesExtractor;
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -120,11 +121,11 @@ mod tests {
         let zcr_low = zcr_extractor
             .extract_features(&signal_low_freq.view())
             .expect("operation should succeed");
-        assert!(zcr_high.len() > 0);
-        assert!(zcr_low.len() > 0);
+        assert!(!zcr_high.is_empty());
+        assert!(!zcr_low.is_empty());
         for &val in zcr_high.iter() {
             assert!(val.is_finite(), "ZCR should be finite");
-            assert!(val >= 0.0 && val <= 1.0, "ZCR should be between 0 and 1");
+            assert!((0.0..=1.0).contains(&val), "ZCR should be between 0 and 1");
         }
         let avg_zcr_high: f64 = zcr_high.mean().expect("operation should succeed");
         let avg_zcr_low: f64 = zcr_low.mean().expect("operation should succeed");
@@ -147,7 +148,7 @@ mod tests {
         let rolloff_features = rolloff_extractor
             .extract_features(&signal.view())
             .expect("operation should succeed");
-        assert!(rolloff_features.len() > 0);
+        assert!(!rolloff_features.is_empty());
         for &val in rolloff_features.iter() {
             assert!(val.is_finite(), "Rolloff feature should be finite");
             assert!(val >= 0.0, "Rolloff feature should be non-negative");
@@ -223,4 +224,3 @@ mod tests {
         }
     }
 }
-pub type ChromaExtractor = ChromaFeaturesExtractor;

@@ -4,7 +4,7 @@
 //! filling missing entries in a tensor using low-rank decomposition.
 
 use scirs2_core::ndarray::{Array1, Array2, Array3};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Transform},
@@ -143,9 +143,9 @@ impl Fit<Array3<Float>, ()> for TensorCompletion<Untrained> {
 
         // Initialize factor matrices randomly
         let mut factor_matrices = Vec::new();
-        for mode in 0..3 {
-            let mut factor = Array2::zeros((shape[mode], self.n_factors));
-            for i in 0..shape[mode] {
+        for &dim in shape.iter().take(3) {
+            let mut factor = Array2::zeros((dim, self.n_factors));
+            for i in 0..dim {
                 for j in 0..self.n_factors {
                     factor[[i, j]] = thread_rng().random::<Float>() * 0.1;
                 }
@@ -405,7 +405,6 @@ impl TensorCompletion<Trained> {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::Array3;
-    use scirs2_core::random::thread_rng;
 
     #[test]
     fn test_tensor_completion_basic() {

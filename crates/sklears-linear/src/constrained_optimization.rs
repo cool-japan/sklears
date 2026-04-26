@@ -7,7 +7,7 @@
 //! efficient constrained optimization.
 
 use crate::errors::{LinearModelError, OptimizationError, OptimizationErrorKind};
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_linalg::compat::ArrayLinalgExt;
 
 /// Helper function to create OptimizationError instances
@@ -119,15 +119,12 @@ pub struct InteriorPointSolver {
     config: ConstrainedOptimizationConfig,
 }
 
+// LinearModelError is a rich error enum; boxing would reduce diagnostic quality
+#[allow(clippy::result_large_err)]
 impl InteriorPointSolver {
     /// Create a new interior-point solver
     pub fn new(config: ConstrainedOptimizationConfig) -> Self {
         Self { config }
-    }
-
-    /// Create solver with default configuration
-    pub fn default() -> Self {
-        Self::new(ConstrainedOptimizationConfig::default())
     }
 
     /// Solve the constrained optimization problem
@@ -163,16 +160,16 @@ impl InteriorPointSolver {
 
         while iterations < self.config.max_iterations && !converged {
             // Compute gradient and Hessian of barrier function
-            let (grad, hess) = self.compute_barrier_derivatives(&x, &problem, mu)?;
+            let (grad, hess) = self.compute_barrier_derivatives(&x, problem, mu)?;
 
             // Solve Newton system
             let delta_x = self.solve_newton_system(&hess, &grad)?;
 
             // Line search
-            let step_size = self.line_search(&x, &delta_x, &problem, mu)?;
+            let step_size = self.line_search(&x, &delta_x, problem, mu)?;
 
             // Update solution
-            x += step_size * delta_x;
+            x.scaled_add(step_size, &delta_x);
 
             // Check convergence
             gradient_norm = grad.mapv(|x| x * x).sum().sqrt();
@@ -186,7 +183,7 @@ impl InteriorPointSolver {
         }
 
         // Compute final objective value
-        let objective_value = self.evaluate_objective(&x, &problem);
+        let objective_value = self.evaluate_objective(&x, problem);
 
         // Find active constraints
         let active_constraints = self.find_active_constraints(&x, &problem.constraints)?;
@@ -202,6 +199,7 @@ impl InteriorPointSolver {
     }
 
     /// Check if a point is feasible
+    #[allow(dead_code)] // utility predicate used by line search in future barrier method extensions
     fn is_feasible(
         &self,
         x: &Array1<f64>,
@@ -210,7 +208,7 @@ impl InteriorPointSolver {
         for constraint in constraints {
             match constraint {
                 ConstraintType::Inequality { matrix, rhs } => {
-                    let result = matrix * x;
+                    let result = matrix.dot(x);
                     for i in 0..result.len() {
                         if result[i] > rhs[i] + 1e-10 {
                             return Ok(false);
@@ -218,7 +216,7 @@ impl InteriorPointSolver {
                     }
                 }
                 ConstraintType::Equality { matrix, rhs } => {
-                    let result = matrix * x;
+                    let result = matrix.dot(x);
                     for i in 0..result.len() {
                         if (result[i] - rhs[i]).abs() > 1e-10 {
                             return Ok(false);
@@ -264,7 +262,7 @@ impl InteriorPointSolver {
                         for i in 0..n {
                             let lower = lower_bounds[i];
                             let upper = upper_bounds[i];
-                            let margin = ((upper - lower) * 0.1).min(0.1).max(1e-3);
+                            let margin = ((upper - lower) * 0.1).clamp(1e-3, 0.1);
                             x[i] = (lower + upper) / 2.0;
                             x[i] = x[i].max(lower + margin).min(upper - margin);
                         }
@@ -303,14 +301,14 @@ impl InteriorPointSolver {
         let n = x.len();
 
         // Original objective gradient and Hessian
-        let mut grad = &problem.hessian * x + &problem.linear_coeff;
+        let mut grad = problem.hessian.dot(x) + &problem.linear_coeff;
         let mut hess = problem.hessian.clone();
 
         // Add barrier terms
         for constraint in &problem.constraints {
             match constraint {
                 ConstraintType::Inequality { matrix, rhs } => {
-                    let slack = rhs - matrix * x;
+                    let slack = rhs - matrix.dot(x);
                     for i in 0..slack.len() {
                         if slack[i] <= 0.0 {
                             return Err(optimization_error(
@@ -393,7 +391,7 @@ impl InteriorPointSolver {
         x: &Array1<f64>,
         direction: &Array1<f64>,
         problem: &ConstrainedOptimizationProblem,
-        mu: f64,
+        _mu: f64,
     ) -> Result<f64, LinearModelError> {
         // Compute maximum step size to stay feasible
         let max_step = self.compute_max_step_size(x, direction, &problem.constraints)?;
@@ -450,8 +448,8 @@ impl InteriorPointSolver {
                     }
                 }
                 ConstraintType::Inequality { matrix, rhs } => {
-                    let ax = matrix * x;
-                    let ad = matrix * direction;
+                    let ax = matrix.dot(x);
+                    let ad = matrix.dot(direction);
                     for i in 0..ax.len() {
                         if ad[i] > 0.0 {
                             let step_to_bound = (rhs[i] - ax[i]) / ad[i];
@@ -477,7 +475,7 @@ impl InteriorPointSolver {
         for constraint in constraints {
             match constraint {
                 ConstraintType::Inequality { matrix, rhs } => {
-                    let result = matrix * x;
+                    let result = matrix.dot(x);
                     for i in 0..result.len() {
                         if result[i] >= rhs[i] - 1e-6 {
                             return Ok(false);
@@ -485,7 +483,7 @@ impl InteriorPointSolver {
                     }
                 }
                 ConstraintType::Equality { matrix, rhs } => {
-                    let result = matrix * x;
+                    let result = matrix.dot(x);
                     for i in 0..result.len() {
                         if (result[i] - rhs[i]).abs() > 1e-10 {
                             return Ok(false);
@@ -514,12 +512,8 @@ impl InteriorPointSolver {
     }
 
     /// Evaluate objective function
-    fn evaluate_objective(
-        &self,
-        x: &Array1<f64>,
-        problem: &ConstrainedOptimizationProblem,
-    ) -> f64 {
-        0.5 * x.dot(&(&problem.hessian * x)) + problem.linear_coeff.dot(x) + problem.constant
+    fn evaluate_objective(&self, x: &Array1<f64>, problem: &ConstrainedOptimizationProblem) -> f64 {
+        0.5 * x.dot(&problem.hessian.dot(x)) + problem.linear_coeff.dot(x) + problem.constant
     }
 
     /// Find active constraints
@@ -533,7 +527,7 @@ impl InteriorPointSolver {
         for (idx, constraint) in constraints.iter().enumerate() {
             match constraint {
                 ConstraintType::Inequality { matrix, rhs } => {
-                    let result = matrix * x;
+                    let result = matrix.dot(x);
                     for i in 0..result.len() {
                         if (result[i] - rhs[i]).abs() < 1e-8 {
                             active.push(idx);
@@ -573,6 +567,12 @@ impl InteriorPointSolver {
         }
 
         Ok(active)
+    }
+}
+
+impl Default for InteriorPointSolver {
+    fn default() -> Self {
+        Self::new(ConstrainedOptimizationConfig::default())
     }
 }
 
@@ -634,6 +634,8 @@ pub struct ConstrainedLinearRegression {
     solution: Option<ConstrainedOptimizationResult>,
 }
 
+// LinearModelError is a rich error enum; boxing would reduce diagnostic quality
+#[allow(clippy::result_large_err)]
 impl ConstrainedLinearRegression {
     /// Create a new constrained linear regression model
     pub fn new(config: ConstrainedOptimizationConfig) -> Self {
@@ -652,8 +654,6 @@ impl ConstrainedLinearRegression {
 
     /// Fit the model to data
     pub fn fit(&mut self, x: &Array2<f64>, y: &Array1<f64>) -> Result<(), LinearModelError> {
-        let n = x.ncols();
-
         // Construct the quadratic programming problem
         // min 0.5 * ||X*w - y||^2 = 0.5 * w^T * (X^T * X) * w - (X^T * y)^T * w + const
         let x_t = x.t();
@@ -677,7 +677,7 @@ impl ConstrainedLinearRegression {
     /// Predict using the fitted model
     pub fn predict(&self, x: &Array2<f64>) -> Result<Array1<f64>, LinearModelError> {
         match &self.solution {
-            Some(result) => Ok(x * &result.solution),
+            Some(result) => Ok(x.dot(&result.solution)),
             None => Err(optimization_error(
                 OptimizationErrorKind::InvalidProblemDimensions,
                 "ConstrainedLinearRegression",
@@ -750,8 +750,10 @@ mod tests {
             constraints,
         };
 
-        let mut config = ConstrainedOptimizationConfig::default();
-        config.tolerance = 1e-4; // More relaxed tolerance for test
+        let config = ConstrainedOptimizationConfig {
+            tolerance: 1e-4, // More relaxed tolerance for test
+            ..Default::default()
+        };
         let solver = InteriorPointSolver::new(config);
         let result = solver.solve(&problem).expect("solve should succeed");
 
@@ -776,17 +778,20 @@ mod tests {
                 3.0, 3.0, // [3, 3]
                 4.0, 2.0, // [4, 2]
             ],
-        ).expect("Failed to create Array2");
+        )
+        .expect("Failed to create Array2");
         let y = Array1::from_vec(vec![5.0, 3.0, 9.0, 8.0]); // y ≈ x1 + x2
 
-        let constraints = vec![ConstraintType::Box {
+        let constraints = [ConstraintType::Box {
             lower: Some(Array1::from_elem(2, 0.0)),
             upper: None,
         }];
 
-        let mut config = ConstrainedOptimizationConfig::default();
-        config.tolerance = 1e-3; // More relaxed tolerance
-        config.max_iterations = 500; // More iterations
+        let config = ConstrainedOptimizationConfig {
+            tolerance: 1e-3,     // More relaxed tolerance
+            max_iterations: 500, // More iterations
+            ..Default::default()
+        };
         let mut model = ConstrainedLinearRegression::new(config);
         model = model.add_constraint(constraints[0].clone());
 

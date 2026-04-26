@@ -6,8 +6,6 @@
 
 use crate::NeuralResult;
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
-use scirs2_core::random::thread_rng;
-use scirs2_core::SliceRandomExt;
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
 
@@ -155,8 +153,7 @@ impl ModelInterpreter {
         let baseline = self
             .config
             .baseline
-            .as_ref()
-            .map(|b| b.clone())
+            .clone()
             .unwrap_or_else(|| Array2::zeros(input.raw_dim()));
 
         if baseline.raw_dim() != input.raw_dim() {
@@ -171,7 +168,7 @@ impl ModelInterpreter {
         // Compute path integral
         for i in 0..self.config.n_steps {
             let alpha = (i as f64 + 1.0) / self.config.n_steps as f64;
-            let interpolated = &baseline + &((&*input - &baseline) * alpha);
+            let interpolated = &baseline + &((input - &baseline) * alpha);
 
             let gradients = model.compute_gradients(&interpolated, target_class)?;
             integrated_gradients = integrated_gradients + gradients;
@@ -308,7 +305,7 @@ impl ModelInterpreter {
         let (output, activations) = model.forward_with_activations(input)?;
 
         // Start with output relevance
-        let mut relevance = if let Some(class) = target_class {
+        let relevance = if let Some(class) = target_class {
             let mut r = Array2::zeros(output.raw_dim());
             for (i, mut row) in r.axis_iter_mut(Axis(0)).enumerate() {
                 if let Some(class_val) = output.get((i, class)) {
@@ -1161,7 +1158,7 @@ mod tests {
         assert_eq!(cav.concept_name, "concept_a");
         assert_eq!(cav.layer_name, "layer_2");
         assert_eq!(cav.vector.len(), 2);
-        assert!(cav.accuracy >= 0.0 && cav.accuracy <= 1.0);
+        assert!((0.0..=1.0).contains(&cav.accuracy));
     }
 
     #[test]
@@ -1185,7 +1182,7 @@ mod tests {
         let tcav = TCAVAnalyzer::tcav_score(&model, &cav, &test_instances, 0)
             .expect("operation should succeed");
 
-        assert!(tcav >= 0.0 && tcav <= 1.0);
+        assert!((0.0..=1.0).contains(&tcav));
     }
 
     #[test]

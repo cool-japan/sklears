@@ -5,10 +5,6 @@
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4, ArrayView2, Zip};
-use scirs2_core::numeric::Float;
-// SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use scirs2_core::random::RngExt;
-use sklears_core::traits::Estimator;
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -779,7 +775,7 @@ impl SpatialNaiveBayes {
         self.class_log_prior = class_priors.mapv(|p: f64| (p + 1e-10).ln());
 
         // Build spatial models for each class
-        for (class_idx, &class_label) in self.classes.iter().enumerate() {
+        for &class_label in self.classes.iter() {
             let class_images: Vec<&ImageData> = images
                 .iter()
                 .zip(y.iter())
@@ -956,7 +952,7 @@ impl SpatialNaiveBayes {
 
             for i in 0..grid_h {
                 for j in 0..grid_w {
-                    let current_value = features[[i, j]];
+                    let _current_value = features[[i, j]];
 
                     for di in -(self.config.neighborhood_radius as isize)
                         ..=(self.config.neighborhood_radius as isize)
@@ -1155,7 +1151,7 @@ pub mod utils {
     }
 }
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::field_reassign_with_default)]
 #[cfg(test)]
 mod tests {
 
@@ -1259,7 +1255,7 @@ mod tests {
         let features = nb
             .extract_spatial_features(&image)
             .expect("operation should succeed");
-        assert!(features.len() > 0);
+        assert!(!features.is_empty());
     }
 
     #[test]
@@ -1270,7 +1266,7 @@ mod tests {
         let features = nb
             .extract_texture_features(&image)
             .expect("operation should succeed");
-        assert!(features.len() > 0);
+        assert!(!features.is_empty());
     }
 
     #[test]
@@ -1341,11 +1337,11 @@ mod tests {
         let empty_labels = Array1::from_vec(vec![]);
 
         // Test mismatched dimensions
-        let result = nb.fit(&vec![image], &empty_labels);
+        let result = nb.fit(&[image], &empty_labels);
         assert!(result.is_err());
 
         // Test prediction before fitting
-        let prediction_result = nb.predict(&vec![]);
+        let prediction_result = nb.predict(&[]);
         assert!(prediction_result.is_err());
     }
 }

@@ -67,7 +67,7 @@ pub enum RegularizationType {
 ///     .lambda(0.01)
 ///     .build();
 ///
-/// let fitted = model.fit(&X.view(), &()).unwrap();
+/// let fitted = model.fit(&X.view(), &()).expect("L1-regularized GMM fitting should succeed with valid data");
 /// ```
 #[derive(Debug, Clone)]
 pub struct L1RegularizedGMM<S = Untrained> {
@@ -427,12 +427,19 @@ impl Predict<ArrayView2<'_, Float>, Array1<usize>> for L1RegularizedGMM<L1Regula
 // L2 Regularized GMM (similar structure)
 #[derive(Debug, Clone)]
 pub struct L2RegularizedGMM<S = Untrained> {
+    #[allow(dead_code)]
     n_components: usize,
+    #[allow(dead_code)]
     lambda: f64,
+    #[allow(dead_code)]
     covariance_type: CovarianceType,
+    #[allow(dead_code)]
     max_iter: usize,
+    #[allow(dead_code)]
     tol: f64,
+    #[allow(dead_code)]
     reg_covar: f64,
+    #[allow(dead_code)]
     random_state: Option<u64>,
     _phantom: std::marker::PhantomData<S>,
 }
@@ -510,8 +517,11 @@ impl L2RegularizedGMM<Untrained> {
 // Elastic Net GMM
 #[derive(Debug, Clone)]
 pub struct ElasticNetGMM<S = Untrained> {
+    #[allow(dead_code)]
     n_components: usize,
+    #[allow(dead_code)]
     l1_ratio: f64,
+    #[allow(dead_code)]
     lambda: f64,
     _phantom: std::marker::PhantomData<S>,
 }
@@ -578,8 +588,11 @@ impl ElasticNetGMM<Untrained> {
 // Group Lasso GMM
 #[derive(Debug, Clone)]
 pub struct GroupLassoGMM<S = Untrained> {
+    #[allow(dead_code)]
     n_components: usize,
+    #[allow(dead_code)]
     lambda: f64,
+    #[allow(dead_code)]
     groups: Vec<Vec<usize>>,
     _phantom: std::marker::PhantomData<S>,
 }
@@ -670,6 +683,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_l1_regularized_gmm_fit() {
         let X = array![[1.0, 2.0], [1.5, 2.5], [10.0, 11.0], [10.5, 11.5]];
 

@@ -1,4 +1,6 @@
 //! Manifold Learning Imputer
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides manifold learning-based imputation methods.
 //!

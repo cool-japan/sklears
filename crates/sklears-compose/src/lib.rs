@@ -1,17 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(unused_mut)]
-#![allow(unused_assignments)]
-#![allow(unused_doc_comments)]
-#![allow(unused_parens)]
-#![allow(unused_comparisons)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
 //! Composite estimators and transformers
 //!
 //! This module provides meta-estimators for composing other estimators.
@@ -122,11 +108,11 @@
 //! - [`stress_testing`] - Stress testing and edge-case generation.
 //!   Experimental in v0.1.0. API may change.
 //!
-//! ## Known Limitations
+//! ## Notes
 //!
-//! The following modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
-//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
-//! - `cross_validation` - Cross-validation for composed models and pipelines
+//! The `cross_validation` module was previously disabled due to ndarray HRTB (Higher-Ranked
+//! Trait Bound) lifetime constraints introduced in ndarray 0.17. It has been re-enabled in
+//! v0.1.1 via the `FitCV`/`PredictCV` adapter traits which use owned arrays to eliminate HRTB.
 
 // #![warn(missing_docs)]
 
@@ -145,8 +131,7 @@ pub mod error;
 pub mod config_management;
 pub mod configuration_validation;
 pub mod continual_learning;
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub mod cross_validation;
+pub mod cross_validation;
 pub mod cv_pipelines;
 pub mod dag_pipeline;
 pub mod debugging;
@@ -277,12 +262,11 @@ pub use continual_learning::{
     ContinualLearningPipeline, ContinualLearningPipelineTrained, ContinualLearningStrategy,
     MemoryBuffer, MemorySample as ContinualMemorySample, SamplingStrategy, Task, TaskStatistics,
 };
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub use cross_validation::{
-//     CVStrategy, CVSummary, ComposedModelCrossValidator, CrossValidationConfig,
-//     CrossValidationResults, FoldResult, NestedCVResults, OuterFoldResult, ScoringConfig,
-//     ScoringMetric as CVScoringMetric, TimeSeriesConfig,
-// };
+pub use cross_validation::{
+    CVStrategy, CVSummary, ComposedModelCrossValidator, CrossValidationConfig,
+    CrossValidationResults, FitCV, FoldResult, NestedCVResults, OuterFoldResult, PredictCV,
+    ScoringConfig, ScoringMetric as CVScoringMetric, TimeSeriesConfig,
+};
 pub use cv_pipelines::{
     AdaptationAlgorithm, AdaptationMetric, AdaptiveQualityConfig, BoundingBox,
     BufferManagementConfig, CVConfig, CVMetrics, CVModel, CVPipeline, CVPipelineState,
@@ -456,7 +440,7 @@ pub use middleware::{
     MiddlewareStats, MonitoringMiddleware, PipelineMiddleware, TransformationMiddleware,
     UserInfo as MiddlewareUserInfo, ValidationMiddleware,
 };
-pub use mock::{MockPredictor, MockTransformer};
+pub use mock::{DropTransformer, MockPredictor, MockTransformer, PassthroughTransformer};
 pub use modular_framework::{
     CapabilityMismatch, CompatibilityReport, ComponentCapability, ComponentConfig,
     ComponentDependency, ComponentFactory, ComponentInfo, ComponentMetadata, ComponentNode,
@@ -652,7 +636,7 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::types::Float;
 use sklears_core::{
     error::Result as SklResult,
-    prelude::{Fit as CoreFit, Predict, SklearsError, Transform},
+    prelude::{SklearsError, Transform},
     traits::{Estimator, Fit, Untrained},
 };
 use std::collections::HashMap;
@@ -693,6 +677,7 @@ pub struct TransformedTargetRegressor<S = Untrained> {
 }
 
 /// Trained state for `TransformedTargetRegressor`
+#[allow(dead_code)]
 pub struct TransformedTargetRegressorTrained {
     fitted_regressor: Box<dyn PipelinePredictor>,
     fitted_transformer: Option<TransformBox>,
@@ -815,7 +800,7 @@ impl TransformedTargetRegressor<TransformedTargetRegressorTrained> {
         // Apply inverse transformation
         let predictions = if let Some(inverse_func) = self.state.inverse_func {
             inverse_func(&transformed_predictions.view())
-        } else if let Some(ref transformer) = self.state.fitted_transformer {
+        } else if let Some(ref _transformer) = self.state.fitted_transformer {
             // Note: This assumes the transformer has an inverse_transform method
             // In a real implementation, you'd need a proper inverse transformer trait
             transformed_predictions
@@ -859,6 +844,7 @@ pub struct FeatureUnion<S = Untrained> {
 
 /// Trained state for `FeatureUnion`
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct FeatureUnionTrained {
     fitted_transformers: Vec<(String, Box<dyn PipelineStep>)>,
     n_features_in: usize,
@@ -1020,7 +1006,7 @@ mod tests {
         let transformer = MockTransformer::new();
         let x = array![[1.0, 2.0], [3.0, 4.0]];
         let result = crate::PipelineStep::transform(&transformer, &x.view()).unwrap_or_default();
-        assert_eq!(result, x.mapv(|v| v as f64));
+        assert_eq!(result, x);
     }
 
     #[test]

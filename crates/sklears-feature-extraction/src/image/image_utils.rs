@@ -311,6 +311,8 @@ pub mod simd_image {
 
         // First pass: horizontal blur
         let mut temp = Array2::zeros((height, width));
+        #[allow(clippy::needless_range_loop)]
+        // k used in arithmetic offset computation, not just indexing
         for i in 0..height {
             for j in 0..width {
                 let mut sum = 0.0;
@@ -325,6 +327,8 @@ pub mod simd_image {
 
         // Second pass: vertical blur
         let mut result = Array2::zeros((height, width));
+        #[allow(clippy::needless_range_loop)]
+        // k used in arithmetic offset computation, not just indexing
         for i in 0..height {
             for j in 0..width {
                 let mut sum = 0.0;
@@ -721,7 +725,7 @@ pub fn compute_image_statistics(image: &ArrayView2<Float>) -> (Float, Float, Flo
     let std_dev = variance.sqrt();
 
     // Compute skewness and kurtosis
-    let values_f64: Vec<f64> = values.iter().map(|&x| x).collect();
+    let values_f64: Vec<f64> = values.to_vec();
     let skewness = compute_skewness_fallback(&values_f64, mean, std_dev) as Float;
     let kurtosis = compute_kurtosis_fallback(&values_f64, mean, std_dev) as Float;
 

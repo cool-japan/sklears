@@ -379,12 +379,12 @@ impl NumericalStability {
         let mut v = Array1::from_vec((0..n).map(|_| fastrand::f64()).collect::<Vec<Float>>());
         v = v.clone() / (v.dot(&v).sqrt()); // Normalize
 
-        // Lanczos vectors
-        let mut V = Array2::zeros((n, m));
+        // Lanczos basis vectors (standard ML notation: V is the Krylov basis matrix)
+        let mut basis = Array2::zeros((n, m));
         let mut alpha = Array1::zeros(m);
         let mut beta = Array1::zeros(m - 1);
 
-        V.column_mut(0).assign(&v);
+        basis.column_mut(0).assign(&v);
         let mut w = matrix.dot(&v);
         alpha[0] = v.dot(&w);
         w = w - alpha[0] * &v;
@@ -398,23 +398,23 @@ impl NumericalStability {
             }
 
             v = w / beta[j - 1];
-            V.column_mut(j).assign(&v);
-            w = matrix.dot(&v) - beta[j - 1] * V.column(j - 1).to_owned();
+            basis.column_mut(j).assign(&v);
+            w = matrix.dot(&v) - beta[j - 1] * basis.column(j - 1).to_owned();
             alpha[j] = v.dot(&w);
             w = w - alpha[j] * &v;
 
             // Re-orthogonalize if necessary
             if j % 10 == 0 {
-                let v_partial = V.slice(s![.., ..=j]).to_owned();
+                let v_partial = basis.slice(s![.., ..=j]).to_owned();
                 self.reorthogonalize(&mut w, &v_partial)?;
             }
         }
 
-        // Construct tridiagonal matrix T
-        let T = self.construct_tridiagonal(&alpha, &beta, m)?;
+        // Construct tridiagonal matrix (standard ML notation: T is the projection)
+        let tridiag = self.construct_tridiagonal(&alpha, &beta, m)?;
 
         // Solve eigenvalue problem for tridiagonal matrix
-        let (theta, y) = self.tridiagonal_eigen_decomposition(&T)?;
+        let (theta, y) = self.tridiagonal_eigen_decomposition(&tridiag)?;
 
         // Take the k largest eigenvalues
         let mut indices: Vec<usize> = (0..theta.len()).collect();
@@ -426,10 +426,10 @@ impl NumericalStability {
 
         let eigenvalues = Array1::from_iter(indices.iter().take(k).map(|&i| theta[i]));
 
-        // Compute Ritz vectors: eigenvectors = V * y
+        // Compute Ritz vectors: eigenvectors = basis * y
         let mut eigenvectors = Array2::zeros((n, k));
         for i in 0..k {
-            let ritz_vec = V.slice(s![.., ..m]).dot(&y.column(indices[i]));
+            let ritz_vec = basis.slice(s![.., ..m]).dot(&y.column(indices[i]));
             eigenvectors.column_mut(i).assign(&ritz_vec);
         }
 
@@ -440,10 +440,11 @@ impl NumericalStability {
     fn reorthogonalize(
         &self,
         w: &mut Array1<Float>,
-        V: &ArrayBase<OwnedRepr<Float>, Ix2>,
+        // standard ML notation: V is the matrix of Lanczos basis vectors
+        basis_vecs: &ArrayBase<OwnedRepr<Float>, Ix2>,
     ) -> Result<()> {
-        for j in 0..V.ncols() {
-            let v_j = V.column(j);
+        for j in 0..basis_vecs.ncols() {
+            let v_j = basis_vecs.column(j);
             let projection = v_j.dot(w);
             *w = &*w - projection * &v_j;
         }
@@ -457,20 +458,21 @@ impl NumericalStability {
         beta: &Array1<Float>,
         m: usize,
     ) -> Result<Array2<Float>> {
-        let mut T = Array2::zeros((m, m));
+        // standard ML notation: T is the tridiagonal projection matrix
+        let mut tridiag = Array2::zeros((m, m));
 
         // Fill diagonal with alpha values
         for i in 0..m {
-            T[[i, i]] = alpha[i];
+            tridiag[[i, i]] = alpha[i];
         }
 
         // Fill off-diagonal with beta values
         for i in 0..m - 1 {
-            T[[i, i + 1]] = beta[i];
-            T[[i + 1, i]] = beta[i];
+            tridiag[[i, i + 1]] = beta[i];
+            tridiag[[i + 1, i]] = beta[i];
         }
 
-        Ok(T)
+        Ok(tridiag)
     }
 
     /// Solve eigenvalue problem for tridiagonal matrix
@@ -536,7 +538,7 @@ impl NumericalStability {
             let mut sorted = history_vec.clone();
             sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             let mid = sorted.len() / 2;
-            if sorted.len() % 2 == 0 {
+            if sorted.len().is_multiple_of(2) {
                 (sorted[mid - 1] + sorted[mid]) / 2.0
             } else {
                 sorted[mid]

@@ -660,7 +660,7 @@ impl OptimizationValidator {
     }
 }
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::field_reassign_with_default)]
 #[cfg(test)]
 mod tests {
     use super::*;

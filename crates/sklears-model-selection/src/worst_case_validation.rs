@@ -13,6 +13,15 @@ use scirs2_core::SliceRandomExt;
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
+/// Box-erased error type
+type BoxError = Box<dyn std::error::Error>;
+/// A single worst-case scenario: (X, y, name)
+type ScenarioItem = (Array2<Float>, Array1<Float>, String);
+/// Result of generating multiple worst-case scenarios
+type ScenariosResult = Result<Vec<ScenarioItem>, BoxError>;
+/// Result of generating a single worst-case scenario
+type SingleScenarioResult = Result<ScenarioItem, BoxError>;
+
 /// Worst-case scenario types
 #[derive(Debug, Clone)]
 pub enum WorstCaseScenario {
@@ -244,11 +253,7 @@ impl WorstCaseScenarioGenerator {
     }
 
     /// Generate worst-case scenarios for given data
-    pub fn generate_scenarios(
-        &mut self,
-        x: &Array2<Float>,
-        y: &Array1<Float>,
-    ) -> Result<Vec<(Array2<Float>, Array1<Float>, String)>, Box<dyn std::error::Error>> {
+    pub fn generate_scenarios(&mut self, x: &Array2<Float>, y: &Array1<Float>) -> ScenariosResult {
         let mut scenarios = Vec::new();
 
         let scenarios_clone = self.config.scenarios.clone();
@@ -272,7 +277,7 @@ impl WorstCaseScenarioGenerator {
         y: &Array1<Float>,
         scenario: &WorstCaseScenario,
         severity: Float,
-    ) -> Result<(Array2<Float>, Array1<Float>, String), Box<dyn std::error::Error>> {
+    ) -> SingleScenarioResult {
         match scenario {
             WorstCaseScenario::AdversarialExamples {
                 epsilon,

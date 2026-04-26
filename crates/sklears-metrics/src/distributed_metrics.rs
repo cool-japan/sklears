@@ -25,17 +25,18 @@
 //! ```
 
 use crate::{MetricsError, MetricsResult};
-use flate2::read::GzDecoder;
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use rayon::prelude::*;
 use scirs2_core::ndarray::{s, ArrayView1};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::io::prelude::*;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
+
+/// Type alias for a named metric computation closure used in model-parallel dispatch
+type MetricComputeFn = Box<dyn Fn() -> Result<f64, MetricsError> + Send>;
+/// Type alias for a vector of named metric computations with static string names
+type NamedMetricComputations = Vec<(&'static str, MetricComputeFn)>;
 
 #[cfg(feature = "distributed")]
 use mpi::{environment::Universe, traits::*};
@@ -235,14 +236,18 @@ pub struct DistributedResults {
 /// Thread-local storage for metric accumulation
 pub struct ThreadLocalMetrics {
     accumulator: RwLock<MetricAccumulator>,
-    thread_id: thread::ThreadId,
+}
+
+impl Default for ThreadLocalMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ThreadLocalMetrics {
     pub fn new() -> Self {
         Self {
             accumulator: RwLock::new(MetricAccumulator::new()),
-            thread_id: thread::current().id(),
         }
     }
 
@@ -408,15 +413,8 @@ impl CompressionUtilities {
 
         let compressed = match method {
             CompressionMethod::None => data.to_vec(),
-            CompressionMethod::Gzip => {
-                let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-                encoder
-                    .write_all(data)
-                    .map_err(|e| MetricsError::InvalidInput(format!("Compression error: {}", e)))?;
-                encoder
-                    .finish()
-                    .map_err(|e| MetricsError::InvalidInput(format!("Compression error: {}", e)))?
-            }
+            CompressionMethod::Gzip => oxiarc_deflate::gzip_compress(data, 6)
+                .map_err(|e| MetricsError::InvalidInput(format!("Compression error: {}", e)))?,
             CompressionMethod::Lz4 => {
                 // Fallback to no compression for LZ4 (would need lz4 crate)
                 data.to_vec()
@@ -424,11 +422,7 @@ impl CompressionUtilities {
             CompressionMethod::Adaptive => {
                 // Choose compression based on data characteristics
                 if data.len() > 1024 && Self::should_compress(data) {
-                    let mut encoder = GzEncoder::new(Vec::new(), Compression::fast());
-                    encoder.write_all(data).map_err(|e| {
-                        MetricsError::InvalidInput(format!("Compression error: {}", e))
-                    })?;
-                    encoder.finish().map_err(|e| {
+                    oxiarc_deflate::gzip_compress(data, 1).map_err(|e| {
                         MetricsError::InvalidInput(format!("Compression error: {}", e))
                     })?
                 } else {
@@ -466,14 +460,8 @@ impl CompressionUtilities {
 
         let decompressed = match method {
             CompressionMethod::None => data.to_vec(),
-            CompressionMethod::Gzip => {
-                let mut decoder = GzDecoder::new(data);
-                let mut decompressed = Vec::new();
-                decoder.read_to_end(&mut decompressed).map_err(|e| {
-                    MetricsError::InvalidInput(format!("Decompression error: {}", e))
-                })?;
-                decompressed
-            }
+            CompressionMethod::Gzip => oxiarc_deflate::gzip_decompress(data)
+                .map_err(|e| MetricsError::InvalidInput(format!("Decompression error: {}", e)))?,
             CompressionMethod::Lz4 => {
                 // Fallback to no decompression for LZ4
                 data.to_vec()
@@ -483,12 +471,7 @@ impl CompressionUtilities {
                 if data.len() < 3 || &data[0..2] != b"\x1f\x8b" {
                     data.to_vec()
                 } else {
-                    let mut decoder = GzDecoder::new(data);
-                    let mut decompressed = Vec::new();
-                    match decoder.read_to_end(&mut decompressed) {
-                        Ok(_) => decompressed,
-                        Err(_) => data.to_vec(), // Fallback
-                    }
+                    oxiarc_deflate::gzip_decompress(data).unwrap_or_else(|_| data.to_vec())
                 }
             }
         };
@@ -528,14 +511,12 @@ impl CompressionUtilities {
 /// Dynamic load balancer for distributed computation
 pub struct DynamicLoadBalancer {
     node_performance_history: HashMap<usize, Vec<NodePerformance>>,
-    target_imbalance: f64,
 }
 
 impl DynamicLoadBalancer {
-    pub fn new(target_imbalance: f64) -> Self {
+    pub fn new(_target_imbalance: f64) -> Self {
         Self {
             node_performance_history: HashMap::new(),
-            target_imbalance,
         }
     }
 
@@ -608,10 +589,7 @@ impl DynamicLoadBalancer {
 
     /// Update performance history for a node
     pub fn update_performance_history(&mut self, node_id: usize, performance: NodePerformance) {
-        let history = self
-            .node_performance_history
-            .entry(node_id)
-            .or_insert_with(Vec::new);
+        let history = self.node_performance_history.entry(node_id).or_default();
         history.push(performance);
 
         // Keep only recent history (last 10 entries)
@@ -625,9 +603,7 @@ impl DynamicLoadBalancer {
 pub struct DistributedMetricsComputer {
     config: DistributedConfig,
     load_balancer: DynamicLoadBalancer,
-    compression_stats: Option<CompressionStats>,
     fault_tolerance_info: FaultToleranceInfo,
-    node_performance: Vec<NodePerformance>,
     #[cfg(feature = "distributed")]
     universe: Option<Universe>,
     thread_local_storage: Arc<Mutex<HashMap<thread::ThreadId, ThreadLocalMetrics>>>,
@@ -654,7 +630,6 @@ impl DistributedMetricsComputer {
             Ok(Self {
                 config,
                 load_balancer,
-                compression_stats: None,
                 fault_tolerance_info: FaultToleranceInfo {
                     checkpoints_created: 0,
                     checkpoints_restored: 0,
@@ -662,7 +637,6 @@ impl DistributedMetricsComputer {
                     recovery_time: Duration::from_secs(0),
                     data_loss_bytes: 0,
                 },
-                node_performance: Vec::new(),
                 universe: Some(universe),
                 thread_local_storage: Arc::new(Mutex::new(HashMap::new())),
             })
@@ -673,7 +647,6 @@ impl DistributedMetricsComputer {
             Ok(Self {
                 config,
                 load_balancer,
-                compression_stats: None,
                 fault_tolerance_info: FaultToleranceInfo {
                     checkpoints_created: 0,
                     checkpoints_restored: 0,
@@ -681,7 +654,6 @@ impl DistributedMetricsComputer {
                     recovery_time: Duration::from_secs(0),
                     data_loss_bytes: 0,
                 },
-                node_performance: Vec::new(),
                 thread_local_storage: Arc::new(Mutex::new(HashMap::new())),
             })
         }
@@ -848,7 +820,7 @@ impl DistributedMetricsComputer {
         // Dynamic load balancing: calculate work distribution
         let work_distribution = match self.config.load_balance_strategy {
             LoadBalanceStrategy::Static => {
-                let chunk_size = (data_len + self.config.num_workers - 1) / self.config.num_workers;
+                let chunk_size = data_len.div_ceil(self.config.num_workers);
                 (0..self.config.num_workers)
                     .map(|i| {
                         let start = i * chunk_size;
@@ -988,7 +960,7 @@ impl DistributedMetricsComputer {
         let data_len = y_true.len();
 
         // Calculate data partition for this rank
-        let chunk_size = (data_len + size as usize - 1) / size as usize;
+        let chunk_size = data_len.div_ceil(size as usize);
         let start_idx = rank as usize * chunk_size;
         let end_idx = ((rank + 1) as usize * chunk_size).min(data_len);
 
@@ -1085,99 +1057,96 @@ impl DistributedMetricsComputer {
             });
         }
 
-        // Convert to owned arrays for metric computation
-        let y_true_owned = y_true.to_owned();
-        let y_pred_owned = y_pred.to_owned();
+        // Convert to owned arrays wrapped in Arc for sharing across move closures
+        let y_true_owned = Arc::new(y_true.to_owned());
+        let y_pred_owned = Arc::new(y_pred.to_owned());
 
         // Define metrics to compute in parallel
-        let metric_computations: Vec<(&str, Box<dyn Fn() -> Result<f64, MetricsError> + Send>)> = vec![
-            (
-                "accuracy",
-                Box::new(|| accuracy_score(&y_true_owned, &y_pred_owned)),
-            ),
-            (
-                "precision_macro",
-                Box::new(|| {
-                    // Calculate macro-averaged precision
-                    let unique_labels: std::collections::BTreeSet<_> = y_true_owned
-                        .iter()
-                        .chain(y_pred_owned.iter())
-                        .cloned()
-                        .collect();
-                    let mut precisions = Vec::new();
-                    for &label in &unique_labels {
-                        if let Ok(p) = precision_score(&y_true_owned, &y_pred_owned, Some(label)) {
-                            precisions.push(p);
+        let metric_computations: NamedMetricComputations = {
+            let yt0 = Arc::clone(&y_true_owned);
+            let yp0 = Arc::clone(&y_pred_owned);
+            let yt1 = Arc::clone(&y_true_owned);
+            let yp1 = Arc::clone(&y_pred_owned);
+            let yt2 = Arc::clone(&y_true_owned);
+            let yp2 = Arc::clone(&y_pred_owned);
+            let yt3 = Arc::clone(&y_true_owned);
+            let yp3 = Arc::clone(&y_pred_owned);
+            vec![
+                (
+                    "accuracy",
+                    Box::new(move || accuracy_score(&*yt0, &*yp0)) as MetricComputeFn,
+                ),
+                (
+                    "precision_macro",
+                    Box::new(move || {
+                        // Calculate macro-averaged precision
+                        let unique_labels: std::collections::BTreeSet<_> =
+                            yt1.iter().chain(yp1.iter()).cloned().collect();
+                        let mut precisions = Vec::new();
+                        for &label in &unique_labels {
+                            if let Ok(p) = precision_score(&*yt1, &*yp1, Some(label)) {
+                                precisions.push(p);
+                            }
                         }
-                    }
-                    Ok(if precisions.is_empty() {
-                        0.0
-                    } else {
-                        precisions.iter().sum::<f64>() / precisions.len() as f64
-                    })
-                }),
-            ),
-            (
-                "recall_macro",
-                Box::new(|| {
-                    // Calculate macro-averaged recall
-                    let unique_labels: std::collections::BTreeSet<_> = y_true_owned
-                        .iter()
-                        .chain(y_pred_owned.iter())
-                        .cloned()
-                        .collect();
-                    let mut recalls = Vec::new();
-                    for &label in &unique_labels {
-                        if let Ok(r) = recall_score(&y_true_owned, &y_pred_owned, Some(label)) {
-                            recalls.push(r);
+                        Ok(if precisions.is_empty() {
+                            0.0
+                        } else {
+                            precisions.iter().sum::<f64>() / precisions.len() as f64
+                        })
+                    }) as MetricComputeFn,
+                ),
+                (
+                    "recall_macro",
+                    Box::new(move || {
+                        // Calculate macro-averaged recall
+                        let unique_labels: std::collections::BTreeSet<_> =
+                            yt2.iter().chain(yp2.iter()).cloned().collect();
+                        let mut recalls = Vec::new();
+                        for &label in &unique_labels {
+                            if let Ok(r) = recall_score(&*yt2, &*yp2, Some(label)) {
+                                recalls.push(r);
+                            }
                         }
-                    }
-                    Ok(if recalls.is_empty() {
-                        0.0
-                    } else {
-                        recalls.iter().sum::<f64>() / recalls.len() as f64
-                    })
-                }),
-            ),
-            (
-                "f1_macro",
-                Box::new(|| {
-                    // Calculate macro-averaged F1
-                    let unique_labels: std::collections::BTreeSet<_> = y_true_owned
-                        .iter()
-                        .chain(y_pred_owned.iter())
-                        .cloned()
-                        .collect();
-                    let mut f1s = Vec::new();
-                    for &label in &unique_labels {
-                        if let Ok(f) = f1_score(&y_true_owned, &y_pred_owned, Some(label)) {
-                            f1s.push(f);
+                        Ok(if recalls.is_empty() {
+                            0.0
+                        } else {
+                            recalls.iter().sum::<f64>() / recalls.len() as f64
+                        })
+                    }) as MetricComputeFn,
+                ),
+                (
+                    "f1_macro",
+                    Box::new(move || {
+                        // Calculate macro-averaged F1
+                        let unique_labels: std::collections::BTreeSet<_> =
+                            yt3.iter().chain(yp3.iter()).cloned().collect();
+                        let mut f1s = Vec::new();
+                        for &label in &unique_labels {
+                            if let Ok(f) = f1_score(&*yt3, &*yp3, Some(label)) {
+                                f1s.push(f);
+                            }
                         }
-                    }
-                    Ok(if f1s.is_empty() {
-                        0.0
-                    } else {
-                        f1s.iter().sum::<f64>() / f1s.len() as f64
-                    })
-                }),
-            ),
-        ];
+                        Ok(if f1s.is_empty() {
+                            0.0
+                        } else {
+                            f1s.iter().sum::<f64>() / f1s.len() as f64
+                        })
+                    }) as MetricComputeFn,
+                ),
+            ]
+        };
 
         // Distribute metric computations across workers
-        let chunk_size =
-            (metric_computations.len() + self.config.num_workers - 1) / self.config.num_workers;
+        let chunk_size = metric_computations.len().div_ceil(self.config.num_workers);
         let metric_results: Vec<(String, f64)> = metric_computations
             .chunks(chunk_size)
-            .enumerate()
-            .flat_map(|(_, chunk)| {
+            .flat_map(|chunk| {
                 chunk
                     .iter()
                     .filter_map(
-                        |(name, compute): &(&str, Box<dyn Fn() -> MetricsResult<f64> + Send>)| {
-                            match compute() {
-                                Ok(value) => Some((name.to_string(), value)),
-                                Err(_) => None,
-                            }
+                        |(name, compute): &(&str, MetricComputeFn)| match compute() {
+                            Ok(value) => Some((name.to_string(), value)),
+                            Err(_) => None,
                         },
                     )
                     .collect::<Vec<_>>()
@@ -1227,7 +1196,7 @@ impl DistributedMetricsComputer {
         }
 
         // Split data into mini-batches for pipeline processing
-        let batch_size = (data_len + self.config.num_workers - 1) / self.config.num_workers;
+        let batch_size = data_len.div_ceil(self.config.num_workers);
         let batches: Vec<_> = (0..data_len)
             .step_by(batch_size)
             .map(|i| (i, (i + batch_size).min(data_len)))
@@ -1306,7 +1275,7 @@ impl DistributedMetricsComputer {
         }
 
         // Split data into chunks (data parallelism)
-        let chunk_size = (data_len + self.config.num_workers - 1) / self.config.num_workers;
+        let chunk_size = data_len.div_ceil(self.config.num_workers);
         let chunks: Vec<_> = (0..data_len)
             .step_by(chunk_size)
             .map(|i| (i, (i + chunk_size).min(data_len)))
@@ -1443,7 +1412,7 @@ impl DistributedMetricsComputer {
         }
 
         // Split data into chunks
-        let chunk_size = (data_len + self.config.num_workers - 1) / self.config.num_workers;
+        let chunk_size = data_len.div_ceil(self.config.num_workers);
         let chunks: Vec<_> = (0..data_len)
             .step_by(chunk_size)
             .map(|i| (i, (i + chunk_size).min(data_len)))
@@ -1557,7 +1526,7 @@ impl DistributedMetricsComputer {
         let data_len = y_true.len();
 
         // Split into batches for pipeline processing
-        let batch_size = (data_len + self.config.num_workers - 1) / self.config.num_workers;
+        let batch_size = data_len.div_ceil(self.config.num_workers);
         let batches: Vec<_> = (0..data_len)
             .step_by(batch_size)
             .map(|i| (i, (i + batch_size).min(data_len)))
@@ -1643,7 +1612,7 @@ impl DistributedMetricsComputer {
         let coefficient_of_variation = variance.sqrt() / mean;
 
         // Convert to efficiency (0.0 to 1.0, higher is better)
-        (1.0 / (1.0 + coefficient_of_variation)).max(0.0).min(1.0)
+        (1.0 / (1.0 + coefficient_of_variation)).clamp(0.0, 1.0)
     }
 
     /// Get thread-local metrics storage
@@ -1666,7 +1635,7 @@ impl DistributedMetricsComputer {
 
         let thread_local = storage
             .entry(thread_id)
-            .or_insert_with(|| ThreadLocalMetrics::new());
+            .or_insert_with(ThreadLocalMetrics::new);
 
         thread_local.update(updater)
     }

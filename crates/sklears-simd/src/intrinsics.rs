@@ -41,7 +41,11 @@ pub mod hints {
         }
     }
 
-    /// Hint to the compiler that this code path is unreachable
+    /// Hint to the compiler that this code path is unreachable.
+    ///
+    /// # Safety
+    ///
+    /// Calling this function when the code path is actually reachable is undefined behaviour.
     #[inline(always)]
     pub unsafe fn unreachable_unchecked() -> ! {
         #[cfg(feature = "no-std")]
@@ -83,33 +87,35 @@ pub mod alignment {
     /// Check if a pointer is aligned to the specified boundary
     #[inline(always)]
     pub fn is_aligned<T>(ptr: *const T, alignment: usize) -> bool {
-        (ptr as usize) % alignment == 0
+        (ptr as usize).is_multiple_of(alignment)
     }
 
-    /// Assume that a pointer is aligned (optimization hint)
+    /// Assume that a pointer is aligned (optimization hint).
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be aligned to `alignment` bytes; calling this function with a
+    /// misaligned pointer is undefined behaviour.
     #[inline(always)]
     pub unsafe fn assume_aligned<T>(ptr: *const T, alignment: usize) -> *const T {
-        #[cfg(feature = "no-std")]
-        {
-            core::hint::assert_unchecked(is_aligned(ptr, alignment));
-        }
-        #[cfg(not(feature = "no-std"))]
-        {
-            std::hint::assert_unchecked(is_aligned(ptr, alignment));
+        if !is_aligned(ptr, alignment) {
+            // Safety: caller guarantees alignment; this branch is unreachable.
+            unsafe { core::hint::unreachable_unchecked() }
         }
         ptr
     }
 
-    /// Assume that a mutable pointer is aligned (optimization hint)
+    /// Assume that a mutable pointer is aligned (optimization hint).
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be aligned to `alignment` bytes; calling this function with a
+    /// misaligned pointer is undefined behaviour.
     #[inline(always)]
     pub unsafe fn assume_aligned_mut<T>(ptr: *mut T, alignment: usize) -> *mut T {
-        #[cfg(feature = "no-std")]
-        {
-            core::hint::assert_unchecked(is_aligned(ptr, alignment));
-        }
-        #[cfg(not(feature = "no-std"))]
-        {
-            std::hint::assert_unchecked(is_aligned(ptr, alignment));
+        if !is_aligned(ptr, alignment) {
+            // Safety: caller guarantees alignment; this branch is unreachable.
+            unsafe { core::hint::unreachable_unchecked() }
         }
         ptr
     }
@@ -136,19 +142,33 @@ pub mod x86 {
             }
         }
 
-        /// Safe vector load with alignment check
-        pub fn load_aligned_f32(ptr: *const f32) -> __m128 {
+        /// Load aligned f32 vector from raw pointer.
+        ///
+        /// # Safety
+        ///
+        /// `ptr` must be non-null, aligned to a 16-byte boundary, and point to at least 4 valid
+        /// `f32` values. Passing a misaligned or dangling pointer is undefined behaviour.
+        pub unsafe fn load_aligned_f32(ptr: *const f32) -> __m128 {
             debug_assert!(super::super::alignment::is_aligned(ptr, 16));
             unsafe { _mm_load_ps(ptr) }
         }
 
-        /// Safe vector store with alignment check
-        pub fn store_aligned_f32(ptr: *mut f32, v: __m128) {
+        /// Store aligned f32 vector to raw pointer.
+        ///
+        /// # Safety
+        ///
+        /// `ptr` must be non-null, aligned to a 16-byte boundary, and point to at least 4 writable
+        /// `f32` slots. Passing a misaligned or dangling pointer is undefined behaviour.
+        pub unsafe fn store_aligned_f32(ptr: *mut f32, v: __m128) {
             debug_assert!(super::super::alignment::is_aligned(ptr, 16));
             unsafe { _mm_store_ps(ptr, v) }
         }
 
-        /// Safe fused multiply-add
+        /// Safe fused multiply-add.
+        ///
+        /// # Safety
+        ///
+        /// The caller must ensure that the `fma` target feature is enabled at runtime.
         #[target_feature(enable = "fma")]
         pub unsafe fn fma_f32(a: __m128, b: __m128, c: __m128) -> __m128 {
             _mm_fmadd_ps(a, b, c)
@@ -171,19 +191,33 @@ pub mod x86 {
             }
         }
 
-        /// Safe vector load with alignment check
-        pub fn load_aligned_f32(ptr: *const f32) -> __m256 {
+        /// Load aligned f32 vector from raw pointer.
+        ///
+        /// # Safety
+        ///
+        /// `ptr` must be non-null, aligned to a 32-byte boundary, and point to at least 8 valid
+        /// `f32` values. Passing a misaligned or dangling pointer is undefined behaviour.
+        pub unsafe fn load_aligned_f32(ptr: *const f32) -> __m256 {
             debug_assert!(super::super::alignment::is_aligned(ptr, 32));
             unsafe { _mm256_load_ps(ptr) }
         }
 
-        /// Safe vector store with alignment check
-        pub fn store_aligned_f32(ptr: *mut f32, v: __m256) {
+        /// Store aligned f32 vector to raw pointer.
+        ///
+        /// # Safety
+        ///
+        /// `ptr` must be non-null, aligned to a 32-byte boundary, and point to at least 8 writable
+        /// `f32` slots. Passing a misaligned or dangling pointer is undefined behaviour.
+        pub unsafe fn store_aligned_f32(ptr: *mut f32, v: __m256) {
             debug_assert!(super::super::alignment::is_aligned(ptr, 32));
             unsafe { _mm256_store_ps(ptr, v) }
         }
 
-        /// Safe fused multiply-add
+        /// Safe fused multiply-add.
+        ///
+        /// # Safety
+        ///
+        /// The caller must ensure that the `fma` target feature is enabled at runtime.
         #[target_feature(enable = "fma")]
         pub unsafe fn fma_f32(a: __m256, b: __m256, c: __m256) -> __m256 {
             _mm256_fmadd_ps(a, b, c)
@@ -237,13 +271,23 @@ pub mod neon {
         unsafe { vaddvq_f32(v) }
     }
 
-    /// Safe vector load with alignment check
+    /// Safe vector load with alignment check.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be valid, non-null, and point to at least 4 initialized `f32` values
+    /// aligned to a 16-byte boundary.
     pub unsafe fn load_aligned_f32(ptr: *const f32) -> float32x4_t {
         debug_assert!(super::alignment::is_aligned(ptr, 16));
         unsafe { vld1q_f32(ptr) }
     }
 
-    /// Safe vector store with alignment check
+    /// Safe vector store with alignment check.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be valid, non-null, and point to writable storage for at least 4 `f32`
+    /// values aligned to a 16-byte boundary.
     pub unsafe fn store_aligned_f32(ptr: *mut f32, v: float32x4_t) {
         debug_assert!(super::alignment::is_aligned(ptr, 16));
         unsafe { vst1q_f32(ptr, v) }
@@ -263,15 +307,8 @@ pub mod optimization {
     where
         F: FnMut(usize),
     {
-        // Hint for small iteration counts to unroll
-        if iterations <= 16 {
-            for i in 0..iterations {
-                f(i);
-            }
-        } else {
-            for i in 0..iterations {
-                f(i);
-            }
+        for i in 0..iterations {
+            f(i);
         }
     }
 
@@ -428,7 +465,7 @@ mod tests {
 
     #[test]
     fn test_alignment_check() {
-        let data = vec![1.0f32; 16];
+        let data = [1.0f32; 16];
         let ptr = data.as_ptr();
 
         // Most allocators align to at least 8 bytes

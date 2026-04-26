@@ -496,8 +496,10 @@ mod tests {
 
     #[test]
     fn test_parallel_threshold() {
-        let mut config = ParallelEigenConfig::default();
-        config.parallel_threshold = 2; // Force parallel for 2x2 matrix
+        let config = ParallelEigenConfig {
+            parallel_threshold: 2, // Force parallel for 2x2 matrix
+            ..Default::default()
+        };
 
         let decomposer = ParallelEigenDecomposition::with_config(config);
         let matrix = array![[4.0, 2.0], [2.0, 4.0]];
@@ -508,8 +510,10 @@ mod tests {
 
     #[test]
     fn test_simd_operations() {
-        let mut config = ParallelEigenConfig::default();
-        config.use_simd = true;
+        let config = ParallelEigenConfig {
+            use_simd: true,
+            ..Default::default()
+        };
 
         let decomposer = ParallelEigenDecomposition::with_config(config);
         let row = array![1.0, 2.0, 3.0, 4.0];

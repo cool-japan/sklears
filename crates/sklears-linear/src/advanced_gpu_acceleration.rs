@@ -194,7 +194,9 @@ impl GpuMemoryPool {
 /// CUDA stream wrapper for asynchronous operations
 #[derive(Debug)]
 pub struct CudaStream {
+    #[allow(dead_code)] // reserved for real CUDA stream management when GPU feature is complete
     stream_id: usize,
+    #[allow(dead_code)] // reserved for real CUDA stream management when GPU feature is complete
     device_id: usize,
     is_busy: bool,
 }
@@ -570,7 +572,7 @@ impl AdvancedGpuOps {
         let num_gpus = self.config.device_ids.len();
 
         // Block size for distribution
-        let block_size = (m + num_gpus - 1) / num_gpus;
+        let block_size = m.div_ceil(num_gpus);
         let mut results = Vec::new();
 
         let device_ids: Vec<usize> = self.config.device_ids.clone();
@@ -725,6 +727,7 @@ impl AdvancedGpuOps {
 /// Load balancer for distributing work across GPUs
 #[derive(Debug)]
 pub struct LoadBalancer {
+    #[allow(dead_code)] // reserved for future multi-GPU load balancing implementation
     strategy: LoadBalancingStrategy,
     device_weights: Vec<f32>,
 }

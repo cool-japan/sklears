@@ -25,12 +25,12 @@
 use rayon::prelude::*;
 use scirs2_core::ndarray_ext::{Array1, Array2, ArrayView2};
 use sklears_core::error::{Result as SklResult, SklearsError};
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Parallelization strategy for graph algorithms
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ParallelStrategy {
     /// Automatic selection based on problem size and CPU count
+    #[default]
     Auto,
     /// Force sequential execution (for small problems or debugging)
     Sequential,
@@ -41,12 +41,6 @@ pub enum ParallelStrategy {
     },
     /// Adaptive parallel execution with work stealing
     Adaptive,
-}
-
-impl Default for ParallelStrategy {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 impl ParallelStrategy {
@@ -117,7 +111,7 @@ pub fn parallel_knn_graph(
     n_neighbors: usize,
     strategy: ParallelStrategy,
 ) -> SklResult<Array2<f64>> {
-    let (n_samples, n_features) = X.dim();
+    let (n_samples, _n_features) = X.dim();
 
     if n_neighbors >= n_samples {
         return Err(SklearsError::InvalidInput(format!(

@@ -373,9 +373,9 @@ pub fn scale_vec_inplace(vector: &mut [f32], scalar: f32) {
                 let mut i = 0;
                 while i + 16 <= len {
                     let vec_slice = core::slice::from_raw_parts(vector.as_ptr().add(i), 16);
-                    let mut result_slice =
+                    let result_slice =
                         core::slice::from_raw_parts_mut(vector.as_mut_ptr().add(i), 16);
-                    scale_vec_avx512(vec_slice, scalar, &mut result_slice);
+                    scale_vec_avx512(vec_slice, scalar, result_slice);
                     i += 16;
                 }
                 while i < len {
@@ -389,9 +389,9 @@ pub fn scale_vec_inplace(vector: &mut [f32], scalar: f32) {
                 let mut i = 0;
                 while i + 8 <= len {
                     let vec_slice = core::slice::from_raw_parts(vector.as_ptr().add(i), 8);
-                    let mut result_slice =
+                    let result_slice =
                         core::slice::from_raw_parts_mut(vector.as_mut_ptr().add(i), 8);
-                    scale_vec_avx2(vec_slice, scalar, &mut result_slice);
+                    scale_vec_avx2(vec_slice, scalar, result_slice);
                     i += 8;
                 }
                 while i < len {
@@ -405,9 +405,9 @@ pub fn scale_vec_inplace(vector: &mut [f32], scalar: f32) {
                 let mut i = 0;
                 while i + 4 <= len {
                     let vec_slice = core::slice::from_raw_parts(vector.as_ptr().add(i), 4);
-                    let mut result_slice =
+                    let result_slice =
                         core::slice::from_raw_parts_mut(vector.as_mut_ptr().add(i), 4);
-                    scale_vec_sse2(vec_slice, scalar, &mut result_slice);
+                    scale_vec_sse2(vec_slice, scalar, result_slice);
                     i += 4;
                 }
                 while i < len {
@@ -438,8 +438,8 @@ pub fn scale_vec_inplace(vector: &mut [f32], scalar: f32) {
             return;
         }
     }
-    for i in 0..len {
-        vector[i] *= scalar;
+    for v in vector[..len].iter_mut() {
+        *v *= scalar;
     }
 }
 /// SIMD-optimized vector absolute value

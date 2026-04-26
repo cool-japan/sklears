@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 /// Header structure for memory-mapped neighbor index files
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
+#[allow(dead_code)]
 struct MmapHeader {
     /// Magic number for file format validation
     magic: u64,

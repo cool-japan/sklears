@@ -1,4 +1,6 @@
 //! Gaussian Process Regression Imputer
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides GP regression for missing value imputation with uncertainty quantification.
 

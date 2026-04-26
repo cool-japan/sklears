@@ -10,6 +10,9 @@ use sklears_core::{
     types::Float,
 };
 
+/// Type alias for Gaussian mixture component parameters result
+type GMMComponentsResult = SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)>;
+
 /// Standard Gaussian Mixture Model
 ///
 /// A mixture of Gaussian distributions estimated using the Expectation-Maximization (EM) algorithm.
@@ -39,8 +42,8 @@ use sklears_core::{
 ///     .n_components(2)
 ///     .covariance_type(CovarianceType::Diagonal)
 ///     .max_iter(100);
-/// let fitted = gmm.fit(&X.view(), &()).unwrap();
-/// let labels = fitted.predict(&X.view()).unwrap();
+/// let fitted = gmm.fit(&X.view(), &()).expect("GMM fitting should succeed with valid data");
+/// let labels = fitted.predict(&X.view()).expect("prediction should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct GaussianMixture<S = Untrained> {
@@ -266,13 +269,10 @@ impl Fit<ArrayView2<'_, Float>, ()> for GaussianMixture<Untrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl GaussianMixture<Untrained> {
     /// Initialize parameters for EM algorithm
-    fn initialize_parameters(
-        &self,
-        X: &Array2<f64>,
-        seed: Option<u64>,
-    ) -> SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)> {
+    fn initialize_parameters(&self, X: &Array2<f64>, seed: Option<u64>) -> GMMComponentsResult {
         let (_n_samples, _n_features) = X.dim();
 
         // Initialize weights (uniform)
@@ -416,7 +416,7 @@ impl GaussianMixture<Untrained> {
         &self,
         X: &Array2<f64>,
         responsibilities: &Array2<f64>,
-    ) -> SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)> {
+    ) -> GMMComponentsResult {
         let (n_samples, n_features) = X.dim();
 
         // Update weights
@@ -566,6 +566,7 @@ impl GaussianMixture<GaussianMixtureTrained> {
     }
 
     /// Compute the total log-likelihood of the model
+    #[allow(non_snake_case)]
     pub fn score(&self, X: &ArrayView2<'_, Float>) -> SklResult<f64> {
         let log_probs = self.score_samples(X)?;
         Ok(log_probs.sum())

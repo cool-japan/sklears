@@ -14,6 +14,24 @@ use sklears_core::{
 };
 use std::f64::consts::PI;
 
+/// Type alias for variational parameter 5-tuple result
+type VariParamsResult = SklResult<(
+    Array1<f64>,
+    Array2<f64>,
+    Array2<f64>,
+    Array1<f64>,
+    Vec<Array2<f64>>,
+)>;
+
+/// Type alias for estimated model parameters tuple
+type EstimatedParams = SklResult<(
+    Array1<f64>,
+    Array2<f64>,
+    Vec<Array2<f64>>,
+    VariationalParameters,
+    f64,
+)>;
+
 /// Empirical Bayes Gaussian Mixture Model
 ///
 /// This implementation estimates the hyperparameters of the prior distributions
@@ -41,8 +59,8 @@ use std::f64::consts::PI;
 ///     .method(EmpiricalBayesMethod::TypeIIML)
 ///     .covariance_type(CovarianceType::Diagonal)
 ///     .max_iter(100);
-/// let fitted = model.fit(&X.view(), &()).unwrap();
-/// let labels = fitted.predict(&X.view()).unwrap();
+/// let fitted = model.fit(&X.view(), &()).expect("Empirical Bayes GMM fitting should succeed with valid data");
+/// let labels = fitted.predict(&X.view()).expect("prediction should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct EmpiricalBayesGMM<S = Untrained> {
@@ -104,10 +122,15 @@ pub struct EmpiricalBayesGMMTrained {
     estimated_scale_matrix: f64,
 
     // Variational parameters (if applicable)
+    #[allow(dead_code)]
     variational_pi_alpha: Array1<f64>,
+    #[allow(dead_code)]
     variational_mu_mean: Array2<f64>,
+    #[allow(dead_code)]
     variational_mu_precision: Array2<f64>,
+    #[allow(dead_code)]
     variational_lambda_nu: Array1<f64>,
+    #[allow(dead_code)]
     variational_lambda_w: Vec<Array2<f64>>,
 
     // Training information
@@ -458,22 +481,18 @@ struct VariationalParameters {
     mu_precision: Array2<f64>,
     lambda_nu: Array1<f64>,
     lambda_w: Vec<Array2<f64>>,
+    #[allow(dead_code)]
     responsibilities: Array2<f64>,
 }
 
+#[allow(non_snake_case, clippy::too_many_arguments)]
 impl EmpiricalBayesGMM<Untrained> {
     /// Estimate model parameters given current hyperparameters
     fn estimate_model_parameters(
         &self,
         X: &Array2<f64>,
         hyperparams: &HyperparameterState,
-    ) -> SklResult<(
-        Array1<f64>,      // weights
-        Array2<f64>,      // means
-        Vec<Array2<f64>>, // covariances
-        VariationalParameters,
-        f64, // marginal likelihood
-    )> {
+    ) -> EstimatedParams {
         let (n_samples, _n_features) = X.dim();
 
         // Initialize variational parameters with current hyperparameters
@@ -551,13 +570,7 @@ impl EmpiricalBayesGMM<Untrained> {
         &self,
         X: &Array2<f64>,
         hyperparams: &HyperparameterState,
-    ) -> SklResult<(
-        Array1<f64>,      // pi_alpha
-        Array2<f64>,      // mu_mean
-        Array2<f64>,      // mu_precision
-        Array1<f64>,      // lambda_nu
-        Vec<Array2<f64>>, // lambda_w
-    )> {
+    ) -> VariParamsResult {
         let (n_samples, n_features) = X.dim();
         let mut rng = if let Some(seed) = self.random_state {
             scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
@@ -655,13 +668,7 @@ impl EmpiricalBayesGMM<Untrained> {
         X: &Array2<f64>,
         responsibilities: &Array2<f64>,
         hyperparams: &HyperparameterState,
-    ) -> SklResult<(
-        Array1<f64>,      // pi_alpha
-        Array2<f64>,      // mu_mean
-        Array2<f64>,      // mu_precision
-        Array1<f64>,      // lambda_nu
-        Vec<Array2<f64>>, // lambda_w
-    )> {
+    ) -> VariParamsResult {
         let (n_samples, n_features) = X.dim();
 
         // Update π parameters
@@ -1223,6 +1230,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>> for EmpiricalBayesGMM<Empirical
     }
 }
 
+#[allow(non_snake_case)]
 impl EmpiricalBayesGMM<EmpiricalBayesGMMTrained> {
     /// Get the mixing weights
     pub fn weights(&self) -> &Array1<f64> {
@@ -1544,7 +1552,7 @@ mod tests {
         assert_eq!(labels.len(), 6);
         // Check that labels are in valid range
         for &label in labels.iter() {
-            assert!(label >= 0 && label < 2);
+            assert!((0..2).contains(&label));
         }
     }
 

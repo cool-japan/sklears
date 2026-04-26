@@ -854,8 +854,8 @@ impl ComprehensiveTestRunner {
         // Add identical points
         for _ in 0..10 {
             duplicate_data.extend_from_slice(&[1.0, 1.0]);
-            duplicate_labels.push(0);
         }
+        duplicate_labels.extend(std::iter::repeat_n(0, 10));
 
         // Add nearly identical points
         for i in 0..10 {
@@ -1011,7 +1011,7 @@ impl ComprehensiveTestRunner {
                         let fit_time = start_fit.elapsed();
 
                         // Test prediction on subset
-                        let query_size = (n_samples / 10).max(100).min(1000);
+                        let query_size = (n_samples / 10).clamp(100, 1000);
                         let query_indices: Vec<usize> = (0..query_size).collect();
                         let x_query = x.select(Axis(0), &query_indices);
 
@@ -1300,8 +1300,8 @@ impl IntegrationTests {
         // Add outliers
         for _ in 0..5 {
             x_data.extend_from_slice(&[100.0, 100.0]);
-            y_data.push(0);
         }
+        y_data.extend(std::iter::repeat_n(0, 5));
 
         let x = Array2::from_shape_vec((45, 2), x_data)?;
         let y = Array1::from_vec(y_data);

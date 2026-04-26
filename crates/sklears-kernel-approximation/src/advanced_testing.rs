@@ -936,7 +936,7 @@ mod tests {
     fn test_convergence_analyzer() {
         let x: Array2<f64> = Array::from_shape_fn((20, 5), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let analyzer = ConvergenceAnalyzer::new(50)
             .component_steps(vec![10, 20, 30, 40, 50])
@@ -954,7 +954,7 @@ mod tests {
     fn test_error_bounds_validator() {
         let x: Array2<f64> = Array::from_shape_fn((15, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let validator = ErrorBoundsValidator::new()
             .confidence_level(0.9)

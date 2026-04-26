@@ -15,9 +15,10 @@ use std::marker::PhantomData;
 pub use crate::column_transformer::TransformerWrapper;
 
 /// Feature selection strategy for FeatureUnion
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum FeatureSelectionStrategy {
     /// No feature selection (keep all features)
+    #[default]
     None,
     /// Select top k features based on variance
     VarianceThreshold(Float),
@@ -29,16 +30,11 @@ pub enum FeatureSelectionStrategy {
     TopPercentile(Float),
 }
 
-impl Default for FeatureSelectionStrategy {
-    fn default() -> Self {
-        Self::None
-    }
-}
-
 /// Feature importance calculation method
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum FeatureImportanceMethod {
     /// Use variance as importance measure
+    #[default]
     Variance,
     /// Use absolute mean as importance measure
     AbsoluteMean,
@@ -48,12 +44,6 @@ pub enum FeatureImportanceMethod {
     L2Norm,
     /// Use correlation with first principal component
     PrincipalComponent,
-}
-
-impl Default for FeatureImportanceMethod {
-    fn default() -> Self {
-        Self::Variance
-    }
 }
 
 /// A transformer step in the feature union
@@ -118,6 +108,8 @@ pub struct FeatureUnion<State = Untrained> {
     // Feature selection parameters
     selected_features_: Option<Vec<usize>>,
     feature_importances_: Option<Array1<Float>>,
+    /// Output feature names retained for future `.get_feature_names_out()` API
+    #[allow(dead_code)]
     feature_names_: Option<Vec<String>>,
 }
 

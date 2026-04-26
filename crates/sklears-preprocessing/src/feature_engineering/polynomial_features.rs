@@ -294,7 +294,7 @@ impl PolynomialFeatures<Untrained> {
     }
 
     /// Sort powers according to polynomial feature ordering convention
-    fn sort_powers(&self, powers: &mut Vec<Vec<usize>>, _n_features: usize) {
+    fn sort_powers(&self, powers: &mut [Vec<usize>], _n_features: usize) {
         // Sort by degree first, then by reverse lexicographic order within each degree
         // This matches scikit-learn's default ordering
         powers.sort_by(|a, b| {

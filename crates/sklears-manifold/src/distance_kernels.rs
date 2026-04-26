@@ -93,7 +93,7 @@ pub fn procrustes_distance(x1: &Array2<f64>, x2: &Array2<f64>) -> SklResult<f64>
         ));
     }
 
-    let (n, m) = x1.dim();
+    let (_n, _m) = x1.dim();
 
     // Center the configurations
     let mean1 = x1.mean_axis(Axis(0)).expect("operation should succeed");
@@ -140,7 +140,6 @@ pub fn procrustes_distance(x1: &Array2<f64>, x2: &Array2<f64>) -> SklResult<f64>
 ///
 /// These are specialized kernel functions designed for manifold learning that
 /// capture geometric properties and local structure preservation.
-
 /// Geodesic Kernel
 ///
 /// Computes a kernel based on geodesic distances on the manifold.
@@ -229,7 +228,7 @@ pub fn local_tangent_space_kernel(
             }
 
             // SVD to get tangent space basis
-            if let Ok((u, s, _)) = neighbor_matrix.svd(true) {
+            if let Ok((u, _s, _)) = neighbor_matrix.svd(true) {
                 // Project all points onto this tangent space and compute kernel
                 for j in 0..n_samples {
                     let diff = &x.row(j) - &x.row(i);
@@ -450,7 +449,7 @@ pub fn spectral_kernel(x: &Array2<f64>, n_components: usize, gamma: f64) -> SklR
     }
 
     // Eigendecomposition
-    if let Ok((eigenvalues, eigenvectors)) = laplacian.eigh(UPLO::Lower) {
+    if let Ok((_eigenvalues, eigenvectors)) = laplacian.eigh(UPLO::Lower) {
         // Use first n_components eigenvectors as features
         let features = eigenvectors.slice(s![.., 1..=n_components.min(n_samples - 1)]);
 
@@ -500,7 +499,6 @@ fn compute_pseudoinverse(matrix: &Array2<f64>) -> SklResult<Array2<f64>> {
 ///
 /// These are specialized kernel functions designed for graph data structures,
 /// enabling manifold learning on graph-structured data.
-
 /// Random Walk Kernel
 ///
 /// Computes a kernel based on random walks on graphs. The kernel value between
@@ -571,8 +569,8 @@ pub fn random_walk_kernel(
 /// Computes a kernel based on shortest path distances in graphs.
 /// Compares the distribution of shortest path lengths between all pairs of nodes.
 pub fn shortest_path_kernel(adjacency1: &Array2<f64>, adjacency2: &Array2<f64>) -> SklResult<f64> {
-    let n1 = adjacency1.nrows();
-    let n2 = adjacency2.nrows();
+    let _n1 = adjacency1.nrows();
+    let _n2 = adjacency2.nrows();
 
     // Compute shortest path matrices using Floyd-Warshall
     let sp1 = floyd_warshall_shortest_paths(adjacency1)?;
@@ -663,7 +661,7 @@ pub fn weisfeiler_lehman_kernel(
 
     let mut total_kernel = 0.0;
 
-    for iter in 0..iterations {
+    for _iter in 0..iterations {
         // Compute label histograms
         let hist1 = compute_label_histogram(&labels1);
         let hist2 = compute_label_histogram(&labels2);

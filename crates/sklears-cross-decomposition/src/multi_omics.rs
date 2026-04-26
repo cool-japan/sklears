@@ -5,7 +5,7 @@
 //! techniques and pathway enrichment analysis.
 
 use crate::genomics::pathway_analysis::{
-    EnrichmentMethod, MultipleTestingCorrection, PathwayAnalysis, PathwayDatabase,
+    EnrichmentMethod, MultipleTestingCorrection, PathwayAnalysis,
 };
 use crate::multiview_cca::{MultiViewCCA, MultipleViews, Trained as MVTrained};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
@@ -147,7 +147,7 @@ impl MultiOmicsIntegration {
     fn compute_integration_scores(
         &self,
         omics_data: &[ArrayView2<Float>],
-        fitted_cca: &MultiViewCCA<MVTrained>,
+        _fitted_cca: &MultiViewCCA<MVTrained>,
     ) -> Result<Vec<Array1<Float>>, GenomicsError> {
         let mut scores = Vec::new();
 
@@ -167,7 +167,7 @@ impl MultiOmicsIntegration {
         let n_components = self.n_components.min(data.ncols());
         let mut scores = Array1::zeros(n_components);
 
-        for (i, mut score) in scores.iter_mut().enumerate() {
+        for (i, score) in scores.iter_mut().enumerate() {
             if i < data.ncols() {
                 let column = data.column(i);
                 // Compute variance explained as integration score
@@ -206,7 +206,8 @@ impl MultiOmicsIntegration {
 
 /// Fitted multi-omics integration model
 pub struct FittedMultiOmicsIntegration {
-    fitted_cca: MultiViewCCA<MVTrained>,
+    /// Fitted multi-view CCA model
+    pub fitted_cca: MultiViewCCA<MVTrained>,
     integration_scores: Vec<Array1<Float>>,
     pathway_enrichment: HashMap<String, Float>,
     n_components: usize,

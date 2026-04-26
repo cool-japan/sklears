@@ -9,6 +9,9 @@ use super::validation_types::*;
 use sklears_core::error::{Result, SklearsError};
 use std::collections::HashMap;
 
+/// Agreement matrix result: (matrix rows, true cluster ids, predicted cluster ids)
+type AgreementMatrix = (Vec<Vec<usize>>, Vec<i32>, Vec<i32>);
+
 /// External validation methods implementation
 ///
 /// This implementation provides methods to compute various external validation metrics
@@ -108,8 +111,8 @@ impl ClusteringValidator {
 
         // Compute ARI components
         let mut sum_comb_c = 0;
-        for (i, &true_cluster) in true_clusters.iter().enumerate() {
-            for (j, &pred_cluster) in pred_clusters.iter().enumerate() {
+        for &true_cluster in true_clusters.iter() {
+            for &pred_cluster in pred_clusters.iter() {
                 let n_ij = *contingency.get(&(true_cluster, pred_cluster)).unwrap_or(&0);
                 if n_ij >= 2 {
                     sum_comb_c += Self::combination_2(n_ij);
@@ -592,7 +595,7 @@ impl ClusteringValidator {
         &self,
         true_labels: &[i32],
         pred_labels: &[i32],
-    ) -> Result<(Vec<Vec<usize>>, Vec<i32>, Vec<i32>)> {
+    ) -> Result<AgreementMatrix> {
         if true_labels.len() != pred_labels.len() {
             return Err(SklearsError::InvalidInput(
                 "Labels length mismatch".to_string(),
@@ -870,22 +873,22 @@ mod tests {
         let ari = validator
             .adjusted_rand_index(&true_labels, &pred_labels)
             .expect("operation should succeed");
-        assert!(ari >= -1.0 && ari <= 1.0);
+        assert!((-1.0..=1.0).contains(&ari));
 
         let nmi = validator
             .normalized_mutual_information(&true_labels, &pred_labels)
             .expect("operation should succeed");
-        assert!(nmi >= 0.0 && nmi <= 1.0);
+        assert!((0.0..=1.0).contains(&nmi));
 
         let v_measure = validator
             .v_measure(&true_labels, &pred_labels)
             .expect("operation should succeed");
-        assert!(v_measure >= 0.0 && v_measure <= 1.0);
+        assert!((0.0..=1.0).contains(&v_measure));
 
         let fm = validator
             .fowlkes_mallows_index(&true_labels, &pred_labels)
             .expect("operation should succeed");
-        assert!(fm >= 0.0 && fm <= 1.0);
+        assert!((0.0..=1.0).contains(&fm));
     }
 
     #[test]
@@ -913,7 +916,7 @@ mod tests {
         assert!((consensus - 1.0).abs() < 1e-10);
 
         assert!(metrics.is_significant_match(0.8));
-        let (best_metric, best_score) = metrics.best_metric();
+        let (_best_metric, best_score) = metrics.best_metric();
         assert!(best_score >= 0.99);
     }
 
@@ -965,10 +968,10 @@ mod tests {
 
         // All precisions and recalls should be between 0 and 1
         for &precision in &precisions {
-            assert!(precision >= 0.0 && precision <= 1.0);
+            assert!((0.0..=1.0).contains(&precision));
         }
         for &recall in &recalls {
-            assert!(recall >= 0.0 && recall <= 1.0);
+            assert!((0.0..=1.0).contains(&recall));
         }
 
         let summary = confusion.summary();

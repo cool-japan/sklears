@@ -266,11 +266,7 @@ impl DashMapKernelCache {
     fn evict_random(&self, count: usize) {
         let keys: Vec<_> = self.cache.iter().map(|entry| entry.key().clone()).collect();
         let mut rng = scirs2_core::random::thread_rng();
-        let keys_to_remove: Vec<_> = keys
-            .as_slice()
-            .choose_multiple(&mut rng, count)
-            .cloned()
-            .collect();
+        let keys_to_remove: Vec<_> = keys.as_slice().sample(&mut rng, count).cloned().collect();
 
         let mut evicted = 0;
         for key in keys_to_remove {

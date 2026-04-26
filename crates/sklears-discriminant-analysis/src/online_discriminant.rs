@@ -97,14 +97,14 @@ impl Default for OnlineDiscriminantAnalysisConfig {
 ///
 /// let mut oda = OnlineDiscriminantAnalysis::new()
 ///     .update_strategy(UpdateStrategy::ExponentialMovingAverage { decay_rate: 0.9 });
-/// let mut fitted = oda.fit(&x_initial, &y_initial).unwrap();
+/// let mut fitted = oda.fit(&x_initial, &y_initial).expect("fit should succeed with valid input");
 ///
 /// // Update with new data
 /// let x_new = array![[1.5, 2.5], [2.5, 3.5]];
 /// let y_new = array![0, 1];
-/// fitted.partial_fit(&x_new, &y_new).unwrap();
+/// fitted.partial_fit(&x_new, &y_new).expect("partial_fit should succeed with valid incremental data");
 ///
-/// let predictions = fitted.predict(&x_new).unwrap();
+/// let predictions = fitted.predict(&x_new).expect("predict should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct OnlineDiscriminantAnalysis {
@@ -921,7 +921,7 @@ mod tests {
             .partial_fit(&x_drift, &y_drift)
             .expect("partial fit should succeed");
 
-        assert!(fitted.drift_scores().len() > 0);
+        assert!(!fitted.drift_scores().is_empty());
     }
 
     #[test]

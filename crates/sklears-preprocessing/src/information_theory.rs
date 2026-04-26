@@ -215,7 +215,7 @@ pub fn normalized_mutual_information(x: &Array1<f64>, y: &Array1<f64>, bins: usi
 
     // Clamp to [0, 1] due to numerical precision issues in discrete entropy estimation
     let nmi = mi / ((h_x + h_y) / 2.0).sqrt();
-    Ok(nmi.min(1.0).max(0.0))
+    Ok(nmi.clamp(0.0, 1.0))
 }
 
 // ================================================================================================
@@ -315,12 +315,7 @@ pub fn lempel_ziv_complexity(data: &Array1<f64>, bins: usize) -> Result<f64> {
         let mut found = false;
 
         // Search for prefix in previous subsequence
-        // Ensure we don't underflow when computing start position
-        let start_j = if prefix_len <= i + 1 {
-            i + 1 - prefix_len
-        } else {
-            0
-        };
+        let start_j = (i + 1).saturating_sub(prefix_len);
         for j in start_j..=i {
             if j >= prefix_len && &binary[j - prefix_len..j] == prefix {
                 found = true;
@@ -429,6 +424,8 @@ pub struct InformationFeatureSelector {
 
 /// Fitted information-based feature selector
 pub struct InformationFeatureSelectorFitted {
+    /// Config retained for future `.get_params()` introspection API
+    #[allow(dead_code)]
     config: InformationFeatureSelectorConfig,
     /// Feature scores (mutual information, information gain, etc.)
     scores: Vec<f64>,
@@ -456,6 +453,7 @@ impl Estimator for InformationFeatureSelector {
 impl Fit<Array2<f64>, Array1<f64>> for InformationFeatureSelector {
     type Fitted = InformationFeatureSelectorFitted;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &Array2<f64>, y: &Array1<f64>) -> Result<Self::Fitted> {
         // Validate input dimensions
         if X.nrows() != y.len() {
@@ -529,6 +527,7 @@ impl Fit<Array2<f64>, Array1<f64>> for InformationFeatureSelector {
 }
 
 impl Transform<Array2<f64>, Array2<f64>> for InformationFeatureSelectorFitted {
+    #[allow(non_snake_case)] // standard ML notation
     fn transform(&self, X: &Array2<f64>) -> Result<Array2<f64>> {
         if self.selected_features.is_empty() {
             return Err(SklearsError::InvalidInput(
@@ -749,6 +748,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_information_feature_selector() {
         let X = array![
             [1.0, 10.0, 100.0],
@@ -819,6 +819,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_feature_selector_threshold() {
         let X = array![
             [1.0, 10.0, 100.0],

@@ -2,6 +2,7 @@
 //!
 //! This module provides specialized imputation methods for social science data types
 //! including survey data, longitudinal studies, demographic analysis, and social networks.
+#![allow(non_snake_case)]
 
 use crate::core::{ImputationError, ImputationResult};
 use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};

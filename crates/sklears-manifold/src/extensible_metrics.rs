@@ -5,7 +5,7 @@
 //! custom user-defined metrics and automatic metric selection.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use std::sync::{Arc, RwLock};
 
 /// Trait for distance metrics

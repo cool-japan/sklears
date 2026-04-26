@@ -7,7 +7,6 @@ use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
-use scirs2_core::Distribution;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -273,6 +272,7 @@ impl FastJohnsonLindenstrauss<Untrained> {
     }
 
     /// Fast Walsh-Hadamard Transform
+    #[allow(dead_code)]
     fn fwht(data: &mut [f64]) {
         let n = data.len();
         let mut h = 1;
@@ -367,7 +367,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for FastJohnsonLindenstrauss<Untrained> {
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for FastJohnsonLindenstrauss<FastJLTrained> {
     fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
         let padded_size = self.state.padded_size;
 
         let mut result = Array2::zeros((n_samples, self.n_components));
@@ -666,6 +666,7 @@ impl SparseRandomProjection<Untrained> {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct SRPTrained {
     projection_matrix: Array2<f64>,
     scaling_factor: f64,
@@ -718,7 +719,6 @@ impl Fit<ArrayView2<'_, Float>, ()> for SparseRandomProjection<Untrained> {
         // Probabilities for the three-value distribution
         let prob_positive = 1.0 / (2.0 * s);
         let prob_negative = 1.0 / (2.0 * s);
-        let prob_zero = 1.0 - prob_positive - prob_negative;
 
         for elem in projection_matrix.iter_mut() {
             let rand_val: f64 = rng.random();

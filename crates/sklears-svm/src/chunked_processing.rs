@@ -70,10 +70,12 @@ struct DataChunk {
     /// End index in the original dataset
     end_idx: usize,
     /// Number of samples in this chunk
+    #[allow(dead_code)] // intentionally deferred: chunk size readout pending
     n_samples: usize,
     /// File path if stored on disk
     file_path: Option<PathBuf>,
     /// Whether chunk is currently in memory
+    #[allow(dead_code)] // intentionally deferred: in-memory status tracking pending
     in_memory: bool,
 }
 
@@ -446,6 +448,7 @@ pub struct ChunkedDatasetStats {
 /// Chunked SVM trainer that works with large datasets
 pub struct ChunkedSvmTrainer<K: Kernel> {
     kernel: K,
+    #[allow(dead_code)] // intentionally deferred: config access not yet exposed publicly
     config: ChunkedProcessingConfig,
     dataset: Option<ChunkedDataset>,
 }
@@ -530,6 +533,7 @@ impl<K: Kernel> ChunkedSvmTrainer<K> {
     }
 
     /// Update a single chunk
+    #[allow(dead_code)] // intentionally deferred: chunk update not yet called in training loop
     fn update_chunk(
         &self,
         chunk_x: &Array2<Float>,
@@ -613,6 +617,7 @@ impl<K: Kernel> ChunkedSvmTrainer<K> {
     }
 
     /// Compute KKT violation
+    #[allow(dead_code)] // intentionally deferred: violation check delegates to static version
     fn compute_violation(&self, alpha: Float, gradient: Float, y: Float, c: Float) -> Float {
         Self::compute_violation_static(alpha, gradient, y, c)
     }

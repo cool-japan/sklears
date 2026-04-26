@@ -127,8 +127,8 @@ where
 
     fn apply(&self, input: &SafeSimdVector<T, WIDTH>) -> Self::Output {
         let mut result = [T::default(); WIDTH];
-        for i in 0..WIDTH {
-            result[i] = (self.func)(input.data[i]);
+        for (r, &val) in result.iter_mut().zip(input.data.iter()) {
+            *r = (self.func)(val);
         }
         SafeSimdVector::new(result)
     }
@@ -143,8 +143,8 @@ where
 
     fn add(self, rhs: Self) -> Self::Output {
         let mut result = [T::default(); WIDTH];
-        for i in 0..WIDTH {
-            result[i] = self.data[i] + rhs.data[i];
+        for (r, (a, b)) in result.iter_mut().zip(self.data.iter().zip(rhs.data.iter())) {
+            *r = *a + *b;
         }
         Self::new(result)
     }
@@ -158,8 +158,8 @@ where
 
     fn sub(self, rhs: Self) -> Self::Output {
         let mut result = [T::default(); WIDTH];
-        for i in 0..WIDTH {
-            result[i] = self.data[i] - rhs.data[i];
+        for (r, (a, b)) in result.iter_mut().zip(self.data.iter().zip(rhs.data.iter())) {
+            *r = *a - *b;
         }
         Self::new(result)
     }
@@ -173,8 +173,8 @@ where
 
     fn mul(self, rhs: Self) -> Self::Output {
         let mut result = [T::default(); WIDTH];
-        for i in 0..WIDTH {
-            result[i] = self.data[i] * rhs.data[i];
+        for (r, (a, b)) in result.iter_mut().zip(self.data.iter().zip(rhs.data.iter())) {
+            *r = *a * *b;
         }
         Self::new(result)
     }
@@ -188,8 +188,8 @@ where
 
     fn div(self, rhs: Self) -> Self::Output {
         let mut result = [T::default(); WIDTH];
-        for i in 0..WIDTH {
-            result[i] = self.data[i] / rhs.data[i];
+        for (r, (a, b)) in result.iter_mut().zip(self.data.iter().zip(rhs.data.iter())) {
+            *r = *a / *b;
         }
         Self::new(result)
     }
@@ -395,8 +395,8 @@ impl<T, const WIDTH: usize> OptimizedSimdOp<T, WIDTH> {
         T: Mul<Output = T> + Default + Copy,
     {
         let mut result = [T::default(); WIDTH];
-        for i in 0..WIDTH {
-            result[i] = a.data[i] * b.data[i];
+        for (r, (x, y)) in result.iter_mut().zip(a.data.iter().zip(b.data.iter())) {
+            *r = *x * *y;
         }
         SafeSimdVector::new(result)
     }

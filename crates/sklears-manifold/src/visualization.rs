@@ -8,10 +8,7 @@ use std::fs::File;
 use std::io::Write;
 
 /// Visualization backend type
-use sklears_core::{
-    error::{Result as SklResult, SklearsError},
-    traits::Estimator,
-};
+use sklears_core::error::{Result as SklResult, SklearsError};
 use std::collections::HashMap;
 use std::path::Path;
 #[derive(Debug, Clone, Copy, PartialEq)]

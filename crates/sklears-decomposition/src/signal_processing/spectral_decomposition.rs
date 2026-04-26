@@ -714,7 +714,7 @@ mod tests {
         let centroids = result.spectral_centroid();
 
         assert_eq!(centroids.len(), result.magnitude.ncols());
-        assert!(centroids.iter().all(|&x| x >= 0.0 && x <= 500.0)); // Within Nyquist
+        assert!(centroids.iter().all(|&x| (0.0..=500.0).contains(&x))); // Within Nyquist
     }
 
     #[test]
@@ -779,6 +779,6 @@ mod tests {
         let rolloffs = result.spectral_rolloff(0.85);
 
         assert_eq!(rolloffs.len(), result.magnitude.ncols());
-        assert!(rolloffs.iter().all(|&x| x >= 0.0 && x <= 500.0));
+        assert!(rolloffs.iter().all(|&x| (0.0..=500.0).contains(&x)));
     }
 }

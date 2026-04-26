@@ -35,6 +35,7 @@ pub enum Strategy {
 
 /// Basic dummy regressor implementation
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct DummyRegressor<State = Untrained> {
     /// strategy
     pub strategy: Strategy,
@@ -51,6 +52,7 @@ pub struct DummyRegressor<State = Untrained> {
 pub type DummyRegressorTrained = DummyRegressor<Trained>;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct DummyRegressorFitted {
     strategy: Strategy,
     fitted_value: f64,
@@ -110,7 +112,7 @@ impl Fit<Features, Array1<Float>> for DummyRegressor<Untrained> {
             Strategy::Median => {
                 let mut sorted = y.to_vec();
                 sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
-                if sorted.len() % 2 == 0 {
+                if sorted.len().is_multiple_of(2) {
                     (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0
                 } else {
                     sorted[sorted.len() / 2]
@@ -135,7 +137,7 @@ impl Fit<Features, Array1<Float>> for DummyRegressor<Untrained> {
                 // Simple auto strategy: use median for now
                 let mut sorted = y.to_vec();
                 sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
-                if sorted.len() % 2 == 0 {
+                if sorted.len().is_multiple_of(2) {
                     (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0
                 } else {
                     sorted[sorted.len() / 2]

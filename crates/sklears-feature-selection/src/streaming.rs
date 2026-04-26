@@ -250,7 +250,7 @@ impl OnlineFeatureSelector<Trained> {
     }
 
     /// Compute current target mean (simplified for this example)
-    fn compute_target_mean(&self) -> Float {
+    pub fn compute_target_mean(&self) -> Float {
         // This is a simplified implementation
         // In practice, you'd maintain a running mean of targets
         0.0
@@ -342,7 +342,7 @@ impl Transform<Array2<Float>, Array2<Float>> for OnlineFeatureSelector<Trained> 
 pub struct StreamingFeatureImportance {
     // Configuration
     decay_factor: f64,
-    min_samples: usize,
+    _min_samples: usize,
 
     // State
     importance_scores_: HashMap<usize, Float>,
@@ -355,7 +355,7 @@ impl StreamingFeatureImportance {
     pub fn new() -> Self {
         Self {
             decay_factor: 0.95,
-            min_samples: 10,
+            _min_samples: 10,
             importance_scores_: HashMap::new(),
             sample_count_: 0,
             n_features_: None,

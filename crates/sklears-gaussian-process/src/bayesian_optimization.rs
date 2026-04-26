@@ -23,8 +23,8 @@ use crate::gpr::{GaussianProcessRegressor, GprTrained};
 /// let X_init = array![[1.0], [5.0], [9.0]];
 /// let y_init = array![1.0, 25.0, 81.0]; // f(x) = x^2
 ///
-/// let mut bo = optimizer.fit_initial(&X_init.view(), &y_init.view()).unwrap();
-/// let next_point = bo.suggest_next_point(&bounds.view()).unwrap();
+/// let mut bo = optimizer.fit_initial(&X_init.view(), &y_init.view()).expect("fit_initial should succeed with valid initial data");
+/// let next_point = bo.suggest_next_point(&bounds.view()).expect("suggest_next_point should succeed with valid bounds");
 /// ```
 #[derive(Debug, Clone)]
 pub struct BayesianOptimizer {
@@ -63,6 +63,7 @@ pub struct OptimizationResult {
     pub n_iterations: usize,
 }
 
+#[allow(non_snake_case)]
 impl BayesianOptimizer {
     /// Create a new BayesianOptimizer instance
     pub fn new(_gp: GaussianProcessRegressor) -> Self {
@@ -146,6 +147,7 @@ impl BayesianOptimizer {
 
 /// Fitted Bayesian Optimizer that can suggest new points
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct BayesianOptimizerFitted {
     gp: GaussianProcessRegressor<GprTrained>,
     X_obs: Array2<f64>,
@@ -157,6 +159,7 @@ pub struct BayesianOptimizerFitted {
     random_state: Option<u64>,
 }
 
+#[allow(non_snake_case)]
 impl BayesianOptimizerFitted {
     /// Suggest the next point to evaluate
     pub fn suggest_next_point(&self, bounds: &ArrayView2<f64>) -> SklResult<Array1<f64>> {
@@ -330,6 +333,7 @@ impl BayesianOptimizerFitted {
     }
 }
 
+#[allow(non_snake_case)]
 impl BayesianOptimizerFitted {
     /// Predict at given points
     pub fn predict(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {

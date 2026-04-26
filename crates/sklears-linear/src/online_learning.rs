@@ -52,9 +52,10 @@ impl Default for LearningRateSchedule {
 }
 
 /// SGD variant types
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum SGDVariant {
     /// Standard stochastic gradient descent
+    #[default]
     Standard,
     /// SGD with momentum
     Momentum { momentum: Float },
@@ -70,12 +71,6 @@ pub enum SGDVariant {
         beta2: Float,
         epsilon: Float,
     },
-}
-
-impl Default for SGDVariant {
-    fn default() -> Self {
-        Self::Standard
-    }
 }
 
 /// Mini-batch processing configuration
@@ -177,6 +172,7 @@ impl Default for AdaptiveLRState {
 
 /// Online logistic regression using stochastic gradient descent
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // model state fields populated during online learning; accessed via predict
 pub struct OnlineLogisticRegression {
     config: OnlineLearningConfig,
     // Model parameters
@@ -197,6 +193,7 @@ pub struct OnlineLogisticRegression {
 
 /// Online coordinate descent for sparse regression
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // model state fields populated during online learning; accessed via predict
 pub struct OnlineCoordinateDescent {
     config: OnlineLearningConfig,
     weights: Option<Array1<Float>>,

@@ -16,6 +16,19 @@ use super::component_framework::{
     PluggableComponent,
 };
 
+/// Nested factory registry type
+type FactoryRegistry = Arc<RwLock<BTreeMap<String, BTreeMap<String, Arc<dyn ComponentFactory>>>>>;
+/// Active component instances type
+type ActiveComponents = Arc<RwLock<HashMap<String, Arc<RwLock<Box<dyn PluggableComponent>>>>>>;
+/// Factory registration hook function
+type RegistrationHookFn =
+    Box<dyn Fn(&str, &str, &Arc<dyn ComponentFactory>) -> SklResult<()> + Send + Sync>;
+/// Pre-creation hook function
+type PreCreationHookFn = Box<dyn Fn(&str, &ComponentConfig) -> SklResult<()> + Send + Sync>;
+/// Post-creation hook function
+type PostCreationHookFn =
+    Box<dyn Fn(&str, &Box<dyn PluggableComponent>) -> SklResult<()> + Send + Sync>;
+
 /// Global component registry for system-wide component management
 ///
 /// Provides centralized registration, discovery, and lifecycle management of
@@ -23,9 +36,9 @@ use super::component_framework::{
 /// and dynamic loading capabilities.
 pub struct GlobalComponentRegistry {
     /// Component factories by type and version
-    factories: Arc<RwLock<BTreeMap<String, BTreeMap<String, Arc<dyn ComponentFactory>>>>>,
+    factories: FactoryRegistry,
     /// Active component instances
-    active_components: Arc<RwLock<HashMap<String, Arc<RwLock<Box<dyn PluggableComponent>>>>>>,
+    active_components: ActiveComponents,
     /// Component metadata cache
     metadata_cache: Arc<RwLock<HashMap<String, ComponentRegistrationMetadata>>>,
     /// Plugin directories for dynamic loading
@@ -383,7 +396,7 @@ impl GlobalComponentRegistry {
         let mut results = Vec::new();
 
         for directory in plugin_directories.iter() {
-            match self.load_plugins_from_directory(directory) {
+            match self.load_plugins_from_directory(directory.as_path()) {
                 Ok(mut dir_results) => results.append(&mut dir_results),
                 Err(e) => results.push(PluginLoadResult {
                     plugin_path: directory.clone(),
@@ -438,7 +451,7 @@ impl GlobalComponentRegistry {
     /// Extract capabilities from factory
     fn extract_capabilities(
         &self,
-        factory: &Arc<dyn ComponentFactory>,
+        _factory: &Arc<dyn ComponentFactory>,
     ) -> SklResult<Vec<ComponentCapability>> {
         // This would typically introspect the factory to extract capabilities
         // For now, we'll return empty list as capabilities are defined by components
@@ -448,7 +461,7 @@ impl GlobalComponentRegistry {
     /// Extract dependencies from factory
     fn extract_dependencies(
         &self,
-        factory: &Arc<dyn ComponentFactory>,
+        _factory: &Arc<dyn ComponentFactory>,
     ) -> SklResult<Vec<ComponentDependency>> {
         // This would typically introspect the factory to extract dependencies
         // For now, we'll return empty list as dependencies are defined by components
@@ -456,17 +469,18 @@ impl GlobalComponentRegistry {
     }
 
     /// Load plugins from a specific directory
-    fn load_plugins_from_directory(&self, directory: &PathBuf) -> SklResult<Vec<PluginLoadResult>> {
+    fn load_plugins_from_directory(
+        &self,
+        directory: &std::path::Path,
+    ) -> SklResult<Vec<PluginLoadResult>> {
         // Plugin loading would typically involve dynamic library loading
         // This is a placeholder implementation
-        let mut results = Vec::new();
-
-        results.push(PluginLoadResult {
-            plugin_path: directory.clone(),
+        let results = vec![PluginLoadResult {
+            plugin_path: directory.to_path_buf(),
             success: true,
             error: None,
             loaded_components: Vec::new(),
-        });
+        }];
 
         Ok(results)
     }
@@ -573,20 +587,18 @@ pub struct PluginLoadResult {
 /// Registry hooks for extensibility
 pub struct RegistryHooks {
     /// Pre-registration hooks
-    pub pre_registration:
-        Vec<Box<dyn Fn(&str, &str, &Arc<dyn ComponentFactory>) -> SklResult<()> + Send + Sync>>,
+    pub pre_registration: Vec<RegistrationHookFn>,
     /// Post-registration hooks
-    pub post_registration:
-        Vec<Box<dyn Fn(&str, &str, &Arc<dyn ComponentFactory>) -> SklResult<()> + Send + Sync>>,
+    pub post_registration: Vec<RegistrationHookFn>,
     /// Pre-creation hooks
-    pub pre_creation: Vec<Box<dyn Fn(&str, &ComponentConfig) -> SklResult<()> + Send + Sync>>,
+    pub pre_creation: Vec<PreCreationHookFn>,
     /// Post-creation hooks
-    pub post_creation:
-        Vec<Box<dyn Fn(&str, &Box<dyn PluggableComponent>) -> SklResult<()> + Send + Sync>>,
+    pub post_creation: Vec<PostCreationHookFn>,
 }
 
 impl RegistryHooks {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             pre_registration: Vec::new(),
@@ -639,6 +651,7 @@ pub struct RegistryStatistics {
 
 impl RegistryStatistics {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             total_registered_factories: 0,
@@ -679,24 +692,32 @@ impl RegistryStatistics {
 #[derive(Debug, Error)]
 pub enum RegistryError {
     #[error("Component type not found: {0}")]
+    /// Variant value.
     ComponentTypeNotFound(String),
 
     #[error("Component version not found: {component_type}:{version}")]
+    /// Variant value.
     ComponentVersionNotFound {
+        /// The component type.
         component_type: String,
+        /// The version.
         version: String,
     },
 
     #[error("Component already registered: {0}")]
+    /// Variant value.
     ComponentAlreadyRegistered(String),
 
     #[error("Plugin loading failed: {0}")]
+    /// Variant value.
     PluginLoadingFailed(String),
 
     #[error("Registry capacity exceeded: {0}")]
+    /// Variant value.
     CapacityExceeded(String),
 
     #[error("Version validation failed: {0}")]
+    /// Variant value.
     VersionValidationFailed(String),
 }
 
@@ -855,7 +876,7 @@ mod tests {
         }
 
         fn factory_metadata(&self) -> FactoryMetadata {
-            /// FactoryMetadata
+            // FactoryMetadata
             FactoryMetadata {
                 name: "MockFactory".to_string(),
                 version: "1.0.0".to_string(),

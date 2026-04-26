@@ -479,12 +479,16 @@ where
     T: FloatBounds + Send + Sync,
 {
     fn gpu_available() -> bool {
-        // TODO: Check for actual GPU when scirs2-core::gpu is available
+        // NOTE: scirs2-core::gpu is not yet available; this correctly returns
+        // false in the current pure-CPU build.  When scirs2-core integrates GPU
+        // support, replace with `scirs2_core::gpu::is_available()`.
         false
     }
 
     fn preferred_device() -> Option<usize> {
-        // TODO: Return actual GPU device ID when available
+        // NOTE: No GPU device to report in the pure-CPU fallback.  When
+        // scirs2-core::gpu is available, replace with
+        // `scirs2_core::gpu::preferred_device()`.
         None
     }
 
@@ -609,8 +613,8 @@ unsafe fn simd_sum_f32_avx(values: &[f32]) -> f32 {
     _mm256_storeu_ps(sum_array.as_mut_ptr(), sum_vec);
     let mut sum = sum_array.iter().sum::<f32>();
 
-    for j in i..values.len() {
-        sum += values[j];
+    for val in values.iter().skip(i) {
+        sum += val;
     }
     sum
 }
@@ -703,8 +707,8 @@ unsafe fn simd_sum_f64_avx(values: &[f64]) -> f64 {
     _mm256_storeu_pd(sum_array.as_mut_ptr(), sum_vec);
     let mut sum = sum_array.iter().sum::<f64>();
 
-    for j in i..values.len() {
-        sum += values[j];
+    for val in values.iter().skip(i) {
+        sum += val;
     }
     sum
 }

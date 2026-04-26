@@ -4,7 +4,6 @@
 //! including financial time series classification, risk assessment, portfolio classification, credit scoring,
 //! and fraud detection.
 
-use scirs2_core::numeric::Float;
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2};
 
@@ -31,28 +30,30 @@ pub enum FinanceError {
 }
 
 // Module declarations
-mod timeseries;
-mod risk;
-mod portfolio;
 mod credit;
 mod fraud;
+mod portfolio;
+mod risk;
+mod timeseries;
 
 // Re-exports
 pub use timeseries::{
-    FinancialTimeSeriesNB, FeatureStatistics, PriceStatistics, VolumeStatistics,
-    VolatilityStatistics, TechnicalStatistics, TechnicalIndicators, VolatilityModels,
-    GarchParams, FinancialFeatures,
+    FeatureStatistics, FinancialFeatures, FinancialTimeSeriesNB, GarchParams, PriceStatistics,
+    TechnicalIndicators, TechnicalStatistics, VolatilityModels, VolatilityStatistics,
+    VolumeStatistics,
 };
 
-pub use risk::{RiskAssessmentNB, RiskLevel, RiskFeatureStats, RiskAssessmentParams};
+pub use risk::{RiskAssessmentNB, RiskAssessmentParams, RiskFeatureStats, RiskLevel};
 
 pub use portfolio::{
-    PortfolioClassificationNB, PortfolioCategory, PortfolioFeatureStats,
-    PortfolioClassificationParams, PortfolioData,
+    PortfolioCategory, PortfolioClassificationNB, PortfolioClassificationParams, PortfolioData,
+    PortfolioFeatureStats,
 };
 
-pub use credit::{CreditScoringNB, CreditRisk, CreditFeatureStats, CreditScoringParams, CreditData};
+pub use credit::{
+    CreditData, CreditFeatureStats, CreditRisk, CreditScoringNB, CreditScoringParams,
+};
 
 pub use fraud::{
-    FraudDetectionNB, FraudLabel, FraudFeatureStats, FraudDetectionParams, TransactionData,
+    FraudDetectionNB, FraudDetectionParams, FraudFeatureStats, FraudLabel, TransactionData,
 };

@@ -281,7 +281,9 @@ pub fn k_nearest_neighbors_simd(
 /// This is a simplified implementation for demonstration
 pub struct LSHTable {
     tables: Vec<LSHHashTable>,
+    #[allow(dead_code)] // Stored for introspection (e.g. reporting table count to caller)
     num_tables: usize,
+    #[allow(dead_code)] // Stored for introspection (e.g. reporting hash width to caller)
     hash_size: usize,
 }
 
@@ -462,9 +464,9 @@ unsafe fn argmax_sse2(arr: &[f32]) -> usize {
         let mut temp = [0.0f32; 4];
         _mm_storeu_ps(temp.as_mut_ptr(), vec);
 
-        for j in 0..4 {
-            if temp[j] > max_val {
-                max_val = temp[j];
+        for (j, &val) in temp.iter().enumerate() {
+            if val > max_val {
+                max_val = val;
                 max_idx = i + j;
             }
         }
@@ -498,9 +500,9 @@ unsafe fn argmax_avx2(arr: &[f32]) -> usize {
         let mut temp = [0.0f32; 8];
         _mm256_storeu_ps(temp.as_mut_ptr(), vec);
 
-        for j in 0..8 {
-            if temp[j] > max_val {
-                max_val = temp[j];
+        for (j, &val) in temp.iter().enumerate() {
+            if val > max_val {
+                max_val = val;
                 max_idx = i + j;
             }
         }
@@ -570,9 +572,9 @@ unsafe fn argmin_sse2(arr: &[f32]) -> usize {
         let mut temp = [0.0f32; 4];
         _mm_storeu_ps(temp.as_mut_ptr(), vec);
 
-        for j in 0..4 {
-            if temp[j] < min_val {
-                min_val = temp[j];
+        for (j, &val) in temp.iter().enumerate() {
+            if val < min_val {
+                min_val = val;
                 min_idx = i + j;
             }
         }
@@ -606,9 +608,9 @@ unsafe fn argmin_avx2(arr: &[f32]) -> usize {
         let mut temp = [0.0f32; 8];
         _mm256_storeu_ps(temp.as_mut_ptr(), vec);
 
-        for j in 0..8 {
-            if temp[j] < min_val {
-                min_val = temp[j];
+        for (j, &val) in temp.iter().enumerate() {
+            if val < min_val {
+                min_val = val;
                 min_idx = i + j;
             }
         }
@@ -688,7 +690,7 @@ mod tests {
         let results = range_search_simd(&points, &query, 1.0);
 
         // Should find p1 and p2 within distance 1.0
-        assert!(results.len() >= 1);
+        assert!(!results.is_empty());
         assert!(results.iter().all(|r| r.distance <= 1.0));
     }
 

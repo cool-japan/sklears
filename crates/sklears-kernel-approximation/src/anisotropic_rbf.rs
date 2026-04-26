@@ -61,7 +61,8 @@ pub struct FittedAnisotropicRBF {
     random_weights: Array2<f64>,
     /// Random biases
     random_biases: Array1<f64>,
-    /// Learned length scales
+    /// Learned length scales (stored for serialization and potential reuse)
+    #[allow(dead_code)]
     length_scales: Array1<f64>,
     /// Signal variance
     signal_variance: f64,
@@ -466,7 +467,8 @@ pub struct FittedRobustAnisotropicRBF {
     random_weights: Array2<f64>,
     /// Random biases
     random_biases: Array1<f64>,
-    /// Robust covariance matrix
+    /// Robust covariance matrix (stored for diagnostics and potential reuse)
+    #[allow(dead_code)]
     robust_cov: Array2<f64>,
     /// Robust mean
     robust_mean: Array1<f64>,

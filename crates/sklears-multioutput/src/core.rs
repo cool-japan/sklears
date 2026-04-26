@@ -160,7 +160,7 @@ impl MultiOutputClassifier<Untrained> {
         y: &Array2<i32>,
         n_jobs: usize,
     ) -> SklResult<MultiOutputClassifier<MultiOutputClassifierTrained>> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
         let n_targets = y.ncols();
 
         // Shared data structures
@@ -170,7 +170,7 @@ impl MultiOutputClassifier<Untrained> {
         let target_models = Arc::new(Mutex::new(HashMap::new()));
 
         // Calculate chunk size for work distribution
-        let chunk_size = (n_targets + n_jobs - 1) / n_jobs; // Ceiling division
+        let chunk_size = n_targets.div_ceil(n_jobs);
         let mut handles = vec![];
 
         // Spawn worker threads
@@ -430,13 +430,12 @@ impl Fit<ArrayView2<'_, Float>, Array2<f64>> for MultiOutputRegressor<Untrained>
             // Simple linear regression: solve normal equations X^T X w = X^T y
             // For numerical stability, we'll use a simple average-based approach
             let mut weights = Array1::<Float>::zeros(n_features);
-            let mut bias = 0.0;
 
-            // Compute mean of targets
+            // Compute mean of targets (used as the bias term)
             let y_mean = y_target
                 .mean()
                 .expect("array should have elements for mean computation");
-            bias = y_mean;
+            let bias = y_mean;
 
             // Simple approach: set weights proportional to feature correlations with target
             for feature_idx in 0..n_features {
@@ -508,7 +507,7 @@ impl MultiOutputRegressor<Untrained> {
         let target_models = Arc::new(Mutex::new(HashMap::new()));
 
         // Calculate chunk size for work distribution
-        let chunk_size = (n_targets + n_jobs - 1) / n_jobs; // Ceiling division
+        let chunk_size = n_targets.div_ceil(n_jobs);
         let mut handles = vec![];
 
         // Spawn worker threads

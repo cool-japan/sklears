@@ -11,6 +11,7 @@
 //! - `Estimator`
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 use super::*;
 
@@ -73,7 +74,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>>
     for BayesianMultiOutputModel<BayesianMultiOutputModelTrained>
 {
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
         if n_features != self.state.n_features {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features, got {}",

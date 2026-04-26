@@ -17,10 +17,3 @@ pub mod property_tests;
 
 /// Tests for high-dimensional data methods
 pub mod high_dimensional;
-
-// Re-export all test modules for convenient access
-pub use advanced_algorithms::*;
-pub use basic_algorithms::*;
-pub use high_dimensional::*;
-pub use property_tests::*;
-pub use quality_metrics::*;

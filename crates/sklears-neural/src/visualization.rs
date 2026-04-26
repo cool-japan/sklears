@@ -5,7 +5,7 @@
 //! weight distributions.
 
 use crate::NeuralResult;
-use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 use sklears_core::error::SklearsError;
 use sklears_core::types::FloatBounds;
 use std::collections::HashMap;
@@ -45,17 +45,24 @@ impl Default for VisualizationConfig {
 /// Supported image formats
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ImageFormat {
+    /// Scalable Vector Graphics — lossless, suitable for diagrams
     SVG,
+    /// Portable Network Graphics — raster format (SVG is generated first, then converted externally)
     PNG,
+    /// Interactive HTML with embedded JavaScript visualizations
     HTML,
 }
 
 /// Color schemes for visualizations
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ColorScheme {
+    /// Default color scheme
     Default,
+    /// Perceptually uniform sequential color map
     Viridis,
+    /// High-contrast sequential color map
     Plasma,
+    /// Black-to-white grayscale ramp
     Grayscale,
 }
 
@@ -294,11 +301,17 @@ impl ModelVisualizer {
 /// Information about a layer for visualization
 #[derive(Debug, Clone)]
 pub struct LayerInfo {
+    /// Human-readable name identifying this layer in the architecture diagram
     pub name: String,
+    /// String descriptor of the layer class (e.g., `"Dense"`, `"Conv2D"`)
     pub layer_type: String,
+    /// Shape of the output tensor produced by this layer
     pub output_shape: Vec<usize>,
+    /// Total number of trainable parameters in this layer
     pub num_parameters: usize,
+    /// Name of the activation function applied after this layer, if any
     pub activation: Option<String>,
+    /// Whether the layer's parameters are updated during training
     pub trainable: bool,
 }
 
@@ -482,25 +495,18 @@ impl TrainingVisualizer {
 }
 
 /// Training metrics for visualization
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TrainingMetrics {
+    /// Per-epoch training loss values
     pub train_loss: Vec<f64>,
+    /// Per-epoch validation loss values
     pub val_loss: Vec<f64>,
+    /// Per-epoch training accuracy values
     pub train_accuracy: Vec<f64>,
+    /// Per-epoch validation accuracy values
     pub val_accuracy: Vec<f64>,
+    /// Learning rate schedule over epochs
     pub learning_rates: Vec<f64>,
-}
-
-impl Default for TrainingMetrics {
-    fn default() -> Self {
-        Self {
-            train_loss: Vec::new(),
-            val_loss: Vec::new(),
-            train_accuracy: Vec::new(),
-            val_accuracy: Vec::new(),
-            learning_rates: Vec::new(),
-        }
-    }
 }
 
 /// Attention heatmap visualizer

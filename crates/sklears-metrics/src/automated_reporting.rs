@@ -534,27 +534,25 @@ fn generate_executive_summary(metrics: &HashMap<String, f64>) -> MetricsResult<E
     // Analyze each metric
     for (name, &value) in metrics.iter() {
         match name.as_str() {
-            "accuracy" => {
-                if value > 0.9 {
-                    key_findings.push(format!(
-                        "Excellent accuracy achieved: {:.1}%",
-                        value * 100.0
-                    ));
-                } else if value < 0.7 {
-                    critical_issues.push(format!(
-                        "Low accuracy: {:.1}% - model may need improvement",
-                        value * 100.0
-                    ));
-                }
+            "accuracy" if value > 0.9 => {
+                key_findings.push(format!(
+                    "Excellent accuracy achieved: {:.1}%",
+                    value * 100.0
+                ));
             }
-            "precision" | "recall" => {
-                if value < 0.6 {
-                    critical_issues.push(format!(
-                        "Low {}: {:.1}% - indicates potential bias or data quality issues",
-                        name,
-                        value * 100.0
-                    ));
-                }
+            "accuracy" if value < 0.7 => {
+                critical_issues.push(format!(
+                    "Low accuracy: {:.1}% - model may need improvement",
+                    value * 100.0
+                ));
+            }
+            "accuracy" => {}
+            "precision" | "recall" if value < 0.6 => {
+                critical_issues.push(format!(
+                    "Low {}: {:.1}% - indicates potential bias or data quality issues",
+                    name,
+                    value * 100.0
+                ));
             }
             _ => {}
         }
@@ -595,41 +593,35 @@ fn generate_recommendations(metrics: &HashMap<String, f64>) -> MetricsResult<Vec
 
     for (name, &value) in metrics.iter() {
         match name.as_str() {
-            "accuracy" => {
-                if value < 0.8 {
-                    recommendations.push(Recommendation {
-                        category: RecommendationCategory::ModelImprovement,
-                        priority: Priority::High,
-                        description: "Consider using more sophisticated algorithms or ensemble methods to improve accuracy".to_string(),
-                        evidence: vec![format!("Current accuracy: {:.1}%", value * 100.0)],
-                        estimated_impact: "5-15% accuracy improvement".to_string(),
-                        implementation_difficulty: Difficulty::Medium,
-                    });
-                }
+            "accuracy" if value < 0.8 => {
+                recommendations.push(Recommendation {
+                    category: RecommendationCategory::ModelImprovement,
+                    priority: Priority::High,
+                    description: "Consider using more sophisticated algorithms or ensemble methods to improve accuracy".to_string(),
+                    evidence: vec![format!("Current accuracy: {:.1}%", value * 100.0)],
+                    estimated_impact: "5-15% accuracy improvement".to_string(),
+                    implementation_difficulty: Difficulty::Medium,
+                });
             }
-            "precision" => {
-                if value < 0.7 {
-                    recommendations.push(Recommendation {
-                        category: RecommendationCategory::Bias,
-                        priority: Priority::High,
-                        description: "Low precision indicates high false positive rate - review decision threshold".to_string(),
-                        evidence: vec![format!("Current precision: {:.1}%", value * 100.0)],
-                        estimated_impact: "Reduce false positives by 20-40%".to_string(),
-                        implementation_difficulty: Difficulty::Easy,
-                    });
-                }
+            "precision" if value < 0.7 => {
+                recommendations.push(Recommendation {
+                    category: RecommendationCategory::Bias,
+                    priority: Priority::High,
+                    description: "Low precision indicates high false positive rate - review decision threshold".to_string(),
+                    evidence: vec![format!("Current precision: {:.1}%", value * 100.0)],
+                    estimated_impact: "Reduce false positives by 20-40%".to_string(),
+                    implementation_difficulty: Difficulty::Easy,
+                });
             }
-            "recall" => {
-                if value < 0.7 {
-                    recommendations.push(Recommendation {
-                        category: RecommendationCategory::DataQuality,
-                        priority: Priority::Medium,
-                        description: "Low recall suggests missing positive examples - review data collection process".to_string(),
-                        evidence: vec![format!("Current recall: {:.1}%", value * 100.0)],
-                        estimated_impact: "Capture 15-30% more positive cases".to_string(),
-                        implementation_difficulty: Difficulty::Hard,
-                    });
-                }
+            "recall" if value < 0.7 => {
+                recommendations.push(Recommendation {
+                    category: RecommendationCategory::DataQuality,
+                    priority: Priority::Medium,
+                    description: "Low recall suggests missing positive examples - review data collection process".to_string(),
+                    evidence: vec![format!("Current recall: {:.1}%", value * 100.0)],
+                    estimated_impact: "Capture 15-30% more positive cases".to_string(),
+                    implementation_difficulty: Difficulty::Hard,
+                });
             }
             _ => {}
         }

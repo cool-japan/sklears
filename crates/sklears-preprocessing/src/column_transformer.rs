@@ -47,9 +47,10 @@ pub enum DataType {
 }
 
 /// Strategy for handling remaining columns
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum RemainderStrategy {
     /// Drop remaining columns
+    #[default]
     Drop,
     /// Pass through remaining columns unchanged
     Passthrough,
@@ -58,9 +59,10 @@ pub enum RemainderStrategy {
 }
 
 /// Strategy for handling errors during column transformations
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum ColumnErrorStrategy {
     /// Stop on first error
+    #[default]
     StopOnError,
     /// Skip failed transformers and continue with others
     SkipOnError,
@@ -70,18 +72,6 @@ pub enum ColumnErrorStrategy {
     ReplaceWithZeros,
     /// Replace failed columns with NaN values
     ReplaceWithNaN,
-}
-
-impl Default for ColumnErrorStrategy {
-    fn default() -> Self {
-        Self::StopOnError
-    }
-}
-
-impl Default for RemainderStrategy {
-    fn default() -> Self {
-        Self::Drop
-    }
 }
 
 /// Trait for transformer wrappers to enable dynamic dispatch
@@ -150,6 +140,8 @@ pub struct ColumnTransformer<State = Untrained> {
     state: PhantomData<State>,
     // Fitted parameters
     fitted_transformers_: Option<Vec<TransformerStep>>,
+    /// Input feature names retained for future `.get_feature_names_in()` API
+    #[allow(dead_code)]
     feature_names_in_: Option<Vec<String>>,
     n_features_in_: Option<usize>,
     output_indices_: Option<HashMap<String, Vec<usize>>>,
@@ -160,6 +152,8 @@ pub struct ColumnTransformer<State = Untrained> {
 #[derive(Debug)]
 struct ColumnTransformResult {
     transformer_name: String,
+    /// Original column indices retained for error reporting (not yet surfaced in API)
+    #[allow(dead_code)]
     column_indices: Vec<usize>,
     result: Result<Array2<Float>>,
     original_indices: Vec<usize>,
@@ -378,7 +372,9 @@ impl ColumnTransformer<Untrained> {
         }
     }
 
-    /// Infer column indices by data type using heuristics (without training data)
+    /// Infer column indices by data type using heuristics (without training data);
+    /// retained as a fallback path for future no-data column selection
+    #[allow(dead_code)]
     fn infer_columns_by_dtype(&self, _dtype: &DataType, _n_features: usize) -> Result<Vec<usize>> {
         // This method cannot work without training data
         Err(SklearsError::InvalidInput(

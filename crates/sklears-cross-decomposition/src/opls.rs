@@ -572,6 +572,11 @@ impl OPLS<Trained> {
             .as_ref()
             .expect("value should be set after fitting")
     }
+
+    /// Get the number of iterations per component (sklearn-style fitted attribute)
+    pub fn n_iter(&self) -> Option<&[usize]> {
+        self.n_iter_.as_deref()
+    }
 }
 
 #[allow(non_snake_case)]

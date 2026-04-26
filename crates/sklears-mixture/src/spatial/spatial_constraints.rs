@@ -139,15 +139,11 @@ impl SpatialMixtureConfig {
 
         // Validate spatial constraint specific parameters
         match &self.spatial_constraint {
-            SpatialConstraint::Distance { radius } => {
-                if *radius <= 0.0 {
-                    return Err("Distance radius must be positive".to_string());
-                }
+            SpatialConstraint::Distance { radius } if *radius <= 0.0 => {
+                return Err("Distance radius must be positive".to_string());
             }
-            SpatialConstraint::Grid { rows, cols } => {
-                if *rows == 0 || *cols == 0 {
-                    return Err("Grid dimensions must be greater than 0".to_string());
-                }
+            SpatialConstraint::Grid { rows, cols } if *rows == 0 || *cols == 0 => {
+                return Err("Grid dimensions must be greater than 0".to_string());
             }
             _ => {}
         }
@@ -197,9 +193,10 @@ impl SpatialMixtureConfig {
 }
 
 /// Spatial regularization types for mixture models
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum SpatialRegularization {
     /// No spatial regularization
+    #[default]
     None,
 
     /// L1 spatial penalty (encourages sparse spatial effects)
@@ -213,12 +210,6 @@ pub enum SpatialRegularization {
 
     /// Elastic net combination of L1 and L2
     ElasticNet { l1_ratio: f64, lambda: f64 },
-}
-
-impl Default for SpatialRegularization {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 impl SpatialRegularization {

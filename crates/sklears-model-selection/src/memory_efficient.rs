@@ -243,6 +243,7 @@ where
 
 /// Memory-efficient cross-validation evaluator
 pub struct MemoryEfficientCrossValidator<T, L> {
+    #[allow(dead_code)] // config retained for future memory budget enforcement
     config: MemoryEfficientConfig,
     fold_indices: Vec<Vec<usize>>,
     data_reader: StreamingDataReader<T>,
@@ -540,7 +541,7 @@ mod tests {
 
     #[test]
     fn test_memory_pool() {
-        let mut pool = MemoryPool::new(3, || Vec::<i32>::new());
+        let mut pool = MemoryPool::new(3, Vec::<i32>::new);
 
         let item1 = pool.get();
         assert_eq!(item1.len(), 0);

@@ -4,9 +4,7 @@
 //! analysis and cross-decomposition methods to identify temporal patterns and dynamics.
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{thread_rng, Random, Rng};
 use sklears_core::types::Float;
-use std::collections::HashMap;
 
 // Import common types from multi_omics module
 use crate::multi_omics::GenomicsError;
@@ -179,12 +177,12 @@ impl TemporalGeneExpression {
     fn extract_temporal_components(
         &self,
         lagged_data: &Array2<Float>,
-        time_points: &ArrayView1<Float>,
+        _time_points: &ArrayView1<Float>,
     ) -> Result<Array2<Float>, GenomicsError> {
         // Use PCA to extract temporal components
         let mean_centered = self.center_data(lagged_data)?;
         let cov_matrix = self.compute_covariance(&mean_centered)?;
-        let (eigenvalues, eigenvectors) = self.simplified_eigen_decomposition(&cov_matrix)?;
+        let (_eigenvalues, eigenvectors) = self.simplified_eigen_decomposition(&cov_matrix)?;
 
         // Extract top components
         let n_components = self.n_components.min(lagged_data.ncols());
@@ -196,7 +194,7 @@ impl TemporalGeneExpression {
     fn compute_gene_trajectories(
         &self,
         data: &Array2<Float>,
-        time_points: &ArrayView1<Float>,
+        _time_points: &ArrayView1<Float>,
     ) -> Result<Array2<Float>, GenomicsError> {
         // Compute smoothed gene expression trajectories
         let mut trajectories = Array2::zeros(data.raw_dim());
@@ -333,7 +331,8 @@ pub struct FittedTemporalGeneExpression {
     temporal_correlations: Array2<Float>,
     n_components: usize,
     n_lags: usize,
-    window_size: usize,
+    /// Sliding window size used for temporal analysis
+    pub window_size: usize,
 }
 
 impl FittedTemporalGeneExpression {

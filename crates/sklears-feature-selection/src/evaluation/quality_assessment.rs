@@ -112,10 +112,15 @@ impl SelectionQuality {
 /// Predictive performance assessment
 #[derive(Debug, Clone)]
 pub struct PredictivePerformance {
+    /// accuracy
     pub accuracy: f64,
+    /// precision
     pub precision: f64,
+    /// recall
     pub recall: f64,
+    /// f1_score
     pub f1_score: f64,
+    /// auc_roc
     pub auc_roc: f64,
 }
 
@@ -153,10 +158,15 @@ impl PredictivePerformance {
 /// Model complexity assessment
 #[derive(Debug, Clone)]
 pub struct ModelComplexity {
+    /// n_features
     pub n_features: usize,
+    /// n_parameters
     pub n_parameters: usize,
+    /// training_time
     pub training_time: f64,
+    /// prediction_time
     pub prediction_time: f64,
+    /// memory_usage
     pub memory_usage: usize,
 }
 
@@ -204,9 +214,13 @@ impl ModelComplexity {
 /// Interpretability metrics
 #[derive(Debug, Clone)]
 pub struct InterpretabilityMetrics {
+    /// feature_importance_clarity
     pub feature_importance_clarity: f64,
+    /// feature_interaction_complexity
     pub feature_interaction_complexity: f64,
+    /// model_transparency
     pub model_transparency: f64,
+    /// explanation_quality
     pub explanation_quality: f64,
 }
 
@@ -252,13 +266,21 @@ impl InterpretabilityMetrics {
 /// Quality assessment result
 #[derive(Debug, Clone)]
 pub struct QualityAssessmentResult {
+    /// overall_quality_score
     pub overall_quality_score: f64,
+    /// compactness_score
     pub compactness_score: f64,
+    /// efficiency_score
     pub efficiency_score: f64,
+    /// information_score
     pub information_score: f64,
+    /// balance_score
     pub balance_score: f64,
+    /// selection_ratio
     pub selection_ratio: f64,
+    /// n_features_selected
     pub n_features_selected: usize,
+    /// n_features_total
     pub n_features_total: usize,
 }
 
@@ -584,9 +606,13 @@ impl QualityAssessment {
 /// Comprehensive quality assessment result
 #[derive(Debug, Clone)]
 pub struct ComprehensiveQualityAssessment {
+    /// selection_quality
     pub selection_quality: QualityAssessmentResult,
+    /// predictive_performance
     pub predictive_performance: Option<PredictivePerformance>,
+    /// model_complexity
     pub model_complexity: Option<ModelComplexity>,
+    /// interpretability_metrics
     pub interpretability_metrics: Option<InterpretabilityMetrics>,
 }
 
@@ -728,7 +754,7 @@ mod tests {
         let quality = SelectionQuality::new(5, 20, 0.8, 0.7);
         let result = quality.assess();
 
-        assert!(result.overall_quality_score >= 0.0 && result.overall_quality_score <= 1.0);
+        assert!((0.0..=1.0).contains(&result.overall_quality_score));
         assert_eq!(result.n_features_selected, 5);
         assert_eq!(result.n_features_total, 20);
         assert_eq!(result.selection_ratio, 0.25);
@@ -745,16 +771,16 @@ mod tests {
     fn test_model_complexity() {
         let complexity = ModelComplexity::new(10, 100, 30.0, 0.01, 1000000);
         let score = complexity.complexity_score();
-        assert!(score >= 0.0 && score <= 1.0);
-        assert!(complexity.assess_complexity().len() > 0);
+        assert!((0.0..=1.0).contains(&score));
+        assert!(!complexity.assess_complexity().is_empty());
     }
 
     #[test]
     fn test_interpretability_metrics() {
         let interpretability = InterpretabilityMetrics::new(0.8, 0.3, 0.9, 0.7);
         let score = interpretability.interpretability_score();
-        assert!(score >= 0.0 && score <= 1.0);
-        assert!(interpretability.assess_interpretability().len() > 0);
+        assert!((0.0..=1.0).contains(&score));
+        assert!(!interpretability.assess_interpretability().is_empty());
     }
 
     #[test]

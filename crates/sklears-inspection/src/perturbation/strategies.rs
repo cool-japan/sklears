@@ -10,6 +10,7 @@ use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
 use scirs2_core::random::{RngExt, SeedableRng};
 
 /// Generate perturbations based on the specified strategy
+#[allow(non_snake_case)] // standard ML notation
 pub fn generate_perturbations(
     X: &ArrayView2<Float>,
     config: &PerturbationConfig,
@@ -47,6 +48,8 @@ pub fn generate_perturbations(
 }
 
 /// Gaussian noise perturbation
+#[allow(non_snake_case)] // standard ML notation
+#[cfg(not(feature = "simd"))]
 fn gaussian_perturbation(
     X: &ArrayView2<Float>,
     config: &PerturbationConfig,
@@ -85,6 +88,7 @@ fn gaussian_perturbation(
 
 /// SIMD-optimized Gaussian perturbation using vectorized operations
 #[cfg(feature = "simd")]
+#[allow(non_snake_case)] // standard ML notation
 fn gaussian_perturbation_simd(
     X: &ArrayView2<Float>,
     config: &PerturbationConfig,
@@ -164,8 +168,8 @@ fn gaussian_perturbation_simd(
 fn simd_add_in_place(data: &mut [Float], noise: &[Float]) {
     // For f64 (AVX2) - process 4 elements at a time
     if std::mem::size_of::<Float>() == 8 && data.len() >= 4 && noise.len() >= 4 {
-        let data_ptr = data.as_mut_ptr() as *mut f64;
-        let noise_ptr = noise.as_ptr() as *const f64;
+        let data_ptr = data.as_mut_ptr();
+        let noise_ptr = noise.as_ptr();
 
         unsafe {
             #[cfg(target_arch = "x86_64")]
@@ -223,6 +227,8 @@ fn simd_add_in_place(data: &mut [Float], noise: &[Float]) {
 }
 
 /// Uniform noise perturbation
+#[allow(non_snake_case)] // standard ML notation
+#[cfg(not(feature = "simd"))]
 fn uniform_perturbation(
     X: &ArrayView2<Float>,
     config: &PerturbationConfig,
@@ -257,6 +263,7 @@ fn uniform_perturbation(
 
 /// SIMD-optimized uniform perturbation using vectorized operations
 #[cfg(feature = "simd")]
+#[allow(non_snake_case)] // standard ML notation
 fn uniform_perturbation_simd(
     X: &ArrayView2<Float>,
     config: &PerturbationConfig,
@@ -329,6 +336,7 @@ fn uniform_perturbation_simd(
 }
 
 /// Adversarial perturbation (simplified gradient-based)
+#[allow(non_snake_case)] // standard ML notation
 fn adversarial_perturbation(
     X: &ArrayView2<Float>,
     config: &PerturbationConfig,
@@ -361,6 +369,7 @@ fn adversarial_perturbation(
 }
 
 /// Synthetic data perturbation
+#[allow(non_snake_case)] // standard ML notation
 fn synthetic_perturbation(
     X: &ArrayView2<Float>,
     config: &PerturbationConfig,
@@ -400,6 +409,7 @@ fn synthetic_perturbation(
 }
 
 /// Distribution-preserving perturbation
+#[allow(non_snake_case)] // standard ML notation
 fn distribution_preserving_perturbation(
     X: &ArrayView2<Float>,
     config: &PerturbationConfig,
@@ -442,6 +452,7 @@ fn distribution_preserving_perturbation(
 }
 
 /// Structured perturbation (feature groups)
+#[allow(non_snake_case)] // standard ML notation
 fn structured_perturbation(
     X: &ArrayView2<Float>,
     config: &PerturbationConfig,
@@ -479,6 +490,7 @@ fn structured_perturbation(
 }
 
 /// Salt-and-pepper noise perturbation
+#[allow(non_snake_case)] // standard ML notation
 fn salt_pepper_perturbation(
     X: &ArrayView2<Float>,
     config: &PerturbationConfig,
@@ -523,6 +535,7 @@ fn salt_pepper_perturbation(
 }
 
 /// Dropout-style perturbation
+#[allow(non_snake_case)] // standard ML notation
 fn dropout_perturbation(
     X: &ArrayView2<Float>,
     config: &PerturbationConfig,

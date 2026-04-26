@@ -1229,7 +1229,7 @@ impl<T: Clone + Zero> BlockMatrix<T> {
         let block_col = col / self.block_size;
         let in_block_row = row % self.block_size;
         let in_block_col = col % self.block_size;
-        let blocks_per_row = (self.cols + self.block_size - 1) / self.block_size;
+        let blocks_per_row = self.cols.div_ceil(self.block_size);
         let block_index = block_row * blocks_per_row + block_col;
         let block_start = block_index * self.block_size * self.block_size;
         block_start + in_block_row * self.block_size + in_block_col

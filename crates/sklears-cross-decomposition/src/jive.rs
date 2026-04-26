@@ -5,7 +5,7 @@
 //! - Individual variation: variation specific to each view
 //! - Noise: remaining unexplained variation
 
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, Axis};
+use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Transform},
@@ -341,6 +341,7 @@ impl JIVE<Untrained> {
     }
 
     /// Preprocess views (center and scale)
+    #[allow(clippy::type_complexity)] // returns (processed_views, means, stds) triple
     fn preprocess_views(
         &self,
         views: &[Array2<Float>],
@@ -483,7 +484,7 @@ impl JIVE<Untrained> {
         views: &[Array2<Float>],
         joint_structure: &Array2<Float>,
     ) -> Result<(Array2<Float>, Vec<Array2<Float>>)> {
-        let (u, s, vt) = self.compute_svd(joint_structure)?;
+        let (u, _s, _vt) = self.compute_svd(joint_structure)?;
         let joint_scores = u.slice(s![.., 0..self.joint_rank]).to_owned();
 
         let mut joint_loadings = Vec::new();
@@ -497,6 +498,7 @@ impl JIVE<Untrained> {
     }
 
     /// Compute individual scores and loadings
+    #[allow(clippy::type_complexity)] // returns (individual_scores, individual_loadings) pair of vecs
     fn compute_individual_scores_loadings(
         &self,
         views: &[Array2<Float>],
@@ -508,7 +510,7 @@ impl JIVE<Untrained> {
         for (view_idx, (view, individual_structure)) in
             views.iter().zip(individual_structures.iter()).enumerate()
         {
-            let (u, s, vt) = self.compute_svd(individual_structure)?;
+            let (u, _s, _vt) = self.compute_svd(individual_structure)?;
             let rank = self.individual_ranks[view_idx];
 
             let scores = u.slice(s![.., 0..rank]).to_owned();
@@ -524,7 +526,7 @@ impl JIVE<Untrained> {
     /// Compute joint explained variance
     fn compute_joint_explained_variance(
         &self,
-        views: &[Array2<Float>],
+        _views: &[Array2<Float>],
         joint_structure: &Array2<Float>,
     ) -> Result<Float> {
         // Explained variance should be the variance of the joint structure normalized by sample size
@@ -622,6 +624,7 @@ impl JIVE<Untrained> {
     }
 
     /// Eigenvalue decomposition for symmetric matrices
+    #[allow(non_snake_case)] // standard ML notation
     fn eigenvalue_decomposition(
         &self,
         A: &Array2<Float>,
@@ -732,7 +735,7 @@ impl Transform<Vec<Array2<Float>>, (Array2<Float>, Vec<Array2<Float>>)> for JIVE
 
         // Transform to individual spaces
         let mut individual_transformed = Vec::new();
-        for (view_idx, view) in processed_views.iter().enumerate() {
+        for (view_idx, _view) in processed_views.iter().enumerate() {
             let transformed = individual_scores[view_idx].clone();
             individual_transformed.push(transformed);
         }
@@ -858,7 +861,11 @@ impl JIVE<Trained> {
         }
 
         if self.center {
-            result = result + &means[view_idx].view().insert_axis(Axis(0));
+            // `+=` does not broadcast in ndarray; `result + rhs` reshapes [n,1]+[1,p]→[n,p]
+            #[allow(clippy::assign_op_pattern)]
+            {
+                result = result + means[view_idx].view().insert_axis(Axis(0));
+            }
         }
 
         Ok(result)
@@ -870,7 +877,6 @@ impl JIVE<Trained> {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::array;
-    use sklears_core::traits::Fit;
 
     #[test]
     fn test_jive_basic() {

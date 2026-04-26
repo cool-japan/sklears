@@ -38,12 +38,12 @@ use std::{any::Any, cmp::Ordering, string::ToString};
 // Mock types for no-std compatibility
 #[cfg(feature = "no-std")]
 #[derive(Debug, Clone, Copy)]
-pub struct Instant(u64);
+pub struct Instant;
 
 #[cfg(feature = "no-std")]
 impl Instant {
     pub fn now() -> Self {
-        Instant(0) // Mock implementation for no-std
+        Instant // Mock implementation for no-std
     }
 
     pub fn elapsed(&self) -> u64 {
@@ -57,6 +57,7 @@ pub struct MultiGpuCoordinator {
     memory_manager: Arc<Mutex<MultiGpuMemoryManager>>,
     load_balancer: LoadBalancer,
     task_scheduler: TaskScheduler,
+    #[allow(dead_code)] // Reserved for barrier/event synchronization when GPU backends are enabled
     sync_manager: SynchronizationManager,
 }
 
@@ -150,6 +151,7 @@ pub struct CompletedTask {
 
 /// GPU barrier for synchronization
 pub struct GpuBarrier {
+    #[allow(dead_code)] // Identifies barrier in debug/logging output
     name: String,
     expected_participants: u32,
     current_participants: u32,
@@ -158,9 +160,12 @@ pub struct GpuBarrier {
 
 /// GPU event for asynchronous operations
 pub struct GpuEvent {
+    #[allow(dead_code)] // Identifies event in debug/logging output
     name: String,
+    #[allow(dead_code)] // Stores which device owns this event for routing
     device_id: u32,
     is_recorded: bool,
+    #[allow(dead_code)] // Reserved for native GPU event handle (CUDA event / OpenCL marker)
     backend_event: Option<Box<dyn Any>>,
 }
 
@@ -289,8 +294,8 @@ impl MultiGpuCoordinator {
                 kernel_name: "matrix_mul".to_string(),
                 config: KernelConfig {
                     grid_size: (
-                        ((b_cols + 15) / 16) as u32,
-                        ((device_rows + 15) / 16) as u32,
+                        b_cols.div_ceil(16) as u32,
+                        device_rows.div_ceil(16) as u32,
                         1,
                     ),
                     block_size: (16, 16, 1),
@@ -588,7 +593,7 @@ impl TaskScheduler {
         }
 
         self.pending_tasks = remaining;
-        available.sort_by(|a, b| b.priority.cmp(&a.priority));
+        available.sort_by_key(|b| core::cmp::Reverse(b.priority));
         available
     }
 

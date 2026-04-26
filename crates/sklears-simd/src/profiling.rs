@@ -28,12 +28,12 @@ use core::sync::atomic::{AtomicU64, Ordering};
 pub struct Duration(u64); // Mock duration in microseconds
 #[cfg(feature = "no-std")]
 #[derive(Debug, Clone, Copy)]
-pub struct Instant(u64); // Mock instant as counter
+pub struct Instant; // Mock instant stub for no-std
 
 #[cfg(feature = "no-std")]
 impl Instant {
     pub fn now() -> Self {
-        Instant(0) // Mock implementation
+        Instant // Mock implementation
     }
 
     pub fn elapsed(&self) -> Duration {
@@ -445,6 +445,7 @@ pub struct OperationStats {
 
 /// Individual operation profiler for timing measurements
 pub struct OperationProfiler {
+    #[allow(dead_code)] // Stored for future finish() enrichment (e.g. including name in result)
     operation_name: String,
     start_time: Instant,
     instruction_count: InstructionCount,
@@ -515,7 +516,7 @@ impl CacheAnalyzer {
 
     /// Analyze cache efficiency for a given data access pattern
     pub fn analyze_access_pattern(&self, data_size: usize, stride: usize) -> CacheAnalysis {
-        let cache_lines_accessed = (data_size + self.cache_line_size - 1) / self.cache_line_size;
+        let cache_lines_accessed = data_size.div_ceil(self.cache_line_size);
 
         // Estimate cache misses based on stride and cache sizes
         let l1_working_set = cache_lines_accessed * self.cache_line_size;
@@ -573,7 +574,7 @@ impl VectorizationAnalyzer {
         actual_simd_ops: usize,
         scalar_ops: usize,
     ) -> VectorizationAnalysis {
-        let theoretical_simd_ops = (elements_processed + simd_width - 1) / simd_width;
+        let theoretical_simd_ops = elements_processed.div_ceil(simd_width);
         let total_ops = actual_simd_ops + scalar_ops;
 
         let vectorization_rate = if total_ops > 0 {
@@ -768,7 +769,7 @@ mod tests {
         assert!(stats.total_operations >= 2); // At least the operations we just created
 
         let simd_ratio = stats.simd_ratio();
-        assert!(simd_ratio >= 0.0 && simd_ratio <= 1.0);
+        assert!((0.0..=1.0).contains(&simd_ratio));
     }
 
     #[test]
@@ -791,12 +792,13 @@ mod tests {
 
     #[test]
     fn test_instruction_count_tracking() {
-        let mut count = InstructionCount::default();
-        count.simd_instructions = 100;
-        count.scalar_instructions = 50;
-        count.memory_loads = 75;
-        count.memory_stores = 25;
-        count.branches = 10;
+        let count = InstructionCount {
+            simd_instructions: 100,
+            scalar_instructions: 50,
+            memory_loads: 75,
+            memory_stores: 25,
+            branches: 10,
+        };
 
         // Verify all fields are tracked correctly
         assert_eq!(count.simd_instructions, 100);

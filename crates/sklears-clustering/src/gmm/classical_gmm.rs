@@ -17,6 +17,16 @@ use super::types_config::{
     CovarianceType, GaussianMixtureConfig, ModelSelectionCriterion, ModelSelectionResult,
 };
 
+/// Result tuple from the EM algorithm: (weights, means, covariances, converged, n_iter, log_likelihood)
+type EmResult = (
+    Array1<Float>,
+    Array2<Float>,
+    Vec<Array2<Float>>,
+    bool,
+    usize,
+    Float,
+);
+
 /// Classical Gaussian Mixture Model
 ///
 /// A probabilistic model that assumes data points are generated from
@@ -285,17 +295,7 @@ impl<X, Y> GaussianMixture<X, Y> {
     }
 
     /// Implement EM algorithm for Gaussian Mixture Models with SIMD acceleration
-    fn fit_em(
-        &self,
-        x: &ArrayView2<Float>,
-    ) -> Result<(
-        Array1<Float>,
-        Array2<Float>,
-        Vec<Array2<Float>>,
-        bool,
-        usize,
-        Float,
-    )> {
+    fn fit_em(&self, x: &ArrayView2<Float>) -> Result<EmResult> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
         let n_components = self.config.n_components;
@@ -543,6 +543,7 @@ impl<X, Y> Predict<ArrayView2<'_, Float>, Array1<usize>> for GaussianMixture<X, 
 
 /// Predict probability for each sample in X for each Gaussian component
 pub trait PredictProba<X, R> {
+    /// Returns the posterior probability of each sample belonging to each Gaussian component.
     fn predict_proba(&self, x: &X) -> Result<R>;
 }
 

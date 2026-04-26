@@ -18,6 +18,7 @@ pub struct AutoencoderManifold<S = Untrained> {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedAutoencoder {
     encoder_weights: Vec<Array2<f64>>,
     encoder_biases: Vec<Array1<f64>>,
@@ -101,7 +102,7 @@ impl AutoencoderManifold<Untrained> {
             decoder_biases.push(bias);
         }
 
-        /// TrainedAutoencoder
+        // TrainedAutoencoder
         TrainedAutoencoder {
             encoder_weights,
             encoder_biases,
@@ -112,6 +113,7 @@ impl AutoencoderManifold<Untrained> {
 }
 
 impl AutoencoderManifold<TrainedAutoencoder> {
+    #[allow(dead_code)] // retained for introspection
     fn forward_pass(&self, x: &ArrayView2<f64>) -> SklResult<(Array2<f64>, Array2<f64>)> {
         let mut activations = x.to_owned();
 
@@ -211,6 +213,7 @@ impl Transform<Array2<f64>, Array2<f64>> for AutoencoderManifold<TrainedAutoenco
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct VariationalAutoencoder<S = Untrained> {
     n_components: usize,
     hidden_layers: Vec<usize>,
@@ -222,6 +225,7 @@ pub struct VariationalAutoencoder<S = Untrained> {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedVAE {
     encoder_weights: Vec<Array2<f64>>,
     encoder_biases: Vec<Array1<f64>>,
@@ -266,6 +270,7 @@ impl VariationalAutoencoder<Untrained> {
 }
 
 impl VariationalAutoencoder<TrainedVAE> {
+    #[allow(dead_code)] // retained for introspection
     fn reparameterize(&self, mu: &Array2<f64>, logvar: &Array2<f64>) -> Array2<f64> {
         let std = logvar.mapv(|x| (0.5 * x).exp());
         let mut rng = thread_rng();
@@ -277,6 +282,7 @@ impl VariationalAutoencoder<TrainedVAE> {
         mu + &std * &epsilon
     }
 
+    #[allow(dead_code)] // retained for introspection
     fn kl_divergence(&self, mu: &Array2<f64>, logvar: &Array2<f64>) -> f64 {
         let kl: Array2<f64> = -0.5 * (1.0 + logvar - mu.mapv(|x| x * x) - logvar.mapv(|x| x.exp()));
         kl.sum() / mu.nrows() as f64
@@ -339,6 +345,7 @@ pub enum PriorType {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedAAE {
     encoder_weights: Vec<Array2<f64>>,
     encoder_biases: Vec<Array1<f64>>,
@@ -470,7 +477,7 @@ impl AdversarialAutoencoder<Untrained> {
             discriminator_biases.push(bias);
         }
 
-        /// TrainedAAE
+        // TrainedAAE
         TrainedAAE {
             encoder_weights,
             encoder_biases,
@@ -509,6 +516,7 @@ impl AdversarialAutoencoder<TrainedAAE> {
         Ok(activations)
     }
 
+    #[allow(dead_code)] // retained for introspection
     fn decode(&self, z: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
         let mut activations = z.to_owned();
 
@@ -529,6 +537,7 @@ impl AdversarialAutoencoder<TrainedAAE> {
         Ok(activations)
     }
 
+    #[allow(dead_code)] // retained for introspection
     fn discriminate(&self, z: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
         let mut activations = z.to_owned();
 
@@ -553,6 +562,7 @@ impl AdversarialAutoencoder<TrainedAAE> {
         Ok(activations)
     }
 
+    #[allow(dead_code)] // retained for introspection
     fn sample_prior(&self, n_samples: usize) -> Array2<f64> {
         let mut rng = thread_rng();
 
@@ -584,6 +594,7 @@ impl AdversarialAutoencoder<TrainedAAE> {
         }
     }
 
+    #[allow(dead_code)] // retained for introspection
     fn reconstruction_loss(
         &self,
         x_original: &ArrayView2<f64>,
@@ -593,6 +604,7 @@ impl AdversarialAutoencoder<TrainedAAE> {
         (diff.mapv(|x| x * x).sum()) / x_original.nrows() as f64
     }
 
+    #[allow(dead_code)] // retained for introspection
     fn adversarial_loss(&self, discriminator_output: &ArrayView2<f64>, is_real: bool) -> f64 {
         let target = if is_real { 1.0 } else { 0.0 };
         let epsilon = 1e-12;
@@ -803,7 +815,7 @@ impl NeuralODE<Untrained> {
             decoder_biases.push(bias);
         }
 
-        /// TrainedNODE
+        // TrainedNODE
         TrainedNODE {
             ode_func_weights,
             ode_func_biases,
@@ -1128,7 +1140,7 @@ impl ContinuousNormalizingFlow<Untrained> {
             dynamics_biases.push(bias);
         }
 
-        /// TrainedCNF
+        // TrainedCNF
         TrainedCNF {
             dynamics_weights,
             dynamics_biases,

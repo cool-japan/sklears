@@ -49,9 +49,10 @@ impl Default for DynamicEnsembleSelectionConfig {
 }
 
 /// Competence measures for dynamic selection
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum CompetenceMeasure {
     /// Local accuracy in the neighborhood
+    #[default]
     Accuracy,
     /// Minimum distance to training data
     Distance,
@@ -61,16 +62,11 @@ pub enum CompetenceMeasure {
     Likelihood,
 }
 
-impl Default for CompetenceMeasure {
-    fn default() -> Self {
-        Self::Accuracy
-    }
-}
-
 /// Selection strategies for dynamic ensemble selection
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum SelectionStrategy {
     /// Select the single best classifier
+    #[default]
     Best,
     /// Select top-k best classifiers
     TopK(usize),
@@ -80,16 +76,11 @@ pub enum SelectionStrategy {
     Weighted,
 }
 
-impl Default for SelectionStrategy {
-    fn default() -> Self {
-        Self::Best
-    }
-}
-
 /// Pool generation strategies
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum PoolGenerationStrategy {
     /// Bootstrap aggregating
+    #[default]
     Bagging,
     /// StdRng subspace
     StdRngSubspace,
@@ -97,12 +88,6 @@ pub enum PoolGenerationStrategy {
     StdRngPatches,
     /// Different algorithms
     Heterogeneous,
-}
-
-impl Default for PoolGenerationStrategy {
-    fn default() -> Self {
-        Self::Bagging
-    }
 }
 
 /// Competence region information for a test instance
@@ -157,7 +142,7 @@ pub struct DynamicEnsembleSelectionTrainedData<T> {
     /// Pool of trained base classifiers
     pub classifier_pool: Vec<T>,
     /// Validation data for competence estimation (features)
-    pub validation_X: Array2<f64>,
+    pub validation_x: Array2<f64>,
     /// Validation data for competence estimation (labels)
     pub validation_y: Array1<i32>,
     /// Predictions of each classifier on validation data
@@ -328,12 +313,12 @@ impl<C> Estimator for DynamicEnsembleSelectionClassifier<C, Untrained> {
 type TrainedDynamicEnsembleSelection<T> =
     DynamicEnsembleSelectionClassifier<DynamicEnsembleSelectionTrainedData<T>, Trained>;
 
-impl<C> Fit<Array2<f64>, Array1<i32>> for DynamicEnsembleSelectionClassifier<C, Untrained>
+impl<C, CF> Fit<Array2<f64>, Array1<i32>> for DynamicEnsembleSelectionClassifier<C, Untrained>
 where
-    C: Clone + Fit<Array2<f64>, Array1<i32>> + Send + Sync,
-    C::Fitted: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
+    C: Clone + Fit<Array2<f64>, Array1<i32>, Fitted = CF> + Send + Sync,
+    CF: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
 {
-    type Fitted = TrainedDynamicEnsembleSelection<C::Fitted>;
+    type Fitted = TrainedDynamicEnsembleSelection<CF>;
 
     #[allow(non_snake_case)]
     fn fit(self, X: &Array2<f64>, y: &Array1<i32>) -> SklResult<Self::Fitted> {
@@ -400,7 +385,7 @@ where
 
         let trained_data = DynamicEnsembleSelectionTrainedData {
             classifier_pool,
-            validation_X: X_val,
+            validation_x: X_val,
             validation_y: y_val,
             validation_predictions,
             classes: classes_array,
@@ -415,17 +400,18 @@ where
     }
 }
 
-impl<C> DynamicEnsembleSelectionClassifier<C, Untrained>
+impl<C, CF> DynamicEnsembleSelectionClassifier<C, Untrained>
 where
-    C: Clone + Fit<Array2<f64>, Array1<i32>> + Send + Sync,
-    C::Fitted: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
+    C: Clone + Fit<Array2<f64>, Array1<i32>, Fitted = CF> + Send + Sync,
+    CF: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
 {
+    #[allow(non_snake_case)] // X, X_boot, X_subset follow mathematical convention for feature matrices
     fn generate_classifier_pool(
         &self,
         X: &Array2<f64>,
         y: &Array1<i32>,
         rng: &mut CoreRandom<StdRng>,
-    ) -> SklResult<Vec<C::Fitted>> {
+    ) -> SklResult<Vec<CF>> {
         let mut pool = Vec::new();
 
         for _ in 0..self.config.n_estimators {
@@ -503,6 +489,7 @@ impl<T> Predict<Array2<f64>, Array1<i32>>
 where
     T: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
 {
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     fn predict(&self, X: &Array2<f64>) -> SklResult<Array1<i32>> {
         let probabilities = self.predict_proba(X)?;
         let (n_samples, _) = probabilities.dim();
@@ -528,6 +515,7 @@ impl<T> PredictProba<Array2<f64>, Array2<f64>>
 where
     T: Predict<Array2<f64>, Array1<i32>> + Clone + Send + Sync,
 {
+    #[allow(non_snake_case)] // X follows mathematical convention for feature matrix
     fn predict_proba(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         let (n_samples, _) = X.dim();
         let trained_data = &self.base_estimator;
@@ -598,7 +586,7 @@ where
         // Find k-nearest neighbors in validation set
         let mut distances = Vec::new();
 
-        for (i, val_instance) in trained_data.validation_X.axis_iter(Axis(0)).enumerate() {
+        for (i, val_instance) in trained_data.validation_x.axis_iter(Axis(0)).enumerate() {
             let distance = self.euclidean_distance(test_instance, &val_instance.to_owned());
             distances.push((distance, i));
         }
@@ -706,7 +694,8 @@ where
                     .map(|(i, &score)| (i, score))
                     .collect();
 
-                indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
+                indexed_scores
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
                 indexed_scores
                     .iter()
                     .take(*k)
@@ -738,13 +727,11 @@ mod tests {
 
     // Mock classifier for testing
     #[derive(Debug, Clone)]
-    struct MockClassifier {
-        classes: Vec<i32>,
-    }
+    struct MockClassifier;
 
     impl MockClassifier {
         fn new() -> Self {
-            Self { classes: vec![] }
+            Self
         }
     }
 

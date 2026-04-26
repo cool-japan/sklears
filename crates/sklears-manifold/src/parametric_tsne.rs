@@ -60,6 +60,7 @@ pub struct ParametricTsneTrained {
     /// Neural network weights and biases
     layers: Vec<NeuralLayer>,
     /// Input dimensionality
+    #[allow(dead_code)] // deferred: used in future out-of-sample projection
     input_dim: usize,
     /// Training embedding for reference
     embedding: Array2<Float>,

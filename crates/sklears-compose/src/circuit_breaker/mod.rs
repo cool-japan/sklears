@@ -124,6 +124,7 @@ impl std::fmt::Debug for CircuitBreakerHealthMonitor {
 
 /// Circuit breaker policy manager
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct CircuitBreakerPolicyManager {
     /// Policies
     policies: Arc<RwLock<HashMap<String, CircuitBreakerPolicy>>>,
@@ -168,6 +169,7 @@ pub struct PolicyCondition {
 
 /// Policy engine for rule evaluation and action execution
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PolicyEngine {
     /// Rule evaluator
     evaluator: Arc<RuleEvaluator>,
@@ -328,7 +330,7 @@ impl CircuitBreakerHealthMonitor {
     pub fn check_health(&self, circuit_id: &str) -> Vec<HealthCheckResult> {
         let mut results = Vec::new();
 
-        for (name, checker) in &self.checkers {
+        for checker in self.checkers.values() {
             let result = checker.check_health(circuit_id);
             results.push(result);
         }
@@ -420,10 +422,7 @@ impl Default for HealthMonitoringConfig {
 
 /// Utility functions for circuit breaker management
 pub mod utils {
-    use super::{
-        AdvancedCircuitBreaker, AnalyticsProcessor, CircuitBreakerBuilder, Duration,
-        EventPublisher, HealthChecker, RecoveryStrategy, SklResult,
-    };
+    use super::{AdvancedCircuitBreaker, CircuitBreakerBuilder, Duration, SklResult};
 
     /// Create a simple circuit breaker with default settings
     pub fn create_simple_circuit_breaker(

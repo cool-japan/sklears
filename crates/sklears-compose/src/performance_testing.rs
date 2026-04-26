@@ -8,7 +8,7 @@ use scirs2_core::ndarray::{ArrayView1, ArrayView2};
 use serde::{Deserialize, Serialize};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
-    traits::{Estimator, Fit},
+    traits::Fit,
     types::Float,
 };
 use std::collections::HashMap;
@@ -34,11 +34,20 @@ pub struct PerformanceRegressionTester {
 /// Benchmark results storage backend
 pub enum BenchmarkStorage {
     /// File-based storage
-    File { path: PathBuf },
+    File {
+        /// Field value.
+        path: PathBuf,
+    },
     /// In-memory storage (for testing)
-    Memory { results: Vec<BenchmarkResult> },
+    Memory {
+        /// Field value.
+        results: Vec<BenchmarkResult>,
+    },
     /// Database storage (placeholder)
-    Database { connection_string: String },
+    Database {
+        /// Field value.
+        connection_string: String,
+    },
 }
 
 /// Statistical analysis configuration
@@ -77,11 +86,20 @@ pub enum OutlierDetection {
     /// No outlier detection
     None,
     /// Z-score based detection
-    ZScore { threshold: f64 },
+    ZScore {
+        /// Field value.
+        threshold: f64,
+    },
     /// IQR based detection
-    IQR { multiplier: f64 },
+    IQR {
+        /// Field value.
+        multiplier: f64,
+    },
     /// Modified Z-score
-    ModifiedZScore { threshold: f64 },
+    ModifiedZScore {
+        /// Field value.
+        threshold: f64,
+    },
 }
 
 /// Test environment configuration
@@ -350,7 +368,7 @@ impl PerformanceRegressionTester {
         T: Fn(I) -> O,
         I: Clone,
     {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         let mut execution_times = Vec::new();
 
         // Warmup phase
@@ -811,11 +829,17 @@ pub struct TrendAnalysis {
 #[derive(Clone, Debug)]
 pub enum PerformanceTrend {
     /// Performance is improving
-    Improving { rate: f64 },
+    Improving {
+        /// Field value.
+        rate: f64,
+    },
     /// Performance is stable
     Stable,
     /// Performance is degrading
-    Degrading { rate: f64 },
+    Degrading {
+        /// Field value.
+        rate: f64,
+    },
     /// Not enough data
     Insufficient,
 }
@@ -835,6 +859,7 @@ pub struct RegressionAlert {
 
 impl PerformanceReport {
     #[must_use]
+    /// Creates a new instance.
     pub fn new(results: Vec<BenchmarkResult>, _config: &StatisticalAnalysisConfig) -> Self {
         let summary = ReportSummary::from_results(&results);
         let trends = TrendAnalysis::from_results(&results);
@@ -848,7 +873,7 @@ impl PerformanceReport {
         }
     }
 
-    fn detect_regressions(results: &[BenchmarkResult]) -> Vec<RegressionAlert> {
+    fn detect_regressions(_results: &[BenchmarkResult]) -> Vec<RegressionAlert> {
         // Placeholder implementation
         vec![]
     }
@@ -993,7 +1018,9 @@ mod tests {
 
     #[test]
     fn test_file_storage_creation() {
-        let tester = PerformanceRegressionTester::with_file_storage("/tmp/benchmarks.jsonl");
+        let tester = PerformanceRegressionTester::with_file_storage(
+            std::env::temp_dir().join("benchmarks.jsonl"),
+        );
         assert!(matches!(tester.storage, BenchmarkStorage::File { .. }));
     }
 

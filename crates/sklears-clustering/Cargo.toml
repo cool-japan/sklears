@@ -12,6 +12,9 @@ description = "Clustering algorithms for sklears: K-means, DBSCAN, hierarchical 
 keywords = ["machine-learning", "clustering", "kmeans", "dbscan"]
 categories = ["science", "mathematics", "algorithms"]
 
+[lints]
+workspace = true
+
 [dependencies]
 # SciRS2 Policy Compliant Dependencies
 sklears-core = { workspace = true }

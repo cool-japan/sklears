@@ -365,7 +365,7 @@ impl ReportGenerator {
         );
 
         // Add key findings if available
-        if let Some(scorecard_data) = self.data.get("scorecard") {
+        if let Some(_scorecard_data) = self.data.get("scorecard") {
             summary.push_str("## Key Findings\n\n");
             // Parse scorecard data and add insights
         }
@@ -927,11 +927,13 @@ pub fn generate_quick_report(
     model_name: &str,
     dataset_name: &str,
     feature_importance: &ArrayView1<Float>,
-    feature_names: Option<&[String]>,
+    _feature_names: Option<&[String]>,
 ) -> SklResult<InterpretabilityReport> {
-    let mut config = ReportConfig::default();
-    config.model_name = model_name.to_string();
-    config.dataset_name = dataset_name.to_string();
+    let config = ReportConfig {
+        model_name: model_name.to_string(),
+        dataset_name: dataset_name.to_string(),
+        ..Default::default()
+    };
 
     let mut generator = ReportGenerator::new(config);
 
@@ -1057,7 +1059,11 @@ mod tests {
             .generate_report()
             .expect("operation should succeed");
 
-        let result = export_to_json(&report, "/tmp/test_report.json");
+        let report_path = std::env::temp_dir()
+            .join("test_report.json")
+            .display()
+            .to_string();
+        let result = export_to_json(&report, &report_path);
         assert!(result.is_ok());
     }
 

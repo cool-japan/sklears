@@ -14,16 +14,16 @@ use sklears_core::{
     traits::{Estimator, Fit},
 };
 
-/// Helper function to generate random f64 from scirs2_core::random::RngCore
-fn gen_f64(rng: &mut impl scirs2_core::random::RngCore) -> f64 {
+/// Helper function to generate random f64 from scirs2_core::random::Rng
+fn gen_f64(rng: &mut impl scirs2_core::random::Rng) -> f64 {
     let mut bytes = [0u8; 8];
     rng.fill_bytes(&mut bytes);
     f64::from_le_bytes(bytes) / f64::from_le_bytes([255u8; 8])
 }
 
-/// Helper function to generate random value in range from scirs2_core::random::RngCore
+/// Helper function to generate random value in range from scirs2_core::random::Rng
 fn gen_range_usize(
-    rng: &mut impl scirs2_core::random::RngCore,
+    rng: &mut impl scirs2_core::random::Rng,
     range: std::ops::Range<usize>,
 ) -> usize {
     let mut bytes = [0u8; 8];
@@ -106,6 +106,7 @@ pub enum WeightOptimizer {
 }
 
 /// Regularized ensemble classifier with L1/L2 regularization
+#[allow(dead_code)] // planned API fields
 pub struct RegularizedEnsembleClassifier {
     config: RegularizedEnsembleConfig,
     base_estimators: Vec<BoxedEstimator>,
@@ -117,6 +118,7 @@ pub struct RegularizedEnsembleClassifier {
 }
 
 /// Regularized ensemble regressor with L1/L2 regularization
+#[allow(dead_code)] // planned API fields
 pub struct RegularizedEnsembleRegressor {
     config: RegularizedEnsembleConfig,
     base_estimators: Vec<BoxedEstimator>,
@@ -255,6 +257,7 @@ impl RegularizedEnsembleConfigBuilder {
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 impl RegularizedEnsembleRegressor {
     pub fn new(config: RegularizedEnsembleConfig) -> Self {
         Self {
@@ -273,7 +276,7 @@ impl RegularizedEnsembleRegressor {
     }
 
     /// Train base estimators
-    fn train_base_estimators(&mut self, X: &Array2<f64>, y: &Vec<f64>) -> SklResult<()> {
+    fn train_base_estimators(&mut self, X: &Array2<f64>, y: &[f64]) -> SklResult<()> {
         self.base_estimators.clear();
 
         for i in 0..self.config.n_estimators {
@@ -281,7 +284,7 @@ impl RegularizedEnsembleRegressor {
             let (X_train, y_train) = if self.config.noise_injection {
                 self.inject_noise(X, y, i)?
             } else {
-                (X.clone(), y.clone())
+                (X.clone(), y.to_vec())
             };
 
             // Create and train base estimator
@@ -307,7 +310,7 @@ impl RegularizedEnsembleRegressor {
     fn inject_noise(
         &self,
         X: &Array2<f64>,
-        y: &Vec<f64>,
+        y: &[f64],
         seed_offset: usize,
     ) -> SklResult<(Array2<f64>, Vec<f64>)> {
         let seed = self.config.random_state.unwrap_or(42) + seed_offset as u64;
@@ -318,7 +321,7 @@ impl RegularizedEnsembleRegressor {
         let noise_std = self.config.noise_variance.sqrt();
 
         let mut X_noisy = X.clone();
-        let mut y_noisy = y.clone();
+        let mut y_noisy = y.to_vec();
 
         // Add Gaussian noise to features
         for i in 0..n_samples {
@@ -336,7 +339,7 @@ impl RegularizedEnsembleRegressor {
     }
 
     /// Optimize ensemble weights with regularization
-    fn optimize_ensemble_weights(&mut self, X: &Array2<f64>, y: &Vec<f64>) -> SklResult<()> {
+    fn optimize_ensemble_weights(&mut self, X: &Array2<f64>, y: &[f64]) -> SklResult<()> {
         // Get predictions from all base estimators
         let base_predictions = self.get_base_predictions(X)?;
 
@@ -381,6 +384,7 @@ impl RegularizedEnsembleRegressor {
     }
 
     /// Coordinate descent optimization for elastic net
+    #[allow(clippy::needless_range_loop)] // multi-dimensional indexing requires explicit indices
     fn coordinate_descent_optimization(
         &mut self,
         predictions: &[Vec<f64>],
@@ -389,7 +393,7 @@ impl RegularizedEnsembleRegressor {
         let n_samples = y.len();
         let n_estimators = self.config.n_estimators;
 
-        for iteration in 0..self.config.max_iterations {
+        for _iteration in 0..self.config.max_iterations {
             let mut max_weight_change: f64 = 0.0;
 
             for j in 0..n_estimators {
@@ -457,6 +461,7 @@ impl RegularizedEnsembleRegressor {
     }
 
     /// Stochastic gradient descent optimization
+    #[allow(clippy::needless_range_loop)] // multi-dimensional indexing requires explicit indices
     fn sgd_optimization(&mut self, predictions: &[Vec<f64>], y: &[f64]) -> SklResult<()> {
         let mut rng = if let Some(seed) = self.config.random_state {
             scirs2_core::random::seeded_rng(seed)
@@ -516,6 +521,7 @@ impl RegularizedEnsembleRegressor {
     }
 
     /// Adam optimization algorithm
+    #[allow(clippy::needless_range_loop)] // multi-dimensional indexing requires explicit indices
     fn adam_optimization(&mut self, predictions: &[Vec<f64>], y: &[f64]) -> SklResult<()> {
         let mut rng = if let Some(seed) = self.config.random_state {
             scirs2_core::random::seeded_rng(seed)
@@ -586,6 +592,7 @@ impl RegularizedEnsembleRegressor {
     }
 
     /// Proximal gradient optimization
+    #[allow(clippy::needless_range_loop)] // multi-dimensional indexing requires explicit indices
     fn proximal_gradient_optimization(
         &mut self,
         predictions: &[Vec<f64>],
@@ -654,6 +661,7 @@ impl RegularizedEnsembleRegressor {
     }
 
     /// Compute loss function (MSE + regularization)
+    #[allow(clippy::needless_range_loop)] // multi-dimensional indexing requires explicit indices
     fn compute_loss(&self, predictions: &[Vec<f64>], y: &[f64]) -> f64 {
         let n_samples = y.len();
         let mut mse = 0.0;
@@ -701,6 +709,7 @@ impl RegularizedEnsembleRegressor {
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 impl DropoutEnsemble {
     pub fn new(config: RegularizedEnsembleConfig) -> Self {
         let rng = if let Some(seed) = config.random_state {
@@ -719,7 +728,7 @@ impl DropoutEnsemble {
 
     /// Train ensemble with dropout
     #[allow(non_snake_case)]
-    pub fn fit(&mut self, X: &Array2<f64>, y: &Vec<f64>) -> SklResult<()> {
+    pub fn fit(&mut self, X: &Array2<f64>, y: &[f64]) -> SklResult<()> {
         self.estimators.clear();
         self.dropout_masks.clear();
 
@@ -734,7 +743,7 @@ impl DropoutEnsemble {
             let X_dropout = self.apply_dropout_mask(X, &mask)?;
 
             // Train estimator on dropout data
-            let y_array = Array1::from_vec(y.clone());
+            let y_array = Array1::from_vec(y.to_vec());
             let estimator = GradientBoostingRegressor::builder()
                 .n_estimators(50)
                 .learning_rate(0.1)
@@ -856,6 +865,7 @@ impl Estimator for RegularizedEnsembleRegressor {
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 impl Fit<Array2<f64>, Vec<f64>> for RegularizedEnsembleRegressor {
     type Fitted = Self;
 
@@ -871,6 +881,7 @@ impl Fit<Array2<f64>, Vec<f64>> for RegularizedEnsembleRegressor {
     }
 }
 
+#[allow(non_snake_case, clippy::needless_range_loop)] // standard ML notation; multi-dimensional indexing
 impl Predict<Array2<f64>, Vec<f64>> for RegularizedEnsembleRegressor {
     fn predict(&self, X: &Array2<f64>) -> SklResult<Vec<f64>> {
         if !self.is_fitted {

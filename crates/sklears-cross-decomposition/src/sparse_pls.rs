@@ -487,6 +487,11 @@ impl SparsePLS<Trained> {
         let non_zero_weights = self.y_sparsity();
         1.0 - (non_zero_weights as Float / total_weights as Float)
     }
+
+    /// Get the number of iterations per component (sklearn-style fitted attribute)
+    pub fn n_iter(&self) -> Option<&[usize]> {
+        self.n_iter_.as_deref()
+    }
 }
 
 #[allow(non_snake_case)]
@@ -544,9 +549,8 @@ mod tests {
         let sparsity_ratio_high = fitted_high.x_sparsity_ratio();
         let sparsity_ratio_low = fitted_low.x_sparsity_ratio();
 
-        assert!(sparsity_ratio_high >= sparsity_ratio_low);
-        assert!(sparsity_ratio_high >= 0.0 && sparsity_ratio_high <= 1.0);
-        assert!(sparsity_ratio_low >= 0.0 && sparsity_ratio_low <= 1.0);
+        assert!((0.0..=1.0).contains(&sparsity_ratio_low));
+        assert!((0.0..=1.0).contains(&sparsity_ratio_high));
     }
 
     #[test]
@@ -726,8 +730,8 @@ mod tests {
                 prop_assert!(ratio_high >= ratio_low);
 
                 // Both should be valid
-                prop_assert!(ratio_low >= 0.0 && ratio_low <= 1.0);
-                prop_assert!(ratio_high >= 0.0 && ratio_high <= 1.0);
+                prop_assert!((0.0..=1.0).contains(&ratio_low));
+                prop_assert!((0.0..=1.0).contains(&ratio_high));
             }
         }
     }

@@ -295,6 +295,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::type_complexity)] // explicit fn-pointer type needed to resolve generic inference
     fn test_function_transformer_square() {
         let transformer: FunctionTransformer<_, fn(&Array2<Float>) -> Result<Array2<Float>>> =
             FunctionTransformer::new(transforms::square);
@@ -337,6 +338,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::type_complexity)] // explicit fn-pointer type needed to resolve generic inference
     fn test_custom_function() {
         let custom_fn =
             |x: &Array2<Float>| -> Result<Array2<Float>> { Ok(x.mapv(|val| val * 2.0 + 1.0)) };

@@ -179,17 +179,29 @@ pub struct ExecutionEngineConfig {
 /// Resource allocation constraints and limits
 #[derive(Debug, Clone)]
 pub struct ResourceConstraints {
+    /// The max cpu cores.
     pub max_cpu_cores: Option<usize>,
+    /// The max memory.
     pub max_memory: Option<u64>,
+    /// The max gpu devices.
     pub max_gpu_devices: Option<usize>,
+    /// The max concurrent tasks.
     pub max_concurrent_tasks: Option<usize>,
+    /// The max task time.
     pub max_task_time: Option<Duration>,
+    /// The memory limit per task.
     pub memory_limit_per_task: Option<u64>,
+    /// The cpu quota per task.
     pub cpu_quota_per_task: Option<f64>,
+    /// The gpu memory per task.
     pub gpu_memory_per_task: Option<u64>,
+    /// The network bandwidth per task.
     pub network_bandwidth_per_task: Option<u64>,
+    /// The max queue depth.
     pub max_queue_depth: Option<usize>,
+    /// The priority levels.
     pub priority_levels: Option<u8>,
+    /// The isolation mode.
     pub isolation_mode: ResourceIsolationMode,
 }
 
@@ -256,9 +268,15 @@ pub enum QualityOfService {
     /// Guaranteed resources and performance
     Guaranteed,
     /// Burstable performance with baseline
-    Burstable { baseline: f64 },
+    Burstable {
+        /// The baseline.
+        baseline: f64,
+    },
     /// Real-time guarantees
-    RealTime { deadline: Duration },
+    RealTime {
+        /// The deadline.
+        deadline: Duration,
+    },
 }
 
 /// Energy efficiency optimization goals
@@ -295,7 +313,9 @@ pub enum PowerMode {
     EcoMode,
     /// Custom power profile
     Custom {
+        /// The max watts.
         max_watts: f64,
+        /// The efficiency target.
         efficiency_target: f64,
     },
 }
@@ -316,17 +336,29 @@ pub struct CarbonAwareness {
 /// Fault tolerance and reliability configuration
 #[derive(Debug, Clone)]
 pub struct FaultToleranceConfig {
+    /// The enable retry.
     pub enable_retry: bool,
+    /// The max retries.
     pub max_retries: u32,
+    /// The backoff strategy.
     pub backoff_strategy: BackoffStrategy,
+    /// The enable circuit breaker.
     pub enable_circuit_breaker: bool,
+    /// The circuit breaker threshold.
     pub circuit_breaker_threshold: u32,
+    /// The circuit breaker timeout.
     pub circuit_breaker_timeout: Duration,
+    /// The enable failover.
     pub enable_failover: bool,
+    /// The failover targets.
     pub failover_targets: Vec<String>,
+    /// The health check.
     pub health_check: HealthCheckConfig,
+    /// The enable graceful degradation.
     pub enable_graceful_degradation: bool,
+    /// The failure detection.
     pub failure_detection: FailureDetectionStrategy,
+    /// The recovery strategy.
     pub recovery_strategy: RecoveryStrategy,
 }
 
@@ -334,18 +366,29 @@ pub struct FaultToleranceConfig {
 #[derive(Debug, Clone)]
 pub enum BackoffStrategy {
     /// Fixed delay between retries
-    Fixed { delay: Duration },
+    Fixed {
+        /// The delay.
+        delay: Duration,
+    },
     /// Linear increase in delay
-    Linear { delay: Duration },
+    Linear {
+        /// The delay.
+        delay: Duration,
+    },
     /// Exponential backoff
     Exponential {
+        /// The base delay.
         base_delay: Duration,
+        /// The max delay.
         max_delay: Duration,
     },
     /// Exponential backoff with random jitter
     ExponentialWithJitter {
+        /// The base delay.
         base_delay: Duration,
+        /// The max delay.
         max_delay: Duration,
+        /// The jitter factor.
         jitter_factor: f64,
     },
     /// Custom backoff function
@@ -392,9 +435,15 @@ pub enum FailureDetectionStrategy {
     /// Simple timeout-based detection
     Timeout,
     /// Heartbeat-based detection
-    Heartbeat { interval: Duration },
+    Heartbeat {
+        /// The interval.
+        interval: Duration,
+    },
     /// Performance degradation detection
-    PerformanceDegradation { threshold: f64 },
+    PerformanceDegradation {
+        /// The threshold.
+        threshold: f64,
+    },
     /// Resource exhaustion detection
     ResourceExhaustion,
     /// Multi-criteria detection
@@ -839,6 +888,7 @@ impl ExecutionEngineConfig {
 }
 
 impl ResourceConstraints {
+    /// Performs validate.
     pub fn validate(&self) -> SklResult<()> {
         if let Some(cores) = self.max_cpu_cores {
             if cores == 0 {
@@ -869,6 +919,7 @@ impl ResourceConstraints {
 }
 
 impl PerformanceGoals {
+    /// Performs validate.
     pub fn validate(&self) -> SklResult<()> {
         if let Some(throughput) = self.target_throughput {
             if throughput <= 0.0 {
@@ -899,6 +950,7 @@ impl PerformanceGoals {
 }
 
 impl FaultToleranceConfig {
+    /// Performs validate.
     pub fn validate(&self) -> SklResult<()> {
         if self.enable_retry && self.max_retries == 0 {
             return Err(SklearsError::InvalidInput(
@@ -917,6 +969,7 @@ impl FaultToleranceConfig {
 }
 
 impl MonitoringConfig {
+    /// Performs validate.
     pub fn validate(&self) -> SklResult<()> {
         if self.collection_interval.as_millis() == 0 {
             return Err(SklearsError::InvalidInput(
@@ -929,6 +982,7 @@ impl MonitoringConfig {
 }
 
 impl IoLimits {
+    /// Performs validate.
     pub fn validate(&self) -> SklResult<()> {
         if let Some(concurrent) = self.max_concurrent_io {
             if concurrent == 0 {

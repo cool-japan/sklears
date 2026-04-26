@@ -21,10 +21,9 @@
 //! ICLR 2020.
 
 use crate::NeuralResult;
-use scirs2_core::ndarray::{Array1, Array2, Array3, Array4, Axis, ScalarOperand};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::ndarray::{Array1, Array2, Array4, ScalarOperand};
+use scirs2_core::random::thread_rng;
 use sklears_core::{error::SklearsError, types::FloatBounds};
-use std::collections::HashMap;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -218,6 +217,7 @@ pub enum TrainingPhase {
 
 /// Once-for-All supernet
 #[derive(Debug)]
+#[allow(dead_code)] // bn_weights stored for batch norm tracking; read via subnet extraction in future
 pub struct OnceForAllNetwork<T: FloatBounds> {
     /// Elastic configuration
     config: ElasticConfig,
@@ -235,7 +235,8 @@ pub struct OnceForAllNetwork<T: FloatBounds> {
 
 impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> OnceForAllNetwork<T> {
     /// Create a new Once-for-All network
-    pub fn new(config: ElasticConfig, resolutions: Vec<usize>, in_channels: usize) -> Self {
+    /// Create a new Once-for-All network with elastic configuration
+    pub fn new(config: ElasticConfig, resolutions: Vec<usize>, _in_channels: usize) -> Self {
         let mut rng = thread_rng();
         let max_depth = config.max_depth();
         let max_width = config.max_width();
@@ -248,7 +249,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> Once
         for _layer in 0..max_depth {
             // Conv weights: (out_channels, in_channels, kernel_h, kernel_w)
             let w_shape = (max_width, max_width, max_kernel, max_kernel);
-            let w_size = max_width * max_width * max_kernel * max_kernel;
+            let _w_size = max_width * max_width * max_kernel * max_kernel;
             let mut w = Array4::zeros(w_shape);
 
             // Xavier initialization
@@ -471,6 +472,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> Once
 
 /// Simple accuracy predictor using a multi-layer perceptron
 #[derive(Debug)]
+#[allow(dead_code)] // Dimension fields retained for model architecture description and future serialization
 pub struct AccuracyPredictor<T: FloatBounds> {
     /// Input dimension
     input_dim: usize,
@@ -552,7 +554,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> Accu
 
                 // Update weights
                 self.w2 = &self.w2 - &(grad_w2 * learning_rate);
-                self.b2 = self.b2 - grad_b2 * learning_rate;
+                self.b2 -= grad_b2 * learning_rate;
             }
         }
 

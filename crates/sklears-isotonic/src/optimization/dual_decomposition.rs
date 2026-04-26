@@ -216,6 +216,7 @@ impl DualDecompositionIsotonicRegressor {
     }
 
     /// Analyze the dual decomposition convergence properties
+    #[allow(dead_code)] // intentionally deferred: convergence analysis not yet integrated
     fn analyze_convergence(&self, dual_vars: &Array1<Float>) -> (Float, Float) {
         let n = dual_vars.len();
         if n == 0 {
@@ -230,6 +231,7 @@ impl DualDecompositionIsotonicRegressor {
     }
 
     /// Adaptive step size adjustment based on convergence behavior
+    #[allow(dead_code)] // intentionally deferred: adaptive step size not yet integrated
     fn adapt_step_size(&self, current_step: Float, violation_history: &[Float]) -> Float {
         if violation_history.len() < 3 {
             return current_step;
@@ -322,7 +324,7 @@ mod tests {
             .convergence(1e-10, 1000)
             .decomposition_parameters(0.05, 50, 5);
 
-        assert_eq!(regressor.increasing, false);
+        assert!(!regressor.increasing);
         assert!((regressor.tolerance - 1e-10).abs() < 1e-15);
         assert!((regressor.dual_step_size - 0.05).abs() < 1e-10);
         assert_eq!(regressor.block_size, 50);

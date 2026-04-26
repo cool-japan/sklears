@@ -603,8 +603,8 @@ impl DeepLayer {
 ///     .max_epochs(10)
 ///     .batch_size(2)
 ///     .learning_rate(0.01);
-/// let fitted = ddl.fit(&x, &y).unwrap();
-/// let predictions = fitted.predict(&x).unwrap();
+/// let fitted = ddl.fit(&x, &y).expect("fit should succeed with valid input");
+/// let predictions = fitted.predict(&x).expect("predict should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct DeepDiscriminantLearning {
@@ -909,7 +909,7 @@ impl TrainedDeepDiscriminantLearning {
     fn train_network(&mut self, x: &Array2<Float>, y: &Array1<i32>) -> Result<()> {
         let n_samples = x.nrows();
         let batch_size = self.config.training.batch_size.min(n_samples);
-        let n_batches = (n_samples + batch_size - 1) / batch_size;
+        let n_batches = n_samples.div_ceil(batch_size);
 
         let mut best_loss = Float::INFINITY;
         let mut patience_counter = 0;
@@ -997,7 +997,7 @@ impl TrainedDeepDiscriminantLearning {
             }
             "exponential" => base_lr * self.config.training.lr_decay_rate.powi(epoch as i32 / 30),
             "step" => {
-                if epoch > 0 && epoch % 50 == 0 {
+                if epoch > 0 && epoch.is_multiple_of(50) {
                     base_lr * self.config.training.lr_decay_rate
                 } else {
                     base_lr
@@ -1554,7 +1554,7 @@ mod tests {
             ddl.config.architecture.normalization,
             NormalizationType::LayerNorm
         );
-        assert_eq!(ddl.config.architecture.residual_connections, true);
+        assert!(ddl.config.architecture.residual_connections);
         assert_eq!(ddl.config.training.optimizer, "adam");
         assert_eq!(ddl.config.training.learning_rate, 0.001);
         assert_eq!(ddl.config.training.max_epochs, 100);
@@ -1579,7 +1579,7 @@ mod tests {
         let input = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
         let output = layer.forward(&input.view(), false);
 
-        assert!(output.len() > 0);
+        assert!(!output.is_empty());
         assert!(output.iter().all(|&x| x.is_finite()));
     }
 
@@ -1596,7 +1596,7 @@ mod tests {
         let input = Array1::from_iter((0..8).map(|i| i as Float));
         let output = layer.forward(&input.view(), false);
 
-        assert!(output.len() > 0);
+        assert!(!output.is_empty());
         assert!(output.iter().all(|&x| x.is_finite()));
     }
 }

@@ -569,7 +569,7 @@ mod tests {
         let allocator =
             AdaptiveResourceAllocator::new(AllocationStrategy::Uniform, 100.0, 1.0, 50.0, Some(42));
 
-        let configs = vec![
+        let configs = [
             ResourceConfiguration::new("1".to_string(), HashMap::new()),
             ResourceConfiguration::new("2".to_string(), HashMap::new()),
         ];

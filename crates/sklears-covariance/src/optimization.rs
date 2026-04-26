@@ -83,7 +83,7 @@ pub trait ObjectiveFunction: Debug + Send + Sync {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum OptimizerType {
     /// Stochastic Gradient Descent
-    SGD,
+    Sgd,
     /// Adam optimizer
     Adam,
     /// AdaGrad optimizer
@@ -186,7 +186,7 @@ pub struct OptimizationHistory {
 /// Concrete optimizer wrapper to avoid trait object issues
 #[derive(Debug)]
 pub enum OptimizerWrapper {
-    SGD(SGDOptimizer),
+    Sgd(SGDOptimizer),
     Adam(AdamOptimizer),
     CoordinateDescent(CoordinateDescentOptimizer),
     ProximalGradient(ProximalGradientOptimizer),
@@ -205,7 +205,7 @@ impl OptimizationAlgorithm for OptimizerWrapper {
         F: ObjectiveFunction<Parameters = Self::Parameters>,
     {
         match self {
-            OptimizerWrapper::SGD(opt) => opt.minimize(objective, initial_params),
+            OptimizerWrapper::Sgd(opt) => opt.minimize(objective, initial_params),
             OptimizerWrapper::Adam(opt) => opt.minimize(objective, initial_params),
             OptimizerWrapper::CoordinateDescent(opt) => opt.minimize(objective, initial_params),
             OptimizerWrapper::ProximalGradient(opt) => opt.minimize(objective, initial_params),
@@ -215,7 +215,7 @@ impl OptimizationAlgorithm for OptimizerWrapper {
 
     fn name(&self) -> &'static str {
         match self {
-            OptimizerWrapper::SGD(opt) => opt.name(),
+            OptimizerWrapper::Sgd(opt) => opt.name(),
             OptimizerWrapper::Adam(opt) => opt.name(),
             OptimizerWrapper::CoordinateDescent(opt) => opt.name(),
             OptimizerWrapper::ProximalGradient(opt) => opt.name(),
@@ -225,7 +225,7 @@ impl OptimizationAlgorithm for OptimizerWrapper {
 
     fn config(&self) -> &OptimizationConfig {
         match self {
-            OptimizerWrapper::SGD(opt) => opt.config(),
+            OptimizerWrapper::Sgd(opt) => opt.config(),
             OptimizerWrapper::Adam(opt) => opt.config(),
             OptimizerWrapper::CoordinateDescent(opt) => opt.config(),
             OptimizerWrapper::ProximalGradient(opt) => opt.config(),
@@ -270,8 +270,8 @@ impl OptimizerRegistry {
     /// Register default optimizers
     fn register_default_optimizers(&mut self) {
         self.register(
-            OptimizerType::SGD,
-            OptimizerWrapper::SGD(SGDOptimizer::default()),
+            OptimizerType::Sgd,
+            OptimizerWrapper::Sgd(SGDOptimizer::default()),
         );
         self.register(
             OptimizerType::Adam,
@@ -1302,14 +1302,14 @@ mod tests {
 
     #[test]
     fn test_optimizer_registry() {
-        let mut registry = OptimizerRegistry::new();
+        let registry = OptimizerRegistry::new();
 
         let available = registry.available_optimizers();
-        assert!(available.contains(&OptimizerType::SGD));
+        assert!(available.contains(&OptimizerType::Sgd));
         assert!(available.contains(&OptimizerType::Adam));
         assert!(available.contains(&OptimizerType::CoordinateDescent));
 
-        let sgd = registry.get(&OptimizerType::SGD);
+        let sgd = registry.get(&OptimizerType::Sgd);
         assert!(sgd.is_some());
         assert_eq!(sgd.expect("operation should succeed").name(), "SGD");
     }

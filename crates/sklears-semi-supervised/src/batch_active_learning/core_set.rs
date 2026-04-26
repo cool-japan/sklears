@@ -91,6 +91,7 @@ impl CoreSetApproach {
         }
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn farthest_first_initialization(&self, X: &ArrayView2<f64>) -> Result<Vec<usize>> {
         let n_samples = X.dim().0;
         let mut rng = match self.random_state {
@@ -143,6 +144,7 @@ impl CoreSetApproach {
         Ok(selected_indices)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn k_center_greedy(&self, X: &ArrayView2<f64>) -> Result<Vec<usize>> {
         let n_samples = X.dim().0;
         let mut selected_indices = Vec::new();
@@ -205,6 +207,7 @@ impl CoreSetApproach {
         Ok(selected_indices)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn query(
         &self,
         X: &ArrayView2<f64>,

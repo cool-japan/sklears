@@ -363,7 +363,7 @@ impl OutlierTransformer<Untrained> {
         let mut sorted_data = valid_data.clone();
         sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
-        let median = if sorted_data.len() % 2 == 0 {
+        let median = if sorted_data.len().is_multiple_of(2) {
             let mid = sorted_data.len() / 2;
             (sorted_data[mid - 1] + sorted_data[mid]) / 2.0
         } else {
@@ -569,7 +569,7 @@ impl OutlierTransformer<Untrained> {
             -3.969683028665376e+01,
             2.209460984245205e+02,
             -2.759285104469687e+02,
-            1.383577518672690e+02,
+            1.383_577_518_672_69e2,
             -3.066479806614716e+01,
             2.506628277459239e+00,
         ];

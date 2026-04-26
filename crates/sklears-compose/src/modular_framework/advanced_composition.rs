@@ -10,7 +10,6 @@ use std::marker::PhantomData;
 use std::time::Instant;
 use thiserror::Error;
 
-use super::component_framework::PluggableComponent;
 use super::pipeline_system::PipelineData;
 
 /// Type-safe composition builder using phantom types
@@ -85,7 +84,7 @@ where
 
     /// Add a parallel branch with type constraints
     #[must_use]
-    pub fn branch<B>(self, branch: ParallelBranch<I, B>) -> Self
+    pub fn branch<B>(self, _branch: ParallelBranch<I, B>) -> Self
     where
         B: CompositionType + Send + Sync + 'static,
     {
@@ -94,7 +93,7 @@ where
     }
 
     /// Add conditional composition based on type predicates
-    pub fn conditional<P>(self, predicate: P, true_branch: Self, false_branch: Self) -> Self
+    pub fn conditional<P>(self, _predicate: P, _true_branch: Self, _false_branch: Self) -> Self
     where
         P: TypePredicate<I> + Send + Sync + 'static,
     {
@@ -202,15 +201,15 @@ impl FunctionalComposer {
     #[must_use]
     pub fn compose<A, B, C>(
         self,
-        f: Box<dyn Fn(A) -> B + Send + Sync>,
-        g: Box<dyn Fn(B) -> C + Send + Sync>,
+        _f: Box<dyn Fn(A) -> B + Send + Sync>,
+        _g: Box<dyn Fn(B) -> C + Send + Sync>,
     ) -> Self {
         // Add function composition
         self
     }
 
     /// Apply functor mapping
-    pub fn fmap<F, A, B>(self, functor: F) -> Self
+    pub fn fmap<F, A, B>(self, _functor: F) -> Self
     where
         F: Functor<A, B> + Send + Sync + 'static,
     {
@@ -219,7 +218,7 @@ impl FunctionalComposer {
     }
 
     /// Apply monadic bind operation
-    pub fn bind<M, A, B>(self, monad: M) -> Self
+    pub fn bind<M, A, B>(self, _monad: M) -> Self
     where
         M: Monad<A, B> + Send + Sync + 'static,
     {
@@ -228,7 +227,7 @@ impl FunctionalComposer {
     }
 
     /// Apply applicative functor
-    pub fn apply<A, F, B>(self, applicative: A) -> Self
+    pub fn apply<A, F, B>(self, _applicative: A) -> Self
     where
         A: Applicative<F, B> + Send + Sync + 'static,
         F: Fn(F) -> B + Send + Sync + 'static,
@@ -247,7 +246,7 @@ impl FunctionalComposer {
     /// Build functional composition
     #[must_use]
     pub fn build(self) -> FunctionalComposition {
-        /// FunctionalComposition
+        // FunctionalComposition
         FunctionalComposition {
             composition_id: uuid::Uuid::new_v4().to_string(),
             composition_chain: self.composition_chain,
@@ -287,7 +286,7 @@ impl AlgebraicComposer {
     }
 
     /// Add sum type composition (Either/Union types)
-    pub fn sum_type<L, R>(mut self, left: L, right: R) -> Self
+    pub fn sum_type<L, R>(mut self, _left: L, _right: R) -> Self
     where
         L: CompositionType + Send + Sync + 'static,
         R: CompositionType + Send + Sync + 'static,
@@ -311,7 +310,7 @@ impl AlgebraicComposer {
     {
         let product_composition = ProductTypeComposition {
             composition_id: uuid::Uuid::new_v4().to_string(),
-            component_types: types.iter().map(|t| T::type_name()).collect(),
+            component_types: types.iter().map(|_t| T::type_name()).collect(),
             composition_rules: ProductCompositionRules::default(),
         };
 
@@ -338,7 +337,7 @@ impl AlgebraicComposer {
     /// Build algebraic composition
     #[must_use]
     pub fn build(self) -> AlgebraicComposition {
-        /// AlgebraicComposition
+        // AlgebraicComposition
         AlgebraicComposition {
             composition_id: uuid::Uuid::new_v4().to_string(),
             sum_types: self.sum_types,
@@ -421,7 +420,7 @@ impl HigherOrderComposer {
     /// Build higher-order composition
     #[must_use]
     pub fn build(self) -> HigherOrderComposition {
-        /// HigherOrderComposition
+        // HigherOrderComposition
         HigherOrderComposition {
             composition_id: uuid::Uuid::new_v4().to_string(),
             meta_compositions: self.meta_compositions,
@@ -580,6 +579,7 @@ pub struct TypedComposition<I, O> {
     pub metadata: CompositionMetadata,
     /// Phantom type markers
     pub _input_type: PhantomData<I>,
+    /// The  output type.
     pub _output_type: PhantomData<O>,
 }
 
@@ -641,6 +641,7 @@ pub struct TypeConstraints {
 
 impl TypeConstraints {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             compatibility_rules: HashMap::new(),
@@ -650,6 +651,7 @@ impl TypeConstraints {
     }
 
     #[must_use]
+    /// Checks the condition.
     pub fn has_coercion(&self, from_type: &str, to_type: &str) -> bool {
         self.coercion_rules
             .get(from_type)
@@ -691,6 +693,7 @@ pub struct ParallelBranch<I, O> {
     pub weight: f64,
     /// Phantom type markers
     pub _input_type: PhantomData<I>,
+    /// The  output type.
     pub _output_type: PhantomData<O>,
 }
 
@@ -793,6 +796,7 @@ pub struct CompositionMetadata {
 
 impl CompositionMetadata {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             created_at: Instant::now(),
@@ -937,6 +941,7 @@ pub enum SumBranch {
 }
 
 #[derive(Debug, Clone)]
+/// Enumeration of branch selection strategy variants.
 pub enum BranchSelectionStrategy {
     /// TypeBased
     TypeBased,
@@ -947,6 +952,7 @@ pub enum BranchSelectionStrategy {
 }
 
 #[derive(Debug, Clone)]
+/// Enumeration of product composition strategy variants.
 pub enum ProductCompositionStrategy {
     /// Sequential
     Sequential,
@@ -957,6 +963,7 @@ pub enum ProductCompositionStrategy {
 }
 
 #[derive(Debug, Clone)]
+/// Enumeration of field access rules variants.
 pub enum FieldAccessRules {
     /// ByIndex
     ByIndex,
@@ -967,6 +974,7 @@ pub enum FieldAccessRules {
 }
 
 #[derive(Debug, Clone)]
+/// Enumeration of composition order variants.
 pub enum CompositionOrder {
     /// Sequential
     Sequential,
@@ -977,6 +985,7 @@ pub enum CompositionOrder {
 }
 
 #[derive(Debug, Clone)]
+/// Enumeration of meta error handling variants.
 pub enum MetaErrorHandling {
     /// FailFast
     FailFast,
@@ -987,6 +996,7 @@ pub enum MetaErrorHandling {
 }
 
 #[derive(Debug, Clone)]
+/// Enumeration of algebraic operation type variants.
 pub enum AlgebraicOperationType {
     /// Union
     Union,
@@ -1001,6 +1011,7 @@ pub enum AlgebraicOperationType {
 }
 
 #[derive(Debug, Clone)]
+/// Enumeration of recursive pattern type variants.
 pub enum RecursivePatternType {
     /// TailRecursion
     TailRecursion,
@@ -1013,6 +1024,7 @@ pub enum RecursivePatternType {
 }
 
 #[derive(Debug, Clone)]
+/// Enumeration of morphism type variants.
 pub enum MorphismType {
     /// Functor
     Functor,
@@ -1025,11 +1037,13 @@ pub enum MorphismType {
 }
 
 #[derive(Debug, Clone)]
+/// Enumeration of associativity variants.
 pub enum Associativity {
     /// Left
     Left,
     /// Right
     Right,
+    /// Variant value.
     None,
 }
 
@@ -1037,18 +1051,30 @@ pub enum Associativity {
 #[derive(Debug, Error)]
 pub enum AdvancedCompositionError {
     #[error("Type mismatch: expected {expected}, got {actual}")]
-    TypeMismatch { expected: String, actual: String },
+    /// Field value.
+    /// Field value.
+    /// Variant value.
+    TypeMismatch {
+        /// The expected.
+        expected: String,
+        /// The actual.
+        actual: String,
+    },
 
     #[error("Invalid composition: {0}")]
+    /// Variant value.
     InvalidComposition(String),
 
     #[error("Pattern match failed: {0}")]
+    /// Variant value.
     PatternMatchFailed(String),
 
     #[error("Algebraic operation failed: {0}")]
+    /// Variant value.
     AlgebraicOperationFailed(String),
 
     #[error("Higher-order transformation failed: {0}")]
+    /// Variant value.
     HigherOrderTransformFailed(String),
 }
 
@@ -1105,6 +1131,7 @@ mod tests {
         }
     }
 
+    #[allow(dead_code)]
     struct TestTransformer;
 
     impl TypedTransformer<TestType, TestType> for TestTransformer {
@@ -1113,7 +1140,7 @@ mod tests {
         }
 
         fn metadata(&self) -> TransformerMetadata {
-            /// TransformerMetadata
+            // TransformerMetadata
             TransformerMetadata {
                 name: "TestTransformer".to_string(),
                 input_type: "TestType".to_string(),

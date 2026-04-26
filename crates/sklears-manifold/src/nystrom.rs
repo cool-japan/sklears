@@ -8,7 +8,6 @@ use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::RngExt;
 use scirs2_core::random::{seq::SliceRandom, SeedableRng};
-use scirs2_core::SliceRandomExt;
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -136,7 +135,7 @@ impl Fit<Array2<Float>, ()> for NystromApproximation {
     fn fit(self, data: &Array2<Float>, _y: &()) -> SklResult<Self::Fitted> {
         let x = data;
         let n_samples = x.nrows();
-        let n_features = x.ncols();
+        let _n_features = x.ncols();
 
         if self.n_landmarks > n_samples {
             return Err(SklearsError::InvalidInput(format!(
@@ -234,7 +233,6 @@ impl Fit<Array2<Float>, ()> for NystromApproximation {
 impl Transform<Array2<Float>, Array2<Float>> for FittedNystromApproximation {
     fn transform(&self, data: &Array2<Float>) -> SklResult<Array2<Float>> {
         let x = data;
-        let n_samples = x.nrows();
 
         // Compute kernel matrix between data points and landmarks
         let kernel_matrix = compute_kernel_matrix(
@@ -514,7 +512,6 @@ impl Fit<Array2<Float>, ()> for IncrementalNystromApproximation {
 impl Transform<Array2<Float>, Array2<Float>> for FittedIncrementalNystromApproximation {
     fn transform(&self, data: &Array2<Float>) -> SklResult<Array2<Float>> {
         let x = data;
-        let n_samples = x.nrows();
 
         // Compute kernel matrix between data points and landmarks
         let kernel_matrix = compute_kernel_matrix(

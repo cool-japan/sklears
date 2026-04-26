@@ -15,7 +15,7 @@ impl Default for OutputManager {
         Self {
             output_destinations: vec![
                 OutputDestination::LocalFile(LocalFileDestination { base_path :
-                "/tmp/sklears_exports".to_string(), create_directories : true,
+                std::env::temp_dir().join("sklears_exports").display().to_string(), create_directories : true,
                 permissions : FilePermissions::default(), }),
             ],
             file_naming: FileNamingStrategy::default(),

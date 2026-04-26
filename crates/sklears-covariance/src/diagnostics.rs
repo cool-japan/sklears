@@ -7,7 +7,7 @@ use crate::utils::{
     frobenius_norm, is_diagonally_dominant, rank_estimate, spectral_radius_estimate,
     validate_covariance_matrix, CovarianceProperties,
 };
-use scirs2_core::ndarray::{Array1, Array2, Axis, NdFloat};
+use scirs2_core::ndarray::{Array2, NdFloat};
 use sklears_core::error::{Result, SklearsError};
 
 /// Comprehensive diagnostic report for a covariance matrix
@@ -154,7 +154,7 @@ impl<F: NdFloat + std::fmt::Display> CovarianceDiagnostics<F> {
 
         let min = diag_elements[0];
         let max = diag_elements[n - 1];
-        let median = if n % 2 == 0 {
+        let median = if n.is_multiple_of(2) {
             (diag_elements[n / 2 - 1] + diag_elements[n / 2])
                 / F::from(2.0).expect("operation should succeed")
         } else {

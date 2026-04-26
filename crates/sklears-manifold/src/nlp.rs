@@ -21,12 +21,12 @@
 //! // Train: let fitted = skipgram.fit(&cooc.view(), &()).unwrap();
 //! ```
 
-use scirs2_core::essentials::{Normal, Uniform};
+use scirs2_core::essentials::Normal;
+use scirs2_core::Distribution;
 use scirs2_linalg::compat::ArrayLinalgExt;
 
-use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::thread_rng;
-use scirs2_core::Distribution;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -300,12 +300,12 @@ impl GloVeEmbedding<Untrained> {
             }
         }
 
-        let mut word_biases: Array1<Float> = Array1::zeros(vocab_size);
-        let mut context_biases: Array1<Float> = Array1::zeros(vocab_size);
+        let word_biases: Array1<Float> = Array1::zeros(vocab_size);
+        let context_biases: Array1<Float> = Array1::zeros(vocab_size);
 
         // AdaGrad accumulators
         let mut word_gradsq: Array2<Float> = Array2::ones((vocab_size, self.embedding_dim));
-        let mut context_gradsq: Array2<Float> = Array2::ones((vocab_size, self.embedding_dim));
+        let _context_gradsq: Array2<Float> = Array2::ones((vocab_size, self.embedding_dim)); // retained for future context update pass
 
         // Simplified training (full implementation would be more complex)
         for _epoch in 0..self.n_epochs.min(5) {

@@ -340,7 +340,7 @@ impl NumericalStabilityMonitor {
         // Apply regularization for numerical stability
         let regularized_matrix = self.regularize_matrix(matrix)?;
 
-        let mut L = Array2::zeros((n, n));
+        let mut l = Array2::zeros((n, n));
 
         for i in 0..n {
             for j in 0..=i {
@@ -348,7 +348,7 @@ impl NumericalStabilityMonitor {
                     // Diagonal elements
                     let mut sum = 0.0;
                     for k in 0..j {
-                        sum += L[[j, k]] * L[[j, k]];
+                        sum += l[[j, k]] * l[[j, k]];
                     }
 
                     let diagonal_value = regularized_matrix[[j, j]] - sum;
@@ -358,22 +358,22 @@ impl NumericalStabilityMonitor {
                         ));
                     }
 
-                    L[[j, j]] = diagonal_value.sqrt();
+                    l[[j, j]] = diagonal_value.sqrt();
                 } else {
                     // Off-diagonal elements
                     let mut sum = 0.0;
                     for k in 0..j {
-                        sum += L[[i, k]] * L[[j, k]];
+                        sum += l[[i, k]] * l[[j, k]];
                     }
 
-                    L[[i, j]] = (regularized_matrix[[i, j]] - sum) / L[[j, j]];
+                    l[[i, j]] = (regularized_matrix[[i, j]] - sum) / l[[j, j]];
                 }
             }
         }
 
-        self.monitor_matrix(&L, "cholesky_output")?;
+        self.monitor_matrix(&l, "cholesky_output")?;
 
-        Ok(L)
+        Ok(l)
     }
 
     /// Get stability warnings

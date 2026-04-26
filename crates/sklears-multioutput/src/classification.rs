@@ -6,7 +6,10 @@
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{thread_rng, Rng, RngExt};
+use scirs2_core::random::rngs::StdRng as RealStdRng;
+#[allow(unused_imports)]
+use scirs2_core::random::RngExt; // Needed to bring .random::<T>() into scope for StdRng
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -37,8 +40,10 @@ pub enum CalibrationMethod {
 pub struct CalibratedBinaryRelevanceTrained {
     base_models: Vec<(Array1<Float>, Float)>, // (weights, bias) for each label
     calibration_params: Vec<(Float, Float)>,  // (slope, intercept) for each label
-    calibration_method: CalibrationMethod,
-    n_features: usize,
+    /// Calibration method used for this trained model
+    pub calibration_method: CalibrationMethod,
+    /// Number of input features
+    pub n_features: usize,
     n_labels: usize,
 }
 
@@ -61,6 +66,7 @@ impl Estimator for CalibratedBinaryRelevance<Untrained> {
 impl Fit<ArrayView2<'_, Float>, Array2<i32>> for CalibratedBinaryRelevance<Untrained> {
     type Fitted = CalibratedBinaryRelevance<CalibratedBinaryRelevanceTrained>;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &ArrayView2<'_, Float>, y: &Array2<i32>) -> SklResult<Self::Fitted> {
         let (n_samples, n_features) = X.dim();
         let n_labels = y.ncols();
@@ -199,6 +205,7 @@ impl CalibratedBinaryRelevance<Untrained> {
 impl Predict<ArrayView2<'_, Float>, Array2<i32>>
     for CalibratedBinaryRelevance<CalibratedBinaryRelevanceTrained>
 {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<i32>> {
         let (n_samples, n_features) = X.dim();
 
@@ -235,6 +242,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<i32>>
 
 impl CalibratedBinaryRelevance<CalibratedBinaryRelevanceTrained> {
     /// Get calibrated probabilities
+    #[allow(non_snake_case)] // standard ML notation
     pub fn predict_proba(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
         let (n_samples, n_features) = X.dim();
 
@@ -311,11 +319,9 @@ impl RandomLabelCombinations {
 
     /// Generate random label combinations
     pub fn generate(&self) -> Array2<i32> {
-        let mut rng = if let Some(_seed) = self.random_state {
-            // TODO: Implement deterministic seeding with ThreadRng
-            thread_rng()
-        } else {
-            thread_rng()
+        let mut rng = match self.random_state {
+            Some(seed) => RealStdRng::seed_from_u64(seed),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         let mut combinations = Array2::<i32>::zeros((self.n_combinations, self.n_labels));
@@ -366,7 +372,8 @@ pub struct MLkNNTrained {
     prior_probs: Array1<Float>,
     conditional_probs: Array2<Float>, // P(label|neighbor_count)
     k: usize,
-    smooth: Float,
+    /// Smoothing factor used during training
+    pub smooth: Float,
     distance_metric: DistanceMetric,
     n_labels: usize,
 }
@@ -390,8 +397,9 @@ impl Estimator for MLkNN<Untrained> {
 impl Fit<ArrayView2<'_, Float>, Array2<i32>> for MLkNN<Untrained> {
     type Fitted = MLkNN<MLkNNTrained>;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &ArrayView2<'_, Float>, y: &Array2<i32>) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
         let n_labels = y.ncols();
 
         if n_samples != y.nrows() {
@@ -490,6 +498,7 @@ impl MLkNN<Untrained> {
     }
 
     /// Find k nearest neighbors for a sample
+    #[allow(non_snake_case)] // standard ML notation
     fn find_k_neighbors(
         &self,
         X: &ArrayView2<'_, Float>,
@@ -541,6 +550,7 @@ impl MLkNN<Untrained> {
 }
 
 impl Predict<ArrayView2<'_, Float>, Array2<i32>> for MLkNN<MLkNNTrained> {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<i32>> {
         let (n_samples, n_features) = X.dim();
 
@@ -581,6 +591,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<i32>> for MLkNN<MLkNNTrained> {
 
 impl MLkNN<MLkNNTrained> {
     /// Find k nearest neighbors for a test sample
+    #[allow(non_snake_case)] // standard ML notation
     fn find_k_neighbors_trained(
         &self,
         X: &ArrayView2<'_, Float>,
@@ -734,6 +745,7 @@ impl Estimator for CostSensitiveBinaryRelevance<Untrained> {
 impl Fit<ArrayView2<'_, Float>, Array2<i32>> for CostSensitiveBinaryRelevance<Untrained> {
     type Fitted = CostSensitiveBinaryRelevance<CostSensitiveBinaryRelevanceTrained>;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(self, X: &ArrayView2<'_, Float>, y: &Array2<i32>) -> SklResult<Self::Fitted> {
         let (n_samples, n_features) = X.dim();
         let n_labels = y.ncols();
@@ -863,6 +875,7 @@ impl CostSensitiveBinaryRelevance<Untrained> {
 impl Predict<ArrayView2<'_, Float>, Array2<i32>>
     for CostSensitiveBinaryRelevance<CostSensitiveBinaryRelevanceTrained>
 {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<i32>> {
         let (n_samples, n_features) = X.dim();
 
@@ -941,7 +954,7 @@ mod tests {
             .expect("operation should succeed");
 
         assert_eq!(probabilities.dim(), (2, 2));
-        assert!(probabilities.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(probabilities.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -954,6 +967,33 @@ mod tests {
         let combinations = generator.generate();
         assert_eq!(combinations.dim(), (5, 3));
         assert!(combinations.iter().all(|&x| x == 0 || x == 1));
+    }
+
+    #[test]
+    fn test_random_label_combinations_deterministic_seeding() {
+        // Same seed must produce identical results
+        let result1 = RandomLabelCombinations::new(5)
+            .n_combinations(10)
+            .random_state(42)
+            .generate();
+        let result2 = RandomLabelCombinations::new(5)
+            .n_combinations(10)
+            .random_state(42)
+            .generate();
+        assert_eq!(
+            result1, result2,
+            "same seed should produce identical results"
+        );
+
+        // Different seeds must produce different results (with overwhelming probability for n=50 bits)
+        let result3 = RandomLabelCombinations::new(5)
+            .n_combinations(10)
+            .random_state(43)
+            .generate();
+        assert_ne!(
+            result1, result3,
+            "different seeds should produce different results"
+        );
     }
 
     #[test]

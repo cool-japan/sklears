@@ -5,12 +5,11 @@
 //! influence function diagnostics.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::essentials::Normal;
-use scirs2_core::random::thread_rng;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::Rng;
 use sklears_core::error::SklearsError;
 use sklears_core::traits::{Estimator, Fit};
+
+/// Return type for adversarial robust estimation methods
+type AdversarialEstResult = Result<(Array2<f64>, Array1<bool>, Array1<f64>), SklearsError>;
 
 /// Adversarially robust covariance estimator
 #[derive(Debug, Clone)]
@@ -85,6 +84,12 @@ pub struct RobustnessDiagnostics {
     pub robustness_score: f64,
 }
 
+impl Default for AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
     /// Create a new adversarial robust covariance estimator
     pub fn new() -> Self {
@@ -152,8 +157,8 @@ impl<'a> Fit<ArrayView2<'a, f64>, ()>
 {
     type Fitted = AdversarialRobustCovariance<AdversarialRobustCovarianceTrained>;
 
-    fn fit(self, X: &ArrayView2<'a, f64>, _y: &()) -> Result<Self::Fitted, SklearsError> {
-        let (n_samples, n_features) = X.dim();
+    fn fit(self, x: &ArrayView2<'a, f64>, _y: &()) -> Result<Self::Fitted, SklearsError> {
+        let (n_samples, n_features) = x.dim();
 
         if n_features == 0 {
             return Err(SklearsError::InvalidInput(
@@ -163,12 +168,12 @@ impl<'a> Fit<ArrayView2<'a, f64>, ()>
 
         // Apply robust estimation method
         let (covariance, outliers, influence_values) = match self.robustness_method {
-            RobustnessMethod::TrimmedEstimation => self.trimmed_estimation(*X)?,
-            RobustnessMethod::RobustMEstimator => self.robust_m_estimator(*X)?,
-            RobustnessMethod::MinimumVolumeEllipsoid => self.minimum_volume_ellipsoid(*X)?,
-            RobustnessMethod::InfluenceFunctionBased => self.influence_function_based(*X)?,
-            RobustnessMethod::BreakdownPointOptimal => self.breakdown_point_optimal(*X)?,
-            RobustnessMethod::ContaminationResistant => self.contamination_resistant(*X)?,
+            RobustnessMethod::TrimmedEstimation => self.trimmed_estimation(*x)?,
+            RobustnessMethod::RobustMEstimator => self.robust_m_estimator(*x)?,
+            RobustnessMethod::MinimumVolumeEllipsoid => self.minimum_volume_ellipsoid(*x)?,
+            RobustnessMethod::InfluenceFunctionBased => self.influence_function_based(*x)?,
+            RobustnessMethod::BreakdownPointOptimal => self.breakdown_point_optimal(*x)?,
+            RobustnessMethod::ContaminationResistant => self.contamination_resistant(*x)?,
         };
 
         // Compute diagnostics
@@ -202,16 +207,13 @@ impl<'a> Fit<ArrayView2<'a, f64>, ()>
 
 impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
     /// Trimmed estimation method
-    fn trimmed_estimation(
-        &self,
-        X: ArrayView2<f64>,
-    ) -> Result<(Array2<f64>, Array1<bool>, Array1<f64>), SklearsError> {
-        let (n_samples, n_features) = X.dim();
+    fn trimmed_estimation(&self, x: ArrayView2<f64>) -> AdversarialEstResult {
+        let (n_samples, n_features) = x.dim();
         let trim_count = (n_samples as f64 * self.contamination_rate) as usize;
 
         // Compute Mahalanobis distances
-        let empirical_cov = self.compute_empirical_covariance(X)?;
-        let distances = self.compute_mahalanobis_distances(X, &empirical_cov)?;
+        let empirical_cov = self.compute_empirical_covariance(x)?;
+        let distances = self.compute_mahalanobis_distances(x, &empirical_cov)?;
 
         // Find outliers based on largest distances
         let mut outliers = Array1::from_elem(n_samples, false);
@@ -238,7 +240,7 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
 
         let mut trimmed_data = Array2::zeros((non_outlier_indices.len(), n_features));
         for (i, &idx) in non_outlier_indices.iter().enumerate() {
-            trimmed_data.row_mut(i).assign(&X.row(idx));
+            trimmed_data.row_mut(i).assign(&x.row(idx));
         }
 
         let robust_covariance = self.compute_empirical_covariance(trimmed_data.view())?;
@@ -247,16 +249,13 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
     }
 
     /// Robust M-estimator method
-    fn robust_m_estimator(
-        &self,
-        X: ArrayView2<f64>,
-    ) -> Result<(Array2<f64>, Array1<bool>, Array1<f64>), SklearsError> {
-        let (n_samples, n_features) = X.dim();
+    fn robust_m_estimator(&self, x: ArrayView2<f64>) -> AdversarialEstResult {
+        let (n_samples, _n_features) = x.dim();
         let max_iterations = 100;
         let tolerance = 1e-6;
 
         // Initialize with empirical covariance
-        let mut covariance = self.compute_empirical_covariance(X)?;
+        let mut covariance = self.compute_empirical_covariance(x)?;
         let mut weights = Array1::from_elem(n_samples, 1.0);
 
         // Iterative M-estimation
@@ -264,13 +263,13 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
             let old_covariance = covariance.clone();
 
             // Update weights based on Mahalanobis distances
-            let distances = self.compute_mahalanobis_distances(X, &covariance)?;
+            let distances = self.compute_mahalanobis_distances(x, &covariance)?;
             for (i, &dist) in distances.iter().enumerate() {
                 weights[i] = self.huber_weight(dist, self.attack_threshold);
             }
 
             // Update covariance with weights
-            covariance = self.compute_weighted_covariance(X, &weights)?;
+            covariance = self.compute_weighted_covariance(x, &weights)?;
 
             // Check convergence
             let diff = (&covariance - &old_covariance).mapv(|x| x.abs()).sum();
@@ -287,12 +286,9 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
     }
 
     /// Minimum volume ellipsoid method
-    fn minimum_volume_ellipsoid(
-        &self,
-        X: ArrayView2<f64>,
-    ) -> Result<(Array2<f64>, Array1<bool>, Array1<f64>), SklearsError> {
-        let (n_samples, n_features) = X.dim();
-        let h = ((n_samples + n_features + 1) / 2).max(1); // Minimum subset size
+    fn minimum_volume_ellipsoid(&self, x: ArrayView2<f64>) -> AdversarialEstResult {
+        let (n_samples, n_features) = x.dim();
+        let h = (n_samples + n_features).div_ceil(2).max(1); // Minimum subset size
 
         let mut best_covariance = Array2::zeros((n_features, n_features));
         let mut best_volume = f64::INFINITY;
@@ -311,7 +307,7 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
             // Create subset data
             let mut subset = Array2::zeros((h, n_features));
             for (i, &idx) in indices.iter().take(h).enumerate() {
-                subset.row_mut(i).assign(&X.row(idx));
+                subset.row_mut(i).assign(&x.row(idx));
             }
 
             // Compute covariance of subset
@@ -333,20 +329,17 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
         }
 
         // Compute influence values as Mahalanobis distances
-        let influence_values = self.compute_mahalanobis_distances(X, &best_covariance)?;
+        let influence_values = self.compute_mahalanobis_distances(x, &best_covariance)?;
 
         Ok((best_covariance, best_outliers, influence_values))
     }
 
     /// Influence function based method
-    fn influence_function_based(
-        &self,
-        X: ArrayView2<f64>,
-    ) -> Result<(Array2<f64>, Array1<bool>, Array1<f64>), SklearsError> {
-        let (n_samples, n_features) = X.dim();
+    fn influence_function_based(&self, x: ArrayView2<f64>) -> AdversarialEstResult {
+        let (n_samples, n_features) = x.dim();
 
         // Compute empirical covariance
-        let full_covariance = self.compute_empirical_covariance(X)?;
+        let full_covariance = self.compute_empirical_covariance(x)?;
         let mut influence_values = Array1::zeros(n_samples);
 
         // Compute influence function for each sample
@@ -356,7 +349,7 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
             let mut row_idx = 0;
             for j in 0..n_samples {
                 if i != j {
-                    loo_data.row_mut(row_idx).assign(&X.row(j));
+                    loo_data.row_mut(row_idx).assign(&x.row(j));
                     row_idx += 1;
                 }
             }
@@ -389,7 +382,7 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
         let robust_covariance = if non_outlier_indices.len() > n_features {
             let mut clean_data = Array2::zeros((non_outlier_indices.len(), n_features));
             for (i, &idx) in non_outlier_indices.iter().enumerate() {
-                clean_data.row_mut(i).assign(&X.row(idx));
+                clean_data.row_mut(i).assign(&x.row(idx));
             }
             self.compute_empirical_covariance(clean_data.view())?
         } else {
@@ -400,15 +393,12 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
     }
 
     /// Breakdown point optimal method
-    fn breakdown_point_optimal(
-        &self,
-        X: ArrayView2<f64>,
-    ) -> Result<(Array2<f64>, Array1<bool>, Array1<f64>), SklearsError> {
-        let (n_samples, n_features) = X.dim();
+    fn breakdown_point_optimal(&self, x: ArrayView2<f64>) -> AdversarialEstResult {
+        let (n_samples, n_features) = x.dim();
         let max_outliers = (n_samples as f64 * self.breakdown_point) as usize;
 
         // Use iterative algorithm to find breakdown point optimal estimator
-        let mut best_covariance = self.compute_empirical_covariance(X)?;
+        let mut best_covariance = self.compute_empirical_covariance(x)?;
         let mut best_outliers = Array1::from_elem(n_samples, false);
         let mut best_objective = f64::INFINITY;
 
@@ -436,12 +426,12 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
                 if clean_indices.len() > n_features {
                     let mut clean_data = Array2::zeros((clean_indices.len(), n_features));
                     for (i, &idx) in clean_indices.iter().enumerate() {
-                        clean_data.row_mut(i).assign(&X.row(idx));
+                        clean_data.row_mut(i).assign(&x.row(idx));
                     }
 
                     if let Ok(covariance) = self.compute_empirical_covariance(clean_data.view()) {
                         let objective =
-                            self.breakdown_point_objective(&covariance, X, &outliers)?;
+                            self.breakdown_point_objective(&covariance, x, &outliers)?;
                         if objective < best_objective {
                             best_objective = objective;
                             best_covariance = covariance;
@@ -453,17 +443,14 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
         }
 
         // Compute influence values
-        let influence_values = self.compute_mahalanobis_distances(X, &best_covariance)?;
+        let influence_values = self.compute_mahalanobis_distances(x, &best_covariance)?;
 
         Ok((best_covariance, best_outliers, influence_values))
     }
 
     /// Contamination resistant method
-    fn contamination_resistant(
-        &self,
-        X: ArrayView2<f64>,
-    ) -> Result<(Array2<f64>, Array1<bool>, Array1<f64>), SklearsError> {
-        let (n_samples, n_features) = X.dim();
+    fn contamination_resistant(&self, x: ArrayView2<f64>) -> AdversarialEstResult {
+        let (_n_samples, n_features) = x.dim();
 
         // Use median-based robust estimators
         let mut robust_covariance = Array2::zeros((n_features, n_features));
@@ -472,9 +459,9 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
         for i in 0..n_features {
             for j in i..n_features {
                 let corr = if i == j {
-                    self.robust_variance(&X.column(i))?
+                    self.robust_variance(&x.column(i))?
                 } else {
-                    self.robust_covariance_pair(X.column(i), X.column(j))?
+                    self.robust_covariance_pair(x.column(i), x.column(j))?
                 };
 
                 robust_covariance[[i, j]] = corr;
@@ -483,7 +470,7 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
         }
 
         // Detect outliers using robust distances
-        let distances = self.compute_mahalanobis_distances(X, &robust_covariance)?;
+        let distances = self.compute_mahalanobis_distances(x, &robust_covariance)?;
         let median_distance = self.compute_median(&distances)?;
         let mad_distance = self.compute_mad(&distances, median_distance)?;
 
@@ -496,32 +483,32 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
     /// Helper methods
     fn compute_empirical_covariance(
         &self,
-        X: ArrayView2<f64>,
+        x: ArrayView2<f64>,
     ) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = x.dim();
         if n_samples < 2 {
             return Err(SklearsError::InvalidInput(
                 "Need at least 2 samples".to_string(),
             ));
         }
 
-        let mean = X.mean_axis(Axis(0)).ok_or_else(|| {
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
             SklearsError::NumericalError(
                 "mean computation should succeed for non-empty array".into(),
             )
         })?;
-        let centered = &X - &mean;
+        let centered = &x - &mean;
         let covariance = centered.t().dot(&centered) / ((n_samples - 1) as f64);
         Ok(covariance)
     }
 
     fn compute_mahalanobis_distances(
         &self,
-        X: ArrayView2<f64>,
+        x: ArrayView2<f64>,
         covariance: &Array2<f64>,
     ) -> Result<Array1<f64>, SklearsError> {
-        let (n_samples, _) = X.dim();
-        let mean = X.mean_axis(Axis(0)).ok_or_else(|| {
+        let (n_samples, _) = x.dim();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
             SklearsError::NumericalError(
                 "mean computation should succeed for non-empty array".into(),
             )
@@ -532,7 +519,7 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
 
         let mut distances = Array1::zeros(n_samples);
         for i in 0..n_samples {
-            let diff = &X.row(i) - &mean;
+            let diff = &x.row(i) - &mean;
             let mahal_sq = diff.dot(&inv_cov.dot(&diff));
             distances[i] = mahal_sq.sqrt();
         }
@@ -563,27 +550,27 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
 
     fn compute_weighted_covariance(
         &self,
-        X: ArrayView2<f64>,
+        x: ArrayView2<f64>,
         weights: &Array1<f64>,
     ) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, n_features) = x.dim();
 
         // Weighted mean
         let weight_sum = weights.sum();
         let mut weighted_mean = Array1::zeros(n_features);
         for i in 0..n_samples {
-            let row = X.row(i).to_owned();
-            weighted_mean = weighted_mean + &(row * weights[i]);
+            let row = x.row(i).to_owned();
+            weighted_mean += &(row * weights[i]);
         }
         weighted_mean /= weight_sum;
 
         // Weighted covariance
         let mut covariance = Array2::zeros((n_features, n_features));
         for i in 0..n_samples {
-            let row = X.row(i).to_owned();
+            let row = x.row(i).to_owned();
             let diff = &row - &weighted_mean;
             let outer = Array2::from_shape_fn((n_features, n_features), |(j, k)| diff[j] * diff[k]);
-            covariance = covariance + &(outer * weights[i]);
+            covariance += &(outer * weights[i]);
         }
         covariance /= weight_sum;
 
@@ -642,11 +629,11 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
     fn breakdown_point_objective(
         &self,
         covariance: &Array2<f64>,
-        X: ArrayView2<f64>,
+        x: ArrayView2<f64>,
         outliers: &Array1<bool>,
     ) -> Result<f64, SklearsError> {
         // Objective function for breakdown point optimization
-        let distances = self.compute_mahalanobis_distances(X, covariance)?;
+        let distances = self.compute_mahalanobis_distances(x, covariance)?;
         let outlier_distances: Vec<f64> = outliers
             .iter()
             .enumerate()
@@ -701,7 +688,7 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
             return Err(SklearsError::InvalidInput("Array is empty".to_string()));
         }
 
-        let median = if n % 2 == 0 {
+        let median = if n.is_multiple_of(2) {
             (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
         } else {
             sorted[n / 2]
@@ -807,23 +794,26 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceTrained> {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::Array2;
+    use scirs2_core::random::essentials::Normal;
+    use scirs2_core::random::thread_rng;
+    use scirs2_core::random::Distribution;
 
     #[test]
     fn test_adversarial_robust_covariance() {
         let mut local_rng = thread_rng();
         let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
-        let mut X = Array2::from_shape_fn((100, 3), |_| dist.sample(&mut local_rng));
+        let mut x = Array2::from_shape_fn((100, 3), |_| dist.sample(&mut local_rng));
 
         // Add some outliers
         for i in 0..5 {
-            X.row_mut(i).mapv_inplace(|x| x + 10.0);
+            x.row_mut(i).mapv_inplace(|x| x + 10.0);
         }
 
         let estimator = AdversarialRobustCovariance::new()
             .with_method(RobustnessMethod::TrimmedEstimation)
             .with_contamination_rate(0.1);
 
-        let result = estimator.fit(&X.view(), &());
+        let result = estimator.fit(&x.view(), &());
         assert!(result.is_ok());
 
         let trained = result.expect("operation should succeed");
@@ -838,7 +828,7 @@ mod tests {
     fn test_robustness_methods() {
         let mut local_rng = thread_rng();
         let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
-        let X = Array2::from_shape_fn((50, 4), |_| dist.sample(&mut local_rng));
+        let x = Array2::from_shape_fn((50, 4), |_| dist.sample(&mut local_rng));
 
         let methods = vec![
             RobustnessMethod::TrimmedEstimation,
@@ -851,7 +841,7 @@ mod tests {
         for method in methods {
             let estimator = AdversarialRobustCovariance::new().with_method(method);
 
-            let result = estimator.fit(&X.view(), &());
+            let result = estimator.fit(&x.view(), &());
             assert!(result.is_ok(), "Method {:?} failed", method);
         }
     }
@@ -860,13 +850,13 @@ mod tests {
     fn test_influence_function_diagnostics() {
         let mut local_rng = thread_rng();
         let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
-        let X = Array2::from_shape_fn((30, 3), |_| dist.sample(&mut local_rng));
+        let x = Array2::from_shape_fn((30, 3), |_| dist.sample(&mut local_rng));
 
         let estimator = AdversarialRobustCovariance::new()
             .with_method(RobustnessMethod::InfluenceFunctionBased);
 
         let trained = estimator
-            .fit(&X.view(), &())
+            .fit(&x.view(), &())
             .expect("model fitting should succeed");
         let diagnostics = trained.diagnostics();
 

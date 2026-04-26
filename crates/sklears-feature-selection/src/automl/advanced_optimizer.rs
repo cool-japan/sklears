@@ -24,6 +24,7 @@ pub struct AdvancedHyperparameterOptimizer {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// OptimizationStrategy
 pub enum OptimizationStrategy {
     /// GridSearch
     GridSearch,
@@ -42,13 +43,18 @@ pub enum OptimizationStrategy {
 }
 
 #[derive(Debug, Clone)]
+/// EarlyStoppingConfig
 pub struct EarlyStoppingConfig {
+    /// patience
     pub patience: usize,
+    /// min_improvement
     pub min_improvement: f64,
+    /// restore_best
     pub restore_best: bool,
 }
 
 impl AdvancedHyperparameterOptimizer {
+    /// new
     pub fn new() -> Self {
         Self {
             optimization_strategy: OptimizationStrategy::BayesianOptimization,
@@ -63,26 +69,31 @@ impl AdvancedHyperparameterOptimizer {
         }
     }
 
+    /// with_strategy
     pub fn with_strategy(mut self, strategy: OptimizationStrategy) -> Self {
         self.optimization_strategy = strategy;
         self
     }
 
+    /// with_max_iterations
     pub fn with_max_iterations(mut self, max_iterations: usize) -> Self {
         self.max_iterations = max_iterations;
         self
     }
 
+    /// with_time_budget
     pub fn with_time_budget(mut self, time_budget: Duration) -> Self {
         self.time_budget = time_budget;
         self
     }
 
+    /// with_parallel_workers
     pub fn with_parallel_workers(mut self, workers: usize) -> Self {
         self.parallel_workers = workers;
         self
     }
 
+    /// with_early_stopping
     pub fn with_early_stopping(mut self, config: EarlyStoppingConfig) -> Self {
         self.early_stopping = Some(config);
         self

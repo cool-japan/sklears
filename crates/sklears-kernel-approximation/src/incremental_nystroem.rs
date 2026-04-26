@@ -202,7 +202,7 @@ impl IncrementalNystroem<Untrained> {
             let mut assignments = vec![0; n_samples];
 
             // Assign points to nearest centers
-            for i in 0..n_samples {
+            for (i, assignment) in assignments.iter_mut().enumerate().take(n_samples) {
                 let mut min_dist = Float::INFINITY;
                 let mut best_center = 0;
 
@@ -214,7 +214,7 @@ impl IncrementalNystroem<Untrained> {
                         best_center = j;
                     }
                 }
-                assignments[i] = best_center;
+                *assignment = best_center;
             }
 
             // Update centers
@@ -581,7 +581,7 @@ impl IncrementalNystroem<Trained> {
             let mut assignments = vec![0; n_samples];
 
             // Assign points to nearest centers
-            for i in 0..n_samples {
+            for (i, assignment) in assignments.iter_mut().enumerate().take(n_samples) {
                 let mut min_dist = Float::INFINITY;
                 let mut best_center = 0;
 
@@ -593,7 +593,7 @@ impl IncrementalNystroem<Trained> {
                         best_center = j;
                     }
                 }
-                assignments[i] = best_center;
+                *assignment = best_center;
             }
 
             // Update centers

@@ -8,9 +8,6 @@
 //! - Accuracy vs speed tradeoff analysis
 //! - Comparison with baseline implementations
 
-use crate::NeuralResult;
-use scirs2_core::ndarray::{Array1, Array2};
-use sklears_core::{error::SklearsError, types::FloatBounds};
 use std::time::{Duration, Instant};
 
 #[cfg(feature = "serde")]
@@ -215,15 +212,16 @@ pub struct Benchmarker {
     config: BenchmarkConfig,
 }
 
+impl Default for Benchmarker {
+    fn default() -> Self {
+        Self::new(BenchmarkConfig::default())
+    }
+}
+
 impl Benchmarker {
     /// Create a new benchmarker
     pub fn new(config: BenchmarkConfig) -> Self {
         Self { config }
-    }
-
-    /// Create with default configuration
-    pub fn default() -> Self {
-        Self::new(BenchmarkConfig::default())
     }
 
     /// Benchmark a function

@@ -3,7 +3,6 @@
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{ArrayView1, ArrayView2};
 // ✅ SciRS2 Policy Compliant Import
-use scirs2_core::random::SeedableRng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -92,10 +91,11 @@ impl Default for ComplexityConfig {
 ///     &y.view(),
 ///     n_params,
 ///     &ComplexityConfig::default(),
-/// ).unwrap();
+/// ).expect("model complexity analysis should succeed with valid inputs");
 ///
 /// assert!(result.complexity_score > 0.0);
 /// ```
+#[allow(non_snake_case)] // standard ML notation
 pub fn analyze_model_complexity<F>(
     predict_fn: &F,
     X: &ArrayView2<Float>,
@@ -181,7 +181,7 @@ fn compute_residual_sum_squares(y_true: &ArrayView1<Float>, y_pred: &[Float]) ->
 }
 
 /// Compute log-likelihood assuming Gaussian errors
-fn compute_log_likelihood(y_true: &ArrayView1<Float>, y_pred: &[Float], rss: Float) -> Float {
+fn compute_log_likelihood(y_true: &ArrayView1<Float>, _y_pred: &[Float], rss: Float) -> Float {
     let n = y_true.len() as Float;
     let sigma_squared = rss / n;
 
@@ -209,6 +209,7 @@ fn compute_mdl(log_likelihood: Float, n_params: usize, n_samples: usize) -> Floa
 }
 
 /// Estimate effective degrees of freedom using bootstrap
+#[allow(non_snake_case)] // standard ML notation
 fn estimate_effective_degrees_freedom<F>(
     predict_fn: &F,
     X: &ArrayView2<Float>,
@@ -282,6 +283,7 @@ fn estimate_noise_variance(y_true: &ArrayView1<Float>, y_pred: &[Float]) -> Floa
 }
 
 /// Compute cross-validation complexity
+#[allow(non_snake_case)] // standard ML notation
 fn compute_cv_complexity<F>(
     predict_fn: &F,
     X: &ArrayView2<Float>,
@@ -348,10 +350,11 @@ fn compute_score_variance(y_true: &[Float], y_pred: &[Float]) -> Float {
 }
 
 /// Compute feature interaction complexity
+#[allow(non_snake_case)] // standard ML notation
 fn compute_interaction_complexity<F>(
     predict_fn: &F,
     X: &ArrayView2<Float>,
-    y: &ArrayView1<Float>,
+    _y: &ArrayView1<Float>,
 ) -> SklResult<Float>
 where
     F: Fn(&ArrayView2<Float>) -> Vec<Float>,
@@ -389,6 +392,7 @@ where
 }
 
 /// Compute pairwise interaction effect
+#[allow(non_snake_case)] // standard ML notation
 fn compute_pairwise_interaction<F>(
     predict_fn: &F,
     X: &ArrayView2<Float>,
@@ -453,7 +457,7 @@ fn compute_overall_complexity_score(
 mod tests {
     use super::*;
     // ✅ SciRS2 Policy Compliant Import
-    use scirs2_core::ndarray::{array, ArrayView1, ArrayView2};
+    use scirs2_core::ndarray::{array, ArrayView2};
 
     #[test]
     #[allow(non_snake_case)]

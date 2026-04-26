@@ -96,8 +96,8 @@ impl Default for RobustDiscriminantAnalysisConfig {
 /// let rda = RobustDiscriminantAnalysis::new()
 ///     .estimator_type(MEstimatorType::Huber { k: 1.345 })
 ///     .trimming_fraction(0.25);
-/// let fitted = rda.fit(&x, &y).unwrap();
-/// let predictions = fitted.predict(&x).unwrap();
+/// let fitted = rda.fit(&x, &y).expect("fit should succeed with valid input");
+/// let predictions = fitted.predict(&x).expect("predict should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct RobustDiscriminantAnalysis {
@@ -132,7 +132,7 @@ impl RobustDiscriminantAnalysis {
 
     /// Set the trimming fraction (proportion of observations to trim)
     pub fn trimming_fraction(mut self, trimming_fraction: Float) -> Self {
-        self.config.trimming_fraction = trimming_fraction.max(0.0).min(0.5);
+        self.config.trimming_fraction = trimming_fraction.clamp(0.0, 0.5);
         self
     }
 

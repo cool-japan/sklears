@@ -1,4 +1,6 @@
 //! Support Vector Regression Imputer
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides SVR for missing value imputation.
 

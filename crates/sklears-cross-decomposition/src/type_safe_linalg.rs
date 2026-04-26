@@ -4,7 +4,7 @@
 //! operations commonly used in cross-decomposition methods. Uses phantom types
 //! and const generics to ensure mathematical correctness at compile time.
 
-use scirs2_core::ndarray::{s, Array1, Array2, Dimension, Ix1, Ix2, ShapeBuilder};
+use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::numeric::{Float, One, Zero};
 use sklears_core::error::SklearsError;
 use std::marker::PhantomData;
@@ -255,14 +255,14 @@ where
     /// Compute determinant (only for square matrices)
     pub fn determinant(&self) -> Result<T, SklearsError> {
         if D::SIZE == 1 {
-            return Ok(self.data[[0, 0]].clone());
+            return Ok(self.data[[0, 0]]);
         }
 
         if D::SIZE == 2 {
-            let a = self.data[[0, 0]].clone();
-            let b = self.data[[0, 1]].clone();
-            let c = self.data[[1, 0]].clone();
-            let d = self.data[[1, 1]].clone();
+            let a = self.data[[0, 0]];
+            let b = self.data[[0, 1]];
+            let c = self.data[[1, 0]];
+            let d = self.data[[1, 1]];
             return Ok(a * d - b * c);
         }
 
@@ -283,8 +283,8 @@ where
             // Swap rows if needed
             if max_row != i {
                 for j in 0..D::SIZE {
-                    let temp = matrix[[i, j]].clone();
-                    matrix[[i, j]] = matrix[[max_row, j]].clone();
+                    let temp = matrix[[i, j]];
+                    matrix[[i, j]] = matrix[[max_row, j]];
                     matrix[[max_row, j]] = temp;
                 }
                 det = T::zero() - det; // Negate for row swap
@@ -295,14 +295,14 @@ where
                 return Ok(T::zero());
             }
 
-            det = det * matrix[[i, i]].clone();
+            det = det * matrix[[i, i]];
 
             // Eliminate column
             for k in i + 1..D::SIZE {
-                let factor = matrix[[k, i]].clone() / matrix[[i, i]].clone();
+                let factor = matrix[[k, i]] / matrix[[i, i]];
                 for j in i..D::SIZE {
-                    let temp = matrix[[i, j]].clone() * factor.clone();
-                    matrix[[k, j]] = matrix[[k, j]].clone() - temp;
+                    let temp = matrix[[i, j]] * factor;
+                    matrix[[k, j]] = matrix[[k, j]] - temp;
                 }
             }
         }
@@ -322,7 +322,7 @@ where
 
         // For small matrices, use analytical formulas
         if D::SIZE == 1 {
-            let inv_data = Array2::from_elem((1, 1), T::one() / self.data[[0, 0]].clone());
+            let inv_data = Array2::from_elem((1, 1), T::one() / self.data[[0, 0]]);
             return Ok(TypeSafeMatrix {
                 data: inv_data,
                 _phantom: PhantomData,
@@ -330,16 +330,16 @@ where
         }
 
         if D::SIZE == 2 {
-            let a = self.data[[0, 0]].clone();
-            let b = self.data[[0, 1]].clone();
-            let c = self.data[[1, 0]].clone();
-            let d = self.data[[1, 1]].clone();
+            let a = self.data[[0, 0]];
+            let b = self.data[[0, 1]];
+            let c = self.data[[1, 0]];
+            let d = self.data[[1, 1]];
 
             let inv_det = T::one() / det;
             let mut inv_data = Array2::zeros((2, 2));
-            inv_data[[0, 0]] = d * inv_det.clone();
-            inv_data[[0, 1]] = T::zero() - b * inv_det.clone();
-            inv_data[[1, 0]] = T::zero() - c * inv_det.clone();
+            inv_data[[0, 0]] = d * inv_det;
+            inv_data[[0, 1]] = T::zero() - b * inv_det;
+            inv_data[[1, 0]] = T::zero() - c * inv_det;
             inv_data[[1, 1]] = a * inv_det;
 
             return Ok(TypeSafeMatrix {
@@ -359,7 +359,7 @@ where
         // Create augmented matrix [A | I]
         for i in 0..n {
             for j in 0..n {
-                augmented[[i, j]] = self.data[[i, j]].clone();
+                augmented[[i, j]] = self.data[[i, j]];
                 augmented[[i, j + n]] = if i == j { T::one() } else { T::zero() };
             }
         }
@@ -377,8 +377,8 @@ where
             // Swap rows
             if max_row != i {
                 for j in 0..2 * n {
-                    let temp = augmented[[i, j]].clone();
-                    augmented[[i, j]] = augmented[[max_row, j]].clone();
+                    let temp = augmented[[i, j]];
+                    augmented[[i, j]] = augmented[[max_row, j]];
                     augmented[[max_row, j]] = temp;
                 }
             }
@@ -389,18 +389,18 @@ where
             }
 
             // Scale pivot row
-            let pivot = augmented[[i, i]].clone();
+            let pivot = augmented[[i, i]];
             for j in 0..2 * n {
-                augmented[[i, j]] = augmented[[i, j]].clone() / pivot.clone();
+                augmented[[i, j]] = augmented[[i, j]] / pivot;
             }
 
             // Eliminate column
             for k in 0..n {
                 if k != i {
-                    let factor = augmented[[k, i]].clone();
+                    let factor = augmented[[k, i]];
                     for j in 0..2 * n {
-                        let temp = augmented[[i, j]].clone() * factor.clone();
-                        augmented[[k, j]] = augmented[[k, j]].clone() - temp;
+                        let temp = augmented[[i, j]] * factor;
+                        augmented[[k, j]] = augmented[[k, j]] - temp;
                     }
                 }
             }
@@ -410,7 +410,7 @@ where
         let mut inv_data = Array2::zeros((n, n));
         for i in 0..n {
             for j in 0..n {
-                inv_data[[i, j]] = augmented[[i, j + n]].clone();
+                inv_data[[i, j]] = augmented[[i, j + n]];
             }
         }
 
@@ -503,7 +503,7 @@ where
         // Manual norm calculation to avoid lifetime issues
         let mut sum = T::zero();
         for i in 0..self.data.len() {
-            sum = sum + self.data[i].clone() * self.data[i].clone();
+            sum = sum + self.data[i] * self.data[i];
         }
         sum.sqrt()
     }
@@ -673,7 +673,7 @@ pub mod decomp {
         let data = &matrix.data;
         let (m, n) = data.dim();
 
-        let mut q = Array2::eye(m);
+        let q = Array2::eye(m);
         let mut r = data.clone();
 
         // Simplified QR using Gram-Schmidt
@@ -681,24 +681,24 @@ pub mod decomp {
             // Normalize column j
             let mut col_norm = T::zero();
             for i in j..m {
-                col_norm = col_norm + r[[i, j]].clone() * r[[i, j]].clone();
+                col_norm = col_norm + r[[i, j]] * r[[i, j]];
             }
             col_norm = col_norm.sqrt();
 
             if col_norm > T::epsilon() {
                 for i in j..m {
-                    r[[i, j]] = r[[i, j]].clone() / col_norm.clone();
+                    r[[i, j]] = r[[i, j]] / col_norm;
                 }
 
                 // Orthogonalize remaining columns
                 for k in j + 1..n {
                     let mut dot_product = T::zero();
                     for i in j..m {
-                        dot_product = dot_product + r[[i, j]].clone() * r[[i, k]].clone();
+                        dot_product = dot_product + r[[i, j]] * r[[i, k]];
                     }
 
                     for i in j..m {
-                        r[[i, k]] = r[[i, k]].clone() - dot_product.clone() * r[[i, j]].clone();
+                        r[[i, k]] = r[[i, k]] - dot_product * r[[i, j]];
                     }
                 }
             }
@@ -734,27 +734,25 @@ pub mod decomp {
             for i in 0..n {
                 let mut sum = T::zero();
                 for j in 0..n {
-                    sum = sum + matrix.data[[i, j]].clone() * v[j].clone();
+                    sum = sum + matrix.data[[i, j]] * v[j];
                 }
                 av[i] = sum;
             }
             // Manual dot product
             let mut new_lambda = T::zero();
             for i in 0..n {
-                new_lambda = new_lambda + v[i].clone() * av[i].clone();
+                new_lambda = new_lambda + v[i] * av[i];
             }
             // Manual norm calculation
             let mut av_norm_sq = T::zero();
             for i in 0..n {
-                av_norm_sq = av_norm_sq + av[i].clone() * av[i].clone();
+                av_norm_sq = av_norm_sq + av[i] * av[i];
             }
             let av_norm = av_norm_sq.sqrt();
             if av_norm > T::zero() {
-                let new_v: Array1<T> = av.mapv(|x| x / av_norm.clone());
+                let new_v: Array1<T> = av.mapv(|x| x / av_norm);
 
-                if (new_lambda.clone() - lambda.clone()).abs()
-                    < T::from(1e-10).unwrap_or(T::epsilon())
-                {
+                if (new_lambda - lambda).abs() < T::from(1e-10).unwrap_or(T::epsilon()) {
                     lambda = new_lambda;
                     v = new_v.to_owned();
                     break;
@@ -767,12 +765,12 @@ pub mod decomp {
 
         eigenvalues[0] = lambda;
         for i in 0..n {
-            eigenvectors[[i, 0]] = v[i].clone();
+            eigenvectors[[i, 0]] = v[i];
         }
 
         // Fill remaining eigenvalues/vectors with simplified approach
         for i in 1..n {
-            eigenvalues[i] = matrix.data[[i, i]].clone();
+            eigenvalues[i] = matrix.data[[i, i]];
             eigenvectors[[i, i]] = T::one();
         }
 

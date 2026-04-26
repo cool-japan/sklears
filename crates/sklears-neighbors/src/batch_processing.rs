@@ -102,7 +102,7 @@ impl BatchProcessor {
 
         if self.config.parallel_processing && processor.supports_parallel_processing() {
             all_results = self.process_data_parallel(data, optimal_batch_size, processor)?;
-            batch_count = (num_samples + optimal_batch_size - 1) / optimal_batch_size;
+            batch_count = num_samples.div_ceil(optimal_batch_size);
         } else {
             let mut start_idx = 0;
             while start_idx < num_samples {

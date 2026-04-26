@@ -20,11 +20,8 @@
 //! - Riemannian BFGS
 //! - Manifold-constrained Stochastic Gradient Descent
 
-use scirs2_core::error::{CoreError, ErrorContext};
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Rng, RngExt};
-use sklears_core::types::Float;
-use std::collections::HashMap;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::thread_rng;
 
 /// Type alias for optimization results
 pub type RiemannianResult<T> = Result<T, RiemannianError>;
@@ -189,7 +186,7 @@ pub trait RiemannianObjective {
     fn euclidean_gradient(&self, x: &Array2<f64>) -> Array2<f64>;
 
     /// Compute the Euclidean Hessian (optional, for second-order methods)
-    fn euclidean_hessian(&self, x: &Array2<f64>, direction: &Array2<f64>) -> Option<Array2<f64>> {
+    fn euclidean_hessian(&self, _x: &Array2<f64>, _direction: &Array2<f64>) -> Option<Array2<f64>> {
         None
     }
 }
@@ -652,7 +649,7 @@ impl RiemannianObjective for CCAObjective {
 // Helper functions for matrix decompositions
 fn qr_decomposition(matrix: &Array2<f64>) -> (Array2<f64>, Array2<f64>) {
     // Simplified QR decomposition - in practice would use LAPACK
-    let (m, n) = matrix.dim();
+    let (_m, n) = matrix.dim();
     let q = matrix.clone(); // Placeholder
     let r = Array2::eye(n); // Placeholder
     (q, r)
@@ -674,7 +671,7 @@ use scirs2_core::ndarray::s;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::{arr2, Array2};
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_riemannian_config_creation() {

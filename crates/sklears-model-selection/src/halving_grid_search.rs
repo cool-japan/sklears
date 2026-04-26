@@ -450,86 +450,6 @@ impl<X, Y> HalvingGridSearch<X, Y> {
     }
 }
 
-#[allow(non_snake_case)]
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::cross_validation::KFold;
-
-    #[test]
-    fn test_halving_grid_search_creation() {
-        let mut param_distributions = HashMap::new();
-        param_distributions.insert(
-            "param1".to_string(),
-            crate::grid_search::ParameterDistribution::Choice(vec!["a".into(), "b".into()]),
-        );
-
-        let search = HalvingGridSearch::<Array2<f64>, Array1<f64>>::new(param_distributions)
-            .n_candidates(16)
-            .factor(2.0)
-            .cv(Box::new(KFold::new(3)))
-            .random_state(42);
-
-        assert_eq!(search.config.n_candidates, 16);
-        assert_eq!(search.config.factor, 2.0);
-    }
-
-    #[test]
-    fn test_candidate_generation() {
-        let mut param_distributions = HashMap::new();
-        param_distributions.insert(
-            "param1".to_string(),
-            crate::grid_search::ParameterDistribution::Choice(vec![
-                "a".into(),
-                "b".into(),
-                "c".into(),
-            ]),
-        );
-        param_distributions.insert(
-            "param2".to_string(),
-            crate::grid_search::ParameterDistribution::Choice(vec![1.into(), 2.into()]),
-        );
-
-        let search = HalvingGridSearch::<Array2<f64>, Array1<f64>>::new(param_distributions)
-            .n_candidates(6)
-            .random_state(42);
-
-        let mut rng = StdRng::seed_from_u64(42);
-        let candidates = search
-            .generate_candidates(&mut rng)
-            .expect("operation should succeed");
-
-        assert_eq!(candidates.len(), 6);
-
-        for candidate in &candidates {
-            assert!(candidate.contains_key("param1"));
-            assert!(candidate.contains_key("param2"));
-        }
-    }
-
-    #[test]
-    fn test_halving_grid_search_configuration() {
-        let mut param_distributions = HashMap::new();
-        param_distributions.insert(
-            "test_param".to_string(),
-            crate::grid_search::ParameterDistribution::Choice(vec![1.into(), 2.into()]),
-        );
-
-        let search = HalvingGridSearch::<Array2<f64>, Array1<f64>>::new(param_distributions)
-            .n_candidates(8)
-            .factor(2.5)
-            .min_resource(10)
-            .max_resource(100)
-            .aggressive_elimination(false);
-
-        assert_eq!(search.config.n_candidates, 8);
-        assert_eq!(search.config.factor, 2.5);
-        assert_eq!(search.config.min_resource, Some(10));
-        assert_eq!(search.config.max_resource, Some(100));
-        assert!(!search.config.aggressive_elimination);
-    }
-}
-
 /// Randomized search with successive halving for efficient hyperparameter optimization
 ///
 /// HalvingRandomSearchCV is similar to HalvingGridSearch but samples parameter values
@@ -906,5 +826,85 @@ impl HalvingRandomSearchCV {
                 Ok(0.85)
             }
         }
+    }
+}
+
+#[allow(non_snake_case)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cross_validation::KFold;
+
+    #[test]
+    fn test_halving_grid_search_creation() {
+        let mut param_distributions = HashMap::new();
+        param_distributions.insert(
+            "param1".to_string(),
+            crate::grid_search::ParameterDistribution::Choice(vec!["a".into(), "b".into()]),
+        );
+
+        let search = HalvingGridSearch::<Array2<f64>, Array1<f64>>::new(param_distributions)
+            .n_candidates(16)
+            .factor(2.0)
+            .cv(Box::new(KFold::new(3)))
+            .random_state(42);
+
+        assert_eq!(search.config.n_candidates, 16);
+        assert_eq!(search.config.factor, 2.0);
+    }
+
+    #[test]
+    fn test_candidate_generation() {
+        let mut param_distributions = HashMap::new();
+        param_distributions.insert(
+            "param1".to_string(),
+            crate::grid_search::ParameterDistribution::Choice(vec![
+                "a".into(),
+                "b".into(),
+                "c".into(),
+            ]),
+        );
+        param_distributions.insert(
+            "param2".to_string(),
+            crate::grid_search::ParameterDistribution::Choice(vec![1.into(), 2.into()]),
+        );
+
+        let search = HalvingGridSearch::<Array2<f64>, Array1<f64>>::new(param_distributions)
+            .n_candidates(6)
+            .random_state(42);
+
+        let mut rng = StdRng::seed_from_u64(42);
+        let candidates = search
+            .generate_candidates(&mut rng)
+            .expect("operation should succeed");
+
+        assert_eq!(candidates.len(), 6);
+
+        for candidate in &candidates {
+            assert!(candidate.contains_key("param1"));
+            assert!(candidate.contains_key("param2"));
+        }
+    }
+
+    #[test]
+    fn test_halving_grid_search_configuration() {
+        let mut param_distributions = HashMap::new();
+        param_distributions.insert(
+            "test_param".to_string(),
+            crate::grid_search::ParameterDistribution::Choice(vec![1.into(), 2.into()]),
+        );
+
+        let search = HalvingGridSearch::<Array2<f64>, Array1<f64>>::new(param_distributions)
+            .n_candidates(8)
+            .factor(2.5)
+            .min_resource(10)
+            .max_resource(100)
+            .aggressive_elimination(false);
+
+        assert_eq!(search.config.n_candidates, 8);
+        assert_eq!(search.config.factor, 2.5);
+        assert_eq!(search.config.min_resource, Some(10));
+        assert_eq!(search.config.max_resource, Some(100));
+        assert!(!search.config.aggressive_elimination);
     }
 }

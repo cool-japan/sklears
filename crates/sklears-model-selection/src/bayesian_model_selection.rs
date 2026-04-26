@@ -94,6 +94,7 @@ pub struct BayesianModelSelector {
     /// Prior model probabilities (if not uniform)
     prior_probabilities: Option<Vec<f64>>,
     /// Random number generator
+    #[allow(dead_code)] // rng retained for future stochastic sampling extensions
     rng: StdRng,
 }
 
@@ -625,7 +626,7 @@ mod tests {
 
         // Check effective number of models
         let effective_n = averager.effective_number_of_models();
-        assert!(effective_n >= 1.0 && effective_n <= 2.0);
+        assert!((1.0..=2.0).contains(&effective_n));
     }
 
     #[test]

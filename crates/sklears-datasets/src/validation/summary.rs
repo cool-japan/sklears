@@ -284,7 +284,7 @@ fn calculate_target_statistics(
     // Calculate continuous statistics if needed
     let continuous_stats = if data_type == "continuous" {
         Some(calculate_feature_statistics(
-            &[valid_targets.clone()],
+            std::slice::from_ref(&valid_targets),
             0,
             target_name,
             config,

@@ -10,11 +10,6 @@ pub mod pathway_analysis;
 pub mod single_cell;
 pub mod temporal_gene;
 
-use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{thread_rng, Random, Rng};
-use sklears_core::types::Float;
-use std::collections::HashMap;
-
 // Re-export from multi_omics module
 pub use crate::multi_omics::{FittedMultiOmicsIntegration, GenomicsError, MultiOmicsIntegration};
 
@@ -44,10 +39,11 @@ pub use temporal_gene::{FittedTemporalGeneExpression, TemporalGeneExpression};
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use scirs2_core::essentials::{Normal, Uniform};
-    use scirs2_core::ndarray::array;
-    use scirs2_core::ndarray::Array2;
+    use scirs2_core::essentials::Uniform;
+    use scirs2_core::ndarray::{array, Array1, Array2};
     use scirs2_core::random::thread_rng;
+    use sklears_core::types::Float;
+    use std::collections::HashMap;
 
     #[test]
     fn test_multi_omics_integration_basic() {
@@ -201,7 +197,7 @@ mod tests {
                 *value = (time * frequency).sin()
                     + 0.1
                         * rng.sample(
-                            &Uniform::new(0.0, 1.0)
+                            Uniform::new(0.0, 1.0)
                                 .expect("Uniform distribution params should be valid"),
                         );
             }
@@ -271,7 +267,7 @@ mod tests {
             row[1] = time * 0.1; // Linear trend
             row[2] = (time * 0.5).sin(); // Oscillating gene
             row[3] = rng.sample(
-                &Uniform::new(0.0, 1.0).expect("Uniform distribution params should be valid"),
+                Uniform::new(0.0, 1.0).expect("Uniform distribution params should be valid"),
             ) - 0.5; // Random/noisy gene
         }
 

@@ -132,11 +132,21 @@ pub enum DimensionConstraint {
     /// Fixed size
     Fixed(usize),
     /// Range of sizes
-    Range { min: usize, max: Option<usize> },
+    Range {
+        /// The min.
+        min: usize,
+        /// The max.
+        max: Option<usize>,
+    },
     /// Any size
     Any,
     /// Size matches another dimension
-    MatchesDimension { step_id: String, dimension: usize },
+    MatchesDimension {
+        /// The step id.
+        step_id: String,
+        /// The dimension.
+        dimension: usize,
+    },
     /// Dynamic size determined at runtime
     Dynamic(String),
 }
@@ -788,7 +798,12 @@ mod tests {
             }),
             caching: Some(CachingConfig {
                 enable_step_caching: true,
-                cache_directory: Some("/tmp/workflow_cache".to_string()),
+                cache_directory: Some(
+                    std::env::temp_dir()
+                        .join("workflow_cache")
+                        .display()
+                        .to_string(),
+                ),
                 cache_ttl_sec: Some(3600),
                 max_cache_size_mb: Some(512),
             }),

@@ -1,4 +1,3 @@
-#![allow(missing_docs)]
 //! Neural network implementations for the sklears machine learning library.
 //!
 //! This crate provides implementations of neural network algorithms compatible with
@@ -34,53 +33,6 @@
 //! # }
 //! ```
 
-// Allow common patterns in machine learning code and research environments
-#![allow(non_snake_case)] // Allow X, Y variable names common in ML
-#![allow(unused_imports)] // Allow unused imports for conditional compilation
-#![allow(unused_variables)] // Allow unused variables in development/research code
-#![allow(dead_code)] // Allow dead code during development
-#![allow(deprecated)] // Allow deprecated items during transitions
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
-#![allow(unexpected_cfgs)] // Allow GPU and other conditional compilation features
-#![allow(ambiguous_glob_reexports)]
-// Allow re-export conflicts in ML modules
-
-// Clippy lints that are overly strict for ML/research code
-#![allow(clippy::too_many_arguments)] // Neural networks often have many parameters
-#![allow(clippy::type_complexity)] // Complex types are common in ML
-#![allow(clippy::multiple_bound_locations)] // Common in generic ML code
-#![allow(clippy::assign_op_pattern)] // Allow manual assignment patterns for clarity
-#![allow(clippy::nonminimal_bool)] // Allow explicit boolean expressions
-#![allow(clippy::derivable_impls)] // Allow manual Default implementations for clarity
-#![allow(clippy::redundant_field_names)] // Allow redundant field names for clarity
-#![allow(clippy::needless_update)] // Allow needless struct updates for consistency
-#![allow(clippy::match_same_arms)] // Allow same arms in match for completeness
-#![allow(clippy::single_match)] // Allow single match expressions
-#![allow(clippy::large_enum_variant)] // Allow large enum variants in ML structures
-#![allow(clippy::module_inception)] // Allow module inception patterns
-#![allow(clippy::new_without_default)] // Allow new without Default for ML types
-#![allow(clippy::empty_line_after_doc_comments)] // Allow formatting flexibility
-#![allow(clippy::should_implement_trait)] // Allow custom implementations for ML types
-#![allow(clippy::clone_on_copy)] // Allow explicit cloning for code clarity
-#![allow(clippy::collapsible_else_if)] // Allow explicit conditional structure
-#![allow(clippy::if_same_then_else)] // Allow explicit branching in ML code
-#![allow(clippy::ptr_arg)] // Allow Vec parameters for ML data structures
-#![allow(clippy::option_as_ref_deref)] // Allow explicit Option handling
-#![allow(clippy::manual_is_multiple_of)] // Allow manual modulo operations
-#![allow(clippy::enum_variant_names)] // Allow descriptive enum variant names
-#![allow(clippy::field_reassign_with_default)] // Allow explicit field assignment
-#![allow(unused_mut)] // Allow unused mutable variables in research code
-#![allow(unused_assignments)] // Allow unused assignments for completeness
-#![allow(clippy::unwrap_or_default)] // Allow explicit unwrap_or patterns
-#![allow(clippy::wrong_self_convention)] // Allow custom method naming
-#![allow(clippy::needless_borrows_for_generic_args)] // Allow explicit borrows
-#![allow(clippy::useless_asref)] // Allow explicit as_ref usage
-#![allow(clippy::borrow_deref_ref)] // Allow explicit reference patterns
-#![allow(clippy::op_ref)] // Allow reference operations for clarity
-#![allow(clippy::needless_borrow)] // Allow explicit borrowing for clarity
-
 pub mod activation;
 pub mod attention_rnn;
 pub mod autoencoder;
@@ -91,6 +43,7 @@ pub mod conv_layers;
 pub mod curriculum;
 pub mod data_augmentation;
 pub mod diffusion;
+/// Distributed training utilities
 pub mod distributed;
 pub mod ebm;
 pub mod evolutionary_nas;
@@ -98,6 +51,7 @@ pub mod experiment_tracking;
 pub mod gan;
 pub mod gnn;
 pub mod gpu;
+/// Numerical gradient checking for verifying analytic gradients
 pub mod gradient_checking;
 pub mod interpretation;
 pub mod knowledge_distillation;
@@ -105,6 +59,7 @@ pub mod layers;
 pub mod memory_leak_tests;
 pub mod mlp_classifier;
 pub mod mlp_regressor;
+/// Cross-validation and model selection utilities
 pub mod model_selection;
 pub mod models;
 pub mod multi_agent_rl;
@@ -118,6 +73,7 @@ pub mod quantization;
 pub mod rbm;
 pub mod regularization;
 pub mod reinforcement_learning;
+/// Self-supervised and contrastive learning methods
 pub mod self_supervised;
 pub mod seq2seq;
 pub mod solvers;
@@ -126,6 +82,7 @@ pub mod transformer;
 pub mod utils;
 pub mod vae;
 pub mod validation;
+/// Model versioning and change tracking
 pub mod versioning;
 pub mod visualization;
 pub mod weight_init;

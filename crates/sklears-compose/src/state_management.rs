@@ -12,6 +12,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+/// State change listener callback list
+type StateListeners = Arc<RwLock<Vec<Box<dyn Fn(&StateSnapshot) + Send + Sync>>>>;
+
 /// Pipeline state snapshot
 #[derive(Debug, Clone)]
 pub struct StateSnapshot {
@@ -186,7 +189,7 @@ pub struct StateManager {
     /// Active checkpoint timers
     checkpoint_timers: Arc<Mutex<HashMap<String, std::thread::JoinHandle<()>>>>,
     /// State change listeners
-    listeners: Arc<RwLock<Vec<Box<dyn Fn(&StateSnapshot) + Send + Sync>>>>,
+    listeners: StateListeners,
 }
 
 impl StateManager {
@@ -458,7 +461,7 @@ impl StateManager {
             .checkpoint_timers
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        if let Some(handle) = timers.remove(pipeline_id) {
+        if let Some(_handle) = timers.remove(pipeline_id) {
             // Note: In a real implementation, we'd need a way to signal the thread to stop
             // For now, we just remove it from tracking
         }
@@ -826,7 +829,7 @@ impl StateSynchronizer {
     }
 
     /// Find conflicting snapshot
-    fn find_conflicting_snapshot(&self, remote_snapshot: &StateSnapshot) -> Option<StateSnapshot> {
+    fn find_conflicting_snapshot(&self, _remote_snapshot: &StateSnapshot) -> Option<StateSnapshot> {
         // Simplified conflict detection based on timestamp ranges
         // In a real implementation, this would be more sophisticated
         None
@@ -873,6 +876,7 @@ pub struct SyncResult {
 }
 
 /// Version control system for pipeline states
+#[allow(dead_code)]
 pub struct PipelineVersionControl {
     /// State manager
     state_manager: Arc<StateManager>,
@@ -1031,7 +1035,6 @@ impl PipelineVersionControl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
 
     #[test]
     fn test_state_snapshot_creation() {
@@ -1117,10 +1120,12 @@ mod tests {
 
     #[test]
     fn test_execution_statistics() {
-        let mut stats = ExecutionStatistics::default();
-        stats.training_samples = 1000;
-        stats.prediction_requests = 50;
-        stats.accuracy = Some(0.95);
+        let stats = ExecutionStatistics {
+            training_samples: 1000,
+            prediction_requests: 50,
+            accuracy: Some(0.95),
+            ..Default::default()
+        };
 
         assert_eq!(stats.training_samples, 1000);
         assert_eq!(stats.prediction_requests, 50);

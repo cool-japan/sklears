@@ -23,6 +23,7 @@ impl RBF {
     }
 }
 
+#[allow(non_snake_case)]
 impl Kernel for RBF {
     fn compute_kernel_matrix(
         &self,
@@ -124,6 +125,7 @@ impl ARDRBF {
     }
 }
 
+#[allow(non_snake_case)]
 impl Kernel for ARDRBF {
     fn compute_kernel_matrix(
         &self,
@@ -208,6 +210,7 @@ impl Matern {
     }
 }
 
+#[allow(non_snake_case)]
 impl Kernel for Matern {
     fn compute_kernel_matrix(
         &self,
@@ -280,6 +283,7 @@ impl Linear {
     }
 }
 
+#[allow(non_snake_case)]
 impl Kernel for Linear {
     fn compute_kernel_matrix(
         &self,
@@ -344,6 +348,7 @@ impl Polynomial {
     }
 }
 
+#[allow(non_snake_case)]
 impl Kernel for Polynomial {
     fn compute_kernel_matrix(
         &self,
@@ -407,6 +412,7 @@ impl RationalQuadratic {
     }
 }
 
+#[allow(non_snake_case)]
 impl Kernel for RationalQuadratic {
     fn compute_kernel_matrix(
         &self,
@@ -472,6 +478,7 @@ impl ExpSineSquared {
     }
 }
 
+#[allow(non_snake_case)]
 impl Kernel for ExpSineSquared {
     fn compute_kernel_matrix(
         &self,
@@ -536,6 +543,7 @@ impl WhiteKernel {
     }
 }
 
+#[allow(non_snake_case)]
 impl Kernel for WhiteKernel {
     fn compute_kernel_matrix(
         &self,
@@ -596,6 +604,7 @@ impl ConstantKernel {
     }
 }
 
+#[allow(non_snake_case)]
 impl Kernel for ConstantKernel {
     fn compute_kernel_matrix(
         &self,
@@ -642,6 +651,7 @@ impl SumKernel {
     }
 }
 
+#[allow(non_snake_case)]
 impl Kernel for SumKernel {
     fn compute_kernel_matrix(
         &self,
@@ -704,6 +714,7 @@ impl ProductKernel {
     }
 }
 
+#[allow(non_snake_case)]
 impl Kernel for ProductKernel {
     fn compute_kernel_matrix(
         &self,

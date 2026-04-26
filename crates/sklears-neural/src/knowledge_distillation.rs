@@ -33,20 +33,24 @@
 
 // Note: Simplified implementation using basic structures
 use crate::{NeuralResult, SklearsError};
-use scirs2_core::ndarray::{s, Array1, Array2, Axis, ScalarOperand};
+use scirs2_core::ndarray::{s, Array2, ScalarOperand};
 use sklears_core::types::{Float, FloatBounds};
 use std::collections::HashMap;
 use std::iter::Sum;
 use std::marker::PhantomData;
 
+/// Type alias for model forward-pass result containing output and named feature maps
+pub type FeaturesResult<T> = NeuralResult<(Array2<T>, HashMap<String, Array2<T>>)>;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 /// Knowledge distillation strategy
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum DistillationStrategy {
     /// Standard soft target distillation
+    #[default]
     SoftTargets,
     /// Feature-based distillation matching intermediate representations
     FeatureMatching,
@@ -58,12 +62,6 @@ pub enum DistillationStrategy {
     MultiTask,
 }
 
-impl Default for DistillationStrategy {
-    fn default() -> Self {
-        DistillationStrategy::SoftTargets
-    }
-}
-
 /// Temperature scaling method for soft targets
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -71,9 +69,19 @@ pub enum TemperatureSchedule {
     /// Fixed temperature throughout training
     Fixed(Float),
     /// Linearly decreasing temperature
-    Linear { start: Float, end: Float },
+    Linear {
+        /// Temperature at the first training epoch
+        start: Float,
+        /// Temperature at the final training epoch
+        end: Float,
+    },
     /// Exponentially decreasing temperature
-    Exponential { start: Float, decay: Float },
+    Exponential {
+        /// Temperature at the first training epoch
+        start: Float,
+        /// Multiplicative decay factor applied each epoch
+        decay: Float,
+    },
     /// Adaptive temperature based on training progress
     Adaptive,
 }
@@ -196,10 +204,7 @@ impl DistillationConfig {
 /// Teacher model interface - simplified version
 pub trait TeacherModel<T: FloatBounds> {
     /// Forward pass returning outputs and intermediate features
-    fn forward_with_features(
-        &mut self,
-        input: &Array2<T>,
-    ) -> NeuralResult<(Array2<T>, HashMap<String, Array2<T>>)>;
+    fn forward_with_features(&mut self, input: &Array2<T>) -> FeaturesResult<T>;
 
     /// Get soft predictions with temperature scaling
     fn soft_predictions(&mut self, input: &Array2<T>, temperature: T) -> NeuralResult<Array2<T>>;
@@ -212,10 +217,7 @@ pub trait TeacherModel<T: FloatBounds> {
 /// Student model interface - simplified version
 pub trait StudentModel<T: FloatBounds> {
     /// Forward pass returning outputs and intermediate features
-    fn forward_with_features(
-        &mut self,
-        input: &Array2<T>,
-    ) -> NeuralResult<(Array2<T>, HashMap<String, Array2<T>>)>;
+    fn forward_with_features(&mut self, input: &Array2<T>) -> FeaturesResult<T>;
 
     /// Backward pass for training
     fn backward(&mut self, grad_output: &Array2<T>) -> NeuralResult<()>;
@@ -356,7 +358,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> KnowledgeDistiller<T> {
     {
         // Get teacher predictions and features
         let teacher_soft = teacher.soft_predictions(batch_data, self.current_temperature)?;
-        let (teacher_outputs, teacher_features) = teacher.forward_with_features(batch_data)?;
+        let (_teacher_outputs, teacher_features) = teacher.forward_with_features(batch_data)?;
 
         // Get student predictions and features
         let (student_outputs, student_features) = student.forward_with_features(batch_data)?;
@@ -521,11 +523,11 @@ impl<T: FloatBounds + ScalarOperand + Sum> KnowledgeDistiller<T> {
             return false;
         }
         let stage_length = self.config.n_epochs / self.config.progressive_stages;
-        epoch > 0 && epoch % stage_length == 0
+        epoch > 0 && epoch.is_multiple_of(stage_length)
     }
 
     /// Switch to next progressive stage
-    fn switch_progressive_stage<Student>(&mut self, student: &mut Student) -> NeuralResult<()>
+    fn switch_progressive_stage<Student>(&mut self, _student: &mut Student) -> NeuralResult<()>
     where
         Student: StudentModel<T>,
     {
@@ -682,13 +684,18 @@ impl<T: FloatBounds + ScalarOperand + Sum> KnowledgeDistiller<T> {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct DistillationLoss {
+    /// KL-divergence loss between teacher and student soft targets
     pub distillation: f64,
+    /// Cross-entropy loss between student predictions and hard labels
     pub student: f64,
+    /// Loss penalizing differences between intermediate feature maps
     pub feature_matching: f64,
+    /// Loss penalizing differences between teacher and student attention maps
     pub attention: f64,
 }
 
 impl DistillationLoss {
+    /// Create a zeroed `DistillationLoss`
     pub fn new() -> Self {
         Self {
             distillation: 0.0,
@@ -698,6 +705,7 @@ impl DistillationLoss {
         }
     }
 
+    /// Sum all loss components into a single scalar
     pub fn total(&self) -> f64 {
         self.distillation + self.student + self.feature_matching + self.attention
     }
@@ -739,12 +747,16 @@ impl Default for DistillationLoss {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct DistillationHistory {
+    /// Per-epoch training loss breakdown
     pub train_losses: Vec<DistillationLoss>,
+    /// Per-epoch validation loss breakdown
     pub val_losses: Vec<DistillationLoss>,
+    /// Number of training epochs that have been completed
     pub epochs_completed: usize,
 }
 
 impl DistillationHistory {
+    /// Create an empty `DistillationHistory` with no recorded epochs
     pub fn new() -> Self {
         Self {
             train_losses: Vec::new(),
@@ -866,7 +878,6 @@ pub mod utils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx;
 
     #[test]
     fn test_distillation_config() {

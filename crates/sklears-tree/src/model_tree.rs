@@ -370,6 +370,9 @@ fn build_model_tree(
     }
 }
 
+/// Result of finding a best split: (feature_idx, threshold, left_indices, right_indices, std_reduction)
+type BestSplit = (usize, Float, Vec<usize>, Vec<usize>, Float);
+
 /// Find the best split for the current node
 fn find_best_split(
     x: &Array2<Float>,
@@ -377,7 +380,7 @@ fn find_best_split(
     indices: &[usize],
     current_std_dev: Float,
     config: &ModelTreeConfig,
-) -> Result<Option<(usize, Float, Vec<usize>, Vec<usize>, Float)>> {
+) -> Result<Option<BestSplit>> {
     let n_features = x.ncols();
     let n_samples = indices.len();
 

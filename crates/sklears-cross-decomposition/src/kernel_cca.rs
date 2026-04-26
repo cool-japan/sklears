@@ -1,6 +1,6 @@
 //! Kernel Canonical Correlation Analysis
 
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Trained, Transform, Untrained},
@@ -348,7 +348,6 @@ impl KernelCCA<Untrained> {
             }
             KernelType::JensenShannon => {
                 // Jensen-Shannon kernel based on JS divergence
-                let mut js_kernel = 0.0;
                 let mut kl_pm = 0.0; // KL(P, M)
                 let mut kl_qm = 0.0; // KL(Q, M)
 
@@ -371,12 +370,10 @@ impl KernelCCA<Untrained> {
                     }
 
                     let js_div = (kl_pm + kl_qm) / 2.0;
-                    js_kernel = (-js_div).exp();
+                    (-js_div).exp()
                 } else {
-                    js_kernel = 0.0;
+                    0.0
                 }
-
-                js_kernel
             }
         }
     }
@@ -384,7 +381,7 @@ impl KernelCCA<Untrained> {
     /// Center kernel matrix
     fn center_kernel_matrix(&self, k: &Array2<Float>) -> Array2<Float> {
         let n = k.nrows();
-        let one_n: Array2<Float> = Array2::ones((n, n)) / (n as Float);
+        let _one_n: Array2<Float> = Array2::ones((n, n)) / (n as Float);
 
         // Centered kernel: K_c = K - 1_n K - K 1_n + 1_n K 1_n
         let k_mean_rows = k
@@ -652,7 +649,6 @@ impl KernelCCA<Trained> {
             }
             KernelType::JensenShannon => {
                 // Jensen-Shannon kernel based on JS divergence
-                let mut js_kernel = 0.0;
                 let mut kl_pm = 0.0; // KL(P, M)
                 let mut kl_qm = 0.0; // KL(Q, M)
 
@@ -675,12 +671,10 @@ impl KernelCCA<Trained> {
                     }
 
                     let js_div = (kl_pm + kl_qm) / 2.0;
-                    js_kernel = (-js_div).exp();
+                    (-js_div).exp()
                 } else {
-                    js_kernel = 0.0;
+                    0.0
                 }
-
-                js_kernel
             }
         }
     }
@@ -858,7 +852,7 @@ mod tests {
                 coef0: 0.0,
             },
         );
-        assert!(sigmoid_result >= -1.0 && sigmoid_result <= 1.0);
+        assert!((-1.0..=1.0).contains(&sigmoid_result));
     }
 
     #[test]
@@ -898,7 +892,7 @@ mod tests {
 
         // Test Jensen-Shannon kernel
         let js_result = kcca.kernel_function(&x1.view(), &x2.view(), &KernelType::JensenShannon);
-        assert!(js_result >= 0.0 && js_result <= 1.0);
+        assert!((0.0..=1.0).contains(&js_result));
     }
 
     #[test]

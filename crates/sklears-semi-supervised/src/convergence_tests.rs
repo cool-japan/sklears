@@ -4,7 +4,6 @@
 //! algorithms in the semi-supervised learning crate, ensuring that algorithms
 //! converge properly under various conditions.
 
-use scirs2_core::random::Random;
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
 
@@ -355,8 +354,7 @@ impl Default for ConvergenceTestResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
-    use scirs2_core::array;
+    use scirs2_core::random::Random;
 
     #[test]
     fn test_convergence_tester_simple() {
@@ -368,7 +366,7 @@ mod tests {
         let tester = ConvergenceTester::new(config);
 
         // Test a simple exponential decay function
-        let mut state = 1.0;
+        let state = 1.0;
         let result = tester
             .test_convergence(state, |s, _iter| {
                 *s *= 0.9;
@@ -393,14 +391,14 @@ mod tests {
         let tester = ConvergenceTester::new(config);
 
         // Test an oscillating but converging function
-        let mut state = 1.0;
+        let state = 1.0_f64;
         let result = tester
             .test_convergence(state, |s, iter| {
                 *s *= 0.9;
                 if iter % 2 == 0 {
                     *s *= 1.01; // Small oscillation
                 }
-                Ok((*s as f64).abs())
+                Ok((*s).abs())
             })
             .expect("operation should succeed");
 
@@ -418,7 +416,7 @@ mod tests {
         let tester = ConvergenceTester::new(config);
 
         // Test a non-convergent function
-        let mut state = 1.0;
+        let state = 1.0;
         let result = tester
             .test_convergence(state, |s, _iter| {
                 *s *= 1.01; // Diverging
@@ -440,7 +438,7 @@ mod tests {
         let tester = ConvergenceTester::new(config);
 
         // Test with known convergence rate
-        let mut state = 1.0;
+        let state = 1.0;
         let result = tester
             .test_convergence(state, |s, _iter| {
                 *s *= 0.8; // 80% convergence rate
@@ -502,7 +500,7 @@ mod tests {
 
         let tester = ConvergenceTester::new(config);
 
-        let mut state = 1.0;
+        let state = 1.0;
         let result = tester
             .test_convergence(state, |s, _iter| {
                 *s *= 0.9;
@@ -568,7 +566,6 @@ mod tests {
 
     // Property-based tests for semi-supervised learning properties
     mod property_tests {
-        use super::*;
         use crate::graph::knn_graph;
         use crate::label_propagation::LabelPropagation;
         use proptest::prelude::*;
@@ -608,10 +605,10 @@ mod tests {
                 // Only test with reasonable sample sizes
                 if n_samples > 50 { return Ok(()); }
 
-                let graph = knn_graph(&X, 3, "connectivity")
+                let _graph = knn_graph(&X, 3, "connectivity")
                     .map_err(|_| TestCaseError::Fail("Graph construction failed".into()))?;
 
-                let mut propagator = LabelPropagation::new()
+                let propagator = LabelPropagation::new()
                     .max_iter(10)
                     .tol(1e-3);
 
@@ -644,14 +641,14 @@ mod tests {
 
                 if n_samples > 50 { return Ok(()); }
 
-                let graph = knn_graph(&X, 3, "connectivity")
+                let _graph = knn_graph(&X, 3, "connectivity")
                     .map_err(|_| TestCaseError::Fail("Graph construction failed".into()))?;
 
-                let mut propagator1 = LabelPropagation::new()
+                let propagator1 = LabelPropagation::new()
                     .max_iter(10)
                     .tol(1e-3);
 
-                let mut propagator2 = LabelPropagation::new()
+                let propagator2 = LabelPropagation::new()
                     .max_iter(10)
                     .tol(1e-3);
 
@@ -679,7 +676,7 @@ mod tests {
 
             #[test]
             fn test_more_labeled_samples_improves_consistency(
-                (X, mut y) in generate_test_data()
+                (X, y) in generate_test_data()
             ) {
                 let n_samples = X.dim().0;
                 if n_samples < 6 { return Ok(()); }
@@ -708,14 +705,14 @@ mod tests {
 
                 if n_samples > 50 { return Ok(()); }
 
-                let graph = knn_graph(&X, 3, "connectivity")
+                let _graph = knn_graph(&X, 3, "connectivity")
                     .map_err(|_| TestCaseError::Fail("Graph construction failed".into()))?;
 
-                let mut propagator_few = LabelPropagation::new()
+                let propagator_few = LabelPropagation::new()
                     .max_iter(10)
                     .tol(1e-3);
 
-                let mut propagator_many = LabelPropagation::new()
+                let propagator_many = LabelPropagation::new()
                     .max_iter(10)
                     .tol(1e-3);
 
@@ -724,7 +721,7 @@ mod tests {
                 let fitted_many = propagator_many.fit(&X.view(), &y_many.view())
                     .map_err(|_| TestCaseError::Fail("Many labels fitting failed".into()))?;
 
-                let pred_few = fitted_few.predict(&X.view())
+                let _pred_few = fitted_few.predict(&X.view())
                     .map_err(|_| TestCaseError::Fail("Few labels prediction failed".into()))?;
                 let pred_many = fitted_many.predict(&X.view())
                     .map_err(|_| TestCaseError::Fail("Many labels prediction failed".into()))?;

@@ -361,7 +361,7 @@ mod tests {
 
         assert_eq!(deserialized.x_values, x.to_vec());
         assert_eq!(deserialized.constraint, MonotonicityConstraint::Increasing);
-        assert_eq!(deserialized.is_fitted, true);
+        assert!(deserialized.is_fitted);
     }
 
     #[test]

@@ -1,11 +1,11 @@
 //! Cross-validation utilities for cross-decomposition methods
 
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::Array2;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Random, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, RngExt, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
-    traits::{Estimator, Fit, Predict},
+    traits::{Fit, Predict},
     types::Float,
 };
 use std::collections::HashMap;
@@ -43,7 +43,7 @@ pub struct CVResults {
 }
 
 /// Scoring function for cross-validation
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum ScoringFunction {
     /// Mean squared error (lower is better)
     MeanSquaredError,
@@ -65,15 +65,22 @@ impl ScoringFunction {
         match self {
             ScoringFunction::MeanSquaredError => {
                 let diff = y_true - y_pred;
-                diff.mapv(|x| x * x).mean().expect("operation should succeed")
+                diff.mapv(|x| x * x)
+                    .mean()
+                    .expect("operation should succeed")
             }
             ScoringFunction::RootMeanSquaredError => {
                 let diff = y_true - y_pred;
-                diff.mapv(|x| x * x).mean().expect("operation should succeed").sqrt()
+                diff.mapv(|x| x * x)
+                    .mean()
+                    .expect("operation should succeed")
+                    .sqrt()
             }
             ScoringFunction::MeanAbsoluteError => {
                 let diff = y_true - y_pred;
-                diff.mapv(|x| x.abs()).mean().expect("operation should succeed")
+                diff.mapv(|x| x.abs())
+                    .mean()
+                    .expect("operation should succeed")
             }
             ScoringFunction::R2Score => {
                 let y_mean = y_true.mean().expect("operation should succeed");
@@ -87,7 +94,10 @@ impl ScoringFunction {
                 let numerator = ((y_true - y_true_mean) * (y_pred - y_pred_mean))
                     .mean()
                     .expect("operation should succeed");
-                let denominator = (y_true - y_true_mean).mapv(|x| x * x).mean().expect("operation should succeed");
+                let denominator = (y_true - y_true_mean)
+                    .mapv(|x| x * x)
+                    .mean()
+                    .expect("operation should succeed");
                 if denominator > 0.0 {
                     numerator / denominator
                 } else {
@@ -156,15 +166,15 @@ impl CrossValidator {
     }
 
     /// Perform cross-validation
-    pub fn cross_validate<E>(
+    pub fn cross_validate<E, F>(
         &self,
         estimator: E,
         x: &Array2<Float>,
         y: &Array2<Float>,
     ) -> Result<CVResults>
     where
-        E: Clone + Fit<Array2<Float>, Array2<Float>>,
-        E::Fitted: Predict<Array2<Float>, Array2<Float>>,
+        E: Clone + Fit<Array2<Float>, Array2<Float>, Fitted = F>,
+        F: Predict<Array2<Float>, Array2<Float>>,
     {
         let indices = self.generate_cv_indices(x.nrows(), Some(y))?;
         let mut fold_scores = Vec::new();
@@ -205,7 +215,7 @@ impl CrossValidator {
     }
 
     /// Perform cross-validation for component selection
-    pub fn select_components<E>(
+    pub fn select_components<E, F>(
         &self,
         estimator_factory: impl Fn(usize) -> E,
         x: &Array2<Float>,
@@ -213,8 +223,8 @@ impl CrossValidator {
         component_range: std::ops::Range<usize>,
     ) -> Result<CVResults>
     where
-        E: Clone + Fit<Array2<Float>, Array2<Float>>,
-        E::Fitted: Predict<Array2<Float>, Array2<Float>>,
+        E: Clone + Fit<Array2<Float>, Array2<Float>, Fitted = F>,
+        F: Predict<Array2<Float>, Array2<Float>>,
     {
         let mut component_scores = HashMap::new();
         let mut best_score = if self.scoring.higher_is_better() {
@@ -254,15 +264,15 @@ impl CrossValidator {
     }
 
     /// Perform cross-validation for multi-block methods
-    pub fn cross_validate_multiblock<E>(
+    pub fn cross_validate_multiblock<E, F>(
         &self,
         estimator: E,
         x_blocks: &[Array2<Float>],
         y: &Array2<Float>,
     ) -> Result<CVResults>
     where
-        E: Clone + Fit<Vec<Array2<Float>>, Array2<Float>>,
-        E::Fitted: Predict<Vec<Array2<Float>>, Array2<Float>>,
+        E: Clone + Fit<Vec<Array2<Float>>, Array2<Float>, Fitted = F>,
+        F: Predict<Vec<Array2<Float>>, Array2<Float>>,
     {
         let n_samples = x_blocks[0].nrows();
         let indices = self.generate_cv_indices(n_samples, Some(y))?;
@@ -313,7 +323,7 @@ impl CrossValidator {
     fn generate_cv_indices(
         &self,
         n_samples: usize,
-        y: Option<&Array2<Float>>,
+        _y: Option<&Array2<Float>>,
     ) -> Result<Vec<(Vec<usize>, Vec<usize>)>> {
         match &self.cv_strategy {
             CVStrategy::KFold { k, shuffle } => {
@@ -368,7 +378,7 @@ impl CrossValidator {
                 }
                 Ok(cv_indices)
             }
-            CVStrategy::StratifiedKFold { k, shuffle: _ } => {
+            CVStrategy::StratifiedKFold { k: _, shuffle: _ } => {
                 // For regression, fall back to regular KFold
                 // In a real implementation, you'd handle classification differently
                 self.generate_cv_indices(n_samples, None)
@@ -418,7 +428,7 @@ impl CrossValidator {
     }
 
     /// Compute bootstrap confidence intervals for cross-validation scores
-    pub fn bootstrap_confidence_interval<E>(
+    pub fn bootstrap_confidence_interval<E, F>(
         &self,
         estimator: E,
         x: &Array2<Float>,
@@ -427,8 +437,8 @@ impl CrossValidator {
         confidence_level: Float,
     ) -> Result<CVResults>
     where
-        E: Clone + Fit<Array2<Float>, Array2<Float>>,
-        E::Fitted: Predict<Array2<Float>, Array2<Float>>,
+        E: Clone + Fit<Array2<Float>, Array2<Float>, Fitted = F>,
+        F: Predict<Array2<Float>, Array2<Float>>,
     {
         let n_samples = x.nrows();
         let mut bootstrap_scores = Vec::with_capacity(n_bootstrap);
@@ -447,7 +457,7 @@ impl CrossValidator {
             // Bootstrap sample indices with replacement
             let mut bootstrap_indices = Vec::with_capacity(n_samples);
             for _ in 0..n_samples {
-                bootstrap_indices.push(rng.gen_range(0..n_samples));
+                bootstrap_indices.push(rng.random_range(0..n_samples));
             }
 
             // Create bootstrap sample
@@ -546,7 +556,7 @@ impl NestedCrossValidator {
     }
 
     /// Perform nested cross-validation
-    pub fn nested_cross_validate<E>(
+    pub fn nested_cross_validate<E, F>(
         &self,
         estimator_factory: impl Fn(usize) -> E,
         x: &Array2<Float>,
@@ -554,8 +564,8 @@ impl NestedCrossValidator {
         component_range: std::ops::Range<usize>,
     ) -> Result<CVResults>
     where
-        E: Clone + Fit<Array2<Float>, Array2<Float>>,
-        E::Fitted: Predict<Array2<Float>, Array2<Float>>,
+        E: Clone + Fit<Array2<Float>, Array2<Float>, Fitted = F>,
+        F: Predict<Array2<Float>, Array2<Float>>,
     {
         let mut outer_cv = CrossValidator::new(self.outer_cv.clone(), self.scoring.clone());
         let mut inner_cv = CrossValidator::new(self.inner_cv.clone(), self.scoring.clone());
@@ -584,7 +594,9 @@ impl NestedCrossValidator {
                 component_range.clone(),
             )?;
 
-            let best_n_components = inner_result.best_n_components.expect("operation should succeed");
+            let best_n_components = inner_result
+                .best_n_components
+                .expect("operation should succeed");
             selected_components.push(best_n_components);
 
             // Train final model with selected components on full training set
@@ -656,7 +668,9 @@ mod tests {
         );
 
         let pls = PLSRegression::new(1);
-        let result = cv.cross_validate(pls, &x, &y).expect("operation should succeed");
+        let result = cv
+            .cross_validate(pls, &x, &y)
+            .expect("operation should succeed");
 
         assert_eq!(result.fold_scores.len(), 3);
         assert!(result.mean_score >= 0.0);
@@ -684,13 +698,13 @@ mod tests {
         );
 
         let result = cv
-            .select_components(|n_comp| PLSRegression::new(n_comp), &x, &y, 1..2)
+            .select_components(PLSRegression::new, &x, &y, 1..2)
             .expect("operation should succeed");
 
         assert!(result.best_n_components.is_some());
         assert!(result.component_scores.is_some());
         let component_scores = result.component_scores.expect("operation should succeed");
-        assert!(component_scores.len() >= 1);
+        assert!(!component_scores.is_empty());
     }
 
     #[test]
@@ -701,7 +715,9 @@ mod tests {
         let cv = CrossValidator::new(CVStrategy::LeaveOneOut, ScoringFunction::R2Score);
 
         let pls = PLSRegression::new(1);
-        let result = cv.cross_validate(pls, &x, &y).expect("operation should succeed");
+        let result = cv
+            .cross_validate(pls, &x, &y)
+            .expect("operation should succeed");
 
         assert_eq!(result.fold_scores.len(), 4); // One for each sample
     }
@@ -750,7 +766,7 @@ mod tests {
         );
 
         let result = nested_cv
-            .nested_cross_validate(|n_comp| PLSRegression::new(n_comp), &x, &y, 1..2)
+            .nested_cross_validate(PLSRegression::new, &x, &y, 1..2)
             .expect("operation should succeed");
 
         assert_eq!(result.fold_scores.len(), 4); // Outer folds
@@ -783,10 +799,19 @@ mod tests {
             .expect("operation should succeed");
 
         // Check that bootstrap results are reasonable
-        assert_eq!(result.bootstrap_scores.as_ref().expect("value should be set after fitting").len(), 50);
+        assert_eq!(
+            result
+                .bootstrap_scores
+                .as_ref()
+                .expect("value should be set after fitting")
+                .len(),
+            50
+        );
         assert!(result.confidence_interval.is_some());
 
-        let (lower, upper) = result.confidence_interval.expect("operation should succeed");
+        let (lower, upper) = result
+            .confidence_interval
+            .expect("operation should succeed");
         assert!(lower <= upper); // Confidence interval should be valid
         assert!(lower.is_finite() && upper.is_finite()); // Should not be NaN or infinite
 

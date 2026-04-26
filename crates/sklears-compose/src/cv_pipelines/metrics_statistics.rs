@@ -430,6 +430,7 @@ impl Default for DiskIOMetrics {
 }
 
 impl DiskIOMetrics {
+    /// Performs reset.
     pub fn reset(&mut self) {
         self.bytes_read = 0;
         self.bytes_written = 0;
@@ -471,6 +472,7 @@ impl Default for NetworkIOMetrics {
 }
 
 impl NetworkIOMetrics {
+    /// Performs reset.
     pub fn reset(&mut self) {
         self.bytes_received = 0;
         self.bytes_sent = 0;
@@ -509,6 +511,7 @@ impl Default for LatencyMetrics {
 }
 
 impl LatencyMetrics {
+    /// Performs reset.
     pub fn reset(&mut self) {
         self.end_to_end_latency = Duration::from_millis(0);
         self.preprocessing_latency = Duration::from_millis(0);
@@ -546,6 +549,7 @@ impl Default for LatencyPercentiles {
 }
 
 impl LatencyPercentiles {
+    /// Performs reset.
     pub fn reset(&mut self) {
         self.p50 = Duration::from_millis(0);
         self.p90 = Duration::from_millis(0);
@@ -583,6 +587,7 @@ impl Default for ThermalMetrics {
 }
 
 impl ThermalMetrics {
+    /// Performs reset.
     pub fn reset(&mut self) {
         self.cpu_temperature = 0.0;
         self.gpu_temperature = None;
@@ -630,6 +635,7 @@ impl ResourceUtilization {
         self.gpu_utilization = gpu;
     }
 
+    /// Performs reset.
     pub fn reset(&mut self) {
         self.cpu_utilization = 0.0;
         self.gpu_utilization = None;
@@ -665,6 +671,7 @@ impl Default for DiskUsage {
 }
 
 impl DiskUsage {
+    /// Performs reset.
     pub fn reset(&mut self) {
         self.total_space = 0;
         self.used_space = 0;
@@ -698,6 +705,7 @@ impl Default for ProcessResourceUsage {
 }
 
 impl ProcessResourceUsage {
+    /// Performs reset.
     pub fn reset(&mut self) {
         self.process_cpu = 0.0;
         self.process_memory = 0;
@@ -763,6 +771,7 @@ impl ErrorTracking {
         }
     }
 
+    /// Performs reset.
     pub fn reset(&mut self) {
         self.total_errors = 0;
         self.error_rate = 0.0;
@@ -831,6 +840,7 @@ impl Default for ErrorTrends {
 }
 
 impl ErrorTrends {
+    /// Performs update.
     pub fn update(&mut self) {
         // This would typically analyze recent errors to identify trends
         // For now, we'll just increment counters
@@ -838,6 +848,7 @@ impl ErrorTrends {
         self.errors_last_day += 1;
     }
 
+    /// Performs reset.
     pub fn reset(&mut self) {
         self.errors_last_hour = 0;
         self.errors_last_day = 0;

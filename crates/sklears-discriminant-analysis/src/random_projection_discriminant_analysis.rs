@@ -615,6 +615,7 @@ impl DiscriminantModel for LDAModel {
 
 /// QDA and RDA models (simplified implementations)
 pub struct QDAModel {
+    #[allow(dead_code)] // retained for future QDA regularisation path
     reg_param: Float,
     classes: Vec<i32>,
 }
@@ -662,7 +663,9 @@ impl DiscriminantModel for QDAModel {
 }
 
 pub struct RDAModel {
+    #[allow(dead_code)] // retained for future RDA blend-parameter path
     alpha: Float,
+    #[allow(dead_code)] // retained for future RDA blend-parameter path
     gamma: Float,
     classes: Vec<i32>,
 }

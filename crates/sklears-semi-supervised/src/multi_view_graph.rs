@@ -5,7 +5,6 @@
 //! learning on complex, multi-modal datasets.
 
 use scirs2_core::ndarray_ext::{Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::rand_prelude::*;
 use scirs2_core::random::Random;
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
@@ -128,6 +127,7 @@ impl MultiViewGraphLearning {
     }
 
     /// Construct a k-NN graph from a single view
+    #[allow(non_snake_case)] // standard ML notation
     fn construct_knn_graph(&self, X: &ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
         let n_samples = X.nrows();
         let mut graph = Array2::<f64>::zeros((n_samples, n_samples));
@@ -383,7 +383,7 @@ impl HeterogeneousGraphLearning {
         }
 
         let mut embeddings = HashMap::new();
-        let mut rng = if let Some(seed) = self.random_state {
+        let mut rng = if let Some(_seed) = self.random_state {
             Random::seed(42)
         } else {
             Random::seed(42) // Use a default seed instead of from_entropy
@@ -524,6 +524,7 @@ impl TemporalGraphLearning {
     }
 
     /// Construct k-NN graph from snapshot data
+    #[allow(non_snake_case)] // standard ML notation
     fn construct_knn_graph(&self, X: &ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
         let n_samples = X.nrows();
         let mut graph = Array2::<f64>::zeros((n_samples, n_samples));

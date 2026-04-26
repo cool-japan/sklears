@@ -6,6 +6,9 @@
 use sklears_core::error::{Result, SklearsError};
 use std::collections::HashMap;
 
+/// Block split result: (train_blocks, test_blocks)
+type BlockSplitResult = Result<(Vec<Vec<usize>>, Vec<Vec<usize>>)>;
+
 /// Configuration for temporal validation
 #[derive(Debug, Clone)]
 pub struct TemporalValidationConfig {
@@ -351,11 +354,7 @@ impl BlockedTemporalCV {
         Ok(blocks)
     }
 
-    fn select_blocks(
-        &self,
-        blocks: &[Vec<usize>],
-        split_idx: usize,
-    ) -> Result<(Vec<Vec<usize>>, Vec<Vec<usize>>)> {
+    fn select_blocks(&self, blocks: &[Vec<usize>], split_idx: usize) -> BlockSplitResult {
         let n_blocks = blocks.len();
         let test_blocks_count = (n_blocks as f64 * self.config.test_size) as usize;
         let test_blocks_count = test_blocks_count.max(1);
@@ -409,7 +408,7 @@ mod tests {
                 .unwrap_or(usize::MAX);
 
             assert!(
-                max_train_time + 1 <= min_test_time,
+                max_train_time < min_test_time,
                 "Temporal constraint violated"
             );
         }

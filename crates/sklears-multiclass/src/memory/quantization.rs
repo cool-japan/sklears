@@ -40,8 +40,8 @@ impl QuantizedWeights {
             QuantizationBits::Bits16 => 16,
         };
         // Calculate the packed size
-        let packed_size = (self.values.len() * bits_per_value + 7) / 8; // Round up to nearest byte
-                                                                        // Add overhead for scale and zero_point
+        let packed_size = (self.values.len() * bits_per_value).div_ceil(8); // Round up to nearest byte
+                                                                            // Add overhead for scale and zero_point
         packed_size + std::mem::size_of::<f64>() + std::mem::size_of::<i32>()
     }
 

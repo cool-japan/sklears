@@ -5,24 +5,17 @@
 //! training, and efficient resource utilization following SciRS2 policy.
 
 // ✅ Using SciRS2 dependencies following SciRS2 policy
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 
 use crate::{
-    lda::{LinearDiscriminantAnalysis, LinearDiscriminantAnalysisConfig},
-    numerical_stability::{NumericalConfig, NumericalStability},
-    qda::{QuadraticDiscriminantAnalysis, QuadraticDiscriminantAnalysisConfig},
+    lda::LinearDiscriminantAnalysisConfig, numerical_stability::NumericalStability,
+    qda::QuadraticDiscriminantAnalysisConfig,
 };
 
-use rayon::prelude::*;
-use sklears_core::{
-    error::Result,
-    prelude::SklearsError,
-    traits::{Estimator, Fit, Predict, PredictProba, Trained, Transform, Untrained},
-    types::Float,
-};
+use sklears_core::{error::Result, prelude::SklearsError, types::Float};
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, Semaphore};
 use tokio::task::JoinHandle;
@@ -126,7 +119,6 @@ impl Default for OptimizationState {
 pub enum OptimizationMessage {
     /// Parameter update request
     ParameterUpdate {
-
         worker_id: usize,
 
         parameters: HashMap<String, Array2<Float>>,
@@ -137,7 +129,6 @@ pub enum OptimizationMessage {
     },
     /// Gradient computation request
     ComputeGradient {
-
         worker_id: usize,
         data_batch: Array2<Float>,
         labels_batch: Array1<usize>,
@@ -164,6 +155,8 @@ pub struct AsyncDiscriminantOptimizer {
     parameters: Arc<RwLock<HashMap<String, Array2<Float>>>>,
     velocity: Arc<RwLock<HashMap<String, Array2<Float>>>>, // For momentum
     semaphore: Arc<Semaphore>,
+    /// Reserved for future numerically-stable gradient updates
+    #[allow(dead_code)] // retained for future numerically-stable gradient clipping
     numerical_stability: NumericalStability,
 }
 
@@ -214,21 +207,21 @@ impl AsyncDiscriminantOptimizer {
     /// Asynchronous training for Linear Discriminant Analysis
     pub async fn async_train_lda(
         &self,
-        X: Array2<Float>,
+        x_data: Array2<Float>, // standard ML notation: feature matrix
         y: Array1<usize>,
         config: LinearDiscriminantAnalysisConfig,
     ) -> Result<HashMap<String, Array2<Float>>> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = x_data.dim();
         let n_classes = y.iter().max().expect("collection should not be empty") + 1;
 
         // Initialize parameters
         self.initialize_parameters(n_features, n_classes)?;
 
         // Create communication channels
-        let (tx, mut rx) = mpsc::channel::<OptimizationMessage>(self.config.channel_buffer_size);
+        let (tx, rx) = mpsc::channel::<OptimizationMessage>(self.config.channel_buffer_size);
 
         // Shared data structures
-        let X_shared = Arc::new(X);
+        let x_shared = Arc::new(x_data);
         let y_shared = Arc::new(y);
 
         // Spawn worker tasks
@@ -237,7 +230,7 @@ impl AsyncDiscriminantOptimizer {
             let worker_handle = self
                 .spawn_lda_worker(
                     worker_id,
-                    Arc::clone(&X_shared),
+                    Arc::clone(&x_shared),
                     Arc::clone(&y_shared),
                     tx.clone(),
                     config.clone(),
@@ -261,7 +254,7 @@ impl AsyncDiscriminantOptimizer {
     async fn spawn_lda_worker(
         &self,
         worker_id: usize,
-        X: Arc<Array2<Float>>,
+        x_data: Arc<Array2<Float>>, // standard ML notation: feature matrix
         y: Arc<Array1<usize>>,
         tx: mpsc::Sender<OptimizationMessage>,
         _config: LinearDiscriminantAnalysisConfig,
@@ -279,33 +272,33 @@ impl AsyncDiscriminantOptimizer {
 
                 // Generate random batch
                 let batch_indices: Vec<usize> = (0..config.batch_size)
-                    .map(|_| rng.usize(0..X.nrows()))
+                    .map(|_| rng.usize(0..x_data.nrows()))
                     .collect();
 
-                let X_batch = Array2::from_shape_fn((config.batch_size, X.ncols()), |(i, j)| {
-                    X[[batch_indices[i], j]]
-                });
+                let x_batch =
+                    Array2::from_shape_fn((config.batch_size, x_data.ncols()), |(i, j)| {
+                        x_data[[batch_indices[i], j]]
+                    });
 
                 let y_batch = Array1::from_shape_fn(config.batch_size, |i| y[batch_indices[i]]);
 
                 // Compute gradients
                 let gradients =
-                    Self::compute_lda_gradients(&X_batch, &y_batch, &parameters).await?;
+                    Self::compute_lda_gradients(&x_batch, &y_batch, &parameters).await?;
 
                 // Compute loss
-                let loss = Self::compute_lda_loss(&X_batch, &y_batch, &parameters).await?;
+                let loss = Self::compute_lda_loss(&x_batch, &y_batch, &parameters).await?;
 
                 // Send parameter update message
+                let params_snapshot = parameters.read().expect("lock not poisoned").clone();
                 tx.send(OptimizationMessage::ParameterUpdate {
                     worker_id,
-                    parameters: parameters.read().expect("lock not poisoned").clone(),
+                    parameters: params_snapshot,
                     gradient: gradients,
                     loss,
                 })
                 .await
-                .map_err(|e| {
-                    SklearsError::ComputationError(format!("Channel send error: {}", e))
-                })?;
+                .map_err(|e| SklearsError::ProcessingError(format!("Channel send error: {}", e)))?;
 
                 // Check for convergence every 10 iterations
                 if iteration % 10 == 0 {
@@ -315,7 +308,7 @@ impl AsyncDiscriminantOptimizer {
                     })
                     .await
                     .map_err(|e| {
-                        SklearsError::ComputationError(format!("Channel send error: {}", e))
+                        SklearsError::ProcessingError(format!("Channel send error: {}", e))
                     })?;
                 }
 
@@ -370,7 +363,7 @@ impl AsyncDiscriminantOptimizer {
                                 return Ok(final_parameters);
                             }
                             Some(OptimizationMessage::OptimizationError { error, .. }) => {
-                                return Err(SklearsError::ComputationError(error));
+                                return Err(SklearsError::ProcessingError(error));
                             }
                             None => break, // Channel closed
                             _ => {} // Handle other message types
@@ -497,7 +490,7 @@ impl AsyncDiscriminantOptimizer {
             return Ok(());
         }
 
-        let mut state_write = state.write().expect("lock not poisoned");
+        let state_write = state.write().expect("lock not poisoned");
 
         // Simple adaptive strategy: reduce learning rate if loss is not decreasing
         if state_write.loss_history.len() >= 10 {
@@ -506,7 +499,7 @@ impl AsyncDiscriminantOptimizer {
                 .windows(2)
                 .all(|window| window[1] <= window[0] + config.convergence_tolerance);
 
-            if !is_decreasing && state_write.iteration % 50 == 0 {
+            if !is_decreasing && state_write.iteration.is_multiple_of(50) {
                 // Reduce learning rate
                 // This would be applied in the next parameter update
                 log::info!("Reducing learning rate due to lack of progress");
@@ -518,7 +511,7 @@ impl AsyncDiscriminantOptimizer {
 
     /// Compute LDA gradients
     async fn compute_lda_gradients(
-        X_batch: &Array2<Float>,
+        x_batch: &Array2<Float>, // standard ML notation: batch of feature vectors
         y_batch: &Array1<usize>,
         parameters: &Arc<RwLock<HashMap<String, Array2<Float>>>>,
     ) -> Result<HashMap<String, Array2<Float>>> {
@@ -529,33 +522,32 @@ impl AsyncDiscriminantOptimizer {
         let class_means = params.get("class_means").expect("key not found");
         let covariance = params.get("covariance").expect("key not found");
 
-        let (batch_size, n_features) = X_batch.dim();
+        let (batch_size, n_features) = x_batch.dim();
         let n_classes = class_means.nrows();
 
         // Compute gradient with respect to class means
         let mut means_gradient = Array2::zeros((n_classes, n_features));
         for (i, &label) in y_batch.iter().enumerate() {
-            let x_sample = X_batch.row(i);
+            let x_sample = x_batch.row(i);
             let mean_diff = x_sample.to_owned() - class_means.row(label);
 
             // Simple gradient: derivative of squared loss
-            means_gradient
-                .row_mut(label)
-                .assign(&(means_gradient.row(label) + &mean_diff));
+            let updated_row = means_gradient.row(label).to_owned() + &mean_diff;
+            means_gradient.row_mut(label).assign(&updated_row);
         }
-        means_gradient = means_gradient / batch_size as Float;
+        means_gradient /= batch_size as Float;
 
         // Compute gradient with respect to covariance (simplified)
         let mut cov_gradient = Array2::zeros(covariance.raw_dim());
         for (i, &label) in y_batch.iter().enumerate() {
-            let x_sample = X_batch.row(i);
+            let x_sample = x_batch.row(i);
             let mean_centered = x_sample.to_owned() - class_means.row(label);
-            let outer_product = mean_centered
-                .insert_axis(Axis(1))
-                .dot(&mean_centered.insert_axis(Axis(0)));
+            let col = mean_centered.clone().insert_axis(Axis(1));
+            let row = mean_centered.insert_axis(Axis(0));
+            let outer_product = col.dot(&row);
             cov_gradient = cov_gradient + outer_product;
         }
-        cov_gradient = cov_gradient / batch_size as Float;
+        cov_gradient /= batch_size as Float;
 
         // Compute gradient with respect to priors (simplified)
         let priors_gradient = Array2::zeros((1, n_classes));
@@ -569,7 +561,7 @@ impl AsyncDiscriminantOptimizer {
 
     /// Compute LDA loss
     async fn compute_lda_loss(
-        X_batch: &Array2<Float>,
+        x_batch: &Array2<Float>, // standard ML notation: batch of feature vectors
         y_batch: &Array1<usize>,
         parameters: &Arc<RwLock<HashMap<String, Array2<Float>>>>,
     ) -> Result<Float> {
@@ -582,7 +574,7 @@ impl AsyncDiscriminantOptimizer {
 
         // Simple squared loss between samples and their class means
         for (i, &label) in y_batch.iter().enumerate() {
-            let x_sample = X_batch.row(i);
+            let x_sample = x_batch.row(i);
             let class_mean = class_means.row(label);
             let diff = x_sample.to_owned() - class_mean;
 
@@ -595,7 +587,7 @@ impl AsyncDiscriminantOptimizer {
         let reg_term = covariance.iter().map(|&x| x * x).sum::<Float>() * 0.001;
         total_loss += reg_term;
 
-        Ok(total_loss / X_batch.nrows() as Float)
+        Ok(total_loss / x_batch.nrows() as Float)
     }
 
     /// Run the main async training loop
@@ -606,7 +598,7 @@ impl AsyncDiscriminantOptimizer {
     ) -> Result<HashMap<String, Array2<Float>>> {
         // Wait for parameter server completion
         let final_parameters = parameter_server_handle.await.map_err(|e| {
-            SklearsError::ComputationError(format!("Parameter server error: {}", e))
+            SklearsError::ProcessingError(format!("Parameter server error: {}", e))
         })??;
 
         // Cancel remaining worker tasks
@@ -651,20 +643,20 @@ impl AsyncDiscriminantOptimizer {
     /// Asynchronous training for Quadratic Discriminant Analysis
     pub async fn async_train_qda(
         &self,
-        X: Array2<Float>,
+        x_data: Array2<Float>, // standard ML notation: feature matrix
         y: Array1<usize>,
         config: QuadraticDiscriminantAnalysisConfig,
     ) -> Result<HashMap<String, Array2<Float>>> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = x_data.dim();
         let n_classes = y.iter().max().expect("collection should not be empty") + 1;
 
         // Initialize parameters for QDA (each class has its own covariance)
         self.initialize_qda_parameters(n_features, n_classes)?;
 
         // Similar structure to LDA but with class-specific covariances
-        let (tx, mut rx) = mpsc::channel::<OptimizationMessage>(self.config.channel_buffer_size);
+        let (tx, rx) = mpsc::channel::<OptimizationMessage>(self.config.channel_buffer_size);
 
-        let X_shared = Arc::new(X);
+        let x_shared = Arc::new(x_data);
         let y_shared = Arc::new(y);
 
         // Spawn QDA-specific workers
@@ -673,7 +665,7 @@ impl AsyncDiscriminantOptimizer {
             let worker_handle = self
                 .spawn_qda_worker(
                     worker_id,
-                    Arc::clone(&X_shared),
+                    Arc::clone(&x_shared),
                     Arc::clone(&y_shared),
                     tx.clone(),
                     config.clone(),
@@ -723,7 +715,7 @@ impl AsyncDiscriminantOptimizer {
     async fn spawn_qda_worker(
         &self,
         worker_id: usize,
-        X: Arc<Array2<Float>>,
+        x_data: Arc<Array2<Float>>, // standard ML notation: feature matrix
         y: Arc<Array1<usize>>,
         tx: mpsc::Sender<OptimizationMessage>,
         _config: QuadraticDiscriminantAnalysisConfig,
@@ -740,30 +732,30 @@ impl AsyncDiscriminantOptimizer {
                 let _permit = semaphore.acquire().await.expect("value should be present");
 
                 let batch_indices: Vec<usize> = (0..config.batch_size)
-                    .map(|_| rng.usize(0..X.nrows()))
+                    .map(|_| rng.usize(0..x_data.nrows()))
                     .collect();
 
-                let X_batch = Array2::from_shape_fn((config.batch_size, X.ncols()), |(i, j)| {
-                    X[[batch_indices[i], j]]
-                });
+                let x_batch =
+                    Array2::from_shape_fn((config.batch_size, x_data.ncols()), |(i, j)| {
+                        x_data[[batch_indices[i], j]]
+                    });
 
                 let y_batch = Array1::from_shape_fn(config.batch_size, |i| y[batch_indices[i]]);
 
                 // Compute QDA-specific gradients
                 let gradients =
-                    Self::compute_qda_gradients(&X_batch, &y_batch, &parameters).await?;
-                let loss = Self::compute_qda_loss(&X_batch, &y_batch, &parameters).await?;
+                    Self::compute_qda_gradients(&x_batch, &y_batch, &parameters).await?;
+                let loss = Self::compute_qda_loss(&x_batch, &y_batch, &parameters).await?;
 
+                let params_snapshot = parameters.read().expect("lock not poisoned").clone();
                 tx.send(OptimizationMessage::ParameterUpdate {
                     worker_id,
-                    parameters: parameters.read().expect("lock not poisoned").clone(),
+                    parameters: params_snapshot,
                     gradient: gradients,
                     loss,
                 })
                 .await
-                .map_err(|e| {
-                    SklearsError::ComputationError(format!("Channel send error: {}", e))
-                })?;
+                .map_err(|e| SklearsError::ProcessingError(format!("Channel send error: {}", e)))?;
 
                 if iteration % 10 == 0 {
                     tx.send(OptimizationMessage::CheckConvergence {
@@ -772,7 +764,7 @@ impl AsyncDiscriminantOptimizer {
                     })
                     .await
                     .map_err(|e| {
-                        SklearsError::ComputationError(format!("Channel send error: {}", e))
+                        SklearsError::ProcessingError(format!("Channel send error: {}", e))
                     })?;
                 }
 
@@ -785,24 +777,24 @@ impl AsyncDiscriminantOptimizer {
 
     /// Compute QDA gradients
     async fn compute_qda_gradients(
-        X_batch: &Array2<Float>,
+        x_batch: &Array2<Float>, // standard ML notation: batch of feature vectors
         y_batch: &Array1<usize>,
         parameters: &Arc<RwLock<HashMap<String, Array2<Float>>>>,
     ) -> Result<HashMap<String, Array2<Float>>> {
         // Simplified QDA gradient computation
         // Real implementation would compute gradients for class-specific covariances
-        Self::compute_lda_gradients(X_batch, y_batch, parameters).await
+        Self::compute_lda_gradients(x_batch, y_batch, parameters).await
     }
 
     /// Compute QDA loss
     async fn compute_qda_loss(
-        X_batch: &Array2<Float>,
+        x_batch: &Array2<Float>, // standard ML notation: batch of feature vectors
         y_batch: &Array1<usize>,
         parameters: &Arc<RwLock<HashMap<String, Array2<Float>>>>,
     ) -> Result<Float> {
         // Simplified QDA loss computation
         // Real implementation would use class-specific covariances
-        Self::compute_lda_loss(X_batch, y_batch, parameters).await
+        Self::compute_lda_loss(x_batch, y_batch, parameters).await
     }
 }
 
@@ -843,13 +835,13 @@ impl AsyncDiscriminantAnalysis {
     /// Train LDA asynchronously
     pub fn train_lda_async(
         &self,
-        X: Array2<Float>,
+        x_data: Array2<Float>, // standard ML notation: feature matrix
         y: Array1<usize>,
         config: LinearDiscriminantAnalysisConfig,
     ) -> Result<HashMap<String, Array2<Float>>> {
         match &self.runtime {
-            Some(rt) => rt.block_on(self.optimizer.async_train_lda(X, y, config)),
-            None => Err(SklearsError::ComputationError(
+            Some(rt) => rt.block_on(self.optimizer.async_train_lda(x_data, y, config)),
+            None => Err(SklearsError::ProcessingError(
                 "Async runtime not available".to_string(),
             )),
         }
@@ -858,13 +850,13 @@ impl AsyncDiscriminantAnalysis {
     /// Train QDA asynchronously
     pub fn train_qda_async(
         &self,
-        X: Array2<Float>,
+        x_data: Array2<Float>, // standard ML notation: feature matrix
         y: Array1<usize>,
         config: QuadraticDiscriminantAnalysisConfig,
     ) -> Result<HashMap<String, Array2<Float>>> {
         match &self.runtime {
-            Some(rt) => rt.block_on(self.optimizer.async_train_qda(X, y, config)),
-            None => Err(SklearsError::ComputationError(
+            Some(rt) => rt.block_on(self.optimizer.async_train_qda(x_data, y, config)),
+            None => Err(SklearsError::ProcessingError(
                 "Async runtime not available".to_string(),
             )),
         }
@@ -877,7 +869,11 @@ impl AsyncDiscriminantAnalysis {
 
     /// Check if training has converged
     pub fn has_converged(&self) -> bool {
-        self.optimizer.state.read().expect("lock not poisoned").converged
+        self.optimizer
+            .state
+            .read()
+            .expect("lock not poisoned")
+            .converged
     }
 }
 
@@ -901,7 +897,7 @@ impl DistributedDiscriminantAnalysis {
     /// Train on local data partition
     pub fn train_local_partition(
         &self,
-        X_local: Array2<Float>,
+        x_local: Array2<Float>, // standard ML notation: local partition of feature matrix
         y_local: Array1<usize>,
         lda_config: LinearDiscriminantAnalysisConfig,
     ) -> Result<HashMap<String, Array2<Float>>> {
@@ -910,7 +906,7 @@ impl DistributedDiscriminantAnalysis {
         // Train on local data
         let local_params = self
             .async_trainer
-            .train_lda_async(X_local, y_local, lda_config)?;
+            .train_lda_async(x_local, y_local, lda_config)?;
 
         // In a real implementation, this would involve parameter aggregation
         // across nodes using techniques like federated averaging
@@ -943,7 +939,6 @@ impl DistributedDiscriminantAnalysis {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::array;
 
     #[tokio::test]
     async fn test_async_optimization_config() {
@@ -961,7 +956,10 @@ mod tests {
         let result = optimizer.initialize_parameters(4, 3);
         assert!(result.is_ok());
 
-        let params = optimizer.parameters.read().expect("operation should succeed");
+        let params = optimizer
+            .parameters
+            .read()
+            .expect("operation should succeed");
         assert!(params.contains_key("class_means"));
         assert!(params.contains_key("covariance"));
         assert!(params.contains_key("priors"));

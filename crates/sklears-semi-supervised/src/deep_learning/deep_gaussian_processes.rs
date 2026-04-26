@@ -108,6 +108,7 @@ impl KernelType {
         }
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_matrix(&self, X1: &ArrayView2<f64>, X2: &ArrayView2<f64>) -> Array2<f64> {
         let (n1, _) = X1.dim();
         let (n2, _) = X2.dim();
@@ -182,6 +183,7 @@ impl GaussianProcessLayer {
         Ok(self)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn initialize_inducing_points(&mut self, X: &ArrayView2<f64>, random_state: Option<u64>) {
         let (n_samples, _) = X.dim();
         let mut rng = match random_state {
@@ -210,6 +212,7 @@ impl GaussianProcessLayer {
         }
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn safe_cholesky(&self, matrix: &Array2<f64>) -> Result<Array2<f64>> {
         let mut A = matrix.clone();
         let jitter = 1e-6;
@@ -241,6 +244,7 @@ impl GaussianProcessLayer {
         Ok(L)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn solve_triangular_lower(&self, L: &Array2<f64>, b: &Array1<f64>) -> Array1<f64> {
         let n = L.nrows();
         let mut x = Array1::zeros(n);
@@ -253,6 +257,7 @@ impl GaussianProcessLayer {
         x
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn solve_triangular_upper(&self, U: &Array2<f64>, b: &Array1<f64>) -> Array1<f64> {
         let n = U.nrows();
         let mut x = Array1::zeros(n);
@@ -341,9 +346,6 @@ impl GaussianProcessLayer {
 
         // Compute predictive mean using kernel computations
         let K_su = self.kernel.compute_matrix(X, &self.inducing_points.view());
-        let K_uu = self
-            .kernel
-            .compute_matrix(&self.inducing_points.view(), &self.inducing_points.view());
 
         let mut predictions = Array2::zeros((n_test, self.output_dim));
 
@@ -364,6 +366,7 @@ impl GaussianProcessLayer {
         Ok(predictions)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn predict_with_uncertainty(
         &self,
         X: &ArrayView2<f64>,
@@ -491,6 +494,7 @@ impl DeepGaussianProcess {
         }
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn forward_pass(&self, X: &ArrayView2<f64>) -> Result<Array2<f64>> {
         let mut current_data = X.to_owned();
 
@@ -501,6 +505,7 @@ impl DeepGaussianProcess {
         Ok(current_data)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn softmax(&self, X: &ArrayView2<f64>) -> Array2<f64> {
         let mut result = X.to_owned();
 
@@ -536,6 +541,7 @@ impl DeepGaussianProcess {
         encoded
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(&mut self, X: &ArrayView2<f64>, y: &ArrayView1<i32>) -> Result<()> {
         let (n_samples, n_features) = X.dim();
 
@@ -647,6 +653,7 @@ impl DeepGaussianProcess {
         Ok(())
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn predict_proba(&self, X: &ArrayView2<f64>) -> Result<Array2<f64>> {
         if !self.is_trained {
             return Err(DeepGaussianProcessError::ModelNotTrained.into());
@@ -656,6 +663,7 @@ impl DeepGaussianProcess {
         Ok(self.softmax(&logits.view()))
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn predict(&self, X: &ArrayView2<f64>) -> Result<Array1<i32>> {
         let probabilities = self.predict_proba(X)?;
         let predictions = probabilities.map_axis(Axis(1), |row| {
@@ -668,6 +676,7 @@ impl DeepGaussianProcess {
         Ok(predictions)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn predict_with_uncertainty(
         &self,
         X: &ArrayView2<f64>,
@@ -678,7 +687,6 @@ impl DeepGaussianProcess {
 
         // Get predictions with uncertainty from last layer
         let mut current_data = X.to_owned();
-        let mut uncertainties = Array2::zeros((X.nrows(), self.n_classes));
 
         // Forward pass through all but last layer
         for layer in self.layers.iter().take(self.layers.len() - 1) {
@@ -687,7 +695,7 @@ impl DeepGaussianProcess {
 
         // Get predictions and uncertainties from last layer
         if let Some(last_layer) = self.layers.last() {
-            let (logits, layer_uncertainties) =
+            let (logits, uncertainties) =
                 last_layer.predict_with_uncertainty(&current_data.view())?;
             let probabilities = self.softmax(&logits.view());
             let predictions = probabilities.map_axis(Axis(1), |row| {
@@ -698,7 +706,6 @@ impl DeepGaussianProcess {
                     .expect("operation should succeed")
             });
 
-            uncertainties = layer_uncertainties;
             Ok((predictions, uncertainties))
         } else {
             Err(DeepGaussianProcessError::ModelNotTrained.into())
@@ -716,6 +723,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>, FittedDeepGaussianProcess>
 {
     type Fitted = FittedDeepGaussianProcess;
 
+    #[allow(non_snake_case)] // standard ML notation
     fn fit(
         mut self,
         X: &ArrayView2<'_, f64>,
@@ -727,12 +735,14 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>, FittedDeepGaussianProcess>
 }
 
 impl Predict<ArrayView2<'_, f64>, Array1<i32>> for FittedDeepGaussianProcess {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, f64>) -> Result<Array1<i32>> {
         self.model.predict(X)
     }
 }
 
 impl PredictProba<ArrayView2<'_, f64>, Array2<f64>> for FittedDeepGaussianProcess {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_proba(&self, X: &ArrayView2<'_, f64>) -> Result<Array2<f64>> {
         self.model.predict_proba(X)
     }

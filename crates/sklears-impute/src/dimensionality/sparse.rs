@@ -1,4 +1,6 @@
 //! Sparse Imputation methods
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides sparse imputation methods for high-dimensional data.
 //!

@@ -5,7 +5,6 @@
 //! semi-supervised learning scenarios.
 
 use scirs2_core::ndarray_ext::{s, Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::rand_prelude::*;
 use sklears_core::error::SklearsError;
 use std::collections::{HashMap, VecDeque};
 
@@ -111,7 +110,6 @@ impl DynamicGraphLearning {
     /// Initialize the dynamic graph with initial data
     pub fn initialize(&mut self, initial_features: ArrayView2<f64>) -> Result<(), SklearsError> {
         let n_samples = initial_features.nrows();
-        let n_features = initial_features.ncols();
 
         if n_samples == 0 {
             return Err(SklearsError::InvalidInput(
@@ -476,7 +474,6 @@ impl Default for DynamicGraphLearning {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::array;
 
     #[test]

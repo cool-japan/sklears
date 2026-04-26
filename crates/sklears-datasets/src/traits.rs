@@ -711,7 +711,7 @@ mod tests {
             .targets()
             .expect("operation should succeed")
             .expect("operation should succeed");
-        assert!(targets.iter().all(|&t| t >= 0.0 && t < 3.0));
+        assert!(targets.iter().all(|&t| (0.0..3.0).contains(&t)));
 
         let metadata = dataset.metadata();
         assert_eq!(

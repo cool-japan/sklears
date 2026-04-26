@@ -199,18 +199,13 @@ mod integration_tests {
             .expect("prediction should succeed");
         assert_eq!(predictions_blending.len(), 24);
 
-        // TODO: Fix MultiLayerStackingClassifier matrix dimension issue
-        // Temporarily disabled due to "inputs 24 × 0 and 4 × 1 are not compatible for matrix multiplication" error
-        // The issue appears to be in the multi-layer stacking implementation where meta-features
-        // end up having 0 columns during matrix operations
-        /*
-        println!("Testing MultiLayerStackingClassifier...");
+        // Test MultiLayerStackingClassifier
         let multi_layer = MultiLayerStackingClassifier::two_layer(3, 3);
-        let fitted_multi = multi_layer.fit(&x, &y).expect("model fitting should succeed");
+        let fitted_multi = multi_layer
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
         let predictions_multi = fitted_multi.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions_multi.len(), 24);
-        println!("MultiLayerStackingClassifier passed!");
-        */
     }
 
     #[test]
@@ -223,7 +218,7 @@ mod integration_tests {
             passthrough: true,
         };
         assert_eq!(config.cv, 3);
-        assert_eq!(config.use_probabilities, true);
+        assert!(config.use_probabilities);
 
         // Test StackingLayerConfig
         let layer_config = StackingLayerConfig {
@@ -245,7 +240,7 @@ mod integration_tests {
             .enable_pruning(true)
             .diversity_threshold(0.15);
         assert_eq!(multi_config.layers.len(), 2); // default + added
-        assert_eq!(multi_config.enable_pruning, true);
+        assert!(multi_config.enable_pruning);
     }
 
     #[test]
@@ -315,7 +310,7 @@ mod integration_tests {
         ];
 
         let diversity = calculate_diversity(&predictions).expect("operation should succeed");
-        assert!(diversity >= 0.0 && diversity <= 1.0);
+        assert!((0.0..=1.0).contains(&diversity));
     }
 
     #[test]
@@ -323,8 +318,8 @@ mod integration_tests {
         // Test deep stacking configuration
         let deep_config = MultiLayerStackingConfig::deep_stacking(3, 4);
         assert_eq!(deep_config.layers.len(), 3);
-        assert_eq!(deep_config.enable_pruning, true);
-        assert_eq!(deep_config.confidence_weighting, true);
+        assert!(deep_config.enable_pruning);
+        assert!(deep_config.confidence_weighting);
 
         // Test meta-feature engineering configurations
         let stat_config = MultiLayerStackingConfig::with_statistical_features();

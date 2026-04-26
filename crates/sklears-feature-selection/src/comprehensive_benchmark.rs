@@ -23,13 +23,21 @@ pub struct ComprehensiveBenchmarkSuite {
 /// Configuration for benchmark execution
 #[derive(Debug, Clone)]
 pub struct BenchmarkConfiguration {
+    /// num_runs
     pub num_runs: usize,
+    /// cross_validation_folds
     pub cross_validation_folds: usize,
+    /// parallel_execution
     pub parallel_execution: bool,
+    /// save_detailed_results
     pub save_detailed_results: bool,
+    /// memory_profiling
     pub memory_profiling: bool,
+    /// timeout_seconds
     pub timeout_seconds: Option<u64>,
+    /// random_state
     pub random_state: u64,
+    /// output_directory
     pub output_directory: Option<String>,
 }
 
@@ -51,25 +59,39 @@ impl Default for BenchmarkConfiguration {
 /// Dataset representation for benchmarking
 #[derive(Debug, Clone)]
 pub struct BenchmarkDataset {
+    /// name
     pub name: String,
+    /// X
     pub X: Array2<f64>,
+    /// y
     pub y: Array1<f64>,
+    /// metadata
     pub metadata: DatasetMetadata,
 }
 
 #[derive(Debug, Clone)]
+/// DatasetMetadata
 pub struct DatasetMetadata {
+    /// n_samples
     pub n_samples: usize,
+    /// n_features
     pub n_features: usize,
+    /// n_classes
     pub n_classes: Option<usize>,
+    /// task_type
     pub task_type: TaskType,
+    /// domain
     pub domain: DatasetDomain,
+    /// sparsity
     pub sparsity: f64,
+    /// noise_level
     pub noise_level: f64,
+    /// correlation_structure
     pub correlation_structure: CorrelationStructure,
 }
 
 #[derive(Debug, Clone)]
+/// TaskType
 pub enum TaskType {
     /// Classification
     Classification,
@@ -82,6 +104,7 @@ pub enum TaskType {
 }
 
 #[derive(Debug, Clone)]
+/// DatasetDomain
 pub enum DatasetDomain {
     /// Synthetic
     Synthetic,
@@ -104,6 +127,7 @@ pub enum DatasetDomain {
 }
 
 #[derive(Debug, Clone)]
+/// CorrelationStructure
 pub enum CorrelationStructure {
     /// Independent
     Independent,
@@ -120,14 +144,20 @@ pub enum CorrelationStructure {
 /// Feature selection method for benchmarking
 #[derive(Debug, Clone)]
 pub struct BenchmarkMethod {
+    /// name
     pub name: String,
+    /// builder
     pub builder: FeatureSelectionBuilder,
+    /// category
     pub category: MethodCategory,
+    /// computational_complexity
     pub computational_complexity: ComplexityClass,
+    /// theoretical_properties
     pub theoretical_properties: TheoreticalProperties,
 }
 
 #[derive(Debug, Clone)]
+/// MethodCategory
 pub enum MethodCategory {
     /// Filter
     Filter,
@@ -144,6 +174,7 @@ pub enum MethodCategory {
 }
 
 #[derive(Debug, Clone)]
+/// ComplexityClass
 pub enum ComplexityClass {
     /// Linear
     Linear, // O(n)
@@ -158,12 +189,19 @@ pub enum ComplexityClass {
 }
 
 #[derive(Debug, Clone)]
+/// TheoreticalProperties
 pub struct TheoreticalProperties {
+    /// has_convergence_guarantee
     pub has_convergence_guarantee: bool,
+    /// is_deterministic
     pub is_deterministic: bool,
+    /// supports_online_learning
     pub supports_online_learning: bool,
+    /// handles_multicollinearity
     pub handles_multicollinearity: bool,
+    /// robust_to_outliers
     pub robust_to_outliers: bool,
+    /// scales_to_high_dimensions
     pub scales_to_high_dimensions: bool,
 }
 
@@ -187,112 +225,181 @@ pub enum BenchmarkMetric {
     SelectionStability,
     /// FeatureRelevance
     FeatureRelevance,
+    /// FeatureRedundancy
     FeatureRedundancy,
+    /// FeatureDiversity
     FeatureDiversity,
 
     // Computational metrics
+    /// ExecutionTime
     ExecutionTime,
+    /// MemoryUsage
     MemoryUsage,
+    /// ScalabilityScore
     ScalabilityScore,
 
     // Robustness metrics
+    /// NoiseRobustness
     NoiseRobustness,
+    /// OutlierRobustness
     OutlierRobustness,
+    /// SampleSizeRobustness
     SampleSizeRobustness,
 
     // Statistical metrics
+    /// FalseDiscoveryRate
     FalseDiscoveryRate,
+    /// StatisticalPower
     StatisticalPower,
+    /// TypeIError
     TypeIError,
+    /// TypeIIError
     TypeIIError,
 }
 
 /// Comprehensive benchmark results
 #[derive(Debug, Clone)]
 pub struct ComprehensiveBenchmarkResults {
+    /// summary
     pub summary: BenchmarkSummary,
+    /// detailed_results
     pub detailed_results: Vec<DetailedMethodResult>,
+    /// statistical_analysis
     pub statistical_analysis: StatisticalAnalysis,
+    /// recommendations
     pub recommendations: BenchmarkRecommendations,
+    /// execution_metadata
     pub execution_metadata: ExecutionMetadata,
 }
 
 #[derive(Debug, Clone)]
+/// BenchmarkSummary
 pub struct BenchmarkSummary {
+    /// best_method_overall
     pub best_method_overall: String,
+    /// best_methods_by_metric
     pub best_methods_by_metric: HashMap<String, String>,
+    /// method_rankings
     pub method_rankings: HashMap<String, f64>,
+    /// dataset_difficulty_rankings
     pub dataset_difficulty_rankings: HashMap<String, f64>,
+    /// execution_time_total
     pub execution_time_total: Duration,
 }
 
 #[derive(Debug, Clone)]
+/// DetailedMethodResult
 pub struct DetailedMethodResult {
+    /// method_name
     pub method_name: String,
+    /// dataset_name
     pub dataset_name: String,
+    /// metric_scores
     pub metric_scores: HashMap<String, f64>,
+    /// execution_times
     pub execution_times: Vec<Duration>,
+    /// memory_usage
     pub memory_usage: Vec<usize>,
+    /// selected_features
     pub selected_features: Vec<Vec<usize>>,
+    /// convergence_info
     pub convergence_info: ConvergenceInfo,
+    /// error_analysis
     pub error_analysis: ErrorAnalysis,
 }
 
 #[derive(Debug, Clone)]
+/// ConvergenceInfo
 pub struct ConvergenceInfo {
+    /// converged
     pub converged: bool,
+    /// iterations
     pub iterations: usize,
+    /// final_objective_value
     pub final_objective_value: Option<f64>,
+    /// convergence_history
     pub convergence_history: Vec<f64>,
 }
 
 #[derive(Debug, Clone)]
+/// ErrorAnalysis
 pub struct ErrorAnalysis {
+    /// errors_encountered
     pub errors_encountered: Vec<String>,
+    /// warnings
     pub warnings: Vec<String>,
+    /// timeout_occurred
     pub timeout_occurred: bool,
+    /// memory_overflow
     pub memory_overflow: bool,
 }
 
 #[derive(Debug, Clone)]
+/// StatisticalAnalysis
 pub struct StatisticalAnalysis {
+    /// significance_tests
     pub significance_tests: HashMap<String, f64>, // p-values
+    /// effect_sizes
     pub effect_sizes: HashMap<String, f64>,
+    /// confidence_intervals
     pub confidence_intervals: HashMap<String, (f64, f64)>,
+    /// correlation_analysis
     pub correlation_analysis: CorrelationAnalysis,
+    /// ranking_stability
     pub ranking_stability: f64,
 }
 
 #[derive(Debug, Clone)]
+/// CorrelationAnalysis
 pub struct CorrelationAnalysis {
+    /// method_similarity_matrix
     pub method_similarity_matrix: Array2<f64>,
+    /// dataset_difficulty_correlation
     pub dataset_difficulty_correlation: f64,
+    /// metric_correlation_matrix
     pub metric_correlation_matrix: Array2<f64>,
 }
 
 #[derive(Debug, Clone)]
+/// BenchmarkRecommendations
 pub struct BenchmarkRecommendations {
+    /// best_method_for_task
     pub best_method_for_task: HashMap<TaskType, String>,
+    /// best_method_for_domain
     pub best_method_for_domain: HashMap<DatasetDomain, String>,
+    /// computational_efficiency_rankings
     pub computational_efficiency_rankings: Vec<(String, f64)>,
+    /// robustness_rankings
     pub robustness_rankings: Vec<(String, f64)>,
+    /// general_recommendations
     pub general_recommendations: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
+/// ExecutionMetadata
 pub struct ExecutionMetadata {
+    /// start_time
     pub start_time: String,
+    /// end_time
     pub end_time: String,
+    /// total_duration
     pub total_duration: Duration,
+    /// system_info
     pub system_info: SystemInfo,
+    /// configuration_used
     pub configuration_used: BenchmarkConfiguration,
 }
 
 #[derive(Debug, Clone)]
+/// SystemInfo
 pub struct SystemInfo {
+    /// cpu_cores
     pub cpu_cores: usize,
+    /// memory_gb
     pub memory_gb: f64,
+    /// os
     pub os: String,
+    /// rust_version
     pub rust_version: String,
 }
 

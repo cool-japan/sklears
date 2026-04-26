@@ -37,7 +37,7 @@ use sklears_core::{
 ///     .degree(2)
 ///     .include_bias(true);
 ///
-/// let features = poly.transform(&X.view()).unwrap();
+/// let features = poly.transform(&X.view()).expect("valid input produces transform output");
 /// ```
 #[derive(Debug, Clone)]
 pub struct PolynomialFeatures {
@@ -46,6 +46,7 @@ pub struct PolynomialFeatures {
     include_bias: bool,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl PolynomialFeatures {
     /// Create a new PolynomialFeatures transformer
     pub fn new() -> Self {
@@ -270,6 +271,7 @@ impl Default for PolynomialFeatures {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for PolynomialFeatures {
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
         self.transform(X)
@@ -302,7 +304,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>> for PolynomialFeatures {
 ///     .degree(3)
 ///     .spline_type(SplineType::BSpline);
 ///
-/// let features = spline.transform(&X.view()).unwrap();
+/// let features = spline.transform(&X.view()).expect("valid input produces transform output");
 /// ```
 #[derive(Debug, Clone)]
 pub struct SplineBasisFunctions {
@@ -335,6 +337,7 @@ pub enum ExtrapolationMode {
     Error,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl SplineBasisFunctions {
     /// Create a new SplineBasisFunctions transformer
     pub fn new() -> Self {
@@ -636,8 +639,7 @@ impl SplineBasisFunctions {
             }
 
             // Truncated power functions
-            let mut basis_idx = self.degree + 1;
-            for &knot in knots.iter() {
+            for (basis_idx, &knot) in (self.degree + 1..).zip(knots.iter()) {
                 if basis_idx >= n_basis {
                     break;
                 }
@@ -645,7 +647,6 @@ impl SplineBasisFunctions {
                 if x > knot {
                     basis_matrix[[sample_idx, basis_idx]] = (x - knot).powi(self.degree as i32);
                 }
-                basis_idx += 1;
             }
         }
 
@@ -659,6 +660,7 @@ impl Default for SplineBasisFunctions {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for SplineBasisFunctions {
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
         self.transform(X)
@@ -690,7 +692,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>> for SplineBasisFunctions {
 ///     .rbf_type(RBFType::Gaussian)
 ///     .shape_parameter(1.0);
 ///
-/// let features = rbf.transform(&X.view()).unwrap();
+/// let features = rbf.transform(&X.view()).expect("valid input produces transform output");
 /// ```
 #[derive(Debug, Clone)]
 pub struct RadialBasisFunctions {
@@ -719,6 +721,7 @@ pub enum RBFType {
     Quintic,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl RadialBasisFunctions {
     /// Create a new RadialBasisFunctions transformer
     pub fn new() -> Self {
@@ -896,6 +899,7 @@ impl Default for RadialBasisFunctions {
     }
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for RadialBasisFunctions {
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
         self.transform(X)

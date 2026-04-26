@@ -77,6 +77,7 @@ pub struct MultiTaskLassoCV<State = Untrained> {
     cv_scores_: Option<HashMap<String, Vec<Float>>>,
     best_score_: Option<Float>,
     n_features_: Option<usize>,
+    #[allow(dead_code)] // sklearn-compatible attribute; set during fit for introspection
     n_tasks_: Option<usize>,
 }
 

@@ -403,18 +403,16 @@ impl Fit<Array2<Float>, Array1<i32>> for MixtureDiscriminantAnalysis<Untrained> 
             &class_counts / n_samples as Float
         };
 
-        let store_covariance = self.config.store_covariance;
+        // MDA always needs covariances for prediction; store_covariance flag is reserved
+        // for a future serialisation path that omits covariances from the saved artifact
+        let _ = self.config.store_covariance;
         Ok(MixtureDiscriminantAnalysis {
             config: self.config,
             state: PhantomData,
             classes_: Some(Array1::from(classes)),
             mixture_weights_: Some(mixture_weights),
             mixture_means_: Some(mixture_means),
-            mixture_covariances_: if store_covariance {
-                Some(mixture_covariances)
-            } else {
-                Some(mixture_covariances) // MDA always needs covariances for prediction
-            },
+            mixture_covariances_: Some(mixture_covariances),
             priors_: Some(priors),
             n_features_: Some(n_features),
         })

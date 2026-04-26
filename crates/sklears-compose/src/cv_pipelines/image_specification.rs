@@ -540,47 +540,83 @@ impl ImageData {
 pub enum ValidationError {
     /// Image dimensions don't match expected values
     DimensionMismatch {
+        /// The expected.
         expected: (usize, usize),
+        /// The actual.
         actual: (usize, usize),
     },
     /// Number of channels doesn't match
-    ChannelMismatch { expected: usize, actual: usize },
+    ChannelMismatch {
+        /// The expected.
+        expected: usize,
+        /// The actual.
+        actual: usize,
+    },
     /// Data type doesn't match
     DataTypeMismatch {
+        /// The expected.
         expected: ImageDataType,
+        /// The actual.
         actual: ImageDataType,
     },
     /// Color space doesn't match
     ColorSpaceMismatch {
+        /// The expected.
         expected: ColorSpace,
+        /// The actual.
         actual: ColorSpace,
     },
     /// Image dimensions are too small
     DimensionTooSmall {
+        /// The minimum.
         minimum: (usize, usize),
+        /// The actual.
         actual: (usize, usize),
     },
     /// Image dimensions are too large
     DimensionTooLarge {
+        /// The maximum.
         maximum: (usize, usize),
+        /// The actual.
         actual: (usize, usize),
     },
     /// Invalid aspect ratio
-    InvalidAspectRatio { allowed: Vec<f64>, actual: f64 },
+    InvalidAspectRatio {
+        /// The allowed.
+        allowed: Vec<f64>,
+        /// The actual.
+        actual: f64,
+    },
     /// File size too large
-    FileTooLarge { maximum: usize, actual: usize },
+    FileTooLarge {
+        /// The maximum.
+        maximum: usize,
+        /// The actual.
+        actual: usize,
+    },
     /// File size too small
-    FileTooSmall { minimum: usize, actual: usize },
+    FileTooSmall {
+        /// The minimum.
+        minimum: usize,
+        /// The actual.
+        actual: usize,
+    },
     /// Quality metric below threshold
     QualityTooLow {
+        /// The metric.
         metric: String,
+        /// The threshold.
         threshold: f64,
+        /// The actual.
         actual: f64,
     },
     /// Quality metric above threshold
     QualityTooHigh {
+        /// The metric.
         metric: String,
+        /// The threshold.
         threshold: f64,
+        /// The actual.
         actual: f64,
     },
     /// Normalization error
@@ -721,7 +757,7 @@ mod tests {
 
         assert_eq!(image.aspect_ratio(), 640.0 / 480.0);
         assert_eq!(image.pixel_count(), 480 * 640);
-        assert_eq!(image.memory_footprint(), 480 * 640 * 3 * 1); // UInt8 = 1 byte
+        assert_eq!(image.memory_footprint(), 480 * 640 * 3); // UInt8 = 1 byte
     }
 
     #[test]

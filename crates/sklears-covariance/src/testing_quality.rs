@@ -31,7 +31,7 @@ pub struct PropertyTester {
 }
 
 impl PropertyTester {
-    pub fn new(seed: u64) -> Self {
+    pub fn new(_seed: u64) -> Self {
         let r = thread_rng(); // Note: seeding will be handled per test function
         Self {
             rng: r,
@@ -92,7 +92,7 @@ impl PropertyTester {
             }
         }
 
-        /// PropertyTestResult
+        // PropertyTestResult
         PropertyTestResult {
             property_name: "Symmetry".to_string(),
             total_tests: self.n_iterations,
@@ -136,7 +136,7 @@ impl PropertyTester {
             }
         }
 
-        /// PropertyTestResult
+        // PropertyTestResult
         PropertyTestResult {
             property_name: "Positive Semi-Definite".to_string(),
             total_tests: self.n_iterations,
@@ -189,7 +189,7 @@ impl PropertyTester {
             }
         }
 
-        /// PropertyTestResult
+        // PropertyTestResult
         PropertyTestResult {
             property_name: "Scale Invariance".to_string(),
             total_tests: self.n_iterations,
@@ -234,7 +234,7 @@ impl PropertyTester {
             }
         }
 
-        /// PropertyTestResult
+        // PropertyTestResult
         PropertyTestResult {
             property_name: "Diagonal Dominance".to_string(),
             total_tests: self.n_iterations,
@@ -379,6 +379,12 @@ pub enum DifficultyLevel {
     Extreme, // Numerically challenging
 }
 
+impl Default for NumericalAccuracyTester {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NumericalAccuracyTester {
     pub fn new() -> Self {
         let mut tolerance_levels = HashMap::new();
@@ -412,7 +418,7 @@ impl NumericalAccuracyTester {
             results.push(result);
         }
 
-        /// AccuracyTestResult
+        // AccuracyTestResult
         AccuracyTestResult {
             tolerance_level: tolerance_level.to_string(),
             tolerance_value: *tolerance,
@@ -448,7 +454,7 @@ impl NumericalAccuracyTester {
                     && spectral_error < tolerance
                     && relative_error < tolerance * 10.0; // More relaxed for relative error
 
-                /// SingleAccuracyResult
+                // SingleAccuracyResult
                 SingleAccuracyResult {
                     test_name: test_case.name.clone(),
                     difficulty_level: test_case.difficulty_level.clone(),
@@ -668,6 +674,12 @@ pub struct BenchmarkResult {
     pub memory_usage_mb: Option<f64>,
 }
 
+impl Default for BenchmarkSuite {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BenchmarkSuite {
     pub fn new() -> Self {
         Self {
@@ -794,7 +806,7 @@ impl BenchmarkSuite {
 
     fn create_standard_benchmarks() -> Vec<BenchmarkConfig> {
         vec![
-            /// BenchmarkConfig
+            // BenchmarkConfig
             BenchmarkConfig {
                 name: "Small Scale".to_string(),
                 description: "Small matrices for basic performance testing".to_string(),
@@ -802,7 +814,7 @@ impl BenchmarkSuite {
                 n_repetitions: 100,
                 warmup_iterations: 10,
             },
-            /// BenchmarkConfig
+            // BenchmarkConfig
             BenchmarkConfig {
                 name: "Medium Scale".to_string(),
                 description: "Medium-sized matrices for typical use cases".to_string(),
@@ -810,7 +822,7 @@ impl BenchmarkSuite {
                 n_repetitions: 50,
                 warmup_iterations: 5,
             },
-            /// BenchmarkConfig
+            // BenchmarkConfig
             BenchmarkConfig {
                 name: "Large Scale".to_string(),
                 description: "Large matrices for performance stress testing".to_string(),
@@ -921,7 +933,7 @@ impl ComparisonResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::array;
+
     use scirs2_core::Axis;
 
     #[test]

@@ -5,7 +5,7 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::{
     error::Result as SklResult,
-    prelude::{Predict, SklearsError, Transform},
+    prelude::SklearsError,
     traits::{Estimator, Fit, Untrained},
     types::Float,
 };
@@ -24,6 +24,22 @@ pub trait PipelineStep: Send + Sync + std::fmt::Debug {
 
     /// Clone the step
     fn clone_step(&self) -> Box<dyn PipelineStep>;
+
+    /// Set a hyperparameter on the step by name.
+    ///
+    /// The default implementation returns an error, which is appropriate for
+    /// steps that expose no configurable parameters. Steps that support
+    /// hyperparameter search should override this method.
+    ///
+    /// The `value` argument is a `f64` that may represent a continuous value,
+    /// a discrete integer (truncated), or a categorical index depending on the
+    /// parameter space definition used by the optimizer.
+    fn set_param(&mut self, name: &str, _value: f64) -> SklResult<()> {
+        Err(SklearsError::InvalidInput(format!(
+            "Parameter '{}' is not configurable on this step",
+            name
+        )))
+    }
 }
 
 /// Pipeline predictor trait for final estimators
@@ -67,11 +83,54 @@ pub struct Pipeline<S = Untrained> {
 }
 
 /// Trained state for Pipeline
+#[allow(dead_code)]
 pub struct PipelineTrained {
     fitted_steps: Vec<(String, Box<dyn PipelineStep>)>,
     fitted_estimator: Option<Box<dyn PipelinePredictor>>,
     n_features_in: usize,
     feature_names_in: Option<Vec<String>>,
+}
+
+impl Clone for Pipeline<Untrained> {
+    fn clone(&self) -> Self {
+        Pipeline {
+            state: Untrained,
+            steps: self
+                .steps
+                .iter()
+                .map(|(name, step)| (name.clone(), step.clone_step()))
+                .collect(),
+            final_estimator: self.final_estimator.as_ref().map(|e| e.clone_predictor()),
+            memory: self.memory.clone(),
+            verbose: self.verbose,
+        }
+    }
+}
+
+impl Clone for Pipeline<PipelineTrained> {
+    fn clone(&self) -> Self {
+        Pipeline {
+            state: PipelineTrained {
+                fitted_steps: self
+                    .state
+                    .fitted_steps
+                    .iter()
+                    .map(|(name, step)| (name.clone(), step.clone_step()))
+                    .collect(),
+                fitted_estimator: self
+                    .state
+                    .fitted_estimator
+                    .as_ref()
+                    .map(|e| e.clone_predictor()),
+                n_features_in: self.state.n_features_in,
+                feature_names_in: self.state.feature_names_in.clone(),
+            },
+            steps: Vec::new(),
+            final_estimator: None,
+            memory: self.memory.clone(),
+            verbose: self.verbose,
+        }
+    }
 }
 
 impl Pipeline<Untrained> {
@@ -101,6 +160,17 @@ impl Pipeline<Untrained> {
     /// Set the final estimator
     pub fn set_estimator(&mut self, estimator: Box<dyn PipelinePredictor>) {
         self.final_estimator = Some(estimator);
+    }
+
+    /// Return a mutable reference to the named step, if it exists.
+    ///
+    /// The step name is the first component of the sklearn-style double-underscore
+    /// parameter key (e.g. `"scaler"` in `"scaler__with_mean"`).
+    pub fn get_step_mut(&mut self, step_name: &str) -> Option<&mut dyn PipelineStep> {
+        self.steps
+            .iter_mut()
+            .find(|(name, _)| name == step_name)
+            .map(|(_, step)| &mut **step as &mut dyn PipelineStep)
     }
 
     /// Set memory caching
@@ -210,8 +280,8 @@ impl Pipeline<PipelineTrained> {
 
     /// Get the fitted estimator
     #[must_use]
-    pub fn estimator(&self) -> Option<&Box<dyn PipelinePredictor>> {
-        self.state.fitted_estimator.as_ref()
+    pub fn estimator(&self) -> Option<&dyn PipelinePredictor> {
+        self.state.fitted_estimator.as_deref()
     }
 }
 
@@ -279,5 +349,26 @@ impl PipelineBuilder {
 impl Default for PipelineBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl crate::cross_validation::FitCV for Pipeline<Untrained> {
+    type Fitted = Pipeline<PipelineTrained>;
+
+    fn fit_cv(self, x: Array2<Float>, y: Option<Array1<Float>>) -> SklResult<Self::Fitted> {
+        let x_view = x.view();
+        // Build Option<&ArrayView1> with concrete local lifetimes — no HRTB required.
+        // Both x_view and y_view_opt live for the same scope, so the compiler resolves
+        // lifetimes without higher-ranked bounds.
+        let y_view_opt: Option<ArrayView1<'_, Float>> = y.as_ref().map(|a| a.view());
+        let y_opt: Option<&ArrayView1<'_, Float>> =
+            y_view_opt.as_ref().map(|v| v as &ArrayView1<'_, Float>);
+        self.fit(&x_view, &y_opt)
+    }
+}
+
+impl crate::cross_validation::PredictCV for Pipeline<PipelineTrained> {
+    fn predict_cv(&self, x: &Array2<Float>) -> SklResult<Array1<f64>> {
+        self.predict(&x.view())
     }
 }

@@ -191,7 +191,6 @@ impl AdversarialGraphLearning {
         _labels: Option<ArrayView1<i32>>,
     ) -> Result<Array2<f64>, SklearsError> {
         let n_samples = features.nrows();
-        let n_features = features.ncols();
 
         // Estimate robust mean and covariance
         let robust_mean = self.compute_robust_mean(features)?;
@@ -232,7 +231,7 @@ impl AdversarialGraphLearning {
     fn consensus_defense(
         &self,
         features: ArrayView2<f64>,
-        labels: Option<ArrayView1<i32>>,
+        _labels: Option<ArrayView1<i32>>,
     ) -> Result<Array2<f64>, SklearsError> {
         let n_samples = features.nrows();
         let num_graphs = 5; // Number of consensus graphs
@@ -245,7 +244,7 @@ impl AdversarialGraphLearning {
         };
 
         // Generate multiple graphs with different perturbations
-        for graph_idx in 0..num_graphs {
+        for _graph_idx in 0..num_graphs {
             let mut perturbed_features = features.to_owned();
 
             // Add small random perturbations
@@ -330,7 +329,7 @@ impl AdversarialGraphLearning {
             "feature_perturbation" => {
                 let num_target_nodes = attack.target_nodes.min(n_samples);
                 let target_indices: Vec<usize> = (0..n_samples)
-                    .choose_multiple(&mut rng, num_target_nodes)
+                    .sample(&mut rng, num_target_nodes)
                     .into_iter()
                     .collect();
 
@@ -436,7 +435,7 @@ impl AdversarialGraphLearning {
             column.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let median_idx = column.len() / 2;
-            robust_mean[j] = if column.len() % 2 == 0 {
+            robust_mean[j] = if column.len().is_multiple_of(2) {
                 (column[median_idx - 1] + column[median_idx]) / 2.0
             } else {
                 column[median_idx]
@@ -599,7 +598,6 @@ impl Default for AdversarialGraphLearning {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::array;
 
     #[test]

@@ -10,6 +10,7 @@ use scirs2_core::random::Normal;
 use sklears_core::error::{Result, SklearsError};
 
 /// Generate privacy-preserving datasets using differential privacy
+#[allow(non_snake_case)] // X follows mathematical convention for feature matrix
 pub fn make_privacy_preserving_dataset(
     n_samples: usize,
     n_features: usize,

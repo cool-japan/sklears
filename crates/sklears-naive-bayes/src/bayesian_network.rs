@@ -5,7 +5,6 @@
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2, Array3};
-use scirs2_core::numeric::Float;
 use std::collections::{HashMap, HashSet, VecDeque};
 use thiserror::Error;
 
@@ -191,6 +190,7 @@ pub struct BayesianNetworkAugmentedNB {
     feature_cardinalities: Vec<usize>,
 }
 
+#[allow(non_snake_case)]
 impl BayesianNetworkAugmentedNB {
     pub fn new(config: BANConfig) -> Self {
         Self {
@@ -320,7 +320,7 @@ impl BayesianNetworkAugmentedNB {
     }
 
     fn compute_class_priors(&mut self, y: &Array1<i32>) -> Result<(), BANError> {
-        let n_samples = y.len() as f64;
+        let _n_samples = y.len() as f64;
         let mut class_counts = Array1::zeros(self.n_classes);
 
         for &label in y.iter() {
@@ -701,7 +701,6 @@ impl BayesianNetworkAugmentedNB {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
 
     #[test]
     #[allow(non_snake_case)]

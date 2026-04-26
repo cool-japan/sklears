@@ -14,6 +14,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ONNX/PMML model interchange
 - WebAssembly compilation support
 
+## [0.1.1] - 2026-04-25
+
+### Fixed
+- HDBSCAN persistence extraction: corrected root node detection and propagation order
+- StreamingStandardScaler / StreamingSimpleImputer: replaced manual Default impls with derive
+- Pipeline get_step_mut: fixed lifetime elision for dyn PipelineStep
+- GpuAcceleration struct field name mismatch in hardware_acceleration.rs
+- Arrow StringArray collection from Option<&str> iterator in serialization
+- SpectralGraphConfig missing random_seed field in graph_clustering tests
+- StreamingSimpleImputer: use ? operator for Option early return
+
+### Changed
+- Version bump to 0.1.1
+
 ## [0.1.0] - 2026-03-20
 
 ### Added

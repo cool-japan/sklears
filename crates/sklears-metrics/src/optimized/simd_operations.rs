@@ -289,8 +289,8 @@ unsafe fn simd_r2_avx(y_true: &[f64], y_pred: &[f64]) -> f64 {
     let mut sum_array = [0.0; 4];
     _mm256_storeu_pd(sum_array.as_mut_ptr(), sum_vec);
     let mut mean = sum_array.iter().sum::<f64>();
-    for j in i..y_true.len() {
-        mean += y_true[j];
+    for &val in y_true[i..].iter() {
+        mean += val;
     }
     mean /= y_true.len() as f64;
 

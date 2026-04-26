@@ -120,6 +120,7 @@ impl CountMinSketch {
     }
 
     /// Estimate frequency of an item
+    #[allow(dead_code)] // estimate_frequency retained as public count-min sketch API
     fn estimate_frequency(&self, sketch: &Array2<u32>, item: f64) -> u32 {
         let item_hash = (item * 1000.0) as u64;
         let mut min_count = u32::MAX;
@@ -300,7 +301,11 @@ impl FastJohnsonLindenstrauss {
                 if uniform_val < self.sparsity_parameter {
                     // Rademacher random variable (+1 or -1)
                     let sign_hash = hash_val >> 32;
-                    let sign = if sign_hash % 2 == 0 { 1.0 } else { -1.0 };
+                    let sign = if sign_hash.is_multiple_of(2) {
+                        1.0
+                    } else {
+                        -1.0
+                    };
                     matrix[[i, j]] = sign / (self.sparsity_parameter * input_dim as f64).sqrt();
                 }
             }
@@ -989,6 +994,8 @@ impl FastTransformExtractor {
             let mut real_sum = 0.0;
             let mut imag_sum = 0.0;
 
+            #[allow(clippy::needless_range_loop)]
+            // j used in arithmetic angle computation, not just indexing
             for j in 0..n {
                 let angle = -2.0 * std::f64::consts::PI * (k as f64) * (j as f64) / (n as f64);
                 real_sum += padded_signal[j] * angle.cos();

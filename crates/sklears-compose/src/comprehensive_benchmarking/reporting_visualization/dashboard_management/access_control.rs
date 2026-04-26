@@ -1155,7 +1155,7 @@ impl Default for AuditExportConfig {
             enabled: false,
             formats: vec![ExportFormat::JSON],
             schedule: None,
-            destination: ExportDestination::LocalFile("/tmp/audit_logs".to_string()),
+            destination: ExportDestination::LocalFile(std::env::temp_dir().join("audit_logs").display().to_string()),
         }
     }
 }

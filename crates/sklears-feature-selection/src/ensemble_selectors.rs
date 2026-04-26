@@ -4,15 +4,24 @@
 //! or use ensemble techniques for more robust feature selection.
 
 use crate::{FeatureImportance, IndexableTarget};
-use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, Axis};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, Axis, Dim, OwnedRepr};
 use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{rngs::StdRng, thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{rngs::StdRng, thread_rng, RngExt, SeedableRng};
 use sklears_core::{
     error::{validate, Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Trained, Transform, Untrained},
     types::Float,
 };
 use std::marker::PhantomData;
+
+// ndarray 0.17 adds a 3rd default type parameter `A = <S as RawData>::Elem` to ArrayBase.
+// The Rust trait solver cannot normalize `Array2<Float>` (2-param alias) to
+// `ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>, f64>` (3-param form) in where bounds when
+// any generic type parameters remain. We use the fully expanded form to bypass this.
+type Mat2f64 = ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>, f64>;
+type Vec1f64 = ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>, f64>;
+type Vec1i32 = ArrayBase<OwnedRepr<i32>, Dim<[usize; 1]>, i32>;
+type Vec1usize = ArrayBase<OwnedRepr<usize>, Dim<[usize; 1]>, usize>;
 
 use crate::base::SelectorMixin;
 
@@ -142,161 +151,189 @@ impl<E> Estimator for BootstrapSelector<E, Untrained> {
     }
 }
 
-impl<E, Y> Fit<Array2<Float>, Y> for BootstrapSelector<E, Untrained>
-where
-    E: Clone + Fit<Array2<Float>, Y> + Send + Sync,
-    E::Fitted: FeatureImportance + Send + Sync,
-    Y: Clone + IndexableTarget,
-{
-    type Fitted = BootstrapSelector<E, Trained>;
+macro_rules! impl_fit_for_bootstrap {
+    ($y_type:ty) => {
+        impl<E> Fit<Mat2f64, $y_type> for BootstrapSelector<E, Untrained>
+        where
+            E: Clone + Fit<Mat2f64, $y_type> + Send + Sync,
+            E::Fitted: FeatureImportance + Send + Sync,
+            $y_type: IndexableTarget,
+        {
+            type Fitted = BootstrapSelector<E, Trained>;
 
-    fn fit(self, x: &Array2<Float>, y: &Y) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = x.dim();
+            fn fit(self, x: &Mat2f64, y: &$y_type) -> SklResult<Self::Fitted> {
+                let (n_samples, n_features) = x.dim();
 
-        if n_samples < 2 {
-            return Err(SklearsError::InvalidInput(
-                "Bootstrap selection requires at least 2 samples".to_string(),
-            ));
-        }
+                if n_samples < 2 {
+                    return Err(SklearsError::InvalidInput(
+                        "Bootstrap selection requires at least 2 samples".to_string(),
+                    ));
+                }
 
-        // Initialize random number generator
-        let mut rng = if let Some(seed) = self.random_state {
-            StdRng::seed_from_u64(seed)
-        } else {
-            StdRng::from_rng(&mut thread_rng())
-        };
+                // Initialize random number generator
+                let mut rng = if let Some(seed) = self.random_state {
+                    StdRng::seed_from_u64(seed)
+                } else {
+                    StdRng::from_rng(&mut thread_rng())
+                };
 
-        let sample_size = (n_samples as f64 * self.sample_ratio).round() as usize;
-        let mut feature_counts = Array1::zeros(n_features);
-        let mut bootstrap_selections = Vec::with_capacity(self.n_bootstrap);
+                let sample_size = (n_samples as f64 * self.sample_ratio).round() as usize;
+                let mut feature_counts = Array1::zeros(n_features);
+                let mut bootstrap_selections = Vec::with_capacity(self.n_bootstrap);
 
-        // Bootstrap iterations
-        for _ in 0..self.n_bootstrap {
-            // Generate bootstrap sample indices
-            let mut bootstrap_indices = Vec::with_capacity(sample_size);
-            for _ in 0..sample_size {
-                bootstrap_indices.push(rng.gen_range(0..n_samples));
-            }
+                // Bootstrap iterations
+                for _ in 0..self.n_bootstrap {
+                    // Generate bootstrap sample indices
+                    let mut bootstrap_indices = Vec::with_capacity(sample_size);
+                    for _ in 0..sample_size {
+                        bootstrap_indices.push(rng.random_range(0..n_samples));
+                    }
 
-            // Extract bootstrap sample
-            let x_bootstrap = x.select(Axis(0), &bootstrap_indices);
-            let y_bootstrap = y.select(&bootstrap_indices);
+                    // Extract bootstrap sample
+                    let x_bootstrap = x.select(Axis(0), &bootstrap_indices);
+                    let y_bootstrap = y.select(&bootstrap_indices);
 
-            // Fit estimator on bootstrap sample
-            match self.estimator.clone().fit(&x_bootstrap, &y_bootstrap) {
-                Ok(fitted_estimator) => {
-                    // Get feature importances
-                    if let Ok(importances) = fitted_estimator.feature_importances() {
-                        // Find features with above-threshold importance
-                        let threshold = importances.mean().unwrap_or(0.0);
-                        let selected_features: Vec<usize> = importances
-                            .iter()
-                            .enumerate()
-                            .filter(|(_, &importance)| importance > threshold)
-                            .map(|(idx, _)| idx)
-                            .collect();
+                    // Fit estimator on bootstrap sample
+                    match self.estimator.clone().fit(&x_bootstrap, &y_bootstrap) {
+                        Ok(fitted_estimator) => {
+                            // Get feature importances
+                            if let Ok(importances) = fitted_estimator.feature_importances() {
+                                // Find features with above-threshold importance
+                                let threshold = importances.mean().unwrap_or(0.0);
+                                let selected_features: Vec<usize> = importances
+                                    .iter()
+                                    .enumerate()
+                                    .filter(|(_, &importance)| importance > threshold)
+                                    .map(|(idx, _)| idx)
+                                    .collect();
 
-                        // Update feature counts
-                        for &feature_idx in &selected_features {
-                            feature_counts[feature_idx] += 1.0;
+                                // Update feature counts
+                                for &feature_idx in &selected_features {
+                                    feature_counts[feature_idx] += 1.0;
+                                }
+
+                                bootstrap_selections.push(selected_features);
+                            }
                         }
-
-                        bootstrap_selections.push(selected_features);
+                        Err(_) => {
+                            // If fitting fails for this bootstrap sample, skip it
+                            continue;
+                        }
                     }
                 }
-                Err(_) => {
-                    // If fitting fails for this bootstrap sample, skip it
-                    continue;
+
+                // Calculate selection frequencies
+                let feature_frequencies = feature_counts / self.n_bootstrap as f64;
+
+                // Calculate stability scores (Jaccard similarity between consecutive selections)
+                let mut stability_scores = Array1::zeros(n_features);
+                if bootstrap_selections.len() >= 2 {
+                    for feature_idx in 0..n_features {
+                        let mut jaccard_similarities = Vec::new();
+
+                        for i in 0..(bootstrap_selections.len() - 1) {
+                            let set1_contains = bootstrap_selections[i].contains(&feature_idx);
+                            let set2_contains = bootstrap_selections[i + 1].contains(&feature_idx);
+
+                            // Simple stability measure: consistency across consecutive selections
+                            let similarity = if set1_contains == set2_contains {
+                                1.0
+                            } else {
+                                0.0
+                            };
+                            jaccard_similarities.push(similarity);
+                        }
+
+                        stability_scores[feature_idx] = jaccard_similarities.iter().sum::<f64>()
+                            / jaccard_similarities.len() as f64;
+                    }
                 }
-            }
-        }
 
-        // Calculate selection frequencies
-        let feature_frequencies = feature_counts / self.n_bootstrap as f64;
+                // Select features based on frequency and stability thresholds
+                let mut selected_features: Vec<usize> = (0..n_features)
+                    .filter(|&i| {
+                        feature_frequencies[i] >= self.min_selection_frequency
+                            && stability_scores[i] >= self.stability_threshold
+                    })
+                    .collect();
 
-        // Calculate stability scores (Jaccard similarity between consecutive selections)
-        let mut stability_scores = Array1::zeros(n_features);
-        if bootstrap_selections.len() >= 2 {
-            for feature_idx in 0..n_features {
-                let mut jaccard_similarities = Vec::new();
-
-                for i in 0..(bootstrap_selections.len() - 1) {
-                    let set1_contains = bootstrap_selections[i].contains(&feature_idx);
-                    let set2_contains = bootstrap_selections[i + 1].contains(&feature_idx);
-
-                    // Simple stability measure: consistency across consecutive selections
-                    let similarity = if set1_contains == set2_contains {
-                        1.0
-                    } else {
-                        0.0
-                    };
-                    jaccard_similarities.push(similarity);
+                // Apply max_features limit if specified
+                if let Some(max_feat) = self.max_features {
+                    if selected_features.len() > max_feat {
+                        // Sort by combined score (frequency * stability) and take top max_feat
+                        selected_features.sort_by(|&a, &b| {
+                            let score_a: f64 = feature_frequencies[a] * stability_scores[a];
+                            let score_b: f64 = feature_frequencies[b] * stability_scores[b];
+                            score_b.partial_cmp(&score_a).unwrap_or_else(|| {
+                                match (score_b.is_nan(), score_a.is_nan()) {
+                                    (true, false) => std::cmp::Ordering::Less,
+                                    (false, true) => std::cmp::Ordering::Greater,
+                                    _ => std::cmp::Ordering::Equal,
+                                }
+                            })
+                        });
+                        selected_features.truncate(max_feat);
+                        selected_features.sort(); // Restore original order
+                    }
                 }
 
-                stability_scores[feature_idx] =
-                    jaccard_similarities.iter().sum::<f64>() / jaccard_similarities.len() as f64;
+                if selected_features.is_empty() {
+                    return Err(SklearsError::InvalidInput(
+                        "No features selected by Bootstrap method. Try reducing thresholds."
+                            .to_string(),
+                    ));
+                }
+
+                Ok(BootstrapSelector {
+                    estimator: self.estimator,
+                    n_bootstrap: self.n_bootstrap,
+                    sample_ratio: self.sample_ratio,
+                    stability_threshold: self.stability_threshold,
+                    min_selection_frequency: self.min_selection_frequency,
+                    max_features: self.max_features,
+                    random_state: self.random_state,
+                    state: PhantomData,
+                    feature_frequencies_: Some(feature_frequencies),
+                    stability_scores_: Some(stability_scores),
+                    selected_features_: Some(selected_features),
+                    n_features_: Some(n_features),
+                    bootstrap_selections_: Some(bootstrap_selections),
+                })
             }
         }
-
-        // Select features based on frequency and stability thresholds
-        let mut selected_features: Vec<usize> = (0..n_features)
-            .filter(|&i| {
-                feature_frequencies[i] >= self.min_selection_frequency
-                    && stability_scores[i] >= self.stability_threshold
-            })
-            .collect();
-
-        // Apply max_features limit if specified
-        if let Some(max_feat) = self.max_features {
-            if selected_features.len() > max_feat {
-                // Sort by combined score (frequency * stability) and take top max_feat
-                selected_features.sort_by(|&a, &b| {
-                    let score_a: f64 = feature_frequencies[a] * stability_scores[a];
-                    let score_b: f64 = feature_frequencies[b] * stability_scores[b];
-                    score_b.partial_cmp(&score_a).expect("operation should succeed")
-                });
-                selected_features.truncate(max_feat);
-                selected_features.sort(); // Restore original order
-            }
-        }
-
-        if selected_features.is_empty() {
-            return Err(SklearsError::InvalidInput(
-                "No features selected by Bootstrap method. Try reducing thresholds.".to_string(),
-            ));
-        }
-
-        Ok(BootstrapSelector {
-            estimator: self.estimator,
-            n_bootstrap: self.n_bootstrap,
-            sample_ratio: self.sample_ratio,
-            stability_threshold: self.stability_threshold,
-            min_selection_frequency: self.min_selection_frequency,
-            max_features: self.max_features,
-            random_state: self.random_state,
-            state: PhantomData,
-            feature_frequencies_: Some(feature_frequencies),
-            stability_scores_: Some(stability_scores),
-            selected_features_: Some(selected_features),
-            n_features_: Some(n_features),
-            bootstrap_selections_: Some(bootstrap_selections),
-        })
-    }
+    };
 }
+
+impl_fit_for_bootstrap!(Vec1f64);
+impl_fit_for_bootstrap!(Vec1i32);
+impl_fit_for_bootstrap!(Vec1usize);
 
 impl<E> Transform<Array2<Float>> for BootstrapSelector<E, Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::FitError("BootstrapSelector not fitted: n_features_ missing".to_string())
+        })?;
+        validate::check_n_features(x, n_features)?;
 
-        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
+        let selected_features = self.selected_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BootstrapSelector not fitted: selected_features_ missing".to_string(),
+            )
+        })?;
         extract_features(x, selected_features)
     }
 }
 
 impl<E> SelectorMixin for BootstrapSelector<E, Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.expect("operation should succeed");
-        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::FitError("BootstrapSelector not fitted: n_features_ missing".to_string())
+        })?;
+        let selected_features = self.selected_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BootstrapSelector not fitted: selected_features_ missing".to_string(),
+            )
+        })?;
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -307,7 +344,11 @@ impl<E> SelectorMixin for BootstrapSelector<E, Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
+        let selected_features = self.selected_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BootstrapSelector not fitted: selected_features_ missing".to_string(),
+            )
+        })?;
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -317,31 +358,51 @@ impl<E> SelectorMixin for BootstrapSelector<E, Trained> {
 
 impl<E> BootstrapSelector<E, Trained> {
     /// Get feature selection frequencies across bootstrap iterations
-    pub fn feature_frequencies(&self) -> &Array1<Float> {
-        self.feature_frequencies_.as_ref().expect("operation should succeed")
+    pub fn feature_frequencies(&self) -> SklResult<&Array1<Float>> {
+        self.feature_frequencies_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BootstrapSelector not fitted: feature_frequencies_ missing".to_string(),
+            )
+        })
     }
 
     /// Get feature stability scores
-    pub fn stability_scores(&self) -> &Array1<Float> {
-        self.stability_scores_.as_ref().expect("operation should succeed")
+    pub fn stability_scores(&self) -> SklResult<&Array1<Float>> {
+        self.stability_scores_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BootstrapSelector not fitted: stability_scores_ missing".to_string(),
+            )
+        })
     }
 
     /// Get selected features
-    pub fn selected_features(&self) -> &[usize] {
-        self.selected_features_.as_ref().expect("operation should succeed")
+    pub fn selected_features(&self) -> SklResult<&[usize]> {
+        self.selected_features_.as_deref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BootstrapSelector not fitted: selected_features_ missing".to_string(),
+            )
+        })
     }
 
     /// Get all bootstrap selections for analysis
-    pub fn bootstrap_selections(&self) -> &[Vec<usize>] {
-        self.bootstrap_selections_.as_ref().expect("operation should succeed")
+    pub fn bootstrap_selections(&self) -> SklResult<&[Vec<usize>]> {
+        self.bootstrap_selections_.as_deref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BootstrapSelector not fitted: bootstrap_selections_ missing".to_string(),
+            )
+        })
     }
 
     /// Calculate the overall stability of the feature selection
     /// Returns the average Jaccard similarity across all bootstrap iterations
-    pub fn selection_stability(&self) -> f64 {
-        let selections = self.bootstrap_selections_.as_ref().expect("operation should succeed");
+    pub fn selection_stability(&self) -> SklResult<f64> {
+        let selections = self.bootstrap_selections_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BootstrapSelector not fitted: bootstrap_selections_ missing".to_string(),
+            )
+        })?;
         if selections.len() < 2 {
-            return 1.0; // Perfect stability with only one selection
+            return Ok(1.0); // Perfect stability with only one selection
         }
 
         let mut similarities = Vec::new();
@@ -364,7 +425,7 @@ impl<E> BootstrapSelector<E, Trained> {
             }
         }
 
-        similarities.iter().sum::<f64>() / similarities.len() as f64
+        Ok(similarities.iter().sum::<f64>() / similarities.len() as f64)
     }
 }
 
@@ -472,14 +533,14 @@ impl<E> Estimator for BorutaSelector<E, Untrained> {
     }
 }
 
-impl<E> Fit<Array2<Float>, Array1<Float>> for BorutaSelector<E, Untrained>
+impl<E> Fit<Mat2f64, Vec1f64> for BorutaSelector<E, Untrained>
 where
-    E: Clone + Fit<Array2<Float>, Array1<Float>> + FeatureImportance + Send + Sync,
+    E: Clone + Fit<Mat2f64, Vec1f64> + FeatureImportance + Send + Sync,
     E::Fitted: FeatureImportance + Send + Sync,
 {
     type Fitted = BorutaSelector<E, Trained>;
 
-    fn fit(self, x: &Array2<Float>, y: &Array1<Float>) -> SklResult<Self::Fitted> {
+    fn fit(self, x: &Mat2f64, y: &Vec1f64) -> SklResult<Self::Fitted> {
         validate::check_consistent_length(x, y)?;
 
         let (n_samples, n_features) = x.dim();
@@ -614,21 +675,21 @@ where
 
 impl<E> BorutaSelector<E, Untrained>
 where
-    E: Clone + Fit<Array2<Float>, Array1<Float>> + FeatureImportance,
+    E: Clone + Fit<Mat2f64, Vec1f64> + FeatureImportance,
     E::Fitted: FeatureImportance,
 {
     /// Create shadow features by permuting columns
     fn create_shadow_features(
         &self,
-        x: &Array2<Float>,
+        x: &Mat2f64,
         feature_indices: &[usize],
         rng: &mut StdRng,
-    ) -> SklResult<(Array2<Float>, Vec<usize>)> {
+    ) -> SklResult<(Mat2f64, Vec<usize>)> {
         let (n_samples, _) = x.dim();
         let n_features = feature_indices.len();
 
         // Create augmented matrix with original + shadow features
-        let mut x_augmented = Array2::<Float>::zeros((n_samples, n_features * 2));
+        let mut x_augmented = Array2::<f64>::zeros((n_samples, n_features * 2));
 
         // Copy original features
         for (new_idx, &orig_idx) in feature_indices.iter().enumerate() {
@@ -651,11 +712,7 @@ where
     }
 
     /// Get ensemble feature importances
-    fn get_ensemble_importances(
-        &self,
-        x: &Array2<Float>,
-        y: &Array1<Float>,
-    ) -> SklResult<Array1<Float>> {
+    fn get_ensemble_importances(&self, x: &Mat2f64, y: &Vec1f64) -> SklResult<Array1<Float>> {
         let n_features = x.ncols();
         let mut total_importances = Array1::<Float>::zeros(n_features);
 
@@ -686,7 +743,14 @@ where
         }
 
         let mut sorted_importances: Vec<Float> = shadow_importances.to_vec();
-        sorted_importances.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
+        sorted_importances.sort_by(|a, b| {
+            b.partial_cmp(a)
+                .unwrap_or_else(|| match (b.is_nan(), a.is_nan()) {
+                    (true, false) => std::cmp::Ordering::Less,
+                    (false, true) => std::cmp::Ordering::Greater,
+                    _ => std::cmp::Ordering::Equal,
+                })
+        });
 
         let index = ((self.percentile / 100.0) * sorted_importances.len() as f64).ceil() as usize;
         let threshold_index = (index - 1).min(sorted_importances.len() - 1);
@@ -785,9 +849,19 @@ impl<E> Transform<Array2<f64>> for BorutaSelector<E, Trained> {
 
 impl<E> SelectorMixin for BorutaSelector<E, Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.expect("operation should succeed");
-        let confirmed = self.confirmed_features_.as_ref().expect("operation should succeed");
-        let tentative = self.tentative_features_.as_ref().expect("operation should succeed");
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::FitError("BorutaSelector not fitted: n_features_ missing".to_string())
+        })?;
+        let confirmed = self.confirmed_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BorutaSelector not fitted: confirmed_features_ missing".to_string(),
+            )
+        })?;
+        let tentative = self.tentative_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BorutaSelector not fitted: tentative_features_ missing".to_string(),
+            )
+        })?;
 
         let mut support = Array1::<bool>::from_elem(n_features, false);
 
@@ -805,8 +879,16 @@ impl<E> SelectorMixin for BorutaSelector<E, Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let confirmed = self.confirmed_features_.as_ref().expect("operation should succeed");
-        let tentative = self.tentative_features_.as_ref().expect("operation should succeed");
+        let confirmed = self.confirmed_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BorutaSelector not fitted: confirmed_features_ missing".to_string(),
+            )
+        })?;
+        let tentative = self.tentative_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BorutaSelector not fitted: tentative_features_ missing".to_string(),
+            )
+        })?;
 
         let mut selected_set = std::collections::HashSet::new();
         for &idx in confirmed {
@@ -829,46 +911,83 @@ impl<E> SelectorMixin for BorutaSelector<E, Trained> {
 
 impl<E> BorutaSelector<E, Trained> {
     /// Get confirmed features (definitively relevant)
-    pub fn confirmed_features(&self) -> &[usize] {
-        self.confirmed_features_.as_ref().expect("operation should succeed")
+    pub fn confirmed_features(&self) -> SklResult<&[usize]> {
+        self.confirmed_features_.as_deref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BorutaSelector not fitted: confirmed_features_ missing".to_string(),
+            )
+        })
     }
 
     /// Get tentative features (undecided)
-    pub fn tentative_features(&self) -> &[usize] {
-        self.tentative_features_.as_ref().expect("operation should succeed")
+    pub fn tentative_features(&self) -> SklResult<&[usize]> {
+        self.tentative_features_.as_deref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BorutaSelector not fitted: tentative_features_ missing".to_string(),
+            )
+        })
     }
 
     /// Get rejected features (definitively irrelevant)
-    pub fn rejected_features(&self) -> &[usize] {
-        self.rejected_features_.as_ref().expect("operation should succeed")
+    pub fn rejected_features(&self) -> SklResult<&[usize]> {
+        self.rejected_features_.as_deref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BorutaSelector not fitted: rejected_features_ missing".to_string(),
+            )
+        })
     }
 
     /// Get feature importances from the final iteration
-    pub fn feature_importances(&self) -> &Array1<Float> {
-        self.feature_importances_.as_ref().expect("operation should succeed")
+    pub fn feature_importances(&self) -> SklResult<&Array1<Float>> {
+        self.feature_importances_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BorutaSelector not fitted: feature_importances_ missing".to_string(),
+            )
+        })
     }
 
     /// Get shadow feature importances from the final iteration
-    pub fn shadow_importances(&self) -> &Array1<Float> {
-        self.shadow_importances_.as_ref().expect("operation should succeed")
+    pub fn shadow_importances(&self) -> SklResult<&Array1<Float>> {
+        self.shadow_importances_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BorutaSelector not fitted: shadow_importances_ missing".to_string(),
+            )
+        })
     }
 
     /// Get number of iterations performed
-    pub fn n_iterations(&self) -> usize {
-        self.n_iterations_.expect("operation should succeed")
+    pub fn n_iterations(&self) -> SklResult<usize> {
+        self.n_iterations_.ok_or_else(|| {
+            SklearsError::FitError("BorutaSelector not fitted: n_iterations_ missing".to_string())
+        })
     }
 
     /// Get all selected features (confirmed + tentative)
-    pub fn selected_features(&self) -> Vec<usize> {
-        let mut selected = self.confirmed_features_.as_ref().expect("operation should succeed").clone();
-        selected.extend_from_slice(self.tentative_features_.as_ref().expect("operation should succeed"));
+    pub fn selected_features(&self) -> SklResult<Vec<usize>> {
+        let confirmed = self.confirmed_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BorutaSelector not fitted: confirmed_features_ missing".to_string(),
+            )
+        })?;
+        let tentative = self.tentative_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BorutaSelector not fitted: tentative_features_ missing".to_string(),
+            )
+        })?;
+        let mut selected = confirmed.clone();
+        selected.extend_from_slice(tentative);
         selected.sort_unstable();
-        selected
+        Ok(selected)
     }
 
     /// Check if the algorithm converged (no tentative features remaining)
-    pub fn converged(&self) -> bool {
-        self.tentative_features_.as_ref().expect("operation should succeed").is_empty()
+    pub fn converged(&self) -> SklResult<bool> {
+        let tentative = self.tentative_features_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "BorutaSelector not fitted: tentative_features_ missing".to_string(),
+            )
+        })?;
+        Ok(tentative.is_empty())
     }
 }
 
@@ -891,13 +1010,16 @@ pub enum AggregationMethod {
 
 /// Trait for selector functions that can be used in ensemble
 pub trait SelectorFunction: Send + Sync + std::fmt::Debug {
+    /// fn
     fn compute_scores(
         &self,
         x: &Array2<f64>,
         y_classif: Option<&Array1<i32>>,
         y_regression: Option<&Array1<f64>>,
     ) -> SklResult<Array1<f64>>;
+    /// fn
     fn name(&self) -> &str;
+    /// fn
     fn clone_box(&self) -> Box<dyn SelectorFunction>;
 }
 
@@ -914,6 +1036,7 @@ pub struct UnivariateSelector {
 }
 
 #[derive(Debug, Clone)]
+/// UnivariateMethod
 pub enum UnivariateMethod {
     /// Chi2
     Chi2,
@@ -930,6 +1053,7 @@ pub enum UnivariateMethod {
 }
 
 impl UnivariateSelector {
+    /// new
     pub fn new(method: UnivariateMethod) -> Self {
         Self { method }
     }
@@ -1123,6 +1247,7 @@ impl Default for TreeImportanceSelector {
 }
 
 impl TreeImportanceSelector {
+    /// new
     pub fn new() -> Self {
         Self {}
     }
@@ -1269,7 +1394,7 @@ impl EnsembleFeatureRanking<Untrained> {
                     feature_scores
                         .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-                    if n_selectors % 2 == 0 {
+                    if n_selectors.is_multiple_of(2) {
                         aggregated[i] = (feature_scores[n_selectors / 2 - 1]
                             + feature_scores[n_selectors / 2])
                             / 2.0;
@@ -1353,44 +1478,64 @@ impl EnsembleFeatureRanking<Untrained> {
 
 impl EnsembleFeatureRanking<Trained> {
     /// Get the final aggregated ranking
-    pub fn feature_importances(&self) -> &Array1<f64> {
-        self.final_ranking_.as_ref().expect("operation should succeed")
+    pub fn feature_importances(&self) -> SklResult<&Array1<f64>> {
+        self.final_ranking_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "EnsembleFeatureRanking not fitted: final_ranking_ missing".to_string(),
+            )
+        })
     }
 
     /// Get rankings from individual selectors
-    pub fn individual_rankings(&self) -> &[Array1<f64>] {
-        self.rankings_.as_ref().expect("operation should succeed")
+    pub fn individual_rankings(&self) -> SklResult<&[Array1<f64>]> {
+        self.rankings_.as_deref().ok_or_else(|| {
+            SklearsError::FitError(
+                "EnsembleFeatureRanking not fitted: rankings_ missing".to_string(),
+            )
+        })
     }
 
     /// Select top k features based on ensemble ranking
-    pub fn select_k_best(&self, k: usize) -> Vec<usize> {
-        let ranking = self.final_ranking_.as_ref().expect("operation should succeed");
+    pub fn select_k_best(&self, k: usize) -> SklResult<Vec<usize>> {
+        let ranking = self.final_ranking_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "EnsembleFeatureRanking not fitted: final_ranking_ missing".to_string(),
+            )
+        })?;
         let mut indexed_scores: Vec<(usize, f64)> = ranking
             .indexed_iter()
             .map(|(idx, &score)| (idx, score))
             .collect();
 
         indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        indexed_scores
+        Ok(indexed_scores
             .into_iter()
             .take(k)
             .map(|(idx, _)| idx)
-            .collect()
+            .collect())
     }
 
     /// Select features based on threshold
-    pub fn select_by_threshold(&self, threshold: f64) -> Vec<usize> {
-        let ranking = self.final_ranking_.as_ref().expect("operation should succeed");
-        ranking
+    pub fn select_by_threshold(&self, threshold: f64) -> SklResult<Vec<usize>> {
+        let ranking = self.final_ranking_.as_ref().ok_or_else(|| {
+            SklearsError::FitError(
+                "EnsembleFeatureRanking not fitted: final_ranking_ missing".to_string(),
+            )
+        })?;
+        Ok(ranking
             .indexed_iter()
             .filter_map(|(idx, &score)| if score >= threshold { Some(idx) } else { None })
-            .collect()
+            .collect())
     }
 }
 
 impl Transform<Array2<f64>> for EnsembleFeatureRanking<Trained> {
     fn transform(&self, x: &Array2<f64>) -> SklResult<Array2<f64>> {
-        let n_features = self.n_features_.expect("operation should succeed");
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::FitError(
+                "EnsembleFeatureRanking not fitted: n_features_ missing".to_string(),
+            )
+        })?;
         if x.ncols() != n_features {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features, got {}",
@@ -1399,7 +1544,7 @@ impl Transform<Array2<f64>> for EnsembleFeatureRanking<Trained> {
             )));
         }
 
-        let selected = self.select_k_best(n_features / 2);
+        let selected = self.select_k_best(n_features / 2)?;
         let n_samples = x.nrows();
         let n_selected = selected.len();
 
@@ -1415,9 +1560,13 @@ impl Transform<Array2<f64>> for EnsembleFeatureRanking<Trained> {
 impl SelectorMixin for EnsembleFeatureRanking<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
         // Default: select top 50% of features
-        let n_features = self.n_features_.expect("operation should succeed");
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::FitError(
+                "EnsembleFeatureRanking not fitted: n_features_ missing".to_string(),
+            )
+        })?;
         let k = n_features / 2;
-        let selected = self.select_k_best(k);
+        let selected = self.select_k_best(k)?;
 
         let mut support = vec![false; n_features];
         for &idx in &selected {
@@ -1427,7 +1576,12 @@ impl SelectorMixin for EnsembleFeatureRanking<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected = self.select_k_best(self.n_features_.expect("operation should succeed") / 2);
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::FitError(
+                "EnsembleFeatureRanking not fitted: n_features_ missing".to_string(),
+            )
+        })?;
+        let selected = self.select_k_best(n_features / 2)?;
         Ok(indices
             .iter()
             .filter_map(|&idx| selected.iter().position(|&f| f == idx))

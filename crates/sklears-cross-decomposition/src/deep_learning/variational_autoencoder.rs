@@ -20,7 +20,7 @@
 //! - Cross-modal retrieval and generation
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Distribution, Random, Rng, RngExt};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::SklearsError;
 use sklears_core::types::Float;
 use std::collections::HashMap;
@@ -116,7 +116,7 @@ impl ActivationFunction {
             Self::Swish => {
                 let sigmoid = x.mapv(|v| 1.0 / (1.0 + (-v).exp()));
                 let swish = self.apply(x);
-                &sigmoid * &(swish.mapv(|s| 1.0) + &(x * &sigmoid.mapv(|s| 1.0 - s)))
+                &sigmoid * &(swish.mapv(|_s| 1.0) + &(x * &sigmoid.mapv(|s| 1.0 - s)))
             }
             Self::GELU => {
                 // Approximate GELU derivative
@@ -183,7 +183,7 @@ impl Layer {
     /// Forward pass
     pub fn forward(&self, input: &Array2<Float>) -> Array2<Float> {
         // Linear transformation
-        let linear_output = input.dot(&self.weights) + &self.bias.view().insert_axis(Axis(0));
+        let linear_output = input.dot(&self.weights) + self.bias.view().insert_axis(Axis(0));
 
         // Batch normalization if enabled
         let normalized = if self.use_batch_norm {
@@ -206,9 +206,9 @@ impl Layer {
             let eps = 1e-8;
 
             let normalized = (input - &mean.view().insert_axis(Axis(0)))
-                / &(var + eps).mapv(|v| v.sqrt()).view().insert_axis(Axis(0));
+                / (var + eps).mapv(|v| v.sqrt()).view().insert_axis(Axis(0));
 
-            &normalized * &gamma.view().insert_axis(Axis(0)) + &beta.view().insert_axis(Axis(0))
+            &normalized * &gamma.view().insert_axis(Axis(0)) + beta.view().insert_axis(Axis(0))
         } else {
             input.clone()
         }
@@ -462,7 +462,7 @@ impl CrossModalVAE {
         let std = logvar.mapv(|x| (0.5 * x).exp());
         let mut rng = thread_rng();
         let epsilon = Array2::<Float>::from_shape_fn(mean.dim(), |_| {
-            use scirs2_core::random::{Distribution, RandNormal as Normal, RngExt};
+            use scirs2_core::random::{Distribution, RandNormal as Normal};
             Normal::new(0.0, 1.0)
                 .expect("Normal distribution params should be valid")
                 .sample(&mut rng)
@@ -696,7 +696,7 @@ mod tests {
     use super::*;
     use scirs2_core::essentials::Normal;
     use scirs2_core::ndarray::Array2;
-    use scirs2_core::random::{thread_rng, RngExt};
+    use scirs2_core::random::thread_rng;
 
     #[test]
     fn test_layer_creation() {
@@ -755,11 +755,11 @@ mod tests {
 
         let x = Array2::from_shape_fn((4, 10), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_fn((4, 8), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let z_x = vae.encode_x(&x);
@@ -786,11 +786,11 @@ mod tests {
 
         let x = Array2::from_shape_fn((3, 6), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_fn((3, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let y_from_x = vae.cross_generate_x_to_y(&x);
@@ -811,11 +811,11 @@ mod tests {
 
         let x = Array2::from_shape_fn((5, 8), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_fn((5, 6), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let shared_repr = vae.get_shared_representation(&x, &y);
@@ -862,11 +862,11 @@ mod tests {
 
         let x = Array2::from_shape_fn((10, 6), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_fn((10, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let similarity = vae.compute_cross_modal_similarity(&x, &y);
@@ -881,7 +881,7 @@ mod tests {
         let layer = Layer::new(5, 3, ActivationFunction::ReLU, true);
         let input = Array2::from_shape_fn((4, 5), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let output = layer.forward(&input);

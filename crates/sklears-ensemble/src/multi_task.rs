@@ -138,6 +138,7 @@ pub enum CrossTaskValidation {
 }
 
 /// Multi-task ensemble classifier
+#[allow(dead_code)] // planned API fields
 pub struct MultiTaskEnsembleClassifier<State = Untrained> {
     config: MultiTaskEnsembleConfig,
     state: std::marker::PhantomData<State>,
@@ -300,6 +301,7 @@ impl MultiTaskEnsembleConfigBuilder {
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 impl MultiTaskEnsembleRegressor {
     pub fn new(config: MultiTaskEnsembleConfig) -> Self {
         Self {
@@ -347,7 +349,7 @@ impl MultiTaskEnsembleRegressor {
         self.compute_task_similarities(tasks)?;
 
         // Train models based on sharing strategy
-        let training_results = match self.config.sharing_strategy {
+        let _training_results = match self.config.sharing_strategy {
             TaskSharingStrategy::Independent => self.train_independent_tasks(tasks)?,
             TaskSharingStrategy::SharedRepresentation => self.train_shared_representation(tasks)?,
             TaskSharingStrategy::ParameterSharing => self.train_parameter_sharing(tasks)?,
@@ -611,7 +613,7 @@ impl MultiTaskEnsembleRegressor {
             let mut models = Vec::new();
 
             for _ in 0..self.config.n_estimators_per_task {
-                let gb_config = GradientBoostingConfig {
+                let _gb_config = GradientBoostingConfig {
                     n_estimators: 50,
                     learning_rate: 0.1,
                     max_depth: 6,
@@ -677,7 +679,7 @@ impl MultiTaskEnsembleRegressor {
         }
 
         for _ in 0..self.config.n_estimators_per_task {
-            let gb_config = GradientBoostingConfig {
+            let _gb_config = GradientBoostingConfig {
                 n_estimators: 30,
                 learning_rate: 0.1,
                 max_depth: 4,
@@ -718,7 +720,7 @@ impl MultiTaskEnsembleRegressor {
 
             let mut group_models = Vec::new();
             for _ in 0..self.config.n_estimators_per_task {
-                let gb_config = GradientBoostingConfig {
+                let _gb_config = GradientBoostingConfig {
                     n_estimators: 40,
                     learning_rate: 0.1,
                     max_depth: 5,
@@ -819,7 +821,7 @@ impl MultiTaskEnsembleRegressor {
                 let combined_data = self.combine_similar_task_data(tasks, &similar_tasks)?;
 
                 for _ in 0..self.config.n_estimators_per_task {
-                    let gb_config = GradientBoostingConfig {
+                    let _gb_config = GradientBoostingConfig {
                         n_estimators: 50,
                         learning_rate: 0.1,
                         max_depth: 6,
@@ -839,7 +841,7 @@ impl MultiTaskEnsembleRegressor {
             } else {
                 // Train independently if no similar tasks
                 for _ in 0..self.config.n_estimators_per_task {
-                    let gb_config = GradientBoostingConfig {
+                    let _gb_config = GradientBoostingConfig {
                         n_estimators: 50,
                         learning_rate: 0.1,
                         max_depth: 6,
@@ -1059,6 +1061,7 @@ impl MultiTaskEnsembleRegressor {
     }
 }
 
+#[allow(non_snake_case)] // standard ML notation
 impl MultiTaskEnsembleRegressor<Trained> {
     /// Predict for a specific task
     pub fn predict_task(&self, task_id: &str, X: &Array2<f64>) -> SklResult<Vec<f64>> {

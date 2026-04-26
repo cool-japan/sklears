@@ -28,7 +28,7 @@ pub struct ConnectivityBasedOutlierFactor {
     /// Fitted nearest neighbors model
     nn_model: Option<NearestNeighbors<sklears_core::traits::Trained>>,
     /// Training data
-    X_train: Option<Array2<Float>>,
+    x_train: Option<Array2<Float>>,
     /// COF scores for training data
     cof_scores: Option<Array1<Float>>,
 }
@@ -40,7 +40,7 @@ impl ConnectivityBasedOutlierFactor {
             k,
             distance: Distance::Euclidean,
             nn_model: None,
-            X_train: None,
+            x_train: None,
             cof_scores: None,
         }
     }
@@ -54,7 +54,7 @@ impl ConnectivityBasedOutlierFactor {
     /// Compute the average chaining distance for a point
     fn compute_avg_chaining_distance(
         &self,
-        X: &ArrayView2<Float>,
+        x: &ArrayView2<Float>,
         point_idx: usize,
         neighbors: &[usize],
     ) -> NeighborsResult<Float> {
@@ -63,11 +63,11 @@ impl ConnectivityBasedOutlierFactor {
         }
 
         let mut total_distance = 0.0;
-        let point = X.row(point_idx);
+        let point = x.row(point_idx);
 
         for &neighbor_idx in neighbors {
-            if neighbor_idx != point_idx && neighbor_idx < X.nrows() {
-                let neighbor = X.row(neighbor_idx);
+            if neighbor_idx != point_idx && neighbor_idx < x.nrows() {
+                let neighbor = x.row(neighbor_idx);
                 let distance = self.compute_distance(&point, &neighbor);
                 total_distance += distance;
             }
@@ -77,14 +77,14 @@ impl ConnectivityBasedOutlierFactor {
     }
 
     /// Compute the COF score for a point
-    fn compute_cof_score(&self, X: &ArrayView2<Float>, point_idx: usize) -> NeighborsResult<Float> {
+    fn compute_cof_score(&self, x: &ArrayView2<Float>, point_idx: usize) -> NeighborsResult<Float> {
         let nn_model = self
             .nn_model
             .as_ref()
             .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
 
         // Get k-nearest neighbors
-        let query = X.slice(s![point_idx..point_idx + 1, ..]).to_owned();
+        let query = x.slice(s![point_idx..point_idx + 1, ..]).to_owned();
         let (distances_opt, indices) = nn_model.kneighbors(&query, Some(self.k + 1), true)?;
         let _distances = distances_opt.expect("operation should succeed");
 
@@ -101,13 +101,13 @@ impl ConnectivityBasedOutlierFactor {
         }
 
         // Compute average chaining distance for the point
-        let point_acd = self.compute_avg_chaining_distance(X, point_idx, &neighbors)?;
+        let point_acd = self.compute_avg_chaining_distance(x, point_idx, &neighbors)?;
 
         // Compute average chaining distance for neighbors
         let mut neighbor_acds = Vec::new();
         for &neighbor_idx in &neighbors {
-            if neighbor_idx < X.nrows() {
-                let neighbor_query = X.slice(s![neighbor_idx..neighbor_idx + 1, ..]).to_owned();
+            if neighbor_idx < x.nrows() {
+                let neighbor_query = x.slice(s![neighbor_idx..neighbor_idx + 1, ..]).to_owned();
                 let (_, neighbor_indices) =
                     nn_model.kneighbors(&neighbor_query, Some(self.k + 1), false)?;
 
@@ -120,7 +120,7 @@ impl ConnectivityBasedOutlierFactor {
                     .collect();
 
                 let neighbor_acd =
-                    self.compute_avg_chaining_distance(X, neighbor_idx, &neighbor_neighbors)?;
+                    self.compute_avg_chaining_distance(x, neighbor_idx, &neighbor_neighbors)?;
                 neighbor_acds.push(neighbor_acd);
             }
         }
@@ -170,12 +170,12 @@ impl ConnectivityBasedOutlierFactor {
     }
 
     /// Compute COF scores for all points
-    fn compute_all_cof_scores(&self, X: &ArrayView2<Float>) -> NeighborsResult<Array1<Float>> {
-        let n_samples = X.nrows();
+    fn compute_all_cof_scores(&self, x: &ArrayView2<Float>) -> NeighborsResult<Array1<Float>> {
+        let n_samples = x.nrows();
         let mut cof_scores = Array1::zeros(n_samples);
 
         for i in 0..n_samples {
-            cof_scores[i] = self.compute_cof_score(X, i)?;
+            cof_scores[i] = self.compute_cof_score(x, i)?;
         }
 
         Ok(cof_scores)
@@ -185,22 +185,22 @@ impl ConnectivityBasedOutlierFactor {
 impl Fit<Features, ()> for ConnectivityBasedOutlierFactor {
     type Fitted = ConnectivityBasedOutlierFactor;
 
-    fn fit(self, X: &Features, _y: &()) -> Result<Self::Fitted> {
-        if X.is_empty() {
+    fn fit(self, x: &Features, _y: &()) -> Result<Self::Fitted> {
+        if x.is_empty() {
             return Err(NeighborsError::EmptyInput.into());
         }
 
         // Fit nearest neighbors model
         let nn = NearestNeighbors::new(self.k + 1).with_metric(self.distance.clone());
-        let fitted_nn = nn.fit(X, &())?;
+        let fitted_nn = nn.fit(x, &())?;
 
         let mut fitted_model = self;
         fitted_model.nn_model = Some(fitted_nn);
-        fitted_model.X_train = Some(X.to_owned());
+        fitted_model.x_train = Some(x.to_owned());
 
         // Compute COF scores
         let cof_scores = fitted_model
-            .compute_all_cof_scores(&X.view())
+            .compute_all_cof_scores(&x.view())
             .map_err(sklears_core::error::SklearsError::from)?;
         fitted_model.cof_scores = Some(cof_scores);
 
@@ -209,42 +209,41 @@ impl Fit<Features, ()> for ConnectivityBasedOutlierFactor {
 }
 
 impl Predict<Features, Array1<Float>> for ConnectivityBasedOutlierFactor {
-    #[allow(non_snake_case)]
-    fn predict(&self, X: &Features) -> Result<Array1<Float>> {
-        let X_train = self.X_train.as_ref().ok_or_else(|| {
+    fn predict(&self, x: &Features) -> Result<Array1<Float>> {
+        let x_train = self.x_train.as_ref().ok_or_else(|| {
             sklears_core::error::SklearsError::from(NeighborsError::InvalidInput(
                 "Model not fitted".to_string(),
             ))
         })?;
 
         // For new points, we need to compute COF relative to training data
-        let n_query = X.nrows();
+        let n_query = x.nrows();
         let mut cof_scores = Array1::zeros(n_query);
 
         for i in 0..n_query {
             // Temporarily add query point to training data
-            let mut extended_X = Array2::zeros((X_train.nrows() + 1, X_train.ncols()));
-            extended_X
-                .slice_mut(s![..X_train.nrows(), ..])
-                .assign(X_train);
-            extended_X.row_mut(X_train.nrows()).assign(&X.row(i));
+            let mut extended_x = Array2::zeros((x_train.nrows() + 1, x_train.ncols()));
+            extended_x
+                .slice_mut(s![..x_train.nrows(), ..])
+                .assign(x_train);
+            extended_x.row_mut(x_train.nrows()).assign(&x.row(i));
 
             // Fit NN model on extended data
             let nn = NearestNeighbors::new(self.k + 1).with_metric(self.distance.clone());
-            let fitted_nn = nn.fit(&extended_X, &())?;
+            let fitted_nn = nn.fit(&extended_x, &())?;
 
             // Create temporary COF model
             let temp_cof = ConnectivityBasedOutlierFactor {
                 k: self.k,
                 distance: self.distance.clone(),
                 nn_model: Some(fitted_nn),
-                X_train: Some(extended_X.clone()),
+                x_train: Some(extended_x.clone()),
                 cof_scores: None,
             };
 
             // Compute COF for the query point
             cof_scores[i] = temp_cof
-                .compute_cof_score(&extended_X.view(), X_train.nrows())
+                .compute_cof_score(&extended_x.view(), x_train.nrows())
                 .map_err(sklears_core::error::SklearsError::from)?;
         }
 
@@ -258,7 +257,7 @@ impl Clone for ConnectivityBasedOutlierFactor {
             k: self.k,
             distance: self.distance.clone(),
             nn_model: self.nn_model.clone(),
-            X_train: self.X_train.clone(),
+            x_train: self.x_train.clone(),
             cof_scores: self.cof_scores.clone(),
         }
     }
@@ -280,7 +279,7 @@ pub struct LocalCorrelationIntegral {
     /// Distance metric
     distance: Distance,
     /// Training data
-    X_train: Option<Array2<Float>>,
+    x_train: Option<Array2<Float>>,
     /// LOCI scores for training data
     loci_scores: Option<Array1<Float>>,
 }
@@ -294,7 +293,7 @@ impl LocalCorrelationIntegral {
             n_radii,
             alpha: 3.0, // Standard threshold
             distance: Distance::Euclidean,
-            X_train: None,
+            x_train: None,
             loci_scores: None,
         }
     }
@@ -314,16 +313,16 @@ impl LocalCorrelationIntegral {
     /// Compute correlation integral for a point at given radius
     fn compute_correlation_integral(
         &self,
-        X: &ArrayView2<Float>,
+        x: &ArrayView2<Float>,
         point_idx: usize,
         radius: Float,
     ) -> Float {
-        let point = X.row(point_idx);
+        let point = x.row(point_idx);
         let mut count = 0;
 
-        for i in 0..X.nrows() {
+        for i in 0..x.nrows() {
             if i != point_idx {
-                let other_point = X.row(i);
+                let other_point = x.row(i);
                 let distance = self.compute_distance(&point, &other_point);
                 if distance <= radius {
                     count += 1;
@@ -331,23 +330,23 @@ impl LocalCorrelationIntegral {
             }
         }
 
-        count as Float / (X.nrows() - 1) as Float
+        count as Float / (x.nrows() - 1) as Float
     }
 
     /// Compute local correlation integral and its standard deviation
     fn compute_lci_and_mdef(
         &self,
-        X: &ArrayView2<Float>,
+        x: &ArrayView2<Float>,
         point_idx: usize,
         radius: Float,
     ) -> (Float, Float) {
-        let point = X.row(point_idx);
+        let point = x.row(point_idx);
 
         // Find all points within radius
         let mut neighbors = Vec::new();
-        for i in 0..X.nrows() {
+        for i in 0..x.nrows() {
             if i != point_idx {
-                let other_point = X.row(i);
+                let other_point = x.row(i);
                 let distance = self.compute_distance(&point, &other_point);
                 if distance <= radius {
                     neighbors.push(i);
@@ -363,7 +362,7 @@ impl LocalCorrelationIntegral {
         // Compute correlation integrals for neighbors
         let mut neighbor_cis = Vec::new();
         for &neighbor_idx in &neighbors {
-            let ci = self.compute_correlation_integral(X, neighbor_idx, radius);
+            let ci = self.compute_correlation_integral(x, neighbor_idx, radius);
             neighbor_cis.push(ci);
         }
 
@@ -388,7 +387,7 @@ impl LocalCorrelationIntegral {
         let std_dev = variance.sqrt();
 
         // MDEF (Multi-granularity Deviation Factor)
-        let point_ci = self.compute_correlation_integral(X, point_idx, radius);
+        let point_ci = self.compute_correlation_integral(x, point_idx, radius);
         let mdef = if std_dev > 1e-10 && point_ci.is_finite() {
             (mean_ci - point_ci) / std_dev
         } else {
@@ -399,7 +398,7 @@ impl LocalCorrelationIntegral {
     }
 
     /// Compute LOCI score for a point
-    fn compute_loci_score(&self, X: &ArrayView2<Float>, point_idx: usize) -> Float {
+    fn compute_loci_score(&self, x: &ArrayView2<Float>, point_idx: usize) -> Float {
         let mut max_mdef: Float = 0.0;
 
         // Sample radii between r_min and r_max using logarithmic spacing for better coverage
@@ -411,7 +410,7 @@ impl LocalCorrelationIntegral {
             let log_radius = log_r_min + t * (log_r_max - log_r_min);
             let radius = log_radius.exp();
 
-            let (_, mdef) = self.compute_lci_and_mdef(X, point_idx, radius);
+            let (_, mdef) = self.compute_lci_and_mdef(x, point_idx, radius);
 
             // Only consider positive MDEF values (negative values indicate lower density than neighbors)
             if mdef > 0.0 {
@@ -453,27 +452,27 @@ impl LocalCorrelationIntegral {
     }
 
     /// Compute LOCI scores for all points
-    fn compute_all_loci_scores(&self, X: &ArrayView2<Float>) -> Array1<Float> {
-        let n_samples = X.nrows();
+    fn compute_all_loci_scores(&self, x: &ArrayView2<Float>) -> Array1<Float> {
+        let n_samples = x.nrows();
         let mut loci_scores = Array1::zeros(n_samples);
 
         for i in 0..n_samples {
-            loci_scores[i] = self.compute_loci_score(X, i);
+            loci_scores[i] = self.compute_loci_score(x, i);
         }
 
         loci_scores
     }
 
     /// Detect outliers based on LOCI scores
-    pub fn predict_outliers(&self, X: &ArrayView2<Float>) -> NeighborsResult<Array1<bool>> {
+    pub fn predict_outliers(&self, x: &ArrayView2<Float>) -> NeighborsResult<Array1<bool>> {
         let loci_scores = if let Some(ref scores) = self.loci_scores {
-            if X.nrows() == scores.len() {
+            if x.nrows() == scores.len() {
                 scores.clone()
             } else {
-                self.compute_all_loci_scores(X)
+                self.compute_all_loci_scores(x)
             }
         } else {
-            self.compute_all_loci_scores(X)
+            self.compute_all_loci_scores(x)
         };
 
         // Use adaptive threshold based on score distribution
@@ -516,16 +515,16 @@ impl LocalCorrelationIntegral {
 impl Fit<Features, ()> for LocalCorrelationIntegral {
     type Fitted = LocalCorrelationIntegral;
 
-    fn fit(self, X: &Features, _y: &()) -> Result<Self::Fitted> {
-        if X.is_empty() {
+    fn fit(self, x: &Features, _y: &()) -> Result<Self::Fitted> {
+        if x.is_empty() {
             return Err(NeighborsError::EmptyInput.into());
         }
 
         let mut fitted_model = self;
-        fitted_model.X_train = Some(X.to_owned());
+        fitted_model.x_train = Some(x.to_owned());
 
         // Compute LOCI scores
-        let loci_scores = fitted_model.compute_all_loci_scores(&X.view());
+        let loci_scores = fitted_model.compute_all_loci_scores(&x.view());
         fitted_model.loci_scores = Some(loci_scores);
 
         Ok(fitted_model)
@@ -533,11 +532,11 @@ impl Fit<Features, ()> for LocalCorrelationIntegral {
 }
 
 impl Predict<Features, Array1<Float>> for LocalCorrelationIntegral {
-    fn predict(&self, X: &Features) -> Result<Array1<Float>> {
-        let loci_scores = if let Some(ref X_train) = self.X_train {
-            if X.nrows() == X_train.nrows()
-                && X.iter()
-                    .zip(X_train.iter())
+    fn predict(&self, x: &Features) -> Result<Array1<Float>> {
+        let loci_scores = if let Some(ref x_train) = self.x_train {
+            if x.nrows() == x_train.nrows()
+                && x.iter()
+                    .zip(x_train.iter())
                     .all(|(a, b)| (a - b).abs() < 1e-10)
             {
                 // Same as training data, return cached scores
@@ -548,7 +547,7 @@ impl Predict<Features, Array1<Float>> for LocalCorrelationIntegral {
                 })?
             } else {
                 // New data, compute scores
-                self.compute_all_loci_scores(&X.view())
+                self.compute_all_loci_scores(&x.view())
             }
         } else {
             return Err(NeighborsError::InvalidInput("Model not fitted".to_string()).into());
@@ -566,7 +565,7 @@ impl Clone for LocalCorrelationIntegral {
             n_radii: self.n_radii,
             alpha: self.alpha,
             distance: self.distance.clone(),
-            X_train: self.X_train.clone(),
+            x_train: self.x_train.clone(),
             loci_scores: self.loci_scores.clone(),
         }
     }
@@ -582,10 +581,8 @@ enum IsolationNode {
         split_value: Float,
         /// Left child
         left: Box<IsolationNode>,
-        /// Right child  
+        /// Right child
         right: Box<IsolationNode>,
-        /// Current depth
-        depth: usize,
     },
     Leaf {
         /// Depth of this leaf
@@ -678,7 +675,6 @@ impl IsolationNode {
             split_value,
             left,
             right,
-            depth,
         }
     }
 
@@ -700,7 +696,6 @@ impl IsolationNode {
                 split_value,
                 left,
                 right,
-                ..
             } => {
                 if point[*split_feature] < *split_value {
                     left.path_length(point)
@@ -732,7 +727,7 @@ pub struct IsolationForest {
     /// Trained isolation trees
     trees: Option<Vec<IsolationNode>>,
     /// Training data for reference
-    X_train: Option<Array2<Float>>,
+    x_train: Option<Array2<Float>>,
     /// Anomaly threshold
     threshold: Option<Float>,
 }
@@ -747,7 +742,7 @@ impl IsolationForest {
             random_state: None,
             contamination: 0.1,
             trees: None,
-            X_train: None,
+            x_train: None,
             threshold: None,
         }
     }
@@ -777,18 +772,18 @@ impl IsolationForest {
     }
 
     /// Compute anomaly scores for data
-    pub fn decision_function(&self, X: &ArrayView2<Float>) -> NeighborsResult<Array1<Float>> {
+    pub fn decision_function(&self, x: &ArrayView2<Float>) -> NeighborsResult<Array1<Float>> {
         let trees = self
             .trees
             .as_ref()
             .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
 
-        let n_samples = X.nrows();
+        let n_samples = x.nrows();
         let mut scores = Array1::zeros(n_samples);
 
         // Compute average path length for each sample across all trees
         for i in 0..n_samples {
-            let point = X.row(i);
+            let point = x.row(i);
             let mut total_path_length = 0.0;
 
             for tree in trees {
@@ -800,7 +795,7 @@ impl IsolationForest {
             // Compute anomaly score: s(x,n) = 2^(-E(h(x))/c(n))
             // where c(n) is the average path length of unsuccessful search in BST of n points
             let training_size = self
-                .X_train
+                .x_train
                 .as_ref()
                 .expect("operation should succeed")
                 .nrows();
@@ -818,39 +813,30 @@ impl IsolationForest {
     }
 
     /// Predict outliers (-1 for outliers, 1 for inliers)
-    pub fn predict_outliers(&self, X: &ArrayView2<Float>) -> NeighborsResult<Array1<i32>> {
-        let scores = self.decision_function(X)?;
+    pub fn predict_outliers(&self, x: &ArrayView2<Float>) -> NeighborsResult<Array1<i32>> {
+        let scores = self.decision_function(x)?;
         let threshold = self
             .threshold
             .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
 
         Ok(scores.mapv(|score| if score > threshold { 1 } else { -1 }))
     }
-
-    /// Calculate expected path length for BST with n points
-    fn expected_path_length(n: usize) -> Float {
-        if n <= 1 {
-            0.0
-        } else {
-            2.0 * ((n as Float - 1.0).ln() + 0.5772156649) - 2.0 * (n as Float - 1.0) / (n as Float)
-        }
-    }
 }
 
 impl Fit<Features, ()> for IsolationForest {
     type Fitted = IsolationForest;
 
-    fn fit(self, X: &Features, _y: &()) -> Result<Self::Fitted> {
-        if X.is_empty() {
+    fn fit(self, x: &Features, _y: &()) -> Result<Self::Fitted> {
+        if x.is_empty() {
             return Err(NeighborsError::EmptyInput.into());
         }
 
         let mut fitted_model = self;
-        fitted_model.X_train = Some(X.to_owned());
+        fitted_model.x_train = Some(x.to_owned());
 
         // Determine sample size
         let sample_size = fitted_model.sample_size.unwrap_or_else(|| {
-            256.min(X.nrows()) // Standard sample size for Isolation Forest
+            256.min(x.nrows()) // Standard sample size for Isolation Forest
         });
 
         // Determine max depth
@@ -869,23 +855,23 @@ impl Fit<Features, ()> for IsolationForest {
 
         for _ in 0..fitted_model.n_trees {
             // Sample data for this tree
-            let indices: Vec<usize> = if sample_size >= X.nrows() {
-                (0..X.nrows()).collect()
+            let indices: Vec<usize> = if sample_size >= x.nrows() {
+                (0..x.nrows()).collect()
             } else {
-                let mut all_indices: Vec<usize> = (0..X.nrows()).collect();
+                let mut all_indices: Vec<usize> = (0..x.nrows()).collect();
                 all_indices.shuffle(&mut rng);
                 all_indices.into_iter().take(sample_size).collect()
             };
 
             // Build isolation tree
-            let tree = IsolationNode::new(&X.view(), indices, 0, max_depth, &mut rng);
+            let tree = IsolationNode::new(&x.view(), indices, 0, max_depth, &mut rng);
             trees.push(tree);
         }
 
         fitted_model.trees = Some(trees);
 
         // Compute threshold based on contamination rate
-        let scores = fitted_model.decision_function(&X.view())?;
+        let scores = fitted_model.decision_function(&x.view())?;
         let mut sorted_scores = scores.to_vec();
         sorted_scores.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
 
@@ -899,8 +885,8 @@ impl Fit<Features, ()> for IsolationForest {
 }
 
 impl Predict<Features, Array1<Float>> for IsolationForest {
-    fn predict(&self, X: &Features) -> Result<Array1<Float>> {
-        self.decision_function(&X.view())
+    fn predict(&self, x: &Features) -> Result<Array1<Float>> {
+        self.decision_function(&x.view())
             .map_err(|e| sklears_core::error::SklearsError::InvalidInput(e.to_string()))
     }
 }
@@ -914,7 +900,7 @@ impl Clone for IsolationForest {
             random_state: self.random_state,
             contamination: self.contamination,
             trees: self.trees.clone(),
-            X_train: self.X_train.clone(),
+            x_train: self.x_train.clone(),
             threshold: self.threshold,
         }
     }
@@ -1112,7 +1098,7 @@ mod tests {
         // All scores should be valid (between 0 and 1)
         for (i, &score) in scores.iter().enumerate() {
             assert!(
-                score >= 0.0 && score <= 1.0,
+                (0.0..=1.0).contains(&score),
                 "Score {} at index {} should be between 0 and 1",
                 score,
                 i
@@ -1147,7 +1133,7 @@ mod tests {
         // All scores should be valid (between 0 and 1)
         for &score in scores.iter() {
             assert!(
-                score >= 0.0 && score <= 1.0,
+                (0.0..=1.0).contains(&score),
                 "Score {} should be between 0 and 1",
                 score
             );
@@ -1176,7 +1162,7 @@ mod tests {
 
         // Should still work with small dataset
         for &score in scores.iter() {
-            assert!(score >= 0.0 && score <= 1.0);
+            assert!((0.0..=1.0).contains(&score));
             assert!(score.is_finite());
         }
     }

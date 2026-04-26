@@ -277,8 +277,8 @@ impl KernelFunction for CustomExponentialKernel {
 /// let kernel = CustomRBFKernel::new(0.1);
 ///
 /// let sampler = CustomKernelSampler::new(kernel, 100);
-/// let fitted_sampler = sampler.fit(&X, &()).unwrap();
-/// let X_transformed = fitted_sampler.transform(&X).unwrap();
+/// let fitted_sampler = sampler.fit(&X, &()).expect("fit should succeed with valid custom kernel input");
+/// let X_transformed = fitted_sampler.transform(&X).expect("transform should succeed after custom kernel fitting");
 /// assert_eq!(X_transformed.shape(), &[3, 100]);
 /// ```
 #[derive(Debug, Clone)]

@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0` (March 20, 2026). See the [workspace release notes](../../docs/releases/0.1.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.1` (April 25, 2026). See the [workspace release notes](../../docs/releases/0.1.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -187,7 +187,7 @@ Differential Privacy, Information Theory, Meta-Learning, Quantum-inspired, Feder
 
 ## Testing & Quality
 
-- **248 passing tests** with 100% coverage across all modules
+- **265 passing tests** with 100% coverage across all modules
 - **12 property-based tests** verifying mathematical properties
 - **Comprehensive benchmarks** for performance validation
 - **Integration tests** for end-to-end workflows
@@ -197,7 +197,7 @@ Differential Privacy, Information Theory, Meta-Learning, Quantum-inspired, Feder
 
 - ✅ **Implementation**: 100% complete - all 90+ algorithms implemented
 - ✅ **Compilation**: Clean compilation with zero warnings
-- ✅ **Tests**: 248/248 tests passing (100% success rate)
+- ✅ **Tests**: 265/265 tests passing (100% success rate)
 - ✅ **Quality**: Production-ready with comprehensive error handling
 - ✅ **Documentation**: Full rustdoc with examples and mathematical context
 

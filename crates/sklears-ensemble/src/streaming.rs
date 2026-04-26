@@ -11,9 +11,6 @@ use sklears_core::types::Float;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
-
 /// Configuration for streaming ensemble methods
 #[derive(Debug, Clone)]
 pub struct StreamingConfig {
@@ -76,6 +73,7 @@ pub enum DriftDetectionMethod {
 
 /// Concept drift detector
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // all fields used in drift detection algorithms
 pub struct ConceptDriftDetector {
     method: DriftDetectionMethod,
     threshold: Float,
@@ -151,7 +149,7 @@ impl ConceptDriftDetector {
         // Simple ADWIN implementation
         let n = self.window.len();
         let total_sum: Float = self.window.iter().sum();
-        let total_mean = total_sum / n as Float;
+        let _total_mean = total_sum / n as Float;
 
         // Check for change in mean with sliding windows
         for i in self.min_length..n - self.min_length {
@@ -399,7 +397,7 @@ impl StreamingModel for StreamingLinearRegression {
             self.recent_errors.iter().sum::<Float>() / self.recent_errors.len() as Float;
 
         // Convert error to performance (0.0 = worst, 1.0 = best)
-        (1.0 / (1.0 + mean_error)).min(1.0).max(0.0)
+        (1.0 / (1.0 + mean_error)).clamp(0.0, 1.0)
     }
 
     fn reset(&mut self) -> Result<()> {
@@ -593,7 +591,7 @@ impl StreamingEnsemble<Trained> {
         }
 
         // Dynamic ensemble size adjustment
-        if self.config.adaptive_ensemble_size && self.samples_seen_ % 100 == 0 {
+        if self.config.adaptive_ensemble_size && self.samples_seen_.is_multiple_of(100) {
             self.adjust_ensemble_size(x.len())?;
         }
 
@@ -661,8 +659,8 @@ impl StreamingEnsemble<Trained> {
 
                 // Reset bottom 30% of models
                 let reset_count = (models.len() * 30 / 100).max(1);
-                for i in 0..reset_count.min(performance_scores.len()) {
-                    let model_idx = performance_scores[i].0;
+                for score in performance_scores.iter().take(reset_count) {
+                    let model_idx = score.0;
                     models[model_idx].reset()?;
                 }
             }
@@ -987,6 +985,7 @@ impl StreamingEnsemble<Trained> {
 }
 
 /// Adaptive streaming ensemble that automatically adjusts its configuration
+#[allow(dead_code)] // planned API fields for adaptive behavior
 pub struct AdaptiveStreamingEnsemble<State = Untrained> {
     base_ensemble: StreamingEnsemble<State>,
     adaptation_config: AdaptationConfig,
@@ -1234,7 +1233,7 @@ mod tests {
         let mut trained = ensemble
             .fit(&x1, &y1)
             .expect("model fitting should succeed");
-        let initial_models = trained.model_count();
+        let _initial_models = trained.model_count();
 
         // Phase 2: Different relationship (concept drift)
         let mut x_data2 = Vec::new();
@@ -1292,7 +1291,7 @@ mod tests {
 
     #[test]
     fn test_dynamic_ensemble_size_adjustment() {
-        let mut ensemble = StreamingEnsemble::new()
+        let ensemble = StreamingEnsemble::new()
             .max_models(8)
             .adaptive_ensemble_size(true)
             .performance_window_size(50);
@@ -1304,7 +1303,7 @@ mod tests {
         let y = Array1::from_shape_fn(n_samples, |i| (i % 2) as Float);
 
         let mut ensemble = ensemble.fit(&x, &y).expect("model fitting should succeed");
-        let initial_count = ensemble.model_count();
+        let _initial_count = ensemble.model_count();
 
         // Process additional samples to trigger size adjustment
         for i in 0..300 {

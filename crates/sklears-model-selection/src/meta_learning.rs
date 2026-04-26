@@ -221,8 +221,11 @@ pub struct MetaLearningConfig {
 pub struct MetaLearningEngine {
     config: MetaLearningConfig,
     historical_records: Vec<OptimizationRecord>,
+    #[allow(dead_code)]
+    // dataset_similarity_cache reserved for future dataset-to-dataset similarity queries
     dataset_similarity_cache: HashMap<String, Vec<(String, Float)>>,
     surrogate_models: HashMap<String, Box<dyn SurrogateModelTrait>>,
+    #[allow(dead_code)] // rng retained for future stochastic meta-learning strategies
     rng: StdRng,
 }
 
@@ -247,12 +250,14 @@ trait SurrogateModelTrait: std::fmt::Debug {
 #[derive(Debug)]
 struct RandomForestSurrogate {
     n_trees: usize,
+    #[allow(dead_code)] // max_depth reserved for future tree depth limiting
     max_depth: Option<usize>,
     models: Vec<SimpleTree>,
 }
 
 /// Simple decision tree for surrogate model
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // SimpleTree fields are part of tree structure but recursive prediction not yet called
 struct SimpleTree {
     feature_idx: Option<usize>,
     threshold: Option<Float>,
@@ -312,7 +317,11 @@ impl MetaLearningEngine {
         self.historical_records.push(record);
 
         // Update models periodically
-        if self.historical_records.len() % self.config.update_interval == 0 {
+        if self
+            .historical_records
+            .len()
+            .is_multiple_of(self.config.update_interval)
+        {
             self.update_surrogate_models().unwrap_or_else(|e| {
                 eprintln!("Warning: Failed to update surrogate models: {}", e);
             });
@@ -1067,7 +1076,7 @@ mod tests {
         let similarity = engine
             .calculate_similarity(&dataset1, &dataset2, &SimilarityMetric::Cosine)
             .expect("operation should succeed");
-        assert!(similarity >= 0.0 && similarity <= 1.0);
+        assert!((0.0..=1.0).contains(&similarity));
     }
 
     #[test]
@@ -1080,7 +1089,7 @@ mod tests {
             .extract_features(&dataset)
             .expect("operation should succeed");
 
-        assert!(features.len() > 0);
+        assert!(!features.is_empty());
     }
 
     #[test]

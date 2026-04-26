@@ -48,6 +48,7 @@ pub struct TpuBuffer<T> {
     pub size: usize,
     pub device: TpuDevice,
     pub shape: Vec<usize>,
+    #[allow(dead_code)] // Reserved for native TPU buffer handle (Google XLA / libtpu)
     backend_handle: Option<Box<dyn any::Any + Send + Sync>>,
 }
 
@@ -65,6 +66,7 @@ impl<T> Drop for TpuBuffer<T> {
 pub struct TpuContext {
     pub device: TpuDevice,
     pub runtime_version: String,
+    #[allow(dead_code)] // Reserved for native TPU context (Google XLA / libtpu runtime handle)
     backend_context: Option<Box<dyn any::Any + Send + Sync>>,
 }
 

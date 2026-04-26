@@ -5,7 +5,7 @@
 
 use scirs2_core::ndarray_ext::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::rand_prelude::*;
-use scirs2_core::random::{Random, RngExt};
+use scirs2_core::random::Random;
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
 
@@ -85,37 +85,29 @@ impl RobustGraphConstruction {
     }
 
     /// Construct a robust graph from data
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(&self, X: &ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let n_samples = X.nrows();
-
         // Detect outliers
         let outlier_mask = self.detect_outliers(X)?;
 
         // Construct graph with robust distances
-        let mut graph = Array2::<f64>::zeros((n_samples, n_samples));
-
-        match self.construction_method.as_str() {
-            "knn" => {
-                graph = self.construct_robust_knn_graph(X, &outlier_mask)?;
-            }
-            "epsilon" => {
-                graph = self.construct_robust_epsilon_graph(X, &outlier_mask)?;
-            }
-            "adaptive" => {
-                graph = self.construct_adaptive_robust_graph(X, &outlier_mask)?;
-            }
+        let graph = match self.construction_method.as_str() {
+            "knn" => self.construct_robust_knn_graph(X, &outlier_mask)?,
+            "epsilon" => self.construct_robust_epsilon_graph(X, &outlier_mask)?,
+            "adaptive" => self.construct_adaptive_robust_graph(X, &outlier_mask)?,
             _ => {
                 return Err(SklearsError::InvalidInput(format!(
                     "Unknown construction method: {}",
                     self.construction_method
                 )));
             }
-        }
+        };
 
         Ok(graph)
     }
 
     /// Detect outliers using robust statistical methods
+    #[allow(non_snake_case)] // standard ML notation
     fn detect_outliers(&self, X: &ArrayView2<f64>) -> Result<Array1<bool>, SklearsError> {
         let n_samples = X.nrows();
         let mut outlier_mask = Array1::from_elem(n_samples, false);
@@ -136,6 +128,7 @@ impl RobustGraphConstruction {
     }
 
     /// Compute robust center using median
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_robust_center(&self, X: &ArrayView2<f64>) -> Result<Array1<f64>, SklearsError> {
         let n_features = X.ncols();
         let mut center = Array1::zeros(n_features);
@@ -144,7 +137,7 @@ impl RobustGraphConstruction {
             let mut feature_values: Vec<f64> = X.column(j).to_vec();
             feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-            let median = if feature_values.len() % 2 == 0 {
+            let median = if feature_values.len().is_multiple_of(2) {
                 let mid = feature_values.len() / 2;
                 (feature_values[mid - 1] + feature_values[mid]) / 2.0
             } else {
@@ -158,6 +151,7 @@ impl RobustGraphConstruction {
     }
 
     /// Compute robust scale using MAD (Median Absolute Deviation)
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_robust_scale(
         &self,
         X: &ArrayView2<f64>,
@@ -194,6 +188,7 @@ impl RobustGraphConstruction {
     }
 
     /// Construct robust k-NN graph
+    #[allow(non_snake_case)] // standard ML notation
     fn construct_robust_knn_graph(
         &self,
         X: &ArrayView2<f64>,
@@ -238,6 +233,7 @@ impl RobustGraphConstruction {
     }
 
     /// Construct robust epsilon-neighborhood graph
+    #[allow(non_snake_case)] // standard ML notation
     fn construct_robust_epsilon_graph(
         &self,
         X: &ArrayView2<f64>,
@@ -268,6 +264,7 @@ impl RobustGraphConstruction {
     }
 
     /// Construct adaptive robust graph
+    #[allow(non_snake_case)] // standard ML notation
     fn construct_adaptive_robust_graph(
         &self,
         X: &ArrayView2<f64>,
@@ -302,6 +299,7 @@ impl RobustGraphConstruction {
     }
 
     /// Compute adaptive epsilon values for each point
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_adaptive_epsilons(
         &self,
         X: &ArrayView2<f64>,
@@ -521,6 +519,7 @@ impl NoiseRobustPropagation {
     }
 
     /// Perform noise-robust label propagation
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(
         &self,
         X: &ArrayView2<f64>,
@@ -553,6 +552,7 @@ impl NoiseRobustPropagation {
     }
 
     /// Estimate noise level in the data
+    #[allow(non_snake_case)] // standard ML notation
     fn estimate_noise_level(&self, X: &ArrayView2<f64>) -> Result<f64, SklearsError> {
         match self.noise_estimation.as_str() {
             "mad" => self.estimate_noise_mad(X),
@@ -563,6 +563,7 @@ impl NoiseRobustPropagation {
     }
 
     /// Estimate noise using Median Absolute Deviation
+    #[allow(non_snake_case)] // standard ML notation
     fn estimate_noise_mad(&self, X: &ArrayView2<f64>) -> Result<f64, SklearsError> {
         let n_samples = X.nrows();
         let mut distances = Vec::new();
@@ -592,7 +593,7 @@ impl NoiseRobustPropagation {
         let mut deviations: Vec<f64> = distances.iter().map(|&d| (d - median).abs()).collect();
         deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-        let mad = if deviations.len() % 2 == 0 {
+        let mad = if deviations.len().is_multiple_of(2) {
             let mid = deviations.len() / 2;
             (deviations[mid - 1] + deviations[mid]) / 2.0
         } else {
@@ -603,6 +604,7 @@ impl NoiseRobustPropagation {
     }
 
     /// Estimate noise using Interquartile Range
+    #[allow(non_snake_case)] // standard ML notation
     fn estimate_noise_iqr(&self, X: &ArrayView2<f64>) -> Result<f64, SklearsError> {
         let n_samples = X.nrows();
         let mut distances = Vec::new();
@@ -630,6 +632,7 @@ impl NoiseRobustPropagation {
     }
 
     /// Estimate noise adaptively
+    #[allow(non_snake_case)] // standard ML notation
     fn estimate_noise_adaptive(&self, X: &ArrayView2<f64>) -> Result<f64, SklearsError> {
         // Combine MAD and IQR estimates
         let mad_estimate = self.estimate_noise_mad(X)?;
@@ -726,6 +729,7 @@ impl NoiseRobustPropagation {
     }
 
     /// Normalize graph to get transition matrix
+    #[allow(non_snake_case)] // standard ML notation
     fn normalize_graph(&self, graph: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
         let n_samples = graph.nrows();
         let mut P = graph.clone();
@@ -821,6 +825,7 @@ impl BreakdownPointAnalysis {
     }
 
     /// Analyze breakdown points for robust graph construction
+    #[allow(non_snake_case)] // standard ML notation
     pub fn analyze_graph_breakdown(
         &self,
         X: &ArrayView2<f64>,
@@ -837,14 +842,13 @@ impl BreakdownPointAnalysis {
     }
 
     /// Estimate breakdown point for a specific estimator
+    #[allow(non_snake_case)] // standard ML notation
     fn estimate_breakdown_point(
         &self,
         X: &ArrayView2<f64>,
         estimator: &str,
         rng: &mut Random,
     ) -> Result<BreakdownResult, SklearsError> {
-        let n_samples = X.nrows();
-
         // Compute clean estimate (no contamination)
         let clean_estimate = self.compute_robust_estimate(X, estimator, 0.0, rng)?;
 
@@ -891,6 +895,7 @@ impl BreakdownPointAnalysis {
     }
 
     /// Contaminate data by replacing a fraction with outliers
+    #[allow(non_snake_case)] // standard ML notation
     fn contaminate_data<R>(
         &self,
         X: &ArrayView2<f64>,
@@ -911,10 +916,8 @@ impl BreakdownPointAnalysis {
         }
 
         // Select random samples to contaminate
-        let outlier_indices: Vec<usize> = (0..n_samples)
-            .choose_multiple(rng, n_outliers)
-            .into_iter()
-            .collect();
+        let outlier_indices: Vec<usize> =
+            (0..n_samples).sample(rng, n_outliers).into_iter().collect();
 
         // Compute data range for generating outliers
         let mut feature_ranges = Vec::new();
@@ -947,6 +950,7 @@ impl BreakdownPointAnalysis {
     }
 
     /// Compute robust estimate for graph properties
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_robust_estimate<R>(
         &self,
         X: &ArrayView2<f64>,
@@ -970,6 +974,7 @@ impl BreakdownPointAnalysis {
     }
 
     /// Compute median-based graph property (median edge weight)
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_median_graph_property(&self, X: &ArrayView2<f64>) -> Result<f64, SklearsError> {
         let n_samples = X.nrows();
         let mut edge_weights = Vec::new();
@@ -996,6 +1001,7 @@ impl BreakdownPointAnalysis {
     }
 
     /// Compute Huber-based graph property
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_huber_graph_property(&self, X: &ArrayView2<f64>) -> Result<f64, SklearsError> {
         let n_samples = X.nrows();
         let mut huber_weights = Vec::new();
@@ -1017,6 +1023,7 @@ impl BreakdownPointAnalysis {
     }
 
     /// Compute Tukey-based graph property
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_tukey_graph_property(&self, X: &ArrayView2<f64>) -> Result<f64, SklearsError> {
         let n_samples = X.nrows();
         let mut tukey_weights = Vec::new();
@@ -1039,6 +1046,7 @@ impl BreakdownPointAnalysis {
     }
 
     /// Compute trimmed mean-based graph property
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_trimmed_mean_graph_property(
         &self,
         X: &ArrayView2<f64>,

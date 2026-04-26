@@ -261,6 +261,7 @@ impl ChunkedLinearRegression {
             // Eliminate column
             for k in (i + 1)..n_features {
                 let factor = a[k][i] / a[i][i];
+                #[allow(clippy::needless_range_loop)] // j indexes two rows simultaneously
                 for j in i..n_features {
                     a[k][j] -= factor * a[i][j];
                 }
@@ -438,8 +439,7 @@ impl ParallelChunkedProcessor {
 
         // Spawn worker threads
         let mut handles = vec![];
-        let chunks_per_thread =
-            (num_chunks + self.config.num_threads - 1) / self.config.num_threads;
+        let chunks_per_thread = num_chunks.div_ceil(self.config.num_threads);
 
         // Convert data_chunks to indexed chunks first
         let indexed_chunks: Vec<(usize, T)> = data_chunks.into_iter().enumerate().collect();
@@ -539,7 +539,7 @@ impl ChunkedProcessingUtils {
         let usable_memory = (max_memory_bytes as f64 * 0.8) as usize;
 
         let samples_per_chunk = (usable_memory / bytes_per_sample).max(1);
-        let num_chunks = (total_samples + samples_per_chunk - 1) / samples_per_chunk;
+        let num_chunks = total_samples.div_ceil(samples_per_chunk);
 
         (samples_per_chunk, num_chunks)
     }

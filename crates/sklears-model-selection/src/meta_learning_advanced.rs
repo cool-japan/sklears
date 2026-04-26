@@ -104,8 +104,10 @@ impl Default for TransferLearningConfig {
 /// Transfer learning optimizer
 pub struct TransferLearningOptimizer {
     config: TransferLearningConfig,
+    #[allow(dead_code)] // transferred_knowledge retained for future knowledge distillation
     transferred_knowledge: HashMap<String, ParameterDistribution>,
     domain_adaptation_params: HashMap<String, Float>,
+    #[allow(dead_code)] // transfer_performance retained for future performance tracking
     transfer_performance: Vec<Float>,
 }
 
@@ -631,6 +633,7 @@ pub enum FewShotAlgorithm {
 pub struct FewShotOptimizer {
     config: FewShotConfig,
     meta_parameters: HashMap<String, Float>,
+    #[allow(dead_code)] // episode_history retained for future few-shot history analysis
     episode_history: Vec<FewShotEpisode>,
 }
 
@@ -895,6 +898,7 @@ pub struct FewShotResult {
 
 /// Few-shot episode
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // FewShotEpisode fields retained for future episode logging
 struct FewShotEpisode {
     task_id: String,
     support_loss: Float,
@@ -1048,12 +1052,14 @@ impl LearnedOptimizer {
 }
 
 #[derive(Debug, Clone, Default)]
+#[allow(dead_code)] // OptimizerState hidden/cell retained for future LSTM-based optimizer state
 struct OptimizerState {
     hidden: Vec<Float>,
     cell: Vec<Float>,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // TrainingEpisode task_id/n_steps retained for future episode diagnostics
 struct TrainingEpisode {
     task_id: String,
     reward: Float,
@@ -1335,6 +1341,7 @@ pub enum ParameterScale {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // ParameterDistribution mean/std retained for future Gaussian parameter priors
 pub struct ParameterDistribution {
     pub mean: Float,
     pub std: Float,

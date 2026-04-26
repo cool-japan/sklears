@@ -10,6 +10,7 @@ use sklears_core::error::{Result as SklResult, SklearsError};
 pub struct MetricsAggregator;
 
 impl MetricsAggregator {
+    /// aggregate_metrics
     pub fn aggregate_metrics(_metrics: &[f64], _weights: Option<&[f64]>) -> SklResult<f64> {
         Err(SklearsError::NotImplemented(
             "MetricsAggregator::aggregate_metrics is not yet implemented".to_string(),
@@ -22,6 +23,7 @@ impl MetricsAggregator {
 pub struct WeightedAveraging;
 
 impl WeightedAveraging {
+    /// weighted_average
     pub fn weighted_average(_values: &[f64], _weights: &[f64]) -> SklResult<f64> {
         Err(SklearsError::NotImplemented(
             "WeightedAveraging::weighted_average is not yet implemented".to_string(),
@@ -34,12 +36,14 @@ impl WeightedAveraging {
 pub struct RankAggregation;
 
 impl RankAggregation {
+    /// borda_count
     pub fn borda_count(_rankings: &[Vec<usize>]) -> SklResult<Vec<usize>> {
         Err(SklearsError::NotImplemented(
             "RankAggregation::borda_count is not yet implemented".to_string(),
         ))
     }
 
+    /// kemeny_optimal
     pub fn kemeny_optimal(_rankings: &[Vec<usize>]) -> SklResult<Vec<usize>> {
         Err(SklearsError::NotImplemented(
             "RankAggregation::kemeny_optimal is not yet implemented".to_string(),
@@ -52,6 +56,7 @@ impl RankAggregation {
 pub struct ConsensusMetrics;
 
 impl ConsensusMetrics {
+    /// compute_consensus
     pub fn compute_consensus(_rankings: &[Vec<usize>]) -> SklResult<f64> {
         Err(SklearsError::NotImplemented(
             "ConsensusMetrics::compute_consensus is not yet implemented".to_string(),
@@ -64,6 +69,7 @@ impl ConsensusMetrics {
 pub struct MultiCriteriaEvaluation;
 
 impl MultiCriteriaEvaluation {
+    /// evaluate_multi_criteria
     pub fn evaluate_multi_criteria(
         _criteria_scores: &[Vec<f64>],
         _criteria_weights: &[f64],

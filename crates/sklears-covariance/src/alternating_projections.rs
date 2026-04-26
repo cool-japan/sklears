@@ -234,7 +234,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for AlternatingProjections<Untrained> {
     type Fitted = AlternatingProjections<AlternatingProjectionsTrained>;
 
     fn fit(self, x: &ArrayView2<Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, _n_features) = x.dim();
 
         // Initialize with empirical covariance or missing data pattern
         let initial_matrix = self.initialize_matrix(x)?;
@@ -454,7 +454,7 @@ impl AlternatingProjections<Untrained> {
     fn apply_dykstra_projections(
         &self,
         mut matrix: Array2<f64>,
-        auxiliary_matrices: &mut [Array2<f64>],
+        _auxiliary_matrices: &mut [Array2<f64>],
         increments: &mut [Array2<f64>],
     ) -> Result<Array2<f64>, SklearsError> {
         for (i, constraint) in self.config.constraints.iter().enumerate() {
@@ -575,8 +575,7 @@ impl AlternatingProjections<Untrained> {
             .as_slice_mut()
             .ok_or_else(|| SklearsError::NumericalError("as_slice_mut failed".into()))?;
 
-        for i in 0..keep_elements.min(indexed_values.len()) {
-            let idx = indexed_values[i].0;
+        for &(idx, _) in indexed_values.iter().take(keep_elements) {
             flat_result[idx] = flat_matrix[idx];
         }
 
@@ -591,7 +590,7 @@ impl AlternatingProjections<Untrained> {
     ) -> Result<Array2<f64>, SklearsError> {
         // For known entries, keep original values unchanged
         // This is used in matrix completion where we have partial observations
-        for ((i, j), &is_known) in mask.indexed_iter() {
+        for ((_i, _j), &is_known) in mask.indexed_iter() {
             if !is_known {
                 // For unknown entries, we don't change the current estimate
                 // (the projection is the identity on the unknown entries)

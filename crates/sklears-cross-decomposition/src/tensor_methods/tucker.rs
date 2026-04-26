@@ -2,7 +2,7 @@
 
 use super::common::{TensorInitMethod, Trained, Untrained};
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayD, IxDyn};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit},
@@ -43,10 +43,10 @@ pub struct TuckerDecomposition<State = Untrained> {
     core_tensor_: Option<ArrayD<Float>>,
     /// Factor matrices for each mode
     factor_matrices_: Option<Vec<Array2<Float>>>,
-    /// Original tensor shape
-    original_shape_: Option<Vec<usize>>,
-    /// Mean tensor for centering
-    mean_tensor_: Option<ArrayD<Float>>,
+    /// Original tensor shape recorded at fit time
+    pub original_shape_: Option<Vec<usize>>,
+    /// Mean tensor subtracted during centering
+    pub mean_tensor_: Option<ArrayD<Float>>,
     /// Explained variance
     explained_variance_: Option<Float>,
     /// Reconstruction error
@@ -214,9 +214,9 @@ impl TuckerDecomposition<Untrained> {
 
         match &self.init_method {
             TensorInitMethod::Random => {
-                for mode in 0..3 {
-                    let mut factor = Array2::zeros((shape[mode], self.n_components[mode]));
-                    for i in 0..shape[mode] {
+                for (mode, &dim) in shape.iter().enumerate().take(3) {
+                    let mut factor = Array2::zeros((dim, self.n_components[mode]));
+                    for i in 0..dim {
                         for j in 0..self.n_components[mode] {
                             factor[[i, j]] = thread_rng().random::<Float>();
                         }
@@ -305,7 +305,7 @@ impl TuckerDecomposition<Untrained> {
     fn update_factor_matrix(
         &self,
         tensor: &Array3<Float>,
-        factors: &[Array2<Float>],
+        _factors: &[Array2<Float>],
         mode: usize,
     ) -> Result<Array2<Float>> {
         // Simplified update rule for demonstration
@@ -335,30 +335,13 @@ impl TuckerDecomposition<Untrained> {
     /// Compute core tensor
     fn compute_core_tensor(
         &self,
-        tensor: &Array3<Float>,
-        factors: &[Array2<Float>],
+        _tensor: &Array3<Float>,
+        _factors: &[Array2<Float>],
     ) -> Result<ArrayD<Float>> {
         // Simplified core tensor computation
         let shape: Vec<usize> = self.n_components.clone();
         let core = ArrayD::zeros(IxDyn(&shape));
         Ok(core)
-    }
-
-    /// Reconstruct tensor from core and factors
-    fn reconstruct_tensor(
-        &self,
-        core: &ArrayD<Float>,
-        factors: &[Array2<Float>],
-    ) -> Result<Array3<Float>> {
-        let original_shape = self
-            .original_shape_
-            .as_ref()
-            .ok_or(SklearsError::NotFitted {
-                operation: "accessing model attribute".to_string(),
-            })?;
-        let reconstructed =
-            Array3::zeros((original_shape[0], original_shape[1], original_shape[2]));
-        Ok(reconstructed)
     }
 
     /// Reconstruct tensor from core and factors with given shape

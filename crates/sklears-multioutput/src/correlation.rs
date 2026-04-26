@@ -434,10 +434,13 @@ pub struct GraphStatistics {
 /// Useful for understanding causal structure and for feature selection.
 #[derive(Debug, Clone)]
 pub struct ConditionalIndependenceTester {
+    #[allow(dead_code)]
     /// Significance level for tests
     alpha: Float,
+    #[allow(dead_code)]
     /// Test method
     test_method: CITestMethod,
+    #[allow(dead_code)]
     /// Maximum conditioning set size
     max_conditioning_set_size: usize,
 }
@@ -538,7 +541,7 @@ impl OutputCorrelationAnalyzer {
             .next()
             .expect("sampling should succeed")
             .nrows();
-        for (task_name, task_outputs) in outputs {
+        for task_outputs in outputs.values() {
             if task_outputs.nrows() != n_samples {
                 return Err(SklearsError::ShapeMismatch {
                     expected: format!("{}", n_samples),
@@ -1163,7 +1166,7 @@ impl CorrelationAnalysis {
         let mut strong_correlations = Vec::new();
 
         if let Some(corr_matrix) = self.correlation_matrices.get(correlation_type) {
-            let current_idx = 0;
+            let _current_idx = 0;
             let mut output_names = Vec::new();
 
             // Build output names
@@ -1366,7 +1369,7 @@ mod correlation_tests {
 
     #[test]
     fn test_correlation_types() {
-        let types = vec![
+        let types = [
             CorrelationType::Pearson,
             CorrelationType::Spearman,
             CorrelationType::Kendall,
@@ -1381,7 +1384,7 @@ mod correlation_tests {
 
     #[test]
     fn test_dependency_methods() {
-        let methods = vec![
+        let methods = [
             DependencyMethod::CorrelationThreshold(0.5),
             DependencyMethod::MutualInformationThreshold(0.3),
             DependencyMethod::CausalDiscovery,
@@ -1421,7 +1424,7 @@ mod correlation_tests {
         // Test correlation summary
         let summary = analysis.correlation_summary(&CorrelationType::Pearson);
         assert!(summary.is_some());
-        let (mean, median, min, max) = summary.expect("operation should succeed");
+        let (_mean, median, min, max) = summary.expect("operation should succeed");
         assert!(min <= median);
         assert!(median <= max);
     }
@@ -1446,7 +1449,7 @@ mod correlation_tests {
         assert!(degree <= 2);
 
         // Test connection checking
-        let connected = graph.are_connected("task1_0", "task2_0");
+        let _connected = graph.are_connected("task1_0", "task2_0");
         // Connection depends on correlation threshold and actual data correlation
     }
 }

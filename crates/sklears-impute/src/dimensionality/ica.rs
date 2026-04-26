@@ -1,4 +1,6 @@
 //! Independent Component Analysis Imputer
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides ICA-based imputation methods.
 //!

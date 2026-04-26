@@ -7,7 +7,6 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::{seq::SliceRandom, SeedableRng};
-use scirs2_core::SliceRandomExt;
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -76,6 +75,7 @@ pub struct RobustManifold<S = Untrained> {
 
 /// Trained state for RobustManifold
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedRobustManifold {
     embedding: Array2<f64>,
     transform_matrix: Array2<f64>,
@@ -154,7 +154,7 @@ impl RobustManifold<Untrained> {
 
     /// Set the outlier fraction
     pub fn outlier_fraction(mut self, outlier_fraction: f64) -> Self {
-        self.outlier_fraction = outlier_fraction.max(0.0).min(1.0);
+        self.outlier_fraction = outlier_fraction.clamp(0.0, 1.0);
         self
     }
 
@@ -178,7 +178,7 @@ impl RobustManifold<Untrained> {
 
     /// Set the breakdown point
     pub fn breakdown_point(mut self, breakdown_point: f64) -> Self {
-        self.breakdown_point = breakdown_point.max(0.0).min(0.5);
+        self.breakdown_point = breakdown_point.clamp(0.0, 0.5);
         self
     }
 
@@ -223,7 +223,7 @@ impl RobustManifold<Untrained> {
     /// Robust PCA-based outlier detection
     fn robust_pca_outliers(&self, x: &ArrayView2<f64>) -> SklResult<Array1<f64>> {
         let n_samples = x.nrows();
-        let n_features = x.ncols();
+        let _n_features = x.ncols();
 
         // Compute robust covariance using Minimum Covariance Determinant (MCD)
         let (robust_mean, robust_cov) = self.minimum_covariance_determinant(x)?;
@@ -275,7 +275,7 @@ impl RobustManifold<Untrained> {
         rng: &mut StdRng,
     ) -> SklResult<Array1<f64>> {
         let n_samples = x.nrows();
-        let n_features = x.ncols();
+        let _n_features = x.ncols();
         let n_trees = 100;
         let subsample_size = (n_samples as f64 * 0.8) as usize;
 
@@ -327,7 +327,7 @@ impl RobustManifold<Untrained> {
                 .skip(1)
                 .map(|(idx, _)| *idx)
                 .collect();
-            let k_distance = distances[k].1;
+            let _k_distance = distances[k].1;
 
             // Compute reachability distance
             let mut reachability_distances = Vec::new();
@@ -374,7 +374,7 @@ impl RobustManifold<Untrained> {
     ) -> SklResult<(Array1<f64>, Array2<f64>)> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
-        let h = ((n_samples + n_features + 1) / 2).min(n_samples); // MCD subset size
+        let h = (n_samples + n_features).div_ceil(2).min(n_samples); // MCD subset size
 
         let mut best_determinant = f64::INFINITY;
         let mut best_mean = Array1::zeros(n_features);
@@ -502,7 +502,7 @@ impl RobustManifold<Untrained> {
         let mut current_mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let mut current_cov = Array2::eye(n_features);
 
-        for iteration in 0..self.max_iterations {
+        for _iteration in 0..self.max_iterations {
             let prev_mean = current_mean.clone();
 
             // Weighted covariance computation
@@ -716,7 +716,7 @@ impl RobustManifold<Untrained> {
         &self,
         x: &ArrayView2<f64>,
         indices: &[usize],
-        rng: &mut StdRng,
+        _rng: &mut StdRng,
     ) -> SklResult<Array1<f64>> {
         let n_samples = indices.len();
         let mut scores = Array1::zeros(x.nrows());
@@ -1297,7 +1297,6 @@ impl Transform<ArrayView2<'_, f64>, Array2<f64>> for RobustManifold<TrainedRobus
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::array;
 
     #[test]

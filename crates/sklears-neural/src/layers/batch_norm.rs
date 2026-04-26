@@ -5,10 +5,10 @@
 //! follows the paper "Batch Normalization: Accelerating Deep Network Training by
 //! Reducing Internal Covariate Shift" by Ioffe and Szegedy (2015).
 
-use super::{Layer, LayerConfig, ParameterizedLayer};
+use super::{Layer, ParameterizedLayer};
 use crate::NeuralResult;
-use scirs2_core::ndarray::{Array1, Array2, Axis, ScalarOperand, Zip};
-use scirs2_core::random::{Rng, RngExt};
+use scirs2_core::ndarray::{Array1, Array2, Axis, ScalarOperand};
+use scirs2_core::RngExt;
 use sklears_core::{
     error::SklearsError,
     types::FloatBounds,
@@ -206,16 +206,19 @@ impl<T: FloatBounds + ScalarOperand> BatchNorm1d<T> {
         self
     }
 
+    /// Set the small constant added to the variance denominator for numerical stability
     pub fn epsilon(mut self, epsilon: T) -> Self {
         self.config.epsilon = epsilon;
         self
     }
 
+    /// Enable or disable learnable affine parameters (gamma and beta)
     pub fn affine(mut self, affine: bool) -> Self {
         self.config.affine = affine;
         self
     }
 
+    /// Enable or disable accumulation of running mean and variance for inference
     pub fn track_running_stats(mut self, track: bool) -> Self {
         self.config.track_running_stats = track;
         self
@@ -279,8 +282,8 @@ impl<T: FloatBounds + ScalarOperand> BatchNorm1d<T> {
         }
     }
 
-    /// Initialize parameters with random values
-    pub fn initialize_parameters_random<R: Rng>(&mut self, rng: &mut R) {
+    /// Initialize parameters with random values using the provided RNG
+    pub fn initialize_parameters_random<R: RngExt>(&mut self, rng: &mut R) {
         if self.config.affine {
             if let Some(ref mut weight) = self.weight {
                 for w in weight.iter_mut() {
@@ -289,7 +292,8 @@ impl<T: FloatBounds + ScalarOperand> BatchNorm1d<T> {
             }
             if let Some(ref mut bias) = self.bias {
                 for b in bias.iter_mut() {
-                    *b = T::from(rng.random::<f64>() - 0.5).unwrap_or(T::zero());
+                    let raw: f64 = rng.random::<f64>() - 0.5_f64;
+                    *b = T::from(raw).unwrap_or(T::zero());
                 }
             }
         }
@@ -398,13 +402,12 @@ impl<T: FloatBounds + ScalarOperand> Layer<T> for BatchNorm1d<T> {
         // Normalize: (x - mean) / sqrt(var + epsilon)
         let std = var.mapv(|v| (v + self.config.epsilon).sqrt());
         let normalized =
-            (input - &mean.view().insert_axis(Axis(0))) / &std.view().insert_axis(Axis(0));
+            (input - &mean.view().insert_axis(Axis(0))) / std.view().insert_axis(Axis(0));
 
         // Apply affine transformation if enabled: gamma * normalized + beta
         let output = if self.config.affine {
             if let (Some(ref weight), Some(ref bias)) = (&self.weight, &self.bias) {
-                &normalized * &weight.view().insert_axis(Axis(0))
-                    + &bias.view().insert_axis(Axis(0))
+                &normalized * &weight.view().insert_axis(Axis(0)) + bias.view().insert_axis(Axis(0))
             } else {
                 normalized.clone()
             }
@@ -447,7 +450,7 @@ impl<T: FloatBounds + ScalarOperand> Layer<T> for BatchNorm1d<T> {
             .cached_mean
             .as_ref()
             .ok_or_else(|| SklearsError::InvalidInput("No cached mean".to_string()))?;
-        let var = self
+        let _var = self
             .cached_var
             .as_ref()
             .ok_or_else(|| SklearsError::InvalidInput("No cached variance".to_string()))?;
@@ -710,7 +713,7 @@ mod tests {
         let input = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         // Forward pass
-        let output = bn
+        let _output = bn
             .forward(&input, true)
             .expect("forward pass should succeed");
 
@@ -751,7 +754,7 @@ mod tests {
         assert!(bn.weight_grad.is_some());
         assert!(bn.bias_grad.is_some());
 
-        let weight_grad = bn.weight_grad().expect("operation should succeed");
+        let _weight_grad = bn.weight_grad().expect("operation should succeed");
         let bias_grad = bn.bias_grad().expect("operation should succeed");
 
         // Bias gradient should be sum of grad_output

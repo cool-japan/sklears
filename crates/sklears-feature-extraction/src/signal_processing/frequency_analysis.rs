@@ -206,6 +206,7 @@ impl FrequencyDomainExtractor {
     }
 
     /// Compute FFT magnitude squared
+    #[allow(clippy::needless_range_loop)] // k/n_idx used in arithmetic angle computation, not just indexing
     fn fft_magnitude_squared(&self, signal: &[f64]) -> Vec<f64> {
         let n = signal.len();
         let n_freqs = n / 2 + 1;
@@ -464,7 +465,7 @@ impl FilterBankExtractor {
 
         // Use zero-padding if necessary
         let mut padded_signal = signal.to_owned();
-        if signal.len() % self.n_fft != 0 {
+        if !signal.len().is_multiple_of(self.n_fft) {
             let padding_size = self.n_fft - signal.len() % self.n_fft;
             let padding = Array1::zeros(padding_size);
             padded_signal = concatenate![Axis(0), padded_signal, padding];
@@ -507,6 +508,7 @@ impl FilterBankExtractor {
     }
 
     /// Compute FFT magnitude
+    #[allow(clippy::needless_range_loop)] // k/n_idx used in arithmetic angle computation, not just indexing
     fn fft_magnitude(&self, signal: &[f64]) -> Vec<f64> {
         let n = signal.len();
         let n_freqs = n / 2 + 1;
@@ -578,6 +580,7 @@ pub struct STFT {
     n_fft: usize,
     hop_length: usize,
     window: String,
+    #[allow(dead_code)] // sample_rate retained for future frequency-calibrated STFT output
     sample_rate: f64,
 }
 
@@ -673,6 +676,7 @@ impl STFT {
         }
     }
 
+    #[allow(clippy::needless_range_loop)] // k/n_idx used in arithmetic angle computation, not just indexing
     fn fft_magnitude(&self, signal: &[f64]) -> Vec<f64> {
         let n = signal.len();
         let n_freqs = n / 2 + 1;

@@ -171,7 +171,7 @@ pub struct BreakdownAnalysis {
 ///     .m_estimator(MEstimatorType::Tukey { c: 4.685 })
 ///     .build();
 ///
-/// let fitted = estimator.fit(&X.view(), &()).unwrap();
+/// let fitted = estimator.fit(&X.view(), &()).expect("M-estimator GMM fitting should succeed with valid data");
 /// ```
 #[derive(Debug, Clone)]
 pub struct MEstimatorGMM<S = Untrained> {
@@ -590,6 +590,7 @@ impl MEstimatorGMM<MEstimatorGMMTrained> {
     }
 
     /// Perform breakdown point analysis
+    #[allow(non_snake_case)]
     pub fn breakdown_analysis(&self, _X: &ArrayView2<'_, Float>) -> SklResult<BreakdownAnalysis> {
         let theoretical_breakdown = self.m_estimator.breakdown_point();
 
@@ -694,6 +695,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)] // standard ML notation
     fn test_m_estimator_gmm_fit() {
         let X = array![
             [0.0, 0.0],

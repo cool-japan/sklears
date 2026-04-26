@@ -5,7 +5,6 @@
 //! evaluation frameworks, synthetic ground truth validation, cross-method consistency
 //! validation, real-world case studies, and automated testing pipelines.
 
-use crate::types::*;
 use crate::SklResult;
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
@@ -340,6 +339,7 @@ impl ValidationFramework {
     }
 
     /// Perform human evaluation simulation
+    #[allow(non_snake_case)] // standard ML notation
     pub fn simulate_human_evaluation<F>(
         &mut self,
         explanation_fn: F,
@@ -411,6 +411,7 @@ impl ValidationFramework {
     }
 
     /// Validate against synthetic ground truth
+    #[allow(non_snake_case)] // standard ML notation: X is feature matrix, y is target
     pub fn validate_synthetic_ground_truth<F>(
         &mut self,
         explanation_fn: F,
@@ -484,6 +485,7 @@ impl ValidationFramework {
     }
 
     /// Validate cross-method consistency
+    #[allow(non_snake_case)] // standard ML notation
     pub fn validate_cross_method_consistency<F1, F2, F3>(
         &mut self,
         method1: F1,
@@ -576,6 +578,7 @@ impl ValidationFramework {
     }
 
     /// Validate through real-world case studies
+    #[allow(non_snake_case)] // standard ML notation: X is feature matrix, y is target
     pub fn validate_case_studies<F>(
         &mut self,
         explanation_fn: F,
@@ -630,6 +633,7 @@ impl ValidationFramework {
     }
 
     /// Run automated testing pipeline
+    #[allow(non_snake_case)] // standard ML notation: X is feature matrix, y is target
     pub fn run_automated_testing<F>(
         &mut self,
         explanation_fn: F,
@@ -707,7 +711,7 @@ impl ValidationFramework {
     fn compute_explanation_quality(
         &mut self,
         explanations: &Array1<Float>,
-        instance_idx: usize,
+        _instance_idx: usize,
     ) -> Float {
         // Simulate explanation quality based on variance and magnitude
         let explanation_variance = explanations.var(0.0);
@@ -723,7 +727,7 @@ impl ValidationFramework {
         self.rng.random_range(-0.2..0.2)
     }
 
-    fn compute_inter_rater_reliability(&mut self, n_evaluators: usize) -> Float {
+    fn compute_inter_rater_reliability(&mut self, _n_evaluators: usize) -> Float {
         // Simulate inter-rater reliability (ICC)
         let base_reliability: Float = 0.75;
         let noise: Float = self.rng.random_range(-0.1..0.1);
@@ -804,6 +808,7 @@ impl ValidationFramework {
         feedback
     }
 
+    #[allow(non_snake_case)] // standard ML notation: X is feature matrix, y is target
     fn generate_synthetic_dataset(
         &mut self,
         dataset_idx: usize,
@@ -1091,6 +1096,7 @@ impl ValidationFramework {
         variance_score + magnitude_score
     }
 
+    #[allow(non_snake_case)] // standard ML notation: X is feature matrix, y is target
     fn run_performance_benchmarks<F>(
         &mut self,
         explanation_fn: &F,
@@ -1132,6 +1138,7 @@ impl ValidationFramework {
         })
     }
 
+    #[allow(non_snake_case)] // standard ML notation: X is feature matrix, y is target
     fn run_regression_tests<F>(
         &mut self,
         explanation_fn: &F,
@@ -1166,6 +1173,7 @@ impl ValidationFramework {
         Ok(regression_tests)
     }
 
+    #[allow(non_snake_case)] // standard ML notation: X is feature matrix, y is target
     fn run_edge_case_tests<F>(&mut self, explanation_fn: &F) -> SklResult<Vec<EdgeCaseResult>>
     where
         F: Fn(&ArrayView2<Float>, &ArrayView1<Float>) -> SklResult<Array1<Float>>,
@@ -1258,8 +1266,8 @@ mod tests {
         };
         let mut framework = ValidationFramework::new(config);
 
-        let explanation_fn = |X: &ArrayView2<Float>, _y: &ArrayView1<Float>| {
-            Ok(Array1::from_vec(vec![0.5; X.ncols()]))
+        let explanation_fn = |xv: &ArrayView2<Float>, _y: &ArrayView1<Float>| {
+            Ok(Array1::from_vec(vec![0.5; xv.ncols()]))
         };
 
         let result = framework.validate_synthetic_ground_truth(explanation_fn);
@@ -1281,11 +1289,11 @@ mod tests {
         let y = array![1.0, 2.0, 3.0];
 
         let method1 =
-            |X: &ArrayView2<Float>, _y: &ArrayView1<Float>| Ok(Array1::from_vec(vec![0.6, 0.4]));
+            |_X: &ArrayView2<Float>, _y: &ArrayView1<Float>| Ok(Array1::from_vec(vec![0.6, 0.4]));
         let method2 =
-            |X: &ArrayView2<Float>, _y: &ArrayView1<Float>| Ok(Array1::from_vec(vec![0.5, 0.5]));
+            |_X: &ArrayView2<Float>, _y: &ArrayView1<Float>| Ok(Array1::from_vec(vec![0.5, 0.5]));
         let method3 =
-            |X: &ArrayView2<Float>, _y: &ArrayView1<Float>| Ok(Array1::from_vec(vec![0.7, 0.3]));
+            |_X: &ArrayView2<Float>, _y: &ArrayView1<Float>| Ok(Array1::from_vec(vec![0.7, 0.3]));
 
         let result = framework.validate_cross_method_consistency(
             method1,
@@ -1312,8 +1320,8 @@ mod tests {
             (array![[5.0, 6.0], [7.0, 8.0]], array![3.0, 4.0]),
         ];
 
-        let explanation_fn = |X: &ArrayView2<Float>, _y: &ArrayView1<Float>| {
-            Ok(Array1::from_vec(vec![0.5; X.ncols()]))
+        let explanation_fn = |xv: &ArrayView2<Float>, _y: &ArrayView1<Float>| {
+            Ok(Array1::from_vec(vec![0.5; xv.ncols()]))
         };
 
         let result = framework.run_automated_testing(explanation_fn, test_datasets);

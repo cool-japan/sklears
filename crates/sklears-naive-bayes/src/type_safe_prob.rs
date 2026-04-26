@@ -418,7 +418,7 @@ mod tests {
         ];
 
         let result = utils::log_sum_exp(&values);
-        let expected = (-1.0f64 + ((-2.0f64 + 1.0).exp() + (-3.0f64 + 1.0).exp() + 1.0).ln());
+        let expected = -1.0f64 + ((-2.0f64 + 1.0).exp() + (-3.0f64 + 1.0).exp() + 1.0).ln();
         assert!((result.value() - expected).abs() < 1e-10);
     }
 }

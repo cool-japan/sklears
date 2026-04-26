@@ -134,6 +134,7 @@ pub enum ScoringMetric {
     CalibrationError,
 }
 
+#[allow(non_snake_case)]
 impl ProbabilisticValidator {
     pub fn new(strategy: CVStrategy) -> Self {
         Self {
@@ -565,7 +566,7 @@ impl ProbabilisticValidator {
 
     fn compute_test_statistic(
         &self,
-        X: &Array2<f64>,
+        _X: &Array2<f64>,
         y: &Array1<i32>,
     ) -> Result<f64, ValidationError> {
         // Example test statistic: chi-square goodness-of-fit
@@ -702,16 +703,16 @@ impl ProbabilisticValidator {
         let class_counts_predicted = self.count_classes(&y_pred);
 
         let mut chi_square_statistic = 0.0;
-        let mut degrees_of_freedom = 0;
+        let mut _degrees_of_freedom = 0i32;
 
         for (class, &observed) in class_counts_observed.iter() {
             let expected = class_counts_predicted.get(class).copied().unwrap_or(0) as f64;
             if expected > 0.0 {
                 chi_square_statistic += (observed as f64 - expected).powi(2) / expected;
-                degrees_of_freedom += 1;
+                _degrees_of_freedom += 1;
             }
         }
-        degrees_of_freedom -= 1; // Adjust for constraints
+        _degrees_of_freedom -= 1; // Adjust for constraints
 
         // Simplified p-value computation (would need chi-square distribution)
         let chi_square_pvalue = if chi_square_statistic > 3.84 {
@@ -746,6 +747,7 @@ impl ProbabilisticValidator {
 }
 
 /// Trait for probabilistic models that can be validated
+#[allow(non_snake_case)]
 pub trait ProbabilisticModel {
     type Error: std::fmt::Debug;
 
@@ -845,6 +847,7 @@ impl Default for PredictiveAccuracyAssessor {
     }
 }
 
+#[allow(non_snake_case)]
 impl PredictiveAccuracyAssessor {
     pub fn new() -> Self {
         Self::default()
@@ -1010,7 +1013,7 @@ impl PredictiveAccuracyAssessor {
         // For each test sample, check if true class probability is within confidence interval
         let alpha = 1.0 - confidence_level;
         let lower_threshold = alpha / 2.0;
-        let upper_threshold = 1.0 - alpha / 2.0;
+        let _upper_threshold = 1.0 - alpha / 2.0;
 
         let mut covered_count = 0;
         for (i, &true_class) in y_test.iter().enumerate() {
@@ -1213,7 +1216,7 @@ impl PredictiveAccuracyAssessor {
             return 0.0;
         }
 
-        let n_predictions = predictions.len();
+        let _n_predictions = predictions.len();
         let n_samples = predictions[0].len();
         let mut total_variance = 0.0;
 

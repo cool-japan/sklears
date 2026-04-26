@@ -12,6 +12,9 @@ use sklears_core::{
 };
 use std::marker::PhantomData;
 
+/// Feature summary tuple: (feature_index, spatial_score, frequency_score, texture_score)
+pub type FeatureSummaryEntry = (usize, Option<Float>, Option<Float>, Option<Float>);
+
 /// Image feature selection using spatial correlation and frequency analysis
 ///
 /// This selector analyzes image features represented as flattened pixel matrices
@@ -361,7 +364,7 @@ impl ImageFeatureSelector<Trained> {
     ///
     /// Returns a vector of tuples containing (feature_index, spatial_score, frequency_score, texture_score)
     /// for all selected features. Scores are `None` if the corresponding analysis was not enabled.
-    pub fn feature_summary(&self) -> Vec<(usize, Option<Float>, Option<Float>, Option<Float>)> {
+    pub fn feature_summary(&self) -> Vec<FeatureSummaryEntry> {
         let indices = self.selected_features();
         let mut summary = Vec::with_capacity(indices.len());
 

@@ -10,7 +10,7 @@ type Result<T> = SklResult<T>;
 type Float = f64;
 
 /// Compute Value at Risk (VaR) based feature scores
-pub(crate) fn compute_var_based_scores(
+pub fn compute_var_based_scores(
     x: &Array2<Float>,
     _y: &Array1<Float>,
     confidence: Float,
@@ -27,7 +27,7 @@ pub(crate) fn compute_var_based_scores(
 }
 
 /// Compute Value at Risk for a single feature
-pub(crate) fn compute_var(feature: &ArrayView1<Float>, confidence_level: Float) -> Float {
+pub fn compute_var(feature: &ArrayView1<Float>, confidence_level: Float) -> Float {
     let mut sorted_values: Vec<Float> = feature.iter().cloned().collect();
     sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let index = ((1.0 - confidence_level) * sorted_values.len() as Float) as usize;
@@ -35,7 +35,7 @@ pub(crate) fn compute_var(feature: &ArrayView1<Float>, confidence_level: Float) 
 }
 
 /// Compute Conditional Value at Risk (CVaR/Expected Shortfall)
-pub(crate) fn compute_cvar(feature: &ArrayView1<Float>, confidence_level: Float) -> Float {
+pub fn compute_cvar(feature: &ArrayView1<Float>, confidence_level: Float) -> Float {
     let var = compute_var(feature, confidence_level);
     let tail_losses: Vec<Float> = feature.iter().filter(|&&x| x <= var).cloned().collect();
 
@@ -47,7 +47,7 @@ pub(crate) fn compute_cvar(feature: &ArrayView1<Float>, confidence_level: Float)
 }
 
 /// Compute portfolio Conditional Value at Risk
-pub(crate) fn compute_portfolio_cvar(x: &Array2<Float>, confidence_level: Float) -> Result<Float> {
+pub fn compute_portfolio_cvar(x: &Array2<Float>, confidence_level: Float) -> Result<Float> {
     let portfolio_returns = x
         .mean_axis(scirs2_core::ndarray::Axis(1))
         .expect("operation should succeed");
@@ -55,7 +55,7 @@ pub(crate) fn compute_portfolio_cvar(x: &Array2<Float>, confidence_level: Float)
 }
 
 /// Compute drawdown-based feature scores
-pub(crate) fn compute_drawdown_based_scores(
+pub fn compute_drawdown_based_scores(
     x: &Array2<Float>,
     _y: &Array1<Float>,
 ) -> Result<Array1<Float>> {
@@ -72,7 +72,7 @@ pub(crate) fn compute_drawdown_based_scores(
 }
 
 /// Compute maximum drawdown for a single price series
-pub(crate) fn compute_max_drawdown_single(prices: &Array1<Float>) -> Result<Float> {
+pub fn compute_max_drawdown_single(prices: &Array1<Float>) -> Result<Float> {
     if prices.is_empty() {
         return Ok(0.0);
     }
@@ -95,7 +95,7 @@ pub(crate) fn compute_max_drawdown_single(prices: &Array1<Float>) -> Result<Floa
 }
 
 /// Compute maximum drawdown across all features
-pub(crate) fn compute_max_drawdown(x: &Array2<Float>) -> Result<Float> {
+pub fn compute_max_drawdown(x: &Array2<Float>) -> Result<Float> {
     let n_features = x.ncols();
     let mut max_dd = 0.0;
 
@@ -111,7 +111,7 @@ pub(crate) fn compute_max_drawdown(x: &Array2<Float>) -> Result<Float> {
 }
 
 /// Compute feature maximum drawdown
-pub(crate) fn compute_feature_max_drawdown(feature: &ArrayView1<Float>) -> Float {
+pub fn compute_feature_max_drawdown(feature: &ArrayView1<Float>) -> Float {
     if feature.is_empty() {
         return 0.0;
     }
@@ -133,7 +133,7 @@ pub(crate) fn compute_feature_max_drawdown(feature: &ArrayView1<Float>) -> Float
 }
 
 /// Compute tail risk measure
-pub(crate) fn compute_tail_risk(feature: &ArrayView1<Float>) -> Float {
+pub fn compute_tail_risk(feature: &ArrayView1<Float>) -> Float {
     let mean = feature.mean().unwrap_or(0.0);
     let std = feature.std(0.0);
 
@@ -157,7 +157,7 @@ pub(crate) fn compute_tail_risk(feature: &ArrayView1<Float>) -> Float {
 }
 
 /// Compute extreme value index (Hill estimator)
-pub(crate) fn compute_extreme_value_index(feature: &ArrayView1<Float>) -> Float {
+pub fn compute_extreme_value_index(feature: &ArrayView1<Float>) -> Float {
     let mut sorted: Vec<Float> = feature.iter().cloned().collect();
     sorted.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
 
@@ -179,10 +179,7 @@ pub(crate) fn compute_extreme_value_index(feature: &ArrayView1<Float>) -> Float 
 }
 
 /// Compute downside deviation (semi-deviation)
-pub(crate) fn compute_downside_deviation(
-    feature: &ArrayView1<Float>,
-    target_return: Float,
-) -> Float {
+pub fn compute_downside_deviation(feature: &ArrayView1<Float>, target_return: Float) -> Float {
     let downside_returns: Vec<Float> = feature
         .iter()
         .filter(|&&x| x < target_return)
@@ -197,7 +194,7 @@ pub(crate) fn compute_downside_deviation(
 }
 
 /// Compute Omega ratio
-pub(crate) fn compute_omega_ratio(feature: &ArrayView1<Float>, threshold: Float) -> Float {
+pub fn compute_omega_ratio(feature: &ArrayView1<Float>, threshold: Float) -> Float {
     let gains: Float = feature.iter().filter(|&&x| x > threshold).sum();
     let losses: Float = feature
         .iter()
@@ -213,7 +210,7 @@ pub(crate) fn compute_omega_ratio(feature: &ArrayView1<Float>, threshold: Float)
 }
 
 /// Compute portfolio Value at Risk
-pub(crate) fn compute_portfolio_var(x: &Array2<Float>, confidence: Float) -> Result<Float> {
+pub fn compute_portfolio_var(x: &Array2<Float>, confidence: Float) -> Result<Float> {
     if x.is_empty() {
         return Err(SklearsError::InvalidInput(
             "Empty feature matrix".to_string(),

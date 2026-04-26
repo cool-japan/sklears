@@ -30,22 +30,23 @@ pub struct ConstraintSet {
 }
 
 /// Memory management strategy for hierarchical clustering
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum MemoryStrategy {
+    #[default]
     /// Standard in-memory processing (default)
     Standard,
     /// Memory-efficient processing with streaming
-    Streaming { chunk_size: usize },
+    Streaming {
+        /// Number of rows to process in each chunk
+        chunk_size: usize,
+    },
     /// Sparse matrix representations for large datasets
-    Sparse { density_threshold: Float },
+    Sparse {
+        /// Maximum fraction of non-zero elements before switching to dense
+        density_threshold: Float,
+    },
     /// Out-of-core processing for very large datasets
     OutOfCore,
-}
-
-impl Default for MemoryStrategy {
-    fn default() -> Self {
-        Self::Standard
-    }
 }
 
 /// Configuration for Agglomerative Clustering
@@ -261,7 +262,11 @@ impl AgglomerativeClustering<Untrained> {
     }
 
     /// Process data using sparse representations
-    fn process_sparse(&self, x: &Array2<Float>, density_threshold: Float) -> Result<Array2<Float>> {
+    fn process_sparse(
+        &self,
+        x: &Array2<Float>,
+        _density_threshold: Float,
+    ) -> Result<Array2<Float>> {
         // For sparse processing, we could implement approximate distance computation
         // For now, we'll just use the original data but with a note about optimization potential
         Ok(x.clone())
@@ -816,28 +821,41 @@ impl Dendrogram {
 /// Simplified dendrogram node for export
 #[derive(Debug, Clone)]
 pub struct DendrogramNodeExport {
+    /// Node identifier
     pub id: usize,
+    /// Merge height (linkage distance)
     pub height: Float,
+    /// Number of leaf samples below this node
     pub size: usize,
+    /// True if this is a leaf (original sample), false if an internal merge node
     pub is_leaf: bool,
+    /// Horizontal position in the dendrogram layout
     pub x: Float,
+    /// Vertical position (height) in the dendrogram layout
     pub y: Float,
 }
 
 /// Dendrogram link for export
 #[derive(Debug, Clone)]
 pub struct DendrogramLinkExport {
+    /// Source node identifier
     pub source: usize,
+    /// Target node identifier
     pub target: usize,
 }
 
 /// Complete dendrogram export structure
 #[derive(Debug, Clone)]
 pub struct DendrogramExport {
+    /// All nodes in the dendrogram
     pub nodes: Vec<DendrogramNodeExport>,
+    /// All merge links in the dendrogram
     pub links: Vec<DendrogramLinkExport>,
+    /// Identifier of the root node
     pub root_id: usize,
+    /// Maximum linkage height in the dendrogram
     pub max_height: Float,
+    /// Number of leaf nodes (original samples)
     pub n_leaves: usize,
 }
 
@@ -1246,7 +1264,7 @@ mod tests {
 
         // Should have correct structure
         assert_eq!(export.nodes.len(), dendrogram.nodes.len());
-        assert!(export.links.len() > 0);
+        assert!(!export.links.is_empty());
         assert_eq!(export.n_leaves, 3);
         assert!(export.max_height >= 0.0);
 

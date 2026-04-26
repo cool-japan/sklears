@@ -45,8 +45,8 @@ use scirs2_core::ndarray::{Array2, Array3, ArrayView2, ArrayView3};
 /// use sklears_feature_extraction::image::patch_extraction::extract_patches_2d;
 /// use scirs2_core::ndarray::Array2;
 ///
-/// let image = Array2::from_shape_vec((10, 10), (0..100).map(|x| x as f64).collect()).unwrap();
-/// let patches = extract_patches_2d(&image.view(), (3, 3), Some(5), None).unwrap();
+/// let image = Array2::from_shape_vec((10, 10), (0..100).map(|x| x as f64).collect()).expect("shape and data length match");
+/// let patches = extract_patches_2d(&image.view(), (3, 3), Some(5), None).expect("valid image and patch size produce patches");
 /// assert_eq!(patches.dim(), (5, 3, 3));
 /// ```
 pub fn extract_patches_2d(
@@ -118,9 +118,9 @@ pub fn extract_patches_2d(
 /// use sklears_feature_extraction::image::patch_extraction::{extract_patches_2d, reconstruct_from_patches_2d};
 /// use scirs2_core::ndarray::Array2;
 ///
-/// let image = Array2::from_shape_vec((6, 6), (0..36).map(|x| x as f64).collect()).unwrap();
-/// let patches = extract_patches_2d(&image.view(), (3, 3), None, None).unwrap();
-/// let reconstructed = reconstruct_from_patches_2d(&patches.view(), (6, 6)).unwrap();
+/// let image = Array2::from_shape_vec((6, 6), (0..36).map(|x| x as f64).collect()).expect("shape and data length match");
+/// let patches = extract_patches_2d(&image.view(), (3, 3), None, None).expect("valid image and patch size produce patches");
+/// let reconstructed = reconstruct_from_patches_2d(&patches.view(), (6, 6)).expect("valid patches reconstruct to original size");
 /// ```
 pub fn reconstruct_from_patches_2d(
     patches: &ArrayView3<Float>,
@@ -160,12 +160,12 @@ pub fn reconstruct_from_patches_2d(
 /// use sklears_feature_extraction::image::patch_extraction::PatchExtractor;
 /// use scirs2_core::ndarray::Array2;
 ///
-/// let image = Array2::from_shape_vec((10, 10), (0..100).map(|x| x as f64).collect()).unwrap();
+/// let image = Array2::from_shape_vec((10, 10), (0..100).map(|x| x as f64).collect()).expect("shape and data length match");
 /// let extractor = PatchExtractor::new()
 ///     .patch_size((3, 3))
 ///     .max_patches(Some(10))
 ///     .random_state(Some(42));
-/// let patches = extractor.extract(&image.view()).unwrap();
+/// let patches = extractor.extract(&image.view()).expect("valid image and extractor config produce patches");
 /// ```
 #[derive(Debug, Clone)]
 pub struct PatchExtractor {

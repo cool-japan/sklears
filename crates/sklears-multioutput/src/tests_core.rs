@@ -1,10 +1,8 @@
 //! Core tests for multi-output classifiers, regressors, chains, multi-label, and metrics
 
 use super::*;
-use crate::utilities::CLARE;
 use scirs2_core::ndarray::{array, Array2};
 use sklears_core::traits::{Fit, Predict};
-use sklears_core::types::Float;
 
 #[test]
 fn test_multi_output_classifier() {
@@ -623,7 +621,7 @@ fn test_pruned_label_powerset_edge_cases() {
 
     // Should have at least 1 combination, possibly 2 if default is added
     assert!(fitted.n_frequent_classes() >= 1);
-    assert!(fitted.frequent_combinations().len() >= 1);
+    assert!(!fitted.frequent_combinations().is_empty());
 
     // The frequent combinations should include [1, 0]
     assert!(fitted.frequent_combinations().contains(&vec![1, 0]));

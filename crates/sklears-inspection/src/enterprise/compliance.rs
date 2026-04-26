@@ -741,7 +741,7 @@ impl ComplianceReporter {
 
             framework_compliance.insert(
                 framework.clone(),
-                /// FrameworkComplianceStatus
+                // FrameworkComplianceStatus
                 FrameworkComplianceStatus {
                     framework: framework.clone(),
                     status,
@@ -1229,20 +1229,18 @@ mod tests {
         requirement.deadline = Some(deadline);
         assert!(requirement.is_overdue());
     }
-}
 
-// Helper trait for test modifications
-#[cfg(test)]
-trait TapMut {
-    fn tap_mut<F>(mut self, f: F) -> Self
-    where
-        F: FnOnce(&mut Self),
-        Self: Sized,
-    {
-        f(&mut self);
-        self
+    // Helper trait for test modifications
+    trait TapMut {
+        fn tap_mut<F>(mut self, f: F) -> Self
+        where
+            F: FnOnce(&mut Self),
+            Self: Sized,
+        {
+            f(&mut self);
+            self
+        }
     }
-}
 
-#[cfg(test)]
-impl<T> TapMut for T {}
+    impl<T> TapMut for T {}
+}

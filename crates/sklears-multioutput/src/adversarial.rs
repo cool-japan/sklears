@@ -75,7 +75,7 @@ pub struct TaskDiscriminator {
 
 impl TaskDiscriminator {
     /// Create a new task discriminator
-    pub fn new(input_size: usize, hidden_sizes: Vec<usize>, num_tasks: usize) -> Self {
+    pub fn new(_input_size: usize, hidden_sizes: Vec<usize>, num_tasks: usize) -> Self {
         Self {
             hidden_sizes,
             weights: Vec::new(),
@@ -87,7 +87,7 @@ impl TaskDiscriminator {
     /// Initialize parameters
     pub fn initialize_parameters(
         &mut self,
-        rng: &mut scirs2_core::random::CoreRandom,
+        _rng: &mut scirs2_core::random::CoreRandom,
     ) -> SklResult<()> {
         // Simplified initialization
         for _ in &self.hidden_sizes {
@@ -193,6 +193,7 @@ pub struct AdversarialMultiTaskNetwork<S = Untrained> {
 
 /// Trained state for AdversarialMultiTaskNetwork
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fields used for serialization and future inference extensions
 pub struct AdversarialMultiTaskNetworkTrained {
     /// Shared layer weights
     shared_weights: Vec<Array2<Float>>,
@@ -468,6 +469,7 @@ impl Fit<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
 impl Predict<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
     for AdversarialMultiTaskNetwork<AdversarialMultiTaskNetworkTrained>
 {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<HashMap<String, Array2<Float>>> {
         let (n_samples, n_features) = X.dim();
 

@@ -3,13 +3,15 @@
 //! These tests verify mathematical properties and invariants that should hold
 //! for all decomposition methods using proptest.
 
-use crate::dictionary_learning::{DictionaryLearning, DictionaryTransformAlgorithm};
-use crate::factor_analysis::{FactorAnalysis, FactorRotation};
-use crate::ica::{ICAAlgorithm, ICAFunction, ICA};
-use crate::nmf::{NMFInit, NMFSolver, NMF};
+use crate::dictionary_learning::{
+    DictionaryLearning, DictionaryLearningConfig, DictionaryTransformAlgorithm,
+};
+use crate::factor_analysis::FactorAnalysis;
+use crate::ica::{ICAAlgorithm, ICA};
+use crate::nmf::NMF;
 use crate::pca::{PcaConfig, PCA};
 use proptest::prelude::*;
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::Array2;
 use sklears_core::traits::{Fit, Transform};
 
 proptest! {
@@ -28,8 +30,7 @@ proptest! {
                 }
             }
 
-            let mut config = PcaConfig::default();
-            config.n_components = Some(n_components);
+            let config = PcaConfig { n_components: Some(n_components), ..Default::default() };
             let pca = PCA::new(config);
             let result = pca.fit(&x, &());
 
@@ -47,17 +48,6 @@ proptest! {
                     // Check components matrix shape
                     let components = &trained_pca.components;
                     prop_assert_eq!(components.shape(), &[n_components, n_features]);
-
-                    // TODO: Test inverse transform once implemented
-                    // let x_reconstructed = trained_pca.inverse_transform(&transformed);
-                    // if let Ok(reconstructed) = x_reconstructed {
-                    //     prop_assert_eq!(reconstructed.shape(), x.shape());
-                    //
-                    //     // All reconstructed values should be finite
-                    //     for &val in reconstructed.iter() {
-                    //         prop_assert!(val.is_finite());
-                    //     }
-                    // }
                 }
             }
         }
@@ -166,26 +156,6 @@ proptest! {
         }
     }
 
-    // TODO: Implement factor analysis test once FactorAnalysis struct is implemented
-    // #[test]
-    // fn test_factor_analysis_properties(
-    //     n_samples in 15..30usize,
-    //     n_features in 3..8usize,
-    //     n_components in 1..4usize
-    // ) {
-    //     // Test implementation placeholder
-    // }
-
-    // TODO: Implement dictionary learning test once API is finalized
-    // #[test]
-    // fn test_dictionary_learning_properties(
-    //     n_samples in 10..25usize,
-    //     n_features in 4..8usize,
-    //     n_components in 2..5usize
-    // ) {
-    //     // Test implementation placeholder
-    // }
-
     #[test]
     fn test_decomposition_dimension_consistency(
         n_samples in 8..20usize,
@@ -204,8 +174,7 @@ proptest! {
             // Test that all decomposition methods respect dimension constraints
 
             // PCA
-            let mut config = PcaConfig::default();
-            config.n_components = Some(n_components);
+            let config = PcaConfig { n_components: Some(n_components), ..Default::default() };
             let pca = PCA::new(config);
             if let Ok(trained_pca) = pca.fit(&x, &()) {
                 if let Ok(pca_result) = trained_pca.transform(&x) {
@@ -223,15 +192,15 @@ proptest! {
                 }
             }
 
-            // TODO: Factor Analysis test - placeholder not implemented
-            // if n_components < n_features && n_samples >= 2 {
-            //     let fa = FactorAnalysis::new(n_components).random_state(42);
-            //     if let Ok(trained_fa) = fa.fit(&x, &()) {
-            //         if let Ok(fa_result) = trained_fa.transform(&x) {
-            //             prop_assert_eq!(fa_result.shape(), &[n_samples, n_components]);
-            //         }
-            //     }
-            // }
+            // FactorAnalysis (requires n_components < n_features and sufficient samples)
+            if n_components < n_features && n_samples >= n_features + 2 {
+                let fa = FactorAnalysis::new(n_components).random_state(42);
+                if let Ok(trained_fa) = fa.fit(&x, &()) {
+                    if let Ok(fa_result) = trained_fa.transform(&x) {
+                        prop_assert_eq!(fa_result.shape(), &[n_samples, n_components]);
+                    }
+                }
+            }
         }
     }
 
@@ -252,11 +221,9 @@ proptest! {
             }
 
             // Test PCA determinism
-            let mut config1 = PcaConfig::default();
-            config1.n_components = Some(n_components);
+            let config1 = PcaConfig { n_components: Some(n_components), ..Default::default() };
             let pca1 = PCA::new(config1);
-            let mut config2 = PcaConfig::default();
-            config2.n_components = Some(n_components);
+            let config2 = PcaConfig { n_components: Some(n_components), ..Default::default() };
             let pca2 = PCA::new(config2);
 
             if let (Ok(trained_pca1), Ok(trained_pca2)) = (pca1.fit(&x, &()), pca2.fit(&x, &())) {
@@ -299,8 +266,7 @@ proptest! {
             }
 
             // PCA should handle rank-deficient data gracefully
-            let mut config = PcaConfig::default();
-            config.n_components = Some(n_components);
+            let config = PcaConfig { n_components: Some(n_components), ..Default::default() };
             let pca = PCA::new(config);
             if let Ok(trained_pca) = pca.fit(&x, &()) {
                 if let Ok(transformed) = trained_pca.transform(&x) {
@@ -342,11 +308,9 @@ proptest! {
             let x_scaled = &x * scale_factor;
 
             // Test PCA scaling properties
-            let mut config1 = PcaConfig::default();
-            config1.n_components = Some(n_components);
+            let config1 = PcaConfig { n_components: Some(n_components), ..Default::default() };
             let pca1 = PCA::new(config1);
-            let mut config2 = PcaConfig::default();
-            config2.n_components = Some(n_components);
+            let config2 = PcaConfig { n_components: Some(n_components), ..Default::default() };
             let pca2 = PCA::new(config2);
 
             if let (Ok(trained_pca1), Ok(trained_pca2)) = (pca1.fit(&x, &()), pca2.fit(&x_scaled, &())) {
@@ -377,17 +341,107 @@ proptest! {
                 }
             }
 
-            // Test PCA reconstruction bounds
-            let mut config = PcaConfig::default();
-            config.n_components = Some(n_components);
+            // PCA inverse_transform not yet implemented; test forward pass only.
+            let config = PcaConfig { n_components: Some(n_components), ..Default::default() };
             let pca = PCA::new(config);
             if let Ok(trained_pca) = pca.fit(&x, &()) {
-                // TODO: Test inverse transform once implemented
-                // if let Ok(transformed) = trained_pca.transform(&x) {
-                //     if let Ok(reconstructed) = trained_pca.inverse_transform(&transformed) {
-                //         // Reconstruction error tests
-                //     }
-                // }
+                if let Ok(transformed) = trained_pca.transform(&x) {
+                    prop_assert_eq!(transformed.shape(), &[n_samples, n_components]);
+                    for &val in transformed.iter() {
+                        prop_assert!(val.is_finite());
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_factor_analysis_properties(
+        n_samples in 15..30usize,
+        n_features in 4..8usize,
+        n_components in 1..4usize
+    ) {
+        // FactorAnalysis requires n_components < n_features and sufficient samples.
+        if n_components < n_features && n_samples >= n_features + 2 {
+            let mut x = Array2::<f64>::zeros((n_samples, n_features));
+            for i in 0..n_samples {
+                for j in 0..n_features {
+                    x[[i, j]] = (i as f64).sin() * (j + 1) as f64 + (i + j) as f64 / 10.0;
+                }
+            }
+
+            let fa = FactorAnalysis::new(n_components).random_state(42);
+            if let Ok(trained_fa) = fa.fit(&x, &()) {
+                let result = trained_fa.transform(&x);
+                if let Ok(scores) = result {
+                    // Factor scores must have shape (n_samples, n_components).
+                    prop_assert_eq!(scores.shape(), &[n_samples, n_components]);
+
+                    // All factor scores must be finite.
+                    for &val in scores.iter() {
+                        prop_assert!(val.is_finite());
+                    }
+
+                    // Loadings matrix must have shape (n_features, n_components).
+                    let loadings = trained_fa.loadings();
+                    prop_assert_eq!(loadings.shape(), &[n_features, n_components]);
+
+                    // Noise variances must be positive and finite.
+                    let noise_var = trained_fa.noise_variance();
+                    prop_assert_eq!(noise_var.len(), n_features);
+                    for &v in noise_var.iter() {
+                        prop_assert!(v > 0.0);
+                        prop_assert!(v.is_finite());
+                    }
+
+                    // Log-likelihood must be finite (not NaN or Inf).
+                    prop_assert!(trained_fa.log_likelihood().is_finite());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_dictionary_learning_properties(
+        n_samples in 12..25usize,
+        n_features in 4..8usize,
+        n_components in 2..5usize
+    ) {
+        if n_components <= n_features && n_samples >= n_components * 2 {
+            // Build strictly positive data so OMP sparse coding converges reliably.
+            let mut x = Array2::<f64>::zeros((n_samples, n_features));
+            for i in 0..n_samples {
+                for j in 0..n_features {
+                    x[[i, j]] = (i + j + 1) as f64 / 5.0;
+                }
+            }
+
+            let config = DictionaryLearningConfig {
+                n_components,
+                max_iter: 30,
+                tol: 1e-3,
+                transform_algorithm: DictionaryTransformAlgorithm::OMP,
+                alpha: 0.5,
+                random_state: Some(42),
+            };
+
+            let model = DictionaryLearning::new(config);
+            if let Ok(trained_model) = model.fit(&x, &()) {
+                // Dictionary (components) shape: (n_components, n_features).
+                let dict = trained_model.components();
+                prop_assert_eq!(dict.shape(), &[n_components, n_features]);
+                for &val in dict.iter() {
+                    prop_assert!(val.is_finite());
+                }
+
+                let result = trained_model.transform(&x);
+                if let Ok(codes) = result {
+                    // Sparse codes shape: (n_samples, n_components).
+                    prop_assert_eq!(codes.shape(), &[n_samples, n_components]);
+                    for &val in codes.iter() {
+                        prop_assert!(val.is_finite());
+                    }
+                }
             }
         }
     }
@@ -401,8 +455,10 @@ mod tests {
     fn test_property_test_setup_decomposition() {
         // Simple test to ensure property test framework is working for decomposition
         let x = Array2::<f64>::ones((10, 5));
-        let mut config = PcaConfig::default();
-        config.n_components = Some(3);
+        let config = PcaConfig {
+            n_components: Some(3),
+            ..Default::default()
+        };
         let pca = PCA::new(config);
         let result = pca.fit(&x, &());
 

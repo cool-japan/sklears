@@ -180,11 +180,12 @@ impl Default for ModelAgnosticConfig {
 ///     &instance.view(),
 ///     &X_train.view(),
 ///     &ModelAgnosticConfig::default(),
-/// ).unwrap();
+/// ).expect("model agnostic explanation should succeed with valid inputs");
 ///
 /// assert_eq!(result.local_explanation.feature_contributions.len(), 3);
 /// assert!(result.local_explanation.confidence >= 0.0);
 /// ```
+#[allow(non_snake_case)] // standard ML notation
 pub fn explain_model_agnostic<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -308,6 +309,7 @@ where
 }
 
 /// Generate baseline reference point
+#[allow(non_snake_case)] // standard ML notation
 fn generate_baseline(X_train: &ArrayView2<Float>, strategy: SamplingStrategy) -> Array1<Float> {
     let n_features = X_train.ncols();
     let mut baseline = Array1::zeros(n_features);
@@ -364,6 +366,8 @@ fn generate_baseline(X_train: &ArrayView2<Float>, strategy: SamplingStrategy) ->
 }
 
 /// Generate linear approximation explanation (LIME-style)
+#[allow(non_snake_case)] // standard ML notation
+#[allow(clippy::too_many_arguments)]
 fn generate_linear_approximation_explanation<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -433,6 +437,7 @@ where
 }
 
 /// Generate perturbation based on strategy
+#[allow(non_snake_case)] // standard ML notation
 fn generate_perturbation(
     instance: &ArrayView1<Float>,
     X_train: &ArrayView2<Float>,
@@ -509,6 +514,7 @@ fn compute_l2_distance(a: &ArrayView1<Float>, b: &ArrayView1<Float>) -> Float {
 }
 
 /// Fit weighted linear model for feature contributions
+#[allow(non_snake_case)] // standard ML notation
 fn fit_weighted_linear_model(
     X: &ArrayView2<Float>,
     y: &[Float],
@@ -583,6 +589,7 @@ fn compute_explanation_confidence(predictions: &[Float], weights: &[Float]) -> F
 }
 
 /// Generate permutation-based explanation
+#[allow(non_snake_case)] // standard ML notation
 fn generate_permutation_explanation<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -848,6 +855,7 @@ where
 }
 
 /// Compute global feature importance
+#[allow(non_snake_case)] // standard ML notation
 fn compute_global_importance<F>(
     predict_fn: &F,
     X_train: &ArrayView2<Float>,
@@ -897,11 +905,12 @@ where
 }
 
 /// Analyze model behavior
+#[allow(non_snake_case)] // standard ML notation
 fn analyze_model_behavior<F>(
     predict_fn: &F,
     X_train: &ArrayView2<Float>,
     rng: &mut scirs2_core::random::rngs::StdRng,
-    config: &ModelAgnosticConfig,
+    _config: &ModelAgnosticConfig,
 ) -> SklResult<ModelSummary>
 where
     F: Fn(&ArrayView2<Float>) -> Vec<Float>,
@@ -948,6 +957,7 @@ where
 }
 
 /// Compute explanation quality metrics
+#[allow(non_snake_case)] // standard ML notation
 fn compute_explanation_quality<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -1019,12 +1029,13 @@ where
 }
 
 /// Compute explanation stability (simplified to avoid recursion)
+#[allow(non_snake_case)] // standard ML notation
 fn compute_explanation_stability<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
     X_train: &ArrayView2<Float>,
     rng: &mut scirs2_core::random::rngs::StdRng,
-    config: &ModelAgnosticConfig,
+    _config: &ModelAgnosticConfig,
 ) -> SklResult<Float>
 where
     F: Fn(&ArrayView2<Float>) -> Vec<Float>,
@@ -1059,6 +1070,7 @@ where
 }
 
 /// Compute correlation between two arrays
+#[allow(dead_code)] // utility function for future use
 fn compute_correlation(a: &Array1<Float>, b: &Array1<Float>) -> Float {
     if a.len() != b.len() || a.is_empty() {
         return 0.0;
@@ -1179,6 +1191,6 @@ mod tests {
         };
 
         let fidelity = compute_explanation_fidelity(&predict_fn, &instance.view(), &explanation);
-        assert!(fidelity >= 0.0 && fidelity <= 1.0);
+        assert!((0.0..=1.0).contains(&fidelity));
     }
 }

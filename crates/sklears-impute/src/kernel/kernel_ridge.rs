@@ -1,4 +1,6 @@
 //! Kernel Ridge Regression Imputer
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides kernel ridge regression for missing value imputation.
 

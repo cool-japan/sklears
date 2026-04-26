@@ -189,8 +189,8 @@ pub fn anderson_darling_test(sample: &Array1<Float>) -> Result<AndersonDarlingRe
     let std_dev = variance.sqrt();
 
     let mut ad_statistic = 0.0;
-    for i in 0..n {
-        let zi = (sorted_sample[i] - mean) / std_dev;
+    for (i, &sample_val) in sorted_sample.iter().enumerate().take(n) {
+        let zi = (sample_val - mean) / std_dev;
         let phi_zi = normal_cdf(zi);
         let phi_zi_rev = normal_cdf(-zi);
 
@@ -357,7 +357,7 @@ impl SummaryStatistics {
         let variance = sample.iter().map(|&x| (x - mean).powi(2)).sum::<Float>() / n;
         let std = variance.sqrt();
 
-        let median = if sorted.len() % 2 == 0 {
+        let median = if sorted.len().is_multiple_of(2) {
             let mid = sorted.len() / 2;
             (sorted[mid - 1] + sorted[mid]) / 2.0
         } else {

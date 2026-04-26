@@ -48,12 +48,12 @@ use std::f64::consts::PI;
 /// use sklears_feature_extraction::image::zernike_moments::ZernikeMomentsExtractor;
 /// use scirs2_core::ndarray::Array2;
 ///
-/// let image = Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64 / 1024.0).collect()).unwrap();
+/// let image = Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64 / 1024.0).collect()).expect("shape and data length match");
 /// let extractor = ZernikeMomentsExtractor::new()
 ///     .max_order(6)
 ///     .normalize_radius(true)
 ///     .binary_threshold(0.5);
-/// let moments = extractor.extract_moments(&image.view()).unwrap();
+/// let moments = extractor.extract_moments(&image.view()).expect("valid image produces Zernike moments");
 /// ```
 #[derive(Debug, Clone)]
 pub struct ZernikeMomentsExtractor {
@@ -103,7 +103,7 @@ impl ZernikeMomentsExtractor {
     /// Typical range: 4-12 for most applications.
     /// Orders must satisfy: n - |m| is even and |m| ≤ n.
     pub fn max_order(mut self, order: usize) -> Self {
-        self.max_order = order.max(1).min(20); // Reasonable bounds
+        self.max_order = order.clamp(1, 20); // Reasonable bounds
         self.factorial_cache = Self::precompute_factorials(self.max_order + 10);
         self
     }
@@ -113,7 +113,7 @@ impl ZernikeMomentsExtractor {
     /// Threshold determines which pixels are considered part of the object.
     /// Values should be in range [0, 1] for normalized images.
     pub fn binary_threshold(mut self, threshold: f64) -> Self {
-        self.binary_threshold = threshold.max(0.0).min(1.0);
+        self.binary_threshold = threshold.clamp(0.0, 1.0);
         self
     }
 
@@ -417,7 +417,7 @@ impl ZernikeMomentsExtractor {
     ///
     /// R_n^m(ρ) = Σ_{k=0}^{(n-m)/2} (-1)^k * (n-k)! / [k! * ((n+m)/2-k)! * ((n-m)/2-k)!] * ρ^(n-2k)
     fn radial_polynomial(&self, n: usize, m: usize, rho: f64) -> f64 {
-        if n < m || (n - m) % 2 != 0 {
+        if n < m || !(n - m).is_multiple_of(2) {
             return 0.0;
         }
 
@@ -647,7 +647,7 @@ mod tests {
             .extract_moments(&image.view())
             .expect("operation should succeed");
 
-        assert!(moments.len() > 0);
+        assert!(!moments.is_empty());
         assert!(moments.iter().all(|&x| x.is_finite()));
     }
 

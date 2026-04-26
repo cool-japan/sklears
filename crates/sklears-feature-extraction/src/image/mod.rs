@@ -469,7 +469,7 @@ mod tests {
             .extract_all_features(&image.view())
             .expect("operation should succeed");
 
-        assert!(features.len() > 0);
+        assert!(!features.is_empty());
     }
 
     #[test]

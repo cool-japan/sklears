@@ -663,10 +663,8 @@ impl StreamingNystroem {
 
         // Manage buffer size
         match &self.config.buffer_strategy {
-            BufferStrategy::FixedSize(max_size) => {
-                if self.buffer.len() > *max_size {
-                    self.buffer.pop_front();
-                }
+            BufferStrategy::FixedSize(max_size) if self.buffer.len() > *max_size => {
+                self.buffer.pop_front();
             }
             _ => {
                 // Implement other buffer strategies as needed

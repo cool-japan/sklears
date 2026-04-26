@@ -340,7 +340,7 @@ impl ICACovariance {
 
                 // Take first n_components
                 let s_trunc = s.slice(s![..n_components]).to_owned();
-                let u_trunc = u.slice(s![.., ..n_components]).to_owned();
+                let _u_trunc = u.slice(s![.., ..n_components]).to_owned();
                 let vt_trunc = vt.slice(s![..n_components, ..]).to_owned();
 
                 // Whitening matrix: W = D^(-1/2) * V^T
@@ -470,7 +470,7 @@ impl ICACovariance {
                 let (g, g_prime) = self.apply_contrast_function(&s);
 
                 // FastICA update rule
-                let eg = g
+                let _eg = g
                     .mean()
                     .expect("mean computation should succeed for non-empty array");
                 let eg_prime = g_prime
@@ -796,7 +796,7 @@ impl ICACovariance<ICACovarianceTrained> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
+
     use scirs2_core::ndarray::array;
 
     #[test]

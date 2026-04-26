@@ -6,7 +6,6 @@ use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
-use scirs2_core::Distribution;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -334,9 +333,7 @@ impl UMAP<Untrained> {
 
             // Compute fuzzy set membership strengths
             let sigma = self.compute_rho_sigma(&distances[..self.n_neighbors]);
-            for (k, &(distance, neighbor_idx)) in
-                distances.iter().take(self.n_neighbors).enumerate()
-            {
+            for &(distance, neighbor_idx) in distances.iter().take(self.n_neighbors) {
                 let membership = if distance > 0.0 {
                     (-((distance - distances[0].0) / sigma).max(0.0)).exp()
                 } else {
@@ -387,7 +384,7 @@ impl UMAP<Untrained> {
                 }
                 Ok(embedding)
             }
-            "spectral" | _ => {
+            _ => {
                 // Simplified spectral initialization
                 // In practice, would use the Laplacian eigenvectors
                 let mut embedding = Array2::zeros((n_samples, self.n_components));

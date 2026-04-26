@@ -3,6 +3,7 @@
 //! This module implements RNN, LSTM, and GRU models for sequence-based tasks
 //! such as sequence labeling, sequence-to-sequence prediction, and other
 //! structured output problems.
+#![allow(non_snake_case)] // Standard ML notation: X for feature matrices, K for kernels
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView2, ArrayView3, Axis};
@@ -88,14 +89,17 @@ pub struct RecurrentNeuralNetworkTrained {
     output_weights: Array2<Float>,
     /// Output layer bias
     output_bias: Array1<Float>,
+    #[allow(dead_code)]
     /// Additional parameters for LSTM/GRU gates
     gate_weights: HashMap<String, Vec<Array2<Float>>>,
+    #[allow(dead_code)]
     gate_biases: HashMap<String, Vec<Array1<Float>>>,
     /// Network configuration
     cell_type: CellType,
     hidden_size: usize,
     num_layers: usize,
     sequence_mode: SequenceMode,
+    #[allow(dead_code)]
     bidirectional: bool,
     n_features: usize,
     n_outputs: usize,
@@ -346,6 +350,7 @@ impl Fit<ArrayView3<'_, Float>, Array3<Float>> for RecurrentNeuralNetwork<Untrai
 
 impl RecurrentNeuralNetwork<Untrained> {
     /// Initialize network parameters
+    #[allow(clippy::type_complexity)]
     fn initialize_parameters(
         &self,
         n_features: usize,
@@ -540,6 +545,8 @@ impl RecurrentNeuralNetwork<Untrained> {
     }
 
     /// Forward pass through sequence
+    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::type_complexity)]
     fn forward_sequence(
         &self,
         x_seq: &ArrayView2<'_, Float>,
@@ -731,6 +738,7 @@ impl RecurrentNeuralNetwork<Untrained> {
     }
 
     /// Backward pass through sequence (simplified BPTT)
+    #[allow(clippy::too_many_arguments)]
     fn backward_sequence(
         &self,
         x_seq: &ArrayView2<'_, Float>,
@@ -738,12 +746,12 @@ impl RecurrentNeuralNetwork<Untrained> {
         predictions: &Array2<Float>,
         hidden_states: &[Vec<Array1<Float>>],
         input_weights: &mut [Array2<Float>],
-        hidden_weights: &mut [Array2<Float>],
+        _hidden_weights: &mut [Array2<Float>],
         biases: &mut [Array1<Float>],
         output_weights: &mut Array2<Float>,
         output_bias: &mut Array1<Float>,
-        gate_weights: &mut HashMap<String, Vec<Array2<Float>>>,
-        gate_biases: &mut HashMap<String, Vec<Array1<Float>>>,
+        _gate_weights: &mut HashMap<String, Vec<Array2<Float>>>,
+        _gate_biases: &mut HashMap<String, Vec<Array1<Float>>>,
     ) -> SklResult<()> {
         // Simplified gradient computation
         let (seq_len, _) = x_seq.dim();
@@ -852,6 +860,7 @@ impl Predict<ArrayView3<'_, Float>, Array3<Float>>
 
 impl RecurrentNeuralNetwork<RecurrentNeuralNetworkTrained> {
     /// Forward pass for trained model
+    #[allow(clippy::type_complexity)]
     fn forward_sequence_trained(
         &self,
         x_seq: &ArrayView2<'_, Float>,

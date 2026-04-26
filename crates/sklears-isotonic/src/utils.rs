@@ -272,9 +272,9 @@ pub fn mean_squared_error(y_true: &Array1<Float>, y_pred: &Array1<Float>) -> Res
 
     let diff = y_true - y_pred;
     let squared_diff = &diff * &diff;
-    Ok(squared_diff.mean().ok_or_else(|| {
+    squared_diff.mean().ok_or_else(|| {
         SklearsError::NumericalError("mean computation should succeed for non-empty array".into())
-    })?)
+    })
 }
 
 /// Extract subset of data based on indices

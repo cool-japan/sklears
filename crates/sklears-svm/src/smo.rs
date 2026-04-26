@@ -342,7 +342,7 @@ impl<K: Kernel> SmoSolver<K> {
             WorkingSetStrategy::SecondOrder => self.select_working_set_second_order(),
             WorkingSetStrategy::Mixed => {
                 // Alternate between strategies based on iteration count
-                if self.objective_values.len() % 2 == 0 {
+                if self.objective_values.len().is_multiple_of(2) {
                     self.select_working_set_second_order()
                 } else {
                     self.select_working_set_first_order()
@@ -488,6 +488,7 @@ impl<K: Kernel> SmoSolver<K> {
     }
 
     /// Estimate objective function decrease for pair (i, j)
+    #[allow(dead_code)] // intentionally deferred: objective heuristic not yet used in selection
     fn estimate_objective_decrease(&self, i: usize, j: usize) -> Float {
         let y_i = self.y[i];
         let y_j = self.y[j];

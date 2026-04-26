@@ -416,7 +416,7 @@ impl NearestShrunkenCentroids<Untrained> {
 
         // Standardize
         let mut x_standardized = x.clone();
-        for (_i, mut row) in x_standardized.axis_iter_mut(Axis(0)).enumerate() {
+        for mut row in x_standardized.axis_iter_mut(Axis(0)) {
             for j in 0..n_features {
                 row[j] = (row[j] - means[j]) / stds[j];
             }
@@ -523,6 +523,7 @@ impl NearestShrunkenCentroids<Untrained> {
     }
 
     /// Cross-validate threshold selection
+    #[allow(clippy::type_complexity)] // returns optimal threshold + optional CV-curve points
     fn cross_validate_threshold(
         &self,
         x: &Array2<Float>,
@@ -702,6 +703,7 @@ impl NearestShrunkenCentroids<Untrained> {
     }
 
     /// Predict single sample
+    #[allow(dead_code)] // low-level helper; called by future batch-predict path
     fn predict_single_sample(
         &self,
         sample: &ArrayView1<Float>,
@@ -782,7 +784,7 @@ impl NearestShrunkenCentroids<Trained> {
             .expect("data not available - model not fitted");
         let mut x_standardized = x.clone();
 
-        for (_i, mut row) in x_standardized.axis_iter_mut(Axis(0)).enumerate() {
+        for mut row in x_standardized.axis_iter_mut(Axis(0)) {
             for j in 0..data.n_features {
                 row[j] = (row[j] - data.feature_means[j]) / data.feature_stds[j];
             }

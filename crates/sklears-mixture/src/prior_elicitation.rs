@@ -143,7 +143,7 @@ pub struct PriorQualityMetrics {
 ///     .elicitation_method(ElicitationMethod::Automatic)
 ///     .covariance_type(CovarianceType::Full);
 ///
-/// let result = engine.elicit_priors(&X.view()).unwrap();
+/// let result = engine.elicit_priors(&X.view()).expect("prior elicitation should succeed with valid data");
 /// let prior_spec = result.prior_specification;
 /// ```
 #[derive(Debug, Clone)]
@@ -202,6 +202,7 @@ pub enum ConstraintType {
     ScaleConstraint,
 }
 
+#[allow(non_snake_case)]
 impl PriorElicitationEngine {
     /// Create a new prior elicitation engine
     pub fn new() -> Self {
@@ -1780,7 +1781,13 @@ mod tests {
 
         // The main difference should be in the prior specifications themselves
         // (This is a simplified test - in practice the robust flag would affect the computation)
-        assert!(result_robust.prior_specification.weight_concentration.len() > 0);
-        assert!(result_normal.prior_specification.weight_concentration.len() > 0);
+        assert!(!result_robust
+            .prior_specification
+            .weight_concentration
+            .is_empty());
+        assert!(!result_normal
+            .prior_specification
+            .weight_concentration
+            .is_empty());
     }
 }

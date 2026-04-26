@@ -33,6 +33,7 @@ pub struct LaplaceSmoothing<F: Float> {
     alpha: F,
 }
 
+#[allow(dead_code)]
 impl<F: Float> LaplaceSmoothing<F> {
     pub fn new(alpha: F) -> Self {
         Self { alpha }
@@ -51,10 +52,12 @@ impl<F: Float + ScalarOperand> Smoothing<F> for LaplaceSmoothing<F> {
 
 /// Lidstone smoothing implementation
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct LidstoneSmoothing<F: Float> {
     lambda: F,
 }
 
+#[allow(dead_code)]
 impl<F: Float> LidstoneSmoothing<F> {
     pub fn new(lambda: F) -> Self {
         Self { lambda }
@@ -78,6 +81,7 @@ pub struct GoodTuringSmoothing<F: Float> {
     _phantom: std::marker::PhantomData<F>,
 }
 
+#[allow(dead_code)]
 impl<F: Float> GoodTuringSmoothing<F> {
     pub fn new(threshold: usize) -> Self {
         Self {
@@ -113,10 +117,12 @@ impl<F: Float> Smoothing<F> for GoodTuringSmoothing<F> {
 
 /// Witten-Bell smoothing implementation
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct WittenBellSmoothing<F: Float> {
     _phantom: std::marker::PhantomData<F>,
 }
 
+#[allow(dead_code)]
 impl<F: Float> WittenBellSmoothing<F> {
     pub fn new() -> Self {
         Self {

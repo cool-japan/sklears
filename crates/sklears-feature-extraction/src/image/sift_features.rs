@@ -74,13 +74,13 @@ pub struct SIFTKeypoint {
 /// use sklears_feature_extraction::image::sift_features::SIFTExtractor;
 /// use scirs2_core::ndarray::Array2;
 ///
-/// let image = Array2::from_shape_vec((64, 64), (0..4096).map(|x| x as f64 / 4096.0).collect()).unwrap();
+/// let image = Array2::from_shape_vec((64, 64), (0..4096).map(|x| x as f64 / 4096.0).collect()).expect("shape and data length match");
 /// let sift = SIFTExtractor::new()
 ///     .n_octaves(4)
 ///     .n_scales_per_octave(3)
 ///     .peak_threshold(0.04);
-/// let keypoints = sift.detect_keypoints(&image.view()).unwrap();
-/// let descriptors = sift.extract_descriptors(&image.view(), &keypoints).unwrap();
+/// let keypoints = sift.detect_keypoints(&image.view()).expect("valid image produces SIFT keypoints");
+/// let descriptors = sift.extract_descriptors(&image.view(), &keypoints).expect("valid image and keypoints produce SIFT descriptors");
 /// ```
 #[derive(Debug, Clone)]
 pub struct SIFTExtractor {
@@ -125,7 +125,7 @@ impl SIFTExtractor {
     /// More octaves allow detection of features at larger scales
     /// but increase computational cost. Typically 3-6 octaves.
     pub fn n_octaves(mut self, n_octaves: usize) -> Self {
-        self.n_octaves = n_octaves.max(1).min(8); // Reasonable bounds
+        self.n_octaves = n_octaves.clamp(1, 8); // Reasonable bounds
         self
     }
 
@@ -134,7 +134,7 @@ impl SIFTExtractor {
     /// More scales provide finer scale sampling but increase computation.
     /// Standard values are 3-5 scales per octave.
     pub fn n_scales_per_octave(mut self, n_scales_per_octave: usize) -> Self {
-        self.n_scales_per_octave = n_scales_per_octave.max(2).min(8);
+        self.n_scales_per_octave = n_scales_per_octave.clamp(2, 8);
         self
     }
 
@@ -142,7 +142,7 @@ impl SIFTExtractor {
     ///
     /// Controls the amount of initial smoothing. Standard value is 1.6.
     pub fn sigma(mut self, sigma: f64) -> Self {
-        self.sigma = sigma.max(0.5).min(4.0);
+        self.sigma = sigma.clamp(0.5, 4.0);
         self
     }
 
@@ -150,7 +150,7 @@ impl SIFTExtractor {
     ///
     /// Higher values allow more edge-like keypoints. Standard value is 10.0.
     pub fn edge_threshold(mut self, edge_threshold: f64) -> Self {
-        self.edge_threshold = edge_threshold.max(5.0).min(50.0);
+        self.edge_threshold = edge_threshold.clamp(5.0, 50.0);
         self
     }
 
@@ -158,7 +158,7 @@ impl SIFTExtractor {
     ///
     /// Higher values require stronger responses. Standard value is 0.03.
     pub fn peak_threshold(mut self, peak_threshold: f64) -> Self {
-        self.peak_threshold = peak_threshold.max(0.01).min(0.2);
+        self.peak_threshold = peak_threshold.clamp(0.01, 0.2);
         self
     }
 
@@ -551,6 +551,7 @@ impl SIFTExtractor {
     }
 
     /// Create 1D Gaussian kernel
+    #[allow(clippy::needless_range_loop)] // i used in arithmetic kernel position computation, not just indexing
     fn create_gaussian_kernel(&self, size: usize, sigma: f64) -> Vec<Float> {
         let mut kernel = vec![0.0; size];
         let center = size / 2;
@@ -662,6 +663,6 @@ mod tests {
 
         let is_edge = sift.is_edge_response(&dog_image, 2, 2);
         // Should detect this as an edge (though specific result depends on threshold)
-        assert!(is_edge || !is_edge); // Just test that it doesn't crash
+        let _ = is_edge; // Just test that it doesn't crash
     }
 }

@@ -107,6 +107,7 @@ pub struct RuleExtractionResult {
 ///
 /// This function uses a model-agnostic approach to extract interpretable rules
 /// by analyzing the model's behavior on a grid of feature values.
+#[allow(non_snake_case)] // standard ML notation
 pub fn extract_rules_from_model<F>(
     predict_fn: &F,
     X_train: &ArrayView2<Float>,
@@ -123,7 +124,7 @@ where
     }
 
     let n_features = X_train.ncols();
-    let n_samples = X_train.nrows();
+    let _n_samples = X_train.nrows();
 
     // Compute feature statistics for discretization
     let feature_stats = compute_feature_statistics(X_train);
@@ -209,12 +210,13 @@ where
 /// Generate decision rules from data
 ///
 /// Uses a decision tree-like approach to generate interpretable rules directly from data.
+#[allow(non_snake_case)] // standard ML notation
 pub fn generate_decision_rules(
     X: &ArrayView2<Float>,
     y: &ArrayView1<Float>,
     config: &RuleExtractionConfig,
 ) -> SklResult<Vec<DecisionRule>> {
-    let n_features = X.ncols();
+    let _n_features = X.ncols();
     let n_samples = X.nrows();
 
     if n_samples == 0 {
@@ -243,6 +245,7 @@ pub fn generate_decision_rules(
 /// Generate logical rule explanations for specific instances
 ///
 /// Creates human-readable logical explanations for why a model made specific predictions.
+#[allow(non_snake_case)] // standard ML notation
 pub fn generate_logical_explanations<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -301,11 +304,12 @@ pub struct AssociationRule {
 /// Mine association rules from data
 ///
 /// Discovers interesting patterns and associations in the feature space.
+#[allow(non_snake_case)] // standard ML notation
 pub fn mine_association_rules(
     X: &ArrayView2<Float>,
     config: &RuleExtractionConfig,
 ) -> SklResult<Vec<AssociationRule>> {
-    let n_features = X.ncols();
+    let _n_features = X.ncols();
     let n_samples = X.nrows();
 
     if n_samples == 0 {
@@ -356,6 +360,7 @@ pub fn mine_association_rules(
 }
 
 /// Simplify a set of rules by removing redundant conditions
+#[allow(non_snake_case)] // standard ML notation
 pub fn simplify_rules<F>(
     rules: &[DecisionRule],
     X: &ArrayView2<Float>,
@@ -377,6 +382,7 @@ where
 
 // Helper functions
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_feature_statistics(X: &ArrayView2<Float>) -> Vec<(Float, Float, Float, Float)> {
     let mut stats = Vec::new();
 
@@ -400,10 +406,11 @@ fn compute_feature_statistics(X: &ArrayView2<Float>) -> Vec<(Float, Float, Float
     stats
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn generate_single_feature_rules<F>(
-    predict_fn: &F,
+    _predict_fn: &F,
     X: &ArrayView2<Float>,
-    y: &ArrayView1<Float>,
+    _y: &ArrayView1<Float>,
     feature_stats: &[(Float, Float, Float, Float)],
     config: &RuleExtractionConfig,
 ) -> SklResult<Vec<DecisionRule>>
@@ -412,9 +419,9 @@ where
 {
     let mut rules = Vec::new();
 
-    for feature_idx in 0..X.ncols() {
-        let (mean, std_dev, min_val, max_val) = feature_stats[feature_idx];
-
+    for (feature_idx, &(mean, std_dev, min_val, max_val)) in
+        feature_stats.iter().enumerate().take(X.ncols())
+    {
         // Generate threshold candidates
         let thresholds = vec![min_val, mean - std_dev, mean, mean + std_dev, max_val];
 
@@ -451,10 +458,11 @@ where
     Ok(rules)
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn generate_combination_rules<F>(
-    predict_fn: &F,
+    _predict_fn: &F,
     X: &ArrayView2<Float>,
-    y: &ArrayView1<Float>,
+    _y: &ArrayView1<Float>,
     feature_stats: &[(Float, Float, Float, Float)],
     config: &RuleExtractionConfig,
 ) -> SklResult<Vec<DecisionRule>>
@@ -513,6 +521,7 @@ where
     Ok(rules)
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn evaluate_rule<F>(
     rule: &DecisionRule,
     predict_fn: &F,
@@ -603,7 +612,7 @@ fn rule_applies_to_instance(rule: &DecisionRule, instance: &ArrayView1<Float>) -
     true
 }
 
-fn format_rule_as_explanation(rule: &DecisionRule, config: &RuleExtractionConfig) -> String {
+fn format_rule_as_explanation(rule: &DecisionRule, _config: &RuleExtractionConfig) -> String {
     let mut explanation = "IF ".to_string();
 
     for (i, condition) in rule.conditions.iter().enumerate() {
@@ -637,6 +646,8 @@ fn format_rule_as_explanation(rule: &DecisionRule, config: &RuleExtractionConfig
     explanation
 }
 
+#[allow(non_snake_case)] // standard ML notation
+#[allow(clippy::too_many_arguments)]
 fn generate_rules_recursive(
     X: &ArrayView2<Float>,
     y: &ArrayView1<Float>,
@@ -728,15 +739,16 @@ fn generate_rules_recursive(
     Ok(())
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_total_coverage(rules: &[DecisionRule], X: &ArrayView2<Float>) -> Float {
     let n_samples = X.nrows();
     let mut covered = vec![false; n_samples];
 
     for rule in rules {
-        for i in 0..n_samples {
+        for (i, covered_slot) in covered.iter_mut().enumerate().take(n_samples) {
             let instance = X.row(i);
             if rule_applies_to_instance(rule, &instance) {
-                covered[i] = true;
+                *covered_slot = true;
             }
         }
     }
@@ -767,6 +779,7 @@ fn compute_feature_importance_from_rules(rules: &[DecisionRule], n_features: usi
     importance
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn discretize_features(X: &ArrayView2<Float>) -> SklResult<Array2<usize>> {
     let n_samples = X.nrows();
     let n_features = X.ncols();
@@ -884,6 +897,7 @@ fn create_association_rule(
     })
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn simplify_single_rule<F>(
     rule: &DecisionRule,
     X: &ArrayView2<Float>,
@@ -981,9 +995,11 @@ mod tests {
         let X_train = array![[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0],];
         let y_train = array![0.0, 0.0, 1.0, 1.0];
 
-        let mut config = RuleExtractionConfig::default();
-        config.min_support = 1; // Lower threshold for small test data
-        config.min_confidence = 0.0; // More lenient confidence threshold
+        let config = RuleExtractionConfig {
+            min_support: 1,      // Lower threshold for small test data
+            min_confidence: 0.0, // More lenient confidence threshold
+            ..Default::default()
+        };
 
         let result =
             extract_rules_from_model(&predict_fn, &X_train.view(), &y_train.view(), &config)
@@ -1002,8 +1018,10 @@ mod tests {
         let X = array![[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0],];
         let y = array![0.0, 0.0, 1.0, 1.0];
 
-        let mut config = RuleExtractionConfig::default();
-        config.min_support = 1; // Lower threshold for small test data
+        let config = RuleExtractionConfig {
+            min_support: 1, // Lower threshold for small test data
+            ..Default::default()
+        };
 
         let rules = generate_decision_rules(&X.view(), &y.view(), &config)
             .expect("operation should succeed");
@@ -1042,18 +1060,18 @@ mod tests {
             [1.0, 1.0, 1.0],
         ];
 
-        let mut config = RuleExtractionConfig::default();
-        config.min_support = 1;
-        config.min_confidence = 0.1;
+        let config = RuleExtractionConfig {
+            min_support: 1,
+            min_confidence: 0.1,
+            ..Default::default()
+        };
 
         let association_rules =
             mine_association_rules(&X.view(), &config).expect("operation should succeed");
 
         // Association rule mining might not find rules for small/simple datasets
         // Just check that the function runs without error
-        assert!(association_rules.len() >= 0); // Non-negative count
-                                               // Test that the function completes successfully
-        assert!(true);
+        let _ = association_rules.len(); // len() is always non-negative
     }
 
     #[test]

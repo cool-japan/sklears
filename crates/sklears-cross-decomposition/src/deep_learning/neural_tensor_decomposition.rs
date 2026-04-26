@@ -16,8 +16,8 @@
 //! - Knowledge graph completion with neural embeddings
 //! - Video analysis with spatio-temporal decomposition
 
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4, ArrayView2, ArrayView3, Axis};
-use scirs2_core::random::{thread_rng, CoreRandom, Rng};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2, ArrayView3};
+use scirs2_core::random::thread_rng;
 use sklears_core::types::Float;
 
 /// Activation function for neural layers
@@ -125,16 +125,20 @@ pub struct NeuralTuckerDecomposition {
 /// Neural network for learning factor matrices
 #[derive(Debug, Clone)]
 struct FactorNetwork {
-    /// Input dimension
+    /// Input dimension (stored for architecture inspection and serialization)
+    #[allow(dead_code)]
     input_dim: usize,
-    /// Output dimension (rank)
+    /// Output dimension / rank (stored for architecture inspection)
+    #[allow(dead_code)]
     output_dim: usize,
     /// Layer weights
     weights: Vec<Array2<Float>>,
     /// Layer biases
     biases: Vec<Array1<Float>>,
-    /// Batch norm parameters (if enabled)
+    /// Batch norm parameters (stored for inference; not yet queried externally)
+    #[allow(dead_code)]
     batch_norm_gamma: Vec<Array1<Float>>,
+    #[allow(dead_code)]
     batch_norm_beta: Vec<Array1<Float>>,
 }
 
@@ -218,27 +222,29 @@ pub struct NeuralParafacDecomposition {
 #[derive(Debug, Clone)]
 pub struct AttentionTensorDecomposition {
     /// Configuration
-    config: NeuralTensorConfig,
+    pub config: NeuralTensorConfig,
     /// Factor matrices
-    factor_matrices: Vec<Array2<Float>>,
+    pub factor_matrices: Vec<Array2<Float>>,
     /// Attention weights for each mode
-    attention_weights: Vec<Array2<Float>>,
+    pub attention_weights: Vec<Array2<Float>>,
     /// Query, key, value transformations
-    qkv_transforms: Vec<(Array2<Float>, Array2<Float>, Array2<Float>)>,
+    pub qkv_transforms: Vec<(Array2<Float>, Array2<Float>, Array2<Float>)>,
 }
 
 /// Variational tensor network for uncertainty quantification
 #[derive(Debug, Clone)]
 pub struct VariationalTensorNetwork {
     /// Configuration
-    config: NeuralTensorConfig,
+    pub config: NeuralTensorConfig,
     /// Mean parameters for factor distributions
-    mean_factors: Vec<Array2<Float>>,
+    pub mean_factors: Vec<Array2<Float>>,
     /// Log variance parameters for factor distributions
-    logvar_factors: Vec<Array2<Float>>,
-    /// Encoder networks
+    pub logvar_factors: Vec<Array2<Float>>,
+    /// Encoder networks (FactorNetwork is a private type; accessed via inference methods)
+    #[allow(dead_code)]
     encoders: Vec<FactorNetwork>,
-    /// Decoder networks
+    /// Decoder networks (FactorNetwork is a private type; accessed via inference methods)
+    #[allow(dead_code)]
     decoders: Vec<FactorNetwork>,
 }
 
@@ -491,7 +497,7 @@ impl NeuralParafacDecomposition {
         );
 
         // Training loop (simplified)
-        for iter in 0..self.config.n_iterations {
+        for _iter in 0..self.config.n_iterations {
             // Compute factor matrices using neural networks
             let mut factors = Vec::new();
 
@@ -571,7 +577,6 @@ impl NeuralParafacDecomposition {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_neural_activation_relu() {

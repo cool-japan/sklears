@@ -9,8 +9,4 @@ pub mod wasmintegrationmanager_traits;
 
 // Re-export all types
 pub use functions::*;
-pub use performancemetrics_traits::*;
-pub use performanceprofile_traits::*;
 pub use types::*;
-pub use wasmintegrationconfig_traits::*;
-pub use wasmintegrationmanager_traits::*;

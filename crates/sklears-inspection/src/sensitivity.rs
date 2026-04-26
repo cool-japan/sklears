@@ -121,9 +121,10 @@ pub struct SobolResult {
 ///     ..Default::default()
 /// };
 ///
-/// let result = analyze_sensitivity(&model_fn, &X_base.view(), &bounds, &config).unwrap();
+/// let result = analyze_sensitivity(&model_fn, &X_base.view(), &bounds, &config).expect("sensitivity analysis should succeed with valid inputs");
 /// assert_eq!(result.first_order.len(), 2);
 /// ```
+#[allow(non_snake_case)] // standard ML notation
 pub fn analyze_sensitivity<F>(
     model_fn: &F,
     X_base: &ArrayView2<Float>,
@@ -157,6 +158,7 @@ where
 }
 
 /// Feature perturbation sensitivity analysis
+#[allow(non_snake_case)] // standard ML notation
 fn feature_perturbation_sensitivity<F>(
     model_fn: &F,
     X_base: &ArrayView2<Float>,
@@ -213,6 +215,7 @@ where
 }
 
 /// Gradient-based sensitivity analysis (numerical approximation)
+#[allow(non_snake_case)] // standard ML notation
 fn gradient_based_sensitivity<F>(
     model_fn: &F,
     X_base: &ArrayView2<Float>,
@@ -226,7 +229,7 @@ where
     let step_size = config.step_size;
 
     // Get baseline predictions
-    let baseline_predictions = model_fn(X_base);
+    let _baseline_predictions = model_fn(X_base);
 
     let mut gradients = Array2::zeros((n_samples, n_features));
 
@@ -266,6 +269,7 @@ where
 }
 
 /// Finite difference sensitivity analysis
+#[allow(non_snake_case)] // standard ML notation
 fn finite_difference_sensitivity<F>(
     model_fn: &F,
     X_base: &ArrayView2<Float>,

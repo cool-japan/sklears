@@ -74,6 +74,7 @@ pub enum CommunicationProtocol {
 }
 
 /// Worker state for distributed training
+#[allow(dead_code)] // intentionally deferred: distributed worker state not yet instantiated
 #[derive(Debug, Clone)]
 struct WorkerState {
     /// Worker ID
@@ -100,6 +101,7 @@ struct SharedState {
     /// Global iteration counter
     global_iteration: Arc<Mutex<usize>>,
     /// Total number of samples
+    #[allow(dead_code)] // intentionally deferred: sample count readout pending
     n_samples: usize,
 }
 

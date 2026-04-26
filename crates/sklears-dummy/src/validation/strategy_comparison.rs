@@ -375,9 +375,11 @@ pub fn compare_strategies_multi_metric(
     let mut results = HashMap::new();
 
     for metric in metrics {
-        let mut config = ValidationConfig::default();
-        config.scoring_metric = metric.clone();
-        config.cv_folds = cv;
+        let _config = ValidationConfig {
+            scoring_metric: metric.clone(),
+            cv_folds: cv,
+            ..Default::default()
+        };
 
         let metric_results = compare_dummy_strategies(strategies, x, y, cv)?;
         results.insert(metric.clone(), metric_results);

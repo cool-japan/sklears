@@ -299,7 +299,7 @@ impl<T: MetricCategory> MetricSuite<T> {
 
         let min = sorted_values[0];
         let max = sorted_values[sorted_values.len() - 1];
-        let median = if sorted_values.len() % 2 == 0 {
+        let median = if sorted_values.len().is_multiple_of(2) {
             (sorted_values[sorted_values.len() / 2 - 1] + sorted_values[sorted_values.len() / 2])
                 / 2.0
         } else {

@@ -2,10 +2,10 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
-use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Array3, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{
-    thread_rng, Distribution, RandGamma as Gamma, RandNormal as Normal, Random, Rng, SeedableRng,
+    thread_rng, Distribution, RandGamma as Gamma, RandNormal as Normal, Rng, SeedableRng,
 };
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
@@ -198,6 +198,7 @@ impl VariationalPLS {
             elbo_history,
         })
     }
+    #[allow(clippy::too_many_arguments)] // variational Bayes update requires all weight-posterior inputs simultaneously
     fn update_pls_weight_posterior(
         &self,
         x: &Array2<f64>,
@@ -246,6 +247,7 @@ impl VariationalPLS {
             alpha_mean[i] = *alpha_shape / alpha_rate[i];
         }
     }
+    #[allow(clippy::too_many_arguments)] // noise parameter update requires both X/Y data and both weight distributions
     fn update_noise_parameters(
         &self,
         x: &Array2<f64>,
@@ -274,6 +276,7 @@ impl VariationalPLS {
         *tau_rate = self.noise_beta + expected_sse / 2.0;
         Ok(())
     }
+    #[allow(clippy::too_many_arguments)] // ELBO computation inherently requires all variational parameters simultaneously
     fn compute_elbo(
         &self,
         x: &Array2<f64>,
@@ -283,8 +286,8 @@ impl VariationalPLS {
         mean_wy: &Array2<f64>,
         cov_wy: &Array2<f64>,
         alpha_mean: &Array1<f64>,
-        alpha_shape: f64,
-        alpha_rate: &Array1<f64>,
+        _alpha_shape: f64,
+        _alpha_rate: &Array1<f64>,
         tau_shape: f64,
         tau_rate: f64,
     ) -> f64 {
@@ -313,17 +316,6 @@ impl VariationalPLS {
         elbo += 0.5 * cov_wx.diag().iter().map(|&x| x.ln()).sum::<f64>();
         elbo += 0.5 * cov_wy.diag().iter().map(|&x| x.ln()).sum::<f64>();
         elbo
-    }
-    fn matrix_inverse(&self, matrix: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let mut result = Array2::zeros(matrix.raw_dim());
-        for i in 0..matrix.nrows() {
-            if matrix[[i, i]].abs() > 1e-12 {
-                result[[i, i]] = 1.0 / matrix[[i, i]];
-            } else {
-                result[[i, i]] = 1e12;
-            }
-        }
-        Ok(result)
     }
 }
 /// Bayesian Canonical Correlation Analysis
@@ -424,7 +416,7 @@ impl BayesianCCA {
             let mut entropy_rng = thread_rng();
             StdRng::from_rng(&mut entropy_rng)
         };
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let p_x = x.ncols();
         let p_y = y.ncols();
         let x_mean = x.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
@@ -472,7 +464,7 @@ impl BayesianCCA {
             )?;
             noise_precision =
                 self.sample_noise_precision(&x_centered, &y_centered, &wx, &wy, &mut rng)?;
-            if iter >= self.burn_in && (iter - self.burn_in) % self.thin == 0 {
+            if iter >= self.burn_in && (iter - self.burn_in).is_multiple_of(self.thin) {
                 wx_samples.push(wx.clone());
                 wy_samples.push(wy.clone());
                 let x_canonical = x_centered.dot(&wx);
@@ -506,7 +498,7 @@ impl BayesianCCA {
         noise_precision: f64,
         rng: &mut impl Rng,
     ) -> Result<(), SklearsError> {
-        let n = x.nrows();
+        let _n = x.nrows();
         let p = x.ncols();
         let xtx = x.t().dot(x);
         let posterior_precision = self.prior_precision * Array2::eye(p) + noise_precision * xtx;
@@ -636,6 +628,11 @@ impl VariationalPLSResults {
         let last_two = &self.elbo_history[self.elbo_history.len() - 2..];
         (last_two[1] - last_two[0]).abs() < 1e-6
     }
+
+    /// Get the number of PLS components (sklearn-style fitted attribute)
+    pub fn n_components(&self) -> usize {
+        self.n_components
+    }
 }
 /// Hierarchical Bayesian Canonical Correlation Analysis
 ///
@@ -755,7 +752,7 @@ impl HierarchicalBayesianCCA {
             let mut entropy_rng = thread_rng();
             StdRng::from_rng(&mut entropy_rng)
         };
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let p_x = x.ncols();
         let p_y = y.ncols();
         let n_groups = groups
@@ -834,7 +831,7 @@ impl HierarchicalBayesianCCA {
                 groups,
                 &mut rng,
             )?;
-            if iter >= self.burn_in && (iter - self.burn_in) % self.thin == 0 {
+            if iter >= self.burn_in && (iter - self.burn_in).is_multiple_of(self.thin) {
                 population_wx_samples.push(population_wx.clone());
                 population_wy_samples.push(population_wy.clone());
                 group_wx_samples.push(group_wx.clone());
@@ -939,6 +936,7 @@ impl HierarchicalBayesianCCA {
         }
         Ok(())
     }
+    #[allow(clippy::too_many_arguments)] // hierarchical sampling must pass all group/population/data parameters together
     fn sample_group_parameters(
         &self,
         group_wx: &mut Array3<f64>,
@@ -1104,13 +1102,13 @@ impl HierarchicalBayesianCCAResults {
         let mut mean_population_wx = Array2::zeros((p_x, self.n_components));
         let mut mean_population_wy = Array2::zeros((p_y, self.n_components));
         for sample in &self.population_wx_samples {
-            mean_population_wx = mean_population_wx + sample;
+            mean_population_wx += sample;
         }
         for sample in &self.population_wy_samples {
-            mean_population_wy = mean_population_wy + sample;
+            mean_population_wy += sample;
         }
-        mean_population_wx = mean_population_wx / self.n_mcmc_samples as f64;
-        mean_population_wy = mean_population_wy / self.n_mcmc_samples as f64;
+        mean_population_wx /= self.n_mcmc_samples as f64;
+        mean_population_wy /= self.n_mcmc_samples as f64;
         (mean_population_wx, mean_population_wy)
     }
     /// Get posterior mean of group-level effects
@@ -1121,13 +1119,13 @@ impl HierarchicalBayesianCCAResults {
         let mut mean_group_wx = Array3::zeros((n_groups, p_x, self.n_components));
         let mut mean_group_wy = Array3::zeros((n_groups, p_y, self.n_components));
         for sample in &self.group_wx_samples {
-            mean_group_wx = mean_group_wx + sample;
+            mean_group_wx += sample;
         }
         for sample in &self.group_wy_samples {
-            mean_group_wy = mean_group_wy + sample;
+            mean_group_wy += sample;
         }
-        mean_group_wx = mean_group_wx / self.n_mcmc_samples as f64;
-        mean_group_wy = mean_group_wy / self.n_mcmc_samples as f64;
+        mean_group_wx /= self.n_mcmc_samples as f64;
+        mean_group_wy /= self.n_mcmc_samples as f64;
         (mean_group_wx, mean_group_wy)
     }
     /// Get posterior mean of canonical correlations
@@ -1274,7 +1272,7 @@ impl BayesianCCAResults {
         let p = self.wx_samples[0].nrows();
         let mut mean_weights = Array2::zeros((p, self.n_components));
         for sample in &self.wx_samples {
-            mean_weights = mean_weights + sample;
+            mean_weights += sample;
         }
         mean_weights / self.n_mcmc_samples as f64
     }
@@ -1283,7 +1281,7 @@ impl BayesianCCAResults {
         let p = self.wy_samples[0].nrows();
         let mut mean_weights = Array2::zeros((p, self.n_components));
         for sample in &self.wy_samples {
-            mean_weights = mean_weights + sample;
+            mean_weights += sample;
         }
         mean_weights / self.n_mcmc_samples as f64
     }
@@ -1307,8 +1305,8 @@ impl BayesianCCAResults {
             let mut autocorr = 0.0;
             let mean = values.iter().sum::<f64>() / values.len() as f64;
             let mut var = 0.0;
-            for i in 0..values.len() {
-                var += (values[i] - mean).powi(2);
+            for &v in &values {
+                var += (v - mean).powi(2);
             }
             var /= values.len() as f64;
             if var > 0.0 {

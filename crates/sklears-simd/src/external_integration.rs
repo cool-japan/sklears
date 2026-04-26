@@ -64,6 +64,7 @@ pub trait ExternalBlas: ExternalLibrary {
     fn axpy(&self, alpha: f32, x: &[f32], y: &mut [f32]) -> ExternalResult<()>;
 
     /// Matrix-vector multiplication (SGEMV)
+    #[allow(clippy::too_many_arguments)] // BLAS SGEMV signature
     fn gemv(
         &self,
         alpha: f32,
@@ -76,6 +77,7 @@ pub trait ExternalBlas: ExternalLibrary {
     ) -> ExternalResult<()>;
 
     /// Matrix-matrix multiplication (SGEMM)
+    #[allow(clippy::too_many_arguments)] // BLAS SGEMM signature
     fn gemm(
         &self,
         alpha: f32,
@@ -680,8 +682,8 @@ impl Default for ExternalLibraryRegistry {
 
 /// Global external library registry
 #[cfg(not(feature = "no-std"))]
-static EXTERNAL_REGISTRY: std::sync::LazyLock<std::sync::Mutex<ExternalLibraryRegistry>> =
-    std::sync::LazyLock::new(|| std::sync::Mutex::new(ExternalLibraryRegistry::default()));
+static EXTERNAL_REGISTRY: once_cell::sync::Lazy<std::sync::Mutex<ExternalLibraryRegistry>> =
+    once_cell::sync::Lazy::new(|| std::sync::Mutex::new(ExternalLibraryRegistry::default()));
 
 #[cfg(feature = "no-std")]
 static EXTERNAL_REGISTRY: spin::Once<spin::Mutex<ExternalLibraryRegistry>> = spin::Once::new();

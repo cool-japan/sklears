@@ -121,6 +121,7 @@ pub struct SGDClassifier<State = Untrained> {
     intercept_: Option<Array1<Float>>,
     classes_: Option<Array1<Int>>,
     n_iter_: Option<usize>,
+    #[allow(dead_code)] // sklearn-compatible iteration counter; populated during fit
     t_: Option<Float>,
 }
 
@@ -678,6 +679,7 @@ pub struct SGDRegressor<State = Untrained> {
     coef_: Option<Array1<Float>>,
     intercept_: Option<Float>,
     n_iter_: Option<usize>,
+    #[allow(dead_code)] // sklearn-compatible iteration counter; populated during fit
     t_: Option<Float>,
 }
 

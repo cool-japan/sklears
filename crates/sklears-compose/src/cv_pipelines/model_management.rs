@@ -221,9 +221,10 @@ pub enum NormalizationType {
 }
 
 /// Tensor format specifications
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum TensorFormat {
     /// Batch, Channels, Height, Width
+    #[default]
     NCHW,
     /// Batch, Height, Width, Channels
     NHWC,
@@ -233,16 +234,11 @@ pub enum TensorFormat {
     HWC,
 }
 
-impl Default for TensorFormat {
-    fn default() -> Self {
-        Self::NCHW
-    }
-}
-
 /// Model data types
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ModelDataType {
     /// 32-bit floating point
+    #[default]
     Float32,
     /// 16-bit floating point
     Float16,
@@ -250,12 +246,6 @@ pub enum ModelDataType {
     Int8,
     /// 8-bit unsigned integer
     UInt8,
-}
-
-impl Default for ModelDataType {
-    fn default() -> Self {
-        Self::Float32
-    }
 }
 
 /// Model output specification
@@ -1148,7 +1138,7 @@ mod tests {
         assert!(spec.validate().is_ok());
 
         let memory = spec.memory_requirements(1);
-        assert_eq!(memory, 1 * 3 * 224 * 224 * 4); // Float32 = 4 bytes
+        assert_eq!(memory, 3 * 224 * 224 * 4); // Float32 = 4 bytes
     }
 
     #[test]

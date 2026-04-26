@@ -288,7 +288,7 @@ impl OutlierDetectionMethod {
             let mut col_values: Vec<Float> = x.column(j).to_vec();
             col_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-            let median = if col_values.len() % 2 == 0 {
+            let median = if col_values.len().is_multiple_of(2) {
                 (col_values[col_values.len() / 2 - 1] + col_values[col_values.len() / 2]) / 2.0
             } else {
                 col_values[col_values.len() / 2]
@@ -299,7 +299,7 @@ impl OutlierDetectionMethod {
                 col_values.iter().map(|&val| (val - median).abs()).collect();
             deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-            let mad = if deviations.len() % 2 == 0 {
+            let mad = if deviations.len().is_multiple_of(2) {
                 (deviations[deviations.len() / 2 - 1] + deviations[deviations.len() / 2]) / 2.0
             } else {
                 deviations[deviations.len() / 2]

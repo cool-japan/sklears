@@ -16,10 +16,9 @@ use super::simd_operations as simd_tree;
 use super::streaming_infrastructure::{
     ConceptDriftDetector, IncrementalTreeConfig, StreamingBuffer,
 };
-use crate::{DecisionTreeConfig, Trained, Untrained};
+use crate::{Trained, Untrained};
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::error::{Result, SklearsError};
-use std::collections::HashMap;
 use std::marker::PhantomData;
 
 /// Incremental Decision Tree for streaming data
@@ -58,10 +57,6 @@ pub trait StreamingTreeModel: Send + Sync {
 pub struct SimpleIncrementalTree {
     /// Tree nodes
     nodes: Vec<IncrementalTreeNode>,
-    /// Configuration
-    config: DecisionTreeConfig,
-    /// Feature importance scores
-    feature_importances: HashMap<usize, f64>,
 }
 
 /// Incremental tree node that can be updated
@@ -282,7 +277,10 @@ impl IncrementalDecisionTree<Untrained> {
         self.samples_processed += 1;
 
         // Check if we should update the tree
-        if self.samples_processed % self.config.update_frequency == 0 {
+        if self
+            .samples_processed
+            .is_multiple_of(self.config.update_frequency)
+        {
             self.update_tree()?;
         }
 
@@ -312,11 +310,7 @@ impl IncrementalDecisionTree<Untrained> {
             }
         } else {
             // Build initial tree
-            let mut new_tree = SimpleIncrementalTree {
-                nodes: Vec::new(),
-                config: self.config.base_config.clone(),
-                feature_importances: HashMap::new(),
-            };
+            let mut new_tree = SimpleIncrementalTree { nodes: Vec::new() };
 
             new_tree.rebuild(&x_data, &y_data, &weights)?;
             self.tree = Some(Box::new(new_tree));

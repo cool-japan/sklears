@@ -218,6 +218,7 @@ pub struct NonSeparableMultiDimensionalIsotonicRegression<State = Untrained> {
 
     // Fitted attributes
     x_train_: Option<Array2<Float>>,
+    #[allow(dead_code)] // intentionally deferred: training target retrieval not yet exposed
     y_train_: Option<Array1<Float>>,
     fitted_values_: Option<Array1<Float>>,
 

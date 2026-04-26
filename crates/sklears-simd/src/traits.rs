@@ -369,7 +369,9 @@ pub trait ComposableOperation<T>: SimdOperation<T> {
 
 /// A composed operation that applies two operations in sequence
 pub struct ComposedOperation<First, Second> {
+    #[allow(dead_code)] // First stage of pipeline; used when SimdOperation impls are added
     first: First,
+    #[allow(dead_code)] // Second stage of pipeline; used when SimdOperation impls are added
     second: Second,
 }
 
@@ -381,7 +383,9 @@ impl<First, Second> ComposedOperation<First, Second> {
 
 /// An operation with a mapped output transformation
 pub struct MappedOperation<Op, F> {
+    #[allow(dead_code)] // Base operation; used when SimdOperation impls are added
     operation: Op,
+    #[allow(dead_code)] // Output mapper function; used when SimdOperation impls are added
     mapper: F,
 }
 

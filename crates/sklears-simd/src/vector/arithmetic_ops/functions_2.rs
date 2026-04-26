@@ -301,6 +301,7 @@ pub(crate) unsafe fn fma_fma_intrinsic(a: &mut [f32], b: &[f32], c: &[f32]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 pub(crate) unsafe fn add_vec_neon(a: &[f32], b: &[f32], result: &mut [f32]) {
     use core::arch::aarch64::*;
@@ -318,6 +319,7 @@ pub(crate) unsafe fn add_vec_neon(a: &[f32], b: &[f32], result: &mut [f32]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 pub(crate) unsafe fn subtract_vec_neon(a: &[f32], b: &[f32], result: &mut [f32]) {
     use core::arch::aarch64::*;
@@ -335,6 +337,7 @@ pub(crate) unsafe fn subtract_vec_neon(a: &[f32], b: &[f32], result: &mut [f32])
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 pub(crate) unsafe fn multiply_vec_neon(a: &[f32], b: &[f32], result: &mut [f32]) {
     use core::arch::aarch64::*;
@@ -352,6 +355,7 @@ pub(crate) unsafe fn multiply_vec_neon(a: &[f32], b: &[f32], result: &mut [f32])
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 pub(crate) unsafe fn divide_vec_neon(a: &[f32], b: &[f32], result: &mut [f32]) {
     use core::arch::aarch64::*;
@@ -369,6 +373,7 @@ pub(crate) unsafe fn divide_vec_neon(a: &[f32], b: &[f32], result: &mut [f32]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 pub(crate) unsafe fn fma_neon(a: &mut [f32], b: &[f32], c: &[f32]) {
     use core::arch::aarch64::*;
@@ -387,6 +392,7 @@ pub(crate) unsafe fn fma_neon(a: &mut [f32], b: &[f32], c: &[f32]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 pub(crate) unsafe fn scale_vec_neon(vector: &[f32], scalar: f32, result: &mut [f32]) {
     use core::arch::aarch64::*;
@@ -404,6 +410,7 @@ pub(crate) unsafe fn scale_vec_neon(vector: &[f32], scalar: f32, result: &mut [f
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 pub(crate) unsafe fn abs_vec_neon(vector: &[f32], result: &mut [f32]) {
     use core::arch::aarch64::*;
@@ -420,6 +427,7 @@ pub(crate) unsafe fn abs_vec_neon(vector: &[f32], result: &mut [f32]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 pub(crate) unsafe fn neg_vec_neon(vector: &[f32], result: &mut [f32]) {
     use core::arch::aarch64::*;
@@ -436,6 +444,7 @@ pub(crate) unsafe fn neg_vec_neon(vector: &[f32], result: &mut [f32]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 pub(crate) unsafe fn reciprocal_vec_neon(vector: &[f32], result: &mut [f32]) {
     use core::arch::aarch64::*;
@@ -453,6 +462,7 @@ pub(crate) unsafe fn reciprocal_vec_neon(vector: &[f32], result: &mut [f32]) {
     }
 }
 #[cfg(target_arch = "aarch64")]
+#[allow(dead_code)] // NEON dispatch; unused in --all-features (no-std disables runtime detection)
 #[target_feature(enable = "neon")]
 pub(crate) unsafe fn square_vec_neon(vector: &[f32], result: &mut [f32]) {
     use core::arch::aarch64::*;
@@ -471,7 +481,7 @@ pub(crate) unsafe fn square_vec_neon(vector: &[f32], result: &mut [f32]) {
 #[allow(non_snake_case)]
 #[cfg(all(test, not(feature = "no-std")))]
 mod tests {
-    use super::*;
+    use super::super::*;
     #[cfg(feature = "no-std")]
     use alloc::{vec, vec::Vec};
     #[test]
@@ -599,8 +609,8 @@ mod tests {
         let b: Vec<f32> = (0..size).map(|i| (i + 1) as f32).collect();
         let mut result = vec![0.0; size];
         add_vec(&a, &b, &mut result);
-        for i in 0..size {
-            assert_eq!(result[i], (2 * i + 1) as f32);
+        for (i, &val) in result.iter().enumerate().take(size) {
+            assert_eq!(val, (2 * i + 1) as f32);
         }
     }
     #[test]

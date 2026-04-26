@@ -11,7 +11,7 @@ use scirs2_linalg::compat::ArrayLinalgExt;
 use serde::{Deserialize, Serialize};
 use sklears_core::{
     error::{Result, SklearsError},
-    traits::{Estimator, Fit, Predict, Transform, Untrained},
+    traits::{Fit, Predict, Transform},
 };
 
 /// Type alias for NIPALS step result to reduce type complexity
@@ -170,9 +170,14 @@ impl PartialLeastSquares {
     }
 
     /// Center and scale data
-    fn preprocess_data(&self, data: &Array2<f64>) -> (Array2<f64>, Array1<f64>, Array1<f64>) {
+    fn preprocess_data(
+        &self,
+        data: &Array2<f64>,
+    ) -> Result<(Array2<f64>, Array1<f64>, Array1<f64>)> {
         let mean = if self.center {
-            data.mean_axis(Axis(0)).expect("array should have elements for mean computation")
+            data.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError("cannot compute mean of empty array".to_string())
+            })?
         } else {
             Array1::zeros(data.ncols())
         };
@@ -196,7 +201,7 @@ impl PartialLeastSquares {
             centered
         };
 
-        (processed, mean, scale)
+        Ok((processed, mean, scale))
     }
 
     /// NIPALS algorithm for PLS
@@ -247,8 +252,7 @@ impl PartialLeastSquares {
             if w_norm < 1e-12 {
                 // If w becomes zero, try a different approach
                 if iter == 0 {
-                    // Initialize w as the first principal component direction
-                    let _xt_x = x.t().dot(x);
+                    // Initialize w as the first principal component direction (unit e1)
                     w = Array1::from_shape_fn(n_features_x, |i| if i == 0 { 1.0 } else { 0.0 });
                     let w_norm = w.dot(&w).sqrt();
                     w = &w / w_norm;
@@ -356,8 +360,8 @@ impl Fit<(Array2<f64>, Array2<f64>), ()> for PartialLeastSquares {
         let n_components = self.n_components.min(n_features_x.min(n_features_y));
 
         // Preprocess data
-        let (mut x_work, x_mean, x_scale) = self.preprocess_data(x);
-        let (mut y_work, y_mean, y_scale) = self.preprocess_data(y);
+        let (mut x_work, x_mean, x_scale) = self.preprocess_data(x)?;
+        let (mut y_work, y_mean, y_scale) = self.preprocess_data(y)?;
 
         // Initialize storage
         let mut x_weights = Array2::zeros((n_features_x, n_components));
@@ -369,10 +373,6 @@ impl Fit<(Array2<f64>, Array2<f64>), ()> for PartialLeastSquares {
 
         let mut x_explained_var_ratio = Array1::zeros(n_components);
         let mut y_explained_var_ratio = Array1::zeros(n_components);
-
-        // Store original data for variance calculation
-        let _x_original = x_work.clone();
-        let _y_original = y_work.clone();
 
         // Extract components
         for k in 0..n_components {
@@ -403,7 +403,7 @@ impl Fit<(Array2<f64>, Array2<f64>), ()> for PartialLeastSquares {
         let ptw_y = y_loadings.t().dot(&y_weights);
 
         let x_rotations = if ptw_x.nrows() == ptw_x.ncols() && ptw_x.nrows() > 0 {
-            let ptw_x_inv = ptw_x.inv().map_err(|_| {
+            let ptw_x_inv = invert_matrix(&ptw_x).map_err(|_| {
                 SklearsError::NumericalError("Failed to invert X P^T*W matrix".to_string())
             })?;
             x_weights.dot(&ptw_x_inv)
@@ -413,7 +413,7 @@ impl Fit<(Array2<f64>, Array2<f64>), ()> for PartialLeastSquares {
         };
 
         let y_rotations = if ptw_y.nrows() == ptw_y.ncols() && ptw_y.nrows() > 0 {
-            let ptw_y_inv = ptw_y.inv().map_err(|_| {
+            let ptw_y_inv = invert_matrix(&ptw_y).map_err(|_| {
                 SklearsError::NumericalError("Failed to invert Y P^T*W matrix".to_string())
             })?;
             y_weights.dot(&ptw_y_inv)
@@ -540,24 +540,15 @@ fn outer_product(a: &Array1<f64>, b: &Array1<f64>) -> Array2<f64> {
     result
 }
 
-/// Extension trait for matrix inversion
-trait MatrixInversion {
-    fn inv(&self) -> Result<Array2<f64>>;
-}
-
-impl MatrixInversion for Array2<f64> {
-    fn inv(&self) -> Result<Array2<f64>> {
-        if self.nrows() != self.ncols() {
-            return Err(SklearsError::NumericalError(
-                "Matrix must be square for inversion".to_string(),
-            ));
-        }
-
-        // Use scirs2-linalg's inv() method
-        self.inv().map_err(|e| {
-            SklearsError::NumericalError(format!("Matrix inversion failed: {}", e))
-        })
+/// Invert a square matrix using scirs2-linalg
+fn invert_matrix(m: &Array2<f64>) -> Result<Array2<f64>> {
+    if m.nrows() != m.ncols() {
+        return Err(SklearsError::NumericalError(
+            "Matrix must be square for inversion".to_string(),
+        ));
     }
+    ArrayLinalgExt::inv(m)
+        .map_err(|e| SklearsError::NumericalError(format!("Matrix inversion failed: {e}")))
 }
 
 #[allow(non_snake_case)]
@@ -573,8 +564,8 @@ mod tests {
         assert_eq!(pls.algorithm, PLSAlgorithm::PLS1);
         assert_eq!(pls.max_iter, 500);
         assert_eq!(pls.tol, 1e-6);
-        assert_eq!(pls.center, true);
-        assert_eq!(pls.scale, true);
+        assert!(pls.center);
+        assert!(pls.scale);
     }
 
     #[test]
@@ -590,8 +581,8 @@ mod tests {
         assert_eq!(pls.algorithm, PLSAlgorithm::PLS2);
         assert_eq!(pls.max_iter, 1000);
         assert_eq!(pls.tol, 1e-8);
-        assert_eq!(pls.center, false);
-        assert_eq!(pls.scale, false);
+        assert!(!pls.center);
+        assert!(!pls.scale);
     }
 
     #[test]
@@ -608,7 +599,9 @@ mod tests {
         let y = array![[2.1, 3.2], [5.1, 6.0], [8.0, 9.1], [11.1, 12.0], [3.5, 4.6],];
 
         let pls = PartialLeastSquares::new(2);
-        let fitted = pls.fit(&(x.clone(), y.clone()), &()).expect("model fitting should succeed");
+        let fitted = pls
+            .fit(&(x.clone(), y.clone()), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features_x, 3);
         assert_eq!(fitted.n_features_y, 2);
@@ -679,12 +672,16 @@ mod tests {
 
         // Test PLS1
         let pls1 = PartialLeastSquares::new(1).algorithm(PLSAlgorithm::PLS1);
-        let fitted1 = pls1.fit(&(x.clone(), y.clone()), &()).expect("model fitting should succeed");
+        let fitted1 = pls1
+            .fit(&(x.clone(), y.clone()), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted1.n_components, 1);
 
         // Test PLS2
         let pls2 = PartialLeastSquares::new(1).algorithm(PLSAlgorithm::PLS2);
-        let fitted2 = pls2.fit(&(x.clone(), y.clone()), &()).expect("model fitting should succeed");
+        let fitted2 = pls2
+            .fit(&(x.clone(), y.clone()), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted2.n_components, 1);
     }
 

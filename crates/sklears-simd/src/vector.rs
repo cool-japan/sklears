@@ -194,7 +194,7 @@ pub fn allocate_aligned_vec(size: usize, _alignment: usize) -> Vec<f32> {
 
 /// Check if vector is properly aligned for SIMD operations
 pub fn is_properly_aligned(slice: &[f32], alignment: usize) -> bool {
-    (slice.as_ptr() as usize) % alignment == 0
+    (slice.as_ptr() as usize).is_multiple_of(alignment)
 }
 
 /// Performance benchmarking utilities for SIMD operations
@@ -623,8 +623,8 @@ mod integration_tests {
     #[test]
     fn test_basic_workflow() {
         // Test a complete workflow using multiple SIMD operations
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-        let b = vec![8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0];
+        let a = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+        let b = [8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0];
 
         // This will work once all modules are implemented
         // let dot = dot_product(&a, &b);

@@ -64,21 +64,16 @@ use std::f64::consts::PI;
 use serde::{Deserialize, Serialize};
 
 /// Image normalization strategies
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ImageNormalizationStrategy {
     /// Normalize to [0, 1] range using min-max scaling
+    #[default]
     MinMax,
     /// Standardize to zero mean and unit variance
     StandardScore,
     /// Custom range normalization
     CustomRange(Float, Float),
-}
-
-impl Default for ImageNormalizationStrategy {
-    fn default() -> Self {
-        Self::MinMax
-    }
 }
 
 /// Color space types for image transformations
@@ -96,21 +91,16 @@ pub enum ColorSpace {
 }
 
 /// Image resizing interpolation methods
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum InterpolationMethod {
     /// Nearest neighbor interpolation (fast, blocky)
     Nearest,
     /// Bilinear interpolation (smooth, good quality/speed balance)
+    #[default]
     Bilinear,
     /// Bicubic interpolation (highest quality, slower)
     Bicubic,
-}
-
-impl Default for InterpolationMethod {
-    fn default() -> Self {
-        Self::Bilinear
-    }
 }
 
 /// Configuration for image normalization
@@ -152,6 +142,12 @@ pub struct ImageNormalizerFitted {
     max_vals: Vec<Float>,
     mean_vals: Vec<Float>,
     std_vals: Vec<Float>,
+}
+
+impl Default for ImageNormalizer<Untrained> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ImageNormalizer<Untrained> {
@@ -331,7 +327,7 @@ impl Transform<Array3<Float>, Array3<Float>> for ImageNormalizerFitted {
 }
 
 /// Configuration for image augmentation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ImageAugmenterConfig {
     /// Rotation range in degrees (min, max)
@@ -352,26 +348,17 @@ pub struct ImageAugmenterConfig {
     pub random_seed: Option<u64>,
 }
 
-impl Default for ImageAugmenterConfig {
-    fn default() -> Self {
-        Self {
-            rotation_range: None,
-            zoom_range: None,
-            width_shift_range: None,
-            height_shift_range: None,
-            horizontal_flip: false,
-            vertical_flip: false,
-            brightness_range: None,
-            random_seed: None,
-        }
-    }
-}
-
 /// Image augmenter for data augmentation
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ImageAugmenter {
     config: ImageAugmenterConfig,
+}
+
+impl Default for ImageAugmenter {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ImageAugmenter {
@@ -547,6 +534,12 @@ impl ImageAugmenter {
 pub struct ColorSpaceTransformer {
     source: ColorSpace,
     target: ColorSpace,
+}
+
+impl Default for ColorSpaceTransformer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ColorSpaceTransformer {
@@ -853,21 +846,16 @@ impl Transform<Array3<Float>, Array3<Float>> for ImageResizer {
 }
 
 /// Edge detection methods
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum EdgeDetectionMethod {
     /// Sobel edge detection
+    #[default]
     Sobel,
     /// Laplacian edge detection
     Laplacian,
     /// Canny edge detection (simplified)
     Canny,
-}
-
-impl Default for EdgeDetectionMethod {
-    fn default() -> Self {
-        Self::Sobel
-    }
 }
 
 /// Edge detector for feature extraction
@@ -877,6 +865,12 @@ pub struct EdgeDetector {
     method: EdgeDetectionMethod,
     threshold: Option<Float>,
     blur_sigma: Option<Float>,
+}
+
+impl Default for EdgeDetector {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl EdgeDetector {
@@ -950,6 +944,7 @@ impl Transform<Array3<Float>, Array3<Float>> for EdgeDetector {
 
 impl EdgeDetector {
     /// Apply Gaussian blur to reduce noise
+    #[allow(clippy::needless_range_loop)] // indices used in arithmetic (offset and weight computation)
     fn gaussian_blur(&self, image: &Array3<Float>, sigma: Float) -> Result<Array3<Float>> {
         let shape = image.dim();
         let mut result = image.clone();
@@ -1081,6 +1076,12 @@ pub struct ImageFeatureExtractor {
     extract_histograms: bool,
     histogram_bins: usize,
     extract_moments: bool,
+}
+
+impl Default for ImageFeatureExtractor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ImageFeatureExtractor {

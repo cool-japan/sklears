@@ -53,10 +53,10 @@ pub struct GpuKernelComputer {
 impl GpuKernelComputer {
     /// Create a new GPU kernel computer
     pub async fn new() -> GpuKernelResult<Self> {
-        let instance = Instance::new(&wgpu::InstanceDescriptor {
+        let instance = Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             flags: wgpu::InstanceFlags::default(),
-            ..Default::default()
+            ..wgpu::InstanceDescriptor::new_without_display_handle()
         });
 
         let adapter = instance
@@ -317,12 +317,12 @@ impl GpuKernelComputer {
     /// Compute kernel matrix on GPU
     pub async fn compute_kernel_matrix(
         &self,
-        X: &Array2<f32>,
-        Y: &Array2<f32>,
+        x_mat: &Array2<f32>, // standard ML feature matrix notation
+        y_mat: &Array2<f32>, // standard ML feature matrix notation
         kernel_type: &KernelType,
     ) -> GpuKernelResult<Array2<f32>> {
-        let (n_x, n_features_x) = X.dim();
-        let (n_y, n_features_y) = Y.dim();
+        let (n_x, n_features_x) = x_mat.dim();
+        let (n_y, n_features_y) = y_mat.dim();
 
         if n_features_x != n_features_y {
             return Err(GpuKernelError::DimensionMismatch);
@@ -375,7 +375,7 @@ impl GpuKernelComputer {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("X Buffer"),
-                contents: bytemuck::cast_slice(X.as_slice().expect("non-contiguous array")),
+                contents: bytemuck::cast_slice(x_mat.as_slice().expect("non-contiguous array")),
                 usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
             });
 
@@ -383,7 +383,7 @@ impl GpuKernelComputer {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Y Buffer"),
-                contents: bytemuck::cast_slice(Y.as_slice().expect("non-contiguous array")),
+                contents: bytemuck::cast_slice(y_mat.as_slice().expect("non-contiguous array")),
                 usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
             });
 
@@ -443,8 +443,8 @@ impl GpuKernelComputer {
             compute_pass.set_bind_group(0, &bind_group, &[]);
 
             let workgroup_size = 16;
-            let num_workgroups_x = (n_x + workgroup_size - 1) / workgroup_size;
-            let num_workgroups_y = (n_y + workgroup_size - 1) / workgroup_size;
+            let num_workgroups_x = n_x.div_ceil(workgroup_size);
+            let num_workgroups_y = n_y.div_ceil(workgroup_size);
 
             compute_pass.dispatch_workgroups(num_workgroups_x as u32, num_workgroups_y as u32, 1);
         }

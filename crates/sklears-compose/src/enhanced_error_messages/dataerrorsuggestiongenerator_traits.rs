@@ -9,7 +9,7 @@
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
 use crate::error::{Result, SklearsComposeError};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use super::functions::{DurationExt, SuggestionGenerator};
 use super::types::{
@@ -21,7 +21,7 @@ impl SuggestionGenerator for DataErrorSuggestionGenerator {
     fn generate_suggestions(
         &self,
         error: &SklearsComposeError,
-        context: &EnhancedErrorContext,
+        _context: &EnhancedErrorContext,
     ) -> Result<Vec<ActionableSuggestion>> {
         let mut suggestions = Vec::new();
         let error_str = error.to_string().to_lowercase();
@@ -33,20 +33,24 @@ impl SuggestionGenerator for DataErrorSuggestionGenerator {
                     description: "The input data shape doesn't match the expected shape. Check your data preprocessing steps."
                         .to_string(),
                     implementation_steps: vec![
-                        #[doc = " ImplementationStep"] ImplementationStep { step_number :
-                        1, description : "Check the shape of your input data"
-                        .to_string(), code_snippet :
-                        Some("println!(\"Data shape: {:?}\", data.shape());"
-                        .to_string()), command : None, expected_outcome :
-                        "Display the actual data shape".to_string(), validation_check :
-                        None, }
+                        ImplementationStep {
+                            step_number: 1,
+                            description: "Check the shape of your input data".to_string(),
+                            code_snippet: Some(
+                                "println!(\"Data shape: {:?}\", data.shape());".to_string(),
+                            ),
+                            command: None,
+                            expected_outcome: "Display the actual data shape".to_string(),
+                            validation_check: None,
+                        }
                     ],
                     code_examples: vec![
-                        #[doc = " CodeExample"] CodeExample { language : "rust"
-                        .to_string(), code :
-                        "let data = data.into_shape((n_samples, n_features))?;"
-                        .to_string(), description : "Reshape data to correct dimensions"
-                        .to_string(), file_path : None, }
+                        CodeExample {
+                            language: "rust".to_string(),
+                            code: "let data = data.into_shape((n_samples, n_features))?;".to_string(),
+                            description: "Reshape data to correct dimensions".to_string(),
+                            file_path: None,
+                        }
                     ],
                     confidence: 0.9,
                     estimated_time: <Duration as DurationExt>::from_mins(5),

@@ -5,13 +5,13 @@
 //! potentially different machines. It implements a custom tracing protocol
 //! that can track execution flow, dependencies, and performance metrics.
 
-use sklears_core::traits::Estimator;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 /// Distributed tracing system for monitoring pipeline execution across services
+#[allow(dead_code)]
 pub struct DistributedTracer {
     /// Tracer configuration
     config: TracingConfig,
@@ -143,24 +143,22 @@ impl DistributedTracer {
     /// Get a completed trace by ID
     #[must_use]
     pub fn get_trace(&self, trace_id: &str) -> Option<Trace> {
-        if let Ok(traces) = self.traces.lock() {
-            traces.iter().find(|t| t.trace_id == trace_id).cloned()
-        } else {
-            None
+        match self.traces.lock() {
+            Ok(traces) => traces.iter().find(|t| t.trace_id == trace_id).cloned(),
+            _ => None,
         }
     }
 
     /// Get all active spans
     #[must_use]
     pub fn get_active_spans(&self) -> Vec<TraceSpan> {
-        if let Ok(spans) = self.spans.read() {
-            spans
+        match self.spans.read() {
+            Ok(spans) => spans
                 .values()
                 .filter(|s| s.status == SpanStatus::Active)
                 .cloned()
-                .collect()
-        } else {
-            Vec::new()
+                .collect(),
+            _ => Vec::new(),
         }
     }
 
@@ -301,6 +299,7 @@ impl Default for TracingConfig {
 }
 
 /// Handle for managing a trace span
+#[allow(dead_code)]
 pub struct TraceHandle {
     /// Trace ID
     pub trace_id: String,
@@ -357,10 +356,9 @@ impl TraceHandle {
     /// Get baggage value
     #[must_use]
     pub fn get_baggage(&self, key: &str) -> Option<String> {
-        if let Ok(spans) = self.spans.read() {
-            spans.get(&self.span_id)?.baggage.get(key).cloned()
-        } else {
-            None
+        match self.spans.read() {
+            Ok(spans) => spans.get(&self.span_id)?.baggage.get(key).cloned(),
+            _ => None,
         }
     }
 
@@ -477,42 +475,41 @@ impl TraceHandle {
 
     /// Count unique services in the trace
     fn count_unique_services(&self) -> usize {
-        if let Ok(spans) = self.spans.read() {
-            let services: std::collections::HashSet<_> = spans
-                .values()
-                .filter(|span| span.trace_id == self.trace_id)
-                .map(|span| &span.service_id)
-                .collect();
-            services.len()
-        } else {
-            0
+        match self.spans.read() {
+            Ok(spans) => {
+                let services: std::collections::HashSet<_> = spans
+                    .values()
+                    .filter(|span| span.trace_id == self.trace_id)
+                    .map(|span| &span.service_id)
+                    .collect();
+                services.len()
+            }
+            _ => 0,
         }
     }
 
     /// Get trace start time
     fn get_trace_start_time(&self) -> u64 {
-        if let Ok(spans) = self.spans.read() {
-            spans
+        match self.spans.read() {
+            Ok(spans) => spans
                 .values()
                 .filter(|span| span.trace_id == self.trace_id)
                 .map(|span| span.start_time)
                 .min()
-                .unwrap_or(0)
-        } else {
-            0
+                .unwrap_or(0),
+            _ => 0,
         }
     }
 
     /// Get trace end time
     fn get_trace_end_time(&self) -> Option<u64> {
-        if let Ok(spans) = self.spans.read() {
-            spans
+        match self.spans.read() {
+            Ok(spans) => spans
                 .values()
                 .filter(|span| span.trace_id == self.trace_id)
                 .filter_map(|span| span.end_time)
-                .max()
-        } else {
-            None
+                .max(),
+            _ => None,
         }
     }
 }

@@ -1114,30 +1114,59 @@ impl Default for DslParser {
 pub enum AstNode {
     /// Pipeline node
     Pipeline {
+        /// The name.
         name: String,
+        /// The metadata.
         metadata: PipelineMetadata,
+        /// The children.
         children: Vec<AstNode>,
     },
     /// Step node
     Step {
+        /// The name.
         name: String,
+        /// The algorithm.
         algorithm: String,
+        /// The parameters.
         parameters: Vec<AstNode>,
     },
     /// Connection node
     Connection {
+        /// The from.
         from: String,
+        /// The to.
         to: String,
+        /// The port mapping.
         port_mapping: Vec<(String, String)>,
     },
     /// Parameter node
-    Parameter { name: String, value: ParameterValue },
+    Parameter {
+        /// The name.
+        name: String,
+        /// The value.
+        value: ParameterValue,
+    },
     /// Input definition node
-    Input { name: String, data_type: DataType },
+    Input {
+        /// The name.
+        name: String,
+        /// The data type.
+        data_type: DataType,
+    },
     /// Output definition node
-    Output { name: String, data_type: DataType },
+    Output {
+        /// The name.
+        name: String,
+        /// The data type.
+        data_type: DataType,
+    },
     /// Configuration node
-    Config { key: String, value: String },
+    Config {
+        /// The key.
+        key: String,
+        /// The value.
+        value: String,
+    },
 }
 
 /// Pipeline metadata for AST

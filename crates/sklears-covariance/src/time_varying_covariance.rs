@@ -7,11 +7,21 @@
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, Axis, NdFloat};
 use scirs2_core::numeric::FromPrimitive;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Distribution;
 
 use crate::utils::{matrix_determinant, matrix_inverse, regularize_matrix, validate_data};
 use sklears_core::prelude::*;
 use sklears_core::traits::Fit;
+
+/// Return type for time-varying covariance fit methods
+type TimeVaryingFitResult<F> = Result<(
+    Array3<F>,
+    Option<Array3<F>>,
+    Option<Array2<F>>,
+    Option<Array2<F>>,
+    Vec<F>,
+    F,
+    Array1<usize>,
+)>;
 
 /// Time-varying covariance estimation methods
 #[derive(Debug, Clone, PartialEq)]
@@ -443,7 +453,7 @@ impl<F: NdFloat> TimeVaryingCovarianceFitted<F> {
         let mut unconditional = Array2::zeros((self.n_features_, self.n_features_));
 
         for t in 0..self.n_time_periods_ {
-            unconditional = unconditional + &correlations.slice(s![t, .., ..]);
+            unconditional += &correlations.slice(s![t, .., ..]);
         }
 
         Ok(unconditional
@@ -456,7 +466,7 @@ impl<F: NdFloat> TimeVaryingCovarianceFitted<F> {
         let mut unconditional = Array2::zeros((self.n_features_, self.n_features_));
 
         for t in 0..self.n_time_periods_ {
-            unconditional = unconditional + &self.covariances_.slice(s![t, .., ..]);
+            unconditional += &self.covariances_.slice(s![t, .., ..]);
         }
 
         Ok(unconditional
@@ -473,7 +483,7 @@ impl<F: NdFloat> TimeVaryingCovarianceFitted<F> {
         vol_matrix
     }
 
-    fn get_regime_covariance(&self, regime: usize) -> Result<Array2<F>> {
+    fn get_regime_covariance(&self, _regime: usize) -> Result<Array2<F>> {
         // This would be stored during fitting - simplified here
         self.covariance_at(0) // Placeholder
     }
@@ -547,18 +557,7 @@ impl<F: NdFloat + FromPrimitive> Fit<Array2<F>, ()> for TimeVaryingCovariance<F>
 
 impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
     /// Fit using rolling window estimation
-    fn fit_rolling_window(
-        &self,
-        x: &Array2<F>,
-    ) -> Result<(
-        Array3<F>,
-        Option<Array3<F>>,
-        Option<Array2<F>>,
-        Option<Array2<F>>,
-        Vec<F>,
-        F,
-        Array1<usize>,
-    )> {
+    fn fit_rolling_window(&self, x: &Array2<F>) -> TimeVaryingFitResult<F> {
         let rolling_config = self
             .config
             .rolling_config
@@ -595,11 +594,8 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
                 time_indices[window_idx] = end_idx - 1;
 
                 // Add to log likelihood
-                log_likelihood = log_likelihood
-                    + self.compute_gaussian_log_likelihood(
-                        &window_data.to_owned(),
-                        &regularized_cov,
-                    )?;
+                log_likelihood += self
+                    .compute_gaussian_log_likelihood(&window_data.to_owned(), &regularized_cov)?;
             }
         }
 
@@ -615,18 +611,7 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
     }
 
     /// Fit using exponentially weighted moving average
-    fn fit_exponential_weighted(
-        &self,
-        x: &Array2<F>,
-    ) -> Result<(
-        Array3<F>,
-        Option<Array3<F>>,
-        Option<Array2<F>>,
-        Option<Array2<F>>,
-        Vec<F>,
-        F,
-        Array1<usize>,
-    )> {
+    fn fit_exponential_weighted(&self, x: &Array2<F>) -> TimeVaryingFitResult<F> {
         let ewma_config = self
             .config
             .exponential_config
@@ -680,8 +665,8 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
                     .assign(&regularized_cov);
 
                 if t >= min_periods {
-                    log_likelihood = log_likelihood
-                        + self.compute_gaussian_log_likelihood_single(&diff, &regularized_cov)?;
+                    log_likelihood +=
+                        self.compute_gaussian_log_likelihood_single(&diff, &regularized_cov)?;
                 }
             } else {
                 let regularized_cov = regularize_matrix(&ewma_cov, self.config.regularization)?;
@@ -690,8 +675,8 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
                     .assign(&regularized_cov);
 
                 if t >= min_periods {
-                    log_likelihood = log_likelihood
-                        + self.compute_gaussian_log_likelihood_single(&diff, &regularized_cov)?;
+                    log_likelihood +=
+                        self.compute_gaussian_log_likelihood_single(&diff, &regularized_cov)?;
                 }
             }
         }
@@ -708,18 +693,7 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
     }
 
     /// Fit using Dynamic Conditional Correlation model
-    fn fit_dcc(
-        &self,
-        x: &Array2<F>,
-    ) -> Result<(
-        Array3<F>,
-        Option<Array3<F>>,
-        Option<Array2<F>>,
-        Option<Array2<F>>,
-        Vec<F>,
-        F,
-        Array1<usize>,
-    )> {
+    fn fit_dcc(&self, x: &Array2<F>) -> TimeVaryingFitResult<F> {
         let dcc_config = self
             .config
             .dcc_config
@@ -792,8 +766,7 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
 
             // Add to log likelihood
             let z_t = standardized_residuals.slice(s![t, ..]);
-            log_likelihood =
-                log_likelihood + self.compute_dcc_log_likelihood(&z_t.to_owned(), &corr_t)?;
+            log_likelihood += self.compute_dcc_log_likelihood(&z_t.to_owned(), &corr_t)?;
         }
 
         let parameters = vec![alpha, beta];
@@ -815,15 +788,7 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
         &self,
         x: &Array2<F>,
         _rng: &mut scirs2_core::random::CoreRandom,
-    ) -> Result<(
-        Array3<F>,
-        Option<Array3<F>>,
-        Option<Array2<F>>,
-        Option<Array2<F>>,
-        Vec<F>,
-        F,
-        Array1<usize>,
-    )> {
+    ) -> TimeVaryingFitResult<F> {
         let garch_config = self
             .config
             .garch_config
@@ -844,7 +809,7 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
                     let (vols, params, ll) = self.estimate_garch_with_params(&series.to_owned())?;
                     volatilities.column_mut(j).assign(&vols);
                     parameters.extend(params);
-                    log_likelihood = log_likelihood + ll;
+                    log_likelihood += ll;
                 }
 
                 // Create diagonal covariance matrices
@@ -879,16 +844,8 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
     fn fit_regime_switching(
         &self,
         x: &Array2<F>,
-        rng: &mut scirs2_core::random::CoreRandom,
-    ) -> Result<(
-        Array3<F>,
-        Option<Array3<F>>,
-        Option<Array2<F>>,
-        Option<Array2<F>>,
-        Vec<F>,
-        F,
-        Array1<usize>,
-    )> {
+        _rng: &mut scirs2_core::random::CoreRandom,
+    ) -> TimeVaryingFitResult<F> {
         let regime_config = self
             .config
             .regime_config
@@ -971,24 +928,24 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
 
                 if total_weight > F::zero() {
                     // Update mean
-                    let mut weighted_mean = Array1::zeros(n_features);
+                    let mut weighted_mean: Array1<F> = Array1::zeros(n_features);
                     for t in 0..n_samples {
                         weighted_mean = weighted_mean + &x.slice(s![t, ..]) * regime_weights[t];
                     }
-                    weighted_mean = weighted_mean / total_weight;
+                    weighted_mean /= total_weight;
                     regime_means
                         .slice_mut(s![regime, ..])
                         .assign(&weighted_mean);
 
                     // Update covariance
-                    let mut weighted_cov = Array2::zeros((n_features, n_features));
+                    let mut weighted_cov: Array2<F> = Array2::zeros((n_features, n_features));
                     for t in 0..n_samples {
                         let diff = &x.slice(s![t, ..]) - &weighted_mean;
                         let diff_2d = diff.clone().insert_axis(Axis(1));
                         let diff_t = diff.clone().insert_axis(Axis(0));
                         weighted_cov = weighted_cov + diff_t.dot(&diff_2d) * regime_weights[t];
                     }
-                    weighted_cov = weighted_cov / total_weight;
+                    weighted_cov /= total_weight;
                     let regularized_cov =
                         regularize_matrix(&weighted_cov, self.config.regularization)?;
                     regime_covariances
@@ -1012,11 +969,11 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
                         &mean.to_owned(),
                         &cov.to_owned(),
                     )?;
-                    obs_likelihood = obs_likelihood + regime_prob * likelihood;
+                    obs_likelihood += regime_prob * likelihood;
                 }
 
                 if obs_likelihood > F::zero() {
-                    log_likelihood = log_likelihood + obs_likelihood.ln();
+                    log_likelihood += obs_likelihood.ln();
                 }
             }
 
@@ -1173,27 +1130,24 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
         for i in 0..n_samples {
             let diff = &data.slice(s![i, ..]) - &mean;
             let mahalanobis = diff.dot(&inv_cov).dot(&diff);
-            log_likelihood = log_likelihood
-                - mahalanobis
-                    / F::from(2.0).ok_or_else(|| {
-                        SklearsError::NumericalError("numeric conversion failed".into())
-                    })?;
+            log_likelihood -= mahalanobis
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?;
         }
 
-        log_likelihood = log_likelihood
-            - F::from(n_samples)
+        log_likelihood -= F::from(n_samples)
+            .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
+            * (F::from(n_features)
                 .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
-                * (F::from(n_features).ok_or_else(|| {
-                    SklearsError::NumericalError("numeric conversion failed".into())
-                })? * F::from(2.0 * std::f64::consts::PI)
+                * F::from(2.0 * std::f64::consts::PI)
                     .ok_or_else(|| {
                         SklearsError::NumericalError("numeric conversion failed".into())
                     })?
                     .ln()
-                    + det_cov.ln())
-                / F::from(2.0).ok_or_else(|| {
-                    SklearsError::NumericalError("numeric conversion failed".into())
-                })?;
+                + det_cov.ln())
+            / F::from(2.0)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
 
         Ok(log_likelihood)
     }

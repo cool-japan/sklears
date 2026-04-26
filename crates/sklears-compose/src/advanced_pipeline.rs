@@ -9,7 +9,10 @@ use sklears_core::{
     types::Float,
 };
 
-use crate::{PipelinePredictor, PipelineStep};
+use crate::PipelineStep;
+
+/// A branch entry: (name, condition, steps)
+type BranchEntry = (String, Box<dyn DataCondition>, Vec<Box<dyn PipelineStep>>);
 
 /// Data condition for conditional execution
 pub trait DataCondition: Send + Sync + std::fmt::Debug {
@@ -41,7 +44,7 @@ impl FeatureCountCondition {
 impl DataCondition for FeatureCountCondition {
     fn check(&self, x: &ArrayView2<'_, Float>) -> bool {
         let n_features = x.ncols();
-        n_features >= self.min_features && self.max_features.map_or(true, |max| n_features <= max)
+        n_features >= self.min_features && self.max_features.is_none_or(|max| n_features <= max)
     }
 
     fn clone_condition(&self) -> Box<dyn DataCondition> {
@@ -74,6 +77,7 @@ pub struct ConditionalPipeline<S = Untrained> {
 }
 
 /// Trained state for `ConditionalPipeline`
+#[allow(dead_code)]
 pub struct ConditionalPipelineTrained {
     condition: Box<dyn DataCondition>,
     fitted_true_branch: Box<dyn PipelineStep>,
@@ -227,6 +231,7 @@ impl BranchConfig {
 ///     .branch(BranchConfig::new("low_dim".to_string(), low_dim_condition))
 ///     .build();
 /// ```
+#[allow(dead_code)]
 pub struct BranchingPipeline<S = Untrained> {
     state: S,
     branches: Vec<BranchConfig>,
@@ -235,8 +240,9 @@ pub struct BranchingPipeline<S = Untrained> {
 }
 
 /// Trained state for `BranchingPipeline`
+#[allow(dead_code)]
 pub struct BranchingPipelineTrained {
-    fitted_branches: Vec<(String, Box<dyn DataCondition>, Vec<Box<dyn PipelineStep>>)>,
+    fitted_branches: Vec<BranchEntry>,
     combination_strategy: String,
     default_branch: Option<String>,
     n_features_in: usize,

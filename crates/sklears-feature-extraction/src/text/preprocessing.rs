@@ -176,6 +176,8 @@ impl PorterStemmer {
         let mut result = word.clone();
 
         // Step 1a: Remove plurals
+        // Both sses and ies trim the last 2 chars (intentionally identical operation)
+        #[allow(clippy::if_same_then_else)]
         if result.ends_with("sses") {
             result = result[..result.len() - 2].to_string();
         } else if result.ends_with("ies") {
@@ -341,6 +343,8 @@ impl PorterStemmer {
             if word.ends_with(suffix) {
                 let stem = &word[..word.len() - suffix.len()];
                 if self.get_measure(stem) > 1 {
+                    // Both branches assign stem; conditions differ but result is identical (intentional)
+                    #[allow(clippy::if_same_then_else)]
                     if *suffix == "ion" && stem.ends_with("s") || stem.ends_with("t") {
                         word = stem.to_string();
                     } else if *suffix != "ion" {

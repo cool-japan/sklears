@@ -518,39 +518,33 @@ fn validate_data_against_distributions(
         let column = x.column(feature_idx);
 
         match distribution {
-            FeatureDistribution::Bernoulli => {
-                if !column.iter().all(|&v| v == 0.0 || v == 1.0) {
-                    return Err(SklearsError::InvalidInput(format!(
-                        "Feature {} marked as Bernoulli but contains non-binary values",
-                        feature_idx
-                    )));
-                }
+            FeatureDistribution::Bernoulli if !column.iter().all(|&v| v == 0.0 || v == 1.0) => {
+                return Err(SklearsError::InvalidInput(format!(
+                    "Feature {} marked as Bernoulli but contains non-binary values",
+                    feature_idx
+                )));
             }
-            FeatureDistribution::Beta => {
-                if !column.iter().all(|&v| (0.0..=1.0).contains(&v)) {
-                    return Err(SklearsError::InvalidInput(format!(
-                        "Feature {} marked as Beta but contains values outside [0,1]",
-                        feature_idx
-                    )));
-                }
+            FeatureDistribution::Beta if !column.iter().all(|&v| (0.0..=1.0).contains(&v)) => {
+                return Err(SklearsError::InvalidInput(format!(
+                    "Feature {} marked as Beta but contains values outside [0,1]",
+                    feature_idx
+                )));
             }
-            FeatureDistribution::Gamma => {
-                if !column.iter().all(|&v| v > 0.0) {
-                    return Err(SklearsError::InvalidInput(format!(
-                        "Feature {} marked as Gamma but contains non-positive values",
-                        feature_idx
-                    )));
-                }
+            FeatureDistribution::Gamma if !column.iter().all(|&v| v > 0.0) => {
+                return Err(SklearsError::InvalidInput(format!(
+                    "Feature {} marked as Gamma but contains non-positive values",
+                    feature_idx
+                )));
             }
-            FeatureDistribution::Poisson => {
-                if !column.iter().all(|&v| v >= 0.0 && v.fract() == 0.0) {
-                    return Err(SklearsError::InvalidInput(format!(
-                        "Feature {} marked as Poisson but contains non-integer or negative values",
-                        feature_idx
-                    )));
-                }
+            FeatureDistribution::Poisson
+                if !column.iter().all(|&v| v >= 0.0 && v.fract() == 0.0) =>
+            {
+                return Err(SklearsError::InvalidInput(format!(
+                    "Feature {} marked as Poisson but contains non-integer or negative values",
+                    feature_idx
+                )));
             }
-            _ => {} // Other distributions are more flexible
+            _ => {} // Other distributions are more flexible or valid
         }
     }
 

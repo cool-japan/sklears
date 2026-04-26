@@ -177,7 +177,7 @@ fn test_adaboost_real_algorithm() {
         .expect("operation should succeed");
     assert_eq!(decision_scores.len(), 6);
     let weights = ada_real.estimator_weights();
-    assert!(weights.len() > 0);
+    assert!(!weights.is_empty());
     assert!(weights.iter().all(|&w| w.is_finite()));
 }
 #[test]

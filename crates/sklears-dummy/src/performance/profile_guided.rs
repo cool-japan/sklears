@@ -72,6 +72,7 @@ impl PerformanceProfiler {
 }
 
 /// Timer for profiling operations
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct ProfileTimer {
     operation: String,
     start: Instant,
@@ -102,6 +103,7 @@ impl Drop for ProfileTimer {
 }
 
 /// Adaptive threshold manager
+#[allow(dead_code)] // fitted-state fields; part of the inspectable trained model
 pub struct AdaptiveThresholds {
     thresholds: HashMap<String, f64>,
     adjustments: HashMap<String, f64>,

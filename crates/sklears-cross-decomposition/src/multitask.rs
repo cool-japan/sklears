@@ -6,9 +6,8 @@
 
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::SklearsError;
-use sklears_core::traits::Estimator;
 use std::collections::HashMap;
 
 /// Multi-task Canonical Correlation Analysis
@@ -21,10 +20,12 @@ pub struct MultiTaskCCA {
     reg_param: f64,
     max_iter: usize,
     tol: f64,
-    sharing_strength: f64,
+    /// Strength of parameter sharing across tasks
+    pub sharing_strength: f64,
     canonical_weights_x: Option<Array2<f64>>,
     canonical_weights_y: Option<Array2<f64>>,
-    shared_components: Option<Array2<f64>>,
+    /// Shared component matrix learned during fitting
+    pub shared_components: Option<Array2<f64>>,
     task_specific_components: Option<HashMap<usize, Array2<f64>>>,
     correlations: Option<Array1<f64>>,
 }
@@ -93,8 +94,7 @@ impl MultiTaskCCA {
         }
 
         // Alternating optimization
-        for iter in 0..self.max_iter {
-            let mut converged = true;
+        for _iter in 0..self.max_iter {
             let old_shared_wx = shared_wx.clone();
 
             // Update shared components
@@ -198,17 +198,10 @@ impl MultiTaskCCA {
                 }
             }
 
-            // Check convergence
+            // Check convergence; no hard error on non-convergence to match original behaviour
             let diff = (&shared_wx - &old_shared_wx).mapv(|x| x.abs()).sum();
             if diff < self.tol {
-                converged = true;
                 break;
-            }
-
-            if iter == self.max_iter - 1 && !converged {
-                return Err(SklearsError::ConvergenceError {
-                    iterations: self.max_iter,
-                });
             }
         }
 
@@ -275,9 +268,10 @@ impl MultiTaskCCA {
         }
     }
 
+    #[allow(clippy::type_complexity)] // returns (eigenvalues, x_weights, y_weights) triple
     fn solve_generalized_eigenvalue(
         &self,
-        cov_xy: &Array2<f64>,
+        _cov_xy: &Array2<f64>,
         cov_xx: &Array2<f64>,
         cov_yy: &Array2<f64>,
     ) -> Result<(Array1<f64>, Array2<f64>, Array2<f64>), SklearsError> {
@@ -303,8 +297,8 @@ impl MultiTaskCCA {
 
         // Normalize columns
         for i in 0..n_comps {
-            let norm_x = (eigvecs_x.column(i).mapv(|x| x * x).sum() as f64).sqrt();
-            let norm_y = (eigvecs_y.column(i).mapv(|x| x * x).sum() as f64).sqrt();
+            let norm_x = (eigvecs_x.column(i).mapv(|x: f64| x * x).sum()).sqrt();
+            let norm_y = (eigvecs_y.column(i).mapv(|x: f64| x * x).sum()).sqrt();
             if norm_x > 1e-12 {
                 eigvecs_x.column_mut(i).mapv_inplace(|x| x / norm_x);
             }
@@ -346,8 +340,10 @@ pub struct SharedComponentAnalysis {
     n_shared_components: usize,
     n_specific_components: usize,
     reg_param: f64,
-    max_iter: usize,
-    tol: f64,
+    /// Maximum number of iterations
+    pub max_iter: usize,
+    /// Convergence tolerance
+    pub tol: f64,
     shared_components: Option<Array2<f64>>,
     specific_components: Option<HashMap<usize, Array2<f64>>>,
     explained_variance_shared: Option<Array1<f64>>,
@@ -412,7 +408,7 @@ impl SharedComponentAnalysis {
             let cov = dataset.t().dot(dataset) / dataset.shape()[0] as f64;
             total_cov = total_cov + cov;
         }
-        total_cov = total_cov / n_tasks as f64;
+        total_cov /= n_tasks as f64;
 
         // Add regularization
         total_cov.diag_mut().mapv_inplace(|x| x + self.reg_param);
@@ -498,7 +494,7 @@ impl SharedComponentAnalysis {
                 components[[j, i]] = rng.gen_range(-1.0..1.0);
             }
             // Normalize
-            let norm = (components.column(i).mapv(|x| x * x).sum() as f64).sqrt();
+            let norm = (components.column(i).mapv(|x: f64| x * x).sum()).sqrt();
             if norm > 1e-12 {
                 components.column_mut(i).mapv_inplace(|x| x / norm);
             }
@@ -637,9 +633,9 @@ impl TransferLearningCCA {
 
         // Compute target covariances
         let n_samples = target_x.shape()[0] as f64;
-        let target_cov_xx = x_centered.t().dot(&x_centered) / n_samples;
-        let target_cov_xy = x_centered.t().dot(&y_centered) / n_samples;
-        let target_cov_yy = y_centered.t().dot(&y_centered) / n_samples;
+        let _target_cov_xx = x_centered.t().dot(&x_centered) / n_samples;
+        let _target_cov_xy = x_centered.t().dot(&y_centered) / n_samples;
+        let _target_cov_yy = y_centered.t().dot(&y_centered) / n_samples;
 
         // Transfer learning objective: balance between source knowledge and target fit
         for iter in 0..self.max_iter {
@@ -648,8 +644,8 @@ impl TransferLearningCCA {
             // Update target weights with transfer regularization
             for comp in 0..self.n_components {
                 // Compute gradients for target domain CCA objective
-                let x_proj = x_centered.dot(&target_wx.column(comp));
-                let y_proj = y_centered.dot(&target_wy.column(comp));
+                let _x_proj = x_centered.dot(&target_wx.column(comp));
+                let _y_proj = y_centered.dot(&target_wy.column(comp));
 
                 // Transfer regularization: pull towards source weights
                 let transfer_reg_x = self.transfer_strength
@@ -748,9 +744,10 @@ impl TransferLearningCCA {
         }
     }
 
+    #[allow(clippy::type_complexity)] // returns (eigenvalues, x_weights, y_weights) triple
     fn solve_generalized_eigenvalue(
         &self,
-        cov_xy: &Array2<f64>,
+        _cov_xy: &Array2<f64>,
         cov_xx: &Array2<f64>,
         cov_yy: &Array2<f64>,
     ) -> Result<(Array1<f64>, Array2<f64>, Array2<f64>), SklearsError> {
@@ -774,8 +771,8 @@ impl TransferLearningCCA {
             }
 
             // Normalize
-            let norm_x = (eigvecs_x.column(i).mapv(|x| x * x).sum() as f64).sqrt();
-            let norm_y = (eigvecs_y.column(i).mapv(|x| x * x).sum() as f64).sqrt();
+            let norm_x = (eigvecs_x.column(i).mapv(|x: f64| x * x).sum()).sqrt();
+            let norm_y = (eigvecs_y.column(i).mapv(|x: f64| x * x).sum()).sqrt();
             if norm_x > 1e-12 {
                 eigvecs_x.column_mut(i).mapv_inplace(|x| x / norm_x);
             }
@@ -826,8 +823,10 @@ pub struct DomainAdaptationCCA {
     n_components: usize,
     reg_param: f64,
     adaptation_strength: f64,
-    max_iter: usize,
-    tol: f64,
+    /// Maximum number of iterations
+    pub max_iter: usize,
+    /// Convergence tolerance
+    pub tol: f64,
     domain_weights_x: Option<Array2<f64>>,
     domain_weights_y: Option<Array2<f64>>,
     domain_shift_matrix: Option<Array2<f64>>,
@@ -935,9 +934,10 @@ impl DomainAdaptationCCA {
         Ok(domain_shift)
     }
 
+    #[allow(clippy::type_complexity)] // returns (eigenvalues, x_weights, y_weights) triple
     fn solve_generalized_eigenvalue(
         &self,
-        cov_xy: &Array2<f64>,
+        _cov_xy: &Array2<f64>,
         cov_xx: &Array2<f64>,
         cov_yy: &Array2<f64>,
     ) -> Result<(Array1<f64>, Array2<f64>, Array2<f64>), SklearsError> {
@@ -960,8 +960,8 @@ impl DomainAdaptationCCA {
                 eigvecs_y[[j, i]] = rng.gen_range(-1.0..1.0);
             }
 
-            let norm_x = (eigvecs_x.column(i).mapv(|x| x * x).sum() as f64).sqrt();
-            let norm_y = (eigvecs_y.column(i).mapv(|x| x * x).sum() as f64).sqrt();
+            let norm_x = (eigvecs_x.column(i).mapv(|x: f64| x * x).sum()).sqrt();
+            let norm_y = (eigvecs_y.column(i).mapv(|x: f64| x * x).sum()).sqrt();
             if norm_x > 1e-12 {
                 eigvecs_x.column_mut(i).mapv_inplace(|x| x / norm_x);
             }
@@ -1001,7 +1001,8 @@ impl DomainAdaptationCCA {
 pub struct FewShotCCA {
     n_components: usize,
     n_support_examples: usize,
-    reg_param: f64,
+    /// Regularization parameter for the few-shot estimator
+    pub reg_param: f64,
     meta_learning_rate: f64,
     adaptation_steps: usize,
     prototypes_x: Option<Array2<f64>>,
@@ -1054,7 +1055,7 @@ impl FewShotCCA {
         meta_wy.mapv_inplace(|_| rng.gen_range(-0.1..0.1));
 
         // Meta-learning loop
-        for episode in 0..100 {
+        for _episode in 0..100 {
             // Meta-training episodes
             for (task_x, task_y) in few_shot_tasks {
                 // Sample support and query sets
@@ -1104,6 +1105,7 @@ impl FewShotCCA {
         self.fast_adaptation(meta_wx, meta_wy, support_x, support_y)
     }
 
+    #[allow(clippy::type_complexity)] // returns (support_x, support_y, query_x, query_y) quad
     fn sample_support_query(
         &self,
         task_x: &Array2<f64>,
@@ -1148,8 +1150,8 @@ impl FewShotCCA {
         // Fast adaptation steps
         for _ in 0..self.adaptation_steps {
             // Compute current projections
-            let x_proj = x_centered.dot(&wx);
-            let y_proj = y_centered.dot(&wy);
+            let _x_proj = x_centered.dot(&wx);
+            let _y_proj = y_centered.dot(&wy);
 
             // Simple gradient-based update (placeholder)
             let learning_rate = 0.1;

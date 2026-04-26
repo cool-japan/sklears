@@ -16,9 +16,8 @@
 //! - Enhanced canonical correlation analysis with attention
 
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, CoreRandom, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::types::Float;
-use std::f64::consts::PI;
 
 /// Attention mechanism type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -176,9 +175,9 @@ pub struct TransformerEncoderBlock {
     ln2_gamma: Array1<Float>,
     ln2_beta: Array1<Float>,
     /// Dropout rate
-    dropout: Float,
+    pub dropout: Float,
     /// FFN hidden dimension
-    ffn_dim: usize,
+    pub ffn_dim: usize,
 }
 
 /// Transformer decoder block with cross-attention
@@ -204,9 +203,9 @@ pub struct TransformerDecoderBlock {
     ln3_gamma: Array1<Float>,
     ln3_beta: Array1<Float>,
     /// Dropout rate
-    dropout: Float,
+    pub dropout: Float,
     /// FFN hidden dimension
-    ffn_dim: usize,
+    pub ffn_dim: usize,
 }
 
 impl AttentionConfig {
@@ -425,11 +424,11 @@ impl MultiHeadAttention {
     /// Create a new multi-head attention mechanism
     pub fn new(config: AttentionConfig) -> Self {
         assert!(
-            config.key_dim % config.num_heads == 0,
+            config.key_dim.is_multiple_of(config.num_heads),
             "Key dimension must be divisible by number of heads"
         );
         assert!(
-            config.value_dim % config.num_heads == 0,
+            config.value_dim.is_multiple_of(config.num_heads),
             "Value dimension must be divisible by number of heads"
         );
 
@@ -452,8 +451,8 @@ impl MultiHeadAttention {
         values: ArrayView2<Float>,
         is_training: bool,
     ) -> AttentionOutput {
-        let seq_len_q = queries.nrows();
-        let seq_len_k = keys.nrows();
+        let _seq_len_q = queries.nrows();
+        let _seq_len_k = keys.nrows();
 
         // Project queries, keys, and values
         let q = queries.dot(&self.layer.query_weights);
@@ -506,7 +505,7 @@ impl MultiHeadAttention {
         // Apply output projection
         let mut output = concat_output.dot(&self.layer.output_weights);
         if let Some(ref bias) = self.layer.output_bias {
-            output = output + bias;
+            output += bias;
         }
 
         // Apply dropout
@@ -744,14 +743,14 @@ impl TransformerEncoderBlock {
         // First layer
         let mut hidden = x.dot(&self.ffn_weights_1);
         if let Some(ref bias) = self.ffn_bias_1 {
-            hidden = hidden + bias;
+            hidden += bias;
         }
         hidden = hidden.mapv(|v| v.max(0.0)); // ReLU
 
         // Second layer
         let mut output = hidden.dot(&self.ffn_weights_2);
         if let Some(ref bias) = self.ffn_bias_2 {
-            output = output + bias;
+            output += bias;
         }
 
         output
@@ -768,7 +767,7 @@ impl TransformerEncoderBlock {
         let normalized =
             (x - &mean.insert_axis(Axis(1))) / &var.mapv(|v| (v + eps).sqrt()).insert_axis(Axis(1));
 
-        &normalized * &gamma.view().insert_axis(Axis(0)) + &beta.view().insert_axis(Axis(0))
+        &normalized * &gamma.view().insert_axis(Axis(0)) + beta.view().insert_axis(Axis(0))
     }
 }
 
@@ -870,14 +869,14 @@ impl TransformerDecoderBlock {
         // First layer
         let mut hidden = x.dot(&self.ffn_weights_1);
         if let Some(ref bias) = self.ffn_bias_1 {
-            hidden = hidden + bias;
+            hidden += bias;
         }
         hidden = hidden.mapv(|v| v.max(0.0)); // ReLU
 
         // Second layer
         let mut output = hidden.dot(&self.ffn_weights_2);
         if let Some(ref bias) = self.ffn_bias_2 {
-            output = output + bias;
+            output += bias;
         }
 
         output

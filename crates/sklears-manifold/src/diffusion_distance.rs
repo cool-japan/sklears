@@ -424,13 +424,13 @@ pub mod diffusion_utils {
 
         // Find spectral gap (largest gap between consecutive eigenvalues)
         let mut max_gap = 0.0;
-        let mut gap_index = 0;
+        let mut _gap_index = 0; // deferred: spectral gap index for future cluster count estimation
 
         for i in 0..sorted_eigenvals.len() - 1 {
             let gap = sorted_eigenvals[i] - sorted_eigenvals[i + 1];
             if gap > max_gap {
                 max_gap = gap;
-                gap_index = i;
+                _gap_index = i;
             }
         }
 

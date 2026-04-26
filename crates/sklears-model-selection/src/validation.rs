@@ -15,6 +15,9 @@ use sklears_metrics::{
 };
 use std::collections::HashMap;
 
+/// Optional scoring function for nested CV
+type OptScoringFn = Option<fn(&Array1<Float>, &Array1<Float>) -> f64>;
+
 /// Helper function for scoring that handles both regression and classification
 fn compute_score_for_regression_val(
     metric_name: &str,
@@ -69,6 +72,7 @@ pub enum Scoring {
 
 /// Enhanced scoring result that can handle multiple metrics
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // ScoreResult retained as public API for future multi-metric scoring
 pub enum ScoreResult {
     /// Single score value
     Single(f64),
@@ -78,6 +82,7 @@ pub enum ScoreResult {
 
 impl ScoreResult {
     /// Get a single score (first score if multiple)
+    #[allow(dead_code)] // as_single retained as public API for ScoreResult extraction
     pub fn as_single(&self) -> f64 {
         match self {
             ScoreResult::Single(score) => *score,
@@ -86,6 +91,7 @@ impl ScoreResult {
     }
 
     /// Get scores as a map
+    #[allow(dead_code)] // as_multiple retained as public API for multi-metric map extraction
     pub fn as_multiple(&self) -> HashMap<String, f64> {
         match self {
             ScoreResult::Single(score) => {
@@ -899,7 +905,7 @@ pub fn nested_cross_validate<E, F, C>(
     inner_cv: &C,
     param_grid: &[ParameterValue],
     param_config: ParamConfigFn<E>,
-    scoring: Option<fn(&Array1<Float>, &Array1<Float>) -> f64>,
+    scoring: OptScoringFn,
 ) -> Result<NestedCVResult>
 where
     E: Clone,

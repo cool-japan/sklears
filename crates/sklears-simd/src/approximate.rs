@@ -343,7 +343,7 @@ pub mod reduced_precision {
                     sign | 0x7c00 // Overflow to infinity
                 } else {
                     // Approximate conversion
-                    let exp = (abs_val.log2().floor() as i16 + 15).max(0).min(31) as u16;
+                    let exp = (abs_val.log2().floor() as i16 + 15).clamp(0, 31) as u16;
                     let mantissa =
                         ((abs_val / 2.0_f32.powi(exp as i32 - 15) - 1.0) * 1024.0) as u16 & 0x3ff;
                     sign | (exp << 10) | mantissa
@@ -478,6 +478,7 @@ pub mod probabilistic {
         table: Vec<Vec<u32>>,
         hash_functions: Vec<u64>,
         width: usize,
+        #[allow(dead_code)] // Stored for introspection and future depth-adaptive queries
         depth: usize,
     }
 
@@ -599,6 +600,7 @@ pub mod probabilistic {
         bit_array: Vec<bool>,
         hash_functions: Vec<u64>,
         size: usize,
+        #[allow(dead_code)] // Stored for false-positive-rate reporting and future re-hash logic
         hash_count: usize,
     }
 
@@ -693,9 +695,9 @@ pub mod sketching {
 
             let mut result = vec![0.0f32; self.projected_dim];
 
-            for j in 0..self.projected_dim {
-                for i in 0..self.original_dim {
-                    result[j] += vector[i] * self.projection_matrix[j * self.original_dim + i];
+            for (j, result_j) in result.iter_mut().enumerate() {
+                for (i, &v) in vector.iter().enumerate() {
+                    *result_j += v * self.projection_matrix[j * self.original_dim + i];
                 }
             }
 
@@ -909,7 +911,7 @@ mod tests {
         }
 
         let estimate = hll.estimate();
-        assert!(estimate >= 100.0 && estimate <= 10000.0); // Lenient range for HyperLogLog approximation
+        assert!((100.0..=10000.0).contains(&estimate)); // Lenient range for HyperLogLog approximation
     }
 
     #[test]
@@ -971,10 +973,10 @@ mod tests {
 
         // Test quantiles
         let median = sketch.quantile(0.5).expect("operation should succeed");
-        assert!(median >= 45.0 && median <= 55.0);
+        assert!((45.0..=55.0).contains(&median));
 
         let q90 = sketch.quantile(0.9).expect("operation should succeed");
-        assert!(q90 >= 85.0 && q90 <= 95.0);
+        assert!((85.0..=95.0).contains(&q90));
     }
 
     #[test]
@@ -993,7 +995,7 @@ mod tests {
         }
 
         let frequent = sketch.get_frequent_items();
-        assert!(frequent.len() >= 1); // Should find at least the top 1
+        assert!(!frequent.is_empty()); // Should find at least the top 1
 
         // Check that frequency estimation works
         let freq_42 = sketch.estimate_frequency(42);
@@ -1008,7 +1010,7 @@ mod tests {
         let result = reduced_precision::mixed_precision_matrix_multiply(&a, &b, 2, 2, 2);
 
         // Expected: [[1*5+2*7, 1*6+2*8], [3*5+4*7, 3*6+4*8]] = [[19, 22], [43, 50]]
-        let expected = vec![19.0, 22.0, 43.0, 50.0];
+        let expected = [19.0, 22.0, 43.0, 50.0];
 
         for (actual, expected) in result.iter().zip(expected.iter()) {
             assert_abs_diff_eq!(*actual, *expected, epsilon = 1.0);

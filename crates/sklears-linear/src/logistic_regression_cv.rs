@@ -8,14 +8,61 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 
 use sklears_core::{
-    error::{Result, SklearsError},
-    traits::{Estimator, Fit, Predict, PredictProba, Trained, Untrained},
+    error::{validate, Result, SklearsError},
+    traits::{Estimator, Fit, Predict, PredictProba, Score, Trained, Untrained},
     types::Float,
 };
 // use sklears_model_selection::{cross_val_score, CrossValidator, KFold, Scoring}; // Temporarily disabled
-use crate::lasso_cv::{cross_val_score, KFold};
+use crate::lasso_cv::KFold;
 
 use crate::{logistic_regression::LogisticRegression, Penalty, Solver};
+
+/// Cross-validation score calculation for LogisticRegression.
+/// Returns one score per fold using the model's `score` method.
+fn cross_val_score(
+    estimator: LogisticRegression<Untrained>,
+    x: &Array2<Float>,
+    y: &Array1<Float>,
+    cv: &KFold,
+    _scoring: Option<()>,
+    _n_jobs: Option<()>,
+) -> Result<Array1<Float>> {
+    validate::check_consistent_length(x, y)?;
+
+    let n_samples = x.nrows();
+    let splits = cv.split(n_samples, None);
+
+    if splits.is_empty() {
+        return Err(SklearsError::InvalidInput(
+            "KFold split produced no folds".to_string(),
+        ));
+    }
+
+    let mut scores = Vec::with_capacity(splits.len());
+
+    for (train_idx, test_idx) in splits {
+        if test_idx.is_empty() {
+            continue;
+        }
+
+        let x_train = x.select(Axis(0), &train_idx);
+        let y_train = y.select(Axis(0), &train_idx);
+        let x_test = x.select(Axis(0), &test_idx);
+        let y_test = y.select(Axis(0), &test_idx);
+
+        let model = estimator.clone().fit(&x_train, &y_train)?;
+        let score = model.score(&x_test, &y_test)?;
+        scores.push(score as Float);
+    }
+
+    if scores.is_empty() {
+        return Err(SklearsError::InvalidInput(
+            "KFold split resulted in no evaluable folds".to_string(),
+        ));
+    }
+
+    Ok(Array1::from_vec(scores))
+}
 
 /// Configuration for LogisticRegressionCV
 #[derive(Debug, Clone)]
@@ -93,6 +140,8 @@ pub struct LogisticRegressionCV<State = Untrained> {
     /// The actual C values used
     cs_: Option<Vec<f64>>,
     /// Number of iterations for each fold and C value
+    #[allow(dead_code)]
+    // sklearn-compatible attribute; populated but accessed via trait in future
     n_iter_: Option<HashMap<String, Vec<usize>>>,
     /// Unique classes in the training data
     classes_: Option<Array1<f64>>,
@@ -489,9 +538,11 @@ impl Predict<Array2<f64>, Array1<f64>> for LogisticRegressionCV<Trained> {
                 let max_idx = row
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?)
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                     .map(|(idx, _)| idx)
-                    ?;
+                    .ok_or_else(|| {
+                        SklearsError::NumericalError("empty row in decision matrix".into())
+                    })?;
                 predictions[i] = classes[max_idx];
             }
         }
@@ -538,7 +589,12 @@ impl PredictProba<Array2<f64>, Array2<f64>> for LogisticRegressionCV<Trained> {
             let mut proba = Array2::zeros((n_samples, classes.len()));
             for i in 0..n_samples {
                 let row = decision.row(i);
-                let max_val = *row.iter().max_by(|a, b| a.partial_cmp(b).ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?).ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?;
+                let max_val = *row
+                    .iter()
+                    .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                    .ok_or_else(|| {
+                        SklearsError::NumericalError("empty row in decision matrix".into())
+                    })?;
                 let exp_sum: f64 = row.iter().map(|&v| (v - max_val).exp()).sum();
 
                 for j in 0..classes.len() {

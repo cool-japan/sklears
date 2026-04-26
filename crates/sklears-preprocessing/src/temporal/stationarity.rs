@@ -50,10 +50,11 @@ use sklears_core::{
 use serde::{Deserialize, Serialize};
 
 /// Stationarity transformation methods
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum StationarityMethod {
     /// First-order differencing: x_t - x_{t-1}
+    #[default]
     FirstDifference,
     /// Second-order differencing: (x_t - x_{t-1}) - (x_{t-1} - x_{t-2})
     SecondDifference,
@@ -73,12 +74,6 @@ pub enum StationarityMethod {
     MovingAverageDetrend(usize),
 }
 
-impl Default for StationarityMethod {
-    fn default() -> Self {
-        Self::FirstDifference
-    }
-}
-
 /// Configuration for stationarity transformer
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -94,10 +89,11 @@ pub struct StationarityTransformerConfig {
 }
 
 /// Methods for handling missing values created by transformations
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum FillMethod {
     /// Drop missing values (reduce series length)
+    #[default]
     Drop,
     /// Forward fill with first available value
     ForwardFill,
@@ -107,12 +103,6 @@ pub enum FillMethod {
     Zero,
     /// Fill with mean of non-missing values
     Mean,
-}
-
-impl Default for FillMethod {
-    fn default() -> Self {
-        Self::Drop
-    }
 }
 
 impl Default for StationarityTransformerConfig {
@@ -144,9 +134,12 @@ pub struct StationarityTransformerFitted {
     /// Log offset used in transformation
     log_offset: Option<Float>,
     /// Box-Cox lambda parameter
+    #[allow(dead_code)]
     boxcox_lambda: Option<Float>,
     /// Original series statistics for validation
+    #[allow(dead_code)]
     original_mean: Option<Float>,
+    #[allow(dead_code)]
     original_std: Option<Float>,
 }
 
@@ -737,7 +730,7 @@ mod tests {
         for i in 0..10 {
             data[i] = 2.0 * (i as Float)
                 + 5.0
-                + rng.sample(&Uniform::new(-0.1, 0.1).expect("sampling should succeed"));
+                + rng.sample(Uniform::new(-0.1, 0.1).expect("sampling should succeed"));
             // Linear trend with noise
         }
 

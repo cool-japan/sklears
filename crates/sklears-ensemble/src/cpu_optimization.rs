@@ -82,6 +82,7 @@ pub struct PerformanceCounters {
 }
 
 /// Cache-optimized matrix operations
+#[allow(dead_code)] // planned API fields
 pub struct CacheOptimizedMatrixOps {
     tile_size: usize,
     l1_cache_size: usize,
@@ -89,6 +90,7 @@ pub struct CacheOptimizedMatrixOps {
 }
 
 /// Vectorized ensemble operations
+#[allow(dead_code)] // planned API fields
 pub struct VectorizedEnsembleOps {
     simd_width: usize,
     supports_avx512: bool,
@@ -113,14 +115,14 @@ impl CpuOptimizer {
 
     /// Create optimizer with auto-detected configuration
     pub fn auto_detect() -> Self {
-        let mut config = CpuOptimizationConfig::default();
-
-        // Auto-detect CPU features
-        config.enable_simd = Self::detect_simd_support();
-        config.l1_cache_size_kb = Self::detect_l1_cache_size();
-        config.l2_cache_size_kb = Self::detect_l2_cache_size();
-        config.l3_cache_size_kb = Self::detect_l3_cache_size();
-        config.num_cores = Self::detect_core_count();
+        let config = CpuOptimizationConfig {
+            enable_simd: Self::detect_simd_support(),
+            l1_cache_size_kb: Self::detect_l1_cache_size(),
+            l2_cache_size_kb: Self::detect_l2_cache_size(),
+            l3_cache_size_kb: Self::detect_l3_cache_size(),
+            num_cores: Self::detect_core_count(),
+            ..Default::default()
+        };
 
         Self::new(config)
     }
@@ -181,6 +183,7 @@ impl CpuOptimizer {
     }
 
     /// Process a single tile in matrix multiplication
+    #[allow(clippy::too_many_arguments)] // tile bounds require 6 range params (start/end for i,j,k)
     fn process_tile(
         &mut self,
         a: &Array2<Float>,
@@ -203,6 +206,7 @@ impl CpuOptimizer {
     }
 
     /// Vectorized tile multiplication
+    #[allow(clippy::too_many_arguments)] // tile bounds require 6 range params (start/end for i,j,k)
     fn vectorized_tile_multiply(
         &mut self,
         a: &Array2<Float>,
@@ -250,6 +254,7 @@ impl CpuOptimizer {
     }
 
     /// Scalar tile multiplication (fallback)
+    #[allow(clippy::too_many_arguments)] // tile bounds require 6 range params (start/end for i,j,k)
     fn scalar_tile_multiply(
         &mut self,
         a: &Array2<Float>,

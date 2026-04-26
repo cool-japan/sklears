@@ -303,7 +303,7 @@ impl Default for ExportConfiguration {
         Self {
             enabled: false,
             format: ExportFormat::JSON,
-            destination: "/tmp/retry_metrics".to_string(),
+            destination: std::env::temp_dir().join("retry_metrics").display().to_string(),
             interval: Duration::from_secs(300),
             batch_size: 100,
         }

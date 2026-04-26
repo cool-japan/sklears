@@ -89,20 +89,42 @@ use std::marker::PhantomData;
 type Result<T> = SklResult<T>;
 type Float = f64;
 
+/// Fusion selection result:
+/// (selected_per_modality, combined_features, score_per_modality,
+///  cross_modal_scores, feature_mapping, total_features, feature_counts)
+pub type FusionSelectionResult = Result<(
+    HashMap<String, Vec<usize>>,
+    Vec<(String, usize)>,
+    HashMap<String, Array1<Float>>,
+    Option<Array2<Float>>,
+    HashMap<usize, (String, usize)>,
+    usize,
+    HashMap<String, usize>,
+)>;
+
+/// Modality concatenation result: (combined_matrix, feature_mapping, feature_counts)
+pub type ConcatenateModalitiesResult = Result<(
+    Array2<Float>,
+    HashMap<usize, (String, usize)>,
+    HashMap<String, usize>,
+)>;
+
 #[derive(Debug, Clone)]
+/// Untrained
 pub struct Untrained;
 
 #[derive(Debug, Clone)]
+/// Trained
 pub struct Trained {
     fusion_strategy: String,
     selected_features_per_modality: HashMap<String, Vec<usize>>,
     combined_selected_features: Vec<(String, usize)>, // (modality, feature_index)
-    feature_scores_per_modality: HashMap<String, Array1<Float>>,
-    cross_modal_scores: Option<Array2<Float>>,
-    modality_weights: HashMap<String, Float>,
-    feature_mapping: HashMap<usize, (String, usize)>, // global_index -> (modality, local_index)
-    total_features: usize,
-    modality_feature_counts: HashMap<String, usize>,
+    _feature_scores_per_modality: HashMap<String, Array1<Float>>,
+    _cross_modal_scores: Option<Array2<Float>>,
+    _modality_weights: HashMap<String, Float>,
+    _feature_mapping: HashMap<usize, (String, usize)>, // global_index -> (modality, local_index)
+    _total_features: usize,
+    _modality_feature_counts: HashMap<String, usize>,
 }
 
 /// Multi-modal feature selector for heterogeneous data types.
@@ -191,6 +213,7 @@ impl Default for MultiModalFeatureSelectorBuilder {
 }
 
 impl MultiModalFeatureSelectorBuilder {
+    /// new
     pub fn new() -> Self {
         Self {
             fusion_strategy: "hybrid".to_string(),
@@ -426,12 +449,12 @@ impl Fit<HashMap<String, Array2<Float>>, Array1<Float>> for MultiModalFeatureSel
             fusion_strategy: self.fusion_strategy.clone(),
             selected_features_per_modality,
             combined_selected_features,
-            feature_scores_per_modality,
-            cross_modal_scores,
-            modality_weights,
-            feature_mapping,
-            total_features,
-            modality_feature_counts,
+            _feature_scores_per_modality: feature_scores_per_modality,
+            _cross_modal_scores: cross_modal_scores,
+            _modality_weights: modality_weights,
+            _feature_mapping: feature_mapping,
+            _total_features: total_features,
+            _modality_feature_counts: modality_feature_counts,
         };
 
         Ok(MultiModalFeatureSelector {
@@ -542,15 +565,7 @@ impl MultiModalFeatureSelector<Untrained> {
         modalities: &HashMap<String, Array2<Float>>,
         y: &Array1<Float>,
         modality_weights: &HashMap<String, Float>,
-    ) -> Result<(
-        HashMap<String, Vec<usize>>,
-        Vec<(String, usize)>,
-        HashMap<String, Array1<Float>>,
-        Option<Array2<Float>>,
-        HashMap<usize, (String, usize)>,
-        usize,
-        HashMap<String, usize>,
-    )> {
+    ) -> FusionSelectionResult {
         // Concatenate all modalities into a single feature matrix
         let (combined_features, feature_mapping, modality_feature_counts) =
             concatenate_modalities(modalities)?;
@@ -623,15 +638,7 @@ impl MultiModalFeatureSelector<Untrained> {
         modalities: &HashMap<String, Array2<Float>>,
         y: &Array1<Float>,
         modality_weights: &HashMap<String, Float>,
-    ) -> Result<(
-        HashMap<String, Vec<usize>>,
-        Vec<(String, usize)>,
-        HashMap<String, Array1<Float>>,
-        Option<Array2<Float>>,
-        HashMap<usize, (String, usize)>,
-        usize,
-        HashMap<String, usize>,
-    )> {
+    ) -> FusionSelectionResult {
         let mut selected_features_per_modality = HashMap::new();
         let mut feature_scores_per_modality = HashMap::new();
         let mut combined_selected_features = Vec::new();
@@ -700,15 +707,7 @@ impl MultiModalFeatureSelector<Untrained> {
         modalities: &HashMap<String, Array2<Float>>,
         y: &Array1<Float>,
         modality_weights: &HashMap<String, Float>,
-    ) -> Result<(
-        HashMap<String, Vec<usize>>,
-        Vec<(String, usize)>,
-        HashMap<String, Array1<Float>>,
-        Option<Array2<Float>>,
-        HashMap<usize, (String, usize)>,
-        usize,
-        HashMap<String, usize>,
-    )> {
+    ) -> FusionSelectionResult {
         // Perform both early and late fusion, then combine results
         let (
             early_selected,
@@ -905,11 +904,7 @@ fn normalize_features(features: &Array2<Float>) -> Result<Array2<Float>> {
 
 fn concatenate_modalities(
     modalities: &HashMap<String, Array2<Float>>,
-) -> Result<(
-    Array2<Float>,
-    HashMap<usize, (String, usize)>,
-    HashMap<String, usize>,
-)> {
+) -> ConcatenateModalitiesResult {
     if modalities.is_empty() {
         return Err(SklearsError::InvalidInput(
             "No modalities provided".to_string(),

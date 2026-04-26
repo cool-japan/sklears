@@ -46,7 +46,7 @@ use std::f64;
 ///     (4, 2),
 ///     vec![1.0, 2.0, 1.1, 2.1, 5.0, 6.0, 5.1, 6.1],
 /// )
-/// .unwrap();
+/// .expect("shape and data length must match");
 ///
 /// let pso = PSOClustering::builder()
 ///     .n_clusters(2)
@@ -54,8 +54,8 @@ use std::f64;
 ///     .max_iterations(100)
 ///     .build();
 ///
-/// let fitted = pso.fit(&data, &()).unwrap();
-/// let labels = fitted.predict(&data).unwrap();
+/// let fitted = pso.fit(&data, &()).expect("PSO clustering fit must succeed");
+/// let labels = fitted.predict(&data).expect("PSO clustering predict must succeed");
 /// ```
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -291,6 +291,7 @@ impl Estimator for PSOClustering {
 }
 
 impl PSOClustering {
+    /// Fit the PSO clustering model to the given data matrix.
     pub fn fit(&self, X: &Array2<f64>) -> Result<PSOClusteringFitted> {
         let (n_samples, n_features) = X.dim();
 

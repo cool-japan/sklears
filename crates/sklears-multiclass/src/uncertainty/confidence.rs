@@ -25,6 +25,7 @@ pub enum ConfidenceMethod {
     Combined(Vec<ConfidenceMethod>),
 }
 
+#[allow(clippy::derivable_impls)] // ConfidenceMethod has non-unit variants; explicit default documents choice
 impl Default for ConfidenceMethod {
     fn default() -> Self {
         Self::MaxProbability

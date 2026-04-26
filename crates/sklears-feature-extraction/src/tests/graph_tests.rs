@@ -82,7 +82,7 @@ fn test_graph_clustering_features() {
     // All features should be finite and between 0 and 1
     for &feat in features.iter() {
         assert!(feat.is_finite());
-        assert!(feat >= 0.0 && feat <= 1.0);
+        assert!((0.0..=1.0).contains(&feat));
     }
 
     // In a triangle, all nodes should have clustering coefficient 1.0
@@ -106,7 +106,7 @@ fn test_graph_motif_features() {
         .expect("operation should succeed");
 
     // Should count various 3-node motifs
-    assert!(features.len() > 0);
+    assert!(!features.is_empty());
 
     // All motif counts should be non-negative integers (but stored as f64)
     for &count in features.iter() {
@@ -132,7 +132,7 @@ fn test_graph_path_features() {
         .expect("operation should succeed");
 
     // Should include shortest path statistics and path length distribution
-    assert!(features.len() > 0);
+    assert!(!features.is_empty());
 
     // All features should be finite
     for &feat in features.iter() {
@@ -158,7 +158,7 @@ fn test_graph_community_features() {
         .expect("operation should succeed");
 
     // Should include modularity score and community size statistics
-    assert!(features.len() > 0);
+    assert!(!features.is_empty());
 
     // All features should be finite
     for &feat in features.iter() {
@@ -174,10 +174,9 @@ fn test_graph_error_cases() {
 
     let result = extractor.extract_features(0, &empty_edges);
     // Should either succeed with empty features or fail gracefully
-    match result {
-        Ok(features) => assert!(features.is_empty()),
-        Err(_) => (), // Error is acceptable for empty graph
-    }
+    if let Ok(features) = result {
+        assert!(features.is_empty());
+    } // Error is acceptable for empty graph
 
     // Test with invalid node indices
     let invalid_edges = vec![(0, 5)]; // Node 5 doesn't exist in 3-node graph

@@ -324,8 +324,8 @@ impl TestingSuite {
         method1: F1,
         method2: F2,
         test_data: &ArrayView2<Float>,
-        method1_name: &str,
-        method2_name: &str,
+        _method1_name: &str,
+        _method2_name: &str,
     ) -> SklResult<Float>
     where
         F1: Fn(&ArrayView2<Float>) -> SklResult<Array1<Float>>,
@@ -433,7 +433,7 @@ impl TestingSuite {
     /// Run comprehensive test suite
     pub fn run_comprehensive_tests<F, M>(
         &self,
-        model_fn: M,
+        _model_fn: M,
         explanation_fn: F,
         test_data: &ArrayView2<Float>,
         test_name: &str,
@@ -587,7 +587,7 @@ impl TestingSuite {
         let max_relative_change = relative_changes.iter().copied().fold(0.0f64, f64::max);
 
         // Stability is 1 - normalized change (clamped to [0, 1])
-        (1.0 - max_relative_change).max(0.0).min(1.0)
+        (1.0 - max_relative_change).clamp(0.0, 1.0)
     }
 }
 

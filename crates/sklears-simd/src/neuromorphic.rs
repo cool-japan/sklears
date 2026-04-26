@@ -111,6 +111,8 @@ pub struct NeuromorphicBuffer<T> {
     pub size: usize,
     pub device: NeuromorphicDevice,
     pub memory_type: NeuromorphicMemoryType,
+    #[allow(dead_code)]
+    // Reserved for native neuromorphic chip buffer handle (Intel Loihi / IBM TrueNorth)
     backend_handle: Option<Box<dyn any::Any + Send + Sync>>,
 }
 
@@ -137,6 +139,8 @@ pub struct NeuromorphicContext {
     pub device: NeuromorphicDevice,
     pub neural_networks: HashMap<String, NeuralNetworkConfig>,
     pub spike_trains: Vec<SpikeEvent>,
+    #[allow(dead_code)]
+    // Reserved for native neuromorphic chip context (Intel Loihi / IBM TrueNorth)
     backend_context: Option<Box<dyn any::Any + Send + Sync>>,
 }
 

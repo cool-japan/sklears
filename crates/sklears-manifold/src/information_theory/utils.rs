@@ -142,7 +142,7 @@ pub fn compute_bregman_centroids(
         let mut cluster_assignments = vec![0; n_samples];
 
         // Assign points to nearest centroids
-        for i in 0..n_samples {
+        for (i, assignment) in cluster_assignments.iter_mut().enumerate() {
             let mut min_div = f64::INFINITY;
             let mut best_centroid = 0;
 
@@ -154,7 +154,7 @@ pub fn compute_bregman_centroids(
                     best_centroid = j;
                 }
             }
-            cluster_assignments[i] = best_centroid;
+            *assignment = best_centroid;
         }
 
         // Update centroids
@@ -350,7 +350,7 @@ pub fn compute_fisher_information_matrix(embedding: &Array2<f64>) -> SklResult<A
     let total_params = n_samples * n_components;
 
     // Flatten embedding for Fisher computation
-    let params = embedding.as_slice().expect("operation should succeed");
+    let _params = embedding.as_slice().expect("operation should succeed"); // deferred: raw slice for advanced Fisher estimators
     let mut fisher_matrix = Array2::zeros((total_params, total_params));
 
     // Compute Fisher information as second moment of score function
@@ -627,7 +627,7 @@ pub fn estimate_entropy_knn(x: &Array2<f64>, k: usize) -> SklResult<f64> {
 }
 
 /// Estimate bandwidth for kernel density estimation
-pub fn estimate_bandwidth(x: &Array2<f64>, n_neighbors: usize) -> f64 {
+pub fn estimate_bandwidth(x: &Array2<f64>, _n_neighbors: usize) -> f64 {
     let (n_samples, n_dims) = x.dim();
 
     // Silverman's rule of thumb
@@ -646,7 +646,7 @@ pub fn compute_ib_gradient(
     weights: &Array2<f64>,
     beta: f64,
 ) -> SklResult<Array2<f64>> {
-    let (n_samples, n_features) = x.dim();
+    let (_n_samples, n_features) = x.dim();
     let n_components = weights.ncols();
 
     // Approximate gradient using finite differences

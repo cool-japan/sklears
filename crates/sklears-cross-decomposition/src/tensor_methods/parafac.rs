@@ -5,7 +5,7 @@
 //! a tensor into a sum of rank-1 tensors using alternating least squares.
 
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayD, IxDyn};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit},
@@ -48,10 +48,10 @@ pub struct ParafacDecomposition<State = Untrained> {
     pub regularization: Float,
     /// Factor matrices for each mode
     factor_matrices_: Option<Vec<Array2<Float>>>,
-    /// Original tensor shape
-    original_shape_: Option<Vec<usize>>,
-    /// Mean tensor for centering
-    mean_tensor_: Option<ArrayD<Float>>,
+    /// Original tensor shape recorded at fit time
+    pub original_shape_: Option<Vec<usize>>,
+    /// Mean tensor subtracted during centering
+    pub mean_tensor_: Option<ArrayD<Float>>,
     /// Explained variance
     explained_variance_: Option<Float>,
     /// Reconstruction error
@@ -228,9 +228,9 @@ impl ParafacDecomposition<Untrained> {
 
         match &self.init_method {
             TensorInitMethod::Random => {
-                for mode in 0..3 {
-                    let mut factor = Array2::zeros((shape[mode], self.n_factors));
-                    for i in 0..shape[mode] {
+                for &dim in shape.iter().take(3) {
+                    let mut factor = Array2::zeros((dim, self.n_factors));
+                    for i in 0..dim {
                         for j in 0..self.n_factors {
                             factor[[i, j]] = thread_rng().random::<Float>();
                         }
@@ -328,7 +328,7 @@ impl ParafacDecomposition<Untrained> {
     fn update_parafac_factor(
         &self,
         tensor: &Array3<Float>,
-        factors: &[Array2<Float>],
+        _factors: &[Array2<Float>],
         mode: usize,
     ) -> Result<Array2<Float>> {
         let shape = tensor.shape();
@@ -353,35 +353,6 @@ impl ParafacDecomposition<Untrained> {
         }
 
         Ok(new_factor)
-    }
-
-    /// Reconstruct tensor from PARAFAC factors
-    fn reconstruct_parafac_tensor(&self, factors: &[Array2<Float>]) -> Result<Array3<Float>> {
-        let original_shape = self
-            .original_shape_
-            .as_ref()
-            .ok_or(SklearsError::NotFitted {
-                operation: "accessing model attribute".to_string(),
-            })?;
-        let mut reconstructed =
-            Array3::zeros((original_shape[0], original_shape[1], original_shape[2]));
-
-        // Reconstruct using rank-1 tensor sum
-        for r in 0..self.n_factors {
-            let a = factors[0].column(r);
-            let b = factors[1].column(r);
-            let c = factors[2].column(r);
-
-            for i in 0..original_shape[0] {
-                for j in 0..original_shape[1] {
-                    for k in 0..original_shape[2] {
-                        reconstructed[[i, j, k]] += a[i] * b[j] * c[k];
-                    }
-                }
-            }
-        }
-
-        Ok(reconstructed)
     }
 
     /// Reconstruct tensor from PARAFAC factors with given shape
@@ -419,9 +390,9 @@ impl ParafacDecomposition<Untrained> {
             for r2 in 0..self.n_factors {
                 let mut total_corr = 0.0;
 
-                for mode in 0..3 {
-                    let f1 = factors[mode].column(r1);
-                    let f2 = factors[mode].column(r2);
+                for factor in factors.iter().take(3) {
+                    let f1 = factor.column(r1);
+                    let f2 = factor.column(r2);
                     let corr = f1.dot(&f2) / ((f1.dot(&f1) * f2.dot(&f2)).sqrt());
                     total_corr += corr.abs();
                 }

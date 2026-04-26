@@ -18,7 +18,6 @@
 //! - Batched SVD computations
 //! - Memory-efficient tensor operations
 
-use scirs2_core::error::{CoreError, ErrorContext};
 #[cfg(feature = "gpu")]
 use scirs2_core::gpu::GpuBackend;
 #[cfg(not(feature = "gpu"))]
@@ -42,8 +41,7 @@ impl GpuBackend {
         matches!(self, Self::Cpu)
     }
 }
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::simd::SimdOps;
+use scirs2_core::ndarray::{Array1, Array2};
 use std::sync::Arc;
 
 // Define our own Result type for GPU operations
@@ -57,15 +55,6 @@ pub enum GpuError {
     ComputationError(String),
     #[error("GPU error: {0}")]
     GpuError(String),
-}
-
-// Helper function to create error context
-fn error_context(message: &str) -> ErrorContext {
-    ErrorContext {
-        message: message.to_string(),
-        location: None,
-        cause: None,
-    }
 }
 
 /// Trait for GPU context operations
@@ -149,6 +138,11 @@ impl GpuAcceleratedContext {
         self.backend
     }
 
+    /// Get the GPU context (trait object access for downstream operations)
+    pub fn gpu_context(&self) -> &dyn GpuContext {
+        &*self.context
+    }
+
     /// Get GPU memory info
     pub fn memory_info(&self) -> GpuMemoryInfo {
         if self.enabled {
@@ -165,7 +159,7 @@ impl GpuAcceleratedContext {
 }
 
 /// GPU memory information
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct GpuMemoryInfo {
     /// Total GPU memory in bytes
     pub total: usize,
@@ -173,16 +167,6 @@ pub struct GpuMemoryInfo {
     pub available: usize,
     /// Used GPU memory in bytes
     pub used: usize,
-}
-
-impl Default for GpuMemoryInfo {
-    fn default() -> Self {
-        Self {
-            total: 0,
-            available: 0,
-            used: 0,
-        }
-    }
 }
 
 /// GPU-accelerated matrix operations for cross-decomposition
@@ -426,7 +410,7 @@ impl GpuCCA {
         &self,
         cxx: &Array2<f64>,
         cyy: &Array2<f64>,
-        cxy: &Array2<f64>,
+        _cxy: &Array2<f64>,
     ) -> GpuResult<(Array1<f64>, Array2<f64>)> {
         // Regularize for numerical stability
         let reg = 1e-6;
@@ -451,7 +435,7 @@ impl GpuCCA {
 
     fn compute_y_weights(
         &self,
-        cyy: &Array2<f64>,
+        _cyy: &Array2<f64>,
         cxy: &Array2<f64>,
         x_weights: &Array2<f64>,
     ) -> GpuResult<Array2<f64>> {
@@ -677,11 +661,11 @@ mod tests {
         let cca = GpuCCA::new(2);
         let x = Array2::from_shape_simple_fn((100, 5), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_simple_fn((100, 3), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let fitted = cca.fit(&x, &y).expect("fit should succeed");
@@ -697,22 +681,22 @@ mod tests {
         let cca = GpuCCA::new(1);
         let x_train = Array2::from_shape_simple_fn((50, 4), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y_train = Array2::from_shape_simple_fn((50, 2), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let fitted = cca.fit(&x_train, &y_train).expect("fit should succeed");
 
         let x_test = Array2::from_shape_simple_fn((10, 4), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y_test = Array2::from_shape_simple_fn((10, 2), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
+            rng.sample(Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let (x_transformed, y_transformed) = fitted

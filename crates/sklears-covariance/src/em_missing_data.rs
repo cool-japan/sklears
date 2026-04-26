@@ -11,6 +11,17 @@ use sklears_core::{
     traits::{Estimator, Fit, Untrained},
 };
 
+/// Return type for EM fitting methods: (covariance, mean, n_iter, log_likelihood, convergence_history, precision, imputed_data)
+type EmFitResult = SklResult<(
+    Array2<f64>,
+    Array1<f64>,
+    usize,
+    f64,
+    Vec<f64>,
+    Option<Array2<f64>>,
+    Option<Array2<f64>>,
+)>;
+
 /// EM-based covariance estimator for missing data
 ///
 /// Uses the Expectation-Maximization algorithm to estimate covariance matrices
@@ -340,15 +351,7 @@ impl EMCovarianceMissingData {
         &self,
         x: &ArrayView2<f64>,
         missing_pattern: &Array2<bool>,
-    ) -> SklResult<(
-        Array2<f64>,
-        Array1<f64>,
-        usize,
-        f64,
-        Vec<f64>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-    )> {
+    ) -> EmFitResult {
         let (n_samples, n_features) = x.dim();
 
         // Initialize parameters
@@ -722,19 +725,7 @@ impl EMCovarianceMissingData {
     }
 
     /// Robust EM using heavy-tailed distributions (simplified)
-    fn em_robust(
-        &self,
-        x: &ArrayView2<f64>,
-        missing_pattern: &Array2<bool>,
-    ) -> SklResult<(
-        Array2<f64>,
-        Array1<f64>,
-        usize,
-        f64,
-        Vec<f64>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-    )> {
+    fn em_robust(&self, x: &ArrayView2<f64>, missing_pattern: &Array2<bool>) -> EmFitResult {
         // For simplicity, use the standard EM with additional robustness
         self.em_multivariate_normal(x, missing_pattern)
     }
@@ -745,15 +736,7 @@ impl EMCovarianceMissingData {
         x: &ArrayView2<f64>,
         missing_pattern: &Array2<bool>,
         _n_factors: usize,
-    ) -> SklResult<(
-        Array2<f64>,
-        Array1<f64>,
-        usize,
-        f64,
-        Vec<f64>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-    )> {
+    ) -> EmFitResult {
         // For simplicity, fall back to standard EM
         self.em_multivariate_normal(x, missing_pattern)
     }
@@ -764,15 +747,7 @@ impl EMCovarianceMissingData {
         x: &ArrayView2<f64>,
         missing_pattern: &Array2<bool>,
         _prior_strength: f64,
-    ) -> SklResult<(
-        Array2<f64>,
-        Array1<f64>,
-        usize,
-        f64,
-        Vec<f64>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-    )> {
+    ) -> EmFitResult {
         // For simplicity, fall back to standard EM
         self.em_multivariate_normal(x, missing_pattern)
     }
@@ -783,15 +758,7 @@ impl EMCovarianceMissingData {
         x: &ArrayView2<f64>,
         missing_pattern: &Array2<bool>,
         _n_components: usize,
-    ) -> SklResult<(
-        Array2<f64>,
-        Array1<f64>,
-        usize,
-        f64,
-        Vec<f64>,
-        Option<Array2<f64>>,
-        Option<Array2<f64>>,
-    )> {
+    ) -> EmFitResult {
         // For simplicity, fall back to standard EM
         self.em_multivariate_normal(x, missing_pattern)
     }
@@ -915,7 +882,7 @@ mod tests {
 
     #[test]
     fn test_em_missing_data_basic() {
-        let mut x = array![
+        let x = array![
             [1.0, 2.0, 3.0],
             [2.0, f64::NAN, 4.0],
             [3.0, 4.0, f64::NAN],
@@ -946,7 +913,7 @@ mod tests {
 
     #[test]
     fn test_em_different_methods() {
-        let mut x = array![[1.0, 2.0], [2.0, f64::NAN], [f64::NAN, 3.0], [1.5, 2.5]];
+        let x = array![[1.0, 2.0], [2.0, f64::NAN], [f64::NAN, 3.0], [1.5, 2.5]];
 
         // Test MultivariateNormal
         let em_normal = EMCovarianceMissingData::new()
@@ -971,7 +938,7 @@ mod tests {
 
     #[test]
     fn test_em_diagonal_covariance() {
-        let mut x = array![
+        let x = array![
             [1.0, 2.0, 3.0],
             [2.0, f64::NAN, 4.0],
             [3.0, 4.0, f64::NAN],
@@ -998,7 +965,7 @@ mod tests {
 
     #[test]
     fn test_em_shrinkage() {
-        let mut x = array![
+        let x = array![
             [1.0, 2.0],
             [2.0, f64::NAN],
             [f64::NAN, 3.0],
@@ -1018,7 +985,7 @@ mod tests {
 
     #[test]
     fn test_em_missing_pattern_analysis() {
-        let mut x = array![
+        let x = array![
             [1.0, 2.0, 3.0],
             [2.0, f64::NAN, 4.0],
             [f64::NAN, 4.0, f64::NAN],
@@ -1045,7 +1012,7 @@ mod tests {
 
     #[test]
     fn test_em_convergence_history() {
-        let mut x = array![
+        let x = array![
             [1.0, 2.0],
             [2.0, f64::NAN],
             [f64::NAN, 3.0],
@@ -1059,7 +1026,7 @@ mod tests {
             .expect("operation should succeed");
 
         let history = fitted.get_log_likelihood_history();
-        assert!(history.len() > 0);
+        assert!(!history.is_empty());
         assert!(history.len() <= 10);
 
         // Log-likelihood should generally increase (or at least not decrease significantly)

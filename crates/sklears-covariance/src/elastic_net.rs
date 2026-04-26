@@ -221,62 +221,6 @@ impl Fit<ArrayView2<'_, Float>, ()> for ElasticNetCovariance<Untrained> {
 }
 
 impl ElasticNetCovariance<Untrained> {
-    /// Coordinate descent algorithm for Elastic Net regularized precision matrix
-    fn coordinate_descent(
-        &self,
-        covariance_emp: &Array2<f64>,
-        n_features: usize,
-    ) -> SklResult<(Array2<f64>, usize)> {
-        // Initialize precision matrix as inverse of empirical covariance plus ridge regularization
-        let l2_reg = self.config.alpha * (1.0 - self.config.l1_ratio);
-        let mut precision = covariance_emp.clone();
-
-        // Add L2 regularization to diagonal
-        for i in 0..n_features {
-            precision[[i, i]] += l2_reg;
-        }
-        precision = matrix_inverse(&precision)?;
-
-        let l1_reg = self.config.alpha * self.config.l1_ratio;
-
-        // Coordinate descent iterations
-        let mut n_iter = 0;
-        for iter in 0..self.config.max_iter {
-            n_iter = iter + 1;
-            let mut max_change: f64 = 0.0;
-
-            // Update each off-diagonal element
-            for i in 0..n_features {
-                for j in (i + 1)..n_features {
-                    let old_val = precision[[i, j]];
-
-                    // Compute gradient component
-                    let grad = covariance_emp[[i, j]] - precision[[i, i]] * precision[[j, j]];
-                    let denominator = precision[[i, i]] * precision[[j, j]];
-
-                    if denominator > 1e-10 {
-                        // Soft thresholding for L1 regularization
-                        let new_val =
-                            self.soft_threshold(old_val - grad / denominator, l1_reg / denominator);
-
-                        // Update symmetric elements
-                        precision[[i, j]] = new_val;
-                        precision[[j, i]] = new_val;
-
-                        max_change = max_change.max((new_val - old_val).abs());
-                    }
-                }
-            }
-
-            // Check convergence
-            if max_change < self.config.tol {
-                break;
-            }
-        }
-
-        Ok((precision, n_iter))
-    }
-
     /// Soft thresholding operator for L1 regularization
     fn soft_threshold(&self, x: f64, threshold: f64) -> f64 {
         if x > threshold {

@@ -248,8 +248,8 @@ pub mod simd_hints {
         F: FnMut(&T),
     {
         let len = OptimizationHints::assume_loop_count(slice.len());
-        for i in 0..len {
-            f(&slice[i]);
+        for item in slice.iter().take(len) {
+            f(item);
         }
     }
 
@@ -315,7 +315,7 @@ mod tests {
         OptimizationHints::prefetch_nta(data.as_ptr());
 
         // If we get here, prefetch calls didn't crash
-        assert!(true);
+        // (no assertion needed)
     }
 
     #[test]

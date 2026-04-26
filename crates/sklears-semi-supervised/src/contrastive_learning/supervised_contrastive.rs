@@ -99,6 +99,7 @@ impl SupervisedContrastiveLearning {
         self
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn augment_data<R>(&self, X: &ArrayView2<f64>, rng: &mut Random<R>) -> Result<Array2<f64>>
     where
         R: Rng,
@@ -328,6 +329,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for SupervisedContrastiveLear
 }
 
 impl Predict<ArrayView2<'_, f64>, Array1<i32>> for FittedSupervisedContrastiveLearning {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, f64>) -> Result<Array1<i32>> {
         let embeddings = X.dot(&self.encoder_weights);
 
@@ -362,6 +364,7 @@ impl Predict<ArrayView2<'_, f64>, Array1<i32>> for FittedSupervisedContrastiveLe
 }
 
 impl PredictProba<ArrayView2<'_, f64>, Array2<f64>> for FittedSupervisedContrastiveLearning {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict_proba(&self, X: &ArrayView2<'_, f64>) -> Result<Array2<f64>> {
         let embeddings = X.dot(&self.encoder_weights);
 

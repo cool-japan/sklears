@@ -26,10 +26,13 @@ pub trait CustomScorer: Send + Sync + std::fmt::Debug {
     fn higher_is_better(&self) -> bool;
 }
 
+/// Scorer function type alias for Arc-wrapped closures
+type ScorerFn = Arc<dyn Fn(&Array1<Float>, &Array1<Float>) -> Result<f64> + Send + Sync>;
+
 /// Custom scoring function wrapper for closures
 pub struct ClosureScorer {
     name: String,
-    scorer_fn: Arc<dyn Fn(&Array1<Float>, &Array1<Float>) -> Result<f64> + Send + Sync>,
+    scorer_fn: ScorerFn,
     higher_is_better: bool,
 }
 
@@ -570,6 +573,7 @@ fn erf(x: f64) -> f64 {
 }
 
 /// Perform Wilcoxon signed-rank test (non-parametric alternative to t-test)
+#[allow(dead_code)] // wilcoxon_signed_rank_test retained as public statistical utility API
 pub fn wilcoxon_signed_rank_test(
     scores1: &Array1<f64>,
     scores2: &Array1<f64>,

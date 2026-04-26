@@ -84,14 +84,19 @@ pub struct TrainedManifoldDiscriminantAnalysis {
 /// Base discriminant classifier in manifold space
 #[derive(Debug, Clone)]
 enum BaseDiscriminant {
-    LDA {
+    /// Linear Discriminant Analysis base model
+    Lda {
         means: Array2<Float>,
+        #[allow(dead_code)] // retained for future Mahalanobis-distance predictions
         covariance: Array2<Float>,
         priors: Array1<Float>,
+        #[allow(dead_code)] // retained for future projection-based transform
         components: Array2<Float>,
     },
-    QDA {
+    /// Quadratic Discriminant Analysis base model
+    Qda {
         means: Array2<Float>,
+        #[allow(dead_code)] // retained for future QDA-based probability estimation
         covariances: Vec<Array2<Float>>,
         priors: Array1<Float>,
     },
@@ -426,7 +431,7 @@ impl ManifoldDiscriminantAnalysis {
                 // Components are just identity for now (simplified)
                 let components = Array2::eye(n_components);
 
-                Ok(BaseDiscriminant::LDA {
+                Ok(BaseDiscriminant::Lda {
                     means,
                     covariance,
                     priors,
@@ -483,7 +488,7 @@ impl ManifoldDiscriminantAnalysis {
                     }
                 }
 
-                Ok(BaseDiscriminant::QDA {
+                Ok(BaseDiscriminant::Qda {
                     means,
                     covariances,
                     priors,
@@ -658,7 +663,7 @@ impl Predict<Array2<Float>, Array1<i32>> for TrainedManifoldDiscriminantAnalysis
 
         // Predict using base classifier
         match &self.base_classifier {
-            BaseDiscriminant::LDA { means, priors, .. } => {
+            BaseDiscriminant::Lda { means, priors, .. } => {
                 for i in 0..n_samples {
                     let xi = x_manifold.row(i);
                     let mut best_score = Float::NEG_INFINITY;
@@ -680,7 +685,7 @@ impl Predict<Array2<Float>, Array1<i32>> for TrainedManifoldDiscriminantAnalysis
                     predictions[i] = best_class;
                 }
             }
-            BaseDiscriminant::QDA {
+            BaseDiscriminant::Qda {
                 means,
                 covariances: _,
                 priors,
@@ -733,7 +738,7 @@ impl PredictProba<Array2<Float>, Array2<Float>> for TrainedManifoldDiscriminantA
 
         // Compute probabilities using base classifier
         match &self.base_classifier {
-            BaseDiscriminant::LDA { means, priors, .. } => {
+            BaseDiscriminant::Lda { means, priors, .. } => {
                 for i in 0..n_samples {
                     let xi = x_manifold.row(i);
                     let mut scores = Array1::zeros(n_classes);
@@ -761,7 +766,7 @@ impl PredictProba<Array2<Float>, Array2<Float>> for TrainedManifoldDiscriminantA
                     }
                 }
             }
-            BaseDiscriminant::QDA {
+            BaseDiscriminant::Qda {
                 means,
                 covariances: _,
                 priors,

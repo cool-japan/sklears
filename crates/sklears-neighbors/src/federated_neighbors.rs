@@ -408,6 +408,7 @@ impl FederatedNeighborCoordinator {
     }
 
     /// Compute local radius neighbors for a participant
+    #[allow(dead_code)] // reserved for federated radius search use-case
     fn compute_local_radius_neighbors(
         &self,
         participant: &mut FederatedParticipant,
@@ -437,6 +438,7 @@ impl FederatedNeighborCoordinator {
     }
 
     /// Compute local radius neighbors for a participant (direct version to avoid borrowing issues)
+    #[allow(dead_code)] // direct variant reserved for borrow-checker workaround contexts
     fn compute_local_radius_neighbors_direct(
         &self,
         participant: &mut FederatedParticipant,

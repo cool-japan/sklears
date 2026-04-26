@@ -328,13 +328,7 @@ impl NoStdActivations {
 
         for (&x, y) in input.iter().zip(output.iter_mut()) {
             // Clamp input to avoid overflow
-            let clamped = if x > 10.0 {
-                10.0
-            } else if x < -10.0 {
-                -10.0
-            } else {
-                x
-            };
+            let clamped = x.clamp(-10.0, 10.0);
 
             // Use Taylor series approximation for exp
             #[cfg(feature = "libm")]
@@ -400,7 +394,13 @@ impl NoStdActivations {
 pub struct NoStdMemory;
 
 impl NoStdMemory {
-    /// Aligned memory copy for no-std
+    /// Aligned memory copy for no-std.
+    ///
+    /// # Safety
+    ///
+    /// `src` must be valid and point to at least `len` initialized `f32` values.
+    /// `dst` must be valid and point to writable storage for at least `len` `f32` values.
+    /// The ranges `src..src+len` and `dst..dst+len` must not overlap.
     pub unsafe fn aligned_copy(src: *const f32, dst: *mut f32, len: usize, alignment: usize) {
         if alignment <= mem::align_of::<f32>() {
             ptr::copy_nonoverlapping(src, dst, len);

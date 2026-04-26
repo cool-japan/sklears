@@ -1,10 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
 //! Gaussian mixture models
 //!
 //! This module provides Gaussian mixture models for clustering and density estimation,
@@ -178,14 +171,4 @@ pub use approximation::{
     MonteCarloGMMBuilder, MonteCarloGMMTrained, MonteCarloMethod,
 };
 
-// Module stubs for future implementation
-// TODO: Extract these from the original lib.rs
-// pub mod nonparametric;
-// pub mod constrained;
-// pub mod mcmc;
-// pub mod analysis;
-// pub mod algorithms;
-
-// TODO: Re-export additional mixture types as they are extracted:
-// pub use online::{OnlineGaussianMixture, OnlineGaussianMixtureTrained};
-// And so on...
+// Additional modules (constrained, mcmc, analysis, algorithms) are planned for v0.2.0.

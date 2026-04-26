@@ -3,7 +3,7 @@
 //! This module provides optimized sampling implementations. Full SIMD functionality
 //! requires nightly Rust features - scalar fallbacks are provided for stable compilation.
 
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 
 /// SIMD-accelerated random sampling (scalar fallback)
 pub fn simd_uniform_samples(n: usize) -> Vec<f64> {
@@ -122,15 +122,15 @@ pub fn reservoir_sampling<T: Clone>(data: &[T], k: usize) -> Vec<T> {
     let mut rng = thread_rng();
 
     // Fill reservoir with first k elements
-    for i in 0..k {
-        reservoir.push(data[i].clone());
+    for item in data.iter().take(k) {
+        reservoir.push(item.clone());
     }
 
     // Replace elements with gradually decreasing probability
-    for i in k..data.len() {
-        let j = rng.gen_range(0..i + 1);
+    for (idx, item) in data.iter().enumerate().skip(k) {
+        let j = rng.gen_range(0..idx + 1);
         if j < k {
-            reservoir[j] = data[i].clone();
+            reservoir[j] = item.clone();
         }
     }
 

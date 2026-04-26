@@ -37,13 +37,13 @@
 //!     (4, 2),
 //!     vec![1.0, 2.0, 1.5, 1.8, 5.0, 8.0, 5.2, 7.8],
 //! )
-//! .unwrap();
+//! .expect("shape and data length must match");
 //! let labels = vec![0, 0, 1, 1];
 //!
 //! // Quick internal validation
 //! let validator = InternalValidationMethods::euclidean();
-//! let silhouette = validator.silhouette_analysis(&data, &labels).unwrap();
-//! let ch_index = validator.calinski_harabasz_index(&data, &labels).unwrap();
+//! let silhouette = validator.silhouette_analysis(&data, &labels).expect("silhouette analysis must succeed");
+//! let ch_index = validator.calinski_harabasz_index(&data, &labels).expect("Calinski-Harabasz index must succeed");
 //!
 //! println!("Silhouette score: {:.3}", silhouette.mean_silhouette);
 //! println!("Calinski-Harabasz index: {:.3}", ch_index);
@@ -58,7 +58,7 @@
 //!     (4, 2),
 //!     vec![1.0, 2.0, 1.5, 1.8, 5.0, 8.0, 5.2, 7.8],
 //! )
-//! .unwrap();
+//! .expect("shape and data length must match");
 //! let labels = vec![0, 0, 1, 1];
 //!
 //! // Automated validation with recommendations
@@ -66,7 +66,7 @@
 //! let config = AutomatedValidationConfig::default();
 //! let result = validator
 //!     .automated_cluster_validation(&data, &labels, &config)
-//!     .unwrap();
+//!     .expect("automated cluster validation must succeed");
 //!
 //! println!("Overall quality: {:?}", result.overall_quality);
 //! println!("Quality score: {:.3}", result.internal_quality_score);
@@ -86,7 +86,7 @@
 //! let validator = InternalValidationMethods::euclidean();
 //! let metrics = validator
 //!     .external_validation(&true_labels, &predicted_labels)
-//!     .unwrap();
+//!     .expect("external validation must succeed");
 //!
 //! println!("Adjusted Rand Index: {:.3}", metrics.adjusted_rand_index);
 //! println!("Normalized Mutual Information: {:.3}", metrics.normalized_mutual_info);
@@ -101,7 +101,7 @@
 //!     (4, 2),
 //!     vec![1.0, 2.0, 1.5, 1.8, 5.0, 8.0, 5.2, 7.8],
 //! )
-//! .unwrap();
+//! .expect("shape and data length must match");
 //!
 //! let analyzer = StabilityAnalyzer::euclidean();
 //!
@@ -113,7 +113,7 @@
 //!
 //! let stability = analyzer
 //!     .subsample_stability(&data, clustering_fn, 0.8, 10)
-//!     .unwrap();
+//!     .expect("subsample stability analysis must succeed");
 //! println!("Mean stability: {:.3}", stability.mean_stability);
 //! ```
 //!
@@ -148,7 +148,7 @@
 //!     (4, 2),
 //!     vec![1.0, 2.0, 1.5, 1.8, 5.0, 8.0, 5.2, 7.8],
 //! )
-//! .unwrap();
+//! .expect("shape and data length must match");
 //! let analyzer = ClusteringValidator::euclidean();
 //!
 //! let clustering_fn = |data: &Array2<f64>, k: usize| -> Result<Vec<i32>> {
@@ -158,7 +158,7 @@
 //!
 //! let gap_result = analyzer
 //!     .gap_statistic(&data, 1..4, Some(50), clustering_fn)
-//!     .unwrap();
+//!     .expect("gap statistic computation must succeed");
 //! println!("Optimal k: {}", gap_result.optimal_k);
 //! ```
 //!
@@ -171,12 +171,12 @@
 //!     (4, 2),
 //!     vec![1.0, 2.0, 1.5, 1.8, 5.0, 8.0, 5.2, 7.8],
 //! )
-//! .unwrap();
+//! .expect("shape and data length must match");
 //! let labels = vec![0, 0, 1, 1];
 //!
 //! let analyzer = CoherenceSeparationAnalyzer::euclidean();
-//! let coherence = analyzer.cluster_coherence(&data, &labels).unwrap();
-//! let separation = analyzer.cluster_separation(&data, &labels).unwrap();
+//! let coherence = analyzer.cluster_coherence(&data, &labels).expect("cluster coherence analysis must succeed");
+//! let separation = analyzer.cluster_separation(&data, &labels).expect("cluster separation analysis must succeed");
 //!
 //! println!("Overall coherence: {:.3}", coherence.overall_coherence);
 //! println!("Gap ratio: {:.3}", separation.gap_ratio);
@@ -205,8 +205,14 @@ pub use validation_types::{
 
 // Re-export main validator classes
 pub use internal_validation::ClusteringValidator as InternalValidationMethods;
-// TODO: GapStatisticAnalyzer - functionality is in ClusteringValidator
-// pub use gap_statistic::GapStatisticAnalyzer;
+
+/// Type alias for the gap statistic analyzer.
+///
+/// The gap statistic functionality is provided by [`ClusteringValidator`] via the
+/// `gap_statistic` method defined in the `gap_statistic` submodule. This alias
+/// exposes a focused name for callers that only need gap-statistic–based cluster
+/// number selection.
+pub type GapStatisticAnalyzer = ClusteringValidator;
 pub use automated_validation::{
     AutomatedValidationConfig, AutomatedValidationResult, AutomatedValidator, ClusterQuality,
 };
@@ -222,7 +228,6 @@ pub use stability_analysis::{
 };
 
 // Re-export test utilities for external testing
-#[allow(non_snake_case)]
 #[cfg(test)]
 pub use validation_tests::{
     generate_clusters_with_noise, generate_elongated_clusters, generate_overlapping_clusters,
@@ -237,6 +242,7 @@ pub use validation_tests::{
 pub struct ClusteringValidator {
     metric: ValidationMetric,
     internal_validator: InternalValidationMethods,
+    #[allow(dead_code)] // Reserved for future direct external validation calls
     external_validator: ExternalValidationMetrics,
     stability_analyzer: StabilityAnalyzer,
     coherence_separation_analyzer: CoherenceSeparationAnalyzer,
@@ -528,7 +534,7 @@ mod tests {
         let labels = vec![0, 0, 1, 1];
 
         let sil_score = silhouette_score(&data, &labels).expect("operation should succeed");
-        assert!(sil_score >= -1.0 && sil_score <= 1.0);
+        assert!((-1.0..=1.0).contains(&sil_score));
 
         let ch_score = calinski_harabasz_score(&data, &labels).expect("operation should succeed");
         assert!(ch_score >= 0.0);

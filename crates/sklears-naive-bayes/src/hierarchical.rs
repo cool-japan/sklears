@@ -6,7 +6,6 @@
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::numeric::Float;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 use scirs2_core::random::SeedableRng;
 // SciRS2 Policy Compliance - Use scirs2-core for random distributions
@@ -255,6 +254,7 @@ pub struct RandomEffectsModel {
     pub rng: Option<scirs2_core::random::CoreRandom<scirs2_core::random::rngs::StdRng>>,
 }
 
+#[allow(non_snake_case)]
 impl RandomEffectsModel {
     pub fn new(n_features: usize, random_seed: Option<u64>) -> Self {
         let rng = random_seed.map(scirs2_core::random::CoreRandom::seed_from_u64);
@@ -285,7 +285,7 @@ impl RandomEffectsModel {
 
         // Estimate random effects for each group
         let unique_groups: HashSet<String> = self.group_assignments.values().cloned().collect();
-        let n_groups = unique_groups.len();
+        let _n_groups = unique_groups.len();
 
         for group_id in unique_groups {
             let group_samples: Vec<usize> = self
@@ -328,7 +328,7 @@ impl RandomEffectsModel {
 
     fn estimate_variance_components(
         &mut self,
-        X: &Array2<f64>,
+        _X: &Array2<f64>,
         y: &Array1<f64>,
     ) -> Result<(), HierarchicalError> {
         // Simplified variance component estimation
@@ -491,6 +491,7 @@ struct LocalClassifier {
     class_log_prior: Array1<f64>,
 }
 
+#[allow(non_snake_case)]
 impl HierarchicalNB {
     pub fn new(config: HierarchicalConfig, hierarchy: ClassHierarchy) -> Self {
         Self {
@@ -650,7 +651,7 @@ impl HierarchicalNB {
                     }
                     let group_X = Array2::from_shape_vec((group_samples.len(), X.ncols()), samples)
                         .expect("operation should succeed");
-                    let group_y: Vec<f64> =
+                    let _group_y: Vec<f64> =
                         group_samples.iter().map(|&idx| y[idx] as f64).collect();
 
                     let group_mean = group_X
@@ -789,7 +790,7 @@ impl HierarchicalNB {
         classes: &[i32],
     ) -> Result<LocalClassifier, HierarchicalError> {
         let n_classes = classes.len();
-        let n_samples = X.nrows() as f64;
+        let _n_samples = X.nrows() as f64;
 
         // Compute class priors
         let mut class_counts = Array1::zeros(n_classes);
@@ -825,7 +826,7 @@ impl HierarchicalNB {
                         .collect();
 
                     let mean = feature_values.iter().sum::<f64>() / feature_values.len() as f64;
-                    let variance = if feature_values.len() > 1 {
+                    let _variance = if feature_values.len() > 1 {
                         let sq_diff_sum: f64 =
                             feature_values.iter().map(|&x| (x - mean).powi(2)).sum();
                         sq_diff_sum / (feature_values.len() - 1) as f64
@@ -1199,7 +1200,7 @@ impl HierarchicalNB {
     }
 }
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::field_reassign_with_default)]
 #[cfg(test)]
 mod tests {
     use super::*;

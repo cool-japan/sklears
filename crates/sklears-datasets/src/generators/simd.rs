@@ -2,6 +2,7 @@
 //!
 //! This module provides SIMD-optimized implementations of common dataset generation
 //! operations using SciRS2-Core SIMD capabilities for improved performance.
+#![allow(dead_code)]
 
 // Note: SIMD support is optional and uses platform-specific intrinsics
 // The actual SIMD implementation is in the functions below using #[cfg(target_arch)]
@@ -530,7 +531,7 @@ mod tests {
         let (features, targets) = result.expect("operation should succeed");
         assert_eq!(features.dim(), (100, 4));
         assert_eq!(targets.len(), 100);
-        assert!(targets.iter().all(|&t| t >= 0 && t < 3));
+        assert!(targets.iter().all(|&t| (0..3).contains(&t)));
     }
 
     #[cfg(feature = "simd")]

@@ -32,7 +32,7 @@ use sklears_core::prelude::SklearsError;
 ///     .normalize(true)
 ///     .include_cumulants(true);
 ///
-/// let features = extractor.extract_features(&data.view()).unwrap();
+/// let features = extractor.extract_features(&data.view()).expect("valid data produces features");
 /// ```
 #[derive(Debug, Clone)]
 pub struct StatisticalMomentsExtractor {
@@ -255,7 +255,7 @@ impl Default for StatisticalMomentsExtractor {
 ///     .n_bins(10)
 ///     .include_shape_features(true);
 ///
-/// let features = extractor.extract_features(&data.view()).unwrap();
+/// let features = extractor.extract_features(&data.view()).expect("valid data produces features");
 /// ```
 #[derive(Debug, Clone)]
 pub struct DistributionFeaturesExtractor {
@@ -476,7 +476,7 @@ impl Default for DistributionFeaturesExtractor {
 ///     .window_size(2)
 ///     .tolerance(0.1);
 ///
-/// let features = extractor.extract_features(&data.view()).unwrap();
+/// let features = extractor.extract_features(&data.view()).expect("valid data produces features");
 /// ```
 #[derive(Debug, Clone)]
 pub struct EntropyFeaturesExtractor {
@@ -742,19 +742,19 @@ impl EntropyFeaturesExtractor {
         let x_min = pairs
             .iter()
             .map(|(x, _)| *x)
-            .fold(std::f64::INFINITY, |a, b| a.min(b));
+            .fold(f64::INFINITY, |a, b| a.min(b));
         let x_max = pairs
             .iter()
             .map(|(x, _)| *x)
-            .fold(std::f64::NEG_INFINITY, |a, b| a.max(b));
+            .fold(f64::NEG_INFINITY, |a, b| a.max(b));
         let y_min = pairs
             .iter()
             .map(|(_, y)| *y)
-            .fold(std::f64::INFINITY, |a, b| a.min(b));
+            .fold(f64::INFINITY, |a, b| a.min(b));
         let y_max = pairs
             .iter()
             .map(|(_, y)| *y)
-            .fold(std::f64::NEG_INFINITY, |a, b| a.max(b));
+            .fold(f64::NEG_INFINITY, |a, b| a.max(b));
 
         let x_range = if (x_max - x_min).abs() < 1e-10 {
             1.0
@@ -781,9 +781,9 @@ impl EntropyFeaturesExtractor {
         let total = pairs.len() as Float;
         let mut entropy = 0.0;
 
-        for i in 0..n_bins {
-            for j in 0..n_bins {
-                let prob = joint_hist[i][j] / total;
+        for row in joint_hist.iter().take(n_bins) {
+            for &count in row.iter().take(n_bins) {
+                let prob = count / total;
                 if prob > 1e-10 {
                     entropy -= prob * prob.ln();
                 }
@@ -799,14 +799,11 @@ impl EntropyFeaturesExtractor {
             return Ok(vec![0.0; self.n_bins]);
         }
 
-        let min_val = data
-            .iter()
-            .cloned()
-            .fold(std::f64::INFINITY, |a, b| a.min(b));
+        let min_val = data.iter().cloned().fold(f64::INFINITY, |a, b| a.min(b));
         let max_val = data
             .iter()
             .cloned()
-            .fold(std::f64::NEG_INFINITY, |a, b| a.max(b));
+            .fold(f64::NEG_INFINITY, |a, b| a.max(b));
 
         if (max_val - min_val).abs() < 1e-10 {
             // All values are the same

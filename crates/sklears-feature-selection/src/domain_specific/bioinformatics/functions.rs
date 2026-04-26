@@ -7,16 +7,8 @@ use sklears_core::error::{Result as SklResult, SklearsError};
 use std::collections::HashMap;
 type Result<T> = SklResult<T>;
 type Float = f64;
-/// Complex return type for bioinformatics analysis methods
-/// (scores, p_values, fold_changes, metrics, additional_data)
-type BioinformaticsAnalysisResult = (
-    Array1<Float>,
-    Option<Array1<Float>>,
-    Option<Array1<Float>>,
-    Option<HashMap<String, Float>>,
-    Option<Array1<Float>>,
-);
-pub(crate) fn apply_normalization(x: &Array2<Float>, method: &str) -> Result<Array2<Float>> {
+/// apply_normalization
+pub fn apply_normalization(x: &Array2<Float>, method: &str) -> Result<Array2<Float>> {
     match method {
         "log2" => {
             let normalized = x.mapv(|val| if val > 0.0 { (val + 1.0).log2() } else { 0.0 });
@@ -28,7 +20,7 @@ pub(crate) fn apply_normalization(x: &Array2<Float>, method: &str) -> Result<Arr
             for j in 0..n_features {
                 let mut column: Vec<Float> = x.column(j).to_vec();
                 column.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                let median = if column.len() % 2 == 0 {
+                let median = if column.len().is_multiple_of(2) {
                     (column[column.len() / 2 - 1] + column[column.len() / 2]) / 2.0
                 } else {
                     column[column.len() / 2]
@@ -43,7 +35,8 @@ pub(crate) fn apply_normalization(x: &Array2<Float>, method: &str) -> Result<Arr
         _ => Ok(x.clone()),
     }
 }
-pub(crate) fn apply_multiple_testing_correction(
+/// apply_multiple_testing_correction
+pub fn apply_multiple_testing_correction(
     p_values: &Array1<Float>,
     method: &str,
 ) -> Result<Array1<Float>> {
@@ -86,10 +79,8 @@ pub(crate) fn apply_multiple_testing_correction(
     }
     Ok(adjusted)
 }
-pub(crate) fn separate_groups(
-    feature: &ArrayView1<Float>,
-    y: &Array1<Float>,
-) -> (Vec<Float>, Vec<Float>) {
+/// separate_groups
+pub fn separate_groups(feature: &ArrayView1<Float>, y: &Array1<Float>) -> (Vec<Float>, Vec<Float>) {
     let mut group0 = Vec::new();
     let mut group1 = Vec::new();
     for i in 0..feature.len() {
@@ -101,14 +92,16 @@ pub(crate) fn separate_groups(
     }
     (group0, group1)
 }
-pub(crate) fn compute_mean(values: &[Float]) -> Float {
+/// compute_mean
+pub fn compute_mean(values: &[Float]) -> Float {
     if values.is_empty() {
         0.0
     } else {
         values.iter().sum::<Float>() / values.len() as Float
     }
 }
-pub(crate) fn compute_std(values: &[Float], mean: Float) -> Float {
+/// compute_std
+pub fn compute_std(values: &[Float], mean: Float) -> Float {
     if values.len() <= 1 {
         1.0
     } else {
@@ -117,7 +110,8 @@ pub(crate) fn compute_std(values: &[Float], mean: Float) -> Float {
         variance.sqrt()
     }
 }
-pub(crate) fn compute_pathway_scores(
+/// compute_pathway_scores
+pub fn compute_pathway_scores(
     gene_scores: &Array1<Float>,
     database: &str,
 ) -> Result<HashMap<String, Float>> {
@@ -156,7 +150,8 @@ pub(crate) fn compute_pathway_scores(
     }
     Ok(pathway_scores)
 }
-pub(crate) fn map_pathway_scores_to_genes(
+/// map_pathway_scores_to_genes
+pub fn map_pathway_scores_to_genes(
     gene_scores: &Array1<Float>,
     pathway_scores: &HashMap<String, Float>,
 ) -> Result<Array1<Float>> {
@@ -176,7 +171,8 @@ pub(crate) fn map_pathway_scores_to_genes(
     }
     Ok(biological_scores)
 }
-pub(crate) fn compute_minor_allele_frequency(snp: &ArrayView1<Float>) -> Float {
+/// compute_minor_allele_frequency
+pub fn compute_minor_allele_frequency(snp: &ArrayView1<Float>) -> Float {
     let mut allele_counts = [0, 0, 0];
     for &genotype in snp.iter() {
         let rounded = genotype.round() as i32;
@@ -192,7 +188,8 @@ pub(crate) fn compute_minor_allele_frequency(snp: &ArrayView1<Float>) -> Float {
     let major_allele_count = total_alleles - minor_allele_count;
     (minor_allele_count.min(major_allele_count) as Float) / (total_alleles as Float)
 }
-pub(crate) fn compute_hardy_weinberg_p_value(snp: &ArrayView1<Float>) -> Float {
+/// compute_hardy_weinberg_p_value
+pub fn compute_hardy_weinberg_p_value(snp: &ArrayView1<Float>) -> Float {
     let mut genotype_counts = [0, 0, 0];
     for &genotype in snp.iter() {
         let rounded = genotype.round() as i32;
@@ -214,10 +211,8 @@ pub(crate) fn compute_hardy_weinberg_p_value(snp: &ArrayView1<Float>) -> Float {
         + ((genotype_counts[2] as Float - expected_bb).powi(2) / expected_bb);
     chi_square_to_p_value(chi2, 1)
 }
-pub(crate) fn compute_chi_square_association(
-    snp: &ArrayView1<Float>,
-    phenotype: &Array1<Float>,
-) -> Float {
+/// compute_chi_square_association
+pub fn compute_chi_square_association(snp: &ArrayView1<Float>, phenotype: &Array1<Float>) -> Float {
     let mut contingency = [[0, 0, 0], [0, 0, 0]];
     for i in 0..snp.len() {
         let genotype = snp[i].round() as usize;
@@ -244,10 +239,12 @@ pub(crate) fn compute_chi_square_association(
     }
     chi2
 }
-pub(crate) fn chi_square_to_p_value(chi2: Float, df: i32) -> Float {
+/// chi_square_to_p_value
+pub fn chi_square_to_p_value(chi2: Float, df: i32) -> Float {
     (1.0 + chi2 / (df as Float + 1.0)).recip()
 }
-pub(crate) fn correct_population_structure(p_values: &Array1<Float>) -> Result<Array1<Float>> {
+/// correct_population_structure
+pub fn correct_population_structure(p_values: &Array1<Float>) -> Result<Array1<Float>> {
     let mut sorted_p: Vec<Float> = p_values.to_vec();
     sorted_p.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let median_chi2 = -2.0 * sorted_p[sorted_p.len() / 2].ln();
@@ -259,14 +256,16 @@ pub(crate) fn correct_population_structure(p_values: &Array1<Float>) -> Result<A
     });
     Ok(corrected)
 }
-pub(crate) fn compute_linkage_disequilibrium_r2(
+/// compute_linkage_disequilibrium_r2
+pub fn compute_linkage_disequilibrium_r2(
     snp1: &ArrayView1<Float>,
     snp2: &ArrayView1<Float>,
 ) -> Float {
     let correlation = compute_pearson_correlation(snp1, snp2);
     correlation * correlation
 }
-pub(crate) fn compute_protein_network_centrality(x: &Array2<Float>) -> Result<Array1<Float>> {
+/// compute_protein_network_centrality
+pub fn compute_protein_network_centrality(x: &Array2<Float>) -> Result<Array1<Float>> {
     let (_, n_features) = x.dim();
     let mut centrality = Array1::zeros(n_features);
     for i in 0..n_features {
@@ -285,7 +284,8 @@ pub(crate) fn compute_protein_network_centrality(x: &Array2<Float>) -> Result<Ar
     }
     Ok(centrality)
 }
-pub(crate) fn compute_functional_domain_scores(x: &Array2<Float>) -> Result<Array1<Float>> {
+/// compute_functional_domain_scores
+pub fn compute_functional_domain_scores(x: &Array2<Float>) -> Result<Array1<Float>> {
     let (_, n_features) = x.dim();
     let mut scores = Array1::zeros(n_features);
     for i in 0..n_features {
@@ -293,7 +293,8 @@ pub(crate) fn compute_functional_domain_scores(x: &Array2<Float>) -> Result<Arra
     }
     Ok(scores)
 }
-pub(crate) fn compute_pearson_correlation(x: &ArrayView1<Float>, y: &ArrayView1<Float>) -> Float {
+/// compute_pearson_correlation
+pub fn compute_pearson_correlation(x: &ArrayView1<Float>, y: &ArrayView1<Float>) -> Float {
     let n = x.len();
     if n != y.len() || n == 0 {
         return 0.0;
@@ -317,7 +318,8 @@ pub(crate) fn compute_pearson_correlation(x: &ArrayView1<Float>, y: &ArrayView1<
         numerator / denominator
     }
 }
-pub(crate) fn compute_size_factor(counts: &[Float]) -> Float {
+/// compute_size_factor
+pub fn compute_size_factor(counts: &[Float]) -> Float {
     let geometric_mean = if counts.is_empty() {
         1.0
     } else {
@@ -330,7 +332,8 @@ pub(crate) fn compute_size_factor(counts: &[Float]) -> Float {
         geometric_mean
     }
 }
-pub(crate) fn estimate_dispersion(
+/// estimate_dispersion
+pub fn estimate_dispersion(
     counts0: &[Float],
     counts1: &[Float],
     mean0: Float,
@@ -358,7 +361,8 @@ pub(crate) fn estimate_dispersion(
     };
     (dispersion0 + dispersion1) / 2.0
 }
-pub(crate) fn compute_wald_standard_error(
+/// compute_wald_standard_error
+pub fn compute_wald_standard_error(
     mean0: Float,
     mean1: Float,
     dispersion: Float,
@@ -374,7 +378,8 @@ pub(crate) fn compute_wald_standard_error(
         1.0
     }
 }
-pub(crate) fn normal_cdf(x: Float) -> Float {
+/// normal_cdf
+pub fn normal_cdf(x: Float) -> Float {
     let t = 1.0 / (1.0 + 0.2316419 * x.abs());
     let d = 0.3989423 * (-x * x / 2.0).exp();
     let prob =
@@ -385,7 +390,8 @@ pub(crate) fn normal_cdf(x: Float) -> Float {
         prob
     }
 }
-pub(crate) fn separate_groups_indices(y: &Array1<Float>) -> (Vec<usize>, Vec<usize>) {
+/// separate_groups_indices
+pub fn separate_groups_indices(y: &Array1<Float>) -> (Vec<usize>, Vec<usize>) {
     let mut group0 = Vec::new();
     let mut group1 = Vec::new();
     for (i, &val) in y.iter().enumerate() {
@@ -397,7 +403,8 @@ pub(crate) fn separate_groups_indices(y: &Array1<Float>) -> (Vec<usize>, Vec<usi
     }
     (group0, group1)
 }
-pub(crate) fn estimate_common_dispersion(counts0: &[Float], counts1: &[Float]) -> Float {
+/// estimate_common_dispersion
+pub fn estimate_common_dispersion(counts0: &[Float], counts1: &[Float]) -> Float {
     let mean0 = compute_mean(counts0);
     let mean1 = compute_mean(counts1);
     let overall_mean = (mean0 + mean1) / 2.0;
@@ -409,7 +416,8 @@ pub(crate) fn estimate_common_dispersion(counts0: &[Float], counts1: &[Float]) -
     let overall_var = (var0 + var1) / 2.0;
     ((overall_var - overall_mean) / (overall_mean * overall_mean)).max(0.01)
 }
-pub(crate) fn compute_exact_test_p_value(
+/// compute_exact_test_p_value
+pub fn compute_exact_test_p_value(
     count0: Float,
     _count1: Float,
     total: Float,
@@ -428,20 +436,22 @@ pub(crate) fn compute_exact_test_p_value(
     let z = (observed_proportion - expected_proportion).abs() / se;
     2.0 * (1.0 - normal_cdf(z))
 }
-pub(crate) fn compute_variance(values: &[Float], mean: Float) -> Float {
+/// compute_variance
+pub fn compute_variance(values: &[Float], mean: Float) -> Float {
     if values.len() <= 1 {
         return mean.max(1.0);
     }
     let sum_sq: Float = values.iter().map(|&x| (x - mean).powi(2)).sum();
     sum_sq / (values.len() - 1) as Float
 }
-pub(crate) fn estimate_prior_variance(gene_variances: &[Float]) -> (Float, Float) {
+/// estimate_prior_variance
+pub fn estimate_prior_variance(gene_variances: &[Float]) -> (Float, Float) {
     if gene_variances.is_empty() {
         return (1.0, 4.0);
     }
     let mut sorted_vars = gene_variances.to_vec();
     sorted_vars.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let s0_squared = if sorted_vars.len() % 2 == 0 {
+    let s0_squared = if sorted_vars.len().is_multiple_of(2) {
         (sorted_vars[sorted_vars.len() / 2 - 1] + sorted_vars[sorted_vars.len() / 2]) / 2.0
     } else {
         sorted_vars[sorted_vars.len() / 2]
@@ -449,7 +459,8 @@ pub(crate) fn estimate_prior_variance(gene_variances: &[Float]) -> (Float, Float
     let d0 = 4.0;
     (s0_squared.max(0.01), d0)
 }
-pub(crate) fn define_gene_sets(n_genes: usize) -> HashMap<String, Vec<usize>> {
+/// define_gene_sets
+pub fn define_gene_sets(n_genes: usize) -> HashMap<String, Vec<usize>> {
     let mut gene_sets = HashMap::new();
     let set_size = (n_genes / 10).max(5);
     let metabolism: Vec<usize> = (0..set_size.min(n_genes)).collect();
@@ -464,10 +475,8 @@ pub(crate) fn define_gene_sets(n_genes: usize) -> HashMap<String, Vec<usize>> {
     gene_sets.insert("apoptosis".to_string(), apoptosis);
     gene_sets
 }
-pub(crate) fn compute_enrichment_score(
-    ranked_genes: &[(usize, Float)],
-    gene_set: &[usize],
-) -> Float {
+/// compute_enrichment_score
+pub fn compute_enrichment_score(ranked_genes: &[(usize, Float)], gene_set: &[usize]) -> Float {
     if gene_set.is_empty() || ranked_genes.is_empty() {
         return 0.0;
     }
@@ -493,7 +502,8 @@ pub(crate) fn compute_enrichment_score(
     }
     max_es
 }
-pub(crate) fn compute_hypergeometric_p_value(
+/// compute_hypergeometric_p_value
+pub fn compute_hypergeometric_p_value(
     overlap: usize,
     gene_set_size: usize,
     background_size: usize,
@@ -521,7 +531,8 @@ pub(crate) fn compute_hypergeometric_p_value(
         normal_cdf(z)
     }
 }
-pub(crate) fn build_ppi_network(x: &Array2<Float>, correlation_threshold: Float) -> Array2<bool> {
+/// build_ppi_network
+pub fn build_ppi_network(x: &Array2<Float>, correlation_threshold: Float) -> Array2<bool> {
     let n_proteins = x.ncols();
     let mut network = Array2::from_elem((n_proteins, n_proteins), false);
     for i in 0..n_proteins {
@@ -537,7 +548,8 @@ pub(crate) fn build_ppi_network(x: &Array2<Float>, correlation_threshold: Float)
     }
     network
 }
-pub(crate) fn compute_degree_centrality(network: &Array2<bool>) -> Array1<Float> {
+/// compute_degree_centrality
+pub fn compute_degree_centrality(network: &Array2<bool>) -> Array1<Float> {
     let n = network.nrows();
     let mut centrality = Array1::zeros(n);
     for i in 0..n {
@@ -546,7 +558,8 @@ pub(crate) fn compute_degree_centrality(network: &Array2<bool>) -> Array1<Float>
     }
     centrality
 }
-pub(crate) fn compute_betweenness_centrality(network: &Array2<bool>) -> Array1<Float> {
+/// compute_betweenness_centrality
+pub fn compute_betweenness_centrality(network: &Array2<bool>) -> Array1<Float> {
     let n = network.nrows();
     let mut centrality = Array1::zeros(n);
     for s in 0..n {
@@ -565,7 +578,8 @@ pub(crate) fn compute_betweenness_centrality(network: &Array2<bool>) -> Array1<F
     }
     centrality
 }
-pub(crate) fn bfs_shortest_paths(network: &Array2<bool>, start: usize, end: usize) -> Vec<usize> {
+/// bfs_shortest_paths
+pub fn bfs_shortest_paths(network: &Array2<bool>, start: usize, end: usize) -> Vec<usize> {
     let n = network.nrows();
     let mut visited = vec![false; n];
     let mut parent = vec![None; n];
@@ -593,7 +607,8 @@ pub(crate) fn bfs_shortest_paths(network: &Array2<bool>, start: usize, end: usiz
     path.reverse();
     path
 }
-pub(crate) fn compute_closeness_centrality(network: &Array2<bool>) -> Array1<Float> {
+/// compute_closeness_centrality
+pub fn compute_closeness_centrality(network: &Array2<bool>) -> Array1<Float> {
     let n = network.nrows();
     let mut centrality = Array1::zeros(n);
     for i in 0..n {
@@ -618,11 +633,8 @@ pub(crate) fn compute_closeness_centrality(network: &Array2<bool>) -> Array1<Flo
     }
     centrality
 }
-pub(crate) fn compute_shortest_path_length(
-    network: &Array2<bool>,
-    start: usize,
-    end: usize,
-) -> Float {
+/// compute_shortest_path_length
+pub fn compute_shortest_path_length(network: &Array2<bool>, start: usize, end: usize) -> Float {
     let n = network.nrows();
     let mut visited = vec![false; n];
     let mut distance = vec![Float::INFINITY; n];
@@ -644,13 +656,15 @@ pub(crate) fn compute_shortest_path_length(
     }
     distance[end]
 }
-pub(crate) fn compute_protein_impact_score(variant: &ArrayView1<Float>, position: usize) -> Float {
+/// compute_protein_impact_score
+pub fn compute_protein_impact_score(variant: &ArrayView1<Float>, position: usize) -> Float {
     let maf = compute_minor_allele_frequency(variant);
     let rarity_score = if maf < 0.01 { 1.0 - maf / 0.01 } else { 0.5 };
     let position_score = ((position % 100) as Float / 100.0).sin().abs();
     (rarity_score + position_score) / 2.0
 }
-pub(crate) fn compute_variant_domain_score(position: usize, total_features: usize) -> Float {
+/// compute_variant_domain_score
+pub fn compute_variant_domain_score(position: usize, total_features: usize) -> Float {
     let relative_pos = (position as Float) / (total_features as Float);
     if relative_pos < 0.2 || (relative_pos > 0.4 && relative_pos < 0.6) || relative_pos > 0.8 {
         0.8
@@ -658,10 +672,8 @@ pub(crate) fn compute_variant_domain_score(position: usize, total_features: usiz
         0.3
     }
 }
-pub(crate) fn compute_layer_correlation(
-    layer1: &Array2<Float>,
-    layer2: &Array2<Float>,
-) -> Array2<Float> {
+/// compute_layer_correlation
+pub fn compute_layer_correlation(layer1: &Array2<Float>, layer2: &Array2<Float>) -> Array2<Float> {
     let n1 = layer1.ncols();
     let n2 = layer2.ncols();
     let mut correlation_matrix = Array2::zeros((n1, n2));
@@ -758,7 +770,7 @@ mod tests {
     fn test_hardy_weinberg_test() {
         let snp = Array1::from_vec(vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0]);
         let hwe_p = compute_hardy_weinberg_p_value(&snp.view());
-        assert!(hwe_p >= 0.0 && hwe_p <= 1.0);
+        assert!((0.0..=1.0).contains(&hwe_p));
     }
     #[test]
     fn test_get_support() {

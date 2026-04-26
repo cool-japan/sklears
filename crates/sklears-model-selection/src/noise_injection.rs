@@ -351,17 +351,18 @@ impl NoiseInjector {
             let mut perturbation_norm: f64 = 0.0;
             let mut perturbations: Vec<f64> = vec![0.0; n_features];
 
-            for j in 0..n_features {
-                perturbations[j] = self.rng.random_range(-1.0..1.0);
-                perturbation_norm += perturbations[j].powi(2);
+            for p in &mut perturbations {
+                *p = self.rng.random_range(-1.0..1.0);
+                perturbation_norm += p.powi(2);
             }
 
             perturbation_norm = perturbation_norm.sqrt();
             if perturbation_norm > 0.0 {
-                for j in 0..n_features {
-                    perturbations[j] =
-                        (perturbations[j] / perturbation_norm) * self.config.intensity;
-                    noisy_x[[i, j]] += perturbations[j];
+                for p in &mut perturbations {
+                    *p = (*p / perturbation_norm) * self.config.intensity;
+                }
+                for (j, &pert) in perturbations.iter().enumerate() {
+                    noisy_x[[i, j]] += pert;
                 }
             }
         }

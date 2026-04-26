@@ -106,7 +106,7 @@ fn test_zero_crossing_rate_extractor() {
     // All ZCR values should be between 0 and 1
     for &zcr_val in features.iter() {
         assert!(zcr_val.is_finite());
-        assert!(zcr_val >= 0.0 && zcr_val <= 1.0);
+        assert!((0.0..=1.0).contains(&zcr_val));
     }
 }
 
@@ -140,7 +140,7 @@ fn test_tonnetz_extractor() {
     // All tonnetz values should be finite and bounded
     for &val in features.iter() {
         assert!(val.is_finite());
-        assert!(val >= -1.0 && val <= 1.0); // Tonnetz values are normalized
+        assert!((-1.0..=1.0).contains(&val)); // Tonnetz values are normalized
     }
 }
 
@@ -432,12 +432,12 @@ fn test_onset_detector() {
         .expect("operation should succeed");
 
     // Should detect at least one onset around the middle
-    assert!(onsets.len() > 0);
+    assert!(!onsets.is_empty());
 
     // Check that onset times are reasonable
     for &onset_time in onsets.iter() {
         assert!(onset_time >= 0.0);
-        assert!(onset_time < n_samples as f64 / sample_rate as f64);
+        assert!(onset_time < n_samples as f64 / sample_rate);
     }
 }
 

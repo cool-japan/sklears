@@ -126,6 +126,7 @@ impl QuadraticDiscriminantAnalysis<Untrained> {
     }
 
     /// Compute robust mean using iterative reweighting
+    #[allow(dead_code)] // used in robust QDA variant; may be called by future adaptive methods
     fn robust_mean(&self, data: &Array2<Float>, weights: &Array1<Float>) -> Array1<Float> {
         let (_n_samples, n_features) = data.dim();
         let mut robust_mean = Array1::zeros(n_features);
@@ -468,17 +469,15 @@ impl Fit<Array2<Float>, Array1<i32>> for QuadraticDiscriminantAnalysis<Untrained
             &class_counts / n_samples as Float
         };
 
-        let store_covariance = self.config.store_covariance;
+        // QDA always needs covariances for prediction; store_covariance flag is reserved
+        // for a future serialisation path that omits covariances from the saved artifact
+        let _ = self.config.store_covariance;
         Ok(QuadraticDiscriminantAnalysis {
             config: self.config,
             state: PhantomData,
             classes_: Some(Array1::from(classes)),
             means_: Some(means),
-            covariances_: if store_covariance {
-                Some(covariances)
-            } else {
-                Some(covariances) // QDA always needs covariances for prediction
-            },
+            covariances_: Some(covariances),
             priors_: Some(priors),
             n_features_: Some(n_features),
         })

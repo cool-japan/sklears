@@ -10,13 +10,22 @@ use sklears_core::{error::Result, types::Float};
 use super::simd_operations::*;
 use super::types_config::{CovarianceType, WeightInit};
 
+/// GMM parameters tuple: (weights, means, covariances)
+type GmmParams = (Array1<Float>, Array2<Float>, Vec<Array2<Float>>);
+
 /// Core EM Algorithm implementation with SIMD acceleration
 pub struct EMAlgorithm {
+    /// Maximum number of EM iterations
     pub max_iter: usize,
+    /// Convergence tolerance for log-likelihood change
     pub tol: Float,
+    /// Regularization added to covariance diagonal for numerical stability
     pub reg_covar: Float,
+    /// Type of covariance matrix to use
     pub covariance_type: CovarianceType,
+    /// Initialization strategy for component weights
     pub init_params: WeightInit,
+    /// Seed for reproducible random initialization
     pub random_state: Option<u64>,
 }
 
@@ -53,9 +62,6 @@ impl EMAlgorithm {
 
     /// Run the complete EM algorithm
     pub fn fit(&self, x: &ArrayView2<Float>, n_components: usize) -> Result<EMResult> {
-        let n_samples = x.nrows();
-        let n_features = x.ncols();
-
         // Initialize parameters using SIMD-accelerated operations
         let (mut weights, mut means, mut covariances) =
             self.initialize_parameters(x, n_components)?;
@@ -115,10 +121,7 @@ impl EMAlgorithm {
         &self,
         x: &ArrayView2<Float>,
         n_components: usize,
-    ) -> Result<(Array1<Float>, Array2<Float>, Vec<Array2<Float>>)> {
-        let n_samples = x.nrows();
-        let n_features = x.ncols();
-
+    ) -> Result<GmmParams> {
         // Initialize weights uniformly
         let weights = Array1::from_elem(n_components, 1.0 / n_components as Float);
 
@@ -214,7 +217,7 @@ impl EMAlgorithm {
     fn initialize_covariances(
         &self,
         x: &ArrayView2<Float>,
-        means: &Array2<Float>,
+        _means: &Array2<Float>,
         n_components: usize,
     ) -> Result<Vec<Array2<Float>>> {
         let n_features = x.ncols();
@@ -320,7 +323,7 @@ impl EMAlgorithm {
         &self,
         x: &ArrayView2<Float>,
         responsibilities: &Array2<Float>,
-    ) -> Result<(Array1<Float>, Array2<Float>, Vec<Array2<Float>>)> {
+    ) -> Result<GmmParams> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
         let n_components = responsibilities.ncols();
@@ -537,11 +540,17 @@ impl EMAlgorithm {
 /// Result of EM algorithm execution
 #[derive(Debug, Clone)]
 pub struct EMResult {
+    /// Component mixing weights
     pub weights: Array1<Float>,
+    /// Component means (n_components × n_features)
     pub means: Array2<Float>,
+    /// Component covariance matrices
     pub covariances: Vec<Array2<Float>>,
+    /// Whether the algorithm converged within `max_iter`
     pub converged: bool,
+    /// Number of EM iterations performed
     pub n_iter: usize,
+    /// Final log-likelihood value
     pub log_likelihood: Float,
 }
 

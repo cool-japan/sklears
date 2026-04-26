@@ -2,6 +2,7 @@
 //!
 //! This module provides comprehensive implementations of word and document embedding algorithms
 //! including Word2Vec, GloVe, Doc2Vec, sentence embeddings, and contextualized embeddings.
+#![allow(dead_code)] // embedding struct fields retained as public configuration API for future training
 
 use scirs2_core::ndarray::Array2;
 use std::collections::HashMap;

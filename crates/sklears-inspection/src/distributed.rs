@@ -237,7 +237,7 @@ impl DistributedCoordinator {
     }
 
     /// Select a worker based on load balancing strategy
-    fn select_worker(&self, task: &DistributedTask) -> SklResult<String> {
+    fn select_worker(&self, _task: &DistributedTask) -> SklResult<String> {
         let workers = self.workers.lock().map_err(|_| {
             SklearsError::InvalidInput("Failed to acquire workers lock".to_string())
         })?;
@@ -293,7 +293,7 @@ impl DistributedCoordinator {
                 })
             }
             LoadBalancingStrategy::Random => {
-                use scirs2_core::random::{thread_rng, CoreRandom};
+                use scirs2_core::random::thread_rng;
 
                 let worker_ids: Vec<String> = workers.keys().cloned().collect();
                 let mut rng = thread_rng();
@@ -900,10 +900,13 @@ pub struct ClusterExplanationOrchestrator {
     /// Distributed coordinator
     coordinator: Arc<DistributedCoordinator>,
     /// Configuration
+    #[allow(dead_code)] // stored for cluster reconfiguration
     config: ClusterConfig,
     /// Explanation cache
+    #[allow(dead_code)] // stored for cache invalidation
     cache: Arc<Mutex<HashMap<String, CachedExplanation>>>,
     /// Active batch computations
+    #[allow(dead_code)] // stored for batch management
     active_batches: Arc<Mutex<HashMap<String, BatchComputation>>>,
 }
 
@@ -933,7 +936,7 @@ impl ClusterExplanationOrchestrator {
     pub fn compute_shap_distributed(
         &self,
         data: &Array2<Float>,
-        background_data: &Array2<Float>,
+        _background_data: &Array2<Float>,
         batch_size: usize,
     ) -> SklResult<Array2<Float>> {
         let n_samples = data.nrows();
@@ -989,7 +992,7 @@ impl ClusterExplanationOrchestrator {
         predictions: &Array1<Float>,
         batch_size: usize,
     ) -> SklResult<Array1<Float>> {
-        let n_samples = data.nrows();
+        let _n_samples = data.nrows();
         let n_features = data.ncols();
 
         // Create batch ID
@@ -1001,7 +1004,7 @@ impl ClusterExplanationOrchestrator {
 
         // Submit tasks for each batch
         let mut task_ids = Vec::new();
-        for (batch_idx, (data_batch, pred_batch)) in
+        for (batch_idx, (data_batch, _pred_batch)) in
             data_batches.iter().zip(pred_batches.iter()).enumerate()
         {
             let task = DistributedTask {
@@ -1044,7 +1047,7 @@ impl ClusterExplanationOrchestrator {
         &self,
         instances: &Array2<Float>,
         target_class: usize,
-        n_counterfactuals_per_instance: usize,
+        _n_counterfactuals_per_instance: usize,
     ) -> SklResult<Vec<Array1<Float>>> {
         let batch_id = format!("counterfactual_batch_{}", uuid::Uuid::new_v4());
 
@@ -1185,6 +1188,7 @@ pub struct WorkerConfig {
 
 /// Cached explanation
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fields used via Arc<Mutex<...>> external access patterns
 struct CachedExplanation {
     /// Explanation data
     data: Array1<Float>,
@@ -1196,6 +1200,7 @@ struct CachedExplanation {
 
 /// Batch computation tracking
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fields used via Arc<Mutex<...>> external access patterns
 struct BatchComputation {
     /// Batch identifier
     batch_id: String,

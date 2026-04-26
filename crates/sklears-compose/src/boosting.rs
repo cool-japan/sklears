@@ -5,9 +5,9 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::{
     error::Result as SklResult,
-    prelude::{Predict, SklearsError},
+    prelude::SklearsError,
     traits::{Estimator, Fit, Untrained},
-    types::{Float, FloatBounds},
+    types::Float,
 };
 
 use crate::PipelinePredictor;
@@ -32,6 +32,7 @@ pub enum AdaBoostAlgorithm {
 }
 
 /// Trained state for `AdaBoost`
+#[allow(dead_code)]
 pub struct AdaBoostTrained {
     fitted_estimators: Vec<Box<dyn PipelinePredictor>>,
     estimator_weights: Array1<f64>,
@@ -304,12 +305,19 @@ pub enum LossFunction {
     /// Least absolute deviation
     LeastAbsoluteDeviation,
     /// Huber loss
-    Huber { delta: f64 },
+    Huber {
+        /// Field value.
+        delta: f64,
+    },
     /// Quantile loss
-    Quantile { alpha: f64 },
+    Quantile {
+        /// Field value.
+        alpha: f64,
+    },
 }
 
 /// Trained state for Gradient Boosting
+#[allow(dead_code)]
 pub struct GradientBoostingTrained {
     fitted_estimators: Vec<Box<dyn PipelinePredictor>>,
     initial_prediction: f64,
@@ -671,7 +679,7 @@ mod tests {
 
     #[test]
     fn test_loss_functions() {
-        let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
+        let _x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.1, 1.9, 3.1];
 

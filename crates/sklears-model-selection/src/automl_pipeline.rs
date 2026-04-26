@@ -297,6 +297,7 @@ impl Default for AutoMLPipeline {
     }
 }
 
+#[allow(non_snake_case)] // X follows mathematical convention for feature matrix throughout this impl
 impl AutoMLPipeline {
     /// Create a new AutoML pipeline
     pub fn new(config: AutoMLPipelineConfig) -> Self {
@@ -835,6 +836,7 @@ impl AutoMLPipeline {
 }
 
 /// Convenience function for quick AutoML
+#[allow(non_snake_case)] // X follows mathematical convention for feature matrix
 pub fn automl(
     X: &Array2<f64>,
     y: &Array1<f64>,
@@ -852,6 +854,7 @@ pub fn automl(
 }
 
 /// Quick AutoML with custom time budget
+#[allow(non_snake_case)] // X follows mathematical convention for feature matrix
 pub fn automl_with_budget(
     X: &Array2<f64>,
     y: &Array1<f64>,

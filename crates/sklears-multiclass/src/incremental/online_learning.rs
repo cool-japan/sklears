@@ -52,6 +52,7 @@ pub trait OnlineLearning<T: FloatBounds> {
 /// Basic online learner implementation
 #[derive(Debug, Clone)]
 pub struct OnlineLearner<T: FloatBounds> {
+    #[allow(dead_code)] // config retained for future update-rule extension
     config: OnlineLearningConfig,
     n_features: Option<usize>,
     classes_seen: Vec<usize>,

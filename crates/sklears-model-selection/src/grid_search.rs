@@ -226,6 +226,7 @@ fn compute_score_for_regression(
 }
 
 /// Helper function for scoring classification data
+#[allow(dead_code)] // intentionally deferred: classification scoring not yet wired in
 fn compute_score_for_classification(
     metric_name: &str,
     y_true: &Array1<i32>,
@@ -1171,7 +1172,7 @@ mod tests {
         ]);
         let sample = choice_dist.sample(&mut rng);
         if let ParameterValue::Int(val) = sample {
-            assert!(val >= 1 && val <= 3);
+            assert!((1..=3).contains(&val));
         } else {
             panic!("Expected Int parameter value");
         }
@@ -1180,7 +1181,7 @@ mod tests {
         let int_dist = ParameterDistribution::RandInt { low: 10, high: 20 };
         let sample = int_dist.sample(&mut rng);
         if let ParameterValue::Int(val) = sample {
-            assert!(val >= 10 && val < 20);
+            assert!((10..20).contains(&val));
         } else {
             panic!("Expected Int parameter value");
         }
@@ -1192,7 +1193,7 @@ mod tests {
         };
         let sample = uniform_dist.sample(&mut rng);
         if let ParameterValue::Float(val) = sample {
-            assert!(val >= 0.0 && val < 1.0);
+            assert!((0.0..1.0).contains(&val));
         } else {
             panic!("Expected Float parameter value");
         }
@@ -1292,7 +1293,7 @@ mod tests {
                 assert!(n_est == 5 || n_est == 10 || n_est == 15);
             }
             if let Some(lr) = params.get("learning_rate").and_then(|p| p.as_float()) {
-                assert!(lr >= 0.05 && lr < 0.5);
+                assert!((0.05..0.5).contains(&lr));
             }
         }
     }

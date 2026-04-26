@@ -4,12 +4,16 @@
 //! properties and quality of feature selection algorithms.
 
 use crate::base::FeatureSelector;
-use scirs2_core::ndarray::{Array2, Axis};
+use scirs2_core::ndarray::{Array2, ArrayBase, Axis, Dim, OwnedRepr};
+
+/// Fully expanded ndarray 0.17 owned 2D f64 matrix type.
+/// Using the full 3-parameter form bypasses Rust's trait-solver normalization failure
+/// with generic bounds that occurred in ndarray 0.17 when the default 3rd type param was added.
+type Mat2f64 = ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>, f64>;
 
 use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
-use scirs2_core::random::SeedableRng;
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Fit, Transform},
@@ -61,16 +65,24 @@ impl StatisticalValidationFramework {
 /// Results from statistical validity tests
 #[derive(Debug, Clone)]
 pub struct StatisticalValidationResults {
+    /// test_name
     pub test_name: String,
+    /// test_statistic
     pub test_statistic: Float,
+    /// p_value
     pub p_value: Float,
+    /// is_significant
     pub is_significant: bool,
+    /// confidence_level
     pub confidence_level: Float,
+    /// effect_size
     pub effect_size: Option<Float>,
+    /// description
     pub description: String,
 }
 
 impl StatisticalValidationResults {
+    /// new
     pub fn new(
         test_name: String,
         test_statistic: Float,
@@ -90,6 +102,7 @@ impl StatisticalValidationResults {
         }
     }
 
+    /// with_effect_size
     pub fn with_effect_size(mut self, effect_size: Float) -> Self {
         self.effect_size = Some(effect_size);
         self
@@ -110,7 +123,7 @@ impl SelectionConsistencyTest {
         confidence_level: Float,
     ) -> SklResult<StatisticalValidationResults>
     where
-        S: Fit<Array2<Float>, T> + Clone,
+        S: Fit<Mat2f64, T> + Clone,
         S::Fitted: FeatureSelector + Transform<Array2<Float>>,
         T: Clone,
     {
@@ -142,8 +155,8 @@ impl SelectionConsistencyTest {
 
             for mut row in perturbed_features.axis_iter_mut(Axis(0)) {
                 for element in row.iter_mut() {
-                    let u1: Float = rng.gen();
-                    let u2: Float = rng.gen();
+                    let u1: Float = rng.random::<Float>();
+                    let u2: Float = rng.random::<Float>();
                     let noise = (-2.0f64 * u1.ln()).sqrt()
                         * (2.0 * std::f64::consts::PI * u2).cos()
                         * noise_level;
@@ -263,7 +276,7 @@ impl PermutationSignificanceTest {
         confidence_level: Float,
     ) -> SklResult<StatisticalValidationResults>
     where
-        S: Fit<Array2<Float>, T> + Clone,
+        S: Fit<Mat2f64, T> + Clone,
         S::Fitted: FeatureSelector + Transform<Array2<Float>>,
         T: Clone,
     {
@@ -373,7 +386,7 @@ impl DistributionalPropertyTest {
         confidence_level: Float,
     ) -> SklResult<StatisticalValidationResults>
     where
-        S: Fit<Array2<Float>, T>,
+        S: Fit<Mat2f64, T>,
         S::Fitted: FeatureSelector + Transform<Array2<Float>>,
         T: Clone,
     {
@@ -567,7 +580,7 @@ impl RobustnessTest {
         confidence_level: Float,
     ) -> SklResult<StatisticalValidationResults>
     where
-        S: Fit<Array2<Float>, T> + Clone,
+        S: Fit<Mat2f64, T> + Clone,
         S::Fitted: FeatureSelector + Transform<Array2<Float>>,
         T: Clone,
     {
@@ -588,8 +601,8 @@ impl RobustnessTest {
                 for mut row in noisy_features.axis_iter_mut(Axis(0)) {
                     for element in row.iter_mut() {
                         // Simple Box-Muller transform for Gaussian noise
-                        let u1: Float = rng.gen();
-                        let u2: Float = rng.gen();
+                        let u1: Float = rng.random::<Float>();
+                        let u2: Float = rng.random::<Float>();
                         let noise = (-2.0f64 * u1.ln()).sqrt()
                             * (2.0 * std::f64::consts::PI * u2).cos()
                             * noise_level;

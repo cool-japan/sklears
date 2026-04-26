@@ -105,36 +105,32 @@ impl QuantumTransformer {
         // Apply quantum-inspired transformations based on gate sequence
         for gate in &self.gate_sequence {
             match gate {
-                QuantumGate::Hadamard(qubit) => {
+                QuantumGate::Hadamard(qubit) if *qubit < transformed.ncols() => {
                     // Apply Hadamard-like transformation
-                    if *qubit < transformed.ncols() {
-                        for mut row in transformed.rows_mut() {
-                            let val = row[*qubit];
-                            row[*qubit] = val / std::f64::consts::SQRT_2;
-                        }
+                    for mut row in transformed.rows_mut() {
+                        let val = row[*qubit];
+                        row[*qubit] = val / std::f64::consts::SQRT_2;
                     }
                 }
-                QuantumGate::RotationY(qubit, angle) => {
+                QuantumGate::RotationY(qubit, angle) if *qubit < transformed.ncols() => {
                     // Apply Y-rotation transformation
-                    if *qubit < transformed.ncols() {
-                        for mut row in transformed.rows_mut() {
-                            let val = row[*qubit];
-                            row[*qubit] = val * angle.cos();
-                        }
+                    for mut row in transformed.rows_mut() {
+                        let val = row[*qubit];
+                        row[*qubit] = val * angle.cos();
                     }
                 }
-                QuantumGate::CNOT(control, target) => {
+                QuantumGate::CNOT(control, target)
+                    if *control < transformed.ncols() && *target < transformed.ncols() =>
+                {
                     // Apply controlled transformation
-                    if *control < transformed.ncols() && *target < transformed.ncols() {
-                        for mut row in transformed.rows_mut() {
-                            if row[*control] > 0.0 {
-                                row[*target] = -row[*target];
-                            }
+                    for mut row in transformed.rows_mut() {
+                        if row[*control] > 0.0 {
+                            row[*target] = -row[*target];
                         }
                     }
                 }
                 _ => {
-                    // Placeholder for other gates - skip to next gate
+                    // Placeholder for other gates or out-of-bounds qubits - skip to next gate
                 }
             }
         }
@@ -422,7 +418,10 @@ pub enum WorkflowSchedule {
     /// Adaptive scheduling based on resource availability
     Adaptive,
     /// Time-sliced execution
-    TimeSliced { slice_duration: Duration },
+    TimeSliced {
+        /// The slice duration.
+        slice_duration: Duration,
+    },
 }
 
 /// Quantum resource manager
@@ -491,24 +490,34 @@ pub enum SynchronizationType {
 pub enum QuantumClassicalOptimization {
     /// Variational approach
     Variational {
+        /// The classical optimizer.
         classical_optimizer: String,
+        /// The quantum ansatz.
         quantum_ansatz: String,
+        /// The max iterations.
         max_iterations: usize,
     },
     /// Adiabatic approach
     Adiabatic {
+        /// The evolution time.
         evolution_time: f64,
+        /// The schedule function.
         schedule_function: String,
     },
     /// Hybrid optimization
     Hybrid {
+        /// The quantum steps.
         quantum_steps: usize,
+        /// The classical steps.
         classical_steps: usize,
+        /// The convergence threshold.
         convergence_threshold: f64,
     },
     /// Machine learning guided
     MLGuided {
+        /// The model type.
         model_type: String,
+        /// The training iterations.
         training_iterations: usize,
     },
 }
@@ -1016,7 +1025,7 @@ mod tests {
 
     #[test]
     fn test_scheduling_priority_ordering() {
-        let mut priorities = vec![
+        let mut priorities = [
             SchedulingPriority::Low,
             SchedulingPriority::Critical,
             SchedulingPriority::Normal,

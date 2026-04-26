@@ -51,6 +51,7 @@ pub struct StreamingFeatureExtractor {
     running_max: Option<Array1<Float>>,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl StreamingFeatureExtractor {
     /// Create a new streaming feature extractor
     pub fn new() -> Self {
@@ -351,6 +352,7 @@ pub struct RandomProjectionFeatures {
     n_features: Option<usize>,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl RandomProjectionFeatures {
     /// Create a new random projection feature extractor
     pub fn new() -> Self {
@@ -546,6 +548,7 @@ pub struct LocalitySensitiveHashing {
     n_features: Option<usize>,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl LocalitySensitiveHashing {
     /// Create a new LSH feature extractor
     pub fn new() -> Self {
@@ -670,7 +673,7 @@ impl LocalitySensitiveHashing {
             }
 
             // Sort by number of matching hash functions
-            candidates.sort_by(|a, b| b.1.cmp(&a.1));
+            candidates.sort_by_key(|b| std::cmp::Reverse(b.1));
 
             // Return top candidates
             let result: Vec<usize> = candidates

@@ -440,6 +440,7 @@ proptest! {
 /// Unit test for environment detection properties (not property-based)
 #[allow(non_snake_case)]
 #[cfg(test)]
+#[test]
 fn test_environment_detection_basic() {
     use crate::environment::{EnvironmentInfo, FeatureChecker, HardwareDetector};
 
@@ -475,6 +476,7 @@ pub mod testing_framework {
         pub tests: Vec<Box<dyn Fn() -> Result<(), String> + Send + Sync>>,
         pub setup: Option<Box<dyn Fn() -> Result<(), String> + Send + Sync>>,
         pub teardown: Option<Box<dyn Fn() -> Result<(), String> + Send + Sync>>,
+        #[allow(dead_code)] // intentionally deferred: test timeout enforcement pending
         pub timeout: Duration,
     }
 
@@ -499,6 +501,7 @@ pub mod testing_framework {
         }
 
         /// Set setup function
+        #[allow(dead_code)] // intentionally deferred: suite lifecycle hooks pending
         pub fn set_setup<F>(&mut self, setup: F)
         where
             F: Fn() -> Result<(), String> + Send + Sync + 'static,
@@ -507,6 +510,7 @@ pub mod testing_framework {
         }
 
         /// Set teardown function
+        #[allow(dead_code)] // intentionally deferred: suite lifecycle hooks pending
         pub fn set_teardown<F>(&mut self, teardown: F)
         where
             F: Fn() -> Result<(), String> + Send + Sync + 'static,
@@ -549,9 +553,11 @@ pub mod testing_framework {
     /// Test results container
     #[derive(Debug, Clone)]
     pub struct TestResults {
+        #[allow(dead_code)] // intentionally deferred: suite name readout pending
         pub suite_name: String,
         pub successes: Vec<String>,
         pub failures: Vec<String>,
+        #[allow(dead_code)] // intentionally deferred: elapsed time tracking pending
         pub duration: Duration,
     }
 
@@ -577,6 +583,7 @@ pub mod testing_framework {
             self.successes.len() + self.failures.len()
         }
 
+        #[allow(dead_code)] // intentionally deferred: test result analysis pending
         pub fn success_rate(&self) -> f64 {
             if self.total_tests() == 0 {
                 0.0
@@ -589,6 +596,7 @@ pub mod testing_framework {
             self.failures.is_empty()
         }
 
+        #[allow(dead_code)] // intentionally deferred: test result summary rendering pending
         pub fn summary(&self) -> String {
             format!(
                 "Test Suite: {}\n\
@@ -611,6 +619,7 @@ pub mod testing_framework {
     pub struct StressTester {
         pub iterations: usize,
         pub concurrent_threads: usize,
+        #[allow(dead_code)] // intentionally deferred: stress test timeout enforcement pending
         pub timeout: Duration,
     }
 
@@ -683,25 +692,30 @@ pub mod testing_framework {
     }
 
     /// Property-based test generator
+    #[allow(dead_code)] // intentionally deferred: generator strategies not yet used in proptest harness
     pub struct PropertyTestGenerator;
 
     impl PropertyTestGenerator {
         /// Generate test data for array operations
+        #[allow(dead_code)] // intentionally deferred: strategy not yet wired to proptest harness
         pub fn array_data_strategy() -> impl Strategy<Value = (usize, usize)> {
             (10..100usize, 2..20usize)
         }
 
         /// Generate test data for optimization algorithms
+        #[allow(dead_code)] // intentionally deferred: strategy not yet wired to proptest harness
         pub fn optimization_strategy() -> impl Strategy<Value = (f64, f64, usize)> {
             (1e-8..1e-2f64, 1e-8..1e-2f64, 10..1000usize)
         }
 
         /// Generate test data for spatial operations
+        #[allow(dead_code)] // intentionally deferred: strategy not yet wired to proptest harness
         pub fn spatial_strategy() -> impl Strategy<Value = (usize, usize, f64)> {
             (2..4usize, 10..100usize, 1.0..1000.0f64)
         }
 
         /// Generate test data for statistical tests
+        #[allow(dead_code)] // intentionally deferred: strategy not yet wired to proptest harness
         pub fn statistical_strategy() -> impl Strategy<Value = (usize, f64, f64)> {
             (10..1000usize, -100.0..100.0f64, 0.1..10.0f64)
         }

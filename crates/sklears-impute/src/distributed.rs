@@ -1,4 +1,6 @@
 //! Distributed imputation algorithms for large-scale missing data processing
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides distributed implementations that can process datasets
 //! across multiple machines or cores, enabling imputation of very large datasets
@@ -812,7 +814,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for DistributedSimpleImputer<Untrained> {
                                 a.partial_cmp(b).expect("operation should succeed")
                             });
                             let mid = sorted_values.len() / 2;
-                            if sorted_values.len() % 2 == 0 {
+                            if sorted_values.len().is_multiple_of(2) {
                                 (sorted_values[mid - 1] + sorted_values[mid]) / 2.0
                             } else {
                                 sorted_values[mid]

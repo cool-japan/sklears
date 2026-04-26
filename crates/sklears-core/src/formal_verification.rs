@@ -57,8 +57,10 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct AlgorithmVerifier {
     /// Library of verification strategies
+    #[allow(dead_code)] // intentionally deferred: strategy dispatch not yet wired
     strategies: VerificationStrategyLibrary,
     /// Property database for known algorithms
+    #[allow(dead_code)] // intentionally deferred: property lookup not yet wired
     property_database: PropertyDatabase,
     /// SMT solver interface for complex proofs
     smt_solver: SmtSolverInterface,
@@ -623,6 +625,7 @@ pub enum CompilationTarget {
 /// Library of verification strategies
 #[derive(Debug)]
 struct VerificationStrategyLibrary {
+    #[allow(dead_code)] // intentionally deferred: strategy lookup not yet called
     strategies: HashMap<String, VerificationStrategy>,
 }
 
@@ -637,13 +640,16 @@ impl VerificationStrategyLibrary {
 /// A verification strategy
 #[derive(Debug, Clone)]
 struct VerificationStrategy {
+    #[allow(dead_code)] // intentionally deferred: strategy identification fields
     name: String,
+    #[allow(dead_code)] // intentionally deferred: applicability checks not yet implemented
     applicability: Vec<AlgorithmProperty>,
 }
 
 /// Database of known algorithm properties
 #[derive(Debug)]
 struct PropertyDatabase {
+    #[allow(dead_code)] // intentionally deferred: property lookup not yet called
     properties: HashMap<String, AlgorithmSpecification>,
 }
 
@@ -658,6 +664,7 @@ impl PropertyDatabase {
 /// SMT solver interface
 #[derive(Debug)]
 struct SmtSolverInterface {
+    #[allow(dead_code)] // intentionally deferred: SMT solver integration pending
     enabled: bool,
 }
 

@@ -129,7 +129,7 @@ impl ManifoldOperation<0> for PCAOperation {
         }
 
         // Compute covariance matrix
-        let cov = centered.t().dot(&centered) / (n_samples as Float - 1.0);
+        let _cov = centered.t().dot(&centered) / (n_samples as Float - 1.0); // deferred: used in PCA whitening
 
         // For demonstration, return identity transformation
         let components = Array2::eye(n_features);
@@ -353,7 +353,7 @@ impl<M: DistanceMetric<METRIC_ID>, const METRIC_ID: usize>
         }
 
         // Apply MDS to geodesic distances
-        let mds_config = MDSConfig {
+        let _mds_config = MDSConfig {
             n_components: config.n_components,
             ..Default::default()
         };
@@ -565,7 +565,7 @@ pub type CosineIsomap = ManifoldPipeline<IsomapAlgorithm<CosineDistance, 2>, Cos
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::{array, ArrayView1, ArrayView2};
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_distance_metrics() {
@@ -579,7 +579,10 @@ mod tests {
         assert_abs_diff_eq!(manhattan_dist, 9.0, epsilon = 1e-10);
 
         assert_eq!(EuclideanDistance::NAME, "euclidean");
-        assert_eq!(EuclideanDistance::IS_METRIC, true);
+        // IS_METRIC is a compile-time constant; verify it as such
+        const _: () = {
+            assert!(EuclideanDistance::IS_METRIC);
+        };
     }
 
     #[test]
@@ -593,8 +596,8 @@ mod tests {
         let (algo_name, metric_name, preserves_dist, is_linear) = EuclideanMDS::info();
         assert_eq!(algo_name, "MDS");
         assert_eq!(metric_name, "euclidean");
-        assert_eq!(preserves_dist, true);
-        assert_eq!(is_linear, false);
+        assert!(preserves_dist);
+        assert!(!is_linear);
     }
 
     #[test]
@@ -625,15 +628,24 @@ mod tests {
         assert!(poly_value > 0.0);
 
         assert_eq!(RBFKernel::NAME, "RBF");
-        assert_eq!(RBFKernel::IS_PD, true);
+        // IS_PD is a compile-time constant; verify it as such
+        const _: () = {
+            assert!(RBFKernel::IS_PD);
+        };
     }
 
     #[test]
     fn test_compile_time_properties() {
         // These assertions are evaluated at compile time
-        assert_eq!(EuclideanDistance::IS_METRIC, true);
-        assert_eq!(CosineDistance::IS_METRIC, false);
-        assert_eq!(RBFKernel::IS_PD, true);
+        const _: () = {
+            assert!(EuclideanDistance::IS_METRIC);
+        };
+        const _: () = {
+            assert!(!CosineDistance::IS_METRIC);
+        };
+        const _: () = {
+            assert!(RBFKernel::IS_PD);
+        };
 
         // Test that we can access compile-time constants
         const EUCLIDEAN_NAME: &str = EuclideanDistance::NAME;

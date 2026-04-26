@@ -604,13 +604,21 @@ impl RedundancyMatrix {
 /// Comprehensive redundancy assessment results
 #[derive(Debug, Clone)]
 pub struct RedundancyAssessment {
+    /// correlation_redundancy_score
     pub correlation_redundancy_score: f64,
+    /// mutual_information_redundancy_score
     pub mutual_information_redundancy_score: f64,
+    /// average_vif
     pub average_vif: f64,
+    /// max_vif
     pub max_vif: f64,
+    /// redundant_correlation_pairs
     pub redundant_correlation_pairs: Vec<(usize, usize, f64)>,
+    /// high_vif_features
     pub high_vif_features: Vec<(usize, f64)>,
+    /// vif_scores
     pub vif_scores: Vec<f64>,
+    /// n_features
     pub n_features: usize,
 }
 

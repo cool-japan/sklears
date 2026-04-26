@@ -6,11 +6,10 @@
 
 use scirs2_core::ndarray::{ArrayView1, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Rng, RngExt, SeedableRng};
+use scirs2_core::random::{thread_rng, RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
-    traits::Estimator,
-    types::{Float, FloatBounds},
+    types::Float,
 };
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
@@ -170,9 +169,21 @@ pub struct FeatureEngineeringChoice {
 #[derive(Debug, Clone)]
 pub enum ParameterRange {
     /// Continuous range
-    Continuous { min: f64, max: f64, log_scale: bool },
+    Continuous {
+        /// Field value.
+        min: f64,
+        /// Field value.
+        max: f64,
+        /// Field value.
+        log_scale: bool,
+    },
     /// Discrete integer range
-    Integer { min: i64, max: i64 },
+    Integer {
+        /// Field value.
+        min: i64,
+        /// Field value.
+        max: i64,
+    },
     /// Categorical choices
     Categorical(Vec<String>),
     /// Boolean choice
@@ -296,6 +307,7 @@ pub enum TrialStatus {
 
 /// Neural Architecture Search (NAS) component
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct NeuralArchitectureSearch {
     /// Search space for neural architectures
     search_space: NeuralSearchSpace,
@@ -594,11 +606,11 @@ impl AutoMLOptimizer {
     /// Generate random configuration
     fn generate_random_config(&mut self) -> SklResult<PipelineConfiguration> {
         // Sample random algorithm
-        let algorithm = &self.search_space.algorithms
+        let _algorithm = &self.search_space.algorithms
             [self.rng.random_range(0..self.search_space.algorithms.len())];
 
         // Sample random preprocessing steps
-        let preprocessing_steps: Vec<_> = self
+        let _preprocessing_steps: Vec<_> = self
             .search_space
             .preprocessing
             .iter()
@@ -606,7 +618,7 @@ impl AutoMLOptimizer {
             .collect();
 
         // Sample random feature engineering steps
-        let feature_steps: Vec<_> = self
+        let _feature_steps: Vec<_> = self
             .search_space
             .feature_engineering
             .iter()
@@ -635,16 +647,16 @@ impl AutoMLOptimizer {
     fn evaluate_config(
         &mut self,
         config: &PipelineConfiguration,
-        x_train: &ArrayView2<Float>,
-        y_train: &ArrayView1<Float>,
-        x_val: Option<&ArrayView2<Float>>,
-        y_val: Option<&ArrayView1<Float>>,
+        _x_train: &ArrayView2<Float>,
+        _y_train: &ArrayView1<Float>,
+        _x_val: Option<&ArrayView2<Float>>,
+        _y_val: Option<&ArrayView1<Float>>,
         trial_id: usize,
     ) -> SklResult<TrialResult> {
         let start_time = Instant::now();
 
         // Create pipeline from configuration
-        let pipeline_builder = self.config_to_builder(config.clone());
+        let _pipeline_builder = self.config_to_builder(config.clone());
 
         // For now, return a mock result
         // In a real implementation, this would:
@@ -698,7 +710,7 @@ impl AutoMLOptimizer {
     /// Generate optimization report
     #[must_use]
     pub fn generate_report(&self) -> OptimizationReport {
-        /// OptimizationReport
+        // OptimizationReport
         OptimizationReport {
             total_trials: self.history.trials.len(),
             successful_trials: self
@@ -747,7 +759,7 @@ impl Default for SearchSpace {
     fn default() -> Self {
         Self {
             algorithms: vec![
-                /// AlgorithmChoice
+                // AlgorithmChoice
                 AlgorithmChoice {
                     name: "LinearRegression".to_string(),
                     algorithm_type: AlgorithmType::Linear,
@@ -759,7 +771,7 @@ impl Default for SearchSpace {
                         requires_gpu: false,
                     },
                 },
-                /// AlgorithmChoice
+                // AlgorithmChoice
                 AlgorithmChoice {
                     name: "RandomForest".to_string(),
                     algorithm_type: AlgorithmType::Ensemble,
@@ -782,13 +794,13 @@ impl Default for SearchSpace {
                 },
             ],
             preprocessing: vec![
-                /// PreprocessingChoice
+                // PreprocessingChoice
                 PreprocessingChoice {
                     name: "StandardScaler".to_string(),
                     parameters: BTreeMap::new(),
                     optional: false,
                 },
-                /// PreprocessingChoice
+                // PreprocessingChoice
                 PreprocessingChoice {
                     name: "MinMaxScaler".to_string(),
                     parameters: BTreeMap::new(),
@@ -966,8 +978,8 @@ mod tests {
             max: 1.0,
             log_scale: false,
         };
-        let int_range = ParameterRange::Integer { min: 1, max: 100 };
-        let categorical = ParameterRange::Categorical(vec!["a".to_string(), "b".to_string()]);
+        let _int_range = ParameterRange::Integer { min: 1, max: 100 };
+        let _categorical = ParameterRange::Categorical(vec!["a".to_string(), "b".to_string()]);
 
         match float_range {
             ParameterRange::Continuous { min, max, .. } => {

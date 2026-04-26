@@ -7,7 +7,6 @@ use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::{seq::SliceRandom, SeedableRng};
 use scirs2_core::RngExt;
-use scirs2_core::SliceRandomExt;
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -62,6 +61,7 @@ pub struct MetricLearning<S = Untrained> {
 
 /// Trained state for MetricLearning
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedMetricLearning {
     metric_matrix: Array2<f64>,
     n_features: usize,
@@ -158,7 +158,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for MetricLearning<Untrained>
             ));
         }
 
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let n_features = x.ncols();
 
         // Initialize metric matrix and transformation matrix
@@ -431,6 +431,7 @@ pub struct ContrastiveLearning<S = Untrained> {
 
 /// Trained state for ContrastiveLearning
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedContrastiveLearning {
     embedding_matrix: Array2<f64>,
     n_features: usize,
@@ -526,7 +527,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for ContrastiveLearning<Untra
             ));
         }
 
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let n_features = x.ncols();
 
         // Initialize embedding matrix
@@ -710,6 +711,7 @@ pub struct TripletLoss<S = Untrained> {
 
 /// Trained state for TripletLoss
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedTripletLoss {
     embedding_matrix: Array2<f64>,
     n_features: usize,
@@ -805,7 +807,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for TripletLoss<Untrained> {
             ));
         }
 
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let n_features = x.ncols();
 
         // Initialize embedding matrix
@@ -1063,6 +1065,7 @@ pub struct SiameseNetworks<S = Untrained> {
 
 /// Trained state for SiameseNetworks
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct TrainedSiameseNetworks {
     weights: Vec<Array2<f64>>,
     biases: Vec<Array1<f64>>,
@@ -1167,7 +1170,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for SiameseNetworks<Untrained
             ));
         }
 
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let n_features = x.ncols();
 
         // Initialize network architecture
@@ -1214,7 +1217,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for SiameseNetworks<Untrained
             let pairs = self.generate_siamese_pairs(y, &mut rng)?;
 
             // Mini-batch training
-            let n_batches = (pairs.len() + self.batch_size - 1) / self.batch_size;
+            let n_batches = pairs.len().div_ceil(self.batch_size);
 
             for batch_idx in 0..n_batches {
                 let batch_start = batch_idx * self.batch_size;
@@ -1386,7 +1389,7 @@ impl SiameseNetworks<Untrained> {
                 } else {
                     let cosine_sim = embed1.dot(embed2) / (norm1 * norm2);
                     // Clamp cosine similarity to avoid numerical issues
-                    let cosine_sim = cosine_sim.max(-1.0).min(1.0);
+                    let cosine_sim = cosine_sim.clamp(-1.0, 1.0);
                     Ok(1.0 - cosine_sim)
                 }
             }
@@ -1402,7 +1405,7 @@ impl SiameseNetworks<Untrained> {
         &self,
         embed1: &Array1<f64>,
         embed2: &Array1<f64>,
-        distance: f64,
+        _distance: f64,
     ) -> SklResult<(Array1<f64>, Array1<f64>)> {
         match self.distance_metric.as_str() {
             "euclidean" => {
@@ -1569,8 +1572,7 @@ impl SiameseNetworks<TrainedSiameseNetworks> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::{array, s, ArrayView1, ArrayView2};
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_metric_learning_basic() {

@@ -59,9 +59,13 @@ pub enum RecoveryActionType {
     Manual,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct ContextCollectionConfig {
+    /// The enable detailed context.
     pub enable_detailed_context: bool,
+    /// The max context size.
     pub max_context_size: usize,
+    /// The context timeout.
     pub context_timeout: Duration,
 }
 /// Environment context information
@@ -148,6 +152,7 @@ pub struct ErrorEnhancementConfig {
 }
 /// Error context collector for diagnostic information
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ErrorContextCollector {
     /// Context providers for different types of information
     context_providers: HashMap<ContextType, Box<dyn ContextProvider>>,
@@ -157,6 +162,7 @@ pub struct ErrorContextCollector {
     config: ContextCollectionConfig,
 }
 impl ErrorContextCollector {
+    /// Creates a new instance.
     pub fn new(config: ContextCollectionConfig) -> Self {
         let mut context_providers: HashMap<ContextType, Box<dyn ContextProvider>> = HashMap::new();
         context_providers.insert(
@@ -173,6 +179,7 @@ impl ErrorContextCollector {
             config,
         }
     }
+    /// Performs collect context.
     pub fn collect_context(&mut self, error: &SklearsComposeError) -> Result<EnhancedErrorContext> {
         let context = EnhancedErrorContext {
             timestamp: SystemTime::now(),
@@ -184,14 +191,15 @@ impl ErrorContextCollector {
             call_stack: Vec::new(),
             related_issues: Vec::new(),
         };
-        for (context_type, provider) in &self.context_providers {
-            if let Ok(additional_context) = provider.collect_context(error) {}
+        for provider in self.context_providers.values() {
+            if let Ok(_additional_context) = provider.collect_context(error) {}
         }
         Ok(context)
     }
 }
 /// Suggestion engine for generating actionable recommendations
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct SuggestionEngine {
     /// Suggestion generators for different error types
     generators: HashMap<String, Box<dyn SuggestionGenerator>>,
@@ -203,6 +211,7 @@ pub struct SuggestionEngine {
     config: SuggestionEngineConfig,
 }
 impl SuggestionEngine {
+    /// Creates a new instance.
     pub fn new(config: SuggestionEngineConfig) -> Self {
         let mut generators: HashMap<String, Box<dyn SuggestionGenerator>> = HashMap::new();
         generators.insert(
@@ -220,6 +229,7 @@ impl SuggestionEngine {
             config,
         }
     }
+    /// Performs generate suggestions.
     pub fn generate_suggestions(
         &self,
         error: &SklearsComposeError,
@@ -238,11 +248,11 @@ impl SuggestionEngine {
         suggestions.truncate(self.config.max_suggestions);
         Ok(suggestions)
     }
-    fn update_ranking_model(&mut self, suggestion_id: &str, success: bool) -> Result<()> {
+    fn update_ranking_model(&mut self, _suggestion_id: &str, _success: bool) -> Result<()> {
         Ok(())
     }
     fn get_statistics(&self) -> SuggestionStatistics {
-        /// SuggestionStatistics
+        // SuggestionStatistics
         SuggestionStatistics {
             total_suggestions: self.suggestion_cache.len(),
             average_confidence: 0.8,
@@ -363,9 +373,13 @@ pub struct RelatedIssue {
     pub relationship: IssueRelationship,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct RecoveryConfig {
+    /// The enable auto recovery.
     pub enable_auto_recovery: bool,
+    /// The max recovery attempts.
     pub max_recovery_attempts: usize,
+    /// The recovery timeout.
     pub recovery_timeout: Duration,
 }
 #[derive(Debug)]
@@ -499,7 +513,7 @@ impl ErrorMessageEnhancer {
     /// Learn from error resolution outcomes
     pub fn learn_from_resolution(
         &self,
-        error: &SklearsComposeError,
+        _error: &SklearsComposeError,
         suggestion_id: &str,
         outcome: bool,
     ) -> Result<()> {
@@ -543,7 +557,7 @@ impl ErrorMessageEnhancer {
     }
     fn generate_documentation_links(
         &self,
-        error: &SklearsComposeError,
+        _error: &SklearsComposeError,
         classification: &ErrorClassification,
     ) -> Result<Vec<DocumentationLink>> {
         let mut links = Vec::new();
@@ -570,16 +584,20 @@ impl ErrorMessageEnhancer {
     }
     fn find_similar_issues(
         &self,
-        error: &SklearsComposeError,
-        context: &EnhancedErrorContext,
+        _error: &SklearsComposeError,
+        _context: &EnhancedErrorContext,
     ) -> Result<Vec<SimilarIssue>> {
         Ok(Vec::new())
     }
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct FormatterConfig {
+    /// The default language.
     pub default_language: String,
+    /// The include technical details.
     pub include_technical_details: bool,
+    /// The max message length.
     pub max_message_length: usize,
 }
 /// Stack frame information
@@ -618,9 +636,11 @@ pub struct PerformanceBottleneck {
     /// Impact level
     pub impact: f64,
 }
-#[derive(Debug)]
+#[derive(Debug, Default)]
+/// Data structure for this component.
 pub struct EnvironmentContextProvider;
 impl EnvironmentContextProvider {
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self
     }
@@ -653,16 +673,20 @@ pub struct ResolutionStrategy {
     /// Required expertise level
     pub expertise_level: ExpertiseLevel,
 }
-#[derive(Debug)]
+#[derive(Debug, Default)]
+/// Data structure for this component.
 pub struct PerformanceContextProvider;
 impl PerformanceContextProvider {
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Default)]
+/// Data structure for this component.
 pub struct ConfigurationErrorSuggestionGenerator;
 impl ConfigurationErrorSuggestionGenerator {
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self
     }
@@ -762,9 +786,11 @@ pub enum ContextType {
     /// Network
     Network,
 }
-#[derive(Debug)]
+#[derive(Debug, Default)]
+/// Data structure for this component.
 pub struct DataErrorSuggestionGenerator;
 impl DataErrorSuggestionGenerator {
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self
     }
@@ -783,6 +809,7 @@ pub enum IssueRelationship {
 }
 /// Machine learning model for suggestion ranking
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct SuggestionRankingModel {
     /// Feature weights for ranking
     feature_weights: HashMap<String, f64>,
@@ -821,6 +848,7 @@ pub struct ActionableSuggestion {
 }
 /// Error formatter for user-friendly error messages
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ErrorFormatter {
     /// Format templates for different error types
     format_templates: HashMap<String, ErrorTemplate>,
@@ -830,6 +858,7 @@ pub struct ErrorFormatter {
     config: FormatterConfig,
 }
 impl ErrorFormatter {
+    /// Creates a new instance.
     pub fn new(config: FormatterConfig) -> Self {
         let mut format_templates = HashMap::new();
         format_templates.insert("default".to_string(), ErrorTemplate::default());
@@ -839,13 +868,14 @@ impl ErrorFormatter {
             config,
         }
     }
+    /// Performs format error.
     pub fn format_error(
         &self,
         error: &SklearsComposeError,
         context: &EnhancedErrorContext,
         suggestions: &[ActionableSuggestion],
     ) -> Result<String> {
-        let template = self
+        let _template = self
             .format_templates
             .get("default")
             .cloned()
@@ -955,13 +985,18 @@ pub enum ErrorCategory {
     Unknown,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct PatternAnalysisConfig {
+    /// The max patterns.
     pub max_patterns: usize,
+    /// The pattern similarity threshold.
     pub pattern_similarity_threshold: f64,
+    /// The learning rate.
     pub learning_rate: f64,
 }
 /// Error pattern analyzer for learning from historical errors
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ErrorPatternAnalyzer {
     /// Historical error patterns
     error_patterns: HashMap<String, ErrorPattern>,
@@ -973,6 +1008,7 @@ pub struct ErrorPatternAnalyzer {
     config: PatternAnalysisConfig,
 }
 impl ErrorPatternAnalyzer {
+    /// Creates a new instance.
     pub fn new(config: PatternAnalysisConfig) -> Self {
         Self {
             error_patterns: HashMap::new(),
@@ -981,6 +1017,7 @@ impl ErrorPatternAnalyzer {
             config,
         }
     }
+    /// Performs analyze error.
     pub fn analyze_error(
         &mut self,
         error: &SklearsComposeError,
@@ -1028,7 +1065,7 @@ impl ErrorPatternAnalyzer {
     }
     fn assess_severity(
         &self,
-        error: &SklearsComposeError,
+        _error: &SklearsComposeError,
         context: &EnhancedErrorContext,
     ) -> SeverityLevel {
         if context.performance_context.memory_usage > 1_000_000_000 {
@@ -1069,7 +1106,7 @@ impl ErrorPatternAnalyzer {
         Ok(())
     }
     fn get_statistics(&self) -> PatternStatistics {
-        /// PatternStatistics
+        // PatternStatistics
         PatternStatistics {
             total_patterns: self.error_patterns.len(),
             accuracy: 0.85,
@@ -1103,9 +1140,13 @@ pub enum RiskLevel {
     Dangerous,
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct SuggestionEngineConfig {
+    /// The max suggestions.
     pub max_suggestions: usize,
+    /// The confidence threshold.
     pub confidence_threshold: f64,
+    /// The enable machine learning.
     pub enable_machine_learning: bool,
 }
 /// Required expertise level
@@ -1187,11 +1228,17 @@ pub struct EnhancedErrorContext {
 /// Error enhancement statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrorEnhancementStatistics {
+    /// The total errors analyzed.
     pub total_errors_analyzed: usize,
+    /// The suggestions generated.
     pub suggestions_generated: usize,
+    /// The recovery attempts.
     pub recovery_attempts: usize,
+    /// The success rate.
     pub success_rate: f64,
+    /// The pattern accuracy.
     pub pattern_accuracy: f64,
+    /// The suggestion confidence.
     pub suggestion_confidence: f64,
 }
 /// Difficulty level for resolution strategies
@@ -1221,6 +1268,7 @@ pub struct RecoveryAdvisor {
     config: RecoveryConfig,
 }
 impl RecoveryAdvisor {
+    /// Creates a new instance.
     pub fn new(config: RecoveryConfig) -> Self {
         Self {
             recovery_strategies: HashMap::new(),
@@ -1229,10 +1277,11 @@ impl RecoveryAdvisor {
             config,
         }
     }
+    /// Performs generate recovery strategies.
     pub fn generate_recovery_strategies(
         &self,
         error: &SklearsComposeError,
-        context: &EnhancedErrorContext,
+        _context: &EnhancedErrorContext,
     ) -> Result<Vec<RecoveryStrategy>> {
         let error_type = format!("{error:?}");
         if let Some(strategies) = self.recovery_strategies.get(&error_type) {
@@ -1302,7 +1351,7 @@ impl RecoveryAdvisor {
         } else {
             0.0
         };
-        /// RecoveryStatistics
+        // RecoveryStatistics
         RecoveryStatistics {
             total_attempts,
             success_rate,
@@ -1310,9 +1359,13 @@ impl RecoveryAdvisor {
     }
 }
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct ModelParameters {
+    /// The learning rate.
     pub learning_rate: f64,
+    /// The regularization.
     pub regularization: f64,
+    /// The feature count.
     pub feature_count: usize,
 }
 /// Context section in error message

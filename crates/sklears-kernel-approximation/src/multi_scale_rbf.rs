@@ -78,8 +78,8 @@ pub enum CombinationStrategy {
 ///     .bandwidth_strategy(BandwidthStrategy::LogarithmicSpacing)
 ///     .combination_strategy(CombinationStrategy::Concatenation);
 ///
-/// let fitted = sampler.fit(&x, &()).unwrap();
-/// let features = fitted.transform(&x).unwrap();
+/// let fitted = sampler.fit(&x, &()).expect("fit should succeed with valid multi-scale RBF input");
+/// let features = fitted.transform(&x).expect("transform should succeed after multi-scale RBF fitting");
 /// ```
 #[derive(Debug, Clone)]
 /// MultiScaleRBFSampler
@@ -608,7 +608,7 @@ mod tests {
 
         // Check that features are bounded (cosine function)
         for &val in features.iter() {
-            assert!(val >= -2.0 && val <= 2.0);
+            assert!((-2.0..=2.0).contains(&val));
         }
     }
 

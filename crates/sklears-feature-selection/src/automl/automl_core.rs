@@ -21,16 +21,22 @@ pub use super::preprocessing_integration::PreprocessingIntegration;
 type Result<T> = SklResult<T>;
 
 #[derive(Debug, Error)]
+/// AutoMLError
 pub enum AutoMLError {
     #[error("Insufficient data for automated feature selection")]
+    /// InsufficientData
     InsufficientData,
     #[error("Invalid pipeline configuration")]
+    /// InvalidConfiguration
     InvalidConfiguration,
     #[error("Feature selection method failed: {0}")]
+    /// FeatureSelectionFailed
     FeatureSelectionFailed(String),
     #[error("Pipeline optimization failed")]
+    /// OptimizationFailed
     OptimizationFailed,
     #[error("Data analysis failed: {0}")]
+    /// DataAnalysisFailed
     DataAnalysisFailed(String),
 }
 
@@ -68,18 +74,28 @@ pub enum AutoMLMethod {
 /// Data characteristics for method selection
 #[derive(Debug, Clone)]
 pub struct DataCharacteristics {
+    /// n_samples
     pub n_samples: usize,
+    /// n_features
     pub n_features: usize,
+    /// feature_to_sample_ratio
     pub feature_to_sample_ratio: f64,
+    /// target_type
     pub target_type: TargetType,
+    /// has_missing_values
     pub has_missing_values: bool,
+    /// has_categorical_features
     pub has_categorical_features: bool,
+    /// feature_variance_distribution
     pub feature_variance_distribution: Vec<f64>,
+    /// correlation_structure
     pub correlation_structure: CorrelationStructure,
+    /// computational_budget
     pub computational_budget: ComputationalBudget,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// TargetType
 pub enum TargetType {
     /// BinaryClassification
     BinaryClassification,
@@ -94,18 +110,28 @@ pub enum TargetType {
 }
 
 #[derive(Debug, Clone)]
+/// CorrelationStructure
 pub struct CorrelationStructure {
+    /// high_correlation_pairs
     pub high_correlation_pairs: usize,
+    /// average_correlation
     pub average_correlation: f64,
+    /// max_correlation
     pub max_correlation: f64,
+    /// correlation_clusters
     pub correlation_clusters: usize,
 }
 
 #[derive(Debug, Clone)]
+/// ComputationalBudget
 pub struct ComputationalBudget {
+    /// max_time_seconds
     pub max_time_seconds: f64,
+    /// max_memory_mb
     pub max_memory_mb: f64,
+    /// prefer_speed
     pub prefer_speed: bool,
+    /// allow_complex_methods
     pub allow_complex_methods: bool,
 }
 
@@ -624,7 +650,9 @@ impl Default for AutomatedFeatureSelectionPipeline {
 /// Pipeline configuration (defined in pipeline_optimizer module)
 #[derive(Debug, Clone)]
 pub struct PipelineConfig {
+    /// validation_strategy
     pub validation_strategy: ValidationStrategy,
+    /// max_optimization_iterations
     pub max_optimization_iterations: usize,
 }
 
@@ -641,23 +669,40 @@ impl Default for PipelineConfig {
 #[derive(Debug, Clone)]
 pub enum ValidationStrategy {
     /// CrossValidation
-    CrossValidation { folds: usize },
+    CrossValidation {
+        /// folds
+        folds: usize,
+    },
     /// HoldOut
-    HoldOut { test_size: f64 },
+    HoldOut {
+        /// test_size
+        test_size: f64,
+    },
     /// TimeSeriesSplit
-    TimeSeriesSplit { n_splits: usize },
+    TimeSeriesSplit {
+        /// n_splits
+        n_splits: usize,
+    },
 }
 
 /// AutoML results containing all outputs from the automated pipeline
 #[derive(Debug, Clone)]
 pub struct AutoMLResults {
+    /// selected_features
     pub selected_features: Vec<usize>,
+    /// feature_importances
     pub feature_importances: Vec<f64>,
+    /// best_method
     pub best_method: MethodInfo,
+    /// data_characteristics
     pub data_characteristics: DataCharacteristics,
+    /// method_performances
     pub method_performances: Vec<MethodPerformance>,
+    /// pipeline_config
     pub pipeline_config: PipelineConfigResult,
+    /// validation_scores
     pub validation_scores: Vec<f64>,
+    /// recommendation
     pub recommendation: String,
 }
 
@@ -678,9 +723,14 @@ impl AutoMLResults {
 /// Summary of AutoML results
 #[derive(Debug, Clone)]
 pub struct AutoMLSummary {
+    /// selected_feature_count
     pub selected_feature_count: usize,
+    /// best_method_name
     pub best_method_name: String,
+    /// best_score
     pub best_score: f64,
+    /// feature_reduction_ratio
     pub feature_reduction_ratio: f64,
+    /// recommendation_summary
     pub recommendation_summary: String,
 }

@@ -415,7 +415,7 @@ impl LifecycleManager {
 
     fn notify_lifecycle_event(&mut self, event: LifecycleEvent) -> SklResult<()> {
         if let Some(listeners) = self.listeners.get(&event) {
-            for listener in listeners {
+            for _listener in listeners {
                 // In real implementation, would notify actual listener
                 // For now, just track that notification would be sent
                 self.metrics.total_notifications += 1;
@@ -449,15 +449,25 @@ pub enum ComponentLifecycleState {
 /// Lifecycle events for monitoring and coordination
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum LifecycleEvent {
+    /// Variant value.
     StateChanged {
+        /// The component id.
         component_id: String,
+        /// The old state.
         old_state: ComponentLifecycleState,
+        /// The new state.
         new_state: ComponentLifecycleState,
     },
     /// Component was initialized
-    ComponentInitialized { component_id: String },
+    ComponentInitialized {
+        /// The component id.
+        component_id: String,
+    },
     /// Component was shutdown
-    ComponentShutdown { component_id: String },
+    ComponentShutdown {
+        /// The component id.
+        component_id: String,
+    },
     /// All components initialized
     AllComponentsInitialized,
     /// All components shutdown
@@ -518,6 +528,7 @@ impl Default for LifecycleMetrics {
 
 impl LifecycleMetrics {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             total_components: 0,

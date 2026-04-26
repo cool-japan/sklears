@@ -1,82 +1,75 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(unused_mut)]
-#![allow(unused_assignments)]
-#![allow(unused_doc_comments)]
-#![allow(unused_parens)]
-#![allow(unused_comparisons)]
 //! Naive Bayes classifiers
 //!
 //! This module provides various Naive Bayes classifiers for different
 //! types of features, compatible with scikit-learn's naive_bayes module.
-//!
-//! ## Known Limitations
-//!
-//! The following modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
-//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
-//! - `model_selection` - Model selection and cross-validation for Naive Bayes
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Float;
 
+#[allow(dead_code)]
 mod adaptive_smoothing;
 mod api_builder;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
+#[allow(dead_code)]
 mod attention_naive_bayes;
 mod bayesian_network;
 mod benchmarks;
 mod bernoulli;
 mod beta;
+#[allow(dead_code)]
 mod bioinformatics;
 mod categorical;
+#[allow(dead_code)]
 mod causal_inference;
 mod complement;
+#[allow(dead_code)]
 mod computer_vision;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
+#[allow(dead_code)]
 mod continual_learning;
+#[allow(dead_code)]
 mod deep_generative;
 mod dirichlet_process;
+#[allow(dead_code)]
 mod ensemble;
+#[allow(dead_code)]
 mod exponential_family;
 mod feature_engineering;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
+#[allow(dead_code)]
 mod federated;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//mod finance;
+pub mod finance;
+#[allow(dead_code)]
 mod flexible;
 mod gamma;
 mod gaussian;
+#[allow(dead_code)]
 mod hierarchical;
 mod kernel_methods;
 mod mixed;
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-//mod model_selection;
+pub mod model_selection;
+#[allow(dead_code)]
 mod multilabel;
 mod multinomial;
 mod neural_naive_bayes;
+#[allow(dead_code)]
 mod nonparametric;
+#[allow(dead_code)]
 mod online_learning;
 mod optimizations;
 mod parameter_estimation;
 mod performance;
 mod plugin_architecture;
 mod poisson;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
+#[allow(dead_code, clippy::needless_range_loop)]
 mod quantum;
 mod semi_naive;
+#[allow(dead_code)]
 mod smoothing;
 mod temporal;
 mod text_classification;
+#[allow(dead_code)]
 mod tree_augmented;
 mod type_safe_prob;
+#[allow(dead_code)]
 mod uncertainty;
 mod validation;
 mod variational_bayes;
@@ -94,7 +87,6 @@ pub use api_builder::{
     FluentGaussianNB, FluentMultinomialNB, FluentNaiveBayesModel, FluentPoissonNB,
     NaiveBayesBuilder, NaiveBayesPreset, SerializableNBParams,
 };
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
 pub use attention_naive_bayes::{
     AttentionNBBuilder, AttentionNBConfig, AttentionNBError, AttentionNaiveBayes, AttentionType,
     ImportanceScoring,
@@ -123,7 +115,6 @@ pub use computer_vision::{
     utils as cv_utils, ColorSpace, ComputerVisionError, ImageData, ImageMetadata, ImageNBConfig,
     ImageNaiveBayes, NeighborhoodStats, SpatialModel, SpatialNBConfig, SpatialNaiveBayes,
 };
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
 pub use continual_learning::{
     ContinualLearningConfig, ContinualLearningError, ContinualLearningNB,
     ContinualLearningNBBuilder, ContinualLearningStrategy, DriftDetectionMethod, MemoryStrategy,
@@ -152,18 +143,16 @@ pub use feature_engineering::{
     ImbalanceHandlingMethod, InteractionMethod, InteractionResults, MissingValueStrategy,
     OutlierDetectionMethod, StatisticalTest, TransformMethod,
 };
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
 pub use federated::{
     AggregationMethod, AggregationStrategy, BudgetAllocationStrategy, ClientId, ClientModel,
     CommunicationParams, CompressionStrategy, FederatedError, FederatedNaiveBayes,
     FederationParams, FederationStatistics, GlobalModel, LocalUpdate, PrivacyParams, PrivateUpdate,
 };
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use finance::{
-//     CreditData, CreditRisk, CreditScoringNB, FinanceError, FinancialFeatures,
-//     FinancialTimeSeriesNB, FraudDetectionNB, FraudLabel, PortfolioCategory,
-//     PortfolioClassificationNB, PortfolioData, RiskAssessmentNB, RiskLevel, TransactionData,
-// };
+pub use finance::{
+    CreditData, CreditRisk, CreditScoringNB, FinanceError, FinancialFeatures,
+    FinancialTimeSeriesNB, FraudDetectionNB, FraudLabel, PortfolioCategory,
+    PortfolioClassificationNB, PortfolioData, RiskAssessmentNB, RiskLevel, TransactionData,
+};
 pub use flexible::{
     Distribution, DistributionParams, FlexibleNB, FlexibleNBConfig, SelectionMethod,
 };
@@ -180,12 +169,12 @@ pub use kernel_methods::{
     ScoringMetric as KernelScoringMetric,
 };
 pub use mixed::{FeatureDistribution, MixedNB};
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub use model_selection::{
-//     BayesianModelComparison, BayesianModelSelector, CVResults, CVStrategy, InformationCriterion,
-//     ModelComparison, ModelSelectionResults, NaiveBayesModelSelector, NestedModelComparison,
-//     NestedModelValidation, ParameterGrid, ParameterValue, ScoringMetric,
-// };
+pub use model_selection::{
+    BayesianModelComparison, BayesianModelSelector, CVResults, CVStrategy, InformationCriterion,
+    ModelComparison, ModelSelectionResults, NaiveBayesModelSelector, NestedModelComparison,
+    NestedModelValidation, ParameterGrid, ParameterValue,
+    ScoringMetric as ModelSelectionScoringMetric,
+};
 pub use multilabel::{
     AdvancedChainClassifier, ChainOrderingStrategy, LabelCorrelationAnalysis, LabelDependencyGraph,
     LabelHierarchy, MultiLabelNB, MultiLabelStrategy,
@@ -232,7 +221,6 @@ pub use plugin_architecture::{
     PredictionContext, PredictionMiddleware, SelectionCriterion,
 };
 pub use poisson::PoissonNB;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
 pub use quantum::{
     EntanglementPattern, GateType, HybridQuantumClassicalNB, QuantumAdvantageMetrics,
     QuantumCircuitParams, QuantumError, QuantumFeatureMap, QuantumNaiveBayes, QuantumState,

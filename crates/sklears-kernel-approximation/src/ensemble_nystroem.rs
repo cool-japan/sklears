@@ -64,8 +64,8 @@ pub enum QualityMetric {
 ///
 /// let ensemble = EnsembleNystroem::new(Kernel::Rbf { gamma: 1.0 }, 3, 2)
 ///     .ensemble_method(EnsembleMethod::WeightedAverage);
-/// let fitted_ensemble = ensemble.fit(&X, &()).unwrap();
-/// let X_transformed = fitted_ensemble.transform(&X).unwrap();
+/// let fitted_ensemble = ensemble.fit(&X, &()).expect("fit should succeed with valid ensemble Nystroem input");
+/// let X_transformed = fitted_ensemble.transform(&X).expect("transform should succeed after ensemble Nystroem fitting");
 /// ```
 #[derive(Debug, Clone)]
 pub struct EnsembleNystroem<State = Untrained> {
@@ -259,11 +259,9 @@ impl Fit<Array2<Float>, ()> for EnsembleNystroem<Untrained> {
         // Train base estimators
         for i in 0..self.n_estimators {
             let strategy = sampling_strategies[i % sampling_strategies.len()].clone();
-            let seed = if self.random_state.is_some() {
+            let seed = if let Some(base_seed) = self.random_state {
                 // Use deterministic seed sequence for reproducibility
-                self.random_state
-                    .expect("operation should succeed")
-                    .wrapping_add(i as u64)
+                base_seed.wrapping_add(i as u64)
             } else {
                 rng.random::<u64>()
             };

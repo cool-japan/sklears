@@ -15,9 +15,8 @@
 use super::*;
 use scirs2_core::ndarray::{array, Array2};
 use scirs2_core::random::prelude::*;
-use scirs2_core::random::{thread_rng, Distribution, Random, StandardNormal};
-use sklears_core::error::{Result, SklearsError};
-use std::collections::HashMap;
+use scirs2_core::random::{Distribution, StandardNormal};
+use sklears_core::error::Result;
 
 /// Generate well-separated clusters for testing
 pub fn generate_well_separated_clusters() -> (Array2<f64>, Vec<i32>) {
@@ -375,9 +374,9 @@ mod tests {
             let internal_validator = ClusteringValidator::euclidean();
 
             if let Ok(silhouette) = internal_validator.silhouette_analysis(&data, &labels) {
-                assert!(silhouette.mean_silhouette >= -1.0 && silhouette.mean_silhouette <= 1.0);
+                assert!((-1.0..=1.0).contains(&silhouette.mean_silhouette));
                 for &score in &silhouette.sample_silhouettes {
-                    assert!(score >= -1.0 && score <= 1.0);
+                    assert!((-1.0..=1.0).contains(&score));
                 }
             }
         }
@@ -435,7 +434,7 @@ mod tests {
     fn test_validation_error_handling() {
         let data = array![[1.0, 2.0], [3.0, 4.0]];
         let wrong_labels = vec![0]; // Wrong length
-        let empty_labels: Vec<i32> = vec![];
+        let _empty_labels: Vec<i32> = vec![];
         let single_cluster_labels = vec![0, 0];
         let noise_only_labels = vec![-1, -1];
 

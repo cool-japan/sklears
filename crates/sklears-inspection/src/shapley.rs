@@ -126,6 +126,7 @@ pub struct FeaturePartition {
 /// Compute TreeSHAP values for tree-based models
 ///
 /// TreeSHAP provides exact Shapley values for tree ensembles with polynomial time complexity.
+#[allow(non_snake_case)] // standard ML notation
 pub fn compute_tree_shap<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -202,6 +203,7 @@ where
 /// Compute DeepSHAP values for neural networks
 ///
 /// DeepSHAP extends the ideas of Integrated Gradients and SHAP to deep networks.
+#[allow(non_snake_case)] // standard ML notation
 pub fn compute_deep_shap<F, G>(
     predict_fn: &F,
     gradient_fn: &G,
@@ -285,6 +287,7 @@ where
 /// Compute KernelSHAP values for any model
 ///
 /// KernelSHAP is a model-agnostic method that approximates Shapley values using weighted regression.
+#[allow(non_snake_case)] // standard ML notation
 pub fn compute_kernel_shap<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -403,6 +406,7 @@ where
 /// Compute LinearSHAP values for linear models
 ///
 /// LinearSHAP provides exact Shapley values for linear models efficiently.
+#[allow(non_snake_case)] // standard ML notation
 pub fn compute_linear_shap(
     weights: &ArrayView1<Float>,
     bias: Float,
@@ -456,6 +460,7 @@ pub fn compute_linear_shap(
 /// Compute PartitionSHAP values for structured features
 ///
 /// PartitionSHAP groups features into meaningful partitions and computes group-level Shapley values.
+#[allow(non_snake_case)] // standard ML notation
 pub fn compute_partition_shap<F>(
     predict_fn: &F,
     instance: &ArrayView1<Float>,
@@ -508,7 +513,7 @@ where
     let n_groups = partition.groups.len();
 
     // Generate group-level coalitions
-    let rng = match config.random_state {
+    let _rng = match config.random_state {
         Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
         None => scirs2_core::random::rngs::StdRng::from_rng(&mut scirs2_core::random::thread_rng()),
     };
@@ -519,8 +524,8 @@ where
     // Generate all possible group coalitions (2^n_groups)
     for coalition_mask in 0..(1 << n_groups) {
         let mut group_coalition = vec![false; n_groups];
-        for i in 0..n_groups {
-            group_coalition[i] = (coalition_mask & (1 << i)) != 0;
+        for (i, slot) in group_coalition.iter_mut().enumerate().take(n_groups) {
+            *slot = (coalition_mask & (1 << i)) != 0;
         }
         group_coalitions.push(group_coalition);
     }
@@ -586,10 +591,11 @@ where
 
 // Helper functions
 
+#[allow(non_snake_case)] // standard ML notation
 fn compute_tree_feature_contribution<F>(
     instance: &ArrayView1<Float>,
     feature_idx: usize,
-    tree: &Tree,
+    _tree: &Tree,
     X_background: &ArrayView2<Float>,
     predict_fn: &F,
     coalitions_evaluated: &mut usize,
@@ -624,6 +630,7 @@ where
     Ok(total_contribution / n_samples as Float)
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn sample_background(
     X_background: &ArrayView2<Float>,
     sample_size: usize,
@@ -657,6 +664,7 @@ fn sample_background(
     Ok(sample)
 }
 
+#[allow(non_snake_case)] // standard ML notation: A is matrix, AtA/Atb are normal equations
 fn solve_shapley_regression(
     coalitions: &[Vec<bool>],
     values: &[Float],
@@ -686,6 +694,7 @@ fn solve_shapley_regression(
     solve_linear_system(&AtA, &Atb)
 }
 
+#[allow(non_snake_case)] // standard ML notation
 fn solve_linear_system(A: &Array2<Float>, b: &Array1<Float>) -> SklResult<Array1<Float>> {
     let n = A.nrows();
     if n != A.ncols() || n != b.len() {
@@ -754,7 +763,7 @@ fn solve_linear_system(A: &Array2<Float>, b: &Array1<Float>) -> SklResult<Array1
 fn compute_exact_shapley_values(
     coalitions: &[Vec<bool>],
     values: &[Float],
-    base_value: Float,
+    _base_value: Float,
 ) -> SklResult<Array1<Float>> {
     let n_features = coalitions[0].len();
     let mut shap_values = Array1::zeros(n_features);
@@ -865,9 +874,11 @@ mod tests {
         let instance = array![1.0, 2.0];
         let X_background = array![[0.0, 0.0], [1.0, 1.0],];
 
-        let mut config = ShapleyConfig::default();
-        config.method = ShapleyMethod::KernelSHAP;
-        config.n_samples = 50; // Small for test
+        let config = ShapleyConfig {
+            method: ShapleyMethod::KernelSHAP,
+            n_samples: 50, // Small for test
+            ..Default::default()
+        };
 
         let result =
             compute_kernel_shap(&predict_fn, &instance.view(), &X_background.view(), &config)
@@ -1011,7 +1022,7 @@ mod tests {
                 .len(),
             2
         );
-        assert!(result.metadata.computation_time_ms >= 0);
+        let _ = result.metadata.computation_time_ms; // u64/usize, always non-negative
         assert!(result.metadata.converged);
     }
 }

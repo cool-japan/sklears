@@ -195,13 +195,22 @@ pub enum ExecutionState {
     /// Initializing
     Initializing,
     /// Running
-    Running { current_step: String },
+    Running {
+        /// The current step.
+        current_step: String,
+    },
     /// Paused
-    Paused { reason: String },
+    Paused {
+        /// The reason.
+        reason: String,
+    },
     /// Completed
     Completed,
     /// Failed
-    Failed { error: String },
+    Failed {
+        /// The error.
+        error: String,
+    },
 }
 
 /// Context value types
@@ -221,6 +230,7 @@ pub enum ContextValue {
 
 /// Performance profiler for identifying bottlenecks
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PerformanceProfiler {
     /// Performance measurements by step
     step_measurements: HashMap<String, Vec<PerformanceMetrics>>,
@@ -263,13 +273,17 @@ pub struct PerformanceMetrics {
 /// Cache usage statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CacheStatistics {
+    /// The hits.
     pub hits: u64,
+    /// The misses.
     pub misses: u64,
+    /// The hit ratio.
     pub hit_ratio: f64,
 }
 
 /// Active measurement session
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct MeasurementSession {
     start_time: Instant,
     initial_memory: u64,
@@ -278,6 +292,7 @@ pub struct MeasurementSession {
 
 /// Interactive debugger for breakpoints and inspection
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct InteractiveDebugger {
     /// Breakpoints set by user
     breakpoints: HashMap<String, Breakpoint>,
@@ -320,9 +335,15 @@ pub enum BreakpointCondition {
     /// Always
     Always,
     /// DataShape
-    DataShape { expected_shape: Vec<usize> },
+    DataShape {
+        /// The expected shape.
+        expected_shape: Vec<usize>,
+    },
     /// PerformanceThreshold
-    PerformanceThreshold { max_time_ms: f64 },
+    PerformanceThreshold {
+        /// The max time ms.
+        max_time_ms: f64,
+    },
     /// ErrorOccurred
     ErrorOccurred,
     /// Custom
@@ -347,6 +368,7 @@ pub struct WatchExpression {
 
 /// Active debugging session
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct DebugSession {
     /// Session ID
     session_id: String,
@@ -367,7 +389,10 @@ pub enum DebugState {
     /// Running
     Running,
     /// Paused
-    Paused { reason: String },
+    Paused {
+        /// The reason.
+        reason: String,
+    },
     /// StepOver
     StepOver,
     /// StepInto
@@ -389,23 +414,41 @@ pub enum DebugCommand {
     StepOut,
     /// SetBreakpoint
     SetBreakpoint {
+        /// The step name.
         step_name: String,
+        /// The condition.
         condition: Option<BreakpointCondition>,
     },
     /// RemoveBreakpoint
-    RemoveBreakpoint { breakpoint_id: String },
+    RemoveBreakpoint {
+        /// The breakpoint id.
+        breakpoint_id: String,
+    },
     /// AddWatch
-    AddWatch { expression: String },
+    AddWatch {
+        /// The expression.
+        expression: String,
+    },
     /// RemoveWatch
-    RemoveWatch { watch_id: String },
+    RemoveWatch {
+        /// The watch id.
+        watch_id: String,
+    },
     /// InspectVariable
-    InspectVariable { variable_name: String },
+    InspectVariable {
+        /// The variable name.
+        variable_name: String,
+    },
     /// EvaluateExpression
-    EvaluateExpression { expression: String },
+    EvaluateExpression {
+        /// The expression.
+        expression: String,
+    },
 }
 
 /// Data inspector for examining transformations
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct DataInspector {
     /// Data snapshots at each step
     data_snapshots: HashMap<String, DataSnapshot>,
@@ -594,90 +637,140 @@ pub struct ErrorInfo {
 /// Configuration structs
 #[derive(Debug, Clone)]
 pub struct TracingConfig {
+    /// The max history size.
     pub max_history_size: usize,
+    /// The enable metadata collection.
     pub enable_metadata_collection: bool,
+    /// The enable performance tracking.
     pub enable_performance_tracking: bool,
 }
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct ProfilingConfig {
+    /// The enable memory tracking.
     pub enable_memory_tracking: bool,
+    /// The enable cpu monitoring.
     pub enable_cpu_monitoring: bool,
+    /// The measurement interval ms.
     pub measurement_interval_ms: u64,
 }
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct InteractiveConfig {
+    /// The enable auto breakpoints.
     pub enable_auto_breakpoints: bool,
+    /// The max watch expressions.
     pub max_watch_expressions: usize,
+    /// The command timeout ms.
     pub command_timeout_ms: u64,
 }
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct InspectionConfig {
+    /// The sample size.
     pub sample_size: usize,
+    /// The enable statistical analysis.
     pub enable_statistical_analysis: bool,
+    /// The enable quality metrics.
     pub enable_quality_metrics: bool,
 }
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct ErrorConfig {
+    /// The max error history.
     pub max_error_history: usize,
+    /// The enable pattern recognition.
     pub enable_pattern_recognition: bool,
+    /// The enable auto suggestions.
     pub enable_auto_suggestions: bool,
 }
 
 /// Additional supporting types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionStatistics {
+    /// The total steps.
     pub total_steps: usize,
+    /// The successful steps.
     pub successful_steps: usize,
+    /// The failed steps.
     pub failed_steps: usize,
+    /// The total execution time.
     pub total_execution_time: Duration,
+    /// The average step time.
     pub average_step_time: Duration,
 }
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct BottleneckAnalysis {
+    /// The slowest steps.
     pub slowest_steps: Vec<(String, Duration)>,
+    /// The memory intensive steps.
     pub memory_intensive_steps: Vec<(String, u64)>,
+    /// The optimization suggestions.
     pub optimization_suggestions: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct TransformationSummary {
+    /// The step name.
     pub step_name: String,
+    /// The input shape.
     pub input_shape: Vec<usize>,
+    /// The output shape.
     pub output_shape: Vec<usize>,
+    /// The transformation type.
     pub transformation_type: String,
+    /// The quality impact.
     pub quality_impact: f64,
 }
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct TransformationGraph {
+    /// The nodes.
     pub nodes: Vec<TransformationNode>,
+    /// The edges.
     pub edges: Vec<TransformationEdge>,
 }
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct TransformationNode {
+    /// The id.
     pub id: String,
+    /// The step name.
     pub step_name: String,
+    /// The node type.
     pub node_type: String,
 }
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct TransformationEdge {
+    /// The from.
     pub from: String,
+    /// The to.
     pub to: String,
+    /// The data flow.
     pub data_flow: String,
 }
 
 #[derive(Debug, Clone)]
+/// Data structure for this component.
 pub struct QualityMetric {
+    /// The step name.
     pub step_name: String,
+    /// The metric name.
     pub metric_name: String,
+    /// The value.
     pub value: f64,
+    /// The threshold.
     pub threshold: Option<f64>,
 }
 
@@ -921,7 +1014,7 @@ impl PipelineDebugger {
 
     // Private helper methods
     fn create_data_metadata(&self, data: &ArrayView2<f64>) -> DataMetadata {
-        /// DataMetadata
+        // DataMetadata
         DataMetadata {
             shape: data.shape().to_vec(),
             dtype: "f64".to_string(),
@@ -941,7 +1034,7 @@ impl PipelineDebugger {
         }
 
         // Analyze error patterns
-        if let Ok(error_manager) = self.error_manager.read() {
+        if let Ok(_error_manager) = self.error_manager.read() {
             // Add error-based recommendations
             recommendations
                 .push("Consider adding input validation to prevent common errors".to_string());
@@ -1029,11 +1122,17 @@ impl PipelineDebugger {
 /// Comprehensive debug report
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DebugReport {
+    /// The execution summary.
     pub execution_summary: ExecutionStatistics,
+    /// The performance analysis.
     pub performance_analysis: String, // Could be more structured
-    pub data_flow_summary: String,    // Could be more structured
-    pub error_summary: String,        // Could be more structured
+    /// The data flow summary.
+    pub data_flow_summary: String, // Could be more structured
+    /// The error summary.
+    pub error_summary: String, // Could be more structured
+    /// The recommendations.
     pub recommendations: Vec<String>,
+    /// The timestamp.
     pub timestamp: SystemTime,
 }
 
@@ -1242,7 +1341,7 @@ impl DataInspector {
         let total_missing = missing_counts.iter().sum::<usize>();
         let quality_score = 1.0 - (total_missing as f64 / (n_samples * n_features) as f64);
 
-        /// DataStatistics
+        // DataStatistics
         DataStatistics {
             n_samples,
             n_features,

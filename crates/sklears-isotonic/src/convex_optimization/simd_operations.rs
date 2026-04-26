@@ -12,6 +12,7 @@
 //! The SIMD acceleration is delegated to SciRS2-Core, which provides optimized
 //! implementations for various platforms and architectures.
 
+use scirs2_core::ndarray::s;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use sklears_core::types::Float;
@@ -327,6 +328,3 @@ mod tests {
         assert!((x_norm - t).abs() < 1e-6);
     }
 }
-
-// Re-export ndarray's s! macro for slice notation
-use scirs2_core::ndarray::s;

@@ -55,8 +55,8 @@ pub enum QuasiRandomSequence {
 /// let sampler = QuasiRandomRBFSampler::new(100)
 ///     .gamma(1.0)
 ///     .sequence_type(QuasiRandomSequence::Sobol);
-/// let fitted = sampler.fit(&x, &()).unwrap();
-/// let features = fitted.transform(&x).unwrap();
+/// let fitted = sampler.fit(&x, &()).expect("fit should succeed with valid quasi-random RBF input");
+/// let features = fitted.transform(&x).expect("transform should succeed after quasi-random RBF fitting");
 /// assert_eq!(features.shape(), &[3, 100]);
 /// ```
 #[derive(Debug, Clone)]
@@ -380,8 +380,8 @@ fn van_der_corput_sequence(i: usize, base: usize) -> Float {
 
 /// Box-Muller transformation for converting uniform to Gaussian
 fn box_muller_transform(u1: Float, u2: Float) -> (Float, Float) {
-    let u1 = u1.max(1e-10).min(1.0 - 1e-10); // Avoid log(0)
-    let u2 = u2.max(1e-10).min(1.0 - 1e-10);
+    let u1 = u1.clamp(1e-10, 1.0 - 1e-10); // Avoid log(0)
+    let u2 = u2.clamp(1e-10, 1.0 - 1e-10);
 
     let r = (-2.0 * u1.ln()).sqrt();
     let theta = 2.0 * PI * u2;
@@ -444,7 +444,7 @@ mod tests {
 
         // Check that features are bounded (cosine function)
         for &val in features.iter() {
-            assert!(val >= -2.0 && val <= 2.0);
+            assert!((-2.0..=2.0).contains(&val));
         }
     }
 
@@ -590,7 +590,7 @@ mod tests {
         // Test that Sobol points are in [0, 1]
         for i in 0..100 {
             let point = sobol_point(i, 0);
-            assert!(point >= 0.0 && point <= 1.0);
+            assert!((0.0..=1.0).contains(&point));
         }
 
         // Test different dimensions give different values

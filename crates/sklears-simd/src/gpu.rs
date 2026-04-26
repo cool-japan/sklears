@@ -50,6 +50,8 @@ pub struct GpuBuffer<T> {
     pub ptr: *mut T,
     pub size: usize,
     pub device: GpuDevice,
+    #[allow(dead_code)]
+    // Reserved for native GPU buffer handle (cudarc/opencl3 when feature enabled)
     backend_handle: Option<Box<dyn Any + Send + Sync>>,
 }
 
@@ -67,6 +69,7 @@ impl<T> Drop for GpuBuffer<T> {
 pub struct GpuContext {
     pub device: GpuDevice,
     pub streams: Vec<GpuStream>,
+    #[allow(dead_code)] // Reserved for native GPU context (cudarc/opencl3 when feature enabled)
     backend_context: Option<Box<dyn Any + Send + Sync>>,
 }
 
@@ -75,6 +78,7 @@ pub struct GpuContext {
 pub struct GpuStream {
     pub id: u32,
     pub device_id: u32,
+    #[allow(dead_code)] // Reserved for native GPU stream (CUDA stream / OpenCL command queue)
     backend_stream: Option<Box<dyn Any + Send + Sync>>,
 }
 
@@ -135,7 +139,9 @@ pub mod cuda {
 
     /// CUDA device manager
     pub struct CudaDevice {
+        #[allow(dead_code)] // Used when constructing via new(); reserved for cudarc device handle
         device_id: u32,
+        #[allow(dead_code)] // Reserved for cudarc CudaContext when cuda feature is enabled
         context: Option<Box<dyn Any + Send + Sync>>,
     }
 
@@ -338,8 +344,11 @@ pub mod opencl {
 
     /// OpenCL device manager
     pub struct OpenCLDevice {
+        #[allow(dead_code)] // Used when constructing via new(); reserved for opencl3 device id
         device_id: u32,
+        #[allow(dead_code)] // Reserved for opencl3 Context when opencl feature is enabled
         context: Option<Box<dyn Any + Send + Sync>>,
+        #[allow(dead_code)] // Reserved for opencl3 CommandQueue when opencl feature is enabled
         command_queue: Option<Box<dyn Any + Send + Sync>>,
     }
 

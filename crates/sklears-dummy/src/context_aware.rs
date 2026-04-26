@@ -5,9 +5,7 @@
 //! while still remaining simple and interpretable baselines.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{
-    essentials::Normal, prelude::*, rngs::StdRng, Distribution, RngExt, SeedableRng,
-};
+use scirs2_core::random::{essentials::Normal, rngs::StdRng, Distribution, RngExt, SeedableRng};
 use sklears_core::error::Result;
 use sklears_core::traits::{Estimator, Fit, Predict};
 use sklears_core::types::{Features, Float};
@@ -1098,7 +1096,6 @@ impl Predict<Features, Array1<i32>> for ContextAwareDummyClassifier<sklears_core
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::{array, Array2};
 
     #[test]
@@ -1119,7 +1116,7 @@ mod tests {
         let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
-        assert!(predictions.iter().all(|&p| p >= 1.0 && p <= 6.0));
+        assert!(predictions.iter().all(|&p| (1.0..=6.0).contains(&p)));
     }
 
     #[test]

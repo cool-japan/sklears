@@ -1486,7 +1486,7 @@ mod tests {
         assert_eq!(solver.order, 2);
         assert_eq!(solver.max_iterations, 500);
         assert_abs_diff_eq!(solver.tolerance, 1e-5);
-        assert_eq!(solver.increasing, true);
+        assert!(solver.increasing);
         assert_eq!(solver.lower_bound, Some(0.0));
         assert_eq!(solver.upper_bound, Some(1.0));
     }

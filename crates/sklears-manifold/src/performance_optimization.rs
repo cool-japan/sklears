@@ -23,8 +23,7 @@ where
         let elements_per_cache_line = cache_line_size / element_size;
 
         // Pad row stride to cache line boundary
-        let row_stride = ((cols + elements_per_cache_line - 1) / elements_per_cache_line)
-            * elements_per_cache_line;
+        let row_stride = cols.div_ceil(elements_per_cache_line) * elements_per_cache_line;
 
         let total_elements = rows * row_stride;
         let layout = Layout::array::<T>(total_elements).map_err(|_| "Layout error")?;
@@ -43,11 +42,15 @@ where
         })
     }
 
+    /// # Safety
+    /// Caller must ensure `row < self.rows` and `col < self.cols`.
     pub unsafe fn get_unchecked(&self, row: usize, col: usize) -> &T {
         let ptr = self.data.add(row * self.row_stride + col);
         &*ptr
     }
 
+    /// # Safety
+    /// Caller must ensure `row < self.rows` and `col < self.cols`.
     pub unsafe fn get_unchecked_mut(&mut self, row: usize, col: usize) -> &mut T {
         let ptr = self.data.add(row * self.row_stride + col);
         &mut *ptr
@@ -132,6 +135,8 @@ impl UnsafeDistanceComputer {
         Self
     }
 
+    /// # Safety
+    /// Caller must ensure `a` and `b` are valid pointers to at least `len` elements.
     pub unsafe fn euclidean_distance_unchecked(a: *const f64, b: *const f64, len: usize) -> f64 {
         let mut sum = 0.0;
         let mut i = 0;
@@ -181,6 +186,8 @@ impl UnsafeDistanceComputer {
         distances
     }
 
+    /// # Safety
+    /// Caller must ensure `a` and `b` are valid pointers to at least `len` elements.
     pub unsafe fn dot_product_unchecked(a: *const f64, b: *const f64, len: usize) -> f64 {
         let mut sum = 0.0;
         let mut i = 0;
@@ -298,16 +305,14 @@ impl PrefetchOptimizedOperations {
                 let mut i = 0;
 
                 while i + 4 < n_rows {
-                    // Prefetch next cache line
+                    // Prefetch next cache line on x86_64
+                    #[cfg(target_arch = "x86_64")]
                     if i + 8 < n_rows {
                         let prefetch_addr = data.as_ptr().add((i + 8) * n_cols + j);
-                        #[cfg(target_arch = "x86_64")]
-                        {
-                            std::arch::x86_64::_mm_prefetch(
-                                prefetch_addr as *const i8,
-                                std::arch::x86_64::_MM_HINT_T0,
-                            );
-                        }
+                        std::arch::x86_64::_mm_prefetch(
+                            prefetch_addr as *const i8,
+                            std::arch::x86_64::_MM_HINT_T0,
+                        );
                     }
 
                     sum += *data.as_ptr().add(i * n_cols + j)
@@ -333,10 +338,7 @@ impl PrefetchOptimizedOperations {
 pub fn profile_guided_optimization_hint() {
     // This function would normally contain profile-guided optimization hints
     // For now, it's a placeholder for future PGO implementation
-    #[cfg(target_feature = "likely")]
-    {
-        // Use likely/unlikely hints when available
-    }
+    // Note: `likely`/`unlikely` hints are not yet stable target_feature values
 }
 
 #[allow(non_snake_case)]

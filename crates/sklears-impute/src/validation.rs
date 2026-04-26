@@ -1,4 +1,6 @@
 //! Validation framework for imputation methods
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides comprehensive validation tools for assessing the quality
 //! and reliability of imputation methods including cross-validation, hold-out validation,

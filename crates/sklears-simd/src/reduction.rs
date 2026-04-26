@@ -240,8 +240,8 @@ unsafe fn parallel_max_avx2(arr: &[f32]) -> f32 {
     let mut result = [0.0f32; 8];
     _mm256_storeu_ps(result.as_mut_ptr(), max_vec);
     let mut max_val = result[0];
-    for j in 1..8 {
-        max_val = max_val.max(result[j]);
+    for val in result.iter().skip(1) {
+        max_val = max_val.max(*val);
     }
 
     // Handle remaining elements
@@ -325,8 +325,8 @@ unsafe fn parallel_min_avx2(arr: &[f32]) -> f32 {
     let mut result = [0.0f32; 8];
     _mm256_storeu_ps(result.as_mut_ptr(), min_vec);
     let mut min_val = result[0];
-    for j in 1..8 {
-        min_val = min_val.min(result[j]);
+    for val in result.iter().skip(1) {
+        min_val = min_val.min(*val);
     }
 
     // Handle remaining elements
@@ -481,9 +481,7 @@ pub fn exclusive_scan_f32_simd(input: &[f32], output: &mut [f32]) {
     prefix_sum_f32_simd(input, &mut temp);
 
     output[0] = 0.0;
-    for i in 1..input.len() {
-        output[i] = temp[i - 1];
-    }
+    output[1..].copy_from_slice(&temp[..input.len() - 1]);
 }
 
 /// SIMD-optimized segmented reduction
@@ -720,7 +718,7 @@ mod tests {
         let mut output = vec![0.0; input.len()];
         prefix_sum_f32_simd(&input, &mut output);
 
-        let expected = vec![1.0, 3.0, 6.0, 10.0, 15.0];
+        let expected = [1.0, 3.0, 6.0, 10.0, 15.0];
         for (i, &expected_val) in expected.iter().enumerate() {
             assert_relative_eq!(output[i], expected_val, epsilon = 1e-6);
         }
@@ -732,7 +730,7 @@ mod tests {
         let mut output = vec![0.0; input.len()];
         exclusive_scan_f32_simd(&input, &mut output);
 
-        let expected = vec![0.0, 1.0, 3.0, 6.0, 10.0];
+        let expected = [0.0, 1.0, 3.0, 6.0, 10.0];
         for (i, &expected_val) in expected.iter().enumerate() {
             assert_relative_eq!(output[i], expected_val, epsilon = 1e-6);
         }
@@ -748,7 +746,7 @@ mod tests {
 
         // Segments: [1,2,3], [4,5], [6]
         // Expected cumulative sums: [1,3,6], [4,9], [6]
-        let expected = vec![1.0, 3.0, 6.0, 4.0, 9.0, 6.0];
+        let expected = [1.0, 3.0, 6.0, 4.0, 9.0, 6.0];
         for (i, &expected_val) in expected.iter().enumerate() {
             assert_relative_eq!(output[i], expected_val, epsilon = 1e-6);
         }

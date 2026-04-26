@@ -145,6 +145,7 @@ impl Default for KernelStructureLearner {
     }
 }
 
+#[allow(non_snake_case)]
 impl KernelStructureLearner {
     /// Create a new kernel structure learner
     pub fn new() -> Self {
@@ -214,7 +215,7 @@ impl KernelStructureLearner {
         let mut current_expression =
             KernelGrammar::Terminal(TerminalKernel::RBF { length_scale: 1.0 });
         let mut current_kernel = self.expression_to_kernel(&current_expression)?;
-        let mut current_score = self.evaluate_kernel(&current_kernel, &X, &y)?;
+        let mut current_score = self.evaluate_kernel(current_kernel.as_ref(), &X, &y)?;
 
         exploration_history.push(("RBF".to_string(), current_score));
         score_history.push(current_score);
@@ -235,7 +236,7 @@ impl KernelStructureLearner {
                 }
 
                 let kernel = self.expression_to_kernel(&candidate)?;
-                let score = self.evaluate_kernel(&kernel, &X, &y)?;
+                let score = self.evaluate_kernel(kernel.as_ref(), &X, &y)?;
 
                 let expression_str = self.expression_to_string(&candidate);
                 exploration_history.push((expression_str, score));
@@ -299,7 +300,7 @@ impl KernelStructureLearner {
 
         for kernel_expr in initial_kernels {
             let kernel = self.expression_to_kernel(&kernel_expr)?;
-            let score = self.evaluate_kernel(&kernel, &X, &y)?;
+            let score = self.evaluate_kernel(kernel.as_ref(), &X, &y)?;
             beam.push((kernel_expr.clone(), score));
 
             let expr_str = self.expression_to_string(&kernel_expr);
@@ -332,7 +333,7 @@ impl KernelStructureLearner {
                     }
 
                     let kernel = self.expression_to_kernel(&candidate)?;
-                    let score = self.evaluate_kernel(&kernel, &X, &y)?;
+                    let score = self.evaluate_kernel(kernel.as_ref(), &X, &y)?;
 
                     new_beam.push((candidate.clone(), score));
 
@@ -417,7 +418,7 @@ impl KernelStructureLearner {
             let idx = rng.gen_range(0..initial_kernels.len());
             let kernel_expr = initial_kernels[idx].clone();
             let kernel = self.expression_to_kernel(&kernel_expr)?;
-            let score = self.evaluate_kernel(&kernel, &X, &y)?;
+            let score = self.evaluate_kernel(kernel.as_ref(), &X, &y)?;
             population.push((kernel_expr, score));
         }
 
@@ -437,7 +438,7 @@ impl KernelStructureLearner {
 
                 if self.expression_depth(&mutated_child) <= self.max_depth {
                     let kernel = self.expression_to_kernel(&mutated_child)?;
-                    let score = self.evaluate_kernel(&kernel, &X, &y)?;
+                    let score = self.evaluate_kernel(kernel.as_ref(), &X, &y)?;
                     new_population.push((mutated_child.clone(), score));
 
                     let expr_str = self.expression_to_string(&mutated_child);
@@ -486,7 +487,7 @@ impl KernelStructureLearner {
         let mut current_expression =
             KernelGrammar::Terminal(TerminalKernel::RBF { length_scale: 1.0 });
         let mut current_kernel = self.expression_to_kernel(&current_expression)?;
-        let mut current_score = self.evaluate_kernel(&current_kernel, &X, &y)?;
+        let mut current_score = self.evaluate_kernel(current_kernel.as_ref(), &X, &y)?;
 
         let mut best_expression = current_expression.clone();
         let mut best_kernel = current_kernel.clone();
@@ -509,7 +510,7 @@ impl KernelStructureLearner {
             }
 
             let kernel = self.expression_to_kernel(candidate)?;
-            let score = self.evaluate_kernel(&kernel, &X, &y)?;
+            let score = self.evaluate_kernel(kernel.as_ref(), &X, &y)?;
 
             let expr_str = self.expression_to_string(candidate);
             exploration_history.push((expr_str, score));
@@ -805,7 +806,7 @@ impl KernelStructureLearner {
     /// Evaluate kernel using BIC or cross-validation
     fn evaluate_kernel(
         &self,
-        kernel: &Box<dyn Kernel>,
+        kernel: &dyn Kernel,
         X: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
     ) -> SklResult<f64> {
@@ -818,7 +819,7 @@ impl KernelStructureLearner {
     #[allow(non_snake_case)]
     fn compute_marginal_likelihood(
         &self,
-        kernel: &Box<dyn Kernel>,
+        kernel: &dyn Kernel,
         X: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
     ) -> SklResult<f64> {

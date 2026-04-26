@@ -43,7 +43,7 @@ use std::f64::consts::PI;
 ///     .mean_precision_range((0.1, 10.0), 5)
 ///     .n_random_perturbations(20);
 ///
-/// let analysis = analyzer.analyze(&X.view()).unwrap();
+/// let analysis = analyzer.analyze(&X.view()).expect("prior sensitivity analysis should succeed with valid data");
 /// println!("Average KL divergence: {}", analysis.average_kl_divergence());
 /// ```
 #[derive(Debug, Clone)]
@@ -90,6 +90,7 @@ pub struct SensitivityAnalysisResult {
     reference_model: VariationalBayesianGMM<VariationalBayesianGMMTrained>,
 
     // Sensitivity measures
+    #[allow(dead_code)]
     kl_divergences: Vec<f64>,
     parameter_variances: ParameterVariances,
     prediction_variances: Array1<f64>,
@@ -104,22 +105,34 @@ pub struct SensitivityAnalysisResult {
 /// Result from grid search over prior parameters
 #[derive(Debug, Clone)]
 pub struct GridSearchResult {
+    #[allow(dead_code)]
     weight_concentration: f64,
+    #[allow(dead_code)]
     mean_precision: f64,
+    #[allow(dead_code)]
     degrees_of_freedom: f64,
+    #[allow(dead_code)]
     model: VariationalBayesianGMM<VariationalBayesianGMMTrained>,
+    #[allow(dead_code)]
     lower_bound: f64,
+    #[allow(dead_code)]
     effective_components: usize,
 }
 
 /// Result from random perturbation analysis
 #[derive(Debug, Clone)]
 pub struct PerturbationResult {
+    #[allow(dead_code)]
     perturbation_id: usize,
+    #[allow(dead_code)]
     perturbed_weight_concentration: f64,
+    #[allow(dead_code)]
     perturbed_mean_precision: f64,
+    #[allow(dead_code)]
     perturbed_degrees_of_freedom: f64,
+    #[allow(dead_code)]
     model: VariationalBayesianGMM<VariationalBayesianGMMTrained>,
+    #[allow(dead_code)]
     kl_divergence_from_reference: f64,
     parameter_distance_from_reference: f64,
 }
@@ -127,18 +140,26 @@ pub struct PerturbationResult {
 /// Parameter variances across different prior settings
 #[derive(Debug, Clone)]
 pub struct ParameterVariances {
+    #[allow(dead_code)]
     weight_variances: Array1<f64>,
+    #[allow(dead_code)]
     mean_variances: Array2<f64>,
+    #[allow(dead_code)]
     covariance_variances: Vec<Array2<f64>>,
 }
 
 /// Influence score for individual data points
 #[derive(Debug, Clone)]
 pub struct InfluenceScore {
+    #[allow(dead_code)]
     data_point_index: usize,
+    #[allow(dead_code)]
     weight_influence: Array1<f64>,
+    #[allow(dead_code)]
     mean_influence: Array2<f64>,
+    #[allow(dead_code)]
     covariance_influence: Vec<Array2<f64>>,
+    #[allow(dead_code)]
     total_influence: f64,
 }
 
@@ -147,22 +168,32 @@ pub struct InfluenceScore {
 pub struct SensitivitySummary {
     average_kl_divergence: f64,
     max_kl_divergence: f64,
+    #[allow(dead_code)]
     min_kl_divergence: f64,
+    #[allow(dead_code)]
     kl_divergence_std: f64,
 
+    #[allow(dead_code)]
     average_parameter_distance: f64,
+    #[allow(dead_code)]
     max_parameter_distance: f64,
+    #[allow(dead_code)]
     min_parameter_distance: f64,
+    #[allow(dead_code)]
     parameter_distance_std: f64,
 
+    #[allow(dead_code)]
     average_prediction_variance: f64,
+    #[allow(dead_code)]
     max_prediction_variance: f64,
+    #[allow(dead_code)]
     min_prediction_variance: f64,
 
     most_sensitive_parameters: Vec<String>,
     robustness_score: f64,
 }
 
+#[allow(non_snake_case)]
 impl PriorSensitivityAnalyzer {
     /// Create a new Prior Sensitivity Analyzer
     pub fn new() -> Self {
@@ -1141,7 +1172,7 @@ mod tests {
 
         assert!(!recommendations.is_empty());
         // Should have at least one recommendation
-        assert!(recommendations.len() >= 1);
+        assert!(!recommendations.is_empty());
     }
 
     #[test]
@@ -1162,7 +1193,7 @@ mod tests {
             .expect("operation should succeed");
 
         // Should have grid results
-        assert!(result.grid_results().len() > 0);
+        assert!(!result.grid_results().is_empty());
 
         // Should be able to find most/least robust configurations
         let most_robust = result.most_robust_configuration();

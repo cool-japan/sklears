@@ -1,4 +1,6 @@
 //! Fluent API and builder patterns for easy imputation configuration
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 //!
 //! This module provides a convenient, chainable API for configuring and using
 //! imputation methods with sensible defaults and validation.

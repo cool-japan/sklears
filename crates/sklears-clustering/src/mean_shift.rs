@@ -23,9 +23,17 @@ pub enum BandwidthMethod {
     /// Silverman's rule of thumb  
     Silverman,
     /// Adaptive bandwidth based on k-nearest neighbors
-    KNearestNeighbors { k: usize },
+    KNearestNeighbors {
+        /// Number of nearest neighbors used to estimate local bandwidth
+        k: usize,
+    },
     /// Local adaptive bandwidth (variable bandwidth)
-    LocalAdaptive { k: usize, alpha: f64 },
+    LocalAdaptive {
+        /// Number of nearest neighbors for local density estimation
+        k: usize,
+        /// Smoothing exponent for the adaptive bandwidth
+        alpha: f64,
+    },
 }
 
 /// Configuration for Mean Shift clustering

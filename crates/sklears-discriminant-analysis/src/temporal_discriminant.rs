@@ -14,6 +14,12 @@ use sklears_core::{
 };
 use std::marker::PhantomData;
 
+/// Type alias for the result of temporal feature standardisation
+type TemporalStandardisationResult = (Array3<Float>, Option<Array1<Float>>, Option<Array1<Float>>);
+
+/// Type alias for fitted temporal model components (transition / emission matrices)
+type TemporalModelPair = (Option<Array2<Float>>, Option<Array2<Float>>);
+
 /// Configuration for Temporal Discriminant Analysis
 #[derive(Debug, Clone)]
 pub struct TemporalDiscriminantAnalysisConfig {
@@ -392,13 +398,13 @@ impl TemporalDiscriminantAnalysis<Untrained> {
     fn standardize_temporal_features(
         &self,
         x: &Array3<Float>,
-    ) -> Result<(Array3<Float>, Option<Array1<Float>>, Option<Array1<Float>>)> {
+    ) -> Result<TemporalStandardisationResult> {
         let (n_samples, n_features, n_time_steps) = x.dim();
 
         // Flatten time series for standardization
         let flattened = x
             .view()
-            .into_shape((n_samples * n_time_steps, n_features))?;
+            .into_shape_with_order((n_samples * n_time_steps, n_features))?;
 
         // Compute means and standard deviations
         let means = flattened
@@ -563,7 +569,7 @@ impl TemporalDiscriminantAnalysis<Untrained> {
                     let mut values: Vec<Float> = window_data.row(f).to_vec();
                     values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-                    medians[f] = if values.len() % 2 == 0 {
+                    medians[f] = if values.len().is_multiple_of(2) {
                         (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
                     } else {
                         values[values.len() / 2]
@@ -709,9 +715,8 @@ impl TemporalDiscriminantAnalysis<Untrained> {
 
                 // Normalize state counts to probabilities
                 let total_count = n_time_steps as Float;
-                for state in 0..n_states {
-                    features[[sample_idx, feature_idx]] =
-                        state_counts[state] as Float / total_count;
+                for &count in state_counts.iter().take(n_states) {
+                    features[[sample_idx, feature_idx]] = count as Float / total_count;
                     feature_idx += 1;
                 }
             }
@@ -938,10 +943,7 @@ impl TemporalDiscriminantAnalysis<Untrained> {
         }
     }
 
-    fn fit_temporal_models(
-        &self,
-        x: &Array3<Float>,
-    ) -> Result<(Option<Array2<Float>>, Option<Array2<Float>>)> {
+    fn fit_temporal_models(&self, x: &Array3<Float>) -> Result<TemporalModelPair> {
         match &self.config.temporal_method {
             TemporalMethod::Autoregressive { order } => {
                 let ar_coefs = self.fit_ar_model(x, *order)?;
@@ -1151,7 +1153,7 @@ impl TemporalDiscriminantAnalysis<Untrained> {
         x: &Array3<Float>,
         _y: &Array1<i32>,
         _classes: &Array1<i32>,
-    ) -> Result<(Option<Array2<Float>>, Option<Array2<Float>>)> {
+    ) -> Result<TemporalModelPair> {
         match &self.config.temporal_method {
             TemporalMethod::StateSpace { state_dim } => {
                 let (_n_samples, n_features, _n_time_steps) = x.dim();
@@ -1474,7 +1476,7 @@ mod tests {
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
-        assert!(fitted.temporal_patterns().len() >= 1);
+        assert!(!fitted.temporal_patterns().is_empty());
     }
 
     #[test]

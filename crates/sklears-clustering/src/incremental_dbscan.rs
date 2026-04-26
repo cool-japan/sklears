@@ -6,7 +6,7 @@
 //! points being added dynamically.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Predict},
@@ -79,6 +79,7 @@ struct ClusterInfo {
     /// Cluster centroid
     centroid: Array1<Float>,
     /// Cluster ID
+    #[allow(dead_code)] // Cluster ID used for merge/split tracking in future updates
     id: i32,
     /// Last update timestamp
     last_update: usize,
@@ -724,7 +725,7 @@ mod tests {
             model
                 .partial_fit(&x.view())
                 .expect("operation should succeed");
-            assert!(model.n_clusters() >= 0);
+            let _ = model.n_clusters(); // n_clusters returns usize, always valid
         }
     }
 

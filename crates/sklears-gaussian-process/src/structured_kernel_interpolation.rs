@@ -25,11 +25,11 @@ use sklears_core::prelude::{Estimator, Fit, Predict};
 ///     .grid_size(64)
 ///     .interpolation_method(InterpolationMethod::Linear);
 ///
-/// let X = Array2::from_shape_vec((100, 2), (0..200).map(|x| x as f64).collect()).unwrap();
+/// let X = Array2::from_shape_vec((100, 2), (0..200).map(|x| x as f64).collect()).expect("shape (100,2) matches 200 elements");
 /// let y = Array1::from_vec((0..100).map(|x| (x as f64).sin()).collect());
 ///
-/// let trained_model = model.fit(&X.view(), &y.view()).unwrap();
-/// let predictions = trained_model.predict(&X.view()).unwrap();
+/// let trained_model = model.fit(&X.view(), &y.view()).expect("fit should succeed with valid training data");
+/// let predictions = trained_model.predict(&X.view()).expect("predict should succeed on trained model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct StructuredKernelInterpolationGPR {
@@ -82,6 +82,7 @@ pub enum GridBoundsMethod {
 
 /// Trained SKI Gaussian process regressor
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct SkiGprTrained {
     /// Original configuration
     pub config: StructuredKernelInterpolationGPR,
@@ -139,6 +140,7 @@ impl Default for StructuredKernelInterpolationGPR {
     }
 }
 
+#[allow(non_snake_case)]
 impl StructuredKernelInterpolationGPR {
     /// Create a new SKI Gaussian process regressor
     pub fn new(kernel: Box<dyn Kernel>) -> Self {
@@ -558,6 +560,7 @@ impl Estimator for StructuredKernelInterpolationGPR {
     }
 }
 
+#[allow(non_snake_case)]
 impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, f64>, SkiGprTrained>
     for StructuredKernelInterpolationGPR
 {
@@ -625,6 +628,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, f64>, SkiGprTrained>
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<ArrayView2<'_, f64>, Array1<f64>> for SkiGprTrained {
     fn predict(&self, X: &ArrayView2<f64>) -> SklResult<Array1<f64>> {
         // Compute interpolation weights for test points
@@ -638,6 +642,7 @@ impl Predict<ArrayView2<'_, f64>, Array1<f64>> for SkiGprTrained {
     }
 }
 
+#[allow(non_snake_case)]
 impl SkiGprTrained {
     /// Predict with uncertainty quantification
     pub fn predict_with_uncertainty(

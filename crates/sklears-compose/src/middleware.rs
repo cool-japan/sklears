@@ -8,7 +8,6 @@
 use scirs2_core::ndarray::Array2;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
-    traits::Estimator,
     types::Float,
 };
 use std::collections::HashMap;
@@ -53,31 +52,40 @@ pub struct UserInfo {
 /// Authentication methods
 #[derive(Debug, Clone)]
 pub enum AuthenticationMethod {
+    /// Variant value.
     None,
     /// ApiKey
     ApiKey {
+        /// The key.
         key: String,
     },
     /// BearerToken
     BearerToken {
+        /// The token.
         token: String,
     },
     /// BasicAuth
     BasicAuth {
+        /// The username.
         username: String,
+        /// The password.
         password: String,
     },
     /// OAuth
     OAuth {
+        /// The provider.
         provider: String,
+        /// The token.
         token: String,
     },
     /// Certificate
     Certificate {
+        /// The cert fingerprint.
         cert_fingerprint: String,
     },
     /// Custom
     Custom {
+        /// The method.
         method: String,
     },
 }
@@ -92,7 +100,10 @@ pub enum ContextState {
     /// Completed
     Completed,
     /// Error
-    Error { message: String },
+    Error {
+        /// The message.
+        message: String,
+    },
     /// Cancelled
     Cancelled,
 }
@@ -150,7 +161,7 @@ pub trait PipelineMiddleware: Send + Sync {
     }
 
     /// Whether middleware should be executed
-    fn should_execute(&self, context: &MiddlewareContext) -> bool {
+    fn should_execute(&self, _context: &MiddlewareContext) -> bool {
         true
     }
 }
@@ -162,16 +173,22 @@ pub enum ErrorAction {
     Continue,
     /// Retry processing
     Retry {
+        /// The max attempts.
         max_attempts: usize,
+        /// The delay.
         delay: Duration,
     },
     /// Abort processing
     Abort,
     /// Fallback to alternative processing
-    Fallback { fallback_data: Array2<Float> },
+    Fallback {
+        /// The fallback data.
+        fallback_data: Array2<Float>,
+    },
 }
 
 /// Middleware chain for executing multiple middleware components
+#[allow(dead_code)]
 pub struct MiddlewareChain {
     /// Registered middleware components
     middlewares: Vec<Box<dyn PipelineMiddleware>>,
@@ -253,15 +270,34 @@ pub trait AuthenticationProvider: Send + Sync {
 #[derive(Debug, Clone)]
 pub enum AuthenticationCredentials {
     /// ApiKey
-    ApiKey { key: String },
+    ApiKey {
+        /// The key.
+        key: String,
+    },
     /// BearerToken
-    BearerToken { token: String },
+    BearerToken {
+        /// The token.
+        token: String,
+    },
     /// BasicAuth
-    BasicAuth { username: String, password: String },
+    BasicAuth {
+        /// The username.
+        username: String,
+        /// The password.
+        password: String,
+    },
     /// OAuth
-    OAuth { provider: String, token: String },
+    OAuth {
+        /// The provider.
+        provider: String,
+        /// The token.
+        token: String,
+    },
     /// Certificate
-    Certificate { certificate: Vec<u8> },
+    Certificate {
+        /// The certificate.
+        certificate: Vec<u8>,
+    },
 }
 
 /// Authentication configuration
@@ -282,6 +318,7 @@ pub struct AuthenticationConfig {
 }
 
 /// Authorization middleware
+#[allow(dead_code)]
 pub struct AuthorizationMiddleware {
     /// Access control policies
     policies: Vec<AccessPolicy>,
@@ -312,15 +349,36 @@ pub struct AccessPolicy {
 #[derive(Debug, Clone)]
 pub enum AccessCondition {
     /// TimeWindow
-    TimeWindow { start: String, end: String },
+    TimeWindow {
+        /// The start.
+        start: String,
+        /// The end.
+        end: String,
+    },
     /// IpRange
-    IpRange { cidr: String },
+    IpRange {
+        /// The cidr.
+        cidr: String,
+    },
     /// UserAttribute
-    UserAttribute { attribute: String, value: String },
+    UserAttribute {
+        /// The attribute.
+        attribute: String,
+        /// The value.
+        value: String,
+    },
     /// ResourceAttribute
-    ResourceAttribute { attribute: String, value: String },
+    ResourceAttribute {
+        /// The attribute.
+        attribute: String,
+        /// The value.
+        value: String,
+    },
     /// Custom
-    Custom { condition: String },
+    Custom {
+        /// The condition.
+        condition: String,
+    },
 }
 
 /// Policy effect
@@ -385,6 +443,7 @@ pub struct AuthorizationConfig {
 }
 
 /// Validation middleware
+#[allow(dead_code)]
 pub struct ValidationMiddleware {
     /// Input validators
     input_validators: Vec<Box<dyn InputValidator>>,
@@ -488,6 +547,7 @@ pub struct ValidationConfig {
 }
 
 /// Transformation middleware
+#[allow(dead_code)]
 pub struct TransformationMiddleware {
     /// Pre-processing transformations
     pre_transformations: Vec<Box<dyn DataTransformer>>,
@@ -620,7 +680,10 @@ pub enum CacheKeyStrategy {
     /// HashInputAndContext
     HashInputAndContext,
     /// Custom
-    Custom { generator: String },
+    Custom {
+        /// The generator.
+        generator: String,
+    },
 }
 
 /// Cache statistics
@@ -641,6 +704,7 @@ pub struct CacheStats {
 }
 
 /// Monitoring middleware
+#[allow(dead_code)]
 pub struct MonitoringMiddleware {
     /// Metrics collectors
     collectors: Vec<Box<dyn MetricsCollector>>,
@@ -722,16 +786,31 @@ pub struct AlertRule {
 #[derive(Debug, Clone)]
 pub enum AlertCondition {
     /// Threshold
-    Threshold { operator: String, value: f64 },
+    Threshold {
+        /// The operator.
+        operator: String,
+        /// The value.
+        value: f64,
+    },
     /// Range
-    Range { min: f64, max: f64 },
+    Range {
+        /// The min.
+        min: f64,
+        /// The max.
+        max: f64,
+    },
     /// Rate
     Rate {
+        /// The change percent.
         change_percent: f64,
+        /// The time window.
         time_window: Duration,
     },
     /// Anomaly
-    Anomaly { sensitivity: f64 },
+    Anomaly {
+        /// The sensitivity.
+        sensitivity: f64,
+    },
 }
 
 /// Alert severity levels
@@ -781,18 +860,29 @@ pub enum AlertStatus {
 #[derive(Debug, Clone)]
 pub enum AlertChannel {
     /// Email
-    Email { addresses: Vec<String> },
+    Email {
+        /// The addresses.
+        addresses: Vec<String>,
+    },
     /// Webhook
-    Webhook { url: String },
+    Webhook {
+        /// The url.
+        url: String,
+    },
     /// Slack
     Slack {
+        /// The webhook url.
         webhook_url: String,
+        /// The channel.
         channel: String,
     },
     /// Console
     Console,
     /// Log
-    Log { file_path: String },
+    Log {
+        /// The file path.
+        file_path: String,
+    },
 }
 
 /// Monitoring configuration
@@ -855,7 +945,7 @@ impl MiddlewareChain {
                             return Err(e);
                         }
                         ErrorAction::Retry {
-                            max_attempts,
+                            max_attempts: _,
                             delay,
                         } => {
                             // Implement retry logic
@@ -1026,7 +1116,12 @@ impl AuthorizationMiddleware {
     }
 
     /// Check user permissions against policy
-    fn check_permissions(&self, policy: &AccessPolicy, user_info: &UserInfo, action: &str) -> bool {
+    fn check_permissions(
+        &self,
+        policy: &AccessPolicy,
+        user_info: &UserInfo,
+        _action: &str,
+    ) -> bool {
         // Check role-based access
         for role in &user_info.roles {
             if policy.allowed_roles.contains(role) {
@@ -1242,6 +1337,7 @@ impl CachingMiddleware {
     }
 
     /// Evict entries based on policy (internal method that doesn't borrow self)
+    #[allow(dead_code)]
     fn evict_entries_internal(&mut self, cache: &mut HashMap<String, CacheEntry>) {
         let eviction_policy = self.config.eviction_policy.clone();
         match eviction_policy {
@@ -1307,7 +1403,7 @@ impl PipelineMiddleware for CachingMiddleware {
         if let Some(cache_key) = context.metadata.get("cache_key") {
             self.cache.lock().unwrap_or_else(|e| e.into_inner()).insert(
                 cache_key.clone(),
-                /// CacheEntry
+                // CacheEntry
                 CacheEntry {
                     data: output.clone(),
                     created_at: SystemTime::now(),

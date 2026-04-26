@@ -18,7 +18,9 @@ use serde::{Deserialize, Serialize};
 /// Configuration format for loading/saving
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ConfigFormat {
+    /// JSON text format
     JSON,
+    /// YAML text format
     YAML,
 }
 

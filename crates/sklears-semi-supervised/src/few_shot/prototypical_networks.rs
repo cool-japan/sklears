@@ -135,6 +135,7 @@ impl PrototypicalNetworks<Untrained> {
     }
 
     /// Compute embedding for input data
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_embedding(
         &self,
         X: &Array2<f64>,
@@ -235,13 +236,13 @@ impl PrototypicalNetworks<Untrained> {
 
     /// Sample episode for training
     #[allow(clippy::type_complexity)]
+    #[allow(non_snake_case)] // standard ML notation
     fn sample_episode(
         &self,
         X: &Array2<f64>,
         y: &Array1<i32>,
         classes: &[i32],
     ) -> SklResult<(Array2<f64>, Array1<i32>, Array2<f64>, Array1<i32>)> {
-        let n_samples = X.nrows();
         let n_features = X.ncols();
 
         // Group samples by class
@@ -338,7 +339,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for PrototypicalNetworks<Un
         let X = X.to_owned();
         let y = y.to_owned();
 
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
 
         // Get unique classes
         let mut classes = std::collections::HashSet::new();
@@ -483,6 +484,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for PrototypicalNetworks<Un
 impl Predict<ArrayView2<'_, Float>, Array1<i32>>
     for PrototypicalNetworks<PrototypicalNetworksTrained>
 {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array1<i32>> {
         let probabilities = self.predict_proba(X)?;
         let n_test = X.nrows();

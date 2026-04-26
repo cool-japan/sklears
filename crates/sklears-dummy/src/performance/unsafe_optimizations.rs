@@ -5,6 +5,14 @@
 
 /// Unsafe fast memory operations
 pub mod unsafe_memory {
+    /// Fast memory copy using `copy_nonoverlapping`
+    ///
+    /// # Safety
+    ///
+    /// Caller must ensure:
+    /// - `src` is valid for reads of `len * size_of::<T>()` bytes
+    /// - `dst` is valid for writes of `len * size_of::<T>()` bytes
+    /// - The regions pointed to by `src` and `dst` must not overlap
     pub unsafe fn fast_copy<T: Copy>(src: *const T, dst: *mut T, len: usize) {
         std::ptr::copy_nonoverlapping(src, dst, len);
     }
@@ -133,7 +141,7 @@ pub mod alignment {
     /// # Safety
     /// Caller must ensure ptr is valid
     pub unsafe fn is_aligned<T>(ptr: *const T, alignment: usize) -> bool {
-        ptr as usize % alignment == 0
+        (ptr as usize).is_multiple_of(alignment)
     }
 
     /// Align pointer to next boundary

@@ -115,6 +115,7 @@ impl SemiSupervisedGMM<Untrained> {
         self
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn initialize_parameters(
         &self,
         X: &Array2<f64>,
@@ -204,6 +205,7 @@ impl SemiSupervisedGMM<Untrained> {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[allow(non_snake_case)] // standard ML notation
     fn expectation_step(
         &self,
         X: &Array2<f64>,
@@ -268,6 +270,7 @@ impl SemiSupervisedGMM<Untrained> {
         responsibilities
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn maximization_step(
         &self,
         X: &Array2<f64>,
@@ -339,6 +342,7 @@ impl SemiSupervisedGMM<Untrained> {
         (weights, means, covariances)
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_log_likelihood(
         &self,
         X: &Array2<f64>,
@@ -476,6 +480,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for SemiSupervisedGMM<Untra
 }
 
 impl Predict<ArrayView2<'_, Float>, Array1<i32>> for SemiSupervisedGMM<SemiSupervisedGMMTrained> {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array1<i32>> {
         let probas = self.predict_proba(X)?;
         let n_test = probas.nrows();
@@ -586,6 +591,7 @@ impl SemiSupervisedGMM<SemiSupervisedGMMTrained> {
 
 /// Trained state for SemiSupervisedGMM
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct SemiSupervisedGMMTrained {
     /// X_train
     pub X_train: Array2<f64>,

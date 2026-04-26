@@ -66,7 +66,7 @@ prop_compose! {
 proptest! {
     #[test]
     fn test_knn_classifier_predictions_valid((X, y) in small_classification_data()) {
-        let n_neighbors = (X.nrows() / 2).max(1).min(5);
+        let n_neighbors = (X.nrows() / 2).clamp(1, 5);
         let classifier = KNeighborsClassifier::new(n_neighbors);
 
         let fitted = classifier.fit(&X, &y).expect("operation should succeed");
@@ -88,7 +88,7 @@ proptest! {
 
     #[test]
     fn test_knn_regressor_predictions_finite((X, y) in small_regression_data()) {
-        let n_neighbors = (X.nrows() / 2).max(1).min(5);
+        let n_neighbors = (X.nrows() / 2).clamp(1, 5);
         let regressor = KNeighborsRegressor::new(n_neighbors);
 
         let fitted = regressor.fit(&X, &y).expect("operation should succeed");
@@ -115,7 +115,7 @@ proptest! {
 
     #[test]
     fn test_knn_different_distances_same_shape((X, y) in small_classification_data()) {
-        let n_neighbors = (X.nrows() / 2).max(1).min(3);
+        let n_neighbors = (X.nrows() / 2).clamp(1, 3);
 
         let distances = vec![Distance::Euclidean, Distance::Manhattan, Distance::Chebyshev];
 
@@ -167,7 +167,7 @@ proptest! {
 
     #[test]
     fn test_knn_classifier_probability_properties((X, y) in small_classification_data()) {
-        let n_neighbors = (X.nrows() / 2).max(1).min(5);
+        let n_neighbors = (X.nrows() / 2).clamp(1, 5);
         let classifier = KNeighborsClassifier::new(n_neighbors);
 
         let fitted = classifier.fit(&X, &y).expect("operation should succeed");
@@ -181,7 +181,7 @@ proptest! {
 
             // All probabilities should be between 0 and 1
             for &prob in probabilities.iter() {
-                prop_assert!(prob >= 0.0 && prob <= 1.0);
+                prop_assert!((0.0..=1.0).contains(&prob));
             }
 
             // Number of rows should match input
@@ -245,7 +245,7 @@ proptest! {
     // NEW: Test that regressor predictions are bounded by training data range
     #[test]
     fn test_regressor_predictions_bounded((X, y) in small_regression_data()) {
-        let n_neighbors = (X.nrows() / 2).max(1).min(5);
+        let n_neighbors = (X.nrows() / 2).clamp(1, 5);
         let regressor = KNeighborsRegressor::new(n_neighbors);
 
         let fitted = regressor.fit(&X, &y).expect("operation should succeed");

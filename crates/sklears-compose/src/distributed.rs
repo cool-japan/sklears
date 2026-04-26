@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, SystemTime};
 
-use crate::{PipelinePredictor, PipelineStep};
+use crate::PipelineStep;
 
 /// Distributed node identifier
 pub type NodeId = String;
@@ -186,13 +186,17 @@ pub enum FailureTolerance {
     /// Fail fast on any error
     FailFast,
     /// Retry on specific node
-    RetryOnNode { max_retries: usize },
+    RetryOnNode {
+        /// The max retries.
+        max_retries: usize,
+    },
     /// Migrate to different node
     MigrateNode,
     /// Skip failed shard
     SkipFailed,
     /// Use fallback computation
     Fallback {
+        /// The fallback fn.
         fallback_fn: fn(&DataShard) -> SklResult<Array2<f64>>,
     },
 }
@@ -261,6 +265,7 @@ pub struct DataTransferMetrics {
 
 /// Distributed cluster manager
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ClusterManager {
     /// Available cluster nodes
     nodes: Arc<RwLock<HashMap<NodeId, ClusterNode>>>,
@@ -316,12 +321,14 @@ pub enum LoadBalancingStrategy {
     LocalityAware,
     /// Custom balancing function
     Custom {
+        /// The balance fn.
         balance_fn: fn(&[ClusterNode], &ResourceRequirements) -> Option<NodeId>,
     },
 }
 
 /// Load balancer component
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct LoadBalancer {
     strategy: LoadBalancingStrategy,
     round_robin_index: Mutex<usize>,
@@ -428,7 +435,10 @@ pub enum RecoveryStrategy {
     /// Migrate task to different node
     MigrateTask,
     /// Replicate task on multiple nodes
-    ReplicateTask { replicas: usize },
+    ReplicateTask {
+        /// The replicas.
+        replicas: usize,
+    },
     /// Use cached results
     UseCachedResults,
     /// Skip failed task
@@ -593,6 +603,7 @@ impl ClusterManager {
     }
 
     /// Execute pipeline component on data shards
+    #[allow(clippy::borrowed_box)]
     fn execute_pipeline_component(
         &self,
         component: &Box<dyn PipelineStep>,
@@ -658,7 +669,7 @@ impl ClusterManager {
             .filter(|r| r.status == TaskStatus::Failed)
             .count();
 
-        /// ClusterStatus
+        // ClusterStatus
         ClusterStatus {
             total_nodes,
             healthy_nodes,
@@ -732,6 +743,7 @@ pub struct ClusterStatus {
 
 /// MapReduce-style distributed pipeline
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct MapReducePipeline<S = Untrained> {
     state: S,
     mapper: Option<Box<dyn PipelineStep>>,
@@ -746,19 +758,30 @@ pub struct MapReducePipeline<S = Untrained> {
 #[derive(Debug)]
 pub enum PartitioningStrategy {
     /// Equal-sized partitions
-    EqualSize { partition_size: usize },
+    EqualSize {
+        /// The partition size.
+        partition_size: usize,
+    },
     /// Hash-based partitioning
-    HashBased { num_partitions: usize },
+    HashBased {
+        /// The num partitions.
+        num_partitions: usize,
+    },
     /// Range-based partitioning
-    RangeBased { ranges: Vec<(f64, f64)> },
+    RangeBased {
+        /// The ranges.
+        ranges: Vec<(f64, f64)>,
+    },
     /// Custom partitioning function
     Custom {
+        /// The partition fn.
         partition_fn: fn(&Array2<f64>) -> Vec<DataShard>,
     },
 }
 
 /// Trained state for `MapReduce` pipeline
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct MapReducePipelineTrained {
     fitted_mapper: Box<dyn PipelineStep>,
     fitted_reducer: Box<dyn PipelineStep>,
@@ -925,12 +948,11 @@ impl MapReducePipeline<MapReducePipelineTrained> {
         // Phase 5: Wait for reduce task and return result
         let reduce_results = self.wait_for_tasks(&[reduce_task_id])?;
 
-        if let Some(result) = reduce_results.into_iter().next() {
-            Ok(result)
-        } else {
-            Err(SklearsError::InvalidData {
+        match reduce_results.into_iter().next() {
+            Some(result) => Ok(result),
+            _ => Err(SklearsError::InvalidData {
                 reason: "Reduce task produced no result".to_string(),
-            })
+            }),
         }
     }
 
@@ -1143,7 +1165,7 @@ mod tests {
         let balancer = LoadBalancer::new(LoadBalancingStrategy::RoundRobin);
 
         let nodes = vec![
-            /// ClusterNode
+            // ClusterNode
             ClusterNode {
                 id: "node1".to_string(),
                 address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
@@ -1159,7 +1181,7 @@ mod tests {
                 last_heartbeat: SystemTime::now(),
                 metadata: HashMap::new(),
             },
-            /// ClusterNode
+            // ClusterNode
             ClusterNode {
                 id: "node2".to_string(),
                 address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),

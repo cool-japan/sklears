@@ -478,6 +478,7 @@ impl AdaptiveRadiusNeighborsClassifier {
     }
 
     /// Compute k-distances for all training points
+    #[allow(dead_code)] // reserved for adaptive radius computation
     fn compute_k_distances(
         x: &Array2<Float>,
         k: usize,
@@ -545,6 +546,7 @@ impl AdaptiveRadiusNeighborsRegressor {
     }
 
     /// Compute k-distances for all training points
+    #[allow(dead_code)] // reserved for adaptive radius computation
     fn compute_k_distances(
         x: &Array2<Float>,
         k: usize,
@@ -769,6 +771,7 @@ impl Predict<Features, Array1<Float>>
 
 impl AdaptiveRadiusNeighborsClassifier<sklears_core::traits::Trained> {
     /// Compute k-distances for all training points
+    #[allow(dead_code)] // reserved for adaptive radius computation
     fn compute_k_distances(
         x: &Array2<Float>,
         k: usize,
@@ -894,6 +897,7 @@ impl AdaptiveRadiusNeighborsClassifier<sklears_core::traits::Trained> {
 
 impl AdaptiveRadiusNeighborsRegressor<sklears_core::traits::Trained> {
     /// Compute k-distances for all training points
+    #[allow(dead_code)] // reserved for adaptive radius computation
     fn compute_k_distances(
         x: &Array2<Float>,
         k: usize,

@@ -10,6 +10,7 @@ use std::time::Duration;
 
 /// CPU resource manager for core allocation and NUMA optimization
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct CpuResourceManager {
     /// CPU topology information
     topology: CpuTopology,
@@ -244,7 +245,7 @@ impl CpuResourceManager {
     fn detect_topology() -> CpuTopology {
         // In a real implementation, this would query the system
         // For now, return a default topology
-        /// CpuTopology
+        // CpuTopology
         CpuTopology {
             physical_cpus: num_cpus::get_physical() as u32,
             cores_per_cpu: 1,
@@ -309,7 +310,7 @@ impl CpuResourceManager {
                     .find(|node| node.cpu_cores.contains(&(core_id as usize)))
                     .map_or(0, |node| node.node_id);
 
-                /// CpuCore
+                // CpuCore
                 CpuCore {
                     core_id: core_id as usize,
                     physical_id: core_id as usize / topology.threads_per_core as usize,

@@ -1,4 +1,5 @@
 //! Neural network-based imputation methods
+#![allow(non_snake_case)]
 //!
 //! This module provides deep learning approaches to missing data imputation.
 //!

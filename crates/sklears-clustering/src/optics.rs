@@ -10,7 +10,7 @@ use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::{
     error::{Result, SklearnContext, SklearsError},
     traits::{Estimator, Fit, Predict, Trained, Untrained},
-    types::{Float, FloatBounds},
+    types::Float,
     validation::{ConfigValidation, Validate, ValidationRule, ValidationRules},
 };
 
@@ -36,9 +36,13 @@ pub struct OpticsConfig {
 /// Distance metrics supported by OPTICS
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DistanceMetric {
+    /// Standard Euclidean (L2) distance
     Euclidean,
+    /// Manhattan (L1) distance
     Manhattan,
+    /// Chebyshev (L∞) distance
     Chebyshev,
+    /// Minkowski distance with parameter p
     Minkowski(f64),
 }
 
@@ -149,6 +153,7 @@ impl ConfigValidation for OpticsConfig {
 #[derive(Debug, Clone)]
 struct OpticsPoint {
     /// Index of the point in the original dataset
+    #[allow(dead_code)] // Retained for debugging and future point retrieval
     index: usize,
     /// Core distance of the point
     core_distance: Option<f64>,
@@ -518,7 +523,7 @@ impl Optics<Untrained> {
                 let mut cluster_id = 0;
                 let mut current_cluster: Option<i32> = None;
 
-                for (i, entry) in ordering.iter().enumerate() {
+                for entry in ordering.iter() {
                     let reachability = entry.reachability_distance.unwrap_or(f64::INFINITY);
 
                     if reachability <= threshold {
@@ -654,14 +659,17 @@ impl Eq for SeedItem {}
 
 impl PartialOrd for SeedItem {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        // Reverse ordering for min-heap behavior
-        other.reachability.partial_cmp(&self.reachability)
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for SeedItem {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
+        // Reverse ordering for min-heap behavior
+        other
+            .reachability
+            .partial_cmp(&self.reachability)
+            .unwrap_or(std::cmp::Ordering::Equal)
     }
 }
 
@@ -770,18 +778,24 @@ mod tests {
         assert!(valid_config.validate_config().is_ok());
 
         // Test invalid max_eps (negative)
-        let mut invalid_config = OpticsConfig::default();
-        invalid_config.max_eps = -1.0;
+        let invalid_config = OpticsConfig {
+            max_eps: -1.0,
+            ..OpticsConfig::default()
+        };
         assert!(invalid_config.validate().is_err());
 
         // Test invalid min_samples (zero)
-        let mut invalid_config = OpticsConfig::default();
-        invalid_config.min_samples = 0;
+        let invalid_config = OpticsConfig {
+            min_samples: 0,
+            ..OpticsConfig::default()
+        };
         assert!(invalid_config.validate().is_err());
 
         // Test invalid Minkowski parameter
-        let mut invalid_config = OpticsConfig::default();
-        invalid_config.metric = DistanceMetric::Minkowski(-1.0);
+        let invalid_config = OpticsConfig {
+            metric: DistanceMetric::Minkowski(-1.0),
+            ..OpticsConfig::default()
+        };
         assert!(invalid_config.validate().is_err());
     }
 
@@ -858,7 +872,7 @@ mod tests {
         let core_indices = model.core_sample_indices();
 
         // Should have some core samples from the clustered points
-        assert!(core_indices.len() >= 1);
+        assert!(!core_indices.is_empty());
 
         // Isolated point should not be a core sample
         assert!(!core_indices.contains(&3));

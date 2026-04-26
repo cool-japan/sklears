@@ -35,7 +35,9 @@ impl Default for GpuConfig {
 /// GPU context for managing device resources
 #[derive(Debug)]
 pub struct GpuContext {
+    #[allow(dead_code)]
     config: GpuConfig,
+    #[allow(dead_code)]
     initialized: bool,
 }
 
@@ -190,6 +192,7 @@ pub mod memory {
     }
 
     impl<T> GpuArray2<T> {
+        #[allow(dead_code)]
         fn new() -> Self {
             Self {
                 _phantom: std::marker::PhantomData,

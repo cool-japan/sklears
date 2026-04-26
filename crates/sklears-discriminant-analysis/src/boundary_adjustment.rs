@@ -14,6 +14,9 @@ use sklears_core::{
 };
 use std::collections::HashMap;
 
+/// Type alias for train/validation split: (x_train, y_train, x_val, y_val)
+type TrainValSplit = (Array2<Float>, Array1<i32>, Array2<Float>, Array1<i32>);
+
 /// Boundary adjustment methods for imbalanced classification
 #[derive(Debug, Clone)]
 pub enum BoundaryAdjustmentMethod {
@@ -130,6 +133,7 @@ pub struct BoundaryAdjustmentDiscriminantAnalysis<T> {
 
 /// Trained boundary adjustment model
 pub struct TrainedBoundaryAdjustmentDiscriminantAnalysis<F> {
+    #[allow(dead_code)] // retained for future serialisation / re-fit support
     config: BoundaryAdjustmentConfig,
     base_model: F,
     classes: Vec<i32>,
@@ -187,7 +191,7 @@ impl<T> BoundaryAdjustmentDiscriminantAnalysis<T> {
         x: &Array2<Float>,
         y: &Array1<i32>,
         split_ratio: Float,
-    ) -> Result<(Array2<Float>, Array1<i32>, Array2<Float>, Array1<i32>)> {
+    ) -> Result<TrainValSplit> {
         let n_samples = x.nrows();
         let n_train = ((1.0 - split_ratio) * n_samples as Float) as usize;
 
@@ -267,7 +271,10 @@ impl<T> BoundaryAdjustmentDiscriminantAnalysis<T> {
         let mut class_accuracies = Vec::new();
 
         for &class in classes {
-            let class_idx = classes.iter().position(|&c| c == class).expect("element not found");
+            let class_idx = classes
+                .iter()
+                .position(|&c| c == class)
+                .expect("element not found");
             let threshold = thresholds.get(&class).copied().unwrap_or(0.5);
 
             let mut correct = 0;
@@ -442,12 +449,12 @@ impl<T> Estimator for BoundaryAdjustmentDiscriminantAnalysis<T> {
     }
 }
 
-impl<T> Fit<Array2<Float>, Array1<i32>> for BoundaryAdjustmentDiscriminantAnalysis<T>
+impl<T, F> Fit<Array2<Float>, Array1<i32>> for BoundaryAdjustmentDiscriminantAnalysis<T>
 where
-    T: Fit<Array2<Float>, Array1<i32>> + Clone,
-    T::Fitted: PredictProba<Array2<Float>, Array2<Float>>,
+    T: Fit<Array2<Float>, Array1<i32>, Fitted = F> + Clone,
+    F: PredictProba<Array2<Float>, Array2<Float>> + Send + Sync,
 {
-    type Fitted = TrainedBoundaryAdjustmentDiscriminantAnalysis<T::Fitted>;
+    type Fitted = TrainedBoundaryAdjustmentDiscriminantAnalysis<F>;
 
     fn fit(self, x: &Array2<Float>, y: &Array1<i32>) -> Result<Self::Fitted> {
         if x.nrows() != y.len() {
@@ -650,6 +657,7 @@ mod tests {
     // Mock base classifier for testing
     #[derive(Debug, Clone)]
     struct MockClassifier {
+        #[allow(dead_code)] // Stored for future predict() use
         classes: Vec<i32>,
     }
 
@@ -710,12 +718,14 @@ mod tests {
             },
         );
 
-        let fitted = boundary_adj.fit(&x, &y).expect("model fitting should succeed");
+        let fitted = boundary_adj
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
         let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 5);
         assert_eq!(fitted.classes().len(), 2);
-        assert!(fitted.optimal_thresholds().len() > 0);
+        assert!(!fitted.optimal_thresholds().is_empty());
     }
 
     #[test]
@@ -731,8 +741,12 @@ mod tests {
             },
         );
 
-        let fitted = boundary_adj.fit(&x, &y).expect("model fitting should succeed");
-        let probabilities = fitted.predict_proba(&x).expect("probability prediction should succeed");
+        let fitted = boundary_adj
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let probabilities = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probabilities.dim(), (4, 2));
         // Check that probabilities sum to 1
@@ -755,6 +769,6 @@ mod tests {
             .calculate_f1_score(&probabilities, &y_true, 0.5, 0, &classes)
             .expect("operation should succeed");
 
-        assert!(f1_score >= 0.0 && f1_score <= 1.0);
+        assert!((0.0..=1.0).contains(&f1_score));
     }
 }

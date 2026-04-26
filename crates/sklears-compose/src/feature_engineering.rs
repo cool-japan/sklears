@@ -3,11 +3,7 @@
 //! Automated feature engineering, interaction detection, and feature selection.
 
 use scirs2_core::ndarray::{concatenate, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use sklears_core::{
-    error::Result as SklResult,
-    prelude::SklearsError,
-    types::{Float, FloatBounds},
-};
+use sklears_core::{error::Result as SklResult, prelude::SklearsError, types::Float};
 use std::collections::HashSet;
 
 /// Feature interaction detector
@@ -25,7 +21,10 @@ pub enum InteractionType {
     /// Linear interactions (correlation-based)
     Linear,
     /// Polynomial interactions
-    Polynomial { degree: usize },
+    Polynomial {
+        /// Field value.
+        degree: usize,
+    },
     /// Multiplicative interactions
     Multiplicative,
     /// Statistical interactions (ANOVA-based)

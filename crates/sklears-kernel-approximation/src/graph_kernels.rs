@@ -962,7 +962,7 @@ mod tests {
         assert_eq!(kernel_matrix.shape(), &[3, 3]);
         assert!(kernel_matrix
             .iter()
-            .all(|&x| x >= 0.0 && x <= 1.0 && x.is_finite()));
+            .all(|&x| (0.0..=1.0).contains(&x) && x.is_finite()));
 
         // Identical graphs should have similarity 1.0
         assert_abs_diff_eq!(kernel_matrix[(0, 1)], 1.0, epsilon = 1e-10);

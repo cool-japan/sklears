@@ -431,7 +431,7 @@ impl PluginTestFixture {
             api_usage: Some(super::validation::ApiUsageInfo {
                 calls: vec!["std::process::Command".to_string()],
                 network_access: vec!["http://api.example.com".to_string()],
-                filesystem_access: vec!["/tmp/".to_string()],
+                filesystem_access: vec![std::env::temp_dir().display().to_string()],
             }),
             contains_unsafe_code: true,
             dependencies: Vec::new(),

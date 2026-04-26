@@ -337,7 +337,7 @@ impl ConsensusPCA<Untrained> {
 
         // Project back to consensus space (average across views)
         let features_per_view: Vec<usize> = views.iter().map(|v| v.ncols()).collect();
-        let total_features = features_per_view.iter().sum::<usize>();
+        let _total_features = features_per_view.iter().sum::<usize>();
         let mut consensus_components = Array2::zeros((features_per_view[0], self.n_components));
 
         let mut feature_offset = 0;
@@ -402,7 +402,7 @@ impl ConsensusPCA<Untrained> {
     /// Project individual component to consensus space
     fn project_to_consensus_space(
         &self,
-        view: &Array2<Float>,
+        _view: &Array2<Float>,
         component: &Array1<Float>,
     ) -> Result<Array1<Float>> {
         // Simple identity projection for now
@@ -457,6 +457,7 @@ impl ConsensusPCA<Untrained> {
     }
 
     /// Simple eigenvalue decomposition for symmetric matrices
+    #[allow(non_snake_case)] // standard ML notation
     fn eigenvalue_decomposition(
         &self,
         A: &Array2<Float>,
@@ -627,7 +628,6 @@ impl ConsensusPCA<Trained> {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::array;
-    use sklears_core::traits::Fit;
 
     #[test]
     fn test_consensus_pca_basic() {

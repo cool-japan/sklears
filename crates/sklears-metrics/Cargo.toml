@@ -49,7 +49,7 @@ tinytemplate = { workspace = true, optional = true }
 chrono = { workspace = true }
 
 # Compression and I/O
-flate2 = { workspace = true }
+oxiarc-deflate = { workspace = true }
 
 # Async functionality
 tokio = { workspace = true, optional = true }

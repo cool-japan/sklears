@@ -3,143 +3,21 @@
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use sklears_core::error::Result;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
-use super::functions::Result;
+use super::types::{
+    BinningStrategy, CorrelationMethod, Distribution, ErrorHandling, FeatureMapping, FeatureOrigin,
+    ICAAlgorithm, ImputationStrategy, LoggingLevel, MemoryOptimization, MinMaxScalerConfig,
+    MinMaxScalerParams, MissingValueIndicator, ModelEstimator, ModelSelectionStep,
+    OptimizationConfiguration, PipelineInfo, PipelineMetadata, PowerMethod, PreprocessingStep,
+    RobustScalerConfig, RobustScalerParams, SVDAlgorithm, SVDSolver, ScalerParams, SelectionCount,
+    SelectionMethod, StandardScalerConfig, Trained, TransformationStep, TransformationType,
+    UnivariateMethod, UnivariateScoreFunction, ValidationStrategy, WindowStatistic,
+};
 
-#[derive(Debug, Clone)]
-pub enum TreeEstimatorType {
-    /// RandomForest
-    RandomForest,
-    /// ExtraTrees
-    ExtraTrees,
-    /// GradientBoosting
-    GradientBoosting,
-    /// AdaBoost
-    AdaBoost,
-}
-#[derive(Debug, Clone)]
-pub enum ValidationStrategy {
-    None,
-    /// Basic
-    Basic,
-    /// Comprehensive
-    Comprehensive,
-    /// Statistical
-    Statistical,
-}
-/// Feature mapping for tracking feature transformations
-#[derive(Debug, Clone)]
-pub struct FeatureMapping {
-    pub original_features: usize,
-    pub final_features: usize,
-    pub feature_names: Vec<String>,
-    pub feature_origins: Vec<FeatureOrigin>,
-    pub transformation_history: Vec<TransformationStep>,
-}
-#[derive(Debug, Clone)]
-pub struct ScalerParams {
-    pub mean: Array1<f64>,
-    pub scale: Array1<f64>,
-}
-#[derive(Debug, Clone)]
-pub enum LoggingLevel {
-    None,
-    /// Error
-    Error,
-    /// Warning
-    Warning,
-    /// Info
-    Info,
-    /// Debug
-    Debug,
-    /// Trace
-    Trace,
-}
-/// Optimization configuration for performance tuning
-#[derive(Debug, Clone)]
-pub struct OptimizationConfiguration {
-    pub use_simd: bool,
-    pub chunk_size: usize,
-    pub thread_pool_size: Option<usize>,
-    pub memory_pool_size: usize,
-    pub cache_size: usize,
-    pub prefetch_strategy: PrefetchStrategy,
-    pub vectorization_threshold: usize,
-}
-/// Supporting enums and structs for configuration
-#[derive(Debug, Clone)]
-pub enum MemoryOptimization {
-    None,
-    /// Conservative
-    Conservative,
-    /// Aggressive
-    Aggressive,
-}
-#[derive(Debug, Clone)]
-pub struct StandardScalerConfig {
-    pub with_mean: bool,
-    pub with_std: bool,
-}
-#[derive(Debug, Clone)]
-pub enum WindowStatistic {
-    /// Mean
-    Mean,
-    /// Std
-    Std,
-    /// Min
-    Min,
-    /// Max
-    Max,
-    /// Median
-    Median,
-    /// Skewness
-    Skewness,
-    /// Kurtosis
-    Kurtosis,
-}
-#[derive(Debug, Clone)]
-pub enum DistanceMetric {
-    /// Euclidean
-    Euclidean,
-    /// Manhattan
-    Manhattan,
-    /// Cosine
-    Cosine,
-    /// Hamming
-    Hamming,
-}
-#[derive(Debug, Clone)]
-pub enum CachingStrategy {
-    None,
-    /// LRU
-    LRU {
-        size: usize,
-    },
-    /// LFU
-    LFU {
-        size: usize,
-    },
-    /// FIFO
-    FIFO {
-        size: usize,
-    },
-}
-#[derive(Debug, Clone)]
-pub enum MissingValueIndicator {
-    /// NaN
-    NaN,
-    /// Value
-    Value(f64),
-}
-#[derive(Debug)]
-pub struct Trained {
-    trained_steps: Vec<TrainedStep>,
-    feature_mapping: FeatureMapping,
-    pipeline_metadata: PipelineMetadata,
-}
 /// Comprehensive pipeline integration framework for feature selection
 #[derive(Debug, Clone)]
 pub struct FeatureSelectionPipeline<State = Untrained> {
@@ -367,14 +245,16 @@ impl FeatureSelectionPipeline<Untrained> {
             _phantom: PhantomData::<Trained>,
         })
     }
-    fn apply_preprocessing_step(
+    /// apply_preprocessing_step
+    pub fn apply_preprocessing_step(
         &self,
         step: &mut PreprocessingStep,
         X: ArrayView2<f64>,
     ) -> Result<Array2<f64>> {
         Self::apply_preprocessing_step_static(step, X)
     }
-    fn apply_preprocessing_step_static(
+    /// apply_preprocessing_step_static
+    pub fn apply_preprocessing_step_static(
         step: &mut PreprocessingStep,
         X: ArrayView2<f64>,
     ) -> Result<Array2<f64>> {
@@ -394,7 +274,8 @@ impl FeatureSelectionPipeline<Untrained> {
             _ => Ok(X.to_owned()),
         }
     }
-    fn apply_standard_scaler(
+    /// apply_standard_scaler
+    pub fn apply_standard_scaler(
         &self,
         config: &StandardScalerConfig,
         trained_params: &mut Option<ScalerParams>,
@@ -402,7 +283,8 @@ impl FeatureSelectionPipeline<Untrained> {
     ) -> Result<Array2<f64>> {
         Self::apply_standard_scaler_static(config, trained_params, X)
     }
-    fn apply_standard_scaler_static(
+    /// apply_standard_scaler_static
+    pub fn apply_standard_scaler_static(
         config: &StandardScalerConfig,
         trained_params: &mut Option<ScalerParams>,
         X: ArrayView2<f64>,
@@ -439,7 +321,8 @@ impl FeatureSelectionPipeline<Untrained> {
         }
         Ok(result)
     }
-    fn apply_robust_scaler(
+    /// apply_robust_scaler
+    pub fn apply_robust_scaler(
         &self,
         config: &RobustScalerConfig,
         trained_params: &mut Option<RobustScalerParams>,
@@ -447,7 +330,8 @@ impl FeatureSelectionPipeline<Untrained> {
     ) -> Result<Array2<f64>> {
         Self::apply_robust_scaler_static(config, trained_params, X)
     }
-    fn apply_robust_scaler_static(
+    /// apply_robust_scaler_static
+    pub fn apply_robust_scaler_static(
         config: &RobustScalerConfig,
         trained_params: &mut Option<RobustScalerParams>,
         X: ArrayView2<f64>,
@@ -461,7 +345,7 @@ impl FeatureSelectionPipeline<Untrained> {
                 column_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let n = column_data.len();
                 if config.with_centering {
-                    center[col] = if n % 2 == 0 {
+                    center[col] = if n.is_multiple_of(2) {
                         (column_data[n / 2 - 1] + column_data[n / 2]) / 2.0
                     } else {
                         column_data[n / 2]
@@ -490,7 +374,8 @@ impl FeatureSelectionPipeline<Untrained> {
         }
         Ok(result)
     }
-    fn apply_minmax_scaler(
+    /// apply_minmax_scaler
+    pub fn apply_minmax_scaler(
         &self,
         config: &MinMaxScalerConfig,
         trained_params: &mut Option<MinMaxScalerParams>,
@@ -498,7 +383,8 @@ impl FeatureSelectionPipeline<Untrained> {
     ) -> Result<Array2<f64>> {
         Self::apply_minmax_scaler_static(config, trained_params, X)
     }
-    fn apply_minmax_scaler_static(
+    /// apply_minmax_scaler_static
+    pub fn apply_minmax_scaler_static(
         config: &MinMaxScalerConfig,
         trained_params: &mut Option<MinMaxScalerParams>,
         X: ArrayView2<f64>,
@@ -536,14 +422,16 @@ impl FeatureSelectionPipeline<Untrained> {
         }
         Ok(result)
     }
-    fn apply_feature_engineering_step_static(
+    /// apply_feature_engineering_step_static
+    pub fn apply_feature_engineering_step_static(
         _step: &mut FeatureEngineeringStep,
         X: ArrayView2<f64>,
         _y: ArrayView1<f64>,
     ) -> Result<Array2<f64>> {
         Ok(X.to_owned())
     }
-    fn apply_feature_engineering_step(
+    /// apply_feature_engineering_step
+    pub fn apply_feature_engineering_step(
         &self,
         step: &mut FeatureEngineeringStep,
         X: ArrayView2<f64>,
@@ -575,7 +463,8 @@ impl FeatureSelectionPipeline<Untrained> {
             _ => Ok(X.to_owned()),
         }
     }
-    fn apply_polynomial_features(
+    /// apply_polynomial_features
+    pub fn apply_polynomial_features(
         &self,
         degree: usize,
         interaction_only: bool,
@@ -629,7 +518,8 @@ impl FeatureSelectionPipeline<Untrained> {
         }
         Ok(result)
     }
-    fn apply_interaction_features(
+    /// apply_interaction_features
+    pub fn apply_interaction_features(
         &self,
         max_pairs: Option<usize>,
         threshold: f64,
@@ -685,7 +575,8 @@ impl FeatureSelectionPipeline<Untrained> {
         }
         Ok(result)
     }
-    fn apply_binning_features(
+    /// apply_binning_features
+    pub fn apply_binning_features(
         &self,
         n_bins: usize,
         strategy: &BinningStrategy,
@@ -749,14 +640,16 @@ impl FeatureSelectionPipeline<Untrained> {
         }
         Ok(result)
     }
-    fn apply_selection_method_static(
+    /// apply_selection_method_static
+    pub fn apply_selection_method_static(
         _method: &mut SelectionMethod,
         X: ArrayView2<f64>,
         _y: ArrayView1<f64>,
     ) -> Result<Array1<bool>> {
         Ok(Array1::from_elem(X.ncols(), true))
     }
-    fn apply_selection_method(
+    /// apply_selection_method
+    pub fn apply_selection_method(
         &self,
         method: &mut SelectionMethod,
         X: ArrayView2<f64>,
@@ -780,7 +673,8 @@ impl FeatureSelectionPipeline<Untrained> {
             _ => Ok(Array1::from_elem(X.ncols(), true)),
         }
     }
-    fn apply_variance_threshold(
+    /// apply_variance_threshold
+    pub fn apply_variance_threshold(
         &self,
         threshold: f64,
         feature_variance: &mut Option<Array1<f64>>,
@@ -797,7 +691,8 @@ impl FeatureSelectionPipeline<Untrained> {
         let selection = variances.mapv(|v| v > threshold);
         Ok(selection)
     }
-    fn apply_correlation_filter(
+    /// apply_correlation_filter
+    pub fn apply_correlation_filter(
         &self,
         threshold: f64,
         corr_method: &CorrelationMethod,
@@ -843,7 +738,8 @@ impl FeatureSelectionPipeline<Untrained> {
         }
         Ok(selection)
     }
-    fn apply_univariate_filter(
+    /// apply_univariate_filter
+    pub fn apply_univariate_filter(
         &self,
         _method: &UnivariateMethod,
         k: &SelectionCount,
@@ -910,7 +806,8 @@ impl FeatureSelectionPipeline<Untrained> {
         };
         Ok(selection)
     }
-    fn apply_dimensionality_reduction(
+    /// apply_dimensionality_reduction
+    pub fn apply_dimensionality_reduction(
         &self,
         reduction: &mut DimensionalityReductionStep,
         X: ArrayView2<f64>,
@@ -957,7 +854,8 @@ impl FeatureSelectionPipeline<Untrained> {
             }
         }
     }
-    fn apply_pca(
+    /// apply_pca
+    pub fn apply_pca(
         &self,
         n_components: usize,
         _whiten: bool,
@@ -987,7 +885,8 @@ impl FeatureSelectionPipeline<Untrained> {
         }
         Ok(result)
     }
-    fn apply_truncated_svd(
+    /// apply_truncated_svd
+    pub fn apply_truncated_svd(
         &self,
         n_components: usize,
         _algorithm: &SVDAlgorithm,
@@ -1008,7 +907,8 @@ impl FeatureSelectionPipeline<Untrained> {
         }
         Ok(result)
     }
-    fn apply_model_selection(
+    /// apply_model_selection
+    pub fn apply_model_selection(
         &self,
         model_selection: &mut ModelSelectionStep,
         X: ArrayView2<f64>,
@@ -1037,7 +937,8 @@ impl FeatureSelectionPipeline<Untrained> {
             _ => Ok((0..X.ncols()).collect()),
         }
     }
-    fn apply_cv_selection(
+    /// apply_cv_selection
+    pub fn apply_cv_selection(
         &self,
         _estimator: &ModelEstimator,
         _cv_folds: usize,
@@ -1070,7 +971,8 @@ impl FeatureSelectionPipeline<Untrained> {
             Ok((0..X.ncols()).collect())
         }
     }
-    fn apply_forward_selection(
+    /// apply_forward_selection
+    pub fn apply_forward_selection(
         &self,
         _estimator: &ModelEstimator,
         max_features: usize,
@@ -1100,7 +1002,8 @@ impl FeatureSelectionPipeline<Untrained> {
                 .clone())
         }
     }
-    fn compute_correlation(&self, x: ArrayView1<f64>, y: ArrayView1<f64>) -> f64 {
+    /// compute_correlation
+    pub fn compute_correlation(&self, x: ArrayView1<f64>, y: ArrayView1<f64>) -> f64 {
         let n = x.len() as f64;
         if n < 2.0 {
             return 0.0;
@@ -1124,17 +1027,21 @@ impl FeatureSelectionPipeline<Untrained> {
             sum_xy / denom
         }
     }
-    fn compute_chi2_score(&self, x: ArrayView1<f64>, y: ArrayView1<f64>) -> f64 {
+    /// compute_chi2_score
+    pub fn compute_chi2_score(&self, x: ArrayView1<f64>, y: ArrayView1<f64>) -> f64 {
         self.compute_correlation(x, y).abs()
     }
-    fn compute_f_score(&self, x: ArrayView1<f64>, y: ArrayView1<f64>) -> f64 {
+    /// compute_f_score
+    pub fn compute_f_score(&self, x: ArrayView1<f64>, y: ArrayView1<f64>) -> f64 {
         self.compute_correlation(x, y).abs()
     }
-    fn compute_mutual_info(&self, x: ArrayView1<f64>, y: ArrayView1<f64>) -> f64 {
+    /// compute_mutual_info
+    pub fn compute_mutual_info(&self, x: ArrayView1<f64>, y: ArrayView1<f64>) -> f64 {
         self.compute_correlation(x, y).abs()
     }
 }
 impl FeatureSelectionPipeline<Trained> {
+    /// transform
     pub fn transform(&self, X: ArrayView2<f64>) -> Result<Array2<f64>> {
         let _start_time = Instant::now();
         let current_X = X.to_owned();
@@ -1153,22 +1060,200 @@ impl FeatureSelectionPipeline<Trained> {
     }
 }
 #[derive(Debug, Clone)]
-pub enum CorrelationMethod {
-    /// Pearson
-    Pearson,
-    /// Spearman
-    Spearman,
-    /// Kendall
-    Kendall,
+/// QuantileTransformerConfig
+pub struct QuantileTransformerConfig {
+    /// n_quantiles
+    pub n_quantiles: usize,
+    /// output_distribution
+    pub output_distribution: Distribution,
+    /// subsample
+    pub subsample: Option<usize>,
+}
+/// Dimensionality reduction step (applied after feature selection)
+#[derive(Debug, Clone)]
+pub enum DimensionalityReductionStep {
+    /// PCA
+    PCA {
+        /// n_components
+        n_components: usize,
+        /// whiten
+        whiten: bool,
+        /// svd_solver
+        svd_solver: SVDSolver,
+        /// components
+        components: Option<Array2<f64>>,
+        /// explained_variance
+        explained_variance: Option<Array1<f64>>,
+    },
+    /// TruncatedSVD
+    TruncatedSVD {
+        /// n_components
+        n_components: usize,
+        /// algorithm
+        algorithm: SVDAlgorithm,
+        /// components
+        components: Option<Array2<f64>>,
+        /// singular_values
+        singular_values: Option<Array1<f64>>,
+    },
+    /// ICA
+    ICA {
+        /// n_components
+        n_components: usize,
+        /// algorithm
+        algorithm: ICAAlgorithm,
+        /// max_iter
+        max_iter: usize,
+        /// tol
+        tol: f64,
+        /// mixing_matrix
+        mixing_matrix: Option<Array2<f64>>,
+        /// unmixing_matrix
+        unmixing_matrix: Option<Array2<f64>>,
+    },
+    /// FactorAnalysis
+    FactorAnalysis {
+        /// n_components
+        n_components: usize,
+        /// max_iter
+        max_iter: usize,
+        /// tol
+        tol: f64,
+        /// loadings
+        loadings: Option<Array2<f64>>,
+        /// noise_variance
+        noise_variance: Option<Array1<f64>>,
+    },
+    /// UMAP
+    UMAP {
+        /// n_components
+        n_components: usize,
+        /// n_neighbors
+        n_neighbors: usize,
+        /// min_dist
+        min_dist: f64,
+        /// metric
+        metric: DistanceMetric,
+        /// embedding
+        embedding: Option<Array2<f64>>,
+    },
+    /// TSNE
+    TSNE {
+        /// n_components
+        n_components: usize,
+        /// perplexity
+        perplexity: f64,
+        /// early_exaggeration
+        early_exaggeration: f64,
+        /// learning_rate
+        learning_rate: f64,
+        /// max_iter
+        max_iter: usize,
+        /// embedding
+        embedding: Option<Array2<f64>>,
+    },
+}
+/// Feature engineering steps for creating new features
+#[derive(Debug, Clone)]
+pub enum FeatureEngineeringStep {
+    /// PolynomialFeatures
+    PolynomialFeatures {
+        /// degree
+        degree: usize,
+        /// interaction_only
+        interaction_only: bool,
+        /// include_bias
+        include_bias: bool,
+        /// feature_mapping
+        feature_mapping: Option<Vec<(usize, usize)>>,
+    },
+    /// InteractionFeatures
+    InteractionFeatures {
+        /// max_pairs
+        max_pairs: Option<usize>,
+        /// threshold
+        threshold: f64,
+        /// feature_pairs
+        feature_pairs: Option<Vec<(usize, usize)>>,
+    },
+    /// BinningFeatures
+    BinningFeatures {
+        /// n_bins
+        n_bins: usize,
+        /// strategy
+        strategy: BinningStrategy,
+        /// bin_edges
+        bin_edges: Option<HashMap<usize, Vec<f64>>>,
+    },
+    /// TargetEncoding
+    TargetEncoding {
+        /// smoothing
+        smoothing: f64,
+        /// min_samples_leaf
+        min_samples_leaf: usize,
+        /// encodings
+        encodings: Option<HashMap<usize, HashMap<String, f64>>>,
+    },
+    /// FrequencyEncoding
+    FrequencyEncoding {
+        /// min_frequency
+        min_frequency: f64,
+        /// frequencies
+        frequencies: Option<HashMap<usize, HashMap<String, f64>>>,
+    },
+    /// RatioFeatures
+    RatioFeatures {
+        /// numerator_features
+        numerator_features: Vec<usize>,
+        /// denominator_features
+        denominator_features: Vec<usize>,
+        /// eps
+        eps: f64,
+    },
+    /// LaggingFeatures
+    LaggingFeatures {
+        /// lags
+        lags: Vec<usize>,
+        /// feature_subset
+        feature_subset: Option<Vec<usize>>,
+    },
+    /// WindowStatistics
+    WindowStatistics {
+        /// window_size
+        window_size: usize,
+        /// statistics
+        statistics: Vec<WindowStatistic>,
+        /// feature_subset
+        feature_subset: Option<Vec<usize>>,
+    },
 }
 #[derive(Debug, Clone)]
-pub enum PowerMethod {
-    /// YeoJohnson
-    YeoJohnson,
-    /// BoxCox
-    BoxCox,
+/// ImputerConfig
+pub struct ImputerConfig {
+    /// strategy
+    pub strategy: ImputationStrategy,
+    /// fill_value
+    pub fill_value: Option<f64>,
+    /// missing_values
+    pub missing_values: MissingValueIndicator,
+}
+/// Type-safe state markers for compile-time pipeline validation
+#[derive(Debug, Clone, Default)]
+pub struct Untrained;
+#[derive(Debug, Clone)]
+/// DistanceMetric
+pub enum DistanceMetric {
+    /// Euclidean
+    Euclidean,
+    /// Manhattan
+    Manhattan,
+    /// Cosine
+    Cosine,
+    /// Hamming
+    Hamming,
 }
 #[derive(Debug)]
+/// StepParameters
 pub enum StepParameters {
     /// Preprocessing
     Preprocessing(Box<dyn std::any::Any + Send + Sync>),
@@ -1181,378 +1266,71 @@ pub enum StepParameters {
     /// ModelSelection
     ModelSelection(Vec<usize>),
 }
+/// Configuration for pipeline behavior
 #[derive(Debug, Clone)]
-pub enum TransformationType {
-    /// OneToOne
-    OneToOne,
-    /// OneToMany
-    OneToMany,
-    /// ManyToOne
-    ManyToOne,
-    /// ManyToMany
-    ManyToMany,
+pub struct PipelineConfiguration {
+    /// parallel_execution
+    pub parallel_execution: bool,
+    /// memory_optimization
+    pub memory_optimization: MemoryOptimization,
+    /// caching_strategy
+    pub caching_strategy: CachingStrategy,
+    /// validation_strategy
+    pub validation_strategy: ValidationStrategy,
+    /// error_handling
+    pub error_handling: ErrorHandling,
+    /// logging_level
+    pub logging_level: LoggingLevel,
 }
 #[derive(Debug, Clone)]
-pub struct ValidationResults {
-    pub cross_validation_scores: Vec<f64>,
-    pub stability_scores: Vec<f64>,
-    pub robustness_scores: Vec<f64>,
-    pub statistical_significance: bool,
-}
-/// Selection method configuration with type safety
-#[derive(Debug, Clone)]
-pub enum SelectionMethod {
-    /// UnivariateFilter
-    UnivariateFilter {
-        method: UnivariateMethod,
-        k: SelectionCount,
-        score_func: UnivariateScoreFunction,
-    },
-    /// RecursiveFeatureElimination
-    RecursiveFeatureElimination {
-        estimator: RFEEstimator,
-        n_features: SelectionCount,
-        step: f64,
-        importance_getter: ImportanceGetter,
-    },
-    SelectFromModel {
-        estimator: ModelEstimator,
-        threshold: SelectionThreshold,
-        prefit: bool,
-        max_features: Option<usize>,
-    },
-    VarianceThreshold {
-        threshold: f64,
-        feature_variance: Option<Array1<f64>>,
-    },
-    CorrelationFilter {
-        threshold: f64,
-        method: CorrelationMethod,
-        correlation_matrix: Option<Array2<f64>>,
-    },
-    MutualInformation {
-        k: SelectionCount,
-        discrete_features: Vec<bool>,
-        random_state: Option<u64>,
-    },
-    LASSO {
-        alpha: f64,
-        max_iter: usize,
-        tol: f64,
-        coefficients: Option<Array1<f64>>,
-    },
-    ElasticNet {
-        alpha: f64,
-        l1_ratio: f64,
-        max_iter: usize,
-        tol: f64,
-        coefficients: Option<Array1<f64>>,
-    },
-    TreeBased {
-        estimator_type: TreeEstimatorType,
-        n_estimators: usize,
-        max_depth: Option<usize>,
-        feature_importances: Option<Array1<f64>>,
-    },
-    GeneticAlgorithm {
-        population_size: usize,
-        n_generations: usize,
-        mutation_rate: f64,
-        crossover_rate: f64,
-        best_individuals: Option<Vec<Vec<bool>>>,
-    },
-    ParticleSwarmOptimization {
-        n_particles: usize,
-        n_iterations: usize,
-        inertia: f64,
-        cognitive: f64,
-        social: f64,
-        best_positions: Option<Vec<Vec<f64>>>,
-    },
-    SimulatedAnnealing {
-        initial_temp: f64,
-        cooling_rate: f64,
-        min_temp: f64,
-        max_iter: usize,
-        current_solution: Option<Vec<bool>>,
-    },
+/// ImportanceGetter
+pub enum ImportanceGetter {
+    /// Auto
+    Auto,
+    /// Coefficients
+    Coefficients,
+    /// FeatureImportances
+    FeatureImportances,
 }
 #[derive(Debug, Clone)]
-pub enum StepwiseDirection {
-    /// Forward
-    Forward,
-    /// Backward
-    Backward,
-    /// Both
-    Both,
-}
-#[derive(Debug, Clone)]
-pub enum ImputationStrategy {
-    /// Mean
-    Mean,
-    /// Median
-    Median,
-    /// Mode
-    Mode,
-    /// Constant
-    Constant,
-    /// KNN
-    KNN,
-    /// Iterative
-    Iterative,
-}
-#[derive(Debug, Clone)]
-pub enum UnivariateMethod {
-    /// Chi2
-    Chi2,
-    /// ANOVA
-    ANOVA,
-    /// MutualInfo
-    MutualInfo,
-    /// Correlation
-    Correlation,
-}
-#[derive(Debug, Clone)]
-pub struct QuantileTransformerConfig {
-    pub n_quantiles: usize,
-    pub output_distribution: Distribution,
-    pub subsample: Option<usize>,
-}
-#[derive(Debug, Clone)]
-pub struct ImputerConfig {
-    pub strategy: ImputationStrategy,
-    pub fill_value: Option<f64>,
-    pub missing_values: MissingValueIndicator,
-}
-#[derive(Debug, Clone)]
-pub struct RobustScalerConfig {
-    pub with_centering: bool,
-    pub with_scaling: bool,
-    pub quantile_range: (f64, f64),
-}
-/// Pipeline metadata for tracking execution and performance
-#[derive(Debug, Clone)]
-pub struct PipelineMetadata {
-    pub total_training_time: Duration,
-    pub total_transform_time: Duration,
-    pub memory_usage_peak: usize,
-    pub feature_reduction_ratio: f64,
-    pub performance_metrics: HashMap<String, f64>,
-    pub validation_results: Option<ValidationResults>,
+/// CachingStrategy
+pub enum CachingStrategy {
+    /// None
+    None,
+    /// LRU
+    LRU {
+        /// size
+        size: usize,
+    },
+    /// LFU
+    LFU {
+        /// size
+        size: usize,
+    },
+    /// FIFO
+    FIFO {
+        /// size
+        size: usize,
+    },
 }
 /// Trained step information for pipeline state tracking
 #[derive(Debug)]
 pub struct TrainedStep {
+    /// step_type
     pub step_type: String,
+    /// step_index
     pub step_index: usize,
+    /// training_time
     pub training_time: Duration,
+    /// feature_count_before
     pub feature_count_before: usize,
+    /// feature_count_after
     pub feature_count_after: usize,
+    /// parameters
     pub parameters: StepParameters,
 }
 #[derive(Debug, Clone)]
-pub enum OutlierMethod {
-    /// IsolationForest
-    IsolationForest,
-    /// LocalOutlierFactor
-    LocalOutlierFactor,
-    /// OneClassSVM
-    OneClassSVM,
-    /// EllipticEnvelope
-    EllipticEnvelope,
-}
-#[derive(Debug, Clone)]
-pub enum UnivariateScoreFunction {
-    /// Chi2
-    Chi2,
-    /// FClassif
-    FClassif,
-    /// FRegression
-    FRegression,
-    /// MutualInfoClassif
-    MutualInfoClassif,
-    /// MutualInfoRegression
-    MutualInfoRegression,
-}
-#[derive(Debug, Clone)]
-pub struct MinMaxScalerConfig {
-    pub feature_range: (f64, f64),
-    pub clip: bool,
-}
-#[derive(Debug, Clone)]
-pub struct RobustScalerParams {
-    pub center: Array1<f64>,
-    pub scale: Array1<f64>,
-}
-/// Configuration for pipeline behavior
-#[derive(Debug, Clone)]
-pub struct PipelineConfiguration {
-    pub parallel_execution: bool,
-    pub memory_optimization: MemoryOptimization,
-    pub caching_strategy: CachingStrategy,
-    pub validation_strategy: ValidationStrategy,
-    pub error_handling: ErrorHandling,
-    pub logging_level: LoggingLevel,
-}
-#[derive(Debug, Clone)]
-pub enum RFEEstimator {
-    /// SVM
-    SVM,
-    /// RandomForest
-    RandomForest,
-    /// LinearRegression
-    LinearRegression,
-    /// LogisticRegression
-    LogisticRegression,
-}
-#[derive(Debug, Clone)]
-pub enum SVDSolver {
-    /// Auto
-    Auto,
-    /// Full
-    Full,
-    /// Arpack
-    Arpack,
-    /// Randomized
-    Randomized,
-}
-/// Dimensionality reduction step (applied after feature selection)
-#[derive(Debug, Clone)]
-pub enum DimensionalityReductionStep {
-    /// PCA
-    PCA {
-        n_components: usize,
-        whiten: bool,
-        svd_solver: SVDSolver,
-        components: Option<Array2<f64>>,
-        explained_variance: Option<Array1<f64>>,
-    },
-    /// TruncatedSVD
-    TruncatedSVD {
-        n_components: usize,
-        algorithm: SVDAlgorithm,
-        components: Option<Array2<f64>>,
-        singular_values: Option<Array1<f64>>,
-    },
-    ICA {
-        n_components: usize,
-        algorithm: ICAAlgorithm,
-        max_iter: usize,
-        tol: f64,
-        mixing_matrix: Option<Array2<f64>>,
-        unmixing_matrix: Option<Array2<f64>>,
-    },
-    FactorAnalysis {
-        n_components: usize,
-        max_iter: usize,
-        tol: f64,
-        loadings: Option<Array2<f64>>,
-        noise_variance: Option<Array1<f64>>,
-    },
-    UMAP {
-        n_components: usize,
-        n_neighbors: usize,
-        min_dist: f64,
-        metric: DistanceMetric,
-        embedding: Option<Array2<f64>>,
-    },
-    TSNE {
-        n_components: usize,
-        perplexity: f64,
-        early_exaggeration: f64,
-        learning_rate: f64,
-        max_iter: usize,
-        embedding: Option<Array2<f64>>,
-    },
-}
-/// Feature engineering steps for creating new features
-#[derive(Debug, Clone)]
-pub enum FeatureEngineeringStep {
-    /// PolynomialFeatures
-    PolynomialFeatures {
-        degree: usize,
-        interaction_only: bool,
-        include_bias: bool,
-        feature_mapping: Option<Vec<(usize, usize)>>,
-    },
-    /// InteractionFeatures
-    InteractionFeatures {
-        max_pairs: Option<usize>,
-        threshold: f64,
-        feature_pairs: Option<Vec<(usize, usize)>>,
-    },
-    BinningFeatures {
-        n_bins: usize,
-        strategy: BinningStrategy,
-        bin_edges: Option<HashMap<usize, Vec<f64>>>,
-    },
-    TargetEncoding {
-        smoothing: f64,
-        min_samples_leaf: usize,
-        encodings: Option<HashMap<usize, HashMap<String, f64>>>,
-    },
-    FrequencyEncoding {
-        min_frequency: f64,
-        frequencies: Option<HashMap<usize, HashMap<String, f64>>>,
-    },
-    RatioFeatures {
-        numerator_features: Vec<usize>,
-        denominator_features: Vec<usize>,
-        eps: f64,
-    },
-    LaggingFeatures {
-        lags: Vec<usize>,
-        feature_subset: Option<Vec<usize>>,
-    },
-    WindowStatistics {
-        window_size: usize,
-        statistics: Vec<WindowStatistic>,
-        feature_subset: Option<Vec<usize>>,
-    },
-}
-#[derive(Debug, Clone)]
-pub struct PowerTransformerConfig {
-    pub method: PowerMethod,
-    pub standardize: bool,
-}
-#[derive(Debug, Clone)]
-pub struct OutlierConfig {
-    pub method: OutlierMethod,
-    pub threshold: f64,
-    pub contamination: f64,
-}
-#[derive(Debug, Clone)]
-pub enum BinningStrategy {
-    /// Uniform
-    Uniform,
-    /// Quantile
-    Quantile,
-    /// KMeans
-    KMeans,
-}
-#[derive(Debug, Clone)]
-pub struct QuantileParams {
-    pub quantiles: Array2<f64>,
-    pub references: Array1<f64>,
-}
-#[derive(Debug, Clone)]
-pub enum Distribution {
-    /// Uniform
-    Uniform,
-    /// Normal
-    Normal,
-}
-#[derive(Debug, Clone)]
-pub struct MinMaxScalerParams {
-    pub min: Array1<f64>,
-    pub scale: Array1<f64>,
-}
-#[derive(Debug, Clone)]
-pub struct OutlierParams {
-    pub decision_function: Array1<f64>,
-    pub threshold: f64,
-}
-#[derive(Debug, Clone)]
+/// ScoringMetric
 pub enum ScoringMetric {
     /// Accuracy
     Accuracy,
@@ -1569,160 +1347,8 @@ pub enum ScoringMetric {
     /// LogLoss
     LogLoss,
 }
-/// Information about a trained pipeline
 #[derive(Debug, Clone)]
-pub struct PipelineInfo {
-    pub n_preprocessing_steps: usize,
-    pub n_feature_engineering_steps: usize,
-    pub n_selection_methods: usize,
-    pub has_dimensionality_reduction: bool,
-    pub has_model_selection: bool,
-    pub config: PipelineConfiguration,
-}
-#[derive(Debug, Clone)]
-pub enum SVDAlgorithm {
-    /// Randomized
-    Randomized,
-    /// Arpack
-    Arpack,
-}
-#[derive(Debug, Clone)]
-pub enum PrefetchStrategy {
-    None,
-    /// Sequential
-    Sequential,
-    /// Random
-    Random,
-    /// Adaptive
-    Adaptive,
-}
-#[derive(Debug, Clone)]
-pub struct PowerParams {
-    pub lambdas: Array1<f64>,
-}
-/// Model selection step for choosing optimal features for specific models
-#[derive(Debug, Clone)]
-pub enum ModelSelectionStep {
-    /// CrossValidationSelection
-    CrossValidationSelection {
-        estimator: ModelEstimator,
-        cv_folds: usize,
-        scoring: ScoringMetric,
-        feature_scores: Option<Array1<f64>>,
-    },
-    /// ForwardSelection
-    ForwardSelection {
-        estimator: ModelEstimator,
-        max_features: usize,
-        scoring: ScoringMetric,
-        selected_features: Option<Vec<usize>>,
-    },
-    BackwardElimination {
-        estimator: ModelEstimator,
-        min_features: usize,
-        scoring: ScoringMetric,
-        remaining_features: Option<Vec<usize>>,
-    },
-    StepwiseSelection {
-        estimator: ModelEstimator,
-        direction: StepwiseDirection,
-        p_enter: f64,
-        p_remove: f64,
-        selected_features: Option<Vec<usize>>,
-    },
-    BayesianOptimization {
-        estimator: ModelEstimator,
-        acquisition_function: AcquisitionFunction,
-        n_calls: usize,
-        optimal_features: Option<Vec<usize>>,
-    },
-}
-#[derive(Debug, Clone)]
-pub struct TransformationStep {
-    pub step_name: String,
-    pub input_features: usize,
-    pub output_features: usize,
-    pub transformation_type: TransformationType,
-}
-#[derive(Debug, Clone)]
-pub enum ImportanceGetter {
-    /// Auto
-    Auto,
-    /// Coefficients
-    Coefficients,
-    /// FeatureImportances
-    FeatureImportances,
-}
-#[derive(Debug, Clone)]
-pub enum ICAAlgorithm {
-    /// Parallel
-    Parallel,
-    /// Deflation
-    Deflation,
-}
-#[derive(Debug, Clone)]
-pub enum ErrorHandling {
-    /// Strict
-    Strict,
-    /// Graceful
-    Graceful,
-    /// Logging
-    Logging,
-}
-/// Individual preprocessing step in the pipeline
-#[derive(Debug, Clone)]
-pub enum PreprocessingStep {
-    /// StandardScaler
-    StandardScaler {
-        config: StandardScalerConfig,
-        trained_params: Option<ScalerParams>,
-    },
-    /// RobustScaler
-    RobustScaler {
-        config: RobustScalerConfig,
-        trained_params: Option<RobustScalerParams>,
-    },
-    /// MinMaxScaler
-    MinMaxScaler {
-        config: MinMaxScalerConfig,
-        trained_params: Option<MinMaxScalerParams>,
-    },
-    QuantileTransformer {
-        config: QuantileTransformerConfig,
-        trained_params: Option<QuantileParams>,
-    },
-    PowerTransformer {
-        config: PowerTransformerConfig,
-        trained_params: Option<PowerParams>,
-    },
-    MissingValueImputer {
-        config: ImputerConfig,
-        trained_params: Option<ImputerParams>,
-    },
-    OutlierRemover {
-        config: OutlierConfig,
-        trained_params: Option<OutlierParams>,
-    },
-}
-/// Type-safe state markers for compile-time pipeline validation
-#[derive(Debug, Clone, Default)]
-pub struct Untrained;
-#[derive(Debug, Clone)]
-pub enum ModelEstimator {
-    /// LinearRegression
-    LinearRegression,
-    /// LogisticRegression
-    LogisticRegression,
-    /// RandomForest
-    RandomForest,
-    /// SVM
-    SVM,
-    /// XGBoost
-    XGBoost,
-    /// LightGBM
-    LightGBM,
-}
-#[derive(Debug, Clone)]
+/// AcquisitionFunction
 pub enum AcquisitionFunction {
     /// ExpectedImprovement
     ExpectedImprovement,
@@ -1731,50 +1357,11 @@ pub enum AcquisitionFunction {
     /// ProbabilityOfImprovement
     ProbabilityOfImprovement,
 }
-/// Type-safe selection threshold specification
 #[derive(Debug, Clone)]
-pub enum SelectionThreshold {
-    /// Mean
-    Mean,
-    /// Median
-    Median,
-    /// Absolute
-    Absolute(f64),
-    /// Percentile
-    Percentile(f64),
-    /// Auto
-    Auto,
-}
-/// Type-safe selection count specification
-#[derive(Debug, Clone)]
-pub enum SelectionCount {
-    /// K
-    K(usize),
-    /// Percentile
-    Percentile(f64),
-    /// FDR
-    FDR(f64),
-    /// FPR
-    FPR(f64),
-    /// FWER
-    FWER(f64),
-}
-#[derive(Debug, Clone)]
-pub struct ImputerParams {
-    pub statistics: Array1<f64>,
-}
-#[derive(Debug, Clone)]
-pub enum FeatureOrigin {
-    /// Original
-    Original(usize),
-    /// Engineered
-    Engineered {
-        source_features: Vec<usize>,
-        operation: String,
-    },
-    /// Transformed
-    Transformed {
-        source_feature: usize,
-        transformation: String,
-    },
+/// PowerTransformerConfig
+pub struct PowerTransformerConfig {
+    /// method
+    pub method: PowerMethod,
+    /// standardize
+    pub standardize: bool,
 }

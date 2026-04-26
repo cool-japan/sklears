@@ -36,7 +36,7 @@
 //!     .n_fft(512)
 //!     .sample_rate(250.0);
 //!
-//! let features = extractor.extract_features(&signal.view()).unwrap();
+//! let features = extractor.extract_features(&signal.view()).expect("valid signal produces frequency features");
 //! ```
 //!
 //! ## Time Series Analysis
@@ -49,7 +49,7 @@
 //!     .order(3)
 //!     .method("yule_walker".to_string());
 //!
-//! let ar_coeffs = extractor.extract_features(&signal.view()).unwrap();
+//! let ar_coeffs = extractor.extract_features(&signal.view()).expect("valid signal produces autoregressive coefficients");
 //! ```
 //!
 //! ## Comprehensive Feature Extraction
@@ -63,7 +63,7 @@
 //!     .include_spectral(true)
 //!     .include_temporal(true);
 //!
-//! let features = extractor.extract_features(&signal.view()).unwrap();
+//! let features = extractor.extract_features(&signal.view()).expect("valid signal produces comprehensive features");
 //! ```
 //!
 //! # Feature Categories
@@ -210,7 +210,7 @@ mod tests {
         let features = extractor
             .extract_features(&signal.view())
             .expect("operation should succeed");
-        assert!(features.len() > 0);
+        assert!(!features.is_empty());
         assert!(features.iter().all(|&x| x.is_finite()));
     }
 
@@ -240,7 +240,7 @@ mod tests {
         let features = extractor
             .extract_features(&signal.view())
             .expect("operation should succeed");
-        assert!(features.len() > 0);
+        assert!(!features.is_empty());
         assert!(features.iter().all(|&x| x.is_finite()));
     }
 

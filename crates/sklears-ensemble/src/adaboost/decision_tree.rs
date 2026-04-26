@@ -9,6 +9,12 @@ use sklears_core::{
 };
 use std::marker::PhantomData;
 
+impl Default for DecisionTreeClassifier<Untrained> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DecisionTreeClassifier<Untrained> {
     pub fn new() -> Self {
         Self {
@@ -66,9 +72,15 @@ impl Fit<Array2<Float>, Array1<Int>> for DecisionTreeClassifier<Untrained> {
 impl DecisionTreeClassifier<Trained> {
     pub fn predict(&self, x: &Array2<Float>) -> Result<Array1<Int>> {
         // Stub implementation - simple threshold
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let predictions = x.column(0).mapv(|val| if val > 2.0 { 1 } else { 0 });
         Ok(predictions)
+    }
+}
+
+impl Default for DecisionTreeRegressor<Untrained> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

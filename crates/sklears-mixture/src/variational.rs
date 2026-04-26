@@ -12,6 +12,15 @@ use sklears_core::{
     types::Float,
 };
 
+/// Type alias for variational Bayesian parameter 5-tuple result
+type VBGMMParamsResult = SklResult<(
+    Array1<f64>,
+    Array1<f64>,
+    Array2<f64>,
+    Array1<f64>,
+    Vec<Array2<f64>>,
+)>;
+
 /// Variational Bayesian Gaussian Mixture Model
 ///
 /// This implementation uses variational inference to perform Bayesian parameter estimation
@@ -43,8 +52,8 @@ use sklears_core::{
 ///     .n_components(5)  // Will automatically determine optimal number
 ///     .covariance_type(CovarianceType::Diagonal)
 ///     .max_iter(100);
-/// let fitted = vbgmm.fit(&X.view(), &()).unwrap();
-/// let labels = fitted.predict(&X.view()).unwrap();
+/// let fitted = vbgmm.fit(&X.view(), &()).expect("VBGMM fitting should succeed with valid data");
+/// let labels = fitted.predict(&X.view()).expect("prediction should succeed on fitted model");
 /// ```
 #[derive(Debug, Clone)]
 pub struct VariationalBayesianGMM<S = Untrained> {
@@ -288,18 +297,10 @@ impl Fit<ArrayView2<'_, Float>, ()> for VariationalBayesianGMM<Untrained> {
     }
 }
 
+#[allow(non_snake_case, clippy::too_many_arguments)]
 impl VariationalBayesianGMM<Untrained> {
     /// Initialize variational parameters
-    fn initialize_parameters(
-        &self,
-        X: &Array2<f64>,
-    ) -> SklResult<(
-        Array1<f64>,
-        Array1<f64>,
-        Array2<f64>,
-        Array1<f64>,
-        Vec<Array2<f64>>,
-    )> {
+    fn initialize_parameters(&self, X: &Array2<f64>) -> VBGMMParamsResult {
         let (_n_samples, n_features) = X.dim();
 
         // Initialize weight concentration parameters
@@ -531,13 +532,7 @@ impl VariationalBayesianGMM<Untrained> {
         &self,
         X: &Array2<f64>,
         responsibilities: &Array2<f64>,
-    ) -> SklResult<(
-        Array1<f64>,
-        Array1<f64>,
-        Array2<f64>,
-        Array1<f64>,
-        Vec<Array2<f64>>,
-    )> {
+    ) -> VBGMMParamsResult {
         let (n_samples, n_features) = X.dim();
 
         // Update weight concentration parameters

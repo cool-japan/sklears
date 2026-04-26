@@ -2,48 +2,14 @@
 //!
 //! This module is part of sklears, providing scikit-learn compatible
 //! machine learning algorithms in Rust.
-//!
-//! ## Known Limitations
-//!
-//! The following modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
-//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
-//! - `cross_validation` - Cross-validation for cross-decomposition models
-//! - `permutation_tests` - Permutation testing and stability selection
 
-#![allow(missing_docs)]
-#![allow(unused_imports)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
-#![allow(non_snake_case)]
-#![allow(unused_variables)]
-#![allow(unused_assignments)]
-#![allow(unused_mut)]
-#![allow(dead_code)]
-#![allow(clippy::clone_on_copy)]
-#![allow(clippy::assign_op_pattern)]
-#![allow(clippy::derivable_impls)]
-#![allow(clippy::needless_range_loop)]
-#![allow(clippy::too_many_arguments)]
-#![allow(clippy::field_reassign_with_default)]
-#![allow(clippy::type_complexity)]
-#![allow(clippy::collapsible_else_if)]
-#![allow(clippy::op_ref)]
-#![allow(clippy::redundant_closure)]
-#![allow(clippy::manual_clamp)]
-#![allow(clippy::useless_format)]
-#![allow(clippy::unnecessary_cast)]
-#![allow(clippy::ptr_arg)]
-#![allow(unpredictable_function_pointer_comparisons)]
 #![recursion_limit = "512"]
 
 pub mod bayesian;
 pub mod benchmarks;
 pub mod cca;
 pub mod consensus_pca;
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub mod cross_validation;
+pub mod cross_validation;
 pub mod deep_cca;
 pub mod deep_learning;
 pub mod differential_geometry;
@@ -67,8 +33,7 @@ pub mod neuroimaging;
 pub mod opls;
 pub mod out_of_core;
 pub mod parallel;
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub mod permutation_tests;
+pub mod permutation_tests;
 pub mod pls;
 pub mod pls_canonical;
 pub mod pls_da;
@@ -95,10 +60,9 @@ pub use benchmarks::{
 };
 pub use cca::{RidgeCCA, SparseCCA, CCA};
 pub use consensus_pca::ConsensusPCA;
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub use cross_validation::{
-//     CVResults, CVStrategy, CrossValidator, NestedCrossValidator, ScoringFunction,
-// };
+pub use cross_validation::{
+    CVResults, CVStrategy, CrossValidator, NestedCrossValidator, ScoringFunction,
+};
 pub use deep_cca::{ActivationFunction, DeepCCA};
 pub use deep_learning::{
     ActivationFunction as DeepActivationFunction, AttentionActivation, AttentionConfig,
@@ -186,11 +150,10 @@ pub use parallel::{
     EigenMethod, OptimizedMatrixOps, ParallelEigenSolver, ParallelMatrixOps, ParallelSVD,
     SVDAlgorithm, WorkStealingThreadPool,
 };
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
-// pub use permutation_tests::{
-//     ComputeStatistic, PermutationTest, PermutationTestResults, StabilityResults,
-//     StabilitySelection, TestStatistic,
-// };
+pub use permutation_tests::{
+    ComputeStatistic, PermutationTest, PermutationTestResults, StabilityResults,
+    StabilitySelection, TestStatistic,
+};
 pub use pls::PLSRegression;
 pub use pls_canonical::PLSCanonical;
 pub use pls_da::PLSDA;
@@ -237,7 +200,6 @@ pub use validation_framework::{
     StatisticalTestResult, ValidationError, ValidationFramework, ValidationResults,
 };
 
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
     use super::*;

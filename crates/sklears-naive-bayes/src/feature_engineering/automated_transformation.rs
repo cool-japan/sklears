@@ -555,7 +555,7 @@ impl<T> AutomatedOptimization<T> {
             let current_score = self.evaluate_solution(&current_solution)?;
 
             // Simplified gradient computation
-            for (param, value) in current_solution.iter_mut() {
+            for (_param, value) in current_solution.iter_mut() {
                 *value -= learning_rate * 0.1; // Placeholder gradient
             }
 
@@ -1087,7 +1087,10 @@ impl AdaptiveTransformation {
     /// Check if adaptation is needed
     pub fn should_adapt(&self, current_performance: f64) -> bool {
         current_performance < self.performance_threshold
-            || (self.adaptation_count > 0 && self.adaptation_count % self.adaptation_frequency == 0)
+            || (self.adaptation_count > 0
+                && self
+                    .adaptation_count
+                    .is_multiple_of(self.adaptation_frequency))
     }
 
     /// Perform adaptation
@@ -1395,7 +1398,7 @@ mod tests {
             .expect("operation should succeed");
         assert!(result.contains_key("learning_rate"));
         assert!(result.contains_key("regularization"));
-        assert!(optimizer.optimization_history().len() > 0);
+        assert!(!optimizer.optimization_history().is_empty());
     }
 
     #[test]

@@ -29,23 +29,13 @@ use std::time::Instant;
 // No-std compatible time implementation
 #[cfg(feature = "no-std")]
 #[derive(Debug, Clone, Copy)]
-pub struct Instant {
-    // Mock timestamp for no-std compatibility
-    mock_time: u64,
-}
+pub struct Instant;
 
 #[cfg(feature = "no-std")]
 impl Instant {
     pub fn now() -> Self {
-        // In no-std, we can't get actual time, so we use a mock
-        // This could be replaced with platform-specific time sources
-        static mut MOCK_TIME: u64 = 0;
-        unsafe {
-            MOCK_TIME += 1;
-            Self {
-                mock_time: MOCK_TIME,
-            }
-        }
+        // In no-std, we can't get actual time; use a unit stub
+        Self
     }
 
     pub fn elapsed(&self) -> Duration {
@@ -493,10 +483,7 @@ pub mod standard_benchmarks {
             size as u64,
             || {
                 // Scalar addition
-                let mut result = vec![0.0f32; size];
-                for i in 0..size {
-                    result[i] = data[i] + data[i];
-                }
+                let _result: Vec<f32> = data.iter().map(|&x| x + x).collect();
             },
             || {
                 // SIMD addition
@@ -512,10 +499,7 @@ pub mod standard_benchmarks {
             size as u64,
             || {
                 // Scalar dot product
-                let mut _sum = 0.0f32;
-                for i in 0..size {
-                    _sum += data[i] * data[i];
-                }
+                let _sum: f32 = data.iter().map(|&x| x * x).sum();
             },
             || {
                 // SIMD dot product
@@ -664,12 +648,12 @@ mod tests {
 
         for state in states {
             // Test that enum values can be used
-            match state {
-                ThermalState::Cool => assert!(true),
-                ThermalState::Warm => assert!(true),
-                ThermalState::Hot => assert!(true),
-                ThermalState::Throttling => assert!(true),
-            }
+            let _ = match state {
+                ThermalState::Cool => 0,
+                ThermalState::Warm => 1,
+                ThermalState::Hot => 2,
+                ThermalState::Throttling => 3,
+            };
         }
     }
 
@@ -701,7 +685,7 @@ mod tests {
             performance_per_watt_ratio: 2.0,
         };
 
-        let report = profiler.generate_report(&vec![metrics]);
+        let report = profiler.generate_report(&[metrics]);
         assert!(report.contains("Energy Efficiency Report"));
         assert!(report.contains("test_op"));
         assert!(report.contains("1.70x"));

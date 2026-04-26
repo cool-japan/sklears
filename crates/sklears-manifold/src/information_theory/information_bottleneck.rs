@@ -36,6 +36,7 @@ pub struct InformationBottleneck<S = Untrained> {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 pub struct IBTrained {
     encoder_weights: Array2<f64>,
     mean: Array1<f64>,

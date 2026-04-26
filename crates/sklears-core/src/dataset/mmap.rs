@@ -9,8 +9,10 @@ use crate::types::Float;
 
 #[cfg(feature = "mmap")]
 use memmap2::MmapOptions;
-// SciRS2 Policy: Target migration to scirs2_core::ndarray
-// TODO: Replace with scirs2_core::ndarray::Array when stable
+// NOTE: We use scirs2_core::ndarray::Array directly; the previous TODO to
+// migrate here is now resolved because scirs2_core re-exports ndarray and the
+// type alias is stable.  If scirs2_core changes the export path in the future,
+// update the use statement below.
 #[cfg(feature = "mmap")]
 use scirs2_core::ndarray::Array;
 #[cfg(feature = "mmap")]
@@ -113,7 +115,7 @@ impl MmapSerializable
 ///     100,        // 100 features
 ///     0.1,        // Low noise
 ///     Some(5000)  // Process in chunks of 5000
-/// ).unwrap();
+/// ).expect("make_large_regression must succeed with valid parameters");
 /// ```
 #[cfg(feature = "mmap")]
 pub fn make_large_regression<P: AsRef<Path>>(

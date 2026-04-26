@@ -222,7 +222,6 @@ pub fn explained_variance_score(
     y_true: &Array1<Float>,
 ) -> Result<Float> {
     let y_mean = y_true.iter().sum::<Float>() / y_true.len() as Float;
-    let pred_mean = predictions.iter().sum::<Float>() / predictions.len() as Float;
 
     let var_y = y_true.iter().map(|&y| (y - y_mean).powi(2)).sum::<Float>() / y_true.len() as Float;
 
@@ -375,14 +374,12 @@ pub fn roc_auc_score(y_true: &Array1<Int>, y_scores: &Array1<Float>) -> Result<F
     // Calculate AUC using trapezoidal rule approximation
     let mut auc = 0.0;
     let mut tp = 0;
-    let mut fp = 0;
 
     for &(_, label) in &pairs {
         if label == 1 {
             tp += 1;
         } else {
-            fp += 1;
-            auc += tp as Float; // Add area of rectangle
+            auc += tp as Float; // Add area of rectangle (approximation)
         }
     }
 
@@ -423,7 +420,7 @@ pub fn median_absolute_error(predictions: &Array1<Float>, y_true: &Array1<Float>
 
     if errors.is_empty() {
         0.0
-    } else if errors.len() % 2 == 0 {
+    } else if errors.len().is_multiple_of(2) {
         let mid = errors.len() / 2;
         (errors[mid - 1] + errors[mid]) / 2.0
     } else {

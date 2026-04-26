@@ -5,7 +5,7 @@
 //! and advanced imputation methods. All implementations follow SciRS2 Policy.
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use serde::{Deserialize, Serialize};
 use sklears_core::error::Result;
 use sklears_core::prelude::SklearsError;
@@ -127,19 +127,25 @@ impl SimpleImputer {
     /// Compute statistics for imputation
     fn compute_statistics<T>(&self, x: &ArrayView2<T>) -> Result<HashMap<usize, f64>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let (_, n_features) = x.dim();
         let mut statistics = HashMap::new();
 
         for feature_idx in 0..n_features {
             let column = x.column(feature_idx);
+            // Collect non-NaN values as f64
+            let values: Vec<f64> = column
+                .iter()
+                .map(|&v| v.into())
+                .filter(|v: &f64| !v.is_nan())
+                .collect();
             let stat = match self.config.strategy {
-                MissingValueStrategy::Mean => self.compute_mean(&column)?,
-                MissingValueStrategy::Median => self.compute_median(&column)?,
-                MissingValueStrategy::Mode => self.compute_mode(&column)?,
+                MissingValueStrategy::Mean => Self::compute_mean_values(&values)?,
+                MissingValueStrategy::Median => Self::compute_median_values(&values)?,
+                MissingValueStrategy::Mode => Self::compute_mode_values(&values)?,
                 MissingValueStrategy::Constant => self.config.fill_value.unwrap_or(0.0),
-                _ => 0.0, // Default value
+                _ => 0.0,
             };
             statistics.insert(feature_idx, stat);
         }
@@ -147,40 +153,60 @@ impl SimpleImputer {
         Ok(statistics)
     }
 
-    /// Compute mean of non-missing values
-    fn compute_mean<T>(&self, column: &ArrayView1<T>) -> Result<f64>
-    where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
-    {
-        // Simplified mean computation (would handle missing values in practice)
-        Ok(1.0) // Placeholder
+    /// Compute mean of non-missing values from f64 slice
+    fn compute_mean_values(values: &[f64]) -> Result<f64> {
+        if values.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "Cannot compute mean of empty column".to_string(),
+            ));
+        }
+        Ok(values.iter().sum::<f64>() / values.len() as f64)
     }
 
-    /// Compute median of non-missing values
-    fn compute_median<T>(&self, column: &ArrayView1<T>) -> Result<f64>
-    where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
-    {
-        // Simplified median computation
-        Ok(1.5) // Placeholder
+    /// Compute median of non-missing values from f64 slice
+    fn compute_median_values(values: &[f64]) -> Result<f64> {
+        if values.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "Cannot compute median of empty column".to_string(),
+            ));
+        }
+        let mut sorted = values.to_vec();
+        sorted.sort_by(f64::total_cmp);
+        let n = sorted.len();
+        if n.is_multiple_of(2) {
+            Ok((sorted[n / 2 - 1] + sorted[n / 2]) / 2.0)
+        } else {
+            Ok(sorted[n / 2])
+        }
     }
 
-    /// Compute mode of non-missing values
-    fn compute_mode<T>(&self, column: &ArrayView1<T>) -> Result<f64>
-    where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
-    {
-        // Simplified mode computation
-        Ok(2.0) // Placeholder
+    /// Compute mode of non-missing values from f64 slice
+    fn compute_mode_values(values: &[f64]) -> Result<f64> {
+        if values.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "Cannot compute mode of empty column".to_string(),
+            ));
+        }
+        // Bin by bit representation to handle f64 exactly
+        let mut counts: HashMap<u64, (f64, usize)> = HashMap::new();
+        for &v in values {
+            let entry = counts.entry(v.to_bits()).or_insert((v, 0));
+            entry.1 += 1;
+        }
+        let (mode_val, _) = counts
+            .values()
+            .max_by_key(|(_, count)| *count)
+            .ok_or_else(|| SklearsError::InvalidInput("Empty column".to_string()))?;
+        Ok(*mode_val)
     }
 
-    /// Check if value is missing
-    fn is_missing<T>(&self, _value: T) -> bool
+    /// Check if value is missing (NaN for f64)
+    fn is_missing<T>(&self, value: T) -> bool
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
-        // Simplified missing value check
-        false
+        let v: f64 = value.into();
+        v.is_nan()
     }
 
     /// Get statistics
@@ -196,7 +222,7 @@ impl SimpleImputer {
 
 impl<T> MissingValueHandler<T> for SimpleImputer
 where
-    T: Clone + Copy + std::fmt::Debug + PartialOrd,
+    T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64> + From<f64>,
 {
     fn fit(&mut self, x: &ArrayView2<T>) -> Result<()> {
         let statistics = self.compute_statistics(x)?;
@@ -227,7 +253,7 @@ where
                 operation: "SimpleImputer not fitted".to_string(),
             })?;
 
-        let result = x.to_owned();
+        let mut result = x.to_owned();
         let (n_samples, n_features) = result.dim();
 
         // Apply imputation
@@ -235,9 +261,7 @@ where
             for j in 0..n_features {
                 if self.is_missing(result[(i, j)]) {
                     if let Some(&fill_value) = statistics.get(&j) {
-                        // Convert f64 to T (simplified)
-                        // In practice, this would require proper conversion
-                        // result[(i, j)] = fill_value as T; // This is a simplification
+                        result[(i, j)] = T::from(fill_value);
                     }
                 }
             }
@@ -306,7 +330,7 @@ impl IterativeImputer {
     /// Perform iterative imputation
     fn iterative_impute<T>(&mut self, x: &ArrayView2<T>) -> Result<Array2<T>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64> + From<f64>,
     {
         // Start with initial imputation
         let mut current_imputation = if let Some(ref mut imputer) = self.initial_imputer {
@@ -316,7 +340,7 @@ impl IterativeImputer {
         };
 
         // Iterative refinement
-        for iteration in 0..self.config.max_iterations {
+        for _iteration in 0..self.config.max_iterations {
             let previous_imputation = current_imputation.clone();
 
             // Update imputation for each feature (simplified)
@@ -338,19 +362,35 @@ impl IterativeImputer {
     /// Update imputation for one iteration
     fn update_imputation<T>(&self, x: &ArrayView2<T>) -> Result<Array2<T>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         // Simplified update - would use actual regression models in practice
         Ok(x.to_owned())
     }
 
-    /// Compute change between iterations
+    /// Compute change between iterations (mean absolute difference of non-NaN values)
     fn compute_change<T>(&self, previous: &ArrayView2<T>, current: &ArrayView2<T>) -> Result<f64>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
-        // Simplified change computation
-        Ok(0.01) // Placeholder
+        let (n_samples, n_features) = previous.dim();
+        let mut total_change = 0.0_f64;
+        let mut count = 0usize;
+        for i in 0..n_samples {
+            for j in 0..n_features {
+                let prev: f64 = previous[(i, j)].into();
+                let curr: f64 = current[(i, j)].into();
+                if !prev.is_nan() && !curr.is_nan() {
+                    total_change += (prev - curr).abs();
+                    count += 1;
+                }
+            }
+        }
+        if count == 0 {
+            Ok(0.0)
+        } else {
+            Ok(total_change / count as f64)
+        }
     }
 
     /// Get convergence history
@@ -369,7 +409,7 @@ impl IterativeImputer {
 
 impl<T> MissingValueHandler<T> for IterativeImputer
 where
-    T: Clone + Copy + std::fmt::Debug + PartialOrd,
+    T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64> + From<f64>,
 {
     fn fit(&mut self, x: &ArrayView2<T>) -> Result<()> {
         // Fit the iterative imputer
@@ -418,61 +458,39 @@ impl KNNImputer {
         })
     }
 
-    /// Find K nearest neighbors for a sample
-    fn find_neighbors<T>(&self, sample_idx: usize, x: &ArrayView2<T>) -> Result<Vec<usize>>
-    where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
-    {
-        let (n_samples, _) = x.dim();
-        let mut distances = Vec::new();
+    /// Find K nearest neighbors for a sample using non-missing features only
+    fn find_neighbors_f64(
+        &self,
+        sample_idx: usize,
+        data: &Array2<f64>,
+        missing_mask: &Array2<bool>,
+    ) -> Vec<usize> {
+        let (n_samples, n_features) = data.dim();
+        let mut distances: Vec<(usize, f64)> = Vec::new();
 
         for other_idx in 0..n_samples {
-            if sample_idx != other_idx {
-                let distance = self.compute_distance(sample_idx, other_idx, x)?;
-                distances.push((other_idx, distance));
+            if sample_idx == other_idx || missing_mask.row(other_idx).iter().any(|&m| m) {
+                // Skip self and samples with any missing values
+                continue;
+            }
+            // Euclidean distance on features that are non-missing in target sample
+            let mut sq_dist = 0.0_f64;
+            let mut n_common = 0usize;
+            for feat in 0..n_features {
+                if !missing_mask[(sample_idx, feat)] {
+                    let diff = data[(sample_idx, feat)] - data[(other_idx, feat)];
+                    sq_dist += diff * diff;
+                    n_common += 1;
+                }
+            }
+            if n_common > 0 {
+                distances.push((other_idx, sq_dist.sqrt()));
             }
         }
 
-        // Sort by distance and take K nearest
-        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
-
+        distances.sort_by(|a, b| a.1.total_cmp(&b.1));
         let k = self.config.n_neighbors.min(distances.len());
-        let neighbors = distances.iter().take(k).map(|(idx, _)| *idx).collect();
-
-        Ok(neighbors)
-    }
-
-    /// Compute distance between two samples
-    fn compute_distance<T>(&self, idx1: usize, idx2: usize, x: &ArrayView2<T>) -> Result<f64>
-    where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
-    {
-        // Simplified Euclidean distance computation
-        let distance = (idx1 as f64 - idx2 as f64).abs() * 0.1;
-        Ok(distance)
-    }
-
-    /// Impute value using KNN
-    fn knn_impute_value<T>(
-        &self,
-        sample_idx: usize,
-        feature_idx: usize,
-        x: &ArrayView2<T>,
-    ) -> Result<f64>
-    where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
-    {
-        let neighbors = self.find_neighbors(sample_idx, x)?;
-
-        if neighbors.is_empty() {
-            return Ok(0.0); // Default value
-        }
-
-        // Average the feature values from neighbors (simplified)
-        let sum: f64 = neighbors.iter().map(|&neighbor_idx| 1.0).sum(); // Placeholder
-        let avg = sum / neighbors.len() as f64;
-
-        Ok(avg)
+        distances.iter().take(k).map(|(idx, _)| *idx).collect()
     }
 
     /// Get training data
@@ -483,48 +501,86 @@ impl KNNImputer {
 
 impl<T> MissingValueHandler<T> for KNNImputer
 where
-    T: Clone + Copy + std::fmt::Debug + PartialOrd,
+    T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64> + From<f64>,
 {
     fn fit(&mut self, x: &ArrayView2<T>) -> Result<()> {
         let (n_samples, n_features) = x.dim();
 
-        // Store training data (convert to f64)
+        // Store training data as f64, treating NaN as missing
         let mut training_data = Array2::zeros((n_samples, n_features));
-        for i in 0..n_samples {
-            for j in 0..n_features {
-                training_data[(i, j)] = 1.0; // Placeholder conversion
+        let mut feature_stats: HashMap<usize, f64> = HashMap::new();
+
+        for j in 0..n_features {
+            let col_vals: Vec<f64> = x.column(j).iter().map(|&v| v.into()).collect();
+            let valid: Vec<f64> = col_vals.iter().copied().filter(|v| !v.is_nan()).collect();
+            let mean = if valid.is_empty() {
+                0.0
+            } else {
+                valid.iter().sum::<f64>() / valid.len() as f64
+            };
+            feature_stats.insert(j, mean);
+            for i in 0..n_samples {
+                training_data[(i, j)] = col_vals[i];
             }
         }
 
         self.training_data = Some(training_data);
-
-        // Compute feature statistics for fallback
-        let mut statistics = HashMap::new();
-        for feature_idx in 0..n_features {
-            statistics.insert(feature_idx, 1.0); // Placeholder statistic
-        }
-        self.feature_statistics = Some(statistics);
+        self.feature_statistics = Some(feature_stats);
 
         Ok(())
     }
 
     fn transform(&self, x: &ArrayView2<T>) -> Result<Array2<T>> {
-        if self.training_data.is_none() {
-            return Err(SklearsError::NotFitted {
+        let training_data = self
+            .training_data
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
                 operation: "KNNImputer not fitted".to_string(),
-            });
-        }
+            })?;
+        let feature_stats =
+            self.feature_statistics
+                .as_ref()
+                .ok_or_else(|| SklearsError::NotFitted {
+                    operation: "KNNImputer not fitted".to_string(),
+                })?;
 
-        let result = x.to_owned();
-        let (n_samples, n_features) = result.dim();
+        let (n_samples, n_features) = x.dim();
 
-        // Apply KNN imputation
+        // Build f64 representation of x
+        let mut x_f64 = Array2::zeros((n_samples, n_features));
+        let mut missing_mask = Array2::from_elem((n_samples, n_features), false);
         for i in 0..n_samples {
             for j in 0..n_features {
-                if self.is_missing(result[(i, j)]) {
-                    let imputed_value = self.knn_impute_value(i, j, x)?;
-                    // Convert f64 to T (simplified)
-                    // result[(i, j)] = imputed_value as T;
+                let v: f64 = x[(i, j)].into();
+                x_f64[(i, j)] = v;
+                missing_mask[(i, j)] = v.is_nan();
+            }
+        }
+
+        let mut result = x.to_owned();
+
+        for i in 0..n_samples {
+            for j in 0..n_features {
+                if missing_mask[(i, j)] {
+                    // Find neighbors from training data
+                    let neighbors = self.find_neighbors_f64(i, training_data, &missing_mask);
+
+                    let imputed = if neighbors.is_empty() {
+                        // Fallback to feature mean
+                        *feature_stats.get(&j).unwrap_or(&0.0)
+                    } else {
+                        let vals: Vec<f64> = neighbors
+                            .iter()
+                            .map(|&ni| training_data[(ni, j)])
+                            .filter(|v| !v.is_nan())
+                            .collect();
+                        if vals.is_empty() {
+                            *feature_stats.get(&j).unwrap_or(&0.0)
+                        } else {
+                            vals.iter().sum::<f64>() / vals.len() as f64
+                        }
+                    };
+                    result[(i, j)] = T::from(imputed);
                 }
             }
         }
@@ -548,11 +604,8 @@ where
 }
 
 impl KNNImputer {
-    fn is_missing<T>(&self, _value: T) -> bool
-    where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
-    {
-        false // Simplified
+    fn _is_missing_f64(value: f64) -> bool {
+        value.is_nan()
     }
 }
 
@@ -577,7 +630,7 @@ impl MissingPatternAnalyzer {
     /// Analyze missing patterns in data
     pub fn analyze_patterns<T>(&mut self, x: &ArrayView2<T>) -> Result<()>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let (n_samples, n_features) = x.dim();
 
@@ -626,7 +679,7 @@ impl MissingPatternAnalyzer {
     /// Create pattern string for a sample
     fn create_pattern_string<T>(&self, sample_idx: usize, x: &ArrayView2<T>) -> Result<String>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let (_, n_features) = x.dim();
         let mut pattern = String::with_capacity(n_features);
@@ -642,12 +695,13 @@ impl MissingPatternAnalyzer {
         Ok(pattern)
     }
 
-    /// Check if value is missing
-    fn is_missing<T>(&self, _value: T) -> bool
+    /// Check if value is missing (NaN for f64)
+    fn is_missing<T>(&self, value: T) -> bool
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
-        false // Simplified
+        let v: f64 = value.into();
+        v.is_nan()
     }
 
     /// Get missing patterns
@@ -677,7 +731,7 @@ impl MissingPatternAnalyzer {
     /// Check if missing is completely at random (MCAR)
     pub fn is_mcar(&self, threshold: f64) -> bool {
         if let Some(patterns) = &self.missing_patterns {
-            let total_patterns = patterns.len();
+            let _total_patterns = patterns.len();
             let complete_cases = patterns
                 .get(
                     &"0".repeat(
@@ -749,7 +803,7 @@ impl ImputationAnalyzer {
     }
 
     /// Compute Mean Squared Error
-    fn compute_mse<T>(&self, original: &ArrayView2<T>, imputed: &ArrayView2<T>) -> Result<f64>
+    fn compute_mse<T>(&self, _original: &ArrayView2<T>, _imputed: &ArrayView2<T>) -> Result<f64>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
     {
@@ -758,7 +812,7 @@ impl ImputationAnalyzer {
     }
 
     /// Compute Mean Absolute Error
-    fn compute_mae<T>(&self, original: &ArrayView2<T>, imputed: &ArrayView2<T>) -> Result<f64>
+    fn compute_mae<T>(&self, _original: &ArrayView2<T>, _imputed: &ArrayView2<T>) -> Result<f64>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
     {
@@ -767,7 +821,7 @@ impl ImputationAnalyzer {
     }
 
     /// Compute bias
-    fn compute_bias<T>(&self, original: &ArrayView2<T>, imputed: &ArrayView2<T>) -> Result<f64>
+    fn compute_bias<T>(&self, _original: &ArrayView2<T>, _imputed: &ArrayView2<T>) -> Result<f64>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
     {
@@ -782,7 +836,7 @@ impl ImputationAnalyzer {
         }
 
         // Find best method
-        if let Some((best_method, best_score)) = method_results
+        if let Some((_best_method, best_score)) = method_results
             .iter()
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
         {
@@ -838,7 +892,7 @@ impl MissingDataAnalysis {
     /// Perform comprehensive analysis
     pub fn analyze<T>(&mut self, x: &ArrayView2<T>) -> Result<()>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let mut pattern_analyzer = MissingPatternAnalyzer::new();
         pattern_analyzer.analyze_patterns(x)?;
@@ -1193,8 +1247,8 @@ mod tests {
         assert!(analyzer.feature_missing_rates().is_some());
         assert!(!analyzer.pattern_statistics().is_empty());
 
-        let is_mcar = analyzer.is_mcar(0.8);
-        assert!(is_mcar || !is_mcar); // Either outcome is valid
+        // is_mcar can be true or false depending on data; just verify it returns
+        let _ = analyzer.is_mcar(0.8);
     }
 
     #[test]

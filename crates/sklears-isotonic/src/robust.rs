@@ -162,7 +162,7 @@ pub mod robust_statistics {
         let mut sorted_values: Vec<Float> = values.to_vec();
         sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-        let median = if sorted_values.len() % 2 == 0 {
+        let median = if sorted_values.len().is_multiple_of(2) {
             let mid = sorted_values.len() / 2;
             (sorted_values[mid - 1] + sorted_values[mid]) / 2.0
         } else {
@@ -174,7 +174,7 @@ pub mod robust_statistics {
         let mut sorted_deviations = deviations;
         sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-        if sorted_deviations.len() % 2 == 0 {
+        if sorted_deviations.len().is_multiple_of(2) {
             let mid = sorted_deviations.len() / 2;
             (sorted_deviations[mid - 1] + sorted_deviations[mid]) / 2.0
         } else {

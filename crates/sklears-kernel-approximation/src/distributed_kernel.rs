@@ -409,6 +409,7 @@ pub struct DistributedNystroem {
     n_components: usize,
     gamma: f64,
     config: DistributedConfig,
+    #[allow(dead_code)] // stores worker pool for future parallel dispatch
     workers: Vec<Worker>,
     eigenvalues: Option<Array1<f64>>,
     eigenvectors: Option<Array2<f64>>,

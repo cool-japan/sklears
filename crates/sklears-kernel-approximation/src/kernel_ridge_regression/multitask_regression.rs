@@ -49,9 +49,10 @@ pub struct MultiTaskKernelRidgeRegression<State = Untrained> {
 }
 
 /// Cross-task regularization strategies for multi-task learning
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum TaskRegularization {
     /// No cross-task regularization (independent tasks)
+    #[default]
     None,
     /// L2 regularization on task weight differences
     L2 { beta: Float },
@@ -66,12 +67,6 @@ pub enum TaskRegularization {
         beta: Float,
         regularizer: fn(&Array2<Float>) -> Float,
     },
-}
-
-impl Default for TaskRegularization {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 impl MultiTaskKernelRidgeRegression<Untrained> {
@@ -115,6 +110,7 @@ impl MultiTaskKernelRidgeRegression<Untrained> {
     }
 
     /// Compute regularization penalty for the weight matrix
+    #[allow(dead_code)] // penalty computation for future regularized training
     fn compute_task_regularization_penalty(&self, weights: &Array2<Float>) -> Float {
         match &self.task_regularization {
             TaskRegularization::None => 0.0,
@@ -296,18 +292,16 @@ impl MultiTaskKernelRidgeRegression<Untrained> {
 
         // Apply cross-task regularization (simplified approach)
         // In practice, you might want to solve a joint optimization problem
-        match &self.task_regularization {
-            TaskRegularization::L2 { beta } => {
-                // Apply additional regularization penalty
-                let mean_weight = all_weights
-                    .mean_axis(Axis(1))
-                    .expect("operation should succeed");
-                for mut col in all_weights.axis_iter_mut(Axis(1)) {
-                    let diff = &col.to_owned() - &mean_weight;
-                    col.scaled_add(-beta, &diff);
-                }
+        // Other regularization methods (L1, NuclearNorm, etc.) would be implemented here
+        if let TaskRegularization::L2 { beta } = &self.task_regularization {
+            // Apply additional regularization penalty
+            let mean_weight = all_weights
+                .mean_axis(Axis(1))
+                .expect("operation should succeed");
+            for mut col in all_weights.axis_iter_mut(Axis(1)) {
+                let diff = &col.to_owned() - &mean_weight;
+                col.scaled_add(-beta, &diff);
             }
-            _ => {} // Other regularization methods would be implemented here
         }
 
         Ok(all_weights)

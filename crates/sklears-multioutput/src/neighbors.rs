@@ -84,7 +84,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView2<'_, i32>> for IBLR<Untrained> {
     type Fitted = IBLR<IBLRTrained>;
 
     fn fit(self, x: &ArrayView2<'_, Float>, y: &ArrayView2<'_, i32>) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
         let (y_samples, n_labels) = y.dim();
 
         if n_samples != y_samples {

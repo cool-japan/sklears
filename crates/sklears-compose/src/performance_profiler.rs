@@ -5,7 +5,7 @@
 //! and optimization recommendations.
 
 use chrono::{DateTime, Utc};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
@@ -59,88 +59,141 @@ impl Default for ProfilerConfig {
 /// Individual profiling session for a pipeline execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProfileSession {
+    /// The session id.
     pub session_id: String,
+    /// The pipeline name.
     pub pipeline_name: String,
+    /// The start time.
     pub start_time: DateTime<Utc>,
+    /// The end time.
     pub end_time: Option<DateTime<Utc>>,
+    /// The stages.
     pub stages: BTreeMap<String, StageProfile>,
+    /// The overall metrics.
     pub overall_metrics: OverallMetrics,
+    /// The bottlenecks.
     pub bottlenecks: Vec<Bottleneck>,
+    /// The optimization hints.
     pub optimization_hints: Vec<OptimizationHint>,
 }
 
 /// Performance profile for individual pipeline stage
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StageProfile {
+    /// The stage name.
     pub stage_name: String,
+    /// The component type.
     pub component_type: String,
+    /// The start time.
     pub start_time: DateTime<Utc>,
+    /// The end time.
     pub end_time: Option<DateTime<Utc>>,
+    /// The execution time.
     pub execution_time: Duration,
+    /// The memory samples.
     pub memory_samples: Vec<MemorySample>,
+    /// The cpu samples.
     pub cpu_samples: Vec<CpuSample>,
+    /// The gpu samples.
     pub gpu_samples: Vec<GpuSample>,
+    /// The input shape.
     pub input_shape: Option<(usize, usize)>,
+    /// The output shape.
     pub output_shape: Option<(usize, usize)>,
+    /// The parameters.
     pub parameters: HashMap<String, String>,
+    /// The error count.
     pub error_count: u32,
+    /// The warning count.
     pub warning_count: u32,
 }
 
 /// Overall pipeline execution metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OverallMetrics {
+    /// The total execution time.
     pub total_execution_time: Duration,
+    /// The peak memory usage mb.
     pub peak_memory_usage_mb: f64,
+    /// The average cpu usage.
     pub average_cpu_usage: f64,
+    /// The average gpu usage.
     pub average_gpu_usage: f64,
+    /// The total data processed mb.
     pub total_data_processed_mb: f64,
+    /// The throughput samples per second.
     pub throughput_samples_per_second: f64,
+    /// The cache hit ratio.
     pub cache_hit_ratio: f64,
+    /// The parallel efficiency.
     pub parallel_efficiency: f64,
+    /// The pipeline stages.
     pub pipeline_stages: usize,
+    /// The data transformations.
     pub data_transformations: usize,
 }
 
 /// Memory usage sample
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemorySample {
+    /// The timestamp.
     pub timestamp: DateTime<Utc>,
+    /// The heap usage mb.
     pub heap_usage_mb: f64,
+    /// The stack usage mb.
     pub stack_usage_mb: f64,
+    /// The gpu memory mb.
     pub gpu_memory_mb: f64,
+    /// The virtual memory mb.
     pub virtual_memory_mb: f64,
 }
 
 /// CPU usage sample
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CpuSample {
+    /// The timestamp.
     pub timestamp: DateTime<Utc>,
+    /// The overall usage.
     pub overall_usage: f64,
+    /// The user usage.
     pub user_usage: f64,
+    /// The system usage.
     pub system_usage: f64,
+    /// The core usage.
     pub core_usage: Vec<f64>,
+    /// The thread count.
     pub thread_count: u32,
 }
 
 /// GPU usage sample
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GpuSample {
+    /// The timestamp.
     pub timestamp: DateTime<Utc>,
+    /// The gpu utilization.
     pub gpu_utilization: f64,
+    /// The memory utilization.
     pub memory_utilization: f64,
+    /// The temperature.
     pub temperature: f64,
+    /// The power consumption.
     pub power_consumption: f64,
 }
 
 /// Performance bottleneck identification
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bottleneck {
+    /// The bottleneck type.
     pub bottleneck_type: BottleneckType,
+    /// The affected stage.
     pub affected_stage: String,
+    /// The severity.
     pub severity: BottleneckSeverity,
+    /// The impact factor.
     pub impact_factor: f64,
+    /// The description.
     pub description: String,
+    /// The metrics.
     pub metrics: BottleneckMetrics,
 }
 
@@ -181,21 +234,32 @@ pub enum BottleneckSeverity {
 /// Specific metrics for bottleneck analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BottleneckMetrics {
+    /// The time spent waiting ms.
     pub time_spent_waiting_ms: f64,
+    /// The resource utilization.
     pub resource_utilization: f64,
+    /// The efficiency score.
     pub efficiency_score: f64,
+    /// The improvement potential.
     pub improvement_potential: f64,
 }
 
 /// Optimization suggestions
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OptimizationHint {
+    /// The category.
     pub category: OptimizationCategory,
+    /// The priority.
     pub priority: OptimizationPriority,
+    /// The title.
     pub title: String,
+    /// The description.
     pub description: String,
+    /// The expected improvement.
     pub expected_improvement: f64,
+    /// The implementation difficulty.
     pub implementation_difficulty: ImplementationDifficulty,
+    /// The code examples.
     pub code_examples: Vec<String>,
 }
 
@@ -257,12 +321,6 @@ impl PerformanceProfiler {
             active_sessions: Arc::new(Mutex::new(HashMap::new())),
             completed_sessions: Arc::new(Mutex::new(Vec::new())),
         }
-    }
-
-    /// Create profiler with default configuration
-    #[must_use]
-    pub fn default() -> Self {
-        Self::new(ProfilerConfig::default())
     }
 
     /// Start a new profiling session
@@ -492,7 +550,7 @@ impl PerformanceProfiler {
     fn sample_memory() -> MemorySample {
         // In a real implementation, you would use system APIs or libraries like sysinfo
         // For now, we'll simulate the sampling
-        /// MemorySample
+        // MemorySample
         MemorySample {
             timestamp: Utc::now(),
             heap_usage_mb: Self::get_process_memory(),
@@ -505,7 +563,7 @@ impl PerformanceProfiler {
     /// Sample current CPU usage
     fn sample_cpu() -> CpuSample {
         // In a real implementation, you would use system APIs
-        /// CpuSample
+        // CpuSample
         CpuSample {
             timestamp: Utc::now(),
             overall_usage: Self::get_cpu_usage(),
@@ -613,7 +671,7 @@ impl PerformanceProfiler {
             avg_cpu.iter().sum::<f64>() / avg_cpu.len() as f64
         };
 
-        /// OverallMetrics
+        // OverallMetrics
         OverallMetrics {
             total_execution_time,
             peak_memory_usage_mb: peak_memory,
@@ -659,7 +717,7 @@ impl PerformanceProfiler {
     /// Calculate parallel execution efficiency
     fn calculate_parallel_efficiency(session: &ProfileSession) -> f64 {
         // Simplified calculation based on CPU utilization vs ideal parallelism
-        let ideal_parallel_stages = session.stages.len().min(num_cpus::get());
+        let _ideal_parallel_stages = session.stages.len().min(num_cpus::get());
         let avg_cpu_per_core = session
             .stages
             .values()
@@ -857,6 +915,12 @@ impl PerformanceProfiler {
     }
 }
 
+impl Default for PerformanceProfiler {
+    fn default() -> Self {
+        Self::new(ProfilerConfig::default())
+    }
+}
+
 impl Default for OverallMetrics {
     fn default() -> Self {
         Self {
@@ -877,44 +941,71 @@ impl Default for OverallMetrics {
 /// Comprehensive performance report
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceReport {
+    /// The report id.
     pub report_id: String,
+    /// The generated at.
     pub generated_at: DateTime<Utc>,
+    /// The sessions analyzed.
     pub sessions_analyzed: usize,
+    /// The summary metrics.
     pub summary_metrics: SummaryMetrics,
+    /// The bottleneck analysis.
     pub bottleneck_analysis: BottleneckAnalysis,
+    /// The optimization recommendations.
     pub optimization_recommendations: Vec<OptimizationHint>,
+    /// The trend analysis.
     pub trend_analysis: TrendAnalysis,
+    /// The comparative analysis.
     pub comparative_analysis: ComparativeAnalysis,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Data structure for this component.
 pub struct SummaryMetrics {
+    /// The average execution time.
     pub average_execution_time: Duration,
+    /// The fastest execution time.
     pub fastest_execution_time: Duration,
+    /// The slowest execution time.
     pub slowest_execution_time: Duration,
+    /// The average memory usage.
     pub average_memory_usage: f64,
+    /// The peak memory across sessions.
     pub peak_memory_across_sessions: f64,
+    /// The average throughput.
     pub average_throughput: f64,
+    /// The best parallel efficiency.
     pub best_parallel_efficiency: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Data structure for this component.
 pub struct BottleneckAnalysis {
+    /// The most common bottleneck.
     pub most_common_bottleneck: BottleneckType,
+    /// The bottleneck frequency.
     pub bottleneck_frequency: HashMap<String, u32>,
+    /// The severity distribution.
     pub severity_distribution: HashMap<BottleneckSeverity, u32>,
+    /// The impact analysis.
     pub impact_analysis: HashMap<String, f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Data structure for this component.
 pub struct TrendAnalysis {
+    /// The performance trend.
     pub performance_trend: TrendDirection,
+    /// The memory usage trend.
     pub memory_usage_trend: TrendDirection,
+    /// The throughput trend.
     pub throughput_trend: TrendDirection,
+    /// The session performance scores.
     pub session_performance_scores: Vec<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Enumeration of trend direction variants.
 pub enum TrendDirection {
     /// Improving
     Improving,
@@ -927,15 +1018,21 @@ pub enum TrendDirection {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Data structure for this component.
 pub struct ComparativeAnalysis {
+    /// The best performing session.
     pub best_performing_session: String,
+    /// The worst performing session.
     pub worst_performing_session: String,
+    /// The performance variance.
     pub performance_variance: f64,
+    /// The consistency score.
     pub consistency_score: f64,
 }
 
 impl PerformanceReport {
     #[must_use]
+    /// Performs from sessions.
     pub fn from_sessions(sessions: Vec<ProfileSession>) -> Self {
         let report_id = format!("report_{}", uuid::Uuid::new_v4());
 
@@ -993,7 +1090,7 @@ impl PerformanceReport {
                 / sessions.len() as f64,
         );
 
-        /// SummaryMetrics
+        // SummaryMetrics
         SummaryMetrics {
             average_execution_time: average_execution,
             fastest_execution_time: execution_times.iter().min().copied().unwrap_or_default(),
@@ -1056,7 +1153,7 @@ impl PerformanceReport {
                 },
             );
 
-        /// BottleneckAnalysis
+        // BottleneckAnalysis
         BottleneckAnalysis {
             most_common_bottleneck,
             bottleneck_frequency,
@@ -1100,7 +1197,7 @@ impl PerformanceReport {
             .collect();
         let throughput_trend = Self::calculate_trend_direction(&throughput_scores);
 
-        /// TrendAnalysis
+        // TrendAnalysis
         TrendAnalysis {
             performance_trend,
             memory_usage_trend,
@@ -1178,7 +1275,7 @@ impl PerformanceReport {
 
         let consistency_score = 1.0 / (1.0 + variance.sqrt() / mean_time);
 
-        /// ComparativeAnalysis
+        // ComparativeAnalysis
         ComparativeAnalysis {
             best_performing_session: best_session.session_id,
             worst_performing_session: worst_session.session_id,
@@ -1196,8 +1293,8 @@ mod tests {
     #[test]
     fn test_profiler_creation() {
         let profiler = PerformanceProfiler::default();
-        assert_eq!(profiler.config.enable_timing, true);
-        assert_eq!(profiler.config.enable_memory_tracking, true);
+        assert!(profiler.config.enable_timing);
+        assert!(profiler.config.enable_memory_tracking);
     }
 
     #[test]

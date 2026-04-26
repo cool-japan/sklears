@@ -73,6 +73,7 @@ pub struct DataCharacteristics {
     pub dominant_frequencies: Vec<f64>,
 }
 
+#[allow(non_snake_case)]
 impl AutomaticKernelConstructor {
     /// Create a new automatic kernel constructor
     pub fn new() -> Self {
@@ -133,7 +134,7 @@ impl AutomaticKernelConstructor {
         let mut best_score = f64::INFINITY;
 
         for (name, kernel) in candidate_kernels {
-            let score = self.evaluate_kernel(&kernel, &X, &y)?;
+            let score = self.evaluate_kernel(kernel.as_ref(), &X, &y)?;
             kernel_scores.push((name.clone(), score));
 
             if score < best_score {
@@ -396,7 +397,7 @@ impl AutomaticKernelConstructor {
     /// Evaluate a kernel using cross-validation or simple marginal likelihood
     fn evaluate_kernel(
         &self,
-        kernel: &Box<dyn Kernel>,
+        kernel: &dyn Kernel,
         X: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
     ) -> SklResult<f64> {
@@ -411,7 +412,7 @@ impl AutomaticKernelConstructor {
     #[allow(non_snake_case)]
     fn evaluate_marginal_likelihood(
         &self,
-        kernel: &Box<dyn Kernel>,
+        kernel: &dyn Kernel,
         X: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
     ) -> SklResult<f64> {
@@ -460,7 +461,7 @@ impl AutomaticKernelConstructor {
     #[allow(non_snake_case)]
     fn cross_validate_kernel(
         &self,
-        kernel: &Box<dyn Kernel>,
+        kernel: &dyn Kernel,
         X: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
     ) -> SklResult<f64> {
@@ -570,7 +571,7 @@ mod tests {
             .expect("operation should succeed");
 
         assert!(result.best_score.is_finite());
-        assert!(result.kernel_scores.len() > 0);
+        assert!(!result.kernel_scores.is_empty());
     }
 
     #[test]

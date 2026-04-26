@@ -48,6 +48,11 @@ use sklears_core::{
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
+/// Type alias for the feature generation result tuple used internally.
+///
+/// Contains (feature arrays, transformation functions, feature names).
+type FeatureGenResult = Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)>;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -229,6 +234,8 @@ pub struct AutoFeatureEngineer<State = Untrained> {
 
 /// Fitted automated feature engineer
 pub struct AutoFeatureEngineerFitted {
+    /// Config retained for future `.get_params()` / hyperparameter inspection API
+    #[allow(dead_code)]
     config: AutoFeatureConfig,
     selected_features: Vec<usize>,
     feature_names: Vec<String>,
@@ -400,7 +407,7 @@ impl AutoFeatureEngineer<Untrained> {
         &self,
         x: &Array2<f64>,
         strategy: &GenerationStrategy,
-    ) -> Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)> {
+    ) -> FeatureGenResult {
         match strategy {
             GenerationStrategy::Polynomial { degree } => {
                 self.generate_polynomial_features(x, *degree)
@@ -424,11 +431,7 @@ impl AutoFeatureEngineer<Untrained> {
     }
 
     /// Generate polynomial features
-    fn generate_polynomial_features(
-        &self,
-        x: &Array2<f64>,
-        degree: usize,
-    ) -> Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)> {
+    fn generate_polynomial_features(&self, x: &Array2<f64>, degree: usize) -> FeatureGenResult {
         let (_n_samples, n_features) = x.dim();
         let mut features = Vec::new();
         let mut transforms = Vec::new();
@@ -458,7 +461,7 @@ impl AutoFeatureEngineer<Untrained> {
         &self,
         x: &Array2<f64>,
         functions: &[MathFunction],
-    ) -> Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)> {
+    ) -> FeatureGenResult {
         let (_n_samples, n_features) = x.dim();
         let mut features = Vec::new();
         let mut transforms = Vec::new();
@@ -483,11 +486,7 @@ impl AutoFeatureEngineer<Untrained> {
     }
 
     /// Generate interaction features
-    fn generate_interaction_features(
-        &self,
-        x: &Array2<f64>,
-        max_depth: usize,
-    ) -> Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)> {
+    fn generate_interaction_features(&self, x: &Array2<f64>, max_depth: usize) -> FeatureGenResult {
         let (_n_samples, n_features) = x.dim();
         let mut features = Vec::new();
         let mut transforms = Vec::new();
@@ -538,11 +537,7 @@ impl AutoFeatureEngineer<Untrained> {
     }
 
     /// Generate binning features (placeholder implementation)
-    fn generate_binning_features(
-        &self,
-        x: &Array2<f64>,
-        n_bins: usize,
-    ) -> Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)> {
+    fn generate_binning_features(&self, x: &Array2<f64>, n_bins: usize) -> FeatureGenResult {
         let (_n_samples, n_features) = x.dim();
         let mut features = Vec::new();
         let mut transforms = Vec::new();
@@ -584,10 +579,7 @@ impl AutoFeatureEngineer<Untrained> {
     }
 
     /// Generate ratio features
-    fn generate_ratio_features(
-        &self,
-        x: &Array2<f64>,
-    ) -> Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)> {
+    fn generate_ratio_features(&self, x: &Array2<f64>) -> FeatureGenResult {
         let (_n_samples, n_features) = x.dim();
         let mut features = Vec::new();
         let mut transforms = Vec::new();
@@ -626,7 +618,7 @@ impl AutoFeatureEngineer<Untrained> {
         &self,
         x: &Array2<f64>,
         window_size: usize,
-    ) -> Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)> {
+    ) -> FeatureGenResult {
         let (n_samples, n_features) = x.dim();
         let mut features = Vec::new();
         let mut transforms = Vec::new();
@@ -663,10 +655,7 @@ impl AutoFeatureEngineer<Untrained> {
     }
 
     /// Generate frequency encoding features (placeholder implementation)
-    fn generate_frequency_encoding_features(
-        &self,
-        x: &Array2<f64>,
-    ) -> Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)> {
+    fn generate_frequency_encoding_features(&self, x: &Array2<f64>) -> FeatureGenResult {
         let (_n_samples, n_features) = x.dim();
         let mut features = Vec::new();
         let mut transforms = Vec::new();
@@ -711,7 +700,7 @@ impl AutoFeatureEngineer<Untrained> {
         &self,
         x: &Array2<f64>,
         domain: &Domain,
-    ) -> Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)> {
+    ) -> FeatureGenResult {
         match domain {
             Domain::TimeSeries => self.generate_time_series_features(x),
             Domain::Financial => self.generate_financial_features(x),
@@ -722,10 +711,7 @@ impl AutoFeatureEngineer<Untrained> {
     }
 
     /// Generate time series specific features
-    fn generate_time_series_features(
-        &self,
-        x: &Array2<f64>,
-    ) -> Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)> {
+    fn generate_time_series_features(&self, x: &Array2<f64>) -> FeatureGenResult {
         let mut features = Vec::new();
         let mut transforms = Vec::new();
         let mut names = Vec::new();
@@ -759,37 +745,25 @@ impl AutoFeatureEngineer<Untrained> {
     }
 
     /// Generate financial domain features
-    fn generate_financial_features(
-        &self,
-        x: &Array2<f64>,
-    ) -> Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)> {
+    fn generate_financial_features(&self, x: &Array2<f64>) -> FeatureGenResult {
         // Placeholder for financial features like returns, volatility, etc.
         self.generate_generic_features(x)
     }
 
     /// Generate text domain features
-    fn generate_text_features(
-        &self,
-        x: &Array2<f64>,
-    ) -> Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)> {
+    fn generate_text_features(&self, x: &Array2<f64>) -> FeatureGenResult {
         // Placeholder for text features like length, character counts, etc.
         self.generate_generic_features(x)
     }
 
     /// Generate image domain features
-    fn generate_image_features(
-        &self,
-        x: &Array2<f64>,
-    ) -> Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)> {
+    fn generate_image_features(&self, x: &Array2<f64>) -> FeatureGenResult {
         // Placeholder for image features like gradients, filters, etc.
         self.generate_generic_features(x)
     }
 
     /// Generate generic domain features
-    fn generate_generic_features(
-        &self,
-        x: &Array2<f64>,
-    ) -> Result<(Vec<Array1<f64>>, Vec<TransformationFunction>, Vec<String>)> {
+    fn generate_generic_features(&self, x: &Array2<f64>) -> FeatureGenResult {
         // Basic statistical features
         let mut features = Vec::new();
         let mut transforms = Vec::new();

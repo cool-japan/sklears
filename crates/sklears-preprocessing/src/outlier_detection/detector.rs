@@ -154,7 +154,7 @@ impl OutlierDetector<Untrained> {
         let mut sorted: Vec<Float> = data.to_vec();
         sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let n = sorted.len();
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
         } else {
             sorted[n / 2]
@@ -167,7 +167,7 @@ impl OutlierDetector<Untrained> {
         let mut sorted_deviations = deviations;
         sorted_deviations.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let n = sorted_deviations.len();
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             (sorted_deviations[n / 2 - 1] + sorted_deviations[n / 2]) / 2.0
         } else {
             sorted_deviations[n / 2]
@@ -257,8 +257,8 @@ impl OutlierDetector<Untrained> {
         // For simplicity, return identity matrix for now
         // In practice, would use proper matrix inversion
         let mut inv = vec![vec![0.0; n]; n];
-        for i in 0..n {
-            inv[i][i] = 1.0;
+        for (i, row) in inv.iter_mut().enumerate() {
+            row[i] = 1.0;
         }
         Ok(inv)
     }
@@ -343,7 +343,7 @@ impl OutlierDetector<Trained> {
         let outlier_mask = self.transform(x)?;
         let scores = self.outlier_scores(x)?;
 
-        let outliers: Vec<bool> = outlier_mask.iter().map(|&x| x).collect();
+        let outliers: Vec<bool> = outlier_mask.iter().copied().collect();
         let n_outliers = outliers.iter().filter(|&&x| x).count();
         let n_samples = outliers.len();
 
@@ -398,8 +398,8 @@ impl OutlierDetector<Trained> {
             }
             _ => {
                 // Default scoring
-                for i in 0..n_samples {
-                    scores[i] = 0.0;
+                for score in scores.iter_mut().take(n_samples) {
+                    *score = 0.0;
                 }
             }
         }

@@ -11,6 +11,9 @@ use sklears_core::{
     traits::{Estimator, Fit, Untrained},
 };
 
+/// Return type for IPF methods
+type IpfFitResult = SklResult<(Array2<f64>, usize, Vec<f64>, Vec<f64>)>;
+
 /// Iterative Proportional Fitting covariance estimator
 ///
 /// Uses IPF to estimate covariance matrices with specified marginal constraints
@@ -62,11 +65,11 @@ pub enum ConstraintType {
 #[derive(Debug, Clone)]
 pub struct MarginalConstraint {
     /// Variables involved in the constraint
-    variables: Vec<usize>,
+    pub variables: Vec<usize>,
     /// Target marginal covariance matrix
-    target_covariance: Array2<f64>,
+    pub target_covariance: Array2<f64>,
     /// Weight for this constraint
-    weight: f64,
+    pub weight: f64,
 }
 
 /// Methods for handling rank deficiency
@@ -269,7 +272,7 @@ impl Fit<ArrayView2<'_, f64>, ()> for IPFCovariance {
         // Apply normalization if requested
         let scaling_factors = if self.normalize {
             let diag_sqrt = covariance.diag().mapv(|x| x.sqrt());
-            let scaling = Array2::from_diag(&diag_sqrt);
+            let _scaling = Array2::from_diag(&diag_sqrt);
             let scaling_inv = Array2::from_diag(&diag_sqrt.mapv(|x| 1.0 / x));
             covariance = scaling_inv.dot(&covariance).dot(&scaling_inv);
             Some(diag_sqrt)
@@ -344,10 +347,7 @@ impl Fit<ArrayView2<'_, f64>, ()> for IPFCovariance {
 
 impl IPFCovariance {
     /// IPF for marginal variance constraints
-    fn ipf_marginal_variances(
-        &self,
-        initial_cov: &Array2<f64>,
-    ) -> SklResult<(Array2<f64>, usize, Vec<f64>, Vec<f64>)> {
+    fn ipf_marginal_variances(&self, initial_cov: &Array2<f64>) -> IpfFitResult {
         let mut cov = initial_cov.clone();
         let mut convergence_history = Vec::new();
         let mut constraint_violations = Vec::new();
@@ -430,10 +430,7 @@ impl IPFCovariance {
     }
 
     /// IPF for marginal covariance constraints
-    fn ipf_marginal_covariances(
-        &self,
-        initial_cov: &Array2<f64>,
-    ) -> SklResult<(Array2<f64>, usize, Vec<f64>, Vec<f64>)> {
+    fn ipf_marginal_covariances(&self, initial_cov: &Array2<f64>) -> IpfFitResult {
         let mut cov = initial_cov.clone();
         let mut convergence_history = Vec::new();
         let mut constraint_violations = Vec::new();
@@ -458,7 +455,7 @@ impl IPFCovariance {
 
                         // Compute scaling transformation to match target
                         if let Ok(current_inv) = current_marginal.inv() {
-                            let transform = constraint.target_covariance.dot(&current_inv);
+                            let _transform = constraint.target_covariance.dot(&current_inv);
 
                             // Apply transformation to the full covariance matrix
                             // This is a simplified approach - full IPF would be more complex
@@ -508,10 +505,7 @@ impl IPFCovariance {
     }
 
     /// IPF for conditional independence constraints
-    fn ipf_conditional_independence(
-        &self,
-        initial_cov: &Array2<f64>,
-    ) -> SklResult<(Array2<f64>, usize, Vec<f64>, Vec<f64>)> {
+    fn ipf_conditional_independence(&self, initial_cov: &Array2<f64>) -> IpfFitResult {
         let mut cov = initial_cov.clone();
         let mut convergence_history = Vec::new();
         let mut constraint_violations = Vec::new();
@@ -573,7 +567,7 @@ impl IPFCovariance {
         &self,
         initial_cov: &Array2<f64>,
         block_structure: &[Vec<usize>],
-    ) -> SklResult<(Array2<f64>, usize, Vec<f64>, Vec<f64>)> {
+    ) -> IpfFitResult {
         let mut cov = initial_cov.clone();
         let mut convergence_history = Vec::new();
         let mut constraint_violations = Vec::new();
@@ -631,10 +625,7 @@ impl IPFCovariance {
     }
 
     /// IPF for Toeplitz structure
-    fn ipf_toeplitz(
-        &self,
-        initial_cov: &Array2<f64>,
-    ) -> SklResult<(Array2<f64>, usize, Vec<f64>, Vec<f64>)> {
+    fn ipf_toeplitz(&self, initial_cov: &Array2<f64>) -> IpfFitResult {
         let mut cov = initial_cov.clone();
         let mut convergence_history = Vec::new();
         let mut constraint_violations = Vec::new();
@@ -680,7 +671,7 @@ impl IPFCovariance {
             let mut violation = 0.0;
             for i in 0..n {
                 for j in 0..n {
-                    let lag = if i > j { i - j } else { j - i };
+                    let lag = i.abs_diff(j);
                     let expected = cov[[0, lag.min(n - 1)]];
                     violation += (cov[[i, j]] - expected).abs();
                 }
@@ -701,10 +692,7 @@ impl IPFCovariance {
     }
 
     /// IPF for compound symmetry
-    fn ipf_compound_symmetry(
-        &self,
-        initial_cov: &Array2<f64>,
-    ) -> SklResult<(Array2<f64>, usize, Vec<f64>, Vec<f64>)> {
+    fn ipf_compound_symmetry(&self, initial_cov: &Array2<f64>) -> IpfFitResult {
         let mut cov = initial_cov.clone();
         let mut convergence_history = Vec::new();
         let mut constraint_violations = Vec::new();
@@ -791,7 +779,7 @@ impl IPFCovariance {
         &self,
         initial_cov: &Array2<f64>,
         pattern: &Array2<bool>,
-    ) -> SklResult<(Array2<f64>, usize, Vec<f64>, Vec<f64>)> {
+    ) -> IpfFitResult {
         let mut cov = initial_cov.clone();
         let mut convergence_history = Vec::new();
         let mut constraint_violations = Vec::new();

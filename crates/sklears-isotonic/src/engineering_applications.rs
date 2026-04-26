@@ -668,8 +668,10 @@ pub struct ControlSystemIsotonic {
     /// Whether output must be monotonic
     monotonic: bool,
     /// Maximum iterations
+    #[allow(dead_code)] // intentionally deferred: iteration limit not yet checked
     max_iterations: usize,
     /// Tolerance
+    #[allow(dead_code)] // intentionally deferred: tolerance not yet checked
     tolerance: f64,
 }
 
@@ -806,8 +808,10 @@ pub struct SignalProcessingIsotonic {
     /// Smoothing parameter
     smoothing: f64,
     /// Maximum iterations
+    #[allow(dead_code)] // intentionally deferred: iteration limit not yet checked
     max_iterations: usize,
     /// Tolerance
+    #[allow(dead_code)] // intentionally deferred: tolerance not yet checked
     tolerance: f64,
 }
 
@@ -1160,7 +1164,7 @@ mod tests {
 
         // Check values are in [0, 1]
         for &r in predictions.iter() {
-            assert!(r >= 0.0 && r <= 1.0);
+            assert!((0.0..=1.0).contains(&r));
         }
 
         // Check decreasing monotonicity
@@ -1184,7 +1188,7 @@ mod tests {
 
         // Check bounds
         for &c in constrained.iter() {
-            assert!(c >= -1.0 && c <= 1.0);
+            assert!((-1.0..=1.0).contains(&c));
         }
 
         // Check monotonicity

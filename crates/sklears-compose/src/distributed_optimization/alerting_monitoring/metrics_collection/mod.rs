@@ -466,7 +466,7 @@ pub fn create_simple_metric(
             archival_config: storage_export::ArchivalConfig {
                 enabled: false,
                 archive_after: Duration::from_secs(86400 * 30), // 30 days
-                archive_location: "/tmp/archive".to_string(),
+                archive_location: std::env::temp_dir().join("archive").display().to_string(),
                 archive_format: storage_export::ArchiveFormat::JSON,
                 compression_enabled: true,
                 encryption_enabled: false,

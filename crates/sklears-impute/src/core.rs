@@ -1,4 +1,5 @@
 //! Core types and traits for imputation operations
+#![allow(non_snake_case)]
 //!
 //! This module provides fundamental types, error handling, and traits
 //! that are used throughout the imputation framework.

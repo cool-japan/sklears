@@ -547,13 +547,13 @@ impl SimdOps {
             return self.matrix_vector_mul_scalar(matrix, vector);
         }
 
-        let mut result = vec![0.0; n_rows];
-
-        for i in 0..n_rows {
-            let row = matrix.row(i);
-            let row_vec = Array1::from_iter(row.iter().cloned());
-            result[i] = self.dot_product(&row_vec.view(), vector);
-        }
+        let result: Vec<f64> = (0..n_rows)
+            .map(|i| {
+                let row = matrix.row(i);
+                let row_vec = Array1::from_iter(row.iter().cloned());
+                self.dot_product(&row_vec.view(), vector)
+            })
+            .collect();
 
         Array1::from_vec(result)
     }
@@ -715,6 +715,7 @@ impl SimdLinearRegression {
     }
 
     /// Fit the model using SIMD-optimized operations
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit(
         &mut self,
         X: &Array2<f64>,
@@ -790,6 +791,7 @@ impl SimdLinearRegression {
     }
 
     /// Predict using SIMD-optimized operations
+    #[allow(non_snake_case)] // standard ML notation
     pub fn predict(&self, X: &Array2<f64>) -> Result<Array1<f64>, String> {
         let coefficients = self
             .coefficients
@@ -819,6 +821,7 @@ impl SimdLinearRegression {
     }
 
     /// Compute Gram matrix (X^T X) using SIMD
+    #[allow(non_snake_case)] // standard ML notation
     fn compute_gram_matrix(&self, X: &Array2<f64>) -> Array2<f64> {
         let n_features = X.ncols();
         let mut gram = Array2::zeros((n_features, n_features));
@@ -868,6 +871,7 @@ impl SimdCoordinateDescent {
     }
 
     /// Solve Lasso using SIMD-optimized coordinate descent
+    #[allow(non_snake_case)] // standard ML notation
     pub fn solve_lasso(&self, X: &Array2<f64>, y: &Array1<f64>, alpha: f64) -> Array1<f64> {
         let n_features = X.ncols();
         let mut coefficients = Array1::zeros(n_features);
@@ -920,6 +924,7 @@ impl SimdCoordinateDescent {
     }
 
     /// Solve Elastic Net using SIMD-optimized coordinate descent
+    #[allow(non_snake_case)] // standard ML notation
     pub fn solve_elastic_net(
         &self,
         X: &Array2<f64>,

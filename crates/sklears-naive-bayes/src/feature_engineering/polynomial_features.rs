@@ -237,7 +237,7 @@ impl PolynomialFeatures {
     }
 
     /// Generate feature names
-    fn generate_feature_names(&self, n_features: usize) -> Result<Vec<String>> {
+    fn generate_feature_names(&self, _n_features: usize) -> Result<Vec<String>> {
         let combinations = self
             .feature_combinations
             .as_ref()
@@ -449,7 +449,7 @@ impl SplineFeatures {
         Ok(result)
     }
 
-    fn generate_knots<T>(&self, column: &ArrayView1<T>) -> Result<Array1<f64>>
+    fn generate_knots<T>(&self, _column: &ArrayView1<T>) -> Result<Array1<f64>>
     where
         T: Clone + Copy + std::fmt::Debug + PartialOrd,
     {
@@ -464,7 +464,7 @@ impl SplineFeatures {
         Ok(knots)
     }
 
-    fn compute_spline_basis(&self, value: f64, knots: &Array1<f64>) -> Result<Vec<f64>> {
+    fn compute_spline_basis(&self, value: f64, _knots: &Array1<f64>) -> Result<Vec<f64>> {
         // Simplified B-spline basis computation
         let mut basis = Vec::with_capacity(self.config.degree);
 
@@ -517,7 +517,7 @@ impl BasisFunctionFeatures {
     where
         T: Clone + Copy + std::fmt::Debug + Into<f64>,
     {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
         let n_centers = self.config.degree;
 
         // Generate random centers
@@ -684,7 +684,7 @@ impl Default for PolynomialAnalyzer {
     }
 }
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::field_reassign_with_default)]
 #[cfg(test)]
 mod tests {
     use super::*;

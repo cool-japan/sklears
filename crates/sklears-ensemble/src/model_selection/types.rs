@@ -2,15 +2,19 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
-use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Axis, Dim, OwnedRepr};
+use scirs2_core::random::prelude::*;
 use sklears_core::{
     error::{Result, SklearsError},
-    traits::{Estimator, Fit, Predict},
+    traits::{Fit, Predict, Untrained},
     types::Float,
 };
 use std::collections::HashMap;
 
-use std::collections::{HashMap};
+/// Concrete 2-D f64 array type (works with ndarray 0.17 third scalar-type parameter)
+type Mat2f = ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>, f64>;
+/// Concrete 1-D f64 array type
+type Vec1f = ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>, f64>;
 
 /// Bias-variance decomposition results
 #[derive(Debug, Clone)]
@@ -46,8 +50,8 @@ impl EnsembleCrossValidator {
         param_grid: &HashMap<String, Vec<Float>>,
     ) -> Result<EnsembleCVResults>
     where
-        E: Clone + Fit<Array2<Float>, Array1<Float>> + 'static,
-        E::Fitted: Predict<Array2<Float>, Array1<Float>>,
+        E: Clone + Fit<Mat2f, Vec1f, Untrained> + 'static,
+        <E as Fit<Mat2f, Vec1f, Untrained>>::Fitted: Predict<Mat2f, Vec1f>,
     {
         let start_time = std::time::Instant::now();
         let folds = self.create_folds(x, y)?;
@@ -60,14 +64,12 @@ impl EnsembleCrossValidator {
                 let (x_train, y_train) = self.subset_data(x, y, train_indices);
                 let (x_val, y_val) = self.subset_data(x, y, val_indices);
                 let estimator = base_estimator.clone();
-                let trained_ensemble = self
-                    .build_ensemble_fold(estimator, &x_train, &y_train)?;
+                let trained_ensemble = self.build_ensemble_fold(estimator, &x_train, &y_train)?;
                 let predictions = trained_ensemble.predict(&x_val)?;
                 let score = self.compute_score(&predictions, &y_val);
                 config_scores.push(score);
             }
-            let mean_score = config_scores.iter().sum::<Float>()
-                / config_scores.len() as Float;
+            let mean_score = config_scores.iter().sum::<Float>() / config_scores.len() as Float;
             if mean_score > best_score {
                 best_score = mean_score;
                 best_config = config.clone();
@@ -87,7 +89,7 @@ impl EnsembleCrossValidator {
         })
     }
     /// Create cross-validation folds
-    fn create_folds(
+    pub(crate) fn create_folds(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -124,21 +126,20 @@ impl EnsembleCrossValidator {
                 }
                 Ok(folds)
             }
-            EnsembleCVStrategy::StratifiedKFold { n_splits, shuffle: _ } => {
+            EnsembleCVStrategy::StratifiedKFold {
+                n_splits,
+                shuffle: _,
+            } => {
                 let mut class_indices: HashMap<i32, Vec<usize>> = HashMap::new();
                 for (idx, &label) in y.iter().enumerate() {
                     let class = label as i32;
                     class_indices.entry(class).or_default().push(idx);
                 }
-                let mut folds = vec![Vec::new(); * n_splits];
+                let mut folds = vec![Vec::new(); *n_splits];
                 for class_idx_vec in class_indices.values() {
                     let class_fold_size = class_idx_vec.len() / n_splits;
                     for (i, &idx) in class_idx_vec.iter().enumerate() {
-                        let fold_idx = if class_fold_size == 0 {
-                            i % n_splits
-                        } else {
-                            i / class_fold_size
-                        };
+                        let fold_idx = i.checked_div(class_fold_size).unwrap_or(i % n_splits);
                         let fold_idx = fold_idx.min(n_splits - 1);
                         folds[fold_idx].push(idx);
                     }
@@ -161,14 +162,15 @@ impl EnsembleCrossValidator {
                 let mut folds = Vec::new();
                 for i in 0..n_samples {
                     let val_indices = vec![i];
-                    let train_indices: Vec<usize> = (0..n_samples)
-                        .filter(|&j| j != i)
-                        .collect();
+                    let train_indices: Vec<usize> = (0..n_samples).filter(|&j| j != i).collect();
                     folds.push((train_indices, val_indices));
                 }
                 Ok(folds)
             }
-            EnsembleCVStrategy::TimeSeriesSplit { n_splits, max_train_size } => {
+            EnsembleCVStrategy::TimeSeriesSplit {
+                n_splits,
+                max_train_size,
+            } => {
                 let mut folds = Vec::new();
                 let min_train_size = n_samples / (n_splits + 1);
                 for i in 1..=*n_splits {
@@ -191,12 +193,14 @@ impl EnsembleCrossValidator {
                 }
                 Ok(folds)
             }
-            EnsembleCVStrategy::GroupKFold { n_splits: _, groups: _ } => {
-                self.create_kfold_simple(n_samples, 5)
-            }
-            EnsembleCVStrategy::NestedCV { outer_splits, inner_splits: _ } => {
-                self.create_kfold_simple(n_samples, *outer_splits)
-            }
+            EnsembleCVStrategy::GroupKFold {
+                n_splits: _,
+                groups: _,
+            } => self.create_kfold_simple(n_samples, 5),
+            EnsembleCVStrategy::NestedCV {
+                outer_splits,
+                inner_splits: _,
+            } => self.create_kfold_simple(n_samples, *outer_splits),
         }
     }
     fn create_kfold_simple(
@@ -208,7 +212,11 @@ impl EnsembleCrossValidator {
         let mut folds = Vec::new();
         for i in 0..n_splits {
             let start = i * fold_size;
-            let end = if i == n_splits - 1 { n_samples } else { (i + 1) * fold_size };
+            let end = if i == n_splits - 1 {
+                n_samples
+            } else {
+                (i + 1) * fold_size
+            };
             let val_indices: Vec<usize> = (start..end).collect();
             let train_indices: Vec<usize> = (0..start).chain(end..n_samples).collect();
             folds.push((train_indices, val_indices));
@@ -216,7 +224,7 @@ impl EnsembleCrossValidator {
         Ok(folds)
     }
     /// Generate parameter combinations for grid search
-    fn generate_parameter_combinations(
+    pub(crate) fn generate_parameter_combinations(
         &self,
         param_grid: &HashMap<String, Vec<Float>>,
     ) -> Vec<HashMap<String, Float>> {
@@ -256,14 +264,14 @@ impl EnsembleCrossValidator {
         _y_train: &Array1<Float>,
     ) -> Result<MockEnsemble>
     where
-        E: Fit<Array2<Float>, Array1<Float>>,
+        E: Fit<Mat2f, Vec1f, Untrained>,
     {
         Ok(MockEnsemble {
             mean_prediction: 0.5,
         })
     }
     /// Compute score based on configured metric
-    fn compute_score(
+    pub(crate) fn compute_score(
         &self,
         predictions: &Array1<Float>,
         y_true: &Array1<Float>,
@@ -274,7 +282,11 @@ impl EnsembleCrossValidator {
                     .iter()
                     .zip(y_true.iter())
                     .map(|(&pred, &true_val)| {
-                        if (pred - true_val).abs() < 0.5 { 1.0 } else { 0.0 }
+                        if (pred - true_val).abs() < 0.5 {
+                            1.0
+                        } else {
+                            0.0
+                        }
                     })
                     .sum::<Float>();
                 correct / predictions.len() as Float
@@ -284,7 +296,8 @@ impl EnsembleCrossValidator {
                     .iter()
                     .zip(y_true.iter())
                     .map(|(&pred, &true_val)| (pred - true_val).powi(2))
-                    .sum::<Float>() / predictions.len() as Float;
+                    .sum::<Float>()
+                    / predictions.len() as Float;
                 -mse
             }
             ScoringMetric::MeanAbsoluteError => {
@@ -292,7 +305,8 @@ impl EnsembleCrossValidator {
                     .iter()
                     .zip(y_true.iter())
                     .map(|(&pred, &true_val)| (pred - true_val).abs())
-                    .sum::<Float>() / predictions.len() as Float;
+                    .sum::<Float>()
+                    / predictions.len() as Float;
                 -mae
             }
             ScoringMetric::R2Score => {
@@ -303,7 +317,11 @@ impl EnsembleCrossValidator {
                     .zip(y_true.iter())
                     .map(|(&pred, &true_val)| (true_val - pred).powi(2))
                     .sum::<Float>();
-                if ss_tot == 0.0 { 1.0 } else { 1.0 - (ss_res / ss_tot) }
+                if ss_tot == 0.0 {
+                    1.0
+                } else {
+                    1.0 - (ss_res / ss_tot)
+                }
             }
             ScoringMetric::F1Score => {
                 let mut tp = 0.0;
@@ -341,7 +359,6 @@ impl EnsembleCrossValidator {
                 pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
                 let mut auc = 0.0;
                 let mut tp = 0.0;
-                let mut fp = 0.0;
                 let total_pos = y_true.iter().filter(|&&y| y > 0.5).count() as Float;
                 let total_neg = y_true.len() as Float - total_pos;
                 if total_pos == 0.0 || total_neg == 0.0 {
@@ -352,19 +369,17 @@ impl EnsembleCrossValidator {
                         tp += 1.0;
                     } else {
                         auc += tp / total_pos;
-                        fp += 1.0;
                     }
                 }
                 auc / total_neg
             }
             ScoringMetric::Custom(scorer) => scorer(predictions, y_true),
-            ScoringMetric::MultiObjective { accuracy_weight, diversity_weight } => {
-                let accuracy = self
-                    .compute_score_with_metric(
-                        predictions,
-                        y_true,
-                        &ScoringMetric::Accuracy,
-                    );
+            ScoringMetric::MultiObjective {
+                accuracy_weight,
+                diversity_weight,
+            } => {
+                let accuracy =
+                    self.compute_score_with_metric(predictions, y_true, &ScoringMetric::Accuracy);
                 let diversity = 0.5;
                 accuracy_weight * accuracy + diversity_weight * diversity
             }
@@ -394,7 +409,10 @@ impl EnsembleCrossValidator {
         if scores.len() <= 1 {
             return 0.0;
         }
-        let variance = scores.iter().map(|&score| (score - mean).powi(2)).sum::<Float>()
+        let variance = scores
+            .iter()
+            .map(|&score| (score - mean).powi(2))
+            .sum::<Float>()
             / (scores.len() - 1) as Float;
         variance.sqrt()
     }
@@ -503,7 +521,7 @@ pub struct DiversityMetrics {
     pub interrater_reliability: InterraterReliability,
 }
 /// Mock ensemble for testing
-struct MockEnsemble {
+pub(super) struct MockEnsemble {
     pub(super) mean_prediction: Float,
 }
 /// Analysis of ensemble size effects on bias-variance tradeoff
@@ -558,11 +576,17 @@ pub enum EnsembleCVStrategy {
     /// Leave-one-out cross-validation
     LeaveOneOut,
     /// Time series split (for temporal data)
-    TimeSeriesSplit { n_splits: usize, max_train_size: Option<usize> },
+    TimeSeriesSplit {
+        n_splits: usize,
+        max_train_size: Option<usize>,
+    },
     /// Group-based cross-validation
     GroupKFold { n_splits: usize, groups: Vec<usize> },
     /// Nested cross-validation for ensemble hyperparameter tuning
-    NestedCV { outer_splits: usize, inner_splits: usize },
+    NestedCV {
+        outer_splits: usize,
+        inner_splits: usize,
+    },
 }
 /// Scoring metrics for ensemble evaluation
 #[derive(Debug, Clone)]
@@ -574,7 +598,10 @@ pub enum ScoringMetric {
     MeanAbsoluteError,
     R2Score,
     Custom(fn(&Array1<Float>, &Array1<Float>) -> Float),
-    MultiObjective { accuracy_weight: Float, diversity_weight: Float },
+    MultiObjective {
+        accuracy_weight: Float,
+        diversity_weight: Float,
+    },
 }
 /// Interrater reliability statistics
 #[derive(Debug, Clone)]
@@ -609,15 +636,14 @@ impl BiasVarianceAnalyzer {
         y: &Array1<Float>,
     ) -> Result<BiasVarianceDecomposition>
     where
-        E: Clone + Fit<Array2<Float>, Array1<Float>>,
-        E::Fitted: Predict<Array2<Float>, Array1<Float>>,
+        E: Clone + Fit<Mat2f, Vec1f, Untrained>,
+        <E as Fit<Mat2f, Vec1f, Untrained>>::Fitted: Predict<Mat2f, Vec1f>,
     {
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let n_bootstrap = self.config.n_bootstrap_samples;
         let mut all_predictions = Vec::with_capacity(n_bootstrap);
         for bootstrap_idx in 0..n_bootstrap {
-            let (x_bootstrap, y_bootstrap) = self
-                .generate_bootstrap_sample(x, y, bootstrap_idx)?;
+            let (x_bootstrap, y_bootstrap) = self.generate_bootstrap_sample(x, y, bootstrap_idx)?;
             let trained_estimator = estimator.clone().fit(&x_bootstrap, &y_bootstrap)?;
             let predictions = trained_estimator.predict(x)?;
             all_predictions.push(predictions);
@@ -634,8 +660,8 @@ impl BiasVarianceAnalyzer {
         y: &Array1<Float>,
     ) -> Result<Vec<(usize, BiasVarianceDecomposition)>>
     where
-        E: Clone + Fit<Array2<Float>, Array1<Float>>,
-        E::Fitted: Predict<Array2<Float>, Array1<Float>>,
+        E: Clone + Fit<Mat2f, Vec1f, Untrained>,
+        <E as Fit<Mat2f, Vec1f, Untrained>>::Fitted: Predict<Mat2f, Vec1f>,
     {
         let mut results = Vec::new();
         for &ensemble_size in ensemble_sizes {
@@ -647,8 +673,12 @@ impl BiasVarianceAnalyzer {
                 loss_function: self.config.loss_function.clone(),
             };
             let ensemble_analyzer = BiasVarianceAnalyzer::new(ensemble_config);
-            let ensemble_decomposition = ensemble_analyzer
-                .decompose_bagged_ensemble(base_estimator.clone(), ensemble_size, x, y)?;
+            let ensemble_decomposition = ensemble_analyzer.decompose_bagged_ensemble(
+                base_estimator.clone(),
+                ensemble_size,
+                x,
+                y,
+            )?;
             results.push((ensemble_size, ensemble_decomposition));
         }
         Ok(results)
@@ -662,20 +692,20 @@ impl BiasVarianceAnalyzer {
         y: &Array1<Float>,
     ) -> Result<BiasVarianceDecomposition>
     where
-        E: Clone + Fit<Array2<Float>, Array1<Float>>,
-        E::Fitted: Predict<Array2<Float>, Array1<Float>>,
+        E: Clone + Fit<Mat2f, Vec1f, Untrained>,
+        <E as Fit<Mat2f, Vec1f, Untrained>>::Fitted: Predict<Mat2f, Vec1f>,
     {
         let n_samples = x.nrows();
         let n_bootstrap = self.config.n_bootstrap_samples;
         let mut ensemble_predictions = Vec::with_capacity(n_bootstrap);
         for bootstrap_idx in 0..n_bootstrap {
-            let (x_bootstrap, y_bootstrap) = self
-                .generate_bootstrap_sample(x, y, bootstrap_idx)?;
+            let (_x_bootstrap, _y_bootstrap) =
+                self.generate_bootstrap_sample(x, y, bootstrap_idx)?;
             let mut member_predictions = Vec::with_capacity(ensemble_size);
             for member_idx in 0..ensemble_size {
                 let seed_offset = bootstrap_idx * ensemble_size + member_idx;
-                let (x_member, y_member) = self
-                    .generate_bootstrap_sample_with_offset(x, y, seed_offset)?;
+                let (x_member, y_member) =
+                    self.generate_bootstrap_sample_with_offset(x, y, seed_offset)?;
                 let trained_member = base_estimator.clone().fit(&x_member, &y_member)?;
                 let member_pred = trained_member.predict(x)?;
                 member_predictions.push(member_pred);
@@ -695,7 +725,7 @@ impl BiasVarianceAnalyzer {
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
-        seed_offset: usize,
+        _seed_offset: usize,
     ) -> Result<(Array2<Float>, Array1<Float>)> {
         let n_samples = x.nrows();
         let bootstrap_size = (n_samples as Float * self.config.bootstrap_size) as usize;
@@ -710,7 +740,7 @@ impl BiasVarianceAnalyzer {
         Ok((x_bootstrap, y_bootstrap))
     }
     /// Generate bootstrap sample
-    fn generate_bootstrap_sample(
+    pub(crate) fn generate_bootstrap_sample(
         &self,
         x: &Array2<Float>,
         y: &Array1<Float>,
@@ -727,9 +757,9 @@ impl BiasVarianceAnalyzer {
         let n_samples = y_true.len();
         let n_bootstrap = all_predictions.len();
         if n_bootstrap == 0 {
-            return Err(
-                SklearsError::InvalidInput("No predictions provided".to_string()),
-            );
+            return Err(SklearsError::InvalidInput(
+                "No predictions provided".to_string(),
+            ));
         }
         let mut mean_predictions = Array1::zeros(n_samples);
         for predictions in all_predictions {
@@ -749,16 +779,16 @@ impl BiasVarianceAnalyzer {
                 let variance = bootstrap_preds
                     .iter()
                     .map(|&pred| self.compute_loss(pred, mean_pred))
-                    .sum::<Float>() / n_bootstrap as Float;
-                decomps
-                    .push(SampleBiasVariance {
-                        sample_idx,
-                        true_value,
-                        mean_prediction: mean_pred,
-                        bias_squared,
-                        variance,
-                        bootstrap_predictions: bootstrap_preds,
-                    });
+                    .sum::<Float>()
+                    / n_bootstrap as Float;
+                decomps.push(SampleBiasVariance {
+                    sample_idx,
+                    true_value,
+                    mean_prediction: mean_pred,
+                    bias_squared,
+                    variance,
+                    bootstrap_predictions: bootstrap_preds,
+                });
             }
             Some(decomps)
         } else {
@@ -775,12 +805,14 @@ impl BiasVarianceAnalyzer {
             let sample_variance = all_predictions
                 .iter()
                 .map(|pred| self.compute_loss(pred[sample_idx], mean_pred))
-                .sum::<Float>() / n_bootstrap as Float;
+                .sum::<Float>()
+                / n_bootstrap as Float;
             total_variance += sample_variance;
             let sample_loss = all_predictions
                 .iter()
                 .map(|pred| self.compute_loss(pred[sample_idx], true_value))
-                .sum::<Float>() / n_bootstrap as Float;
+                .sum::<Float>()
+                / n_bootstrap as Float;
             total_loss += sample_loss;
         }
         total_bias_squared /= n_samples as Float;
@@ -802,15 +834,17 @@ impl BiasVarianceAnalyzer {
         })
     }
     /// Compute loss according to the configured loss function
-    fn compute_loss(&self, prediction: Float, true_value: Float) -> Float {
+    pub(crate) fn compute_loss(&self, prediction: Float, true_value: Float) -> Float {
         match &self.config.loss_function {
             ModelSelectionLossFunction::SquaredLoss => (prediction - true_value).powi(2),
             ModelSelectionLossFunction::ZeroOneLoss => {
-                if (prediction - true_value).abs() < 0.5 { 0.0 } else { 1.0 }
+                if (prediction - true_value).abs() < 0.5 {
+                    0.0
+                } else {
+                    1.0
+                }
             }
-            ModelSelectionLossFunction::Custom(loss_fn) => {
-                loss_fn(prediction, true_value)
-            }
+            ModelSelectionLossFunction::Custom(loss_fn) => loss_fn(prediction, true_value),
         }
     }
     /// Analyze how ensemble size affects bias-variance tradeoff
@@ -822,14 +856,17 @@ impl BiasVarianceAnalyzer {
         y: &Array1<Float>,
     ) -> Result<BiasVarianceEnsembleSizeAnalysis>
     where
-        E: Clone + Fit<Array2<Float>, Array1<Float>>,
-        E::Fitted: Predict<Array2<Float>, Array1<Float>>,
+        E: Clone + Fit<Mat2f, Vec1f, Untrained>,
+        <E as Fit<Mat2f, Vec1f, Untrained>>::Fitted: Predict<Mat2f, Vec1f>,
     {
         let ensemble_sizes: Vec<usize> = (1..=max_ensemble_size)
-            .step_by(if max_ensemble_size > 20 { max_ensemble_size / 20 } else { 1 })
+            .step_by(if max_ensemble_size > 20 {
+                max_ensemble_size / 20
+            } else {
+                1
+            })
             .collect();
-        let decompositions = self
-            .decompose_ensemble(base_estimator, &ensemble_sizes, x, y)?;
+        let decompositions = self.decompose_ensemble(base_estimator, &ensemble_sizes, x, y)?;
         let bias_curve: Vec<Float> = decompositions
             .iter()
             .map(|(_, decomp)| decomp.bias_squared)
@@ -850,8 +887,8 @@ impl BiasVarianceAnalyzer {
             .unwrap_or(0);
         let optimal_size = ensemble_sizes[optimal_idx];
         let bias_reduction = bias_curve[0] - bias_curve.last().unwrap_or(&bias_curve[0]);
-        let variance_reduction = variance_curve[0]
-            - variance_curve.last().unwrap_or(&variance_curve[0]);
+        let variance_reduction =
+            variance_curve[0] - variance_curve.last().unwrap_or(&variance_curve[0]);
         Ok(BiasVarianceEnsembleSizeAnalysis {
             ensemble_sizes,
             bias_curve,
@@ -918,19 +955,17 @@ impl DiversityAnalyzer {
         ground_truth: &Array1<Float>,
     ) -> Result<DiversityMetrics> {
         if predictions.is_empty() {
-            return Err(
-                SklearsError::InvalidInput("No predictions provided".to_string()),
-            );
+            return Err(SklearsError::InvalidInput(
+                "No predictions provided".to_string(),
+            ));
         }
-        let n_classifiers = predictions.len();
+        let _n_classifiers = predictions.len();
         let n_samples = predictions[0].len();
         for pred in predictions {
             if pred.len() != n_samples {
-                return Err(
-                    SklearsError::InvalidInput(
-                        "Inconsistent prediction lengths".to_string(),
-                    ),
-                );
+                return Err(SklearsError::InvalidInput(
+                    "Inconsistent prediction lengths".to_string(),
+                ));
             }
         }
         let class_predictions: Vec<Vec<i32>> = predictions
@@ -944,9 +979,7 @@ impl DiversityAnalyzer {
         let kw_variance = Self::compute_kw_variance(&class_predictions);
         let kappa = Self::compute_cohens_kappa(&class_predictions)?;
         let fleiss_kappa = Self::compute_fleiss_kappa(&class_predictions)?;
-        let interrater_reliability = Self::compute_interrater_reliability(
-            &class_predictions,
-        )?;
+        let interrater_reliability = Self::compute_interrater_reliability(&class_predictions)?;
         Ok(DiversityMetrics {
             disagreement,
             double_fault,
@@ -959,7 +992,7 @@ impl DiversityAnalyzer {
         })
     }
     /// Compute average pairwise disagreement
-    fn compute_disagreement(predictions: &[Vec<i32>]) -> Float {
+    pub(crate) fn compute_disagreement(predictions: &[Vec<i32>]) -> Float {
         let n_classifiers = predictions.len();
         if n_classifiers < 2 {
             return 0.0;
@@ -972,7 +1005,8 @@ impl DiversityAnalyzer {
                     .iter()
                     .zip(&predictions[j])
                     .map(|(&pred_i, &pred_j)| if pred_i != pred_j { 1.0 } else { 0.0 })
-                    .sum::<Float>() / predictions[i].len() as Float;
+                    .sum::<Float>()
+                    / predictions[i].len() as Float;
                 total_disagreement += disagreement_ij;
                 pair_count += 1;
             }
@@ -980,18 +1014,12 @@ impl DiversityAnalyzer {
         total_disagreement / pair_count as Float
     }
     /// Compute double fault measure
-    fn compute_double_fault(
-        predictions: &[Vec<i32>],
-        ground_truth: &Array1<Float>,
-    ) -> Float {
+    fn compute_double_fault(predictions: &[Vec<i32>], ground_truth: &Array1<Float>) -> Float {
         let n_classifiers = predictions.len();
         if n_classifiers < 2 {
             return 0.0;
         }
-        let ground_truth_int: Vec<i32> = ground_truth
-            .iter()
-            .map(|&y| y.round() as i32)
-            .collect();
+        let ground_truth_int: Vec<i32> = ground_truth.iter().map(|&y| y.round() as i32).collect();
         let mut total_double_fault = 0.0;
         let mut pair_count = 0;
         for i in 0..n_classifiers {
@@ -1007,7 +1035,8 @@ impl DiversityAnalyzer {
                             0.0
                         }
                     })
-                    .sum::<Float>() / predictions[i].len() as Float;
+                    .sum::<Float>()
+                    / predictions[i].len() as Float;
                 total_double_fault += double_fault_ij;
                 pair_count += 1;
             }
@@ -1028,9 +1057,9 @@ impl DiversityAnalyzer {
                 let mut n10 = 0.0;
                 let mut n01 = 0.0;
                 let mut n00 = 0.0;
-                for k in 0..predictions[i].len() {
-                    let i_correct = predictions[i][k] == 1;
-                    let j_correct = predictions[j][k] == 1;
+                for (&pi, &pj) in predictions[i].iter().zip(predictions[j].iter()) {
+                    let i_correct = pi == 1;
+                    let j_correct = pj == 1;
                     match (i_correct, j_correct) {
                         (true, true) => n11 += 1.0,
                         (true, false) => n10 += 1.0,
@@ -1057,8 +1086,8 @@ impl DiversityAnalyzer {
         let mut total_entropy = 0.0;
         for sample_idx in 0..n_samples {
             let mut class_counts = std::collections::HashMap::new();
-            for classifier_idx in 0..n_classifiers {
-                let prediction = predictions[classifier_idx][sample_idx];
+            for pred_vec in predictions.iter() {
+                let prediction = pred_vec[sample_idx];
                 *class_counts.entry(prediction).or_insert(0) += 1;
             }
             let mut sample_entropy = 0.0;
@@ -1078,20 +1107,22 @@ impl DiversityAnalyzer {
         let n_classifiers = predictions.len();
         let mut total_variance = 0.0;
         for sample_idx in 0..n_samples {
-            let sample_predictions: Vec<Float> = (0..n_classifiers)
-                .map(|i| predictions[i][sample_idx] as Float)
+            let sample_predictions: Vec<Float> = predictions
+                .iter()
+                .map(|pred_vec| pred_vec[sample_idx] as Float)
                 .collect();
             let mean = sample_predictions.iter().sum::<Float>() / n_classifiers as Float;
             let variance = sample_predictions
                 .iter()
                 .map(|&pred| (pred - mean).powi(2))
-                .sum::<Float>() / n_classifiers as Float;
+                .sum::<Float>()
+                / n_classifiers as Float;
             total_variance += variance;
         }
         total_variance / n_samples as Float
     }
     /// Compute Cohen's kappa coefficient (average pairwise)
-    fn compute_cohens_kappa(predictions: &[Vec<i32>]) -> Result<Float> {
+    pub(crate) fn compute_cohens_kappa(predictions: &[Vec<i32>]) -> Result<Float> {
         let n_classifiers = predictions.len();
         if n_classifiers < 2 {
             return Ok(0.0);
@@ -1100,10 +1131,7 @@ impl DiversityAnalyzer {
         let mut pair_count = 0;
         for i in 0..n_classifiers {
             for j in (i + 1)..n_classifiers {
-                let kappa_ij = Self::compute_pairwise_kappa(
-                    &predictions[i],
-                    &predictions[j],
-                )?;
+                let kappa_ij = Self::compute_pairwise_kappa(&predictions[i], &predictions[j])?;
                 total_kappa += kappa_ij;
                 pair_count += 1;
             }
@@ -1111,13 +1139,11 @@ impl DiversityAnalyzer {
         Ok(total_kappa / pair_count as Float)
     }
     /// Compute pairwise Cohen's kappa
-    fn compute_pairwise_kappa(pred1: &[i32], pred2: &[i32]) -> Result<Float> {
+    pub(crate) fn compute_pairwise_kappa(pred1: &[i32], pred2: &[i32]) -> Result<Float> {
         if pred1.len() != pred2.len() {
-            return Err(
-                SklearsError::InvalidInput(
-                    "Predictions must have same length".to_string(),
-                ),
-            );
+            return Err(SklearsError::InvalidInput(
+                "Predictions must have same length".to_string(),
+            ));
         }
         let n = pred1.len();
         if n == 0 {
@@ -1130,20 +1156,26 @@ impl DiversityAnalyzer {
         let classes: Vec<i32> = classes.into_iter().collect();
         let n_classes = classes.len();
         let mut confusion_matrix = vec![vec![0; n_classes]; n_classes];
-        for k in 0..n {
-            let i = classes.iter().position(|&c| c == pred1[k]).expect("operation should succeed");
-            let j = classes.iter().position(|&c| c == pred2[k]).expect("operation should succeed");
-            confusion_matrix[i][j] += 1;
+        for (&p1, &p2) in pred1.iter().zip(pred2.iter()) {
+            let ci = classes
+                .iter()
+                .position(|&c| c == p1)
+                .expect("operation should succeed");
+            let cj = classes
+                .iter()
+                .position(|&c| c == p2)
+                .expect("operation should succeed");
+            confusion_matrix[ci][cj] += 1;
         }
         let observed_agreement = (0..n_classes)
             .map(|i| confusion_matrix[i][i])
-            .sum::<usize>() as Float / n as Float;
+            .sum::<usize>() as Float
+            / n as Float;
         let mut expected_agreement = 0.0;
-        for i in 0..n_classes {
-            let row_sum: usize = confusion_matrix[i].iter().sum();
-            let col_sum: usize = (0..n_classes).map(|j| confusion_matrix[j][i]).sum();
-            expected_agreement
-                += (row_sum as Float * col_sum as Float) / (n * n) as Float;
+        for (row_idx, row) in confusion_matrix.iter().enumerate() {
+            let row_sum: usize = row.iter().sum();
+            let col_sum: usize = confusion_matrix.iter().map(|r| r[row_idx]).sum();
+            expected_agreement += (row_sum as Float * col_sum as Float) / (n * n) as Float;
         }
         let kappa = if expected_agreement == 1.0 {
             1.0
@@ -1153,7 +1185,7 @@ impl DiversityAnalyzer {
         Ok(kappa)
     }
     /// Compute Fleiss' kappa for multiple classifiers
-    fn compute_fleiss_kappa(predictions: &[Vec<i32>]) -> Result<Float> {
+    pub(crate) fn compute_fleiss_kappa(predictions: &[Vec<i32>]) -> Result<Float> {
         let n_classifiers = predictions.len();
         let n_samples = predictions[0].len();
         if n_classifiers < 2 || n_samples == 0 {
@@ -1168,30 +1200,36 @@ impl DiversityAnalyzer {
         let classes: Vec<i32> = classes.into_iter().collect();
         let n_classes = classes.len();
         let mut agreement_matrix = vec![vec![0; n_classes]; n_samples];
-        for sample_idx in 0..n_samples {
-            for classifier_idx in 0..n_classifiers {
-                let prediction = predictions[classifier_idx][sample_idx];
-                let class_idx = classes.iter().position(|&c| c == prediction).expect("operation should succeed");
-                agreement_matrix[sample_idx][class_idx] += 1;
+        for (sample_idx, row) in agreement_matrix.iter_mut().enumerate() {
+            for pred_vec in predictions.iter() {
+                let prediction = pred_vec[sample_idx];
+                let class_idx = classes
+                    .iter()
+                    .position(|&c| c == prediction)
+                    .expect("operation should succeed");
+                row[class_idx] += 1;
             }
         }
         let mut total_agreement = 0.0;
-        for sample_idx in 0..n_samples {
-            let mut sample_agreement = 0.0;
-            for class_idx in 0..n_classes {
-                let n_ij = agreement_matrix[sample_idx][class_idx] as Float;
-                sample_agreement += n_ij * (n_ij - 1.0);
-            }
+        for row in &agreement_matrix {
+            let sample_agreement: Float = row
+                .iter()
+                .map(|&n_ij| {
+                    let n = n_ij as Float;
+                    n * (n - 1.0)
+                })
+                .sum();
             total_agreement += sample_agreement;
         }
-        let observed_agreement = total_agreement
-            / (n_samples * n_classifiers * (n_classifiers - 1)) as Float;
+        let observed_agreement =
+            total_agreement / (n_samples * n_classifiers * (n_classifiers - 1)) as Float;
         let mut expected_agreement = 0.0;
         for class_idx in 0..n_classes {
             let class_proportion = agreement_matrix
                 .iter()
                 .map(|row| row[class_idx])
-                .sum::<usize>() as Float / (n_samples * n_classifiers) as Float;
+                .sum::<usize>() as Float
+                / (n_samples * n_classifiers) as Float;
             expected_agreement += class_proportion * class_proportion;
         }
         let fleiss_kappa = if expected_agreement == 1.0 {
@@ -1202,9 +1240,7 @@ impl DiversityAnalyzer {
         Ok(fleiss_kappa)
     }
     /// Compute comprehensive interrater reliability statistics
-    fn compute_interrater_reliability(
-        predictions: &[Vec<i32>],
-    ) -> Result<InterraterReliability> {
+    fn compute_interrater_reliability(predictions: &[Vec<i32>]) -> Result<InterraterReliability> {
         let n_classifiers = predictions.len();
         let n_samples = predictions[0].len();
         if n_classifiers < 2 || n_samples == 0 {
@@ -1245,9 +1281,8 @@ impl DiversityAnalyzer {
         let krippendorff_alpha = Self::compute_krippendorff_alpha(predictions)?;
         let pearson_correlation = Self::compute_average_correlation(predictions)?;
         let weighted_kappa = Self::compute_cohens_kappa(predictions)?;
-        let kappa_std_error = (overall_agreement * (1.0 - overall_agreement)
-            / n_samples as Float)
-            .sqrt();
+        let kappa_std_error =
+            (overall_agreement * (1.0 - overall_agreement) / n_samples as Float).sqrt();
         Ok(InterraterReliability {
             overall_agreement,
             chance_agreement,
@@ -1260,20 +1295,16 @@ impl DiversityAnalyzer {
     /// Compute Krippendorff's alpha (simplified for nominal data)
     fn compute_krippendorff_alpha(predictions: &[Vec<i32>]) -> Result<Float> {
         let n_classifiers = predictions.len();
-        let n_samples = predictions[0].len();
+        let _n_samples = predictions[0].len();
         if n_classifiers < 2 {
             return Ok(0.0);
         }
         let mut observed_disagreements = 0.0;
         let mut expected_disagreements = 0.0;
-        let mut total_pairs = 0.0;
         for i in 0..n_classifiers {
             for j in (i + 1)..n_classifiers {
-                for sample_idx in 0..n_samples {
-                    let val_i = predictions[i][sample_idx];
-                    let val_j = predictions[j][sample_idx];
-                    total_pairs += 1.0;
-                    if val_i != val_j {
+                for (&vi, &vj) in predictions[i].iter().zip(predictions[j].iter()) {
+                    if vi != vj {
                         observed_disagreements += 1.0;
                     }
                     expected_disagreements += 0.5;
@@ -1297,10 +1328,7 @@ impl DiversityAnalyzer {
         let mut pair_count = 0;
         for i in 0..n_classifiers {
             for j in (i + 1)..n_classifiers {
-                let corr = Self::compute_pearson_correlation(
-                    &predictions[i],
-                    &predictions[j],
-                )?;
+                let corr = Self::compute_pearson_correlation(&predictions[i], &predictions[j])?;
                 total_correlation += corr;
                 pair_count += 1;
             }
@@ -1308,7 +1336,7 @@ impl DiversityAnalyzer {
         Ok(total_correlation / pair_count as Float)
     }
     /// Compute Pearson correlation between two prediction vectors
-    fn compute_pearson_correlation(pred1: &[i32], pred2: &[i32]) -> Result<Float> {
+    pub(crate) fn compute_pearson_correlation(pred1: &[i32], pred2: &[i32]) -> Result<Float> {
         if pred1.len() != pred2.len() || pred1.is_empty() {
             return Ok(0.0);
         }
@@ -1326,7 +1354,11 @@ impl DiversityAnalyzer {
             sum_sq2 += diff2 * diff2;
         }
         let denominator = (sum_sq1 * sum_sq2).sqrt();
-        let correlation = if denominator > 0.0 { numerator / denominator } else { 0.0 };
+        let correlation = if denominator > 0.0 {
+            numerator / denominator
+        } else {
+            0.0
+        };
         Ok(correlation)
     }
 }

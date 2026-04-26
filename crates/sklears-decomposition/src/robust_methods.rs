@@ -437,7 +437,7 @@ impl RobustPCA {
         let mut abs_deviations: Vec<Float> = data.iter().map(|&x| (x - median).abs()).collect();
         abs_deviations.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
-        let mad = if abs_deviations.len() % 2 == 0 {
+        let mad = if abs_deviations.len().is_multiple_of(2) {
             let mid = abs_deviations.len() / 2;
             (abs_deviations[mid - 1] + abs_deviations[mid]) / 2.0
         } else {
@@ -454,7 +454,7 @@ impl RobustPCA {
         sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = sorted_data.len();
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             (sorted_data[n / 2 - 1] + sorted_data[n / 2]) / 2.0
         } else {
             sorted_data[n / 2]
@@ -876,7 +876,7 @@ impl BreakdownPointAnalysis {
         sorted_distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = sorted_distances.len();
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             (sorted_distances[n / 2 - 1] + sorted_distances[n / 2]) / 2.0
         } else {
             sorted_distances[n / 2]

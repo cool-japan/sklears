@@ -8,12 +8,7 @@ use num_cpus;
 use scirs2_core::ndarray::{
     s, Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Zip,
 };
-use sklears_core::{
-    error::Result as SklResult,
-    prelude::SklearsError,
-    traits::Estimator,
-    types::{Float, FloatBounds},
-};
+use sklears_core::{error::Result as SklResult, prelude::SklearsError, types::Float};
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use std::arch::x86_64::*;
 
@@ -79,12 +74,6 @@ impl SimdOps {
         Self { config }
     }
 
-    /// Create with default configuration
-    #[must_use]
-    pub fn default() -> Self {
-        Self::new(SimdConfig::default())
-    }
-
     /// Vectorized addition of two arrays
     pub fn add_arrays(
         &self,
@@ -112,6 +101,7 @@ impl SimdOps {
     /// AVX2-optimized array addition
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]
+    #[allow(dead_code)]
     unsafe fn add_arrays_avx2(
         &self,
         a: &ArrayView1<Float>,
@@ -121,7 +111,7 @@ impl SimdOps {
         let len = a.len();
         let vector_len = 4; // AVX2 processes 4 f64 values at once
         let chunks = len / vector_len;
-        let remainder = len % vector_len;
+        let _remainder = len % vector_len;
 
         let a_ptr = a.as_ptr();
         let b_ptr = b.as_ptr();
@@ -179,6 +169,7 @@ impl SimdOps {
     /// AVX2-optimized matrix multiplication
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2", enable = "fma")]
+    #[allow(dead_code)]
     unsafe fn matrix_multiply_avx2(
         &self,
         a: &ArrayView2<Float>,
@@ -227,7 +218,7 @@ impl SimdOps {
             ));
         }
 
-        let len = a.len();
+        let _len = a.len();
 
         // Use standard dot product (SIMD optimizations would be implemented here)
         Ok(a.iter().zip(b.iter()).map(|(x, y)| x * y).sum())
@@ -236,6 +227,7 @@ impl SimdOps {
     /// AVX2-optimized dot product
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2", enable = "fma")]
+    #[allow(dead_code)]
     unsafe fn dot_product_avx2(
         &self,
         a: &ArrayView1<Float>,
@@ -244,7 +236,7 @@ impl SimdOps {
         let len = a.len();
         let vector_len = 4; // AVX2 processes 4 f64 values at once
         let chunks = len / vector_len;
-        let remainder = len % vector_len;
+        let _remainder = len % vector_len;
 
         let a_ptr = a.as_ptr();
         let b_ptr = b.as_ptr();
@@ -335,6 +327,7 @@ impl SimdOps {
     /// AVX2-optimized scaling
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]
+    #[allow(dead_code)]
     unsafe fn scale_avx2(
         &self,
         a: &ArrayView1<Float>,
@@ -343,7 +336,7 @@ impl SimdOps {
         let len = a.len();
         let vector_len = 4; // AVX2 processes 4 f64 values at once
         let chunks = len / vector_len;
-        let remainder = len % vector_len;
+        let _remainder = len % vector_len;
 
         let mut result = Array1::zeros(len);
         let a_ptr = a.as_ptr();
@@ -383,7 +376,7 @@ impl SimdOps {
     /// Check if arrays are properly aligned for SIMD operations
     #[must_use]
     pub fn is_aligned(&self, ptr: *const Float) -> bool {
-        (ptr as usize) % self.config.alignment == 0
+        (ptr as usize).is_multiple_of(self.config.alignment)
     }
 
     /// Get optimal chunk size for parallel SIMD operations
@@ -551,7 +544,7 @@ impl SimdOps {
         let len = data.len();
         let vector_len = 4; // AVX2 processes 4 f64 values at once
         let chunks = len / vector_len;
-        let remainder = len % vector_len;
+        let _remainder = len % vector_len;
 
         let data_ptr = data.as_ptr();
         let mut sum_vec = _mm256_setzero_pd();
@@ -593,8 +586,8 @@ impl SimdOps {
         count: usize,
     ) -> SklResult<()> {
         // Validate alignment assumptions
-        debug_assert!(src as usize % self.config.alignment == 0);
-        debug_assert!(dst as usize % self.config.alignment == 0);
+        debug_assert!((src as usize).is_multiple_of(self.config.alignment));
+        debug_assert!((dst as usize).is_multiple_of(self.config.alignment));
         debug_assert!(count > 0);
 
         let vector_len = 4; // AVX2 handles 4 f64 at once
@@ -724,7 +717,7 @@ impl SimdOps {
         &self,
         src: *const Float,
         dst: *mut Float,
-        src_rows: usize,
+        _src_rows: usize,
         src_cols: usize,
         dst_cols: usize,
         row_start: usize,
@@ -747,12 +740,12 @@ impl SimdOps {
             // Split rows
             let mid_rows = block_rows / 2;
             self.cache_oblivious_transpose(
-                src, dst, src_rows, src_cols, dst_cols, row_start, col_start, mid_rows, block_cols,
+                src, dst, _src_rows, src_cols, dst_cols, row_start, col_start, mid_rows, block_cols,
             )?;
             self.cache_oblivious_transpose(
                 src,
                 dst,
-                src_rows,
+                _src_rows,
                 src_cols,
                 dst_cols,
                 row_start + mid_rows,
@@ -764,12 +757,12 @@ impl SimdOps {
             // Split columns
             let mid_cols = block_cols / 2;
             self.cache_oblivious_transpose(
-                src, dst, src_rows, src_cols, dst_cols, row_start, col_start, block_rows, mid_cols,
+                src, dst, _src_rows, src_cols, dst_cols, row_start, col_start, block_rows, mid_cols,
             )?;
             self.cache_oblivious_transpose(
                 src,
                 dst,
-                src_rows,
+                _src_rows,
                 src_cols,
                 dst_cols,
                 row_start,
@@ -794,7 +787,7 @@ impl SimdOps {
     #[target_feature(enable = "avx2", enable = "fma")]
     pub unsafe fn fast_vectorized_sum(&self, data: *const Float, len: usize) -> SklResult<Float> {
         debug_assert!(len > 0);
-        debug_assert!(data as usize % self.config.alignment == 0);
+        debug_assert!((data as usize).is_multiple_of(self.config.alignment));
 
         let vector_len = 4; // AVX2 processes 4 f64 values at once
         let unroll_factor = 4; // Process 4 vectors per iteration
@@ -838,6 +831,12 @@ impl SimdOps {
         }
 
         Ok(total)
+    }
+}
+
+impl Default for SimdOps {
+    fn default() -> Self {
+        Self::new(SimdConfig::default())
     }
 }
 
@@ -964,7 +963,7 @@ impl SimdFeatureOps {
         degree: usize,
         start_idx: usize,
     ) -> SklResult<usize> {
-        let (n_rows, n_cols) = data.dim();
+        let (_n_rows, n_cols) = data.dim();
         let mut feature_idx = start_idx;
 
         // Simplified: just add squared features for degree 2
@@ -1115,7 +1114,7 @@ mod tests {
         let a = array![3.0, 4.0, 0.0];
 
         let result = simd_ops.normalize_l2(&a.view()).unwrap_or_default();
-        let norm = (3.0f32 * 3.0 + 4.0 * 4.0 + 0.0 * 0.0).sqrt(); // = 5.0
+        let _norm = (3.0f32 * 3.0 + 4.0 * 4.0 + 0.0 * 0.0).sqrt(); // = 5.0
         let expected = array![3.0 / 5.0, 4.0 / 5.0, 0.0 / 5.0];
 
         assert!((result - expected).mapv(|x| x.abs()).sum() < 1e-6);

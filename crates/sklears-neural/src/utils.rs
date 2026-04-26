@@ -5,8 +5,7 @@
 //! and accuracy metrics.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::RngExt;
-use std::collections::HashMap;
+use scirs2_core::RngExt;
 
 /// Type alias for neural network weights and biases
 pub type WeightsAndBiases = (Vec<Array2<f64>>, Vec<Array1<f64>>);
@@ -14,18 +13,36 @@ pub type WeightsAndBiases = (Vec<Array2<f64>>, Vec<Array1<f64>>);
 /// Weight initialization strategies
 #[derive(Debug, Clone, PartialEq)]
 pub enum WeightInit {
+    /// Initialize all weights to zero (not recommended for most layers)
     Zero,
+    /// Uniform random initialization in `(-1, 1)` without any scaling
     Random,
+    /// Xavier/Glorot initialization: scales by `sqrt(2 / (fan_in + fan_out))`
     Xavier,
+    /// He/Kaiming initialization: scales by `sqrt(2 / fan_in)`, suited for ReLU activations
     He,
-    Uniform { low: f64, high: f64 },
-    Normal { mean: f64, std: f64 },
+    /// Uniform distribution over `[low, high)`
+    Uniform {
+        /// Lower bound of the uniform distribution
+        low: f64,
+        /// Upper bound of the uniform distribution
+        high: f64,
+    },
+    /// Gaussian distribution with specified mean and standard deviation
+    Normal {
+        /// Mean of the Gaussian distribution
+        mean: f64,
+        /// Standard deviation of the Gaussian distribution
+        std: f64,
+    },
 }
 
 /// Batch configuration for training
 #[derive(Debug, Clone)]
 pub struct BatchConfig {
+    /// Number of samples per mini-batch
     pub batch_size: usize,
+    /// Whether to shuffle training samples at the start of each epoch
     pub shuffle: bool,
 }
 
@@ -41,8 +58,11 @@ impl Default for BatchConfig {
 /// Early stopping configuration and implementation
 #[derive(Debug, Clone)]
 pub struct EarlyStopping {
+    /// Number of epochs with no improvement above `min_delta` before stopping
     pub patience: usize,
+    /// Minimum decrease in loss required to be counted as an improvement
     pub min_delta: f64,
+    /// Whether to restore the weights from the best epoch when stopping
     pub restore_best_weights: bool,
     current_patience: usize,
     best_loss: f64,
@@ -50,6 +70,7 @@ pub struct EarlyStopping {
 }
 
 impl EarlyStopping {
+    /// Create a new `EarlyStopping` monitor with the given patience, minimum improvement delta, and weight-restoration flag
     pub fn new(patience: usize, min_delta: f64, restore_best_weights: bool) -> Self {
         Self {
             patience,
@@ -61,6 +82,7 @@ impl EarlyStopping {
         }
     }
 
+    /// Record the current `loss` and return `true` when patience has been exhausted
     pub fn should_stop(
         &mut self,
         loss: f64,
@@ -80,6 +102,7 @@ impl EarlyStopping {
         }
     }
 
+    /// Return a reference to the weights saved at the best epoch, if any were recorded
     pub fn get_best_weights(&self) -> Option<&WeightsAndBiases> {
         self.best_weights.as_ref()
     }
@@ -142,7 +165,6 @@ pub fn create_batches<R: scirs2_core::random::Rng>(
 
     if shuffle {
         use scirs2_core::random::seq::SliceRandom;
-        use scirs2_core::random::RngExt;
         indices.shuffle(rng);
     }
 

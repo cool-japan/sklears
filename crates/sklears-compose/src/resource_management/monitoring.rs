@@ -11,6 +11,7 @@ use std::time::{Duration, SystemTime};
 
 /// Resource monitor for real-time resource tracking and alerting
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ResourceMonitor {
     /// Monitoring configuration
     config: MonitorConfig,
@@ -295,6 +296,7 @@ pub struct MetricsSnapshot {
 
 /// Alert system for resource monitoring
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct AlertSystem {
     /// Alert configuration
     config: AlertConfig,

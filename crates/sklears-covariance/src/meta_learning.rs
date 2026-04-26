@@ -26,6 +26,14 @@ use sklears_core::{
 };
 use std::collections::HashMap;
 
+/// Return type for ensemble creation method
+type EnsembleResult = Result<(
+    Array2<f64>,
+    CovarianceMethod,
+    Option<Vec<f64>>,
+    Vec<(CovarianceMethod, PerformanceMetrics)>,
+)>;
+
 /// Available covariance estimation methods for meta-learning
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CovarianceMethod {
@@ -748,7 +756,7 @@ impl MetaLearningCovariance<MetaLearningUntrained> {
             1.0
         };
 
-        Ok((top_methods, confidence.max(0.0).min(1.0)))
+        Ok((top_methods, confidence.clamp(0.0, 1.0)))
     }
 
     /// Transfer learning method selection
@@ -805,7 +813,7 @@ impl MetaLearningCovariance<MetaLearningUntrained> {
             .map(|(method, _)| *method)
             .collect();
 
-        let confidence = if similarities.len() > 0 {
+        let confidence = if !similarities.is_empty() {
             similarities[0].0
         } else {
             0.5
@@ -892,13 +900,8 @@ impl MetaLearningCovariance<MetaLearningUntrained> {
                     0.4
                 }
             }
-            CovarianceMethod::GraphicalLasso => {
-                if meta_features.sparsity_ratio > 0.3 {
-                    0.85
-                } else {
-                    0.5
-                }
-            }
+            CovarianceMethod::GraphicalLasso if meta_features.sparsity_ratio > 0.3 => 0.85,
+            CovarianceMethod::GraphicalLasso => 0.5,
             CovarianceMethod::NonlinearShrinkage => {
                 if meta_features.sample_feature_ratio < 1.5 {
                     0.95
@@ -924,7 +927,7 @@ impl MetaLearningCovariance<MetaLearningUntrained> {
         features2: &MetaFeatures,
     ) -> f64 {
         // Simplified similarity computation using normalized differences
-        let features1_vec = vec![
+        let features1_vec = [
             features1.sample_feature_ratio,
             features1.condition_number.ln(),
             features1.sparsity_ratio,
@@ -933,7 +936,7 @@ impl MetaLearningCovariance<MetaLearningUntrained> {
             features1.multivariate_normality,
         ];
 
-        let features2_vec = vec![
+        let features2_vec = [
             features2.sample_feature_ratio,
             features2.condition_number.ln(),
             features2.sparsity_ratio,
@@ -960,7 +963,7 @@ impl MetaLearningCovariance<MetaLearningUntrained> {
     /// Optimize hyperparameters for selected methods
     fn optimize_hyperparameters(
         &self,
-        x: &ArrayView2<'_, f64>,
+        _x: &ArrayView2<'_, f64>,
         methods: &[CovarianceMethod],
     ) -> Result<Vec<CovarianceMethod>> {
         // Simplified hyperparameter optimization
@@ -973,12 +976,7 @@ impl MetaLearningCovariance<MetaLearningUntrained> {
         &self,
         x: &ArrayView2<'_, f64>,
         methods: &[CovarianceMethod],
-    ) -> Result<(
-        Array2<f64>,
-        CovarianceMethod,
-        Option<Vec<f64>>,
-        Vec<(CovarianceMethod, PerformanceMetrics)>,
-    )> {
+    ) -> EnsembleResult {
         if methods.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "No methods provided for ensemble".to_string(),
@@ -1292,7 +1290,7 @@ mod tests {
             .heuristic_selection(&meta_features)
             .expect("operation should succeed");
         assert!(!methods.is_empty());
-        assert!(confidence >= 0.0 && confidence <= 1.0);
+        assert!((0.0..=1.0).contains(&confidence));
 
         // Test learning to rank selection
         let (methods, confidence) = estimator

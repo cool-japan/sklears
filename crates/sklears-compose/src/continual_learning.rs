@@ -5,17 +5,16 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use sklears_core::{
     error::Result as SklResult,
-    prelude::{Predict, SklearsError},
+    prelude::SklearsError,
     traits::{Estimator, Fit, Untrained},
     types::Float,
 };
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 
-use crate::{PipelinePredictor, PipelineStep};
+use crate::PipelinePredictor;
 
 /// Task representation for continual learning
 #[derive(Debug, Clone)]
@@ -416,6 +415,7 @@ pub struct ContinualLearningPipeline<S = Untrained> {
 
 /// Trained state for `ContinualLearningPipeline`
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ContinualLearningPipelineTrained {
     fitted_estimator: Box<dyn PipelinePredictor>,
     strategy: ContinualLearningStrategy,
@@ -630,7 +630,7 @@ impl ContinualLearningPipeline<Untrained> {
                 }
 
                 // Train with replay
-                for epoch in 0..*replay_frequency {
+                for _epoch in 0..*replay_frequency {
                     // Train on current data
                     estimator.fit(x, y)?;
 
@@ -668,7 +668,7 @@ impl ContinualLearningPipeline<Untrained> {
                 estimator.fit(x, y)?;
             }
             ContinualLearningStrategy::ProgressiveNetworks {
-                max_columns,
+                max_columns: _,
                 lateral_strength,
             } => {
                 // Simulate progressive networks
@@ -731,7 +731,7 @@ impl ContinualLearningPipeline<Untrained> {
     fn compute_fisher_information(
         &self,
         x: &ArrayView2<'_, Float>,
-        y: &ArrayView1<'_, Float>,
+        _y: &ArrayView1<'_, Float>,
         param_idx: usize,
     ) -> f64 {
         // Simplified Fisher information computation

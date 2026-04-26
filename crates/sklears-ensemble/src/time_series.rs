@@ -100,6 +100,7 @@ pub enum TemporalAggregationMethod {
 }
 
 /// Time series ensemble classifier
+#[allow(dead_code)] // planned API fields for time-series ensemble
 pub struct TimeSeriesEnsembleClassifier {
     config: TimeSeriesEnsembleConfig,
     base_models: Vec<TrainedGradientBoostingRegressor>,
@@ -428,6 +429,7 @@ impl TimeSeriesEnsembleRegressor {
     }
 
     /// Update temporal weights based on performance
+    #[allow(dead_code, clippy::needless_range_loop)] // called internally; index needed for temporal_decay.powi(i)
     fn update_temporal_weights(&mut self, recent_errors: &[f64]) {
         let n_models = self.base_models.len();
         if n_models == 0 {
@@ -460,6 +462,7 @@ impl TimeSeriesEnsembleRegressor {
     }
 
     /// Aggregate predictions using configured method
+    #[allow(clippy::needless_range_loop)] // multi-dimensional indexing requires explicit indices
     fn aggregate_predictions(&self, predictions: &[Vec<f64>]) -> SklResult<Vec<f64>> {
         if predictions.is_empty() {
             return Err(SklearsError::InvalidInput(
@@ -497,7 +500,7 @@ impl TimeSeriesEnsembleRegressor {
                 for i in 0..n_samples {
                     let mut values: Vec<f64> = predictions.iter().map(|p| p[i]).collect();
                     values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
-                    result[i] = if values.len() % 2 == 0 {
+                    result[i] = if values.len().is_multiple_of(2) {
                         (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
                     } else {
                         values[values.len() / 2]
@@ -661,6 +664,7 @@ impl Fit<Array2<f64>, Vec<f64>> for TimeSeriesEnsembleRegressor {
 }
 
 impl Predict<Array2<f64>, Vec<f64>> for TimeSeriesEnsembleRegressor {
+    #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &Array2<f64>) -> SklResult<Vec<f64>> {
         if !self.is_fitted {
             return Err(SklearsError::NotFitted {
@@ -735,8 +739,8 @@ mod tests {
         // Create simple time series data
         let data = vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0];
 
-        let X = Array2::from_shape_vec((5, 2), data).expect("shape and data length should match");
-        let y: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let _X = Array2::from_shape_vec((5, 2), data).expect("shape and data length should match");
+        let _y: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
 
         // Test basic functionality without full fit/predict for now
         assert_eq!(ensemble.config.window_size, 3);

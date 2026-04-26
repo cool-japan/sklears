@@ -126,7 +126,9 @@ mod tests {
         assert!(selected_count <= features.ncols()); // Can't select more than available
 
         // Verify transform works correctly
-        let transformed = trained.transform(&features).expect("operation should succeed");
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
         assert_eq!(transformed.ncols(), selected_count);
         assert_eq!(transformed.nrows(), features.nrows());
 
@@ -138,7 +140,9 @@ mod tests {
         // With high threshold, either fewer features are selected or fitting fails
         match strict_result {
             Ok(strict_trained) => {
-                let strict_support = strict_trained.get_support().expect("operation should succeed");
+                let strict_support = strict_trained
+                    .get_support()
+                    .expect("operation should succeed");
                 let strict_selected_count = strict_support.iter().filter(|&&x| x).count();
                 assert!(strict_selected_count <= selected_count);
             }
@@ -156,7 +160,9 @@ mod tests {
 
         // Test with k=5 - should select most predictive features
         let selector = SelectKBest::new(5, "f_classif");
-        let trained = selector.fit(&features, &target).expect("operation should succeed");
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
 
         let selected_features = trained.selected_features();
         assert_eq!(selected_features.len(), 5);
@@ -173,7 +179,9 @@ mod tests {
         assert!(early_features_selected >= 3); // At least 3 out of 5 should be early features
 
         // Verify transform
-        let transformed = trained.transform(&features).expect("operation should succeed");
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
         assert_eq!(transformed.ncols(), 5);
         assert_eq!(transformed.nrows(), features.nrows());
     }
@@ -185,15 +193,18 @@ mod tests {
 
         // Test with moderate regularization
         let selector = LassoSelector::new()
-            .alpha(0.1).expect("valid alpha")
+            .alpha(0.1)
+            .expect("valid alpha")
             .max_iter(1000)
             .tolerance(1e-6);
 
-        let trained = selector.fit(&features, &target).expect("operation should succeed");
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         let selected_features = trained.selected_features();
 
         // LASSO should select some features (not all, not none)
-        assert!(selected_features.len() > 0);
+        assert!(!selected_features.is_empty());
         assert!(selected_features.len() < features.ncols());
 
         // With L1 regularization, should prefer predictive features
@@ -207,9 +218,14 @@ mod tests {
         assert!(selected_coefficients.iter().all(|&w| w.abs() > 1e-10));
 
         // Test with high regularization - should select fewer features
-        let strict_selector = LassoSelector::new().alpha(1.0).expect("valid alpha").max_iter(1000);
+        let strict_selector = LassoSelector::new()
+            .alpha(1.0)
+            .expect("valid alpha")
+            .max_iter(1000);
 
-        let strict_trained = strict_selector.fit(&features, &target).expect("operation should succeed");
+        let strict_trained = strict_selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         let strict_selected = strict_trained.selected_features();
 
         // Higher regularization should select fewer features
@@ -227,7 +243,9 @@ mod tests {
             .regularization(0.1)
             .max_iter(100);
 
-        let convex_trained = convex_selector.fit(&features, &target).expect("operation should succeed");
+        let convex_trained = convex_selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert_eq!(convex_trained.selected_features().len(), 5);
 
         // Test ProximalGradientSelector
@@ -236,7 +254,9 @@ mod tests {
             .regularization(0.1)
             .max_iter(100);
 
-        let proximal_trained = proximal_selector.fit(&features, &target).expect("operation should succeed");
+        let proximal_trained = proximal_selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert_eq!(proximal_trained.selected_features().len(), 5);
 
         // Both optimization methods should select similar features
@@ -265,7 +285,8 @@ mod tests {
             .fit(&features_class, &target_class)
             .expect("operation should succeed");
         let lasso = LassoSelector::new()
-            .alpha(0.01).expect("valid alpha")
+            .alpha(0.01)
+            .expect("valid alpha")
             .fit(&features_reg, &target_reg)
             .expect("operation should succeed");
 
@@ -307,8 +328,12 @@ mod tests {
         let start_time = std::time::Instant::now();
 
         let selector = SelectKBest::new(5, "f_classif");
-        let trained = selector.fit(&features, &target).expect("operation should succeed");
-        let _transformed = trained.transform(&features).expect("operation should succeed");
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
+        let _transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
 
         let duration = start_time.elapsed();
 
@@ -317,7 +342,10 @@ mod tests {
 
         // Test memory efficiency - transform shouldn't increase memory dramatically
         let original_size = features.len();
-        let transformed_size = trained.transform(&features).expect("operation should succeed").len();
+        let transformed_size = trained
+            .transform(&features)
+            .expect("operation should succeed")
+            .len();
 
         // Transformed data should be smaller (fewer features)
         assert!(transformed_size < original_size);
@@ -345,7 +373,9 @@ mod tests {
         // Test that selectors handle small values gracefully
         let variance_selector = VarianceThreshold::new(1e-12);
         let dummy_target = Array1::<i32>::zeros(features.nrows());
-        let trained = variance_selector.fit(&features, &dummy_target).expect("operation should succeed");
+        let trained = variance_selector
+            .fit(&features, &dummy_target)
+            .expect("operation should succeed");
 
         // Should successfully fit and select some features
         let support = trained.get_support().expect("operation should succeed");
@@ -353,7 +383,9 @@ mod tests {
         assert!(selected_count > 0);
 
         // Transform should work without numerical issues
-        let transformed = trained.transform(&features).expect("operation should succeed");
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
         assert!(transformed.iter().all(|&x| x.is_finite()));
     }
 }

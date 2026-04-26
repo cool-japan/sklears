@@ -14,6 +14,7 @@ pub struct Autoencoder {
     activation: String,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl Autoencoder {
     pub fn new() -> Self {
         Self {
@@ -96,6 +97,7 @@ pub struct RestrictedBoltzmannMachine {
     n_iter: usize,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl RestrictedBoltzmannMachine {
     pub fn new() -> Self {
         Self {
@@ -148,6 +150,7 @@ pub struct VariationalAutoencoder {
     beta: f64,
 }
 
+#[allow(non_snake_case)] // X follows sklearn/math convention for feature matrix
 impl VariationalAutoencoder {
     pub fn new() -> Self {
         Self {

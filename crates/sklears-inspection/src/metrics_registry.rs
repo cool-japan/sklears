@@ -309,15 +309,15 @@ impl MetricRegistry {
     /// Register default metrics
     pub fn register_default_metrics(&self) {
         // Register built-in metrics
-        if let Ok(fidelity_metric) = self.register_metric(FidelityMetric::new()) {
+        if let Ok(_fidelity_metric) = self.register_metric(FidelityMetric::new()) {
             // Metric registered successfully
         }
 
-        if let Ok(stability_metric) = self.register_metric(StabilityMetric::new()) {
+        if let Ok(_stability_metric) = self.register_metric(StabilityMetric::new()) {
             // Metric registered successfully
         }
 
-        if let Ok(completeness_metric) = self.register_metric(CompletenessMetric::new()) {
+        if let Ok(_completeness_metric) = self.register_metric(CompletenessMetric::new()) {
             // Metric registered successfully
         }
     }
@@ -1031,7 +1031,7 @@ fn compute_correlation(x: &ArrayView1<Float>, y: &ArrayView1<Float>) -> SklResul
 mod tests {
     use super::*;
     // ✅ SciRS2 Policy Compliant Import
-    use scirs2_core::ndarray::{array, Array2, ArrayView1};
+    use scirs2_core::ndarray::{array, Array2};
 
     #[test]
     fn test_metric_registry() {

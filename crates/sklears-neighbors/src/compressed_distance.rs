@@ -354,7 +354,7 @@ impl CompressedDistanceMatrix {
             .collect();
 
         // Pack two 4-bit values into each byte
-        let mut data = Vec::with_capacity((quantized.len() + 1) / 2);
+        let mut data = Vec::with_capacity(quantized.len().div_ceil(2));
         for chunk in quantized.chunks(2) {
             let byte = if chunk.len() == 2 {
                 (chunk[0] << 4) | chunk[1]
@@ -498,7 +498,7 @@ impl CompressedDistanceMatrix {
         max_val: Float,
     ) -> NeighborsResult<Array2<Float>> {
         let total_elements = shape.0 * shape.1;
-        let expected_len = (total_elements + 1) / 2;
+        let expected_len = total_elements.div_ceil(2);
 
         if data.len() != expected_len {
             return Err(NeighborsError::InvalidInput(format!(
@@ -687,7 +687,7 @@ impl CompressedDistanceMatrix {
         max_val: Float,
     ) -> NeighborsResult<Array1<Float>> {
         let elements_per_row = shape.1;
-        let bytes_per_row = (elements_per_row + 1) / 2;
+        let bytes_per_row = elements_per_row.div_ceil(2);
         let start_byte = row_idx * bytes_per_row;
         let end_byte = start_byte + bytes_per_row;
 
@@ -755,8 +755,7 @@ impl CompressedDistanceMatrix {
             .filter_map(|(idx, &(i, j))| if i == row_idx { Some((idx, j)) } else { None })
             .map(|(sparse_idx, col)| (col, sparse_idx))
             .collect::<HashMap<usize, usize>>()
-            .into_iter()
-            .map(|(_col, sparse_idx)| sparse_idx)
+            .into_values()
             .collect();
 
         let sparse_data: &[Float] =

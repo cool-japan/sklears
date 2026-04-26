@@ -286,8 +286,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, usize>> for OnlineKMeans<Untraine
         }
 
         let mut rng = match self.config.random_state {
-            Some(seed) => Random::default(),
-            None => Random::default(),
+            Some(seed) => Random::seed(seed),
+            None => Random::seed(42),
         };
 
         // Initialize centroids with random samples
@@ -484,7 +484,10 @@ impl CluStream<Trained> {
 
             // Update macro-clusters periodically
             self.update_counter += 1;
-            if self.update_counter % self.config.update_frequency == 0 {
+            if self
+                .update_counter
+                .is_multiple_of(self.config.update_frequency)
+            {
                 self.update_macro_clusters()?;
             }
 
@@ -833,11 +836,9 @@ impl Predict<ArrayView2<'_, Float>, Array1<usize>> for SlidingWindowKMeans<Train
     }
 }
 
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
     use scirs2_core::ndarray::array;
 
     #[test]

@@ -11,9 +11,8 @@
 //! exploring the space of possible architectures using optimization techniques.
 
 use crate::NeuralResult;
-use scirs2_core::ndarray::{Array1, Array2, Array3, Axis, ScalarOperand};
-use scirs2_core::random::RngExt;
-use scirs2_core::random::{thread_rng, CoreRandom, Normal, Rng};
+use scirs2_core::ndarray::{Array1, Array2, ScalarOperand};
+use scirs2_core::random::{thread_rng, Normal};
 use sklears_core::{error::SklearsError, types::FloatBounds};
 
 #[cfg(feature = "serde")]
@@ -26,18 +25,10 @@ fn safe_from_f64<T: FloatBounds>(value: f64) -> NeuralResult<T> {
     })
 }
 
-/// Safe comparison for float types
-fn safe_partial_cmp<T: FloatBounds>(a: T, b: T) -> NeuralResult<std::cmp::Ordering> {
-    a.to_f64()
-        .and_then(|a_f64| b.to_f64().map(|b_f64| (a_f64, b_f64)))
-        .and_then(|(a_f64, b_f64)| a_f64.partial_cmp(&b_f64))
-        .ok_or_else(|| SklearsError::NumericalError("Float comparison failed".to_string()))
-}
-
-/// Find maximum element with safe comparison
-fn safe_max<'a, T: FloatBounds>(iter: impl Iterator<Item = &'a T>) -> NeuralResult<&'a T>
+/// Find maximum element from an iterator with safe float comparison
+fn safe_max<'a, T>(iter: impl Iterator<Item = &'a T>) -> NeuralResult<&'a T>
 where
-    T: 'a,
+    T: FloatBounds + 'a,
 {
     iter.max_by(|a, b| {
         a.to_f64()
@@ -46,29 +37,6 @@ where
             .unwrap_or(std::cmp::Ordering::Equal)
     })
     .ok_or_else(|| SklearsError::InvalidInput("Empty iterator".to_string()))
-}
-
-/// Find maximum element with index and safe comparison
-fn safe_max_by<T, F>(iter: impl Iterator<Item = T>, mut compare: F) -> NeuralResult<T>
-where
-    F: FnMut(&T, &T) -> NeuralResult<std::cmp::Ordering>,
-{
-    let mut max_item: Option<T> = None;
-
-    for item in iter {
-        max_item = Some(match max_item {
-            None => item,
-            Some(current_max) => {
-                match compare(&current_max, &item) {
-                    Ok(std::cmp::Ordering::Less) => item,
-                    Ok(_) => current_max,
-                    Err(_) => current_max, // On error, keep current max
-                }
-            }
-        });
-    }
-
-    max_item.ok_or_else(|| SklearsError::InvalidInput("Empty iterator".to_string()))
 }
 
 /// Create normal distribution safely
@@ -119,6 +87,7 @@ impl OperationType {
 
 /// Mixed operation: weighted sum of operations (for DARTS)
 #[derive(Debug)]
+#[allow(dead_code)] // Dimension fields retained for architecture shape validation and serialization
 pub struct MixedOperation<T: FloatBounds> {
     /// Architecture parameters (weights for each operation)
     alpha: Array1<T>,
@@ -251,6 +220,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> MixedOperation<T> {
 
 /// DARTS Cell: basic building block for architecture search
 #[derive(Debug)]
+#[allow(dead_code)] // Dimension fields retained for architecture shape validation and serialization
 pub struct DARTSCell<T: FloatBounds> {
     /// Mixed operations connecting nodes
     mixed_ops: Vec<Vec<MixedOperation<T>>>,
@@ -325,7 +295,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> DARTSCell<T> {
         let mut output = Array2::zeros((x.nrows(), self.out_features));
 
         for node_output in node_outputs.iter().skip(2).take(n_intermediate) {
-            output = output + node_output;
+            output += node_output;
         }
 
         let divisor = safe_from_f64(n_intermediate as f64)?;
@@ -353,6 +323,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> DARTSCell<T> {
 }
 
 /// DARTS searcher for neural architecture search
+#[allow(dead_code)] // Learning rate fields retained for optimizer configuration in future update methods
 pub struct DARTS<T: FloatBounds> {
     /// Normal cell for processing
     normal_cell: DARTSCell<T>,
@@ -369,7 +340,7 @@ pub struct DARTS<T: FloatBounds> {
 impl<T: FloatBounds + ScalarOperand + std::iter::Sum> DARTS<T> {
     /// Create a new DARTS searcher
     pub fn new(
-        in_features: usize,
+        _in_features: usize,
         out_features: usize,
         n_nodes: usize,
         n_cells: usize,
@@ -406,7 +377,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> DARTS<T> {
                     let end_idx = ((j + 1) * in_dim) / out_dim;
                     let mut sum = T::zero();
                     for k in start_idx..end_idx {
-                        sum = sum + x[[i, k]];
+                        sum += x[[i, k]];
                     }
                     let divisor = safe_from_f64((end_idx - start_idx) as f64).unwrap_or(T::one());
                     sum / divisor
@@ -508,6 +479,7 @@ impl NeuralArchitecture {
 
 /// Progressive NAS: gradually grow architecture
 #[derive(Debug)]
+#[allow(dead_code)] // Dimension fields retained for shape validation during progressive search expansion
 pub struct ProgressiveNAS<T: FloatBounds> {
     /// Current architecture
     architecture: Vec<OperationType>,
@@ -602,6 +574,7 @@ impl<T: FloatBounds + ScalarOperand> ProgressiveNAS<T> {
 
 /// ENAS Controller: RNN-based controller for architecture search
 #[derive(Debug)]
+#[allow(dead_code)] // Configuration fields retained for controller updates; num_operations/entropy_weight for future exploration
 pub struct ENASController<T: FloatBounds> {
     /// Controller RNN hidden size
     hidden_size: usize,
@@ -861,30 +834,28 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENAS<T> {
         let mut complexity_penalty = T::zero();
 
         for &op in architecture {
-            score = score
-                + match op {
-                    OperationType::Skip => safe_from_f64(1.0).unwrap_or(T::one()),
-                    OperationType::SepConv3x3 => safe_from_f64(0.9).unwrap_or(T::one()),
-                    OperationType::SepConv5x5 => safe_from_f64(0.85).unwrap_or(T::one()),
-                    OperationType::MaxPool3x3 | OperationType::AvgPool3x3 => {
-                        safe_from_f64(0.8).unwrap_or(T::one())
-                    }
-                    OperationType::DilConv3x3 => safe_from_f64(0.88).unwrap_or(T::one()),
-                    OperationType::DilConv5x5 => safe_from_f64(0.83).unwrap_or(T::one()),
-                    OperationType::None => safe_from_f64(0.5).unwrap_or(T::zero()),
-                };
+            score += match op {
+                OperationType::Skip => safe_from_f64(1.0).unwrap_or(T::one()),
+                OperationType::SepConv3x3 => safe_from_f64(0.9).unwrap_or(T::one()),
+                OperationType::SepConv5x5 => safe_from_f64(0.85).unwrap_or(T::one()),
+                OperationType::MaxPool3x3 | OperationType::AvgPool3x3 => {
+                    safe_from_f64(0.8).unwrap_or(T::one())
+                }
+                OperationType::DilConv3x3 => safe_from_f64(0.88).unwrap_or(T::one()),
+                OperationType::DilConv5x5 => safe_from_f64(0.83).unwrap_or(T::one()),
+                OperationType::None => safe_from_f64(0.5).unwrap_or(T::zero()),
+            };
 
-            complexity_penalty = complexity_penalty
-                + match op {
-                    OperationType::None | OperationType::Skip => T::zero(),
-                    OperationType::MaxPool3x3 | OperationType::AvgPool3x3 => {
-                        safe_from_f64(0.01).unwrap_or(T::zero())
-                    }
-                    OperationType::SepConv3x3 => safe_from_f64(0.02).unwrap_or(T::zero()),
-                    OperationType::DilConv3x3 => safe_from_f64(0.025).unwrap_or(T::zero()),
-                    OperationType::SepConv5x5 => safe_from_f64(0.03).unwrap_or(T::zero()),
-                    OperationType::DilConv5x5 => safe_from_f64(0.035).unwrap_or(T::zero()),
-                };
+            complexity_penalty += match op {
+                OperationType::None | OperationType::Skip => T::zero(),
+                OperationType::MaxPool3x3 | OperationType::AvgPool3x3 => {
+                    safe_from_f64(0.01).unwrap_or(T::zero())
+                }
+                OperationType::SepConv3x3 => safe_from_f64(0.02).unwrap_or(T::zero()),
+                OperationType::DilConv3x3 => safe_from_f64(0.025).unwrap_or(T::zero()),
+                OperationType::SepConv5x5 => safe_from_f64(0.03).unwrap_or(T::zero()),
+                OperationType::DilConv5x5 => safe_from_f64(0.035).unwrap_or(T::zero()),
+            };
         }
 
         // Balance performance and complexity
@@ -928,7 +899,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENAS<T> {
                                 let end = ((j + 1) * current_dim) / self.out_features;
                                 let mut sum = T::zero();
                                 for k in start..end {
-                                    sum = sum + output[[i, k]];
+                                    sum += output[[i, k]];
                                 }
                                 let divisor =
                                     safe_from_f64((end - start) as f64).unwrap_or(T::one());
@@ -959,7 +930,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENAS<T> {
                                 let end = ((j + 1) * current_dim) / self.out_features;
                                 let mut sum = T::zero();
                                 for k in start..end {
-                                    sum = sum + output[[i, k]];
+                                    sum += output[[i, k]];
                                 }
                                 sum / T::from(end - start).unwrap_or_else(|| T::zero())
                             })
@@ -1003,7 +974,6 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENAS<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
 
     #[test]
     fn test_operation_types() {
@@ -1268,7 +1238,7 @@ mod tests {
         let (architecture, reward) = enas.search_step().expect("operation should succeed");
 
         assert_eq!(architecture.len(), 3);
-        assert!(reward > 0.0 || reward < 0.0 || reward == 0.0); // Just check it's a valid number
+        assert!(reward.is_finite()); // Just check it's a valid number
     }
 
     #[test]

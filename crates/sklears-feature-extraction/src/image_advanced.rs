@@ -34,13 +34,13 @@ use scirs2_core::ndarray::{Array2, ArrayView2};
 /// use scirs2_core::ndarray::Array2;
 ///
 /// let image = Array2::from_shape_vec((16, 16),
-///     (0..256).map(|x| if x % 8 < 4 { 1.0 } else { 0.0 }).collect()).unwrap();
+///     (0..256).map(|x| if x % 8 < 4 { 1.0 } else { 0.0 }).collect()).expect("shape and data length match");
 ///
 /// let contour_extractor = ContourAnalysisExtractor::new()
 ///     .min_contour_area(10.0)
 ///     .max_contours(Some(5));
 ///
-/// let features = contour_extractor.extract_features(&image.view()).unwrap();
+/// let features = contour_extractor.extract_features(&image.view()).expect("valid image produces contour features");
 /// ```
 #[derive(Debug, Clone)]
 pub struct ContourAnalysisExtractor {
@@ -166,9 +166,7 @@ impl ContourAnalysisExtractor {
             features.push(self.std_dev(&orientations)); // Std dev of orientations
         } else {
             // No contours found - add zeros
-            for _ in 0..11 {
-                features.push(0.0);
-            }
+            features.resize(features.len() + 11, 0.0);
         }
 
         // Hierarchy analysis if enabled
@@ -640,14 +638,14 @@ pub struct Contour {
 /// use scirs2_core::ndarray::Array2;
 ///
 /// let image = Array2::from_shape_vec((16, 16),
-///     (0..256).map(|x| if x % 8 < 4 { 1.0 } else { 0.0 }).collect()).unwrap();
+///     (0..256).map(|x| if x % 8 < 4 { 1.0 } else { 0.0 }).collect()).expect("shape and data length match");
 ///
 /// let morph_extractor = MorphologicalFeaturesExtractor::new()
 ///     .kernel_size(3)
 ///     .kernel_shape(KernelShape::Elliptical)
 ///     .multi_scale(true);
 ///
-/// let features = morph_extractor.extract_features(&image.view()).unwrap();
+/// let features = morph_extractor.extract_features(&image.view()).expect("valid image produces morphological features");
 /// ```
 #[derive(Debug, Clone)]
 pub struct MorphologicalFeaturesExtractor {

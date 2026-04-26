@@ -291,9 +291,7 @@ pub fn wilcoxon_signed_rank_test(
             j += 1;
         }
         let avg_rank = (i + j + 1) as f64 / 2.0;
-        for k in i..j {
-            ranks[k] = avg_rank;
-        }
+        ranks[i..j].fill(avg_rank);
         i = j;
     }
 

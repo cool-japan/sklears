@@ -241,7 +241,7 @@ impl FeatureInteractionDetector {
         y: Option<&ArrayView1<T>>,
     ) -> Result<InteractionResults>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq + Into<f64>,
     {
         let (n_samples, n_features) = x.dim();
 
@@ -266,7 +266,7 @@ impl FeatureInteractionDetector {
         y: Option<&ArrayView1<T>>,
     ) -> Result<InteractionResults>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq + Into<f64>,
     {
         let (_, n_features) = x.dim();
         let mut detected_interactions = Vec::new();
@@ -314,26 +314,49 @@ impl FeatureInteractionDetector {
         _y: Option<&ArrayView1<T>>,
     ) -> Result<f64>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq + Into<f64>,
     {
-        // Simplified correlation-based interaction strength
+        // Correlation-based interaction strength (absolute value)
         let strength = self.compute_correlation(feature_i, feature_j)?;
         Ok(strength.abs())
     }
 
-    /// Compute correlation between two features
+    /// Compute Pearson correlation between two features
     fn compute_correlation<T>(
         &self,
         feature_i: &ArrayView1<T>,
         feature_j: &ArrayView1<T>,
     ) -> Result<f64>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
-        // Simplified Pearson correlation implementation
-        // In practice, this would compute actual correlation
-        let correlation = 0.15; // Placeholder
-        Ok(correlation)
+        let n = feature_i.len();
+        if n == 0 {
+            return Ok(0.0);
+        }
+        let xi: Vec<f64> = feature_i.iter().map(|&v| v.into()).collect();
+        let xj: Vec<f64> = feature_j.iter().map(|&v| v.into()).collect();
+
+        let mean_i = xi.iter().sum::<f64>() / n as f64;
+        let mean_j = xj.iter().sum::<f64>() / n as f64;
+
+        let cov: f64 = xi
+            .iter()
+            .zip(xj.iter())
+            .map(|(&a, &b)| (a - mean_i) * (b - mean_j))
+            .sum::<f64>()
+            / n as f64;
+
+        let std_i: f64 =
+            (xi.iter().map(|&a| (a - mean_i) * (a - mean_i)).sum::<f64>() / n as f64).sqrt();
+        let std_j: f64 =
+            (xj.iter().map(|&b| (b - mean_j) * (b - mean_j)).sum::<f64>() / n as f64).sqrt();
+
+        let denom = std_i * std_j;
+        if denom < f64::EPSILON {
+            return Ok(0.0);
+        }
+        Ok((cov / denom).clamp(-1.0, 1.0))
     }
 
     /// Detect higher-order interactions
@@ -343,7 +366,7 @@ impl FeatureInteractionDetector {
         y: Option<&ArrayView1<T>>,
     ) -> Result<InteractionResults>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq + Into<f64>,
     {
         let (_, n_features) = x.dim();
         let mut detected_interactions = Vec::new();
@@ -445,10 +468,10 @@ impl FeatureInteractionDetector {
     fn detect_correlation_interactions<T>(
         &mut self,
         x: &ArrayView2<T>,
-        y: Option<&ArrayView1<T>>,
+        _y: Option<&ArrayView1<T>>,
     ) -> Result<InteractionResults>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq + Into<f64>,
     {
         let (_, n_features) = x.dim();
         let correlation_matrix = self.compute_correlation_matrix(x)?;
@@ -488,7 +511,7 @@ impl FeatureInteractionDetector {
     /// Compute correlation matrix
     fn compute_correlation_matrix<T>(&self, x: &ArrayView2<T>) -> Result<Array2<f64>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
         let (_, n_features) = x.dim();
         let mut correlation_matrix = Array2::zeros((n_features, n_features));
@@ -520,7 +543,7 @@ impl FeatureInteractionDetector {
         y: Option<&ArrayView1<T>>,
     ) -> Result<InteractionResults>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq + Into<f64>,
     {
         let (_, n_features) = x.dim();
         let mut detected_interactions = Vec::new();
@@ -557,7 +580,7 @@ impl FeatureInteractionDetector {
         Ok(results)
     }
 
-    /// Compute mutual information between features
+    /// Compute mutual information between two features using histogram binning
     fn compute_mutual_information<T>(
         &self,
         feature_i: &ArrayView1<T>,
@@ -565,11 +588,56 @@ impl FeatureInteractionDetector {
         _y: Option<&ArrayView1<T>>,
     ) -> Result<f64>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq + Into<f64>,
     {
-        // Simplified mutual information computation
-        let mi_score = 0.12; // Placeholder
-        Ok(mi_score)
+        let n = feature_i.len();
+        if n == 0 {
+            return Ok(0.0);
+        }
+
+        let xi: Vec<f64> = feature_i.iter().map(|&v| v.into()).collect();
+        let xj: Vec<f64> = feature_j.iter().map(|&v| v.into()).collect();
+
+        // Use sqrt(n) bins as rule of thumb
+        let n_bins = ((n as f64).sqrt().ceil() as usize).max(2);
+
+        // Build 2D histogram
+        let min_i = xi.iter().copied().fold(f64::INFINITY, f64::min);
+        let max_i = xi.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        let min_j = xj.iter().copied().fold(f64::INFINITY, f64::min);
+        let max_j = xj.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+
+        let range_i = (max_i - min_i).max(f64::EPSILON);
+        let range_j = (max_j - min_j).max(f64::EPSILON);
+
+        let mut joint_counts = vec![vec![0usize; n_bins]; n_bins];
+        let mut counts_i = vec![0usize; n_bins];
+        let mut counts_j = vec![0usize; n_bins];
+
+        for k in 0..n {
+            let bi = (((xi[k] - min_i) / range_i * (n_bins as f64 - 1.0)).round() as usize)
+                .min(n_bins - 1);
+            let bj = (((xj[k] - min_j) / range_j * (n_bins as f64 - 1.0)).round() as usize)
+                .min(n_bins - 1);
+            joint_counts[bi][bj] += 1;
+            counts_i[bi] += 1;
+            counts_j[bj] += 1;
+        }
+
+        let n_f = n as f64;
+        let mut mi = 0.0_f64;
+        for bi in 0..n_bins {
+            for bj in 0..n_bins {
+                let pij = joint_counts[bi][bj] as f64 / n_f;
+                let pi = counts_i[bi] as f64 / n_f;
+                let pj = counts_j[bj] as f64 / n_f;
+                if pij > 0.0 && pi > 0.0 && pj > 0.0 {
+                    mi += pij * (pij / (pi * pj)).ln();
+                }
+            }
+        }
+
+        Ok(mi.max(0.0))
     }
 
     /// Detect statistical interactions
@@ -579,7 +647,7 @@ impl FeatureInteractionDetector {
         y: Option<&ArrayView1<T>>,
     ) -> Result<InteractionResults>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + PartialEq + Into<f64>,
     {
         let (_, n_features) = x.dim();
         let mut detected_interactions = Vec::new();
@@ -630,7 +698,7 @@ impl FeatureInteractionDetector {
         Ok(results)
     }
 
-    /// Compute statistical test for interaction
+    /// Compute statistical test for interaction (Pearson correlation t-test)
     fn compute_statistical_test<T>(
         &self,
         feature_i: &ArrayView1<T>,
@@ -638,9 +706,8 @@ impl FeatureInteractionDetector {
         _y: Option<&ArrayView1<T>>,
     ) -> Result<(f64, f64)>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
-        // Simplified statistical test (e.g., correlation test)
         let correlation = self.compute_correlation(feature_i, feature_j)?;
         let n = feature_i.len() as f64;
 
@@ -692,22 +759,40 @@ impl PairwiseInteractions {
         }
     }
 
-    /// Detect pairwise interactions
+    /// Detect pairwise interactions using Pearson correlation
     pub fn detect<T>(&mut self, x: &ArrayView2<T>) -> Result<Vec<(usize, usize)>>
     where
-        T: Clone + Copy + std::fmt::Debug + PartialOrd,
+        T: Clone + Copy + std::fmt::Debug + PartialOrd + Into<f64>,
     {
-        let (_, n_features) = x.dim();
+        let (n_samples, n_features) = x.dim();
         let mut interaction_matrix = Array2::zeros((n_features, n_features));
         let mut significant_pairs = Vec::new();
 
         for i in 0..n_features {
+            interaction_matrix[(i, i)] = 1.0;
             for j in (i + 1)..n_features {
-                let feature_i = x.column(i);
-                let feature_j = x.column(j);
+                let xi: Vec<f64> = x.column(i).iter().map(|&v| v.into()).collect();
+                let xj: Vec<f64> = x.column(j).iter().map(|&v| v.into()).collect();
+                let n = n_samples as f64;
+                let mean_i = xi.iter().sum::<f64>() / n;
+                let mean_j = xj.iter().sum::<f64>() / n;
+                let cov: f64 = xi
+                    .iter()
+                    .zip(xj.iter())
+                    .map(|(&a, &b)| (a - mean_i) * (b - mean_j))
+                    .sum::<f64>()
+                    / n;
+                let std_i =
+                    (xi.iter().map(|&a| (a - mean_i) * (a - mean_i)).sum::<f64>() / n).sqrt();
+                let std_j =
+                    (xj.iter().map(|&b| (b - mean_j) * (b - mean_j)).sum::<f64>() / n).sqrt();
+                let denom = std_i * std_j;
+                let correlation = if denom < f64::EPSILON {
+                    0.0
+                } else {
+                    (cov / denom).clamp(-1.0, 1.0)
+                };
 
-                // Simplified correlation computation
-                let correlation: f64 = 0.2; // Placeholder
                 interaction_matrix[(i, j)] = correlation;
                 interaction_matrix[(j, i)] = correlation;
 
@@ -1257,7 +1342,7 @@ impl FeatureCombination {
     fn multiply_features<T>(
         &self,
         x: &ArrayView2<T>,
-        sample_idx: usize,
+        _sample_idx: usize,
         interaction: &[usize],
     ) -> Result<f64>
     where
@@ -1277,7 +1362,7 @@ impl FeatureCombination {
     fn add_features<T>(
         &self,
         x: &ArrayView2<T>,
-        sample_idx: usize,
+        _sample_idx: usize,
         interaction: &[usize],
     ) -> Result<f64>
     where
@@ -1297,7 +1382,7 @@ impl FeatureCombination {
     fn max_features<T>(
         &self,
         x: &ArrayView2<T>,
-        sample_idx: usize,
+        _sample_idx: usize,
         interaction: &[usize],
     ) -> Result<f64>
     where
@@ -1317,7 +1402,7 @@ impl FeatureCombination {
     fn min_features<T>(
         &self,
         x: &ArrayView2<T>,
-        sample_idx: usize,
+        _sample_idx: usize,
         interaction: &[usize],
     ) -> Result<f64>
     where
@@ -1409,7 +1494,7 @@ mod tests {
             .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0; 5].into_iter().chain(vec![1.0; 5]).collect());
 
-        let results = detector
+        let _results = detector
             .detect_interactions(&x.view(), Some(&y.view()))
             .expect("operation should succeed");
         assert!(detector.is_fitted());
@@ -1422,7 +1507,7 @@ mod tests {
 
         let x = Array2::from_shape_vec((8, 4), (0..32).map(|i| i as f64).collect())
             .expect("operation should succeed");
-        let pairs = pairwise
+        let _pairs = pairwise
             .detect(&x.view())
             .expect("operation should succeed");
 
@@ -1474,7 +1559,7 @@ mod tests {
             ],
         )
         .expect("operation should succeed");
-        let correlations = correlation
+        let _correlations = correlation
             .analyze(&x.view())
             .expect("operation should succeed");
 

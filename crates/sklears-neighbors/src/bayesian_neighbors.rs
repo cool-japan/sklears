@@ -712,7 +712,7 @@ mod tests {
         for pred in &predictions {
             assert!(pred.uncertainty >= 0.0);
             assert!(pred.entropy >= 0.0);
-            assert!(pred.probabilities.iter().all(|&p| p >= 0.0 && p <= 1.0));
+            assert!(pred.probabilities.iter().all(|&p| (0.0..=1.0).contains(&p)));
             assert_abs_diff_eq!(pred.probabilities.sum(), 1.0, epsilon = 1e-10);
         }
     }
@@ -832,7 +832,7 @@ mod tests {
 
         // Check that probabilities are valid
         for &prob in &credible_set.inclusion_probabilities {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
 
         // Check that distances are sorted

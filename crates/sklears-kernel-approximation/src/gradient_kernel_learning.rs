@@ -826,6 +826,7 @@ impl GradientKernelLearner {
 pub struct GradientMultiKernelLearner {
     base_learners: Vec<GradientKernelLearner>,
     combination_weights: Array1<f64>,
+    #[allow(dead_code)] // stored for access/inspection during training
     config: GradientConfig,
 }
 

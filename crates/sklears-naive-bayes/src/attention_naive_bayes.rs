@@ -9,14 +9,12 @@ use scirs2_core::numeric::{Float, NumCast};
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 
-// Type aliases for compatibility with DMatrix/DVector usage
-type DMatrix<T> = Array2<T>;
-type DVector<T> = Array1<T>;
+// Type aliases for compatibility with Matrix2D/Vector1D usage
+type Matrix2D<T> = Array2<T>;
+type Vector1D<T> = Array1<T>;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use scirs2_core::random::Rng;
 // SciRS2 Policy Compliance - Use scirs2-core for random distributions
 use scirs2_core::essentials::Uniform;
-use scirs2_core::random::RandUniform;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -110,19 +108,19 @@ pub struct AttentionNaiveBayes<T: Float> {
     /// Attention type
     attention_type: AttentionType,
     /// Query matrices for attention (one per class if class-specific)
-    query_matrices: HashMap<i32, DMatrix<T>>,
+    query_matrices: HashMap<i32, Matrix2D<T>>,
     /// Key matrices for attention
-    key_matrices: HashMap<i32, DMatrix<T>>,
+    key_matrices: HashMap<i32, Matrix2D<T>>,
     /// Value matrices for attention
-    value_matrices: HashMap<i32, DMatrix<T>>,
+    value_matrices: HashMap<i32, Matrix2D<T>>,
     /// Traditional Naive Bayes parameters
     class_priors: HashMap<i32, T>,
-    feature_means: HashMap<i32, DVector<T>>,
-    feature_variances: HashMap<i32, DVector<T>>,
+    feature_means: HashMap<i32, Vector1D<T>>,
+    feature_variances: HashMap<i32, Vector1D<T>>,
     /// Attention weights for feature importance
-    attention_weights: HashMap<i32, DMatrix<T>>,
+    attention_weights: HashMap<i32, Matrix2D<T>>,
     /// Feature importance scores
-    feature_importance: Option<DVector<T>>,
+    feature_importance: Option<Vector1D<T>>,
     /// Number of features
     n_features: usize,
     /// Classes seen during training
@@ -132,6 +130,7 @@ pub struct AttentionNaiveBayes<T: Float> {
     _phantom: PhantomData<T>,
 }
 
+#[allow(non_snake_case)]
 impl<T: Float + Clone + std::fmt::Debug + 'static> AttentionNaiveBayes<T>
 where
     T: Float + Copy,
@@ -160,7 +159,7 @@ where
     }
 
     /// Fit the model to training data
-    pub fn fit(&mut self, X: &DMatrix<T>, y: &[i32]) -> Result<()> {
+    pub fn fit(&mut self, X: &Matrix2D<T>, y: &[i32]) -> Result<()> {
         if X.nrows() != y.len() {
             return Err(AttentionNBError::FeatureMismatch {
                 expected: X.nrows(),
@@ -174,7 +173,7 @@ where
 
         self.n_features = X.ncols();
         self.classes = {
-            let mut classes: Vec<i32> = y.iter().cloned().collect();
+            let mut classes: Vec<i32> = y.to_vec();
             classes.sort_unstable();
             classes.dedup();
             classes
@@ -197,7 +196,7 @@ where
     }
 
     /// Predict class probabilities with attention
-    pub fn predict_proba(&self, X: &DMatrix<T>) -> Result<DMatrix<T>> {
+    pub fn predict_proba(&self, X: &Matrix2D<T>) -> Result<Matrix2D<T>> {
         if !self.is_fitted {
             return Err(AttentionNBError::AttentionError(
                 "Model must be fitted before prediction".to_string(),
@@ -213,7 +212,7 @@ where
 
         let n_samples = X.nrows();
         let n_classes = self.classes.len();
-        let mut probabilities = DMatrix::zeros((n_samples, n_classes));
+        let mut probabilities = Matrix2D::zeros((n_samples, n_classes));
 
         for (sample_idx, sample) in X.axis_iter(Axis(0)).enumerate() {
             for (class_idx, &class) in self.classes.iter().enumerate() {
@@ -235,7 +234,7 @@ where
     }
 
     /// Predict classes
-    pub fn predict(&self, X: &DMatrix<T>) -> Result<Vec<i32>> {
+    pub fn predict(&self, X: &Matrix2D<T>) -> Result<Vec<i32>> {
         let probabilities = self.predict_proba(X)?;
         let mut predictions = Vec::with_capacity(X.nrows());
 
@@ -253,17 +252,17 @@ where
     }
 
     /// Get feature importance scores
-    pub fn feature_importance(&self) -> Option<&DVector<T>> {
+    pub fn feature_importance(&self) -> Option<&Vector1D<T>> {
         self.feature_importance.as_ref()
     }
 
     /// Get attention weights for a specific class
-    pub fn attention_weights_for_class(&self, class: i32) -> Option<&DMatrix<T>> {
+    pub fn attention_weights_for_class(&self, class: i32) -> Option<&Matrix2D<T>> {
         self.attention_weights.get(&class)
     }
 
     /// Fit traditional Naive Bayes parameters
-    fn fit_naive_bayes_parameters(&mut self, X: &DMatrix<T>, y: &[i32]) -> Result<()> {
+    fn fit_naive_bayes_parameters(&mut self, X: &Matrix2D<T>, y: &[i32]) -> Result<()> {
         let total_samples = y.len() as f64;
 
         for &class in &self.classes {
@@ -284,8 +283,8 @@ where
             }
 
             // Compute feature means and variances
-            let mut means = DVector::zeros(self.n_features);
-            let mut variances = DVector::zeros(self.n_features);
+            let mut means = Vector1D::zeros(self.n_features);
+            let mut variances = Vector1D::zeros(self.n_features);
 
             for feature_idx in 0..self.n_features {
                 let feature_values: Vec<T> = class_samples
@@ -348,7 +347,7 @@ where
     }
 
     /// Optimize attention parameters using gradient-based optimization
-    fn optimize_attention_parameters(&mut self, X: &DMatrix<T>, y: &[i32]) -> Result<()> {
+    fn optimize_attention_parameters(&mut self, X: &Matrix2D<T>, y: &[i32]) -> Result<()> {
         for iteration in 0..self.config.max_iterations {
             let mut total_loss = T::zero();
 
@@ -374,7 +373,7 @@ where
     }
 
     /// Compute attention loss for a specific class
-    fn compute_attention_loss(&self, X: &DMatrix<T>, y: &[i32], class: i32) -> Result<T> {
+    fn compute_attention_loss(&self, X: &Matrix2D<T>, y: &[i32], class: i32) -> Result<T> {
         let mut loss = T::zero();
         let class_samples: Vec<usize> = y
             .iter()
@@ -384,7 +383,7 @@ where
 
         for &sample_idx in &class_samples {
             let sample = X.row(sample_idx);
-            let attention_weights =
+            let _attention_weights =
                 self.compute_attention_weights(&sample.t().to_owned(), class)?;
 
             // Compute negative log-likelihood with attention
@@ -397,7 +396,12 @@ where
     }
 
     /// Update attention parameters for a specific class
-    fn update_attention_parameters(&mut self, X: &DMatrix<T>, y: &[i32], class: i32) -> Result<()> {
+    fn update_attention_parameters(
+        &mut self,
+        X: &Matrix2D<T>,
+        y: &[i32],
+        class: i32,
+    ) -> Result<()> {
         // Simplified parameter update (in practice, this would use proper gradients)
         let learning_rate = NumCast::from(self.config.learning_rate).unwrap_or_else(T::zero);
 
@@ -422,8 +426,8 @@ where
     }
 
     /// Approximate gradient for attention parameters
-    fn approximate_gradient(&self, X: &DMatrix<T>, y: &[i32], class: i32) -> Result<DVector<T>> {
-        let mut gradient = DVector::zeros(self.n_features);
+    fn approximate_gradient(&self, X: &Matrix2D<T>, y: &[i32], class: i32) -> Result<Vector1D<T>> {
+        let mut gradient = Vector1D::zeros(self.n_features);
         let class_samples: Vec<usize> = y
             .iter()
             .enumerate()
@@ -462,7 +466,7 @@ where
     }
 
     /// Compute attention weights for a given sample
-    fn compute_attention_weights(&self, sample: &DVector<T>, class: i32) -> Result<DVector<T>> {
+    fn compute_attention_weights(&self, sample: &Vector1D<T>, class: i32) -> Result<Vector1D<T>> {
         match self.attention_type {
             AttentionType::DotProduct => self.compute_dot_product_attention(sample, class),
             AttentionType::ScaledDotProduct => {
@@ -475,19 +479,23 @@ where
     }
 
     /// Compute dot-product attention
-    fn compute_dot_product_attention(&self, sample: &DVector<T>, class: i32) -> Result<DVector<T>> {
+    fn compute_dot_product_attention(
+        &self,
+        sample: &Vector1D<T>,
+        class: i32,
+    ) -> Result<Vector1D<T>> {
         if let (Some(query_matrix), Some(key_matrix)) = (
             self.query_matrices.get(&class),
             self.key_matrices.get(&class),
         ) {
-            let query = query_matrix * sample;
-            let key = key_matrix * sample;
+            let _query = query_matrix * sample;
+            let _key = key_matrix * sample;
 
             // Compute attention scores - use matrix multiplication then dot product
             let scores_vec = query_matrix.dot(sample);
 
             // Apply softmax to get attention weights
-            let mut weights = DVector::zeros(scores_vec.len());
+            let mut weights = Vector1D::zeros(scores_vec.len());
             let max_score = scores_vec.fold(T::neg_infinity(), |a, &b| if a > b { a } else { b });
             for i in 0..scores_vec.len() {
                 let score_f64: f64 = NumCast::from(scores_vec[i] - max_score).unwrap_or(0.0);
@@ -511,15 +519,15 @@ where
     /// Compute scaled dot-product attention
     fn compute_scaled_dot_product_attention(
         &self,
-        sample: &DVector<T>,
+        sample: &Vector1D<T>,
         class: i32,
-    ) -> Result<DVector<T>> {
+    ) -> Result<Vector1D<T>> {
         if let (Some(query_matrix), Some(key_matrix)) = (
             self.query_matrices.get(&class),
             self.key_matrices.get(&class),
         ) {
-            let query = query_matrix * sample;
-            let key = key_matrix * sample;
+            let _query = query_matrix * sample;
+            let _key = key_matrix * sample;
 
             // Scale by square root of dimension
             let scale =
@@ -527,7 +535,7 @@ where
             let scores_vec = query_matrix.dot(sample);
 
             // Apply softmax
-            let mut weights = DVector::zeros(scores_vec.len());
+            let mut weights = Vector1D::zeros(scores_vec.len());
             let max_score = scores_vec.fold(T::neg_infinity(), |a, &b| if a > b { a } else { b });
             for i in 0..scores_vec.len() {
                 let score_f64: f64 =
@@ -550,9 +558,9 @@ where
     }
 
     /// Compute additive attention (placeholder - simplified)
-    fn compute_additive_attention(&self, sample: &DVector<T>, _class: i32) -> Result<DVector<T>> {
+    fn compute_additive_attention(&self, sample: &Vector1D<T>, _class: i32) -> Result<Vector1D<T>> {
         // Simplified additive attention
-        let mut weights = DVector::zeros(self.n_features);
+        let mut weights = Vector1D::zeros(self.n_features);
         for i in 0..self.n_features {
             weights[i] = Float::abs(sample[i]);
         }
@@ -567,13 +575,17 @@ where
     }
 
     /// Compute multi-head attention (placeholder - simplified)
-    fn compute_multi_head_attention(&self, sample: &DVector<T>, class: i32) -> Result<DVector<T>> {
+    fn compute_multi_head_attention(
+        &self,
+        sample: &Vector1D<T>,
+        class: i32,
+    ) -> Result<Vector1D<T>> {
         // Simplified multi-head attention
         self.compute_scaled_dot_product_attention(sample, class)
     }
 
     /// Compute cross-attention (placeholder - simplified)
-    fn compute_cross_attention(&self, sample: &DVector<T>, class: i32) -> Result<DVector<T>> {
+    fn compute_cross_attention(&self, sample: &Vector1D<T>, class: i32) -> Result<Vector1D<T>> {
         // Simplified cross-attention
         self.compute_dot_product_attention(sample, class)
     }
@@ -581,7 +593,7 @@ where
     /// Compute class probability with attention
     fn compute_class_probability_with_attention(
         &self,
-        sample: &DVector<T>,
+        sample: &Vector1D<T>,
         class: i32,
     ) -> Result<T> {
         let attention_weights = self.compute_attention_weights(sample, class)?;
@@ -622,8 +634,8 @@ where
     }
 
     /// Compute feature importance using attention weights
-    fn compute_feature_importance(&mut self, _X: &DMatrix<T>, _y: &[i32]) -> Result<()> {
-        let mut importance = DVector::zeros(self.n_features);
+    fn compute_feature_importance(&mut self, _X: &Matrix2D<T>, _y: &[i32]) -> Result<()> {
+        let mut importance = Vector1D::zeros(self.n_features);
         let n_classes = self.classes.len() as f64;
 
         // Average attention weights across all classes

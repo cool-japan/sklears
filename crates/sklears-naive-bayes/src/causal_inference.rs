@@ -5,11 +5,8 @@
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
-use scirs2_core::numeric::Float;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 use scirs2_core::random::SeedableRng;
-// SciRS2 Policy Compliance - Use scirs2-core for random distributions
-use scirs2_core::random::Distribution;
 use std::collections::{HashMap, HashSet, VecDeque};
 use thiserror::Error;
 
@@ -1412,7 +1409,6 @@ impl CausalNaiveBayes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
 
     #[test]
     fn test_causal_graph_creation() {

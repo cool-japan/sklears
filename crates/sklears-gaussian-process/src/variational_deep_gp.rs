@@ -169,6 +169,7 @@ pub struct VariationalLayerParameters {
 
 /// Training state for variational deep GP
 #[derive(Debug)]
+#[allow(non_snake_case)]
 pub struct VariationalDeepGPState {
     /// Variational parameters for each layer
     pub layer_parameters: Vec<VariationalLayerParameters>,
@@ -194,6 +195,7 @@ pub struct VariationalDeepGaussianProcess {
     state: Option<VariationalDeepGPState>,
 }
 
+#[allow(non_snake_case)]
 impl VariationalDeepGaussianProcess {
     /// Create a new builder for variational deep GP
     pub fn builder() -> VariationalDeepGPBuilder {
@@ -430,7 +432,7 @@ impl VariationalDeepGaussianProcess {
     /// Train for one epoch
     fn train_epoch(&self, state: &mut VariationalDeepGPState) -> Result<f64> {
         let n_samples = state.X_train.nrows();
-        let n_batches = (n_samples + self.config.batch_size - 1) / self.config.batch_size;
+        let n_batches = n_samples.div_ceil(self.config.batch_size);
 
         let mut epoch_elbo = 0.0;
 
@@ -819,7 +821,7 @@ mod tests {
         assert_eq!(config.input_dim, 3);
         assert_eq!(config.output_dim, 5);
         assert_eq!(config.n_inducing, 15);
-        assert_eq!(config.whiten, false);
+        assert!(!config.whiten);
         assert!((config.initial_variance - 0.5).abs() < 1e-10);
     }
 
@@ -843,7 +845,7 @@ mod tests {
         assert_eq!(vdgp.config.batch_size, 64);
         assert_eq!(vdgp.config.max_epochs, 500);
         assert!((vdgp.config.convergence_tolerance - 1e-8).abs() < 1e-15);
-        assert_eq!(vdgp.config.use_natural_gradients, true);
+        assert!(vdgp.config.use_natural_gradients);
         assert_eq!(vdgp.config.random_seed, Some(123));
     }
 
@@ -857,7 +859,7 @@ mod tests {
         assert_eq!(config.batch_size, 100);
         assert_eq!(config.max_epochs, 1000);
         assert!((config.convergence_tolerance - 1e-6).abs() < 1e-15);
-        assert_eq!(config.use_natural_gradients, false);
+        assert!(!config.use_natural_gradients);
         assert_eq!(config.random_seed, None);
     }
 
@@ -894,7 +896,7 @@ mod tests {
         assert!((state.current_elbo + 1000.0).abs() < 1e-10);
         assert_eq!(state.elbo_history.len(), 3);
         assert_eq!(state.epochs_completed, 3);
-        assert_eq!(state.converged, false);
+        assert!(!state.converged);
     }
 
     #[test]

@@ -2,7 +2,7 @@ use super::validation_core::*;
 use super::validation_metrics::*;
 
 use scirs2_core::ndarray::{Array1, Axis};
-use scirs2_core::random::{RngCore, RngExt};
+use scirs2_core::random::{Rng, RngExt};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::{Fit, Predict};
 use sklears_core::types::{Features, Float, Int};
@@ -217,7 +217,7 @@ pub fn bootstrap_validate_regressor(
 }
 
 /// Create a bootstrap sample of indices
-fn create_bootstrap_sample(n_samples: usize, rng: &mut dyn RngCore) -> Vec<usize> {
+fn create_bootstrap_sample(n_samples: usize, rng: &mut dyn Rng) -> Vec<usize> {
     (0..n_samples)
         .map(|_| rng.random_range(0..n_samples))
         .collect()
@@ -390,7 +390,6 @@ pub fn stratified_bootstrap_validate_classifier(
     random_state: Option<u64>,
 ) -> Result<BootstrapValidationResult> {
     let mut rng = create_rng(random_state);
-    let n_samples = x.nrows();
 
     // Group indices by class
     let mut class_indices: HashMap<Int, Vec<usize>> = HashMap::new();

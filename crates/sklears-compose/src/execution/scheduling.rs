@@ -71,10 +71,15 @@ pub struct SchedulerConfig {
 /// Scheduling algorithms
 #[derive(Debug, Clone, PartialEq)]
 pub enum SchedulingAlgorithm {
+    /// Variant value.
     FIFO,
+    /// Variant value.
     Priority,
+    /// Variant value.
     ShortestJobFirst,
+    /// Variant value.
     RoundRobin {
+        /// The quantum.
         quantum: Duration,
     },
     /// Completely Fair Scheduler
@@ -119,9 +124,15 @@ pub enum QueuePersistence {
     /// In-memory only
     Memory,
     /// Persist to disk
-    Disk { path: String },
+    Disk {
+        /// The path.
+        path: String,
+    },
     /// Persist to database
-    Database { connection_string: String },
+    Database {
+        /// The connection string.
+        connection_string: String,
+    },
 }
 
 /// Priority handling configuration
@@ -141,14 +152,22 @@ pub enum AgingStrategy {
     /// No aging
     None,
     /// Linear aging
-    Linear { increment_interval: Duration },
+    Linear {
+        /// The increment interval.
+        increment_interval: Duration,
+    },
     /// Exponential aging
     Exponential {
+        /// The base interval.
         base_interval: Duration,
+        /// The multiplier.
         multiplier: f64,
     },
     /// Custom aging function
-    Custom { function_name: String },
+    Custom {
+        /// The function name.
+        function_name: String,
+    },
 }
 
 /// Dependency resolution configuration
@@ -187,9 +206,15 @@ pub enum SchedulerHealth {
     /// Scheduler is overloaded
     Overloaded,
     /// Scheduler has errors
-    Degraded { reason: String },
+    Degraded {
+        /// The reason.
+        reason: String,
+    },
     /// Scheduler is down
-    Down { reason: String },
+    Down {
+        /// The reason.
+        reason: String,
+    },
 }
 
 /// Scheduling metrics for monitoring
@@ -523,6 +548,7 @@ impl Default for SchedulerConfig {
 }
 
 /// Priority-based scheduler with advanced features
+#[allow(dead_code)]
 pub struct PriorityScheduler {
     config: SchedulerConfig,
     queues: HashMap<TaskPriority, VecDeque<(ExecutionTask, TaskHandle)>>,

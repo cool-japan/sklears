@@ -40,7 +40,7 @@ pub struct FactorModelCovariance<S = Untrained> {
 /// Methods for factor estimation
 #[derive(Debug, Clone)]
 pub enum FactorMethod {
-    PCA,
+    Pca,
     MaximumLikelihood,
     PrincipalFactors,
 }
@@ -185,7 +185,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for FactorModelCovariance<Untrained> {
 
         // Estimate the factor model
         let (loadings, specific_variances, n_iter, log_likelihood) = match self.method {
-            FactorMethod::PCA => self.fit_pca(&centered_data.view())?,
+            FactorMethod::Pca => self.fit_pca(&centered_data.view())?,
             FactorMethod::MaximumLikelihood => self.fit_ml(&centered_data.view())?,
             FactorMethod::PrincipalFactors => self.fit_principal_factors(&centered_data.view())?,
         };
@@ -273,7 +273,7 @@ impl FactorModelCovariance<Untrained> {
 
     /// Fit factor model using Maximum Likelihood (EM algorithm)
     fn fit_ml(&self, x: &ArrayView2<f64>) -> SklResult<(Array2<f64>, Array1<f64>, usize, f64)> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         // Initialize loadings and specific variances
         let (mut loadings, mut specific_variances) = self.initialize_parameters(n_features)?;
@@ -583,7 +583,7 @@ impl FactorModelCovariance<Untrained> {
 
     /// Compute log determinant of a matrix
     fn log_determinant(&self, matrix: &Array2<f64>) -> SklResult<f64> {
-        use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
+        use scirs2_linalg::compat::ArrayLinalgExt;
         let det = matrix.det().map_err(|e| {
             SklearsError::NumericalError(format!("Failed to compute determinant: {}", e))
         })?;
@@ -779,7 +779,7 @@ mod tests {
 
         let estimator = FactorModelCovariance::new()
             .n_factors(1)
-            .method(FactorMethod::PCA);
+            .method(FactorMethod::Pca);
 
         match estimator.fit(&x.view(), &()) {
             Ok(fitted) => {
@@ -815,8 +815,8 @@ mod tests {
         assert_eq!(estimator.n_factors, 3);
         assert_eq!(estimator.max_iter, 200);
         assert_eq!(estimator.tol, 1e-8);
-        assert_eq!(estimator.assume_centered, true);
+        assert!(estimator.assume_centered);
         assert_eq!(estimator.random_state, Some(42));
-        assert_eq!(estimator.diagonal_noise, false);
+        assert!(!estimator.diagonal_noise);
     }
 }

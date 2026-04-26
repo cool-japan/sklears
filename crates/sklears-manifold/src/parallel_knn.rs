@@ -107,6 +107,7 @@ impl ParallelKNN {
     }
 
     /// Fit and search for k-nearest neighbors
+    #[allow(non_snake_case)] // standard ML notation
     pub fn fit_search(
         &self,
         X_train: &Array2<Float>,
@@ -154,6 +155,7 @@ impl ParallelKNN {
     }
 
     /// Choose optimal algorithm based on data characteristics
+    #[allow(non_snake_case)] // standard ML notation
     fn choose_algorithm(&self, X: &Array2<Float>) -> String {
         let n_samples = X.nrows();
         let n_features = X.ncols();
@@ -170,13 +172,14 @@ impl ParallelKNN {
     }
 
     /// Brute force parallel search
+    #[allow(non_snake_case)] // standard ML notation
     fn brute_force_search(
         &self,
         X_train: &Array2<Float>,
         X_query: &Array2<Float>,
     ) -> SklResult<(Array2<usize>, Array2<Float>)> {
         let n_queries = X_query.nrows();
-        let n_train = X_train.nrows();
+        let _n_train = X_train.nrows();
 
         let chunk_size = self.chunk_size.min(n_queries);
 
@@ -187,7 +190,7 @@ impl ParallelKNN {
             .collect::<Vec<_>>()
             .par_iter()
             .map(|(chunk_idx, chunk)| {
-                let start_idx = chunk_idx * chunk_size;
+                let _start_idx = chunk_idx * chunk_size;
                 let chunk_size = chunk.nrows();
 
                 let mut indices = Array2::zeros((chunk_size, self.k));
@@ -224,12 +227,13 @@ impl ParallelKNN {
     }
 
     /// Find k-nearest neighbors for a single point
+    #[allow(non_snake_case)] // standard ML notation
     fn find_knn_for_point(
         &self,
         query: &ArrayView1<Float>,
         X_train: &Array2<Float>,
     ) -> SklResult<(Vec<usize>, Vec<Float>)> {
-        let n_train = X_train.nrows();
+        let _n_train = X_train.nrows();
 
         // Use a max-heap to keep track of k closest points
         let mut heap = BinaryHeap::new();
@@ -273,6 +277,7 @@ impl ParallelKNN {
     }
 
     /// KD-Tree based search (simplified implementation)
+    #[allow(non_snake_case)] // standard ML notation
     fn kd_tree_search(
         &self,
         X_train: &Array2<Float>,
@@ -288,10 +293,9 @@ impl ParallelKNN {
         // Parallel search using KD-tree
         let results: Vec<_> = X_query
             .axis_iter(Axis(0))
-            .enumerate()
             .collect::<Vec<_>>()
             .par_iter()
-            .map(|(i, query_point)| kd_tree.search_knn(query_point, self.k, &self.metric))
+            .map(|query_point| kd_tree.search_knn(query_point, self.k, &self.metric))
             .collect::<SklResult<Vec<_>>>()?;
 
         for (i, (point_indices, point_distances)) in results.into_iter().enumerate() {
@@ -305,6 +309,7 @@ impl ParallelKNN {
     }
 
     /// Ball Tree based search (simplified implementation)
+    #[allow(non_snake_case)] // standard ML notation
     fn ball_tree_search(
         &self,
         X_train: &Array2<Float>,
@@ -320,10 +325,9 @@ impl ParallelKNN {
         // Parallel search using Ball Tree
         let results: Vec<_> = X_query
             .axis_iter(Axis(0))
-            .enumerate()
             .collect::<Vec<_>>()
             .par_iter()
-            .map(|(i, query_point)| ball_tree.search_knn(query_point, self.k))
+            .map(|query_point| ball_tree.search_knn(query_point, self.k))
             .collect::<SklResult<Vec<_>>>()?;
 
         for (i, (point_indices, point_distances)) in results.into_iter().enumerate() {
@@ -337,6 +341,7 @@ impl ParallelKNN {
     }
 
     /// Locality Sensitive Hashing based approximate search
+    #[allow(non_snake_case)] // standard ML notation
     fn lsh_search(
         &self,
         X_train: &Array2<Float>,
@@ -352,10 +357,9 @@ impl ParallelKNN {
         // Parallel approximate search using LSH
         let results: Vec<_> = X_query
             .axis_iter(Axis(0))
-            .enumerate()
             .collect::<Vec<_>>()
             .par_iter()
-            .map(|(i, query_point)| {
+            .map(|query_point| {
                 lsh_index.search_approximate_knn(query_point, self.k, X_train, &self.metric)
             })
             .collect::<SklResult<Vec<_>>>()?;
@@ -386,16 +390,19 @@ impl PartialEq for NeighborDistance {
 
 impl Eq for NeighborDistance {}
 
-impl PartialOrd for NeighborDistance {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+impl Ord for NeighborDistance {
+    fn cmp(&self, other: &Self) -> Ordering {
         // Reverse order for max-heap behavior
-        other.distance.partial_cmp(&self.distance)
+        other
+            .distance
+            .partial_cmp(&self.distance)
+            .unwrap_or(Ordering::Equal)
     }
 }
 
-impl Ord for NeighborDistance {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap_or(Ordering::Equal)
+impl PartialOrd for NeighborDistance {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -810,6 +817,7 @@ impl BallTree {
 
 /// Simple Locality Sensitive Hashing implementation
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // retained for serialization/introspection
 struct LSHIndex {
     hash_tables: Vec<Vec<(Vec<usize>, Vec<usize>)>>, // (hash_value, point_indices)
     hash_functions: Vec<Array2<Float>>,
@@ -820,7 +828,7 @@ struct LSHIndex {
 impl LSHIndex {
     fn build(data: &Array2<Float>, precision: Float) -> SklResult<Self> {
         let n_features = data.ncols();
-        let n_samples = data.nrows();
+        let _n_samples = data.nrows();
 
         // Number of hash tables and functions based on precision
         let n_hash_tables = ((1.0 / precision).ln() / 2.0).ceil() as usize;
@@ -839,11 +847,11 @@ impl LSHIndex {
 
         // Build hash tables
         let mut hash_tables = Vec::new();
-        for table_idx in 0..n_hash_tables {
+        for hash_func in &hash_functions {
             let mut table = HashMap::new();
 
             for (point_idx, point) in data.axis_iter(Axis(0)).enumerate() {
-                let hash_value = Self::compute_hash(&hash_functions[table_idx], &point);
+                let hash_value = Self::compute_hash(hash_func, &point);
                 table
                     .entry(hash_value)
                     .or_insert_with(Vec::new)
@@ -885,8 +893,8 @@ impl LSHIndex {
         let mut candidate_indices = std::collections::HashSet::new();
 
         // Find candidates from all hash tables
-        for table_idx in 0..self.n_hash_tables {
-            let query_hash = Self::compute_hash(&self.hash_functions[table_idx], query);
+        for (table_idx, hash_function) in self.hash_functions.iter().enumerate() {
+            let query_hash = Self::compute_hash(hash_function, query);
 
             // Find matching bucket
             for (bucket_hash, point_indices) in &self.hash_tables[table_idx] {
@@ -1087,7 +1095,7 @@ mod tests {
         assert_abs_diff_eq!(manhattan_dist, 9.0, epsilon = 1e-10);
 
         let cosine_dist = cosine_distance(&a.view(), &b.view()).expect("operation should succeed");
-        assert!(cosine_dist >= 0.0 && cosine_dist <= 2.0);
+        assert!((0.0..=2.0).contains(&cosine_dist));
     }
 
     #[test]

@@ -4,11 +4,8 @@
 //! dynamic canonical correlation analysis (CCA), streaming CCA, vector autoregression (VAR)
 //! models, Granger causality testing, state-space models, and regime switching models.
 
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, Axis};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Float as FloatTrait;
-use scirs2_core::random::{thread_rng, Random, Rng};
-use sklears_core::types::Float;
-use std::collections::HashMap;
 use std::fmt;
 
 /// Time series cross-decomposition error types
@@ -58,8 +55,8 @@ pub struct TemporalCrossDecompositionConfig<F: FloatTrait> {
 
 /// Time series validator
 pub struct TimeSeriesValidator {
-    min_samples: usize,
-    max_lag: usize,
+    pub min_samples: usize,
+    pub max_lag: usize,
 }
 
 /// Cross-decomposition estimator trait for time series
@@ -70,7 +67,7 @@ pub trait CrossDecompositionEstimator<F: FloatTrait> {
 
 /// Time series transformer
 pub struct TimeSeriesTransformer {
-    method: TransformMethod,
+    pub method: TransformMethod,
 }
 
 /// Transform methods
@@ -86,15 +83,14 @@ pub enum TransformMethod {
 
 /// Temporal analyzer
 pub struct TemporalAnalyzer {
-    lag_order: usize,
-
-    window_size: usize,
+    pub lag_order: usize,
+    pub window_size: usize,
 }
 
 /// Dynamic CCA for time series analysis
 pub struct DynamicCCA<F: FloatTrait> {
-    n_components: usize,
-    window_size: usize,
+    pub n_components: usize,
+    pub window_size: usize,
     _phantom: std::marker::PhantomData<F>,
 }
 
@@ -111,30 +107,30 @@ pub struct DynamicCCASummary<F: FloatTrait> {
 
 /// Dynamic CCA builder
 pub struct DynamicCCABuilder<F: FloatTrait> {
-    n_components: usize,
-    window_size: usize,
+    pub n_components: usize,
+    pub window_size: usize,
     _phantom: std::marker::PhantomData<F>,
 }
 
 /// Canonical correlation analyzer
 pub struct CanonicalCorrelationAnalyzer {
-    threshold: f64,
-    max_lags: usize,
+    pub threshold: f64,
+    pub max_lags: usize,
 }
 
 /// Temporal CCA validator
 pub struct TemporalCCAValidator {
-    min_window_size: usize,
+    pub min_window_size: usize,
 }
 
 /// Dynamic correlation tracker
 pub struct DynamicCorrelationTracker<F: FloatTrait> {
-    correlations: Vec<Array1<F>>,
+    pub correlations: Vec<Array1<F>>,
 }
 
 /// Streaming CCA for online learning
 pub struct StreamingCCA<F: FloatTrait> {
-    n_components: usize,
+    pub n_components: usize,
     _phantom: std::marker::PhantomData<F>,
 }
 
@@ -146,32 +142,32 @@ pub struct StreamingCCAResults<F: FloatTrait> {
 
 /// Online CCA learner
 pub struct OnlineCCALearner {
-    learning_rate: f64,
+    pub learning_rate: f64,
 }
 
 /// Streaming validator
 pub struct StreamingValidator {
-    buffer_size: usize,
+    pub buffer_size: usize,
 }
 
 /// Adaptive CCA estimator
 pub struct AdaptiveCCAEstimator {
-    adaptation_rate: f64,
+    pub adaptation_rate: f64,
 }
 
 /// Incremental CCA processor
 pub struct IncrementalCCAProcessor {
-    batch_size: usize,
+    pub batch_size: usize,
 }
 
 /// Real-time CCA analyzer
 pub struct RealTimeCCAAnalyzer {
-    latency_threshold: f64,
+    pub latency_threshold: f64,
 }
 
 /// Vector Autoregression model
 pub struct VectorAutoregression<F: FloatTrait> {
-    lag_order: usize,
+    pub lag_order: usize,
     _phantom: std::marker::PhantomData<F>,
 }
 
@@ -213,22 +209,22 @@ pub enum InformationCriterion {
 
 /// VAR model builder
 pub struct VARBuilder {
-    lag_order: usize,
+    pub lag_order: usize,
 }
 
 /// Multivariate time series analyzer
 pub struct MultivariateTimeSeriesAnalyzer {
-    max_lags: usize,
+    pub max_lags: usize,
 }
 
 /// Autoregression validator
 pub struct AutoregressionValidator {
-    min_observations: usize,
+    pub min_observations: usize,
 }
 
 /// Granger causality test
 pub struct GrangerCausalityTest<F: FloatTrait> {
-    max_lags: usize,
+    pub max_lags: usize,
     _phantom: std::marker::PhantomData<F>,
 }
 
@@ -241,33 +237,33 @@ pub struct GrangerTestResult<F: FloatTrait> {
 
 /// Causality analyzer
 pub struct CausalityAnalyzer {
-    significance_threshold: f64,
+    pub significance_threshold: f64,
 }
 
 /// Granger validator
 pub struct GrangerValidator {
-    min_observations: usize,
+    pub min_observations: usize,
 }
 
 /// Causal inference engine
 pub struct CausalInferenceEngine {
-    confidence_level: f64,
+    pub confidence_level: f64,
 }
 
 /// Temporal causality detector
 pub struct TemporalCausalityDetector {
-    window_size: usize,
+    pub window_size: usize,
 }
 
 /// Causal relationship analyzer
 pub struct CausalRelationshipAnalyzer {
-    network_threshold: f64,
+    pub network_threshold: f64,
 }
 
 /// State space model
 pub struct StateSpaceModel<F: FloatTrait> {
-    state_dim: usize,
-    obs_dim: usize,
+    pub state_dim: usize,
+    pub obs_dim: usize,
     _phantom: std::marker::PhantomData<F>,
 }
 
@@ -291,28 +287,28 @@ pub struct StateSpaceModelDiagnostics<F: FloatTrait> {
 
 /// State space builder
 pub struct StateSpaceBuilder {
-    state_dim: usize,
-    obs_dim: usize,
+    pub state_dim: usize,
+    pub obs_dim: usize,
 }
 
 /// Kalman filter
 pub struct KalmanFilter {
-    state_dim: usize,
+    pub state_dim: usize,
 }
 
 /// Particle filter
 pub struct ParticleFilter {
-    n_particles: usize,
+    pub n_particles: usize,
 }
 
 /// State space validator
 pub struct StateSpaceValidator {
-    min_observations: usize,
+    pub min_observations: usize,
 }
 
 /// Regime switching model
 pub struct RegimeSwitchingModel<F: FloatTrait> {
-    n_regimes: usize,
+    pub n_regimes: usize,
     _phantom: std::marker::PhantomData<F>,
 }
 
@@ -324,22 +320,22 @@ pub struct FittedRegimeSwitchingModel<F: FloatTrait> {
 
 /// Regime switching builder
 pub struct RegimeSwitchingBuilder {
-    n_regimes: usize,
+    pub n_regimes: usize,
 }
 
 /// Structural break detector
 pub struct StructuralBreakDetector {
-    min_segment_size: usize,
+    pub min_segment_size: usize,
 }
 
 /// Regime validator
 pub struct RegimeValidator {
-    min_regime_length: usize,
+    pub min_regime_length: usize,
 }
 
 /// Markov switching analyzer
 pub struct MarkovSwitchingAnalyzer {
-    n_states: usize,
+    pub n_states: usize,
 }
 
 // Re-export placeholder structs for other expected types

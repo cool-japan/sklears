@@ -131,15 +131,17 @@ impl IncrementalPCA<Untrained> {
     fn initialize(&mut self, x: &Array2<Float>) -> Result<()> {
         let (_, n_features) = x.dim();
 
-        if self.n_features_in_.is_none() {
+        if let Some(existing_n_features) = self.n_features_in_ {
+            if existing_n_features != n_features {
+                return Err(SklearsError::FeatureMismatch {
+                    expected: existing_n_features,
+                    actual: n_features,
+                });
+            }
+        } else {
             self.n_features_in_ = Some(n_features);
             self.sum_ = Some(Array1::zeros(n_features));
             self.sum_squared_ = Some(Array1::zeros(n_features));
-        } else if self.n_features_in_.expect("operation should succeed") != n_features {
-            return Err(SklearsError::FeatureMismatch {
-                expected: self.n_features_in_.expect("operation should succeed"),
-                actual: n_features,
-            });
         }
 
         Ok(())
@@ -163,8 +165,14 @@ impl IncrementalPCA<Untrained> {
 
     /// Compute mean and variance from running statistics
     fn compute_mean_and_variance(&self) -> (Array1<Float>, Array1<Float>) {
-        let sum = self.sum_.as_ref().expect("operation should succeed");
-        let sum_squared = self.sum_squared_.as_ref().expect("operation should succeed");
+        let sum = self
+            .sum_
+            .as_ref()
+            .expect("invariant: sum_ is Some after partial_fit");
+        let sum_squared = self
+            .sum_squared_
+            .as_ref()
+            .expect("invariant: sum_squared_ is Some after partial_fit");
         let n_samples = self.n_samples_seen_ as Float;
 
         // Mean = sum / n_samples
@@ -195,12 +203,11 @@ impl IncrementalPCA<Untrained> {
             .unwrap_or_else(|| x.dim().1.min(self.n_samples_seen_));
 
         // Perform SVD on centered data
-        let (_n_samples, n_features) = x_centered.dim();
+        let (_n_samples, _n_features) = x_centered.dim();
 
         // Use scirs2-linalg for SVD
-        let (u, s, vt) = svd(&x_centered.view(), true).map_err(|e| {
-            SklearsError::NumericalError(format!("SVD failed: {}", e))
-        })?;
+        let (_u, s, vt) = svd(&x_centered.view(), true)
+            .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
         // Take first n_components
         let n_comp = n_components.min(s.len());
@@ -620,7 +627,7 @@ impl IncrementalPCA<Untrained> {
         // Use conservative batch size for memory efficiency
         let batch_size = self.calculate_adaptive_batch_size(n_samples, n_features, Some(50)); // 50MB limit
 
-        let total_batches = (n_samples + batch_size - 1) / batch_size;
+        let total_batches = n_samples.div_ceil(batch_size);
         let mut current_pos = 0;
         let mut batch_count = 0;
 
@@ -711,7 +718,10 @@ mod tests {
     fn test_incremental_pca_basic() {
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0],];
 
-        let pca = IncrementalPCA::new().n_components(2).fit(&x, &()).expect("model fitting should succeed");
+        let pca = IncrementalPCA::new()
+            .n_components(2)
+            .fit(&x, &())
+            .expect("model fitting should succeed");
 
         // Check fitted parameters
         assert_eq!(pca.n_components(), 2);
@@ -745,7 +755,9 @@ mod tests {
         // Transform combined data
         let x_all = array![[1.0, 2.0], [2.0, 4.0], [3.0, 6.0], [4.0, 8.0],];
 
-        let x_transformed = trained_pca.transform(&x_all).expect("transformation should succeed");
+        let x_transformed = trained_pca
+            .transform(&x_all)
+            .expect("transformation should succeed");
         assert_eq!(x_transformed.dim(), (4, 1));
     }
 
@@ -753,7 +765,9 @@ mod tests {
     fn test_incremental_pca_statistics() {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0],];
 
-        let pca = IncrementalPCA::new().fit(&x, &()).expect("model fitting should succeed");
+        let pca = IncrementalPCA::new()
+            .fit(&x, &())
+            .expect("model fitting should succeed");
 
         // Check mean calculation
         let expected_mean = array![3.0, 4.0];
@@ -769,10 +783,15 @@ mod tests {
     fn test_incremental_pca_inverse_transform() {
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0],];
 
-        let pca = IncrementalPCA::new().n_components(2).fit(&x, &()).expect("model fitting should succeed");
+        let pca = IncrementalPCA::new()
+            .n_components(2)
+            .fit(&x, &())
+            .expect("model fitting should succeed");
 
         let x_transformed = pca.transform(&x).expect("transformation should succeed");
-        let x_reconstructed = pca.inverse_transform(&x_transformed).expect("operation should succeed");
+        let x_reconstructed = pca
+            .inverse_transform(&x_transformed)
+            .expect("operation should succeed");
 
         assert_eq!(x_reconstructed.dim(), (3, 3));
         // Note: Reconstruction won't be perfect with fewer components
@@ -790,7 +809,9 @@ mod tests {
         let x1 = array![[1.0, 2.0, 3.0]];
         let x2 = array![[4.0, 5.0]]; // Different number of features
 
-        let pca = IncrementalPCA::new().partial_fit(&x1, &()).expect("operation should succeed");
+        let pca = IncrementalPCA::new()
+            .partial_fit(&x1, &())
+            .expect("operation should succeed");
         let result = pca.partial_fit(&x2, &());
         assert!(result.is_err());
     }
@@ -801,11 +822,15 @@ mod tests {
 
         let x2 = array![[3.0, 6.0],];
 
-        let pca = IncrementalPCA::new().fit(&x1, &()).expect("model fitting should succeed");
+        let pca = IncrementalPCA::new()
+            .fit(&x1, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(pca.n_samples_seen(), 2);
 
-        let updated_pca = pca.partial_fit_more(&x2, &()).expect("operation should succeed");
+        let updated_pca = pca
+            .partial_fit_more(&x2, &())
+            .expect("operation should succeed");
         assert_eq!(updated_pca.n_samples_seen(), 3);
     }
 }

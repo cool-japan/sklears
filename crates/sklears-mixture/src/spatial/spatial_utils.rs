@@ -36,8 +36,8 @@ pub fn pairwise_distances(coords: &Array2<f64>) -> Array2<f64> {
     for i in 0..n_samples {
         for j in i + 1..n_samples {
             let dist = euclidean_distance(
-                &coords.row(i).to_owned().into_raw_vec(),
-                &coords.row(j).to_owned().into_raw_vec(),
+                &coords.row(i).to_owned().into_raw_vec_and_offset().0,
+                &coords.row(j).to_owned().into_raw_vec_and_offset().0,
             );
             distances[[i, j]] = dist;
             distances[[j, i]] = dist;

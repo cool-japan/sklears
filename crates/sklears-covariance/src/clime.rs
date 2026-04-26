@@ -264,7 +264,7 @@ impl CLIME<Untrained> {
             for k in 0..n_features {
                 // Compute residual without k-th component
                 let mut residual = sample_cov.dot(beta) - target;
-                residual = residual - &(sample_cov.column(k).to_owned() * beta[k]);
+                residual -= &(sample_cov.column(k).to_owned() * beta[k]);
 
                 // Update k-th component using soft thresholding
                 let sk = sample_cov[[k, k]];
@@ -272,8 +272,8 @@ impl CLIME<Untrained> {
                 if sk.abs() > 1e-8 {
                     let zk = -residual.dot(&sample_cov.column(k)) / sk;
                     // Clip zk to prevent extreme values
-                    let zk_clipped = zk.max(-1e10).min(1e10);
-                    let threshold = (self.lambda / sk).max(-1e10).min(1e10);
+                    let zk_clipped = zk.clamp(-1e10, 1e10);
+                    let threshold = (self.lambda / sk).clamp(-1e10, 1e10);
                     beta[k] = self.soft_threshold(zk_clipped, threshold);
 
                     // Check for non-finite values

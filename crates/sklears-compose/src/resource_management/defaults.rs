@@ -4,10 +4,9 @@
 //! and state types used throughout the resource management system.
 
 use super::resource_types::{
-    AlertThresholds, AllocationConstraints, AllocationStrategy, HealthStatus, MemoryProtection,
-    MemoryUsage, NetworkUsage, PoolConfig, PoolHealth, PoolStats, ResourceManagerState,
-    ResourceManagerStats, ResourceUsage, StoragePermissions, StorageUsage, TrackerConfig,
-    UsageStatistics,
+    AlertThresholds, AllocationStrategy, HealthStatus, MemoryProtection, MemoryUsage, NetworkUsage,
+    PoolConfig, PoolHealth, PoolStats, ResourceManagerState, ResourceManagerStats, ResourceUsage,
+    StoragePermissions, StorageUsage, TrackerConfig, UsageStatistics,
 };
 use std::time::{Duration, SystemTime};
 
@@ -93,18 +92,6 @@ impl Default for StoragePermissions {
     }
 }
 
-impl Default for AllocationConstraints {
-    fn default() -> Self {
-        Self {
-            numa_affinity: None,
-            cpu_affinity: None,
-            gpu_affinity: None,
-            memory_constraints: None,
-            security_constraints: None,
-        }
-    }
-}
-
 impl Default for TrackerConfig {
     fn default() -> Self {
         Self {
@@ -182,6 +169,7 @@ impl Default for StorageUsage {
 
 // Helper function to create default resource usage
 #[must_use]
+/// Performs create default resource usage.
 pub fn create_default_resource_usage() -> ResourceUsage {
     ResourceUsage {
         cpu_percent: 0.0,

@@ -5,7 +5,6 @@
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2, Array3, Axis};
-use scirs2_core::numeric::Float;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 use scirs2_core::random::SeedableRng;
 // SciRS2 Policy Compliance - Use scirs2-core for random distributions
@@ -109,6 +108,7 @@ pub struct VariationalParameters {
     pub gamma: Array2<f64>, // [sample][class]
 }
 
+#[allow(non_snake_case)]
 impl VariationalParameters {
     pub fn new(n_classes: usize, n_features: usize, max_feature_values: usize) -> Self {
         Self {
@@ -232,10 +232,11 @@ pub enum FeatureType {
     Binary,
 }
 
+#[allow(non_snake_case)]
 impl VariationalBayesNB {
     pub fn new(config: VariationalBayesConfig) -> Self {
         let rng = match config.random_seed {
-            Some(seed) => {
+            Some(_seed) => {
                 scirs2_core::random::CoreRandom::from_rng(&mut scirs2_core::random::thread_rng())
             }
             None => {
@@ -548,11 +549,11 @@ impl VariationalBayesNB {
         Ok(())
     }
 
-    fn update_gamma(&mut self, X: &Array2<f64>, y: &Array1<i32>) -> Result<(), VariationalError> {
+    fn update_gamma(&mut self, X: &Array2<f64>, _y: &Array1<i32>) -> Result<(), VariationalError> {
         let mut log_values = Vec::new();
 
         // First, collect all log values without borrowing var_params mutably
-        for (sample_idx, sample) in X.axis_iter(Axis(0)).enumerate() {
+        for sample in X.axis_iter(Axis(0)) {
             let mut sample_log_values = Vec::new();
             for (class_idx, _) in self.classes.iter().enumerate() {
                 let var_params = self
@@ -603,7 +604,7 @@ impl VariationalBayesNB {
         Ok(())
     }
 
-    fn update_alpha(&mut self, y: &Array1<i32>) -> Result<(), VariationalError> {
+    fn update_alpha(&mut self, _y: &Array1<i32>) -> Result<(), VariationalError> {
         let var_params = self
             .variational_params
             .as_mut()
@@ -620,7 +621,7 @@ impl VariationalBayesNB {
     fn update_gaussian_parameters(
         &mut self,
         X: &Array2<f64>,
-        y: &Array1<i32>,
+        _y: &Array1<i32>,
     ) -> Result<(), VariationalError> {
         let var_params = self
             .variational_params
@@ -671,7 +672,7 @@ impl VariationalBayesNB {
     fn update_multinomial_parameters(
         &mut self,
         X: &Array2<f64>,
-        y: &Array1<i32>,
+        _y: &Array1<i32>,
     ) -> Result<(), VariationalError> {
         let var_params = self
             .variational_params
@@ -761,7 +762,7 @@ impl VariationalBayesNB {
         Ok(log_likelihood)
     }
 
-    fn compute_elbo(&self, X: &Array2<f64>, y: &Array1<i32>) -> Result<f64, VariationalError> {
+    fn compute_elbo(&self, X: &Array2<f64>, _y: &Array1<i32>) -> Result<f64, VariationalError> {
         let var_params = self
             .variational_params
             .as_ref()
@@ -814,8 +815,8 @@ impl VariationalBayesNB {
 
     fn compute_elbo_gradients(
         &self,
-        X: &Array2<f64>,
-        y: &Array1<i32>,
+        _X: &Array2<f64>,
+        _y: &Array1<i32>,
     ) -> Result<HashMap<String, Array2<f64>>, VariationalError> {
         // Simplified gradient computation for ADVI
         let mut gradients = HashMap::new();
@@ -897,7 +898,7 @@ impl VariationalBayesNB {
     fn update_local_svi_parameters(
         &mut self,
         X: &Array2<f64>,
-        y: &Array1<i32>,
+        _y: &Array1<i32>,
     ) -> Result<(), VariationalError> {
         // Update local variational parameters (gamma) for the minibatch
         // Similar to standard update but only for the minibatch
@@ -906,7 +907,7 @@ impl VariationalBayesNB {
         // First collect all the log values without borrowing var_params mutably
         let mut log_values = Vec::new();
 
-        for (sample_idx, sample) in X.axis_iter(Axis(0)).enumerate() {
+        for sample in X.axis_iter(Axis(0)) {
             let mut sample_log_values = Vec::new();
             for (class_idx, _) in self.classes.iter().enumerate() {
                 let global_params = self
@@ -960,7 +961,7 @@ impl VariationalBayesNB {
     fn compute_svi_natural_gradients(
         &self,
         X: &Array2<f64>,
-        y: &Array1<i32>,
+        _y: &Array1<i32>,
     ) -> Result<VariationalParameters, VariationalError> {
         // Compute natural gradients for global parameters
         let var_params = self
@@ -1107,7 +1108,7 @@ impl VariationalBayesNB {
         Ok(())
     }
 
-    fn compute_svi_elbo(&self, X: &Array2<f64>, y: &Array1<i32>) -> Result<f64, VariationalError> {
+    fn compute_svi_elbo(&self, X: &Array2<f64>, _y: &Array1<i32>) -> Result<f64, VariationalError> {
         // Compute ELBO using current global parameters
         // This is computationally expensive and should be done sparingly
         if let Some(global_params) = &self.global_params {
@@ -1201,7 +1202,7 @@ fn lgamma(x: f64) -> f64 {
     }
 }
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::field_reassign_with_default)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1220,7 +1221,7 @@ mod tests {
         var_params.initialize_from_data(&X, &y, &classes, &mut rng);
 
         assert_eq!(var_params.gamma.dim(), (4, 2)); // Should match number of actual classes
-        assert!(var_params.gamma.iter().all(|&x| x >= 0.0 && x <= 1.0));
+        assert!(var_params.gamma.iter().all(|&x| (0.0..=1.0).contains(&x)));
     }
 
     #[test]

@@ -269,9 +269,13 @@ pub struct NormalizationMiddleware {
     method: NormalizationMethod,
     enabled: bool,
     // Store normalization parameters
+    #[allow(dead_code)] // intentionally deferred: mean not yet read after fit
     mean: Option<Float>,
+    #[allow(dead_code)] // intentionally deferred: std not yet read after fit
     std: Option<Float>,
+    #[allow(dead_code)] // intentionally deferred: min not yet read after fit
     min: Option<Float>,
+    #[allow(dead_code)] // intentionally deferred: max not yet read after fit
     max: Option<Float>,
 }
 
@@ -395,6 +399,7 @@ impl ConstraintMiddleware for SmoothingMiddleware {
 
 /// Constraint validation middleware
 pub struct ConstraintValidationMiddleware {
+    #[allow(dead_code)] // intentionally deferred: strict mode not yet enforced
     strict: bool,
     enabled: bool,
 }
@@ -412,6 +417,7 @@ impl ConstraintValidationMiddleware {
         self
     }
 
+    #[allow(dead_code)] // intentionally deferred: constraint validation not yet called
     fn validate(&self, y: &Array1<Float>, constraints: &ConstraintSet) -> Result<()> {
         // Validate monotonicity
         if let Some(monotonicity) = constraints.monotonicity {
@@ -719,7 +725,7 @@ mod tests {
 
         // All values should be in [0, 1]
         for &val in result.iter() {
-            assert!(val >= 0.0 && val <= 1.0);
+            assert!((0.0..=1.0).contains(&val));
         }
     }
 

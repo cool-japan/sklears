@@ -13,16 +13,22 @@ use std::time::{Duration, Instant};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
+/// BenchmarkError
 pub enum BenchmarkError {
     #[error("Invalid dataset configuration")]
+    /// InvalidDataset
     InvalidDataset,
     #[error("Method execution failed: {0}")]
+    /// MethodExecutionFailed
     MethodExecutionFailed(String),
     #[error("Benchmark configuration error: {0}")]
+    /// ConfigurationError
     ConfigurationError(String),
     #[error("Statistical analysis failed")]
+    /// StatisticalAnalysisFailed
     StatisticalAnalysisFailed,
     #[error("Comparison baseline not found")]
+    /// BaselineNotFound
     BaselineNotFound,
 }
 
@@ -995,36 +1001,52 @@ impl FeatureSelectionBenchmark {
 
 /// Trait for benchmarkable feature selection methods
 pub trait BenchmarkableMethod: std::fmt::Debug + Send + Sync {
+    /// fn
     fn select_features(
         &self,
         X: ArrayView2<f64>,
         y: ArrayView1<f64>,
     ) -> std::result::Result<Vec<usize>, BenchmarkError>;
+    /// fn
     fn method_name(&self) -> &str;
+    /// fn
     fn method_params(&self) -> HashMap<String, String>;
 }
 
 // Data structures for benchmarking
 
 #[derive(Debug, Clone)]
+/// BenchmarkDataset
 pub struct BenchmarkDataset {
+    /// name
     pub name: String,
+    /// X
     pub X: Array2<f64>,
+    /// y
     pub y: Array1<f64>,
+    /// ground_truth
     pub ground_truth: Option<Vec<usize>>,
+    /// properties
     pub properties: DatasetProperties,
 }
 
 #[derive(Debug, Clone)]
+/// DatasetProperties
 pub struct DatasetProperties {
+    /// task_type
     pub task_type: TaskType,
+    /// n_informative_features
     pub n_informative_features: usize,
+    /// noise_level
     pub noise_level: f64,
+    /// correlation_structure
     pub correlation_structure: CorrelationStructure,
+    /// feature_types
     pub feature_types: Vec<FeatureType>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// TaskType
 pub enum TaskType {
     /// BinaryClassification
     BinaryClassification,
@@ -1037,6 +1059,7 @@ pub enum TaskType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// CorrelationStructure
 pub enum CorrelationStructure {
     /// Linear
     Linear,
@@ -1051,6 +1074,7 @@ pub enum CorrelationStructure {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// FeatureType
 pub enum FeatureType {
     /// Continuous
     Continuous,
@@ -1063,14 +1087,23 @@ pub enum FeatureType {
 }
 
 #[derive(Debug, Clone)]
+/// BenchmarkConfig
 pub struct BenchmarkConfig {
+    /// n_iterations
     pub n_iterations: usize,
+    /// use_cross_validation
     pub use_cross_validation: bool,
+    /// cv_folds
     pub cv_folds: usize,
+    /// test_size
     pub test_size: f64,
+    /// timeout_seconds
     pub timeout_seconds: Option<u64>,
+    /// memory_limit_mb
     pub memory_limit_mb: Option<usize>,
+    /// verbose
     pub verbose: bool,
+    /// random_seed
     pub random_seed: Option<u64>,
 }
 
@@ -1090,52 +1123,87 @@ impl Default for BenchmarkConfig {
 }
 
 #[derive(Debug, Clone)]
+/// BenchmarkResult
 pub struct BenchmarkResult {
+    /// method_name
     pub method_name: String,
+    /// dataset_name
     pub dataset_name: String,
+    /// iteration
     pub iteration: usize,
+    /// selected_features
     pub selected_features: Vec<usize>,
+    /// n_features_selected
     pub n_features_selected: usize,
+    /// n_features_total
     pub n_features_total: usize,
+    /// selection_time
     pub selection_time: Duration,
+    /// evaluation_time
     pub evaluation_time: Duration,
+    /// memory_usage
     pub memory_usage: usize,
+    /// evaluation_metrics
     pub evaluation_metrics: EvaluationMetrics,
+    /// feature_metrics
     pub feature_metrics: FeatureMetrics,
+    /// dataset_properties
     pub dataset_properties: DatasetProperties,
 }
 
 #[derive(Debug, Clone, Default)]
+/// EvaluationMetrics
 pub struct EvaluationMetrics {
+    /// relevance_score
     pub relevance_score: f64,
+    /// redundancy_score
     pub redundancy_score: f64,
+    /// predictive_score
     pub predictive_score: f64,
+    /// jaccard_score
     pub jaccard_score: Option<f64>,
+    /// precision
     pub precision: Option<f64>,
+    /// recall
     pub recall: Option<f64>,
+    /// f1_score
     pub f1_score: Option<f64>,
 }
 
 #[derive(Debug, Clone, Default)]
+/// FeatureMetrics
 pub struct FeatureMetrics {
+    /// selection_ratio
     pub selection_ratio: f64,
+    /// importance_distribution
     pub importance_distribution: ImportanceDistribution,
 }
 
 #[derive(Debug, Clone, Default)]
+/// ImportanceDistribution
 pub struct ImportanceDistribution {
+    /// mean
     pub mean: f64,
+    /// std
     pub std: f64,
+    /// max
     pub max: f64,
+    /// min
     pub min: f64,
 }
 
 #[derive(Debug, Clone)]
+/// BenchmarkSuiteResults
 pub struct BenchmarkSuiteResults {
+    /// individual_results
     pub individual_results: Vec<BenchmarkResult>,
+    /// statistical_analysis
     pub statistical_analysis: StatisticalAnalysis,
+    /// rankings
     pub rankings: Vec<MethodRanking>,
+    /// execution_summary
     pub execution_summary: ExecutionSummary,
+    /// configuration
     pub configuration: BenchmarkConfig,
 }
 
@@ -1269,53 +1337,81 @@ impl BenchmarkSuiteResults {
 }
 
 #[derive(Debug, Clone)]
+/// StatisticalAnalysis
 pub struct StatisticalAnalysis {
+    /// method_rankings
     pub method_rankings: Vec<MethodRanking>,
+    /// dataset_rankings
     pub dataset_rankings: Vec<DatasetRanking>,
+    /// overall_best_method
     pub overall_best_method: Option<String>,
+    /// performance_summary
     pub performance_summary: PerformanceSummary,
 }
 
 #[derive(Debug, Clone)]
+/// MethodRanking
 pub struct MethodRanking {
+    /// method_name
     pub method_name: String,
+    /// mean_score
     pub mean_score: f64,
+    /// std_score
     pub std_score: f64,
+    /// scores
     pub scores: Vec<f64>,
 }
 
 #[derive(Debug, Clone)]
+/// DatasetRanking
 pub struct DatasetRanking {
+    /// dataset_name
     pub dataset_name: String,
+    /// difficulty_score
     pub difficulty_score: f64,
+    /// mean_performance
     pub mean_performance: f64,
 }
 
 #[derive(Debug, Clone)]
+/// PerformanceSummary
 pub struct PerformanceSummary {
+    /// mean_score
     pub mean_score: f64,
+    /// std_score
     pub std_score: f64,
+    /// min_score
     pub min_score: f64,
+    /// max_score
     pub max_score: f64,
+    /// total_execution_time
     pub total_execution_time: Duration,
+    /// avg_features_selected
     pub avg_features_selected: f64,
 }
 
 #[derive(Debug, Clone)]
+/// ExecutionSummary
 pub struct ExecutionSummary {
+    /// total_duration
     pub total_duration: Duration,
+    /// n_datasets
     pub n_datasets: usize,
+    /// n_methods
     pub n_methods: usize,
+    /// n_total_runs
     pub n_total_runs: usize,
 }
 
 // Example benchmarkable method implementations
 #[derive(Debug)]
+/// UnivariateFilterMethod
 pub struct UnivariateFilterMethod {
     k: usize,
 }
 
 impl UnivariateFilterMethod {
+    /// new
     pub fn new(k: usize) -> Self {
         Self { k }
     }
@@ -1386,11 +1482,13 @@ impl UnivariateFilterMethod {
 }
 
 #[derive(Debug)]
+/// RandomSelectionMethod
 pub struct RandomSelectionMethod {
     k: usize,
 }
 
 impl RandomSelectionMethod {
+    /// new
     pub fn new(k: usize) -> Self {
         Self { k }
     }

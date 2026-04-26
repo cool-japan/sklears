@@ -35,8 +35,8 @@ use std::marker::PhantomData;
 /// let X = array![[1.0, 2.0], [3.0, 4.0]];
 ///
 /// let poly_sketch = PolynomialCountSketch::new(50);
-/// let fitted_sketch = poly_sketch.fit(&X, &()).unwrap();
-/// let X_transformed = fitted_sketch.transform(&X).unwrap();
+/// let fitted_sketch = poly_sketch.fit(&X, &()).expect("fit should succeed with valid polynomial count sketch input");
+/// let X_transformed = fitted_sketch.transform(&X).expect("transform should succeed after polynomial count sketch fitting");
 /// assert_eq!(X_transformed.shape(), &[2, 50]);
 /// ```
 #[derive(Debug, Clone)]

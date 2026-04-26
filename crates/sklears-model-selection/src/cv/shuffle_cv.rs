@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use crate::cross_validation::CrossValidator;
 
 /// Utility function to generate combinations
+#[allow(dead_code)] // combinations utility not yet called from shuffle CV logic
 fn combinations<T: Clone>(items: &[T], k: usize) -> Vec<Vec<T>> {
     if k == 0 {
         return vec![vec![]];
@@ -517,7 +518,7 @@ mod tests {
 
         for (train, test) in splits {
             assert_eq!(train.len(), 50); // Bootstrap uses same size as original
-            assert!(test.len() > 0); // Out-of-bag samples
+            assert!(!test.is_empty()); // Out-of-bag samples
             assert!(test.len() < 50); // Should be less than original
         }
     }
@@ -546,7 +547,7 @@ mod tests {
         let combos = combinations(&items, 2);
         assert_eq!(combos.len(), 6); // C(4,2) = 6
 
-        let expected = vec![
+        let expected = [
             vec![1, 2],
             vec![1, 3],
             vec![1, 4],

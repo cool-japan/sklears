@@ -90,9 +90,15 @@ pub enum StrategyHealth {
     /// Strategy is healthy and operating normally
     Healthy,
     /// Strategy is degraded but still operational
-    Degraded { reason: String },
+    Degraded {
+        /// The reason.
+        reason: String,
+    },
     /// Strategy is unhealthy and should not be used
-    Unhealthy { reason: String },
+    Unhealthy {
+        /// The reason.
+        reason: String,
+    },
     /// Strategy health is unknown
     Unknown,
 }
@@ -106,6 +112,7 @@ pub struct SequentialStrategy {
 
 impl SequentialStrategy {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         let config = StrategyConfig {
             name: "sequential".to_string(),
@@ -255,6 +262,7 @@ impl ExecutionStrategy for SequentialStrategy {
 }
 
 /// Parallel execution strategy - executes tasks concurrently
+#[allow(dead_code)]
 pub struct ParallelStrategy {
     config: StrategyConfig,
     metrics: StrategyMetrics,
@@ -264,6 +272,7 @@ pub struct ParallelStrategy {
 
 impl ParallelStrategy {
     #[must_use]
+    /// Creates a new instance.
     pub fn new(max_concurrent_tasks: usize) -> Self {
         let config = StrategyConfig {
             name: "parallel".to_string(),

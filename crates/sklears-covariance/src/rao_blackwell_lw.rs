@@ -180,7 +180,7 @@ impl RaoBlackwellLedoitWolf<Untrained> {
         covariance_emp: &Array2<f64>,
         location: &Array1<f64>,
     ) -> SklResult<(f64, f64)> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, _n_features) = x.dim();
 
         // Center the data
         let mut x_centered = x.to_owned();
@@ -249,7 +249,7 @@ impl RaoBlackwellLedoitWolf<Untrained> {
         &self,
         x_centered: &Array2<f64>,
         covariance_emp: &Array2<f64>,
-        standard_shrinkage: f64,
+        _standard_shrinkage: f64,
     ) -> SklResult<f64> {
         let (n_samples, n_features) = x_centered.dim();
 

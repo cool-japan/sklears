@@ -79,8 +79,8 @@ pub enum ObjectiveFunction {
 /// let sampler = AdaptiveBandwidthRBFSampler::new(100)
 ///     .strategy(BandwidthSelectionStrategy::MedianHeuristic);
 ///
-/// let fitted = sampler.fit(&x, &()).unwrap();
-/// let features = fitted.transform(&x).unwrap();
+/// let fitted = sampler.fit(&x, &()).expect("fit should succeed with valid adaptive bandwidth RBF input");
+/// let features = fitted.transform(&x).expect("transform should succeed after adaptive bandwidth RBF fitting");
 /// let optimal_gamma = fitted.selected_gamma();
 /// ```
 #[derive(Debug, Clone)]
@@ -673,7 +673,7 @@ mod tests {
 
         // Check that features are bounded (cosine function)
         for &val in features.iter() {
-            assert!(val >= -2.0 && val <= 2.0);
+            assert!((-2.0..=2.0).contains(&val));
         }
     }
 
@@ -831,7 +831,7 @@ mod tests {
         let gamma = fitted.selected_gamma().expect("operation should succeed");
 
         // Selected gamma should be within the specified range
-        assert!(gamma >= 0.5 && gamma <= 2.0);
+        assert!((0.5..=2.0).contains(&gamma));
     }
 
     #[test]

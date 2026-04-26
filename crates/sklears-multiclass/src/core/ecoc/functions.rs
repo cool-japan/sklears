@@ -325,7 +325,7 @@ mod tests {
         assert_eq!(config.code_size, 1.5);
         assert_eq!(config.random_state, None);
         assert_eq!(config.n_jobs, None);
-        assert_eq!(config.use_sparse, false);
+        assert!(!config.use_sparse);
         assert_eq!(config.sparse_threshold, 0.3);
     }
     #[test]
@@ -384,7 +384,8 @@ mod tests {
     }
     #[test]
     fn test_sparse_matrix_from_dense() {
-        let dense = Array2::from_shape_vec((2, 3), vec![1, 0, -1, 0, 1, 0]).expect("operation should succeed");
+        let dense = Array2::from_shape_vec((2, 3), vec![1, 0, -1, 0, 1, 0])
+            .expect("operation should succeed");
         let sparse = SparseMatrix::from_dense(&dense, 0);
         assert_eq!(sparse.n_rows, 2);
         assert_eq!(sparse.n_cols, 3);
@@ -435,7 +436,8 @@ mod tests {
     }
     #[test]
     fn test_code_matrix_dense() {
-        let dense_array = Array2::from_shape_vec((2, 3), vec![1, -1, 1, -1, 1, -1]).expect("operation should succeed");
+        let dense_array = Array2::from_shape_vec((2, 3), vec![1, -1, 1, -1, 1, -1])
+            .expect("operation should succeed");
         let code_matrix = CodeMatrix::Dense(dense_array.clone());
         assert_eq!(code_matrix.dim(), (2, 3));
         assert_eq!(code_matrix.nrows(), 2);
@@ -469,7 +471,7 @@ mod tests {
     #[test]
     fn test_ecoc_config_sparse_settings() {
         let config = ECOCConfig::default();
-        assert_eq!(config.use_sparse, false);
+        assert!(!config.use_sparse);
         assert_eq!(config.sparse_threshold, 0.3);
     }
     #[test]
@@ -480,7 +482,7 @@ mod tests {
             .use_sparse(true)
             .sparse_threshold(0.5)
             .build();
-        assert_eq!(ecoc.config.use_sparse, true);
+        assert!(ecoc.config.use_sparse);
         assert_eq!(ecoc.config.sparse_threshold, 0.5);
     }
     #[test]
@@ -489,7 +491,7 @@ mod tests {
         let ecoc = ECOCClassifier::new(mock_classifier)
             .use_sparse(true)
             .sparse_threshold(0.4);
-        assert_eq!(ecoc.config.use_sparse, true);
+        assert!(ecoc.config.use_sparse);
         assert_eq!(ecoc.config.sparse_threshold, 0.4);
     }
     #[test]

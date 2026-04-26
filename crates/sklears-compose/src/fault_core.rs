@@ -103,7 +103,10 @@ pub enum FaultToleranceSessionStatus {
     /// Session active and monitoring
     Active,
     /// Session degraded (some components failing)
-    Degraded { failed_components: usize },
+    Degraded {
+        /// The failed components.
+        failed_components: usize,
+    },
     /// Session in recovery mode
     Recovery,
     /// Session suspended
@@ -309,10 +312,15 @@ pub enum ChannelType {
 /// Priority enumeration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub enum Priority {
+    /// Variant value.
     Low = 1,
+    /// Variant value.
     Medium = 2,
+    /// Variant value.
     High = 3,
+    /// Variant value.
     Critical = 4,
+    /// Variant value.
     Emergency = 5,
 }
 
@@ -537,7 +545,10 @@ pub enum BackoffStrategy {
     /// Linear
     Linear,
     /// Exponential
-    Exponential { multiplier: f64 },
+    Exponential {
+        /// The multiplier.
+        multiplier: f64,
+    },
     /// Fibonacci
     Fibonacci,
     /// Custom
@@ -571,6 +582,7 @@ pub struct JitterConfig {
 /// Jitter type enumeration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum JitterType {
+    /// Variant value.
     None,
     /// Full
     Full,
@@ -703,17 +715,33 @@ pub struct ComponentHealthConfig {
 pub enum HealthCheckType {
     /// Http
     Http {
+        /// The method.
         method: String,
+        /// The headers.
         headers: HashMap<String, String>,
     },
     /// Tcp
-    Tcp { host: String, port: u16 },
+    Tcp {
+        /// The host.
+        host: String,
+        /// The port.
+        port: u16,
+    },
     /// Function
-    Function { function_name: String },
+    Function {
+        /// The function name.
+        function_name: String,
+    },
     /// Resource
-    Resource { resource_type: String },
+    Resource {
+        /// The resource type.
+        resource_type: String,
+    },
     /// Custom
-    Custom { check_name: String },
+    Custom {
+        /// The check name.
+        check_name: String,
+    },
 }
 
 /// Health thresholds
@@ -914,9 +942,15 @@ pub enum ComponentType {
     /// Cache system
     Cache,
     /// External service
-    ExternalService { service_name: String },
+    ExternalService {
+        /// The service name.
+        service_name: String,
+    },
     /// Custom component
-    Custom { type_name: String },
+    Custom {
+        /// The type name.
+        type_name: String,
+    },
 }
 
 /// Component recovery configuration
@@ -941,32 +975,44 @@ pub struct ComponentRecoveryConfig {
 pub enum RecoveryStrategy {
     /// Restart component
     Restart {
+        /// The restart delay.
         restart_delay: Duration,
+        /// The cleanup before restart.
         cleanup_before_restart: bool,
     },
     /// Replace with backup
     Failover {
+        /// The backup component.
         backup_component: String,
+        /// The failover delay.
         failover_delay: Duration,
     },
     /// Scale horizontally
     Scale {
+        /// The scale factor.
         scale_factor: f64,
+        /// The scale timeout.
         scale_timeout: Duration,
     },
     /// Reset to known good state
     Reset {
+        /// The checkpoint.
         checkpoint: String,
+        /// The reset timeout.
         reset_timeout: Duration,
     },
     /// Manual intervention required
     Manual {
+        /// The notification channels.
         notification_channels: Vec<String>,
+        /// The instructions.
         instructions: String,
     },
     /// Custom recovery strategy
     Custom {
+        /// The strategy name.
         strategy_name: String,
+        /// The parameters.
         parameters: HashMap<String, String>,
     },
 }
@@ -976,41 +1022,59 @@ pub enum RecoveryStrategy {
 pub enum FaultTolerancePolicy {
     /// Retry policy for transient failures
     RetryPolicy {
+        /// The max attempts.
         max_attempts: usize,
+        /// The backoff strategy.
         backoff_strategy: BackoffStrategy,
+        /// The retry conditions.
         retry_conditions: Vec<RetryCondition>,
     },
     /// Circuit breaker policy
     CircuitBreakerPolicy {
+        /// The failure threshold.
         failure_threshold: usize,
+        /// The recovery timeout.
         recovery_timeout: Duration,
+        /// The half open max calls.
         half_open_max_calls: usize,
     },
     /// Bulkhead policy for resource isolation
     BulkheadPolicy {
+        /// The max concurrent calls.
         max_concurrent_calls: usize,
+        /// The queue size.
         queue_size: usize,
+        /// The timeout.
         timeout: Duration,
     },
     /// Fallback policy
     FallbackPolicy {
+        /// The fallback action.
         fallback_action: FallbackAction,
+        /// The fallback conditions.
         fallback_conditions: Vec<FallbackCondition>,
     },
     /// Timeout policy
     TimeoutPolicy {
+        /// The timeout.
         timeout: Duration,
+        /// The timeout action.
         timeout_action: TimeoutAction,
     },
     /// Rate limiting policy
     RateLimitPolicy {
+        /// The max requests.
         max_requests: usize,
+        /// The time window.
         time_window: Duration,
+        /// The rate limit action.
         rate_limit_action: RateLimitAction,
     },
     /// Custom policy
     CustomPolicy {
+        /// The policy name.
         policy_name: String,
+        /// The parameters.
         parameters: HashMap<String, String>,
     },
 }
@@ -1019,18 +1083,35 @@ pub enum FaultTolerancePolicy {
 #[derive(Debug, Clone)]
 pub enum FallbackAction {
     /// Return default value
-    DefaultValue { value: String },
+    DefaultValue {
+        /// The value.
+        value: String,
+    },
     /// Call alternative service
-    AlternativeService { service_name: String },
+    AlternativeService {
+        /// The service name.
+        service_name: String,
+    },
     /// Use cached response
-    CachedResponse { cache_key: String },
+    CachedResponse {
+        /// The cache key.
+        cache_key: String,
+    },
     /// Queue for later processing
-    QueueRequest { queue_name: String },
+    QueueRequest {
+        /// The queue name.
+        queue_name: String,
+    },
     /// Manual action required
-    Manual { action: ManualAction },
+    Manual {
+        /// The action.
+        action: ManualAction,
+    },
     /// Custom fallback
     Custom {
+        /// The action name.
         action_name: String,
+        /// The parameters.
         parameters: HashMap<String, String>,
     },
 }
@@ -1054,11 +1135,20 @@ pub enum TimeoutAction {
     /// Return partial result
     PartialResult,
     /// Retry with extended timeout
-    ExtendTimeout { extension: Duration },
+    ExtendTimeout {
+        /// The extension.
+        extension: Duration,
+    },
     /// Fallback to alternative
-    Fallback { action: FallbackAction },
+    Fallback {
+        /// The action.
+        action: FallbackAction,
+    },
     /// Custom timeout action
-    Custom { action_name: String },
+    Custom {
+        /// The action name.
+        action_name: String,
+    },
 }
 
 /// Rate limit action enumeration
@@ -1067,13 +1157,25 @@ pub enum RateLimitAction {
     /// Reject request
     Reject,
     /// Queue request
-    Queue { max_queue_size: usize },
+    Queue {
+        /// The max queue size.
+        max_queue_size: usize,
+    },
     /// Delay request
-    Delay { delay: Duration },
+    Delay {
+        /// The delay.
+        delay: Duration,
+    },
     /// Throttle request
-    Throttle { factor: f64 },
+    Throttle {
+        /// The factor.
+        factor: f64,
+    },
     /// Custom action
-    Custom { action_name: String },
+    Custom {
+        /// The action name.
+        action_name: String,
+    },
 }
 
 /// Manual action
@@ -1138,23 +1240,37 @@ pub struct ComponentHandle {
 pub enum ComponentHealth {
     /// Component healthy and operational
     Healthy {
+        /// The uptime.
         uptime: Duration,
+        /// The performance score.
         performance_score: f64,
     },
     /// Component degraded but functional
-    Degraded { reason: String, impact_level: f64 },
+    Degraded {
+        /// The reason.
+        reason: String,
+        /// The impact level.
+        impact_level: f64,
+    },
     /// Component unhealthy but recoverable
     Unhealthy {
+        /// The error count.
         error_count: usize,
+        /// The last error.
         last_error: String,
     },
     /// Component failed and needs recovery
     Failed {
+        /// The failure reason.
         failure_reason: String,
+        /// The failure time.
         failure_time: SystemTime,
     },
     /// Component unknown status
-    Unknown { last_check: SystemTime },
+    Unknown {
+        /// The last check.
+        last_check: SystemTime,
+    },
 }
 
 /// Circuit breaker handle
@@ -1237,9 +1353,15 @@ pub enum RecoveryResult {
     /// Success
     Success,
     /// Failure
-    Failure { reason: String },
+    Failure {
+        /// The reason.
+        reason: String,
+    },
     /// Partial
-    Partial { details: String },
+    Partial {
+        /// The details.
+        details: String,
+    },
     /// InProgress
     InProgress,
     /// Cancelled
@@ -1306,10 +1428,15 @@ pub enum FaultType {
 /// Fault severity enumeration
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum FaultSeverity {
+    /// Variant value.
     Low = 1,
+    /// Variant value.
     Medium = 2,
+    /// Variant value.
     High = 3,
+    /// Variant value.
     Critical = 4,
+    /// Variant value.
     Emergency = 5,
 }
 
@@ -1347,13 +1474,22 @@ pub enum FaultResponse {
     /// Acknowledged
     Acknowledged,
     /// RecoveryInitiated
-    RecoveryInitiated { strategy: RecoveryStrategyType },
+    RecoveryInitiated {
+        /// The strategy.
+        strategy: RecoveryStrategyType,
+    },
     /// EscalationRequired
-    EscalationRequired { level: u32 },
+    EscalationRequired {
+        /// The level.
+        level: u32,
+    },
     /// ManualInterventionRequired
     ManualInterventionRequired,
     /// Ignored
-    Ignored { reason: String },
+    Ignored {
+        /// The reason.
+        reason: String,
+    },
 }
 
 /// Fault tolerance report
@@ -1381,6 +1517,7 @@ pub struct FaultToleranceReport {
 #[derive(Debug, Clone, Default)]
 pub enum ReportType {
     #[default]
+    /// Variant value.
     Summary,
     /// Detailed
     Detailed,
@@ -1639,14 +1776,14 @@ impl Default for RetryConfig {
             max_delay: Duration::from_secs(30),
             backoff_strategy: BackoffStrategy::Exponential { multiplier: 2.0 },
             retry_conditions: vec![
-                /// RetryCondition
+                // RetryCondition
                 RetryCondition {
                     name: "NetworkError".to_string(),
                     error_patterns: vec!["connection".to_string(), "timeout".to_string()],
                     status_codes: vec![],
                     custom_condition: None,
                 },
-                /// RetryCondition
+                // RetryCondition
                 RetryCondition {
                     name: "ServiceUnavailable".to_string(),
                     error_patterns: vec!["unavailable".to_string()],

@@ -12,6 +12,9 @@ use sklears_core::{
 };
 use std::f64::consts::PI;
 
+/// Type alias for Bayesian GMM component parameters result
+type BGMMComponentsResult = SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)>;
+
 /// Utility function for log-sum-exp computation
 fn log_sum_exp(a: f64, b: f64) -> f64 {
     let max_val = a.max(b);
@@ -59,8 +62,8 @@ fn log_sum_exp(a: f64, b: f64) -> f64 {
 /// let bgmm = BayesianGaussianMixture::new()
 ///     .n_components(4)  // Will automatically select effective number
 ///     .max_iter(100);
-/// let fitted = bgmm.fit(&X.view(), &()).unwrap();
-/// let labels = fitted.predict(&X.view()).unwrap();
+/// let fitted = bgmm.fit(&X.view(), &()).expect("Bayesian GMM fitting should succeed with valid data");
+/// let labels = fitted.predict(&X.view()).expect("prediction should succeed on fitted model");
 /// println!("Effective components: {}", fitted.n_components_effective());
 /// ```
 #[derive(Debug, Clone)]
@@ -272,6 +275,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for BayesianGaussianMixture<Untrained> {
     }
 }
 
+#[allow(non_snake_case)]
 impl BayesianGaussianMixture<Untrained> {
     fn initialize_means(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         let (_, n_features) = X.dim();
@@ -347,7 +351,7 @@ impl BayesianGaussianMixture<Untrained> {
         &self,
         X: &Array2<f64>,
         responsibilities: &Array2<f64>,
-    ) -> SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)> {
+    ) -> BGMMComponentsResult {
         let (n_samples, n_features) = X.dim();
 
         // Update weights
@@ -473,6 +477,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
     }
 }
 
+#[allow(non_snake_case)]
 impl BayesianGaussianMixture<BayesianGaussianMixtureTrained> {
     /// Get the mixture weights
     pub fn weights(&self) -> &Array1<f64> {

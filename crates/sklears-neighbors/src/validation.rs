@@ -20,7 +20,7 @@
 //! use scirs2_core::ndarray::Array2;
 //! # use scirs2_core::ndarray::Array1;
 //!
-//! # let x = Array2::from_shape_vec((10, 2), vec![1.0; 20]).unwrap();
+//! # let x = Array2::from_shape_vec((10, 2), vec![1.0; 20]).expect("shape matches data length");
 //! # let y = Array1::from_vec(vec![0, 0, 0, 0, 0, 1, 1, 1, 1, 1]);
 //! let validator = KFoldValidator::new(5);
 //! // let results = validator.validate_classifier(&x, &y, |k| KNeighborsClassifier::new(k), &[3, 5, 7]);
@@ -875,7 +875,7 @@ mod tests {
             )
             .expect("operation should succeed");
 
-        assert!(result.scores.len() > 0);
+        assert!(!result.scores.is_empty());
         assert!(result.mean_score >= 0.0 && result.mean_score <= 1.0);
         assert!(result.confidence_interval.0 <= result.confidence_interval.1);
     }

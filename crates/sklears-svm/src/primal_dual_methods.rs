@@ -42,8 +42,8 @@ use sklears_core::{
 ///     .with_c(1.0)
 ///     .with_max_iter(1000);
 ///
-/// let trained_model = model.fit(&X_var, &y).unwrap();
-/// let predictions = trained_model.predict(&X_var).unwrap();
+/// let trained_model = model.fit(&X_var, &y).expect("PrimalDualSVM fit should succeed on valid input");
+/// let predictions = trained_model.predict(&X_var).expect("PrimalDualSVM predict should succeed on valid input");
 /// ```
 #[derive(Debug, Clone)]
 pub struct PrimalDualSVM {

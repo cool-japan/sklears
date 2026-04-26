@@ -157,16 +157,23 @@ pub enum MigrationStrategy {
     None,
     /// Automatic migration with parameter mapping
     Automatic {
+        /// Mapping from old parameter names to new parameter names
         parameter_mapping: HashMap<String, String>,
+        /// Default values for any newly introduced parameters
         default_values: HashMap<String, f64>,
     },
     /// Custom migration function
     Custom {
+        /// Identifier for the custom migration procedure
         migration_name: String,
+        /// Human-readable description of what the custom migration does
         description: String,
     },
     /// Manual migration required
-    Manual { instructions: String },
+    Manual {
+        /// Step-by-step instructions for the human operator to follow
+        instructions: String,
+    },
 }
 
 /// Model metadata for versioning
@@ -194,6 +201,7 @@ pub struct ModelMetadata {
 }
 
 impl ModelMetadata {
+    /// Create a new `ModelMetadata` record for the given version and architecture description
     pub fn new(version: ModelVersion, architecture: String) -> Self {
         let created_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -213,26 +221,31 @@ impl ModelMetadata {
         }
     }
 
+    /// Attach a configuration hash string for reproducibility verification
     pub fn with_config_hash(mut self, hash: String) -> Self {
         self.config_hash = Some(hash);
         self
     }
 
+    /// Record the final evaluation metrics (e.g., accuracy, F1) for this model version
     pub fn with_performance_metrics(mut self, metrics: HashMap<String, f64>) -> Self {
         self.performance_metrics = metrics;
         self
     }
 
+    /// Record the total number of trainable parameters in the model
     pub fn with_parameter_count(mut self, count: usize) -> Self {
         self.parameter_count = count;
         self
     }
 
+    /// Attach a human-readable description to this model version
     pub fn with_description(mut self, description: String) -> Self {
         self.description = Some(description);
         self
     }
 
+    /// Append a searchable tag to this model version record
     pub fn add_tag(mut self, tag: String) -> Self {
         self.tags.push(tag);
         self
@@ -251,6 +264,7 @@ pub struct CompatibilityChecker {
 }
 
 impl CompatibilityChecker {
+    /// Create a new compatibility checker with no registered strategies or deprecations
     pub fn new() -> Self {
         Self {
             migration_strategies: HashMap::new(),
@@ -354,6 +368,7 @@ pub struct ModelVersionManager {
 }
 
 impl ModelVersionManager {
+    /// Create a new version manager pre-loaded with default migration strategies
     pub fn new() -> Self {
         let mut compatibility_checker = CompatibilityChecker::new();
 

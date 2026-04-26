@@ -5,7 +5,6 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
-    traits::Estimator,
     types::Float,
 };
 use std::any::Any;
@@ -15,9 +14,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use super::types::{
-    ComponentConfig, ComponentContext, ComponentSchema, ConfigValue, ExampleRegressor,
-    ExampleScaler, ExampleTransformerFactory, ExampleTransformerPlugin, PluginCapability,
-    PluginConfig, PluginContext, PluginLoader, PluginMetadata, PluginRegistry,
+    ComponentConfig, ComponentContext, ComponentSchema, PluginCapability, PluginConfig,
+    PluginContext, PluginLoader, PluginMetadata, PluginRegistry,
 };
 
 /// Base trait for all plugins
@@ -87,7 +85,7 @@ pub trait PluginEstimator: PluginComponent {
     /// Predict using the fitted estimator
     fn predict(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array1<f64>>;
     /// Predict probabilities (for classifiers)
-    fn predict_proba(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
+    fn predict_proba(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         Err(SklearsError::InvalidOperation(
             "predict_proba not implemented for this estimator".to_string(),
         ))
@@ -117,6 +115,10 @@ pub trait ComponentFactory: Send + Sync + Debug {
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
+    use super::super::types::{
+        ConfigValue, ExampleRegressor, ExampleScaler, ExampleTransformerFactory,
+        ExampleTransformerPlugin,
+    };
     use super::*;
     use scirs2_core::ndarray::array;
     #[test]
@@ -280,17 +282,25 @@ pub mod advanced_plugin_system {
     /// Semantic version representation
     #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
     pub struct SemanticVersion {
+        /// Field value.
         pub major: u32,
+        /// Field value.
         pub minor: u32,
+        /// Field value.
         pub patch: u32,
+        /// Field value.
         pub pre_release: Option<String>,
+        /// Field value.
         pub build_metadata: Option<String>,
     }
     /// Version constraint for dependency resolution
     #[derive(Debug, Clone)]
     pub struct VersionConstraint {
+        /// Field value.
         pub plugin_name: String,
+        /// Field value.
         pub constraint_type: ConstraintType,
+        /// Field value.
         pub version: SemanticVersion,
     }
     /// Types of version constraints
@@ -313,6 +323,7 @@ pub mod advanced_plugin_system {
     }
     /// Security manager for plugin sandboxing
     #[derive(Debug)]
+    #[allow(dead_code)]
     pub struct SecurityManager {
         sandbox_enabled: bool,
         allowed_capabilities: HashSet<String>,
@@ -322,10 +333,15 @@ pub mod advanced_plugin_system {
     /// Security policy for plugins
     #[derive(Debug, Clone)]
     pub struct SecurityPolicy {
+        /// Field value.
         pub plugin_name: String,
+        /// Field value.
         pub allowed_operations: HashSet<PluginOperation>,
+        /// Field value.
         pub resource_limits: SecurityResourceLimits,
+        /// Field value.
         pub network_access: NetworkAccess,
+        /// Field value.
         pub file_system_access: FileSystemAccess,
     }
     /// Allowed plugin operations
@@ -353,14 +369,20 @@ pub mod advanced_plugin_system {
     /// Security resource limits
     #[derive(Debug, Clone)]
     pub struct SecurityResourceLimits {
+        /// Field value.
         pub max_memory: Option<usize>,
+        /// Field value.
         pub max_cpu_time: Option<Duration>,
+        /// Variant value.
+        /// Field value.
         pub max_network_bandwidth: Option<usize>,
+        /// Field value.
         pub max_file_descriptors: Option<usize>,
     }
     /// Network access control
     #[derive(Debug, Clone)]
     pub enum NetworkAccess {
+        /// Variant value.
         None,
         /// Limited
         Limited(Vec<String>),
@@ -370,6 +392,7 @@ pub mod advanced_plugin_system {
     /// File system access control
     #[derive(Debug, Clone)]
     pub enum FileSystemAccess {
+        /// Variant value.
         None,
         /// ReadOnly
         ReadOnly(Vec<PathBuf>),
@@ -380,6 +403,7 @@ pub mod advanced_plugin_system {
     }
     /// Threat detection system
     #[derive(Debug)]
+    #[allow(dead_code)]
     pub struct ThreatDetector {
         suspicious_patterns: Vec<ThreatPattern>,
         monitoring_enabled: bool,
@@ -388,9 +412,14 @@ pub mod advanced_plugin_system {
     /// Threat pattern definition
     #[derive(Debug, Clone)]
     pub struct ThreatPattern {
+        /// Field value.
         pub pattern_type: ThreatType,
+        /// Field value.
         pub pattern: String,
+        /// Field value.
         pub severity: ThreatSeverity,
+        /// Variant value.
+        /// Field value.
         pub description: String,
     }
     /// Types of security threats
@@ -410,23 +439,34 @@ pub mod advanced_plugin_system {
     /// Threat severity levels
     #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
     pub enum ThreatSeverity {
+        /// Variant value.
         Low,
+        /// Variant value.
         Medium,
+        /// Variant value.
         High,
+        /// Variant value.
         Critical,
     }
     /// Threat alert
     #[derive(Debug)]
     pub struct ThreatAlert {
+        /// Field value.
         pub plugin_name: String,
+        /// Field value.
         pub threat_type: ThreatType,
+        /// Field value.
         pub severity: ThreatSeverity,
+        /// Field value.
         pub description: String,
+        /// Field value.
         pub timestamp: SystemTime,
+        /// Field value.
         pub details: HashMap<String, String>,
     }
     /// Performance monitoring for plugins
     #[derive(Debug)]
+    #[allow(dead_code)]
     pub struct PerformanceMonitor {
         metrics: Arc<RwLock<HashMap<String, PluginMetrics>>>,
         monitoring_enabled: bool,
@@ -435,24 +475,36 @@ pub mod advanced_plugin_system {
     /// Plugin performance metrics
     #[derive(Debug, Clone)]
     pub struct PluginMetrics {
+        /// Field value.
         pub plugin_name: String,
+        /// Field value.
         pub execution_count: u64,
+        /// Field value.
         pub total_execution_time: Duration,
+        /// Field value.
         pub average_execution_time: Duration,
+        /// Field value.
         pub memory_usage: MemoryUsageStats,
+        /// Field value.
         pub error_rate: f64,
+        /// Field value.
         pub last_execution: Option<SystemTime>,
     }
     /// Memory usage statistics
     #[derive(Debug, Clone)]
     pub struct MemoryUsageStats {
+        /// Field value.
         pub current_usage: usize,
+        /// Field value.
         pub peak_usage: usize,
+        /// Field value.
         pub average_usage: usize,
+        /// Field value.
         pub allocation_count: u64,
     }
     /// Plugin marketplace for discovery and distribution
     #[derive(Debug)]
+    #[allow(dead_code)]
     pub struct PluginMarketplace {
         repositories: Vec<PluginRepository>,
         cache: Arc<RwLock<HashMap<String, MarketplaceEntry>>>,
@@ -462,31 +514,49 @@ pub mod advanced_plugin_system {
     /// Plugin repository
     #[derive(Debug, Clone)]
     pub struct PluginRepository {
+        /// Field value.
         pub url: String,
+        /// Field value.
         pub name: String,
+        /// Field value.
         pub auth_token: Option<String>,
+        /// Field value.
         pub trusted: bool,
+        /// Field value.
         pub priority: u32,
     }
     /// Marketplace entry
     #[derive(Debug, Clone)]
     pub struct MarketplaceEntry {
+        /// Field value.
         pub plugin_name: String,
+        /// Field value.
         pub versions: Vec<PluginVersion>,
+        /// Field value.
         pub description: String,
+        /// Field value.
         pub tags: Vec<String>,
+        /// Field value.
         pub downloads: u64,
+        /// Field value.
         pub rating: f64,
+        /// Field value.
         pub last_updated: SystemTime,
     }
     /// Plugin version information
     #[derive(Debug, Clone)]
     pub struct PluginVersion {
+        /// Field value.
         pub version: SemanticVersion,
+        /// Field value.
         pub download_url: String,
+        /// Field value.
         pub checksum: String,
+        /// Field value.
         pub size: usize,
+        /// Field value.
         pub release_notes: String,
+        /// Field value.
         pub compatibility: Vec<String>,
     }
     impl AdvancedPluginManager {
@@ -582,10 +652,15 @@ pub mod advanced_plugin_system {
     /// Security report for a plugin
     #[derive(Debug)]
     pub struct SecurityReport {
+        /// Field value.
         pub plugin_name: String,
+        /// Field value.
         pub security_level: SecurityLevel,
+        /// Field value.
         pub violations: Vec<SecurityViolation>,
+        /// Field value.
         pub recommendations: Vec<String>,
+        /// Field value.
         pub last_scan: Option<SystemTime>,
     }
     /// Security level assessment
@@ -605,9 +680,14 @@ pub mod advanced_plugin_system {
     /// Security violation
     #[derive(Debug)]
     pub struct SecurityViolation {
+        /// Performs the operation.
+        /// Field value.
         pub violation_type: ViolationType,
+        /// Field value.
         pub description: String,
+        /// Field value.
         pub severity: ThreatSeverity,
+        /// Field value.
         pub detected_at: SystemTime,
     }
     /// Types of security violations
@@ -626,6 +706,7 @@ pub mod advanced_plugin_system {
     }
     impl PluginWatcher {
         #[must_use]
+        /// Creates a new instance.
         pub fn new(dirs: Vec<PathBuf>) -> Self {
             Self {
                 watched_dirs: dirs,
@@ -633,7 +714,8 @@ pub mod advanced_plugin_system {
                 poll_interval: Duration::from_secs(5),
             }
         }
-        pub fn start(&mut self, registry: Arc<PluginRegistry>) -> SklResult<()> {
+        /// Performs the operation.
+        pub fn start(&mut self, _registry: Arc<PluginRegistry>) -> SklResult<()> {
             self.running.store(true, Ordering::SeqCst);
             let running = Arc::clone(&self.running);
             let dirs = self.watched_dirs.clone();
@@ -648,6 +730,7 @@ pub mod advanced_plugin_system {
             });
             Ok(())
         }
+        /// Performs the operation.
         pub fn stop(&mut self) {
             self.running.store(false, Ordering::SeqCst);
         }
@@ -659,6 +742,7 @@ pub mod advanced_plugin_system {
     }
     impl VersionManager {
         #[must_use]
+        /// Creates a new instance.
         pub fn new() -> Self {
             Self {
                 installed_versions: HashMap::new(),
@@ -666,6 +750,7 @@ pub mod advanced_plugin_system {
                 compatibility_matrix: HashMap::new(),
             }
         }
+        /// Performs the operation.
         pub fn install_version(
             &mut self,
             plugin_name: &str,
@@ -679,6 +764,7 @@ pub mod advanced_plugin_system {
                 .insert(plugin_name.to_string(), version);
             Ok(())
         }
+        /// Performs the operation.
         pub fn check_upgrade_compatibility(
             &self,
             plugin_name: &str,
@@ -724,6 +810,7 @@ pub mod advanced_plugin_system {
     }
     impl SecurityManager {
         #[must_use]
+        /// Creates a new instance.
         pub fn new(sandbox_enabled: bool) -> Self {
             Self {
                 sandbox_enabled,
@@ -732,19 +819,21 @@ pub mod advanced_plugin_system {
                 threat_detection: ThreatDetector::new(),
             }
         }
+        /// Performs the operation.
         pub fn validate_plugin_security(&self, plugin_name: &str) -> SklResult<()> {
-            if let Some(policy) = self.security_policies.get(plugin_name) {
+            if let Some(_policy) = self.security_policies.get(plugin_name) {
                 Ok(())
             } else {
                 Ok(())
             }
         }
+        /// Performs the operation.
         pub fn scan_plugin(&self, plugin_data: &[u8]) -> SklResult<()> {
             self.threat_detection.scan_data(plugin_data)
         }
         #[must_use]
+        /// Performs the operation.
         pub fn generate_report(&self, plugin_name: &str) -> SecurityReport {
-            /// SecurityReport
             SecurityReport {
                 plugin_name: plugin_name.to_string(),
                 security_level: SecurityLevel::Safe,
@@ -755,12 +844,14 @@ pub mod advanced_plugin_system {
         }
     }
     impl Default for ThreatDetector {
+        /// Performs the operation.
         fn default() -> Self {
             Self::new()
         }
     }
     impl ThreatDetector {
         #[must_use]
+        /// Creates a new instance.
         pub fn new() -> Self {
             Self {
                 suspicious_patterns: Vec::new(),
@@ -768,6 +859,7 @@ pub mod advanced_plugin_system {
                 alert_callback: None,
             }
         }
+        /// Performs the operation.
         pub fn scan_data(&self, data: &[u8]) -> SklResult<()> {
             let data_str = String::from_utf8_lossy(data);
             for pattern in &self.suspicious_patterns {
@@ -800,6 +892,7 @@ pub mod advanced_plugin_system {
         }
     }
     impl PerformanceMonitor {
+        /// Performs the operation.
         #[must_use]
         pub fn new() -> Self {
             Self {
@@ -808,18 +901,22 @@ pub mod advanced_plugin_system {
                 collection_interval: Duration::from_secs(60),
             }
         }
+        /// Performs the operation.
         pub fn start_monitoring(&mut self) -> SklResult<()> {
             self.monitoring_enabled = true;
             Ok(())
         }
+        /// Performs the operation.
         pub fn stop_monitoring(&mut self) -> SklResult<()> {
             self.monitoring_enabled = false;
             Ok(())
         }
         #[must_use]
+        /// Performs the operation.
         pub fn get_metrics(&self, plugin_name: &str) -> Option<PluginMetrics> {
             self.metrics.read().ok()?.get(plugin_name).cloned()
         }
+        /// Performs the operation.
         pub fn record_execution(&self, plugin_name: &str, execution_time: Duration) {
             if let Ok(mut metrics) = self.metrics.write() {
                 let plugin_metrics =
@@ -852,8 +949,10 @@ pub mod advanced_plugin_system {
             Self::new()
         }
     }
+    /// Creates a new instance.
     impl PluginMarketplace {
         #[must_use]
+        /// Creates a new instance.
         pub fn new() -> Self {
             Self {
                 repositories: Vec::new(),
@@ -862,13 +961,16 @@ pub mod advanced_plugin_system {
                 last_update: None,
             }
         }
+        /// Performs the operation.
         pub fn add_repository(&mut self, repository: PluginRepository) {
             self.repositories.push(repository);
         }
+        /// Performs the operation.
         pub fn update_cache(&mut self) -> SklResult<()> {
             self.last_update = Some(SystemTime::now());
             Ok(())
         }
+        /// Performs the operation.
         pub fn find_plugin(&self, plugin_name: &str) -> SklResult<MarketplaceEntry> {
             if let Ok(cache) = self.cache.read() {
                 cache.get(plugin_name).cloned().ok_or_else(|| {
@@ -882,6 +984,7 @@ pub mod advanced_plugin_system {
                 ))
             }
         }
+        /// Performs the operation.
         pub fn download_plugin(
             &self,
             _plugin_name: &str,
@@ -890,6 +993,7 @@ pub mod advanced_plugin_system {
             Ok(vec![])
         }
         #[must_use]
+        /// Performs the operation.
         pub fn search(&self, query: &str, tags: &[String]) -> Vec<MarketplaceEntry> {
             if let Ok(cache) = self.cache.read() {
                 cache
@@ -908,6 +1012,7 @@ pub mod advanced_plugin_system {
     }
     impl SemanticVersion {
         #[must_use]
+        /// Creates a new instance.
         pub fn new(major: u32, minor: u32, patch: u32) -> Self {
             Self {
                 major,
@@ -917,6 +1022,7 @@ pub mod advanced_plugin_system {
                 build_metadata: None,
             }
         }
+        /// Creates a new instance.
         pub fn parse(version_str: &str) -> SklResult<Self> {
             let parts: Vec<&str> = version_str.split('.').collect();
             if parts.len() < 3 {

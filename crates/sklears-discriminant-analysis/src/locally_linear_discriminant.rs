@@ -78,6 +78,7 @@ pub struct TrainedLocallyLinearDiscriminantAnalysis {
     /// Class means in embedding space
     means: Array2<Float>,
     /// Covariance matrix in embedding space
+    #[allow(dead_code)] // retained for future distance-based prediction methods
     covariance: Array2<Float>,
     /// Class priors
     priors: Array1<Float>,
@@ -393,22 +394,25 @@ impl LocallyLinearDiscriminantAnalysis {
         let cost_matrix = i_minus_w.t().dot(&i_minus_w);
 
         // If supervised, incorporate class information
-        let final_cost_matrix = if self.config.supervised && y.is_some() {
-            let y = y.expect("value should be present");
-            let mut supervised_cost = cost_matrix.clone();
+        let final_cost_matrix = if self.config.supervised {
+            if let Some(y) = y {
+                let mut supervised_cost = cost_matrix.clone();
 
-            // Encourage points of the same class to be close in embedding
-            for i in 0..n_samples {
-                for j in 0..n_samples {
-                    if y[i] == y[j] {
-                        supervised_cost[[i, j]] -= 0.1; // Encourage similarity
-                    } else {
-                        supervised_cost[[i, j]] += 0.1; // Encourage dissimilarity
+                // Encourage points of the same class to be close in embedding
+                for i in 0..n_samples {
+                    for j in 0..n_samples {
+                        if y[i] == y[j] {
+                            supervised_cost[[i, j]] -= 0.1; // Encourage similarity
+                        } else {
+                            supervised_cost[[i, j]] += 0.1; // Encourage dissimilarity
+                        }
                     }
                 }
-            }
 
-            supervised_cost
+                supervised_cost
+            } else {
+                cost_matrix
+            }
         } else {
             cost_matrix
         };
@@ -462,6 +466,7 @@ impl LocallyLinearDiscriminantAnalysis {
     }
 
     /// Train discriminant analysis in the embedding space
+    #[allow(clippy::type_complexity)] // returns 4 distinct ndarray components of the trained model
     fn train_discriminant(
         &self,
         embedding: &Array2<Float>,

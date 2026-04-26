@@ -7,6 +7,8 @@ use crate::*;
 use proptest::prelude::*;
 use scirs2_core::ndarray::Array2;
 
+type EmbeddingFnVec = Vec<Box<dyn Fn(&Array2<f64>) -> Option<Array2<f64>>>>;
+
 // Generate valid manifold learning configurations
 fn valid_manifold_config() -> impl Strategy<Value = (usize, usize, usize)> {
     (5usize..20, 2usize..5, 3usize..8).prop_filter(
@@ -34,7 +36,7 @@ proptest! {
     #![proptest_config(proptest::prelude::ProptestConfig::with_cases(10))]
     #[test]
     fn test_tsne_embedding_dimensions(
-        (n_samples, n_components, _) in valid_manifold_config(),
+        (_n_samples, _n_components, _) in valid_manifold_config(),
         data in random_data_matrix(5, 3).prop_flat_map(|_| random_data_matrix(8, 3))
     ) {
         let tsne = TSNE::new()
@@ -128,7 +130,7 @@ proptest! {
         data in random_data_matrix(6, 3)
     ) {
         // Test that embeddings contain finite values (reduced algorithm set for speed)
-        let algorithms: Vec<Box<dyn Fn(&Array2<f64>) -> Option<Array2<f64>>>> = vec![
+        let algorithms: EmbeddingFnVec = vec![
             Box::new(|data| {
                 TSNE::new()
                     .n_components(2)

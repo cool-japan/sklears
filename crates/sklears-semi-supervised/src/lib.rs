@@ -1,17 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(missing_docs)]
-#![allow(deprecated)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(unused_mut)]
-#![allow(unused_assignments)]
-#![allow(unused_doc_comments)]
-#![allow(unused_parens)]
-#![allow(unused_comparisons)]
 //! Semi-supervised learning algorithms
 //!
 //! This module provides semi-supervised learning algorithms that can utilize
@@ -527,7 +513,7 @@ mod tests {
 
         // Check that labels are valid
         for &label in labels.iter() {
-            assert!(label >= 0 && label < 2);
+            assert!((0..2).contains(&label));
         }
     }
 
@@ -640,11 +626,11 @@ mod tests {
 
         // Check that algorithm still produces valid predictions
         assert!(
-            pred_clean.iter().all(|&p| p >= 0 && p <= 1),
+            pred_clean.iter().all(|&p| (0..=1).contains(&p)),
             "Clean predictions should be valid"
         );
         assert!(
-            pred_noisy.iter().all(|&p| p >= 0 && p <= 1),
+            pred_noisy.iter().all(|&p| (0..=1).contains(&p)),
             "Noisy predictions should be valid"
         );
     }
@@ -698,11 +684,11 @@ mod tests {
 
         // Check that predictions are valid
         assert!(
-            pred_clean.iter().all(|&p| p >= 0 && p <= 1),
+            pred_clean.iter().all(|&p| (0..=1).contains(&p)),
             "Clean predictions should be valid"
         );
         assert!(
-            pred_noisy.iter().all(|&p| p >= 0 && p <= 1),
+            pred_noisy.iter().all(|&p| (0..=1).contains(&p)),
             "Noisy predictions should be valid"
         );
     }
@@ -755,11 +741,11 @@ mod tests {
 
         // Both should produce valid predictions
         assert!(
-            pred_small.iter().all(|&p| p >= 0 && p <= 1),
+            pred_small.iter().all(|&p| (0..=1).contains(&p)),
             "Small labeled predictions should be valid"
         );
         assert!(
-            pred_large.iter().all(|&p| p >= 0 && p <= 1),
+            pred_large.iter().all(|&p| (0..=1).contains(&p)),
             "Large labeled predictions should be valid"
         );
     }
@@ -782,7 +768,7 @@ mod tests {
 
         // Check that predictions are stable and valid
         assert!(
-            predictions.iter().all(|&p| p >= 0 && p <= 1),
+            predictions.iter().all(|&p| (0..=1).contains(&p)),
             "Predictions should be stable and valid"
         );
 
@@ -800,7 +786,7 @@ mod tests {
             .expect("operation should succeed");
 
         assert!(
-            predictions_lgc.iter().all(|&p| p >= 0 && p <= 1),
+            predictions_lgc.iter().all(|&p| (0..=1).contains(&p)),
             "LGC predictions should be stable and valid"
         );
     }

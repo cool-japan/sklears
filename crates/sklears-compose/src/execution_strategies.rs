@@ -503,6 +503,7 @@ pub struct ErrorRecord {
 
 /// Sequential execution strategy for deterministic, single-threaded execution
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct SequentialExecutionStrategy {
     /// Strategy configuration
     config: StrategyConfig,
@@ -537,6 +538,7 @@ pub struct StrategyState {
 
 /// Batch execution strategy for high-throughput processing
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct BatchExecutionStrategy {
     /// Strategy configuration
     config: StrategyConfig,
@@ -592,6 +594,7 @@ pub enum BatchStatus {
 
 /// Streaming execution strategy for real-time processing
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct StreamingExecutionStrategy {
     /// Strategy configuration
     config: StrategyConfig,
@@ -669,6 +672,7 @@ pub enum StreamState {
 
 /// GPU execution strategy for hardware-accelerated computation
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct GpuExecutionStrategy {
     /// Strategy configuration
     config: StrategyConfig,
@@ -693,8 +697,11 @@ pub struct GpuExecutionStrategy {
 /// GPU execution context
 #[derive(Debug)]
 pub struct GpuContext {
+    /// The devices.
     pub devices: HashMap<String, GpuDevice>,
+    /// The memory pools.
     pub memory_pools: HashMap<String, MemoryPool>,
+    /// The active kernels.
     pub active_kernels: HashMap<String, GpuKernel>,
 }
 
@@ -764,6 +771,7 @@ pub struct GpuKernel {
 
 /// Distributed execution strategy for cluster computing
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct DistributedExecutionStrategy {
     /// Strategy configuration
     config: StrategyConfig,
@@ -1072,7 +1080,7 @@ pub struct Event {
 #[derive(Debug, Clone)]
 pub enum EventData {
     /// Task
-    Task(ExecutionTask),
+    Task(Box<ExecutionTask>),
     /// Metric
     Metric(String, f64),
     /// Status
@@ -1086,6 +1094,7 @@ pub type EventHandler =
     Arc<dyn Fn(Event) -> Pin<Box<dyn Future<Output = SklResult<()>> + Send>> + Send + Sync>;
 
 /// Strategy builder for creating strategies with configuration
+#[allow(dead_code)]
 pub struct StrategyBuilder {
     strategy_type: StrategyType,
     config: StrategyConfig,
@@ -1184,6 +1193,7 @@ impl Default for SequentialStrategyBuilder {
 
 impl SequentialStrategyBuilder {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             enable_profiling: false,
@@ -1194,32 +1204,37 @@ impl SequentialStrategyBuilder {
     }
 
     #[must_use]
+    /// Performs enable profiling.
     pub fn enable_profiling(mut self, enable: bool) -> Self {
         self.enable_profiling = enable;
         self
     }
 
     #[must_use]
+    /// Performs enable debugging.
     pub fn enable_debugging(mut self, enable: bool) -> Self {
         self.enable_debugging = enable;
         self
     }
 
     #[must_use]
+    /// Performs checkpoint interval.
     pub fn checkpoint_interval(mut self, interval: Duration) -> Self {
         self.checkpoint_interval = Some(interval);
         self
     }
 
     #[must_use]
+    /// Performs config.
     pub fn config(mut self, config: StrategyConfig) -> Self {
         self.config = config;
         self
     }
 
     #[must_use]
+    /// Builds and returns the result.
     pub fn build(self) -> SequentialExecutionStrategy {
-        /// SequentialExecutionStrategy
+        // SequentialExecutionStrategy
         SequentialExecutionStrategy {
             config: self.config,
             task_queue: Arc::new(Mutex::new(VecDeque::new())),
@@ -1351,7 +1366,7 @@ impl ExecutionStrategy for BatchExecutionStrategy {
     }
 
     fn health_status(&self) -> StrategyHealth {
-        /// StrategyHealth
+        // StrategyHealth
         StrategyHealth {
             status: HealthStatus::Healthy,
             last_check: SystemTime::now(),
@@ -1435,6 +1450,7 @@ impl Default for BatchStrategyBuilder {
 
 impl BatchStrategyBuilder {
     #[must_use]
+    /// Creates a new instance.
     pub fn new() -> Self {
         Self {
             batch_size: 10,
@@ -1447,44 +1463,51 @@ impl BatchStrategyBuilder {
     }
 
     #[must_use]
+    /// Performs batch size.
     pub fn batch_size(mut self, size: usize) -> Self {
         self.batch_size = size;
         self
     }
 
     #[must_use]
+    /// Performs max batch size.
     pub fn max_batch_size(mut self, size: usize) -> Self {
         self.max_batch_size = size;
         self
     }
 
     #[must_use]
+    /// Performs batch timeout.
     pub fn batch_timeout(mut self, timeout: Duration) -> Self {
         self.batch_timeout = timeout;
         self
     }
 
     #[must_use]
+    /// Performs parallel batches.
     pub fn parallel_batches(mut self, count: usize) -> Self {
         self.parallel_batches = count;
         self
     }
 
     #[must_use]
+    /// Performs enable adaptive batching.
     pub fn enable_adaptive_batching(mut self, enable: bool) -> Self {
         self.adaptive_batching = enable;
         self
     }
 
     #[must_use]
+    /// Performs config.
     pub fn config(mut self, config: StrategyConfig) -> Self {
         self.config = config;
         self
     }
 
     #[must_use]
+    /// Builds and returns the result.
     pub fn build(self) -> BatchExecutionStrategy {
-        /// BatchExecutionStrategy
+        // BatchExecutionStrategy
         BatchExecutionStrategy {
             config: self.config,
             batch_size: self.batch_size,
@@ -1650,7 +1673,7 @@ impl ExecutionStrategy for SequentialExecutionStrategy {
     }
 
     fn health_status(&self) -> StrategyHealth {
-        /// StrategyHealth
+        // StrategyHealth
         StrategyHealth {
             status: HealthStatus::Healthy,
             last_check: SystemTime::now(),
@@ -1794,7 +1817,7 @@ impl StrategyRegistry {
         self.strategies.insert(name.clone(), strategy);
         self.metadata.insert(
             name.clone(),
-            /// StrategyMetadata
+            // StrategyMetadata
             StrategyMetadata {
                 name: name.clone(),
                 description: format!("Strategy: {name}"),
@@ -1809,8 +1832,8 @@ impl StrategyRegistry {
 
     /// Get a strategy by name
     #[must_use]
-    pub fn get(&self, name: &str) -> Option<&Box<dyn ExecutionStrategy>> {
-        self.strategies.get(name)
+    pub fn get(&self, name: &str) -> Option<&dyn ExecutionStrategy> {
+        self.strategies.get(name).map(|b| b.as_ref())
     }
 
     /// List all registered strategies
@@ -1896,7 +1919,7 @@ mod tests {
         assert!(result.is_ok());
 
         let available = StrategyFactory::available_strategies();
-        assert!(available.len() > 0);
+        assert!(!available.is_empty());
         assert!(available.contains(&StrategyType::Sequential));
     }
 

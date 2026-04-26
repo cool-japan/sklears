@@ -18,6 +18,9 @@ use sklears_core::{
     types::Float,
 };
 
+/// Type alias for multi-objective evaluation function
+type ObjectiveFn<F> = Box<dyn Fn(&F, &Array2<Float>, &Array1<Float>) -> Result<f64> + Send + Sync>;
+
 /// Individual in the genetic algorithm population
 #[derive(Debug, Clone)]
 pub struct Individual {
@@ -374,7 +377,7 @@ where
         rng: &mut StdRng,
     ) -> &'a Individual {
         let mut tournament: Vec<&Individual> = population
-            .choose_multiple(rng, self.config.tournament_size)
+            .sample(rng, self.config.tournament_size)
             .collect();
 
         tournament.sort_by(|a, b| {
@@ -514,10 +517,10 @@ pub struct GeneticAlgorithmResult {
 pub struct MultiObjectiveGA<E, F, C> {
     estimator: E,
     parameter_space: ParameterSpace,
+    #[allow(dead_code)] // cv retained for future multi-objective cross-validation integration
     cv: C,
     config: GeneticAlgorithmConfig,
-    objective_functions:
-        Vec<Box<dyn Fn(&F, &Array2<Float>, &Array1<Float>) -> Result<f64> + Send + Sync>>,
+    objective_functions: Vec<ObjectiveFn<F>>,
     _phantom: std::marker::PhantomData<F>,
 }
 
@@ -872,7 +875,7 @@ where
         rng: &mut StdRng,
     ) -> &'a Individual {
         let tournament: Vec<&Individual> = population
-            .choose_multiple(rng, self.config.tournament_size)
+            .sample(rng, self.config.tournament_size)
             .collect();
 
         // Select best individual based on rank and crowding distance
@@ -965,6 +968,7 @@ pub struct EvolutionarySearchCV<E, S> {
     estimator: E,
     parameter_space: ParameterSpace,
     scorer: Box<S>,
+    #[allow(dead_code)] // cv_folds retained for future cross-validation integration
     cv_folds: usize,
     population_size: usize,
     n_generations: usize,
@@ -1163,8 +1167,7 @@ where
         rng: &mut StdRng,
     ) -> &'a Individual {
         let tournament_size = 3;
-        let tournament: Vec<&Individual> =
-            population.choose_multiple(rng, tournament_size).collect();
+        let tournament: Vec<&Individual> = population.sample(rng, tournament_size).collect();
 
         tournament
             .into_iter()

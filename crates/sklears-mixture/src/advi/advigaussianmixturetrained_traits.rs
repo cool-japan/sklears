@@ -26,6 +26,7 @@ impl Estimator<Trained> for ADVIGaussianMixtureTrained {
     }
 }
 
+#[allow(non_snake_case)]
 impl Predict<ArrayView2<'_, f64>, Array1<usize>> for ADVIGaussianMixtureTrained {
     fn predict(&self, X: &ArrayView2<f64>) -> SklResult<Array1<usize>> {
         let probabilities = self.predict_proba(X)?;

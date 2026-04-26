@@ -593,7 +593,7 @@ impl CorrelationScoring {
 #[derive(Debug, Clone)]
 pub struct ReliefScoring {
     n_iterations: usize,
-    k_neighbors: usize,
+    _k_neighbors: usize,
 }
 
 impl ReliefScoring {
@@ -601,7 +601,7 @@ impl ReliefScoring {
     pub fn new(n_iterations: usize, k_neighbors: usize) -> Self {
         Self {
             n_iterations,
-            k_neighbors,
+            _k_neighbors: k_neighbors,
         }
     }
 
@@ -777,16 +777,27 @@ impl RelevanceScoring {
 /// Comprehensive relevance assessment results
 #[derive(Debug, Clone)]
 pub struct RelevanceAssessment {
+    /// information_gain_scores
     pub information_gain_scores: Vec<f64>,
+    /// chi_square_scores
     pub chi_square_scores: Vec<f64>,
+    /// f_statistic_scores
     pub f_statistic_scores: Vec<f64>,
+    /// correlation_scores
     pub correlation_scores: Vec<f64>,
+    /// relief_scores
     pub relief_scores: Vec<f64>,
+    /// feature_indices
     pub feature_indices: Vec<usize>,
+    /// average_information_gain
     pub average_information_gain: f64,
+    /// average_chi_square
     pub average_chi_square: f64,
+    /// average_f_statistic
     pub average_f_statistic: f64,
+    /// average_correlation
     pub average_correlation: f64,
+    /// average_relief
     pub average_relief: f64,
 }
 
@@ -964,7 +975,7 @@ mod tests {
 
         assert_eq!(scores.len(), 2);
         for score in &scores {
-            assert!(score >= &0.0 && score <= &1.0);
+            assert!((0.0..=1.0).contains(score));
         }
     }
 

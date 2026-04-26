@@ -459,11 +459,34 @@ impl Default for ComponentFrameworkBuilder {
     }
 }
 
+/// Module-level documentation tests
+///
+/// These tests demonstrate typical usage patterns for the modular framework.
+///
+/// ```rust,ignore
+/// use sklears_compose::modular_framework::{ComponentFramework, PipelineBuilder};
+///
+/// // Create framework instance
+/// let framework = ComponentFramework::new();
+///
+/// // Register component factories
+/// framework.register_component_factory("preprocessor", factory1)?;
+/// framework.register_component_factory("transformer", factory2)?;
+///
+/// // Build and execute pipeline
+/// let pipeline = framework.pipeline_builder()
+///     .add_stage("preprocessor", config1)
+///     .add_stage("transformer", config2)
+///     .build()?;
+///
+/// let result = framework.execute_pipeline(pipeline, input_data).await?;
+/// ```
+pub fn _module_docs() {}
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     #[test]
     fn test_framework_creation() {
@@ -530,27 +553,3 @@ mod tests {
         assert_eq!(components.len(), 0);
     }
 }
-
-/// Module-level documentation tests
-///
-/// These tests demonstrate typical usage patterns for the modular framework.
-///
-/// ```rust,ignore
-/// use sklears_compose::modular_framework::{ComponentFramework, PipelineBuilder};
-///
-/// // Create framework instance
-/// let framework = ComponentFramework::new();
-///
-/// // Register component factories
-/// framework.register_component_factory("preprocessor", factory1)?;
-/// framework.register_component_factory("transformer", factory2)?;
-///
-/// // Build and execute pipeline
-/// let pipeline = framework.pipeline_builder()
-///     .add_stage("preprocessor", config1)
-///     .add_stage("transformer", config2)
-///     .build()?;
-///
-/// let result = framework.execute_pipeline(pipeline, input_data).await?;
-/// ```
-pub fn _module_docs() {}

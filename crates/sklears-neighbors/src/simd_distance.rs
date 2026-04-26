@@ -202,8 +202,8 @@ impl SimdDistanceCalculator {
                     // f64 case
                     let chunk_size_f64 = 4;
                     if i + chunk_size_f64 <= len {
-                        let a = _mm256_loadu_pd(x1.as_ptr().add(i) as *const f64);
-                        let b = _mm256_loadu_pd(x2.as_ptr().add(i) as *const f64);
+                        let a = _mm256_loadu_pd(x1.as_ptr().add(i));
+                        let b = _mm256_loadu_pd(x2.as_ptr().add(i));
                         let diff = _mm256_sub_pd(a, b);
                         let squared = _mm256_mul_pd(diff, diff);
 
@@ -260,8 +260,8 @@ impl SimdDistanceCalculator {
                 } else {
                     let chunk_size_f64 = 4;
                     if i + chunk_size_f64 <= len {
-                        let a = _mm256_loadu_pd(x1.as_ptr().add(i) as *const f64);
-                        let b = _mm256_loadu_pd(x2.as_ptr().add(i) as *const f64);
+                        let a = _mm256_loadu_pd(x1.as_ptr().add(i));
+                        let b = _mm256_loadu_pd(x2.as_ptr().add(i));
                         let diff = _mm256_sub_pd(a, b);
 
                         let sign_mask = _mm256_set1_pd(-0.0);
@@ -328,8 +328,8 @@ impl SimdDistanceCalculator {
                 } else {
                     let chunk_size_f64 = 4;
                     if i + chunk_size_f64 <= len {
-                        let a = _mm256_loadu_pd(x1.as_ptr().add(i) as *const f64);
-                        let b = _mm256_loadu_pd(x2.as_ptr().add(i) as *const f64);
+                        let a = _mm256_loadu_pd(x1.as_ptr().add(i));
+                        let b = _mm256_loadu_pd(x2.as_ptr().add(i));
 
                         let dot = _mm256_mul_pd(a, b);
                         let a_sq = _mm256_mul_pd(a, a);
@@ -408,8 +408,8 @@ impl SimdDistanceCalculator {
                     sum += result.iter().sum::<f32>() as Float;
                 } else {
                     // f64 case
-                    let a = _mm256_loadu_pd(x1.as_ptr().add(i) as *const f64);
-                    let b = _mm256_loadu_pd(x2.as_ptr().add(i) as *const f64);
+                    let a = _mm256_loadu_pd(x1.as_ptr().add(i));
+                    let b = _mm256_loadu_pd(x2.as_ptr().add(i));
                     let diff = _mm256_sub_pd(a, b);
                     let squared = _mm256_mul_pd(diff, diff);
 
@@ -464,8 +464,8 @@ impl SimdDistanceCalculator {
                     sum += result.iter().sum::<f32>() as Float;
                 } else {
                     // f64 case
-                    let a = _mm_loadu_pd(x1.as_ptr().add(i) as *const f64);
-                    let b = _mm_loadu_pd(x2.as_ptr().add(i) as *const f64);
+                    let a = _mm_loadu_pd(x1.as_ptr().add(i));
+                    let b = _mm_loadu_pd(x2.as_ptr().add(i));
                     let diff = _mm_sub_pd(a, b);
                     let squared = _mm_mul_pd(diff, diff);
 
@@ -521,8 +521,8 @@ impl SimdDistanceCalculator {
                     _mm256_storeu_ps(result.as_mut_ptr(), abs_diff);
                     sum += result.iter().sum::<f32>() as Float;
                 } else {
-                    let a = _mm256_loadu_pd(x1.as_ptr().add(i) as *const f64);
-                    let b = _mm256_loadu_pd(x2.as_ptr().add(i) as *const f64);
+                    let a = _mm256_loadu_pd(x1.as_ptr().add(i));
+                    let b = _mm256_loadu_pd(x2.as_ptr().add(i));
                     let diff = _mm256_sub_pd(a, b);
 
                     let sign_mask = _mm256_set1_pd(-0.0);
@@ -579,8 +579,8 @@ impl SimdDistanceCalculator {
                     _mm_storeu_ps(result.as_mut_ptr(), abs_diff);
                     sum += result.iter().sum::<f32>() as Float;
                 } else {
-                    let a = _mm_loadu_pd(x1.as_ptr().add(i) as *const f64);
-                    let b = _mm_loadu_pd(x2.as_ptr().add(i) as *const f64);
+                    let a = _mm_loadu_pd(x1.as_ptr().add(i));
+                    let b = _mm_loadu_pd(x2.as_ptr().add(i));
                     let diff = _mm_sub_pd(a, b);
 
                     let sign_mask = _mm_set1_pd(-0.0);
@@ -646,8 +646,8 @@ impl SimdDistanceCalculator {
                     norm1_sq += a_sq_result.iter().sum::<f32>() as Float;
                     norm2_sq += b_sq_result.iter().sum::<f32>() as Float;
                 } else {
-                    let a = _mm256_loadu_pd(x1.as_ptr().add(i) as *const f64);
-                    let b = _mm256_loadu_pd(x2.as_ptr().add(i) as *const f64);
+                    let a = _mm256_loadu_pd(x1.as_ptr().add(i));
+                    let b = _mm256_loadu_pd(x2.as_ptr().add(i));
 
                     let dot = _mm256_mul_pd(a, b);
                     let a_sq = _mm256_mul_pd(a, a);
@@ -732,8 +732,8 @@ impl SimdDistanceCalculator {
                     norm1_sq += a_sq_result.iter().sum::<f32>() as Float;
                     norm2_sq += b_sq_result.iter().sum::<f32>() as Float;
                 } else {
-                    let a = _mm_loadu_pd(x1.as_ptr().add(i) as *const f64);
-                    let b = _mm_loadu_pd(x2.as_ptr().add(i) as *const f64);
+                    let a = _mm_loadu_pd(x1.as_ptr().add(i));
+                    let b = _mm_loadu_pd(x2.as_ptr().add(i));
 
                     let dot = _mm_mul_pd(a, b);
                     let a_sq = _mm_mul_pd(a, a);

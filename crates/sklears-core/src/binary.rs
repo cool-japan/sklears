@@ -320,22 +320,11 @@ impl BinarySerializer {
         match self.config.compression {
             CompressionType::None => Ok(data),
             #[cfg(feature = "compression")]
-            CompressionType::Gzip => {
-                use std::io::Write;
-                let mut encoder =
-                    flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
-                encoder.write_all(&data).map_err(|e| {
-                    SklearsError::SerializationError(format!("Gzip compression failed: {}", e))
-                })?;
-                encoder.finish().map_err(|e| {
-                    SklearsError::SerializationError(format!(
-                        "Gzip compression finish failed: {}",
-                        e
-                    ))
-                })
-            }
+            CompressionType::Gzip => oxiarc_deflate::gzip_compress(&data, 6).map_err(|e| {
+                SklearsError::SerializationError(format!("Gzip compression failed: {}", e))
+            }),
             #[cfg(feature = "compression")]
-            CompressionType::Zstd => zstd::encode_all(&data[..], 3).map_err(|e| {
+            CompressionType::Zstd => oxiarc_zstd::encode_all(&data[..], 3).map_err(|e| {
                 SklearsError::SerializationError(format!("Zstd compression failed: {}", e))
             }),
             #[cfg(not(feature = "compression"))]
@@ -351,17 +340,11 @@ impl BinarySerializer {
         match self.config.compression {
             CompressionType::None => Ok(data.to_vec()),
             #[cfg(feature = "compression")]
-            CompressionType::Gzip => {
-                use std::io::Read;
-                let mut decoder = flate2::read::GzDecoder::new(data);
-                let mut decompressed = Vec::new();
-                decoder.read_to_end(&mut decompressed).map_err(|e| {
-                    SklearsError::DeserializationError(format!("Gzip decompression failed: {}", e))
-                })?;
-                Ok(decompressed)
-            }
+            CompressionType::Gzip => oxiarc_deflate::gzip_decompress(data).map_err(|e| {
+                SklearsError::DeserializationError(format!("Gzip decompression failed: {}", e))
+            }),
             #[cfg(feature = "compression")]
-            CompressionType::Zstd => zstd::decode_all(data).map_err(|e| {
+            CompressionType::Zstd => oxiarc_zstd::decode_all(data).map_err(|e| {
                 SklearsError::DeserializationError(format!("Zstd decompression failed: {}", e))
             }),
             #[cfg(not(feature = "compression"))]

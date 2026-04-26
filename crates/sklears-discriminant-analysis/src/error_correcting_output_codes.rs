@@ -104,7 +104,7 @@ impl ErrorCorrectingOutputCodes {
     }
 
     /// Generate the code matrix
-    fn generate_code_matrix(&self, n_classes: usize) -> Result<Array2<i32>> {
+    pub fn generate_code_matrix(&self, n_classes: usize) -> Result<Array2<i32>> {
         let n_codes = self.config.n_codes.unwrap_or_else(|| {
             // Default: use approximately log2(n_classes) * 4 codes for good error correction
             ((n_classes as f64).log2().ceil() as usize * 4).max(n_classes)
@@ -131,7 +131,7 @@ impl ErrorCorrectingOutputCodes {
             for j in 0..n_codes {
                 // Simple LCG for reproducible random numbers
                 rng_state = rng_state.wrapping_mul(1103515245).wrapping_add(12345);
-                codes[[i, j]] = if (rng_state % 2) == 0 { -1 } else { 1 };
+                codes[[i, j]] = if rng_state.is_multiple_of(2) { -1 } else { 1 };
             }
         }
 
@@ -199,7 +199,7 @@ impl ErrorCorrectingOutputCodes {
 
                 if r1 < non_zero_prob {
                     rng_state = rng_state.wrapping_mul(1103515245).wrapping_add(12345);
-                    codes[[i, j]] = if (rng_state % 2) == 0 { -1 } else { 1 };
+                    codes[[i, j]] = if rng_state.is_multiple_of(2) { -1 } else { 1 };
                 }
             }
         }
@@ -487,147 +487,5 @@ impl PredictProba<Array2<Float>, Array2<Float>> for TrainedErrorCorrectingOutput
         }
 
         Ok(final_probas)
-    }
-}
-
-#[allow(non_snake_case)]
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::{array, Axis};
-
-    #[test]
-    fn test_error_correcting_output_codes_basic() {
-        let x = array![
-            [1.0, 2.0],
-            [2.0, 3.0],
-            [3.0, 4.0],
-            [4.0, 5.0],
-            [5.0, 6.0],
-            [6.0, 7.0]
-        ];
-        let y = array![0, 0, 1, 1, 2, 2];
-
-        let ecoc = ErrorCorrectingOutputCodes::new()
-            .code_method("random")
-            .n_codes(5);
-
-        let fitted = ecoc.fit(&x, &y).expect("model fitting should succeed");
-        let predictions = fitted.predict(&x).expect("prediction should succeed");
-
-        assert_eq!(predictions.len(), 6);
-        assert_eq!(fitted.classes().len(), 3);
-        assert_eq!(fitted.n_classifiers(), 5);
-    }
-
-    #[test]
-    fn test_error_correcting_output_codes_predict_proba() {
-        let x = array![
-            [1.0, 2.0],
-            [2.0, 3.0],
-            [3.0, 4.0],
-            [4.0, 5.0],
-            [5.0, 6.0],
-            [6.0, 7.0]
-        ];
-        let y = array![0, 0, 1, 1, 2, 2];
-
-        let ecoc = ErrorCorrectingOutputCodes::new()
-            .code_method("dense_random")
-            .n_codes(4);
-
-        let fitted = ecoc.fit(&x, &y).expect("model fitting should succeed");
-        let probas = fitted
-            .predict_proba(&x)
-            .expect("probability prediction should succeed");
-
-        assert_eq!(probas.dim(), (6, 3));
-
-        // Check that probabilities sum to 1
-        for row in probas.axis_iter(Axis(0)) {
-            let sum: Float = row.sum();
-            assert_abs_diff_eq!(sum, 1.0, epsilon = 1e-6);
-        }
-    }
-
-    #[test]
-    fn test_different_code_methods() {
-        let x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
-        let y = array![0, 0, 1, 1];
-
-        let methods = ["random", "dense_random", "sparse_random"];
-
-        for method in &methods {
-            let ecoc = ErrorCorrectingOutputCodes::new()
-                .code_method(method)
-                .n_codes(3);
-
-            let fitted = ecoc.fit(&x, &y).expect("model fitting should succeed");
-            let predictions = fitted.predict(&x).expect("prediction should succeed");
-
-            assert_eq!(predictions.len(), 4);
-            assert_eq!(fitted.classes().len(), 2);
-        }
-    }
-
-    #[test]
-    fn test_exhaustive_code_method() {
-        let x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
-        let y = array![0, 0, 1, 1];
-
-        let ecoc = ErrorCorrectingOutputCodes::new().code_method("exhaustive");
-
-        let fitted = ecoc.fit(&x, &y).expect("model fitting should succeed");
-        let predictions = fitted.predict(&x).expect("prediction should succeed");
-
-        assert_eq!(predictions.len(), 4);
-        assert_eq!(fitted.classes().len(), 2);
-    }
-
-    #[test]
-    fn test_code_matrix_properties() {
-        let ecoc = ErrorCorrectingOutputCodes::new()
-            .code_method("random")
-            .n_codes(4)
-            .random_state(42);
-
-        let code_matrix = ecoc
-            .generate_code_matrix(3)
-            .expect("operation should succeed");
-
-        assert_eq!(code_matrix.dim(), (3, 4));
-
-        // Check that each code has both +1 and -1 values
-        for j in 0..4 {
-            let col = code_matrix.column(j);
-            let has_pos = col.iter().any(|&x| x == 1);
-            let has_neg = col.iter().any(|&x| x == -1);
-            assert!(
-                has_pos && has_neg,
-                "Code {} should have both +1 and -1 values",
-                j
-            );
-        }
-    }
-
-    #[test]
-    fn test_different_correction_methods() {
-        let x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
-        let y = array![0, 0, 1, 1];
-
-        let methods = ["hamming", "euclidean", "manhattan"];
-
-        for method in &methods {
-            let ecoc = ErrorCorrectingOutputCodes::new()
-                .correction_method(method)
-                .n_codes(3);
-
-            let fitted = ecoc.fit(&x, &y).expect("model fitting should succeed");
-            let predictions = fitted.predict(&x).expect("prediction should succeed");
-
-            assert_eq!(predictions.len(), 4);
-            assert_eq!(fitted.classes().len(), 2);
-        }
     }
 }

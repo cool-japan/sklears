@@ -38,7 +38,7 @@ pub fn simd_gaussian_blur(
     let kernel_size = kernel.len();
     let _radius = kernel_size / 2;
 
-    if kernel_size == 0 || kernel_size % 2 == 0 {
+    if kernel_size == 0 || kernel_size.is_multiple_of(2) {
         return Err(SklearsError::InvalidInput(
             "Kernel size must be positive and odd".to_string(),
         ));
@@ -197,7 +197,7 @@ pub fn simd_compute_integral_image(image: &ArrayView2<Float>) -> SklResult<Array
 
     // Compute integral image with SIMD acceleration
     for y in 0..height {
-        simd_integral_row(&image, &mut integral, y, width)?;
+        simd_integral_row(image, &mut integral, y, width)?;
     }
 
     Ok(integral)
@@ -418,85 +418,6 @@ pub fn simd_downsample_2x(image: &ArrayView2<Float>) -> SklResult<Array2<Float>>
     }
 
     Ok(result)
-}
-
-#[allow(non_snake_case)]
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use scirs2_core::ndarray::Array2;
-
-    #[test]
-    fn test_simd_gaussian_blur() {
-        let image = Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64).collect())
-            .expect("operation should succeed");
-
-        let kernel = vec![0.25, 0.5, 0.25];
-        let result =
-            simd_gaussian_blur(&image.view(), &kernel, 1.0).expect("operation should succeed");
-
-        assert_eq!(result.dim(), (8, 8));
-        // Test that blur preserves overall image energy
-        let input_sum: f64 = image.sum();
-        let output_sum: f64 = result.sum();
-        assert!((input_sum - output_sum).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_simd_integral_image() {
-        let image = Array2::from_shape_vec(
-            (4, 4),
-            vec![
-                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
-                16.0,
-            ],
-        )
-        .expect("operation should succeed");
-
-        let integral =
-            simd_compute_integral_image(&image.view()).expect("operation should succeed");
-
-        // Test known integral values
-        assert_eq!(integral[[1, 1]], 1.0); // First element
-        assert_eq!(integral[[2, 2]], 1.0 + 2.0 + 5.0 + 6.0); // 2x2 top-left
-    }
-
-    #[test]
-    fn test_simd_statistical_moments() {
-        let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
-        let moments = simd_compute_moments(&data, 4).expect("operation should succeed");
-
-        // Test mean
-        assert!((moments[1] - 5.5).abs() < 1e-10);
-
-        // Test variance
-        let expected_variance = 9.1666666666666666; // Sample variance
-        assert!((moments[2] - expected_variance).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_simd_entropy() {
-        let probabilities = vec![0.5, 0.25, 0.125, 0.125];
-        let entropy = simd_compute_entropy(&probabilities).expect("operation should succeed");
-
-        // Expected entropy for this distribution
-        let expected = -0.5 * 0.5f64.ln() - 0.25 * 0.25f64.ln() - 2.0 * 0.125 * 0.125f64.ln();
-        assert!((entropy - expected).abs() < 1e-12);
-    }
-
-    #[test]
-    fn test_simd_downsample() {
-        let image = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect())
-            .expect("operation should succeed");
-
-        let downsampled = simd_downsample_2x(&image.view()).expect("operation should succeed");
-
-        assert_eq!(downsampled.dim(), (2, 2));
-
-        // Test that downsampling preserves local averages
-        let expected_00 = (0.0 + 1.0 + 4.0 + 5.0) * 0.25;
-        assert!((downsampled[[0, 0]] - expected_00).abs() < 1e-12);
-    }
 }
 
 /// SIMD-accelerated patch reconstruction with averaging
@@ -783,5 +704,84 @@ fn simd_clip_array(data: &mut [Float], threshold: Float) {
         if *val > threshold {
             *val = threshold;
         }
+    }
+}
+
+#[allow(non_snake_case)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::Array2;
+
+    #[test]
+    fn test_simd_gaussian_blur() {
+        let image = Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64).collect())
+            .expect("operation should succeed");
+
+        let kernel = vec![0.25, 0.5, 0.25];
+        let result =
+            simd_gaussian_blur(&image.view(), &kernel, 1.0).expect("operation should succeed");
+
+        assert_eq!(result.dim(), (8, 8));
+        // Test that blur preserves overall image energy
+        let input_sum: f64 = image.sum();
+        let output_sum: f64 = result.sum();
+        assert!((input_sum - output_sum).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_simd_integral_image() {
+        let image = Array2::from_shape_vec(
+            (4, 4),
+            vec![
+                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+                16.0,
+            ],
+        )
+        .expect("operation should succeed");
+
+        let integral =
+            simd_compute_integral_image(&image.view()).expect("operation should succeed");
+
+        // Test known integral values
+        assert_eq!(integral[[1, 1]], 1.0); // First element
+        assert_eq!(integral[[2, 2]], 1.0 + 2.0 + 5.0 + 6.0); // 2x2 top-left
+    }
+
+    #[test]
+    fn test_simd_statistical_moments() {
+        let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
+        let moments = simd_compute_moments(&data, 4).expect("operation should succeed");
+
+        // Test mean
+        assert!((moments[1] - 5.5).abs() < 1e-10);
+
+        // Test variance
+        let expected_variance = 9.166_666_666_666_666; // Sample variance
+        assert!((moments[2] - expected_variance).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_simd_entropy() {
+        let probabilities = vec![0.5, 0.25, 0.125, 0.125];
+        let entropy = simd_compute_entropy(&probabilities).expect("operation should succeed");
+
+        // Expected entropy for this distribution
+        let expected = -0.5 * 0.5f64.ln() - 0.25 * 0.25f64.ln() - 2.0 * 0.125 * 0.125f64.ln();
+        assert!((entropy - expected).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_simd_downsample() {
+        let image = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect())
+            .expect("operation should succeed");
+
+        let downsampled = simd_downsample_2x(&image.view()).expect("operation should succeed");
+
+        assert_eq!(downsampled.dim(), (2, 2));
+
+        // Test that downsampling preserves local averages
+        let expected_00 = (0.0 + 1.0 + 4.0 + 5.0) * 0.25;
+        assert!((downsampled[[0, 0]] - expected_00).abs() < 1e-12);
     }
 }

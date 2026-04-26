@@ -143,6 +143,7 @@ impl StreamingGraphLearning<Untrained> {
         (-dist / (2.0 * 1.0_f64.powi(2))).exp()
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn build_initial_graph(&self, X: &Array2<f64>) -> Array2<f64> {
         let n_samples = X.nrows();
         let mut W = Array2::zeros((n_samples, n_samples));
@@ -185,7 +186,6 @@ impl StreamingGraphLearning<Untrained> {
     #[allow(non_snake_case)]
     fn propagate_labels(&self, W: &Array2<f64>, Y_init: &Array2<f64>) -> SklResult<Array2<f64>> {
         let n_samples = W.nrows();
-        let n_classes = Y_init.ncols();
 
         // Compute transition matrix
         let D = W.sum_axis(Axis(1));
@@ -240,7 +240,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for StreamingGraphLearning<
     fn fit(self, X: &ArrayView2<'_, Float>, y: &ArrayView1<'_, i32>) -> SklResult<Self::Fitted> {
         let X = X.to_owned();
         let y = y.to_owned();
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
 
         // Identify labeled samples and classes
         let mut labeled_indices = Vec::new();
@@ -318,6 +318,7 @@ impl StreamingGraphLearning<StreamingGraphLearningTrained> {
         (-dist / (2.0 * 1.0_f64.powi(2))).exp()
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn build_initial_graph(&self, X: &Array2<f64>) -> Array2<f64> {
         let n_samples = X.nrows();
         let mut W = Array2::zeros((n_samples, n_samples));
@@ -360,7 +361,6 @@ impl StreamingGraphLearning<StreamingGraphLearningTrained> {
     #[allow(non_snake_case)]
     fn propagate_labels(&self, W: &Array2<f64>, Y_init: &Array2<f64>) -> SklResult<Array2<f64>> {
         let n_samples = W.nrows();
-        let n_classes = Y_init.ncols();
 
         // Compute transition matrix
         let D = W.sum_axis(Axis(1));
@@ -436,7 +436,11 @@ impl StreamingGraphLearning<StreamingGraphLearningTrained> {
         self.incremental_graph_update(&X_new, &y_new)?;
 
         // Full reconstruction if update frequency is reached
-        if self.state.update_count % self.update_frequency == 0 {
+        if self
+            .state
+            .update_count
+            .is_multiple_of(self.update_frequency)
+        {
             self.full_graph_reconstruction()?;
         }
 
@@ -464,10 +468,11 @@ impl StreamingGraphLearning<StreamingGraphLearningTrained> {
         }
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn incremental_graph_update(
         &mut self,
         X_new: &Array2<f64>,
-        y_new: &Array1<i32>,
+        _y_new: &Array1<i32>,
     ) -> SklResult<()> {
         let current_data: Vec<Array1<f64>> = self.state.data_window.iter().cloned().collect();
         let current_labels: Vec<i32> = self.state.label_window.iter().cloned().collect();
@@ -546,6 +551,7 @@ impl StreamingGraphLearning<StreamingGraphLearningTrained> {
         Ok(())
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn full_graph_reconstruction(&mut self) -> SklResult<()> {
         let current_data: Vec<Array1<f64>> = self.state.data_window.iter().cloned().collect();
         let current_labels: Vec<i32> = self.state.label_window.iter().cloned().collect();
@@ -686,6 +692,7 @@ impl PredictProba<ArrayView2<'_, Float>, Array2<f64>>
 
 /// Trained state for StreamingGraphLearning
 #[derive(Debug, Clone)]
+#[allow(non_snake_case)] // standard ML notation
 pub struct StreamingGraphLearningTrained {
     /// X_train
     pub X_train: Array2<f64>,
@@ -834,7 +841,7 @@ mod tests {
             .fit(&X.view(), &y.view())
             .expect("operation should succeed");
 
-        let initial_threshold = fitted.state.adaptive_threshold_value;
+        let _initial_threshold = fitted.state.adaptive_threshold_value;
 
         // Add new data with different characteristics
         let X_new = array![[10.0, 20.0], [20.0, 30.0]];

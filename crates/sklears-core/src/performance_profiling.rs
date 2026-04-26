@@ -52,6 +52,7 @@ use std::time::{Duration, Instant};
 #[derive(Debug)]
 pub struct PerformanceProfiler {
     /// Configuration settings
+    #[allow(dead_code)] // intentionally deferred: config accessor not yet exposed
     config: ProfilerConfig,
     /// Performance counters
     counters: PerformanceCounters,
@@ -779,8 +780,11 @@ impl ExecutionTimeline {
 /// Timeline event
 #[derive(Debug, Clone)]
 struct TimelineEvent {
+    #[allow(dead_code)] // intentionally deferred: timeline replay not yet implemented
     timestamp: Instant,
+    #[allow(dead_code)] // intentionally deferred: event classification not yet used
     event_type: String,
+    #[allow(dead_code)] // intentionally deferred: duration analysis not yet used
     duration: Option<Duration>,
 }
 

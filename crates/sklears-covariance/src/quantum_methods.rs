@@ -8,7 +8,6 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::essentials::{Normal, Uniform};
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Distribution;
-use scirs2_core::random::Rng;
 use sklears_core::error::SklearsError;
 use sklears_core::traits::{Estimator, Fit};
 
@@ -62,6 +61,12 @@ pub struct QuantumInspiredCovarianceTrained {
     pub circuit_depth: usize,
     /// Quantum advantage factor
     pub advantage_factor: f64,
+}
+
+impl Default for QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
@@ -125,8 +130,8 @@ impl<'a> Fit<ArrayView2<'a, f64>, ()>
 {
     type Fitted = QuantumInspiredCovariance<QuantumInspiredCovarianceTrained>;
 
-    fn fit(self, X: &ArrayView2<'a, f64>, _y: &()) -> Result<Self::Fitted, SklearsError> {
-        let (n_samples, n_features) = X.dim();
+    fn fit(self, x: &ArrayView2<'a, f64>, _y: &()) -> Result<Self::Fitted, SklearsError> {
+        let (_n_samples, n_features) = x.dim();
 
         if n_features == 0 {
             return Err(SklearsError::InvalidInput(
@@ -136,11 +141,11 @@ impl<'a> Fit<ArrayView2<'a, f64>, ()>
 
         // Simulate quantum algorithm for covariance estimation
         let covariance = match self.algorithm_type {
-            QuantumAlgorithmType::QuantumPCA => self.quantum_pca_covariance(*X)?,
-            QuantumAlgorithmType::HHL => self.hhl_covariance(*X)?,
-            QuantumAlgorithmType::VQE => self.vqe_covariance(*X)?,
-            QuantumAlgorithmType::QAOA => self.qaoa_covariance(*X)?,
-            QuantumAlgorithmType::QSVM => self.qsvm_covariance(*X)?,
+            QuantumAlgorithmType::QuantumPCA => self.quantum_pca_covariance(*x)?,
+            QuantumAlgorithmType::HHL => self.hhl_covariance(*x)?,
+            QuantumAlgorithmType::VQE => self.vqe_covariance(*x)?,
+            QuantumAlgorithmType::QAOA => self.qaoa_covariance(*x)?,
+            QuantumAlgorithmType::QSVM => self.qsvm_covariance(*x)?,
         };
 
         // Generate quantum state information
@@ -173,8 +178,8 @@ impl<'a> Fit<ArrayView2<'a, f64>, ()>
 
 impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
     /// Quantum PCA-based covariance estimation
-    fn quantum_pca_covariance(&self, X: ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = X.dim();
+    fn quantum_pca_covariance(&self, x: ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
+        let (_n_samples, n_features) = x.dim();
 
         // Simulate quantum PCA with phase estimation
         let mut covariance = Array2::zeros((n_features, n_features));
@@ -186,7 +191,7 @@ impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
 
                 // Simulate quantum amplitude estimation
                 for _ in 0..self.quantum_iterations {
-                    let phase = self.simulate_phase_estimation(&X.column(i), &X.column(j))?;
+                    let phase = self.simulate_phase_estimation(&x.column(i), &x.column(j))?;
                     cov_ij += phase / self.quantum_iterations as f64;
                 }
 
@@ -204,11 +209,11 @@ impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
     }
 
     /// HHL algorithm-based covariance estimation
-    fn hhl_covariance(&self, X: ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = X.dim();
+    fn hhl_covariance(&self, x: ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
+        let (_n_samples, n_features) = x.dim();
 
         // Simulate HHL algorithm for matrix inversion
-        let empirical_cov = self.compute_empirical_covariance(X)?;
+        let empirical_cov = self.compute_empirical_covariance(x)?;
 
         // Simulate quantum matrix inversion using HHL
         let mut quantum_inv = Array2::zeros((n_features, n_features));
@@ -231,8 +236,8 @@ impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
     }
 
     /// Variational Quantum Eigensolver covariance estimation
-    fn vqe_covariance(&self, X: ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = X.dim();
+    fn vqe_covariance(&self, x: ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
+        let (_n_samples, n_features) = x.dim();
 
         // Initialize variational parameters
         let params = self
@@ -249,13 +254,13 @@ impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
         let mut best_energy = f64::INFINITY;
 
         // VQE optimization loop
-        for iter in 0..self.quantum_iterations {
-            let energy = self.compute_vqe_energy(X, &params)?;
+        for _iter in 0..self.quantum_iterations {
+            let energy = self.compute_vqe_energy(x, &params)?;
 
             if energy < best_energy {
                 best_energy = energy;
                 // Update covariance based on variational ansatz
-                covariance = self.construct_covariance_from_ansatz(X, &params)?;
+                covariance = self.construct_covariance_from_ansatz(x, &params)?;
             }
         }
 
@@ -263,8 +268,8 @@ impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
     }
 
     /// QAOA-based covariance optimization
-    fn qaoa_covariance(&self, X: ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = X.dim();
+    fn qaoa_covariance(&self, x: ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
+        let (_n_samples, n_features) = x.dim();
 
         // QAOA parameters (gamma and beta)
         let p_layers = 5; // Number of QAOA layers
@@ -277,8 +282,8 @@ impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
                 let gamma_val = gamma as f64 * 0.1;
                 let beta_val = beta as f64 * 0.1;
 
-                let covariance = self.qaoa_layer_evolution(X, gamma_val, beta_val, p_layers)?;
-                let cost = self.compute_qaoa_cost(&covariance, X)?;
+                let covariance = self.qaoa_layer_evolution(x, gamma_val, beta_val, p_layers)?;
+                let cost = self.compute_qaoa_cost(&covariance, x)?;
 
                 if cost < best_cost {
                     best_cost = cost;
@@ -291,8 +296,8 @@ impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
     }
 
     /// Quantum SVM-based covariance estimation
-    fn qsvm_covariance(&self, X: ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = X.dim();
+    fn qsvm_covariance(&self, x: ArrayView2<f64>) -> Result<Array2<f64>, SklearsError> {
+        let (n_samples, _n_features) = x.dim();
 
         // Simulate quantum kernel methods
         let mut kernel_matrix = Array2::zeros((n_samples, n_samples));
@@ -300,14 +305,14 @@ impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
         // Compute quantum kernel matrix
         for i in 0..n_samples {
             for j in i..n_samples {
-                let quantum_kernel = self.compute_quantum_kernel(&X.row(i), &X.row(j))?;
+                let quantum_kernel = self.compute_quantum_kernel(&x.row(i), &x.row(j))?;
                 kernel_matrix[[i, j]] = quantum_kernel;
                 kernel_matrix[[j, i]] = quantum_kernel;
             }
         }
 
         // Estimate covariance from quantum kernel
-        let covariance = X.t().dot(&kernel_matrix).dot(&X) / (n_samples as f64);
+        let covariance = x.t().dot(&kernel_matrix).dot(&x) / (n_samples as f64);
         Ok(covariance)
     }
 
@@ -325,37 +330,37 @@ impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
 
     fn compute_empirical_covariance(
         &self,
-        X: ArrayView2<f64>,
+        x: ArrayView2<f64>,
     ) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = X.dim();
-        let mean = X.mean_axis(Axis(0)).ok_or_else(|| {
+        let (n_samples, _n_features) = x.dim();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
             SklearsError::NumericalError(
                 "mean computation should succeed for non-empty array".into(),
             )
         })?;
-        let centered = &X - &mean;
+        let centered = &x - &mean;
         let covariance = centered.t().dot(&centered) / (n_samples - 1) as f64;
         Ok(covariance)
     }
 
     fn compute_vqe_energy(
         &self,
-        X: ArrayView2<f64>,
+        x: ArrayView2<f64>,
         params: &Array1<f64>,
     ) -> Result<f64, SklearsError> {
         // Simulate VQE energy computation
-        let empirical_cov = self.compute_empirical_covariance(X)?;
+        let empirical_cov = self.compute_empirical_covariance(x)?;
         let energy = empirical_cov.diag().sum() * params.sum();
         Ok(energy)
     }
 
     fn construct_covariance_from_ansatz(
         &self,
-        X: ArrayView2<f64>,
+        x: ArrayView2<f64>,
         params: &Array1<f64>,
     ) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = X.dim();
-        let empirical_cov = self.compute_empirical_covariance(X)?;
+        let (_n_samples, n_features) = x.dim();
+        let empirical_cov = self.compute_empirical_covariance(x)?;
 
         // Apply variational transformation
         let mut covariance = empirical_cov;
@@ -370,12 +375,12 @@ impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
 
     fn qaoa_layer_evolution(
         &self,
-        X: ArrayView2<f64>,
+        x: ArrayView2<f64>,
         gamma: f64,
         beta: f64,
         layers: usize,
     ) -> Result<Array2<f64>, SklearsError> {
-        let mut covariance = self.compute_empirical_covariance(X)?;
+        let mut covariance = self.compute_empirical_covariance(x)?;
 
         // Apply QAOA layers
         for _ in 0..layers {
@@ -392,10 +397,10 @@ impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
     fn compute_qaoa_cost(
         &self,
         covariance: &Array2<f64>,
-        X: ArrayView2<f64>,
+        x: ArrayView2<f64>,
     ) -> Result<f64, SklearsError> {
         // Compute cost function for QAOA optimization
-        let empirical_cov = self.compute_empirical_covariance(X)?;
+        let empirical_cov = self.compute_empirical_covariance(x)?;
         let diff = covariance - &empirical_cov;
         let cost = diff.mapv(|x| x.powi(2)).sum();
         Ok(cost)
@@ -510,7 +515,7 @@ mod tests {
     fn test_quantum_inspired_covariance() {
         let mut local_rng = thread_rng();
         let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
-        let X = Array2::from_shape_fn((100, 5), |_| dist.sample(&mut local_rng));
+        let x = Array2::from_shape_fn((100, 5), |_| dist.sample(&mut local_rng));
 
         let estimator = QuantumInspiredCovariance::new()
             .with_qubits(8)
@@ -518,7 +523,7 @@ mod tests {
             .with_iterations(50)
             .with_random_state(42);
 
-        let result = estimator.fit(&X.view(), &());
+        let result = estimator.fit(&x.view(), &());
         assert!(result.is_ok());
 
         let trained = result.expect("operation should succeed");
@@ -532,12 +537,12 @@ mod tests {
     fn test_quantum_advantage_analysis() {
         let mut local_rng = thread_rng();
         let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
-        let X = Array2::from_shape_fn((50, 3), |_| dist.sample(&mut local_rng));
+        let x = Array2::from_shape_fn((50, 3), |_| dist.sample(&mut local_rng));
 
         let estimator = QuantumInspiredCovariance::new().with_algorithm(QuantumAlgorithmType::VQE);
 
         let trained = estimator
-            .fit(&X.view(), &())
+            .fit(&x.view(), &())
             .expect("model fitting should succeed");
         let analysis = trained.analyze_quantum_advantage();
 
@@ -550,7 +555,7 @@ mod tests {
     fn test_different_quantum_algorithms() {
         let mut local_rng = thread_rng();
         let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
-        let X = Array2::from_shape_fn((30, 4), |_| dist.sample(&mut local_rng));
+        let x = Array2::from_shape_fn((30, 4), |_| dist.sample(&mut local_rng));
 
         let algorithms = vec![
             QuantumAlgorithmType::QuantumPCA,
@@ -565,7 +570,7 @@ mod tests {
                 .with_algorithm(algorithm)
                 .with_iterations(20);
 
-            let result = estimator.fit(&X.view(), &());
+            let result = estimator.fit(&x.view(), &());
             assert!(result.is_ok(), "Algorithm {:?} failed", algorithm);
         }
     }

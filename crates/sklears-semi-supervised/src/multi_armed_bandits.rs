@@ -5,7 +5,7 @@
 //! strategies as arms in a bandit problem.
 
 use scirs2_core::ndarray_ext::{Array1, ArrayView1};
-use scirs2_core::random::{Random, Rng, RngExt};
+use scirs2_core::random::{Random, RngExt};
 use sklears_core::error::{Result, SklearsError};
 use std::collections::HashMap;
 use thiserror::Error;
@@ -806,7 +806,6 @@ impl BanditBasedActiveLearning {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     use scirs2_core::array;
 
     #[test]

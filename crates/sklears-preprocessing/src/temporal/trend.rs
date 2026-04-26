@@ -134,11 +134,7 @@ impl TrendDetector<Trained> {
         let mut trends = Array1::<Float>::zeros(n);
 
         for i in 0..n {
-            let start = if i >= window_size / 2 {
-                (i - window_size / 2).max(0)
-            } else {
-                0
-            };
+            let start = i.saturating_sub(window_size / 2);
             let end = (start + window_size).min(n);
             let window = data.slice(s![start..end]);
             trends[i] = self.calculate_linear_trend(&window.to_owned());

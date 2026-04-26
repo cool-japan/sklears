@@ -301,7 +301,7 @@ impl<F: Float + ScalarOperand> AdaptiveSmoothing<F> {
     fn bayesian_adaptive_smoothing(
         &self,
         counts: &Array2<F>,
-        total_counts: &Array1<F>,
+        _total_counts: &Array1<F>,
         prior_alpha: f64,
         prior_beta: f64,
     ) -> Result<f64, String> {
@@ -338,7 +338,7 @@ impl<F: Float + ScalarOperand> AdaptiveSmoothing<F> {
     fn frequency_based_smoothing(
         &self,
         counts: &Array2<F>,
-        total_counts: &Array1<F>,
+        _total_counts: &Array1<F>,
         min_alpha: f64,
         max_alpha: f64,
     ) -> Result<Vec<f64>, String> {
@@ -347,7 +347,7 @@ impl<F: Float + ScalarOperand> AdaptiveSmoothing<F> {
 
         for j in 0..n_features {
             let column = counts.column(j);
-            let total_count: f64 = column.iter().map(|&x| x.to_f64().unwrap_or(0.0)).sum();
+            let _total_count: f64 = column.iter().map(|&x| x.to_f64().unwrap_or(0.0)).sum();
             let non_zero_count = column.iter().filter(|&&x| x > F::zero()).count() as f64;
 
             // Adaptive alpha based on feature sparsity
@@ -365,7 +365,7 @@ impl<F: Float + ScalarOperand> AdaptiveSmoothing<F> {
         &self,
         counts: &Array2<F>,
         total_counts: &Array1<F>,
-        labels: &Array1<i32>,
+        _labels: &Array1<i32>,
         train_indices: &[usize],
         test_indices: &[usize],
         alpha: f64,
@@ -443,7 +443,7 @@ impl<F: Float + ScalarOperand> AdaptiveSmoothing<F> {
 }
 
 impl<F: Float + ScalarOperand> Smoothing<F> for AdaptiveSmoothing<F> {
-    fn smooth_counts(&self, counts: &Array2<F>, total_counts: &Array1<F>) -> Array2<F> {
+    fn smooth_counts(&self, counts: &Array2<F>, _total_counts: &Array1<F>) -> Array2<F> {
         if let Some(ref feature_alphas) = self.feature_alphas {
             // Per-feature adaptive smoothing
             let mut smoothed = counts.clone();
@@ -493,8 +493,6 @@ impl HyperparameterOptimizer {
     pub fn new() -> Self {
         Self {
             methods: vec![
-                /// AdaptiveSmoothingMethod
-
                 AdaptiveSmoothingMethod::CrossValidation {
                     folds: 5,
                     alpha_candidates: vec![0.001, 0.01, 0.1, 1.0, 10.0],
@@ -548,7 +546,7 @@ impl HyperparameterOptimizer {
         smoother: &AdaptiveSmoothing<F>,
         counts: &Array2<F>,
         total_counts: &Array1<F>,
-        labels: &Array1<i32>,
+        _labels: &Array1<i32>,
     ) -> Result<f64, String> {
         match self.scoring {
             ScoringMethod::LogLikelihood => {
@@ -587,7 +585,6 @@ impl Default for HyperparameterOptimizer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
     // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
     use scirs2_core::ndarray::array;
 

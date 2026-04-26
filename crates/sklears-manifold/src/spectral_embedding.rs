@@ -108,6 +108,7 @@ pub struct SpectralEmbeddingTrained {
     embedding: Array2<f64>,
     eigenvalues: Array1<f64>,
     affinity_matrix: Array2<f64>,
+    #[allow(dead_code)] // deferred: exposed in future introspection API
     n_components: usize,
 }
 

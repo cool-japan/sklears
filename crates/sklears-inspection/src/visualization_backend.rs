@@ -685,7 +685,7 @@ impl VisualizationBackend for HtmlBackend {
             
             Plotly.newPlot('plot', data, layout);
             "#,
-            serde_json::to_string(&data.shap_values.to_owned().into_raw_vec())
+            serde_json::to_string(&data.shap_values.to_owned().into_raw_vec_and_offset().0)
                 .expect("operation should succeed"),
             data.title,
             config.width,
@@ -1081,13 +1081,13 @@ impl AsciiBackend {
         height: usize,
     ) -> String {
         let max_value = values.iter().fold(0.0_f64, |acc, &x| acc.max(x));
-        let bar_width = (width - 20) / labels.len().max(1);
+        let _bar_width = (width - 20) / labels.len().max(1);
         let scale = (height - 5) as Float / max_value;
 
         let mut result = String::new();
 
         // Create horizontal bar chart
-        for (i, (label, &value)) in labels.iter().zip(values.iter()).enumerate() {
+        for (label, &value) in labels.iter().zip(values.iter()) {
             let bar_length = (value * scale / max_value * 50.0) as usize;
             let bar = "█".repeat(bar_length);
             result.push_str(&format!("{:15} │{:<50} {:.3}\n", label, bar, value));
@@ -1287,8 +1287,7 @@ impl VisualizationBackend for AsciiBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // ✅ SciRS2 Policy Compliant Import
-    use scirs2_core::ndarray::{array, Array2};
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_backend_registry() {
@@ -1318,7 +1317,7 @@ mod tests {
 
     #[test]
     fn test_visualization_renderer() {
-        let mut renderer = VisualizationRenderer::with_default_backends();
+        let renderer = VisualizationRenderer::with_default_backends();
 
         // Test feature importance rendering
         let data = FeatureImportanceData {

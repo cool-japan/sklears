@@ -617,6 +617,7 @@ pub struct TrainedStabilitySelection {
     /// Original number of features
     n_features: usize,
     /// Configuration
+    #[allow(dead_code)] // retained for future serialisation / re-fit support
     config: StabilitySelectionConfig,
 }
 

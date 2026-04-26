@@ -6,9 +6,18 @@
 //! with advanced features and optimizations.
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::Distribution;
 use scirs2_core::StandardNormal;
 use scirs2_linalg::compat::ArrayLinalgExt;
+
+/// Return type for PCA fitting methods
+type PcaFitResult = SklResult<(
+    Array2<f64>,
+    Array1<f64>,
+    Array1<f64>,
+    Option<Array2<f64>>,
+    Option<f64>,
+    Option<Array2<f64>>,
+)>;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -92,17 +101,17 @@ pub struct PCACovarianceTrained {
     /// Method used for PCA
     method: PCAMethod,
     /// Number of observations used for training
-    n_samples: usize,
+    pub n_samples: usize,
     /// Number of features
-    n_features: usize,
+    pub n_features: usize,
     /// Cumulative explained variance ratio
     cumulative_variance_ratio: Array1<f64>,
     /// Noise variance (for probabilistic PCA)
     noise_variance: Option<f64>,
     /// Kernel matrix (for kernel PCA)
-    kernel_matrix: Option<Array2<f64>>,
+    pub kernel_matrix: Option<Array2<f64>>,
     /// Support vectors (for sparse methods)
-    support_vectors: Option<Array2<f64>>,
+    pub support_vectors: Option<Array2<f64>>,
 }
 
 impl Default for PCACovariance {
@@ -356,19 +365,8 @@ impl Fit<ArrayView2<'_, f64>, ()> for PCACovariance {
 
 impl PCACovariance {
     /// Standard PCA using SVD
-    fn standard_pca(
-        &self,
-        x: &Array2<f64>,
-        n_components: usize,
-    ) -> SklResult<(
-        Array2<f64>,
-        Array1<f64>,
-        Array1<f64>,
-        Option<Array2<f64>>,
-        Option<f64>,
-        Option<Array2<f64>>,
-    )> {
-        let (u, s, vt) = x
+    fn standard_pca(&self, x: &Array2<f64>, n_components: usize) -> PcaFitResult {
+        let (_u, s, vt) = x
             .svd(true)
             .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
@@ -382,10 +380,7 @@ impl PCACovariance {
 
         // Compute precision matrix if possible
         let precision = if n_components == x.ncols() {
-            match components.dot(&components.t()).inv() {
-                Ok(inv) => Some(inv),
-                Err(_) => None,
-            }
+            components.dot(&components.t()).inv().ok()
         } else {
             None
         };
@@ -401,18 +396,7 @@ impl PCACovariance {
     }
 
     /// Incremental PCA for large datasets
-    fn incremental_pca(
-        &self,
-        x: &Array2<f64>,
-        n_components: usize,
-    ) -> SklResult<(
-        Array2<f64>,
-        Array1<f64>,
-        Array1<f64>,
-        Option<Array2<f64>>,
-        Option<f64>,
-        Option<Array2<f64>>,
-    )> {
+    fn incremental_pca(&self, x: &Array2<f64>, n_components: usize) -> PcaFitResult {
         let batch_size = self.batch_size.unwrap_or(100.min(x.nrows()));
         let (n_samples, n_features) = x.dim();
 
@@ -481,18 +465,7 @@ impl PCACovariance {
     }
 
     /// Kernel PCA for non-linear relationships
-    fn kernel_pca(
-        &self,
-        x: &Array2<f64>,
-        n_components: usize,
-    ) -> SklResult<(
-        Array2<f64>,
-        Array1<f64>,
-        Array1<f64>,
-        Option<Array2<f64>>,
-        Option<f64>,
-        Option<Array2<f64>>,
-    )> {
+    fn kernel_pca(&self, x: &Array2<f64>, n_components: usize) -> PcaFitResult {
         let kernel_func = self.kernel.as_ref().unwrap_or(&KernelFunction::Linear);
 
         // Compute kernel matrix
@@ -587,18 +560,7 @@ impl PCACovariance {
     }
 
     /// Robust PCA using iterative reweighting
-    fn robust_pca(
-        &self,
-        x: &Array2<f64>,
-        n_components: usize,
-    ) -> SklResult<(
-        Array2<f64>,
-        Array1<f64>,
-        Array1<f64>,
-        Option<Array2<f64>>,
-        Option<f64>,
-        Option<Array2<f64>>,
-    )> {
+    fn robust_pca(&self, x: &Array2<f64>, n_components: usize) -> PcaFitResult {
         let max_iter = 50;
         let tolerance = self.tol;
         let (n_samples, n_features) = x.dim();
@@ -607,7 +569,7 @@ impl PCACovariance {
         let mut weights = Array1::ones(n_samples);
         let mut prev_components = Array2::zeros((n_components, n_features));
 
-        for iter in 0..max_iter {
+        for _iter in 0..max_iter {
             // Weighted covariance computation
             let mut weighted_x = x.to_owned();
             for (i, mut row) in weighted_x.axis_iter_mut(Axis(0)).enumerate() {
@@ -615,7 +577,7 @@ impl PCACovariance {
             }
 
             // Perform standard PCA on weighted data
-            let (u, s, vt) = weighted_x
+            let (_u, _s, vt) = weighted_x
                 .svd(true)
                 .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
@@ -674,18 +636,7 @@ impl PCACovariance {
     }
 
     /// Sparse PCA using L1 regularization
-    fn sparse_pca(
-        &self,
-        x: &Array2<f64>,
-        n_components: usize,
-    ) -> SklResult<(
-        Array2<f64>,
-        Array1<f64>,
-        Array1<f64>,
-        Option<Array2<f64>>,
-        Option<f64>,
-        Option<Array2<f64>>,
-    )> {
+    fn sparse_pca(&self, x: &Array2<f64>, n_components: usize) -> PcaFitResult {
         let max_iter = 100;
         let tolerance = self.tol;
         let (n_samples, n_features) = x.dim();
@@ -785,18 +736,7 @@ impl PCACovariance {
     }
 
     /// Probabilistic PCA using EM algorithm
-    fn probabilistic_pca(
-        &self,
-        x: &Array2<f64>,
-        n_components: usize,
-    ) -> SklResult<(
-        Array2<f64>,
-        Array1<f64>,
-        Array1<f64>,
-        Option<Array2<f64>>,
-        Option<f64>,
-        Option<Array2<f64>>,
-    )> {
+    fn probabilistic_pca(&self, x: &Array2<f64>, n_components: usize) -> PcaFitResult {
         let max_iter = 100;
         let tolerance = self.tol;
         let (n_samples, n_features) = x.dim();
@@ -1016,7 +956,7 @@ impl PCACovariance<PCACovarianceTrained> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
+
     use scirs2_core::ndarray::array;
 
     #[test]

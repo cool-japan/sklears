@@ -74,6 +74,7 @@ impl DiverseMiniBatchSelection {
         self
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     fn simple_kmeans(&self, X: &ArrayView2<f64>) -> Result<(Array1<usize>, Array2<f64>)> {
         let (n_samples, n_features) = X.dim();
         let k = self.n_clusters.min(n_samples);
@@ -86,7 +87,7 @@ impl DiverseMiniBatchSelection {
         // Initialize centroids randomly
         let mut centroids = Array2::zeros((k, n_features));
         let indices: Vec<usize> = (0..n_samples).collect();
-        let selected_indices: Vec<usize> = indices.choose_multiple(&mut rng, k).cloned().collect();
+        let selected_indices: Vec<usize> = indices.sample(&mut rng, k).cloned().collect();
 
         for (i, &idx) in selected_indices.iter().enumerate() {
             centroids.row_mut(i).assign(&X.row(idx));
@@ -149,6 +150,7 @@ impl DiverseMiniBatchSelection {
         Ok((labels, centroids))
     }
 
+    #[allow(non_snake_case)] // standard ML notation
     pub fn query(
         &self,
         X: &ArrayView2<f64>,
@@ -188,7 +190,7 @@ impl DiverseMiniBatchSelection {
         let samples_per_cluster = self.batch_size / cluster_counts.len();
         let remaining_samples = self.batch_size % cluster_counts.len();
 
-        for (cluster_id, &count) in cluster_counts.iter() {
+        for (cluster_id, &_count) in cluster_counts.iter() {
             let mut cluster_samples = samples_per_cluster;
             if (*cluster_id) < remaining_samples {
                 cluster_samples += 1;

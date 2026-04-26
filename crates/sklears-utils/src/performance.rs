@@ -364,7 +364,7 @@ impl Benchmark {
         let total: Duration = measurements.iter().sum();
         let average = total / len as u32;
 
-        let median = if len % 2 == 0 {
+        let median = if len.is_multiple_of(2) {
             (measurements[len / 2 - 1] + measurements[len / 2]) / 2
         } else {
             measurements[len / 2]
