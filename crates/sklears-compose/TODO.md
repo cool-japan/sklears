@@ -1,7 +1,7 @@
-# TODO - v0.1.2
+# TODO - v0.2.0
 
 ## Current Status
-This crate is part of the sklears v0.1.2 release.
+This crate is part of the sklears v0.2.0 release.
 
 ## Completed in v0.1.1
 - [x] Re-enable `cross_validation` — HRTB eliminated via `FitCV`/`PredictCV` adapter traits;

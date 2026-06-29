@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -46,6 +46,6 @@ let probs = fitted.predict_proba(&x)?;
 
 ## Status
 
-- Exercised via 432 passing crate tests in `0.1.2` (86 skipped).
+- Exercised via 432 passing crate tests in `0.2.0` (86 skipped).
 - Verified against scikit-learn parity tests for convergence and scoring APIs.
 - Roadmap items (ONNX export, distillation helpers) documented in this crate’s `TODO.md`.

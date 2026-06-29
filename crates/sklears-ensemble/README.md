@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -44,6 +44,6 @@ let predictions = fitted.predict(&x)?;
 
 ## Status
 
-- Validated by 258 passing crate tests for `0.1.2`.
+- Validated by 258 passing crate tests for `0.2.0`.
 - Benchmarks demonstrate 5–30× faster training versus scikit-learn on medium to large datasets.
 - Roadmap items (GPU GradientBoosting, federated ensembles) live in this crate’s `TODO.md`.

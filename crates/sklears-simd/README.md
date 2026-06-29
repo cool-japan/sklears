@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -31,6 +31,6 @@ assert_eq!(result.horizontal_sum(), 20.0);
 
 ## Status
 
-- Core building block for `0.1.2`; 0 crate-level tests (test authoring needed).
+- Core building block for `0.2.0`; 0 crate-level tests (test authoring needed).
 - Powers SIMD/GPU acceleration in linear models, neighbors, metrics, and more.
 - Contributor roadmap (new architectures, auto-vectorization tooling) maintained in `TODO.md`.

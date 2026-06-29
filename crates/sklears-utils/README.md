@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -34,6 +34,6 @@ check_array(&x)?.ensure_finite()?;
 
 ## Status
 
-- Validated by 494 passing tests in `0.1.2` (Stable).
+- Validated by 494 passing tests in `0.2.0` (Stable).
 - Acts as shared infrastructure for dozens of crates.
 - Additional helpers and refactors are tracked in this crate’s `TODO.md`.

@@ -7,7 +7,7 @@
 
 High-performance Support Vector Machine implementations for Rust with advanced kernels and optimization algorithms, delivering 5-15x speedup over scikit-learn.
 
-> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -255,7 +255,7 @@ sklears-svm/
 
 ## Status
 
-- **Tests**: 273 passing crate tests for `0.1.2` (38 skipped)
+- **Tests**: 273 passing crate tests for `0.2.0` (38 skipped)
 - **Core Algorithms**: 90% complete
 - **Kernel Functions**: All major kernels implemented
 - **Optimization**: SMO, CD, SGD implemented

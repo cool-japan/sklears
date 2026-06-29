@@ -40,7 +40,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.2"
+version = "0.2.0"
 authors = ["COOLJAPAN OU (Team KitaSan)"]
 license = "Apache-2.0"
 edition = "2021"
@@ -200,42 +200,42 @@ aws-sdk-s3 = { version = "1.137" }
 google-cloud-storage = { version = "1.15" }
 
 # Internal crates
-sklears = { version = "0.1.2", path = "crates/sklears" }
-sklears-core = { version = "0.1.2", path = "crates/sklears-core" }
-sklears-clustering = { version = "0.1.2", path = "crates/sklears-clustering" }
-sklears-linear = { version = "0.1.2", path = "crates/sklears-linear" }
-sklears-ensemble = { version = "0.1.2", path = "crates/sklears-ensemble" }
-sklears-svm = { version = "0.1.2", path = "crates/sklears-svm" }
-sklears-tree = { version = "0.1.2", path = "crates/sklears-tree" }
-sklears-neighbors = { version = "0.1.2", path = "crates/sklears-neighbors" }
-sklears-decomposition = { version = "0.1.2", path = "crates/sklears-decomposition" }
-sklears-preprocessing = { version = "0.1.2", path = "crates/sklears-preprocessing" }
-sklears-model-selection = { version = "0.1.2", path = "crates/sklears-model-selection" }
-sklears-metrics = { version = "0.1.2", path = "crates/sklears-metrics" }
-sklears-utils = { version = "0.1.2", path = "crates/sklears-utils" }
-sklears-neural = { version = "0.1.2", path = "crates/sklears-neural" }
-sklears-simd = { version = "0.1.2", path = "crates/sklears-simd" }
-sklears-datasets = { version = "0.1.2", path = "crates/sklears-datasets" }
-sklears-feature-selection = { version = "0.1.2", path = "crates/sklears-feature-selection" }
-sklears-naive-bayes = { version = "0.1.2", path = "crates/sklears-naive-bayes" }
-sklears-gaussian-process = { version = "0.1.2", path = "crates/sklears-gaussian-process" }
-sklears-discriminant-analysis = { version = "0.1.2", path = "crates/sklears-discriminant-analysis" }
-sklears-manifold = { version = "0.1.2", path = "crates/sklears-manifold" }
-sklears-semi-supervised = { version = "0.1.2", path = "crates/sklears-semi-supervised" }
-sklears-feature-extraction = { version = "0.1.2", path = "crates/sklears-feature-extraction" }
-sklears-covariance = { version = "0.1.2", path = "crates/sklears-covariance" }
-sklears-cross-decomposition = { version = "0.1.2", path = "crates/sklears-cross-decomposition" }
-sklears-isotonic = { version = "0.1.2", path = "crates/sklears-isotonic" }
-sklears-kernel-approximation = { version = "0.1.2", path = "crates/sklears-kernel-approximation" }
-sklears-dummy = { version = "0.1.2", path = "crates/sklears-dummy" }
-sklears-calibration = { version = "0.1.2", path = "crates/sklears-calibration" }
-sklears-multiclass = { version = "0.1.2", path = "crates/sklears-multiclass" }
-sklears-multioutput = { version = "0.1.2", path = "crates/sklears-multioutput" }
-sklears-compose = { version = "0.1.2", path = "crates/sklears-compose" }
-sklears-impute = { version = "0.1.2", path = "crates/sklears-impute" }
-sklears-inspection = { version = "0.1.2", path = "crates/sklears-inspection" }
-sklears-mixture = { version = "0.1.2", path = "crates/sklears-mixture" }
-sklears-python = { version = "0.1.2", path = "crates/sklears-python" }
+sklears = { version = "0.2.0", path = "crates/sklears" }
+sklears-core = { version = "0.2.0", path = "crates/sklears-core" }
+sklears-clustering = { version = "0.2.0", path = "crates/sklears-clustering" }
+sklears-linear = { version = "0.2.0", path = "crates/sklears-linear" }
+sklears-ensemble = { version = "0.2.0", path = "crates/sklears-ensemble" }
+sklears-svm = { version = "0.2.0", path = "crates/sklears-svm" }
+sklears-tree = { version = "0.2.0", path = "crates/sklears-tree" }
+sklears-neighbors = { version = "0.2.0", path = "crates/sklears-neighbors" }
+sklears-decomposition = { version = "0.2.0", path = "crates/sklears-decomposition" }
+sklears-preprocessing = { version = "0.2.0", path = "crates/sklears-preprocessing" }
+sklears-model-selection = { version = "0.2.0", path = "crates/sklears-model-selection" }
+sklears-metrics = { version = "0.2.0", path = "crates/sklears-metrics" }
+sklears-utils = { version = "0.2.0", path = "crates/sklears-utils" }
+sklears-neural = { version = "0.2.0", path = "crates/sklears-neural" }
+sklears-simd = { version = "0.2.0", path = "crates/sklears-simd" }
+sklears-datasets = { version = "0.2.0", path = "crates/sklears-datasets" }
+sklears-feature-selection = { version = "0.2.0", path = "crates/sklears-feature-selection" }
+sklears-naive-bayes = { version = "0.2.0", path = "crates/sklears-naive-bayes" }
+sklears-gaussian-process = { version = "0.2.0", path = "crates/sklears-gaussian-process" }
+sklears-discriminant-analysis = { version = "0.2.0", path = "crates/sklears-discriminant-analysis" }
+sklears-manifold = { version = "0.2.0", path = "crates/sklears-manifold" }
+sklears-semi-supervised = { version = "0.2.0", path = "crates/sklears-semi-supervised" }
+sklears-feature-extraction = { version = "0.2.0", path = "crates/sklears-feature-extraction" }
+sklears-covariance = { version = "0.2.0", path = "crates/sklears-covariance" }
+sklears-cross-decomposition = { version = "0.2.0", path = "crates/sklears-cross-decomposition" }
+sklears-isotonic = { version = "0.2.0", path = "crates/sklears-isotonic" }
+sklears-kernel-approximation = { version = "0.2.0", path = "crates/sklears-kernel-approximation" }
+sklears-dummy = { version = "0.2.0", path = "crates/sklears-dummy" }
+sklears-calibration = { version = "0.2.0", path = "crates/sklears-calibration" }
+sklears-multiclass = { version = "0.2.0", path = "crates/sklears-multiclass" }
+sklears-multioutput = { version = "0.2.0", path = "crates/sklears-multioutput" }
+sklears-compose = { version = "0.2.0", path = "crates/sklears-compose" }
+sklears-impute = { version = "0.2.0", path = "crates/sklears-impute" }
+sklears-inspection = { version = "0.2.0", path = "crates/sklears-inspection" }
+sklears-mixture = { version = "0.2.0", path = "crates/sklears-mixture" }
+sklears-python = { version = "0.2.0", path = "crates/sklears-python" }
 
 [workspace.lints.rust]
 # Code quality and consistency

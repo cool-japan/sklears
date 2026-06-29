@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -38,6 +38,6 @@ let mapped = transformer.fit_transform(&features)?;
 
 ## Status
 
-- Verified by 531 passing tests in `0.1.2` (Stable).
+- Verified by 531 passing tests in `0.2.0` (Stable).
 - Benchmarked against scikit-learn to provide 10–30× faster random feature generation.
 - Further roadmap tasks (e.g., online updates, streaming sampling) tracked in `TODO.md`.

@@ -7,7 +7,7 @@
 
 State-of-the-art multiclass classification strategies for Rust, providing 5-15x performance improvements over scikit-learn while maintaining API familiarity.
 
-> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -136,7 +136,7 @@ sklears-multiclass/
 
 ## Status
 
-**Stable** (`0.1.2`)
+**Stable** (`0.2.0`)
 
 - **Implementation**: 100% complete
 - **Tests**: 300 passing

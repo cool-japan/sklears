@@ -7,7 +7,7 @@
 
 The foundational crate for sklears, providing core traits, types, and utilities that power the entire machine learning ecosystem. Production-ready with 100% test coverage.
 
-> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -21,7 +21,7 @@ The foundational crate for sklears, providing core traits, types, and utilities 
 
 ## Status
 
-- **Implementation**: 0.1.2 ships with >99% of the planned v0.1 APIs implemented (141 stubs remaining).
+- **Implementation**: 0.2.0 ships with >99% of the planned v0.1 APIs implemented (141 stubs remaining).
 - **Validation**: Covered by 697 passing crate tests executed on June 30, 2026.
 - **Performance**: Pure Rust implementation with ongoing performance optimization via SIMD, threading, and cache-friendly layouts.
 - **API Stability**: Minor breaking changes possible in pre-1.0 releases; stabilization roadmap tracked in the root `TODO.md`.

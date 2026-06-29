@@ -44,7 +44,7 @@ Create a production-ready machine learning library in Rust that:
 
 ---
 
-## 📊 Current Status (v0.1.2)
+## 📊 Current Status (v0.2.0)
 
 **Overall API Coverage: >99%** 🎉
 
@@ -141,7 +141,7 @@ All major scikit-learn modules are implemented with production-ready quality:
 
 ---
 
-*Version: 0.1.2*
+*Version: 0.2.0*
 *Release Date: 2026-06-30*
 *Next Milestone: 0.2.0*
 
