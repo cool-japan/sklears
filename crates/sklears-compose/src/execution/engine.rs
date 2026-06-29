@@ -358,9 +358,40 @@ impl ComposableExecutionEngine {
             ));
         }
 
-        // For now, select the first capable strategy
-        // TODO: Implement more sophisticated selection logic
-        Ok(capable_strategies[0].0.clone())
+        // Select the strategy with the highest configured priority. When priorities
+        // are equal, prefer the strategy whose estimated resource cost best fits the
+        // task's declared resource estimate (lower estimated memory wins as a
+        // tie-break so that lighter strategies are preferred for small tasks).
+        let estimate = task.resource_estimate();
+        let best = capable_strategies
+            .into_iter()
+            .max_by(|(_, a), (_, b)| {
+                let a_priority = a.config().resource_allocation.priority;
+                let b_priority = b.config().resource_allocation.priority;
+                match a_priority.cmp(&b_priority) {
+                    std::cmp::Ordering::Equal => {
+                        // Tie-break: prefer the strategy whose memory allocation is
+                        // closest to (but not less than) the task's own estimate.
+                        let a_fit = a
+                            .config()
+                            .resource_allocation
+                            .memory_bytes
+                            .saturating_sub(estimate.memory_bytes);
+                        let b_fit = b
+                            .config()
+                            .resource_allocation
+                            .memory_bytes
+                            .saturating_sub(estimate.memory_bytes);
+                        // Smaller overshoot is better; reverse ordering picks minimum
+                        b_fit.cmp(&a_fit)
+                    }
+                    other => other,
+                }
+            })
+            .ok_or_else(|| {
+                SklearsError::InvalidInput("No capable strategy found for task".to_string())
+            })?;
+        Ok(best.0.clone())
     }
 
     /// Update execution metrics
@@ -495,5 +526,185 @@ impl TaskScheduler for DefaultTaskScheduler {
 
     fn set_config(&mut self, config: SchedulerConfig) {
         self.config = config;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::execution::config::{
+        CachingStrategy, ExecutionEngineConfig, LoadBalancingAlgorithm, LoadBalancingConfig,
+        OptimizationLevel, PerformanceTuning, PrefetchingStrategy, StrategyConfig,
+        StrategyResourceAllocation,
+    };
+    use std::collections::HashMap;
+    use std::time::Duration;
+
+    /// Minimal test task implementation.
+    struct TestTask {
+        id: String,
+        memory_estimate: u64,
+    }
+
+    impl ExecutableTask for TestTask {
+        fn id(&self) -> &str {
+            &self.id
+        }
+        fn task_type(&self) -> &str {
+            "test"
+        }
+        fn execute(&self) -> SklResult<TaskResult> {
+            Ok(TaskResult {
+                task_id: self.id.clone(),
+                status: TaskStatus::Completed,
+                data: None,
+                duration: Duration::from_millis(1),
+                resource_usage: ResourceUsage {
+                    cpu_usage: 0.0,
+                    memory_usage: 0,
+                    active_tasks: 0,
+                    io_ops: 0,
+                },
+            })
+        }
+        fn resource_estimate(&self) -> ResourceEstimate {
+            ResourceEstimate {
+                cpu_cores: 1.0,
+                memory_bytes: self.memory_estimate,
+                execution_time: Duration::from_millis(1),
+                io_operations: 0,
+            }
+        }
+        fn dependencies(&self) -> Vec<String> {
+            vec![]
+        }
+    }
+
+    /// Minimal test strategy that can handle any task.
+    struct TestStrategy {
+        name: String,
+        priority: u32,
+        memory_alloc: u64,
+        cfg: StrategyConfig,
+    }
+
+    impl TestStrategy {
+        fn new(name: &str, priority: u32, memory_alloc: u64) -> Self {
+            Self {
+                name: name.to_string(),
+                priority,
+                memory_alloc,
+                cfg: StrategyConfig {
+                    name: name.to_string(),
+                    parameters: HashMap::new(),
+                    resource_allocation: StrategyResourceAllocation {
+                        cpu_cores: 1.0,
+                        memory_bytes: memory_alloc,
+                        priority,
+                    },
+                    performance_tuning: PerformanceTuning {
+                        optimization_level: OptimizationLevel::None,
+                        prefetching: PrefetchingStrategy::None,
+                        caching: CachingStrategy::None,
+                        load_balancing: LoadBalancingConfig {
+                            enabled: false,
+                            algorithm: LoadBalancingAlgorithm::RoundRobin,
+                            rebalance_threshold: 0.2,
+                            min_load_difference: 0.1,
+                        },
+                    },
+                },
+            }
+        }
+    }
+
+    impl ExecutionStrategy for TestStrategy {
+        fn name(&self) -> &str {
+            &self.name
+        }
+        fn execute(
+            &self,
+            task: &dyn ExecutableTask,
+            _ctx: &ExecutionContext,
+        ) -> SklResult<ExecutionResult> {
+            Ok(ExecutionResult {
+                strategy_name: self.name.clone(),
+                task_result: task.execute()?,
+                metadata: HashMap::new(),
+            })
+        }
+        fn can_handle(&self, _task: &dyn ExecutableTask) -> bool {
+            true
+        }
+        fn config(&self) -> &StrategyConfig {
+            &self.cfg
+        }
+        fn clone_strategy(&self) -> Box<dyn ExecutionStrategy> {
+            Box::new(TestStrategy::new(
+                &self.name,
+                self.priority,
+                self.memory_alloc,
+            ))
+        }
+    }
+
+    fn make_engine() -> ComposableExecutionEngine {
+        ComposableExecutionEngine::new(ExecutionEngineConfig::default())
+            .expect("engine should build")
+    }
+
+    #[test]
+    fn test_select_strategy_prefers_higher_priority() {
+        let mut engine = make_engine();
+        engine.register_strategy(Box::new(TestStrategy::new("low", 1, 1024)));
+        engine.register_strategy(Box::new(TestStrategy::new("high", 10, 2048)));
+
+        let task = TestTask {
+            id: "t1".to_string(),
+            memory_estimate: 512,
+        };
+        let result = engine
+            .execute_task(Box::new(task))
+            .expect("execute should succeed");
+        assert_eq!(
+            result.strategy_name, "high",
+            "Higher-priority strategy should be selected"
+        );
+    }
+
+    #[test]
+    fn test_select_strategy_tiebreak_by_memory_fit() {
+        let mut engine = make_engine();
+        // Both strategies have the same priority; prefer the one whose memory
+        // allocation is closer to (but >= than) the task's estimate.
+        engine.register_strategy(Box::new(TestStrategy::new("tight", 5, 600))); // overshoot: 88
+        engine.register_strategy(Box::new(TestStrategy::new("loose", 5, 4096))); // overshoot: 3584
+
+        let task = TestTask {
+            id: "t2".to_string(),
+            memory_estimate: 512,
+        };
+        let result = engine
+            .execute_task(Box::new(task))
+            .expect("execute should succeed");
+        assert_eq!(
+            result.strategy_name, "tight",
+            "Strategy with smallest overshoot should win tie"
+        );
+    }
+
+    #[test]
+    fn test_no_capable_strategy_returns_error() {
+        let mut engine = make_engine();
+        // No strategies registered.
+        let task = TestTask {
+            id: "t3".to_string(),
+            memory_estimate: 0,
+        };
+        let err = engine.execute_task(Box::new(task));
+        assert!(
+            err.is_err(),
+            "Should return error when no strategies are registered"
+        );
     }
 }

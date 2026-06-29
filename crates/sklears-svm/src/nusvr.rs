@@ -138,36 +138,56 @@ impl Fit<Array2<Float>, Array1<Float>> for NuSVR<Untrained> {
         let n_features = x.ncols();
         let n_samples = x.nrows();
 
-        // Estimate epsilon from the data and nu parameter
-        // This is a simplified approach - in practice, epsilon is determined
-        // during the optimization process
-        let y_std = {
-            let mean = y.mean().unwrap_or(0.0);
-            let variance =
-                y.iter().map(|&val| (val - mean).powi(2)).sum::<Float>() / n_samples as Float;
-            variance.sqrt()
-        };
-        let epsilon = self.config.nu * y_std;
+        // Box constraint C for the dual variables. In the nu-SVR formulation,
+        // each dual variable is bounded by C/n so that the total mass relates
+        // directly to the nu fraction (libsvm convention with C = 1).
+        let c = 1.0 / n_samples as Float;
 
-        // Convert nu to C parameter for SVR
-        // This is a simplified conversion
-        let _c = 1.0 / (self.config.nu * n_samples as Float);
+        // Solve the nu-SVR dual via SMO. This determines both the dual
+        // coefficients and the effective epsilon-tube width.
+        let (dual_coef_full, intercept, epsilon) = solve_nu_svr_dual(
+            &self.config.kernel,
+            x,
+            y,
+            self.config.nu,
+            c,
+            self.config.tol,
+            self.config.max_iter,
+        )?;
 
-        // For regression, we create a modified problem
-        // This is a placeholder implementation - actual Nu-SVR requires
-        // a specialized solver
+        // Support vectors are samples whose signed dual coefficient is non-zero.
+        let sv_threshold = 1e-8 * c.max(1.0);
+        let mut support_indices = Vec::new();
+        let mut dual_coef_vec = Vec::new();
+        for i in 0..n_samples {
+            if dual_coef_full[i].abs() > sv_threshold {
+                support_indices.push(i);
+                dual_coef_vec.push(dual_coef_full[i]);
+            }
+        }
 
-        // Create a simple linear approximation for now
-        // In practice, this would use a proper Nu-SVR solver
+        if support_indices.is_empty() {
+            // Degenerate fallback: retain the most influential sample so that
+            // prediction remains well-defined rather than fabricating a mean.
+            let best = (0..n_samples)
+                .max_by(|&a, &b| {
+                    dual_coef_full[a]
+                        .abs()
+                        .partial_cmp(&dual_coef_full[b].abs())
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .unwrap_or(0);
+            support_indices.push(best);
+            dual_coef_vec.push(dual_coef_full[best]);
+        }
 
-        // Placeholder: Use mean prediction
-        let intercept = y.mean().unwrap_or(0.0);
-
-        // For simplicity, use all points as support vectors in this placeholder
-        let support_indices: Vec<usize> = (0..n_samples).collect();
-        let support_vectors = x.clone();
-        let dual_coef = Array1::zeros(n_samples);
+        let n_support = support_indices.len();
+        let mut support_vectors = Array2::zeros((n_support, n_features));
+        for (i, &idx) in support_indices.iter().enumerate() {
+            support_vectors.row_mut(i).assign(&x.row(idx));
+        }
         let support = Array1::from_vec(support_indices);
+        let dual_coef = Array1::from_vec(dual_coef_vec);
 
         Ok(NuSVR {
             config: self.config,
@@ -177,10 +197,182 @@ impl Fit<Array2<Float>, Array1<Float>> for NuSVR<Untrained> {
             dual_coef_: Some(dual_coef),
             intercept_: Some(intercept),
             n_features_in_: Some(n_features),
-            n_support_: Some(n_samples),
+            n_support_: Some(n_support),
             epsilon_: Some(epsilon),
         })
     }
+}
+
+/// Solve the nu-SVR dual problem with Sequential Minimal Optimization.
+///
+/// The nu-SVR dual is:
+/// ```text
+/// minimize:  ½ (α - α*)ᵀ Q (α - α*) - Σ y_i (α_i - α_i*)
+/// subject to: Σ(α_i - α_i*) = 0
+///             Σ(α_i + α_i*) ≤ C · nu · n
+///             0 ≤ α_i, α_i* ≤ C
+/// ```
+/// where `Q_ij = K(x_i, x_j)`. Unlike epsilon-SVR, the tube width epsilon is
+/// not fixed; it emerges from the second (inequality) constraint, which we
+/// enforce by bounding each coordinate step by the remaining nu-budget.
+///
+/// We track the signed coefficient `w_i = α_i - α_i*` and the total mass
+/// `Σ(α_i + α_i*)`. The maximal-violating pair is selected from the gradient
+/// `g_i = decision_i - y_i`. After convergence epsilon is recovered from the
+/// free support vectors as the mean of `|decision_i - y_i|`.
+#[allow(clippy::too_many_arguments)]
+fn solve_nu_svr_dual(
+    kernel: &KernelType,
+    x: &Array2<Float>,
+    y: &Array1<Float>,
+    nu: Float,
+    c: Float,
+    tol: Float,
+    max_iter: usize,
+) -> Result<(Array1<Float>, Float, Float)> {
+    let n_samples = y.len();
+
+    let kernel_fn = crate::kernels::create_kernel(kernel.clone())?;
+    let mut q = Array2::<Float>::zeros((n_samples, n_samples));
+    for i in 0..n_samples {
+        for j in i..n_samples {
+            let val = kernel_fn.compute(x.row(i), x.row(j));
+            q[[i, j]] = val;
+            q[[j, i]] = val;
+        }
+    }
+
+    let mut alpha = Array1::<Float>::zeros(n_samples);
+    let mut alpha_star = Array1::<Float>::zeros(n_samples);
+    let mut decision = Array1::<Float>::zeros(n_samples);
+
+    // Total budget for Σ(α_i + α_i*).
+    let budget = c * nu * n_samples as Float;
+
+    let max_total_iter = max_iter.max(1) * n_samples.max(1);
+
+    for _iter in 0..max_total_iter {
+        let mass: Float = (0..n_samples).map(|k| alpha[k] + alpha_star[k]).sum();
+        let mass_remaining = (budget - mass).max(0.0);
+
+        // Select maximal-violating pair from the residual gradient.
+        let mut i_up = None;
+        let mut g_max = Float::NEG_INFINITY;
+        let mut i_low = None;
+        let mut g_min = Float::INFINITY;
+
+        for i in 0..n_samples {
+            let r_i = decision[i] - y[i];
+            let can_increase = alpha[i] < c - tol || alpha_star[i] > tol;
+            let can_decrease = alpha_star[i] < c - tol || alpha[i] > tol;
+            if can_increase && -r_i > g_max {
+                g_max = -r_i;
+                i_up = Some(i);
+            }
+            if can_decrease && -r_i < g_min {
+                g_min = -r_i;
+                i_low = Some(i);
+            }
+        }
+
+        if g_max - g_min < tol {
+            break;
+        }
+
+        let (i, j) = match (i_up, i_low) {
+            (Some(i), Some(j)) if i != j => (i, j),
+            _ => break,
+        };
+
+        let eta = q[[i, i]] + q[[j, j]] - 2.0 * q[[i, j]];
+        if eta <= 1e-12 {
+            continue;
+        }
+
+        let w_i_old = alpha[i] - alpha_star[i];
+        let w_j_old = alpha[j] - alpha_star[j];
+
+        let r_i = decision[i] - y[i];
+        let r_j = decision[j] - y[j];
+        let unconstrained = (r_j - r_i) / eta;
+
+        // Limit the step so the total mass does not exceed the nu-budget.
+        let mass_step_cap = (mass_remaining / 2.0).max(0.0);
+        let mut step = unconstrained.clamp(-mass_step_cap, mass_step_cap);
+
+        // Box-project both coefficients into [-C, C].
+        let w_i_new = (w_i_old + step).clamp(-c, c);
+        let w_j_new = (w_j_old - step).clamp(-c, c);
+        let actual_i = w_i_new - w_i_old;
+        let actual_j = w_j_new - w_j_old;
+        step = if actual_i.abs() <= actual_j.abs() {
+            actual_i
+        } else {
+            -actual_j
+        };
+
+        if step.abs() < 1e-12 {
+            if mass_remaining < tol {
+                break;
+            }
+            continue;
+        }
+
+        let w_i_final = w_i_old + step;
+        let w_j_final = w_j_old - step;
+
+        alpha[i] = w_i_final.max(0.0);
+        alpha_star[i] = (-w_i_final).max(0.0);
+        alpha[j] = w_j_final.max(0.0);
+        alpha_star[j] = (-w_j_final).max(0.0);
+
+        let dw_i = w_i_final - w_i_old;
+        let dw_j = w_j_final - w_j_old;
+        for k in 0..n_samples {
+            decision[k] += dw_i * q[[k, i]] + dw_j * q[[k, j]];
+        }
+    }
+
+    let mut dual_coef = Array1::<Float>::zeros(n_samples);
+    for i in 0..n_samples {
+        dual_coef[i] = alpha[i] - alpha_star[i];
+    }
+
+    // Recover epsilon as the mean absolute residual over free support vectors,
+    // and the bias as the mean residual over the same set.
+    let mut eps_sum = 0.0;
+    let mut eps_count = 0usize;
+    let mut bias_sum = 0.0;
+    let mut bias_count = 0usize;
+    for i in 0..n_samples {
+        let w_i = dual_coef[i];
+        let is_free = (w_i > tol && w_i < c - tol) || (w_i < -tol && w_i > -(c - tol));
+        if is_free {
+            let residual = y[i] - decision[i];
+            eps_sum += residual.abs();
+            eps_count += 1;
+            bias_sum += residual;
+            bias_count += 1;
+        }
+    }
+
+    let epsilon = if eps_count > 0 {
+        eps_sum / eps_count as Float
+    } else {
+        0.0
+    };
+
+    let intercept = if bias_count > 0 {
+        bias_sum / bias_count as Float
+    } else {
+        let mut sum = 0.0;
+        for i in 0..n_samples {
+            sum += y[i] - decision[i];
+        }
+        sum / n_samples as Float
+    };
+
+    Ok((dual_coef, intercept, epsilon))
 }
 
 impl Predict<Array2<Float>, Array1<Float>> for NuSVR<Trained> {

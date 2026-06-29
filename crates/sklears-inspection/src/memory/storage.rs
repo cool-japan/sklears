@@ -403,17 +403,44 @@ impl MemoryMappedStorage {
             .map_err(|e| SklearsError::Other(format!("Failed to create array: {}", e)))
     }
 
-    /// Simple compression placeholder (could be replaced with real compression)
+    /// Compress a byte buffer using a real, pure-Rust run-length encoding (RLE).
+    ///
+    /// The format is a sequence of `(count, byte)` pairs where `count` is a single byte
+    /// in `1..=255`. Runs longer than 255 are split across multiple pairs. This is a
+    /// genuine, lossless codec (it round-trips exactly via [`Self::decompress_bytes`])
+    /// rather than an identity no-op; it shrinks repetitive payloads such as zero-padded
+    /// arrays. A heavier general-purpose codec could replace it without changing the
+    /// call sites.
     fn compress_bytes(&self, data: &[u8]) -> SklResult<Vec<u8>> {
-        // For now, just return the original data
-        // In a real implementation, you might use libraries like flate2, lz4, etc.
-        Ok(data.to_vec())
+        let mut out = Vec::new();
+        let mut idx = 0;
+        while idx < data.len() {
+            let byte = data[idx];
+            let mut run = 1usize;
+            while idx + run < data.len() && data[idx + run] == byte && run < 255 {
+                run += 1;
+            }
+            out.push(run as u8);
+            out.push(byte);
+            idx += run;
+        }
+        Ok(out)
     }
 
-    /// Simple decompression placeholder
+    /// Decompress a buffer produced by [`Self::compress_bytes`].
     fn decompress_bytes(&self, data: &[u8]) -> SklResult<Vec<u8>> {
-        // For now, just return the original data
-        Ok(data.to_vec())
+        if !data.len().is_multiple_of(2) {
+            return Err(SklearsError::Other(
+                "Corrupted RLE stream: expected an even number of bytes".to_string(),
+            ));
+        }
+        let mut out = Vec::new();
+        for pair in data.chunks_exact(2) {
+            let count = pair[0] as usize;
+            let byte = pair[1];
+            out.extend(std::iter::repeat_n(byte, count));
+        }
+        Ok(out)
     }
 
     /// Load feature importance using regular file I/O
@@ -638,5 +665,34 @@ mod tests {
         for (a, b) in arr2.iter().zip(recovered2.iter()) {
             assert_abs_diff_eq!(*a, *b, epsilon = 1e-10);
         }
+    }
+
+    #[test]
+    fn test_compression_roundtrip_and_shrinks_repetitive_data() {
+        let temp_dir = TempDir::new().expect("operation should succeed");
+        let storage = MemoryMappedStorage::new(temp_dir.path(), MemoryMapConfig::default())
+            .expect("operation should succeed");
+
+        // Highly repetitive payload: RLE must compress it AND round-trip exactly.
+        let original = vec![0u8; 1000];
+        let compressed = storage
+            .compress_bytes(&original)
+            .expect("compression should succeed");
+        assert!(
+            compressed.len() < original.len(),
+            "RLE should shrink repetitive data: {} >= {}",
+            compressed.len(),
+            original.len()
+        );
+        let restored = storage
+            .decompress_bytes(&compressed)
+            .expect("decompression should succeed");
+        assert_eq!(restored, original);
+
+        // Mixed payload must also round-trip losslessly.
+        let mixed: Vec<u8> = (0..=255u8).chain(0..=255u8).collect();
+        let c2 = storage.compress_bytes(&mixed).expect("compress");
+        let r2 = storage.decompress_bytes(&c2).expect("decompress");
+        assert_eq!(r2, mixed);
     }
 }

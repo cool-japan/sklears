@@ -147,6 +147,8 @@ pub struct SingleOutputTree {
     output_type: OutputType,
     /// Feature importances
     feature_importances: Array1<f64>,
+    /// Tree configuration (max_depth, min_samples_split, etc.)
+    config: DecisionTreeConfig,
 }
 
 /// Multi-output tree node
@@ -171,12 +173,22 @@ pub struct MultiOutputTreeNode {
 }
 
 impl SingleOutputTree {
-    /// Create a new single output tree
+    /// Create a new single output tree with default configuration.
     pub fn new(output_type: OutputType, n_features: usize) -> Self {
+        Self::with_config(output_type, n_features, DecisionTreeConfig::default())
+    }
+
+    /// Create a new single output tree with the given configuration.
+    pub fn with_config(
+        output_type: OutputType,
+        n_features: usize,
+        config: DecisionTreeConfig,
+    ) -> Self {
         Self {
             nodes: Vec::new(),
             output_type,
             feature_importances: Array1::zeros(n_features),
+            config,
         }
     }
 
@@ -247,7 +259,9 @@ impl SingleOutputTree {
     fn build_tree(&mut self, node_id: usize, x: &Array2<f64>, y: &Array1<f64>) -> Result<()> {
         let node = &self.nodes[node_id].clone();
 
-        if node.samples.len() < 10 || node.depth >= 10 {
+        let max_depth = self.config.max_depth.unwrap_or(10);
+        let min_samples_split = self.config.min_samples_split.max(2);
+        if node.samples.len() < min_samples_split || node.depth >= max_depth {
             return Ok(());
         }
 
@@ -890,7 +904,11 @@ impl MultiOutputTreeModel for ChainedMultiOutputTree {
 }
 
 impl IndependentMultiOutputTree {
-    /// Create a new independent multi-output tree
+    /// Create a new independent multi-output tree.
+    ///
+    /// Each single-output tree is initialised with the shared `DecisionTreeConfig`
+    /// so that `max_depth`, `min_samples_split`, and other tree-growth parameters
+    /// are respected per output.
     pub fn new(
         n_outputs: usize,
         n_features: usize,
@@ -899,10 +917,11 @@ impl IndependentMultiOutputTree {
     ) -> Self {
         let trees = output_types
             .into_iter()
-            .map(|output_type| SingleOutputTree::new(output_type, n_features))
+            .map(|output_type| {
+                SingleOutputTree::with_config(output_type, n_features, config.clone())
+            })
             .collect();
 
-        let _ = config; // config forwarding to SingleOutputTree is not yet implemented
         Self {
             trees,
             n_outputs,
@@ -1690,5 +1709,50 @@ mod tests {
         let imp = fitted.feature_importances().expect("importances");
         assert_eq!(imp.nrows(), 2); // 2 original features
         assert_eq!(imp.ncols(), 2); // 2 outputs
+    }
+
+    #[test]
+    fn test_independent_tree_config_forwarding() {
+        // Verify that max_depth from DecisionTreeConfig is respected by each sub-tree
+        // in IndependentMultiOutputTree.
+        let custom_config = DecisionTreeConfig {
+            max_depth: Some(2),
+            min_samples_split: 3,
+            ..Default::default()
+        };
+        let mut tree = IndependentMultiOutputTree::new(
+            2,
+            2,
+            vec![OutputType::Regression, OutputType::Regression],
+            custom_config.clone(),
+        );
+
+        // Each sub-tree should carry the same config
+        for sub in &tree.trees {
+            assert_eq!(
+                sub.config.max_depth,
+                Some(2),
+                "sub-tree should have max_depth=2 from forwarded config"
+            );
+            assert_eq!(
+                sub.config.min_samples_split, 3,
+                "sub-tree should have min_samples_split=3 from forwarded config"
+            );
+        }
+
+        // A dataset with 20 samples — the tree should be limited to depth 2.
+        let x_data: Vec<f64> = (0..20)
+            .flat_map(|i| vec![i as f64, (i % 5) as f64])
+            .collect();
+        let x = scirs2_core::ndarray::Array2::from_shape_vec((20, 2), x_data).expect("shape ok");
+        let y_data: Vec<f64> = (0..40).map(|i| (i / 2) as f64).collect();
+        let y = scirs2_core::ndarray::Array2::from_shape_vec((20, 2), y_data).expect("shape ok");
+
+        tree.fit_multi(&x, &y).expect("fit_multi should succeed");
+        let preds = tree
+            .predict_multi(&x)
+            .expect("predict_multi should succeed");
+        assert_eq!(preds.nrows(), 20);
+        assert_eq!(preds.ncols(), 2);
     }
 }

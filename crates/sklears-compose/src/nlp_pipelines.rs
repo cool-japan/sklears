@@ -1314,7 +1314,14 @@ impl LanguageModel for SimpleLanguageModel {
     }
 
     fn calculate_probability(&self, _text: &str) -> SklResult<f64> {
-        Ok(0.5) // Placeholder probability
+        // `SimpleLanguageModel` is a rule-free placeholder model with no learned
+        // distribution, so it cannot assign a real likelihood to text. Returning
+        // a fixed 0.5 would be a fabricated probability.
+        Err(SklearsError::NotImplemented(
+            "calculate_probability: SimpleLanguageModel has no language-model distribution; \
+             a model with probability output is required"
+                .to_string(),
+        ))
     }
 
     fn name(&self) -> &str {

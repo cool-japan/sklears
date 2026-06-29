@@ -86,7 +86,7 @@ impl AnimationEngine {
                 frame_time_tracking: true,
                 dropped_frames_threshold: 5.0,
                 performance_metrics: AnimationMetrics {
-                    average_frame_time: Duration::from_millis(16),
+                    average_frame_time: Duration::milliseconds(16),
                     dropped_frames_percentage: 0.0,
                     gpu_utilization: 0.0,
                     memory_usage: 0,

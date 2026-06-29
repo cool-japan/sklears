@@ -8,10 +8,13 @@
 //!
 //! - Lazy computation graphs for preprocessing operations
 //! - Automatic operation fusion for improved performance
-//! - Memory-efficient streaming evaluation
+//! - Memory-efficient streaming evaluation with a reusable buffer pool
 //! - Graph optimization (dead code elimination, operation merging)
-//! - Parallel lazy evaluation support
-//! - Zero-copy operation chaining where possible
+//! - Dependency analysis that flags row-independent ops as parallelizable
+//!   candidates (the executor currently runs the graph sequentially)
+//!
+//! Operations are chained through the computation graph; intermediate results
+//! are materialized as needed rather than fully zero-copy.
 //!
 //! # Examples
 //!
@@ -45,42 +48,52 @@
 
 use scirs2_core::memory::BufferPool;
 use scirs2_core::ndarray::{s, Array2, Axis};
-// FIXME: Some scirs2_core modules don't exist - using placeholders
-// use scirs2_core::memory::{ChunkBuffer, MemoryOptimizer};
-// use scirs2_core::parallel::{ParallelExecutor, ChunkStrategy};
-// use scirs2_core::profiling::Profiler;
-
-/// Placeholder MemoryOptimizer
-#[derive(Debug, Clone, Default)]
-pub struct MemoryOptimizer;
-
-impl MemoryOptimizer {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-/// Placeholder Profiler
-#[derive(Debug, Clone, Default)]
-pub struct Profiler;
-
-impl Profiler {
-    pub fn new() -> Self {
-        Self
-    }
-
-    pub fn start(&self, _name: &str) {}
-    pub fn end(&self, _name: &str) {}
-
-    pub fn get_stats(&self) -> std::collections::HashMap<String, Float> {
-        std::collections::HashMap::new()
-    }
-}
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
 };
 use std::collections::{HashMap, VecDeque};
+use std::time::Instant;
+
+/// Lightweight built-in timing profiler for lazy-evaluation stages.
+///
+/// This records wall-clock durations (in seconds) for named code sections so
+/// callers can inspect where time is spent during graph execution. It is a
+/// small, dependency-free helper local to this module; it does not wrap any
+/// external profiling backend.
+#[derive(Debug, Clone, Default)]
+pub struct Profiler {
+    /// Start instants for sections that are currently open.
+    active: HashMap<String, Instant>,
+    /// Accumulated elapsed seconds per named section.
+    elapsed_secs: HashMap<String, Float>,
+}
+
+impl Profiler {
+    /// Create a new, empty profiler.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Begin timing the section identified by `name`.
+    pub fn start(&mut self, name: &str) {
+        self.active.insert(name.to_string(), Instant::now());
+    }
+
+    /// Finish timing the section identified by `name`, accumulating its
+    /// elapsed duration. Does nothing if the section was never started.
+    pub fn end(&mut self, name: &str) {
+        if let Some(start) = self.active.remove(name) {
+            let secs = start.elapsed().as_secs_f64() as Float;
+            *self.elapsed_secs.entry(name.to_string()).or_insert(0.0) += secs;
+        }
+    }
+
+    /// Return accumulated elapsed seconds for every recorded section.
+    pub fn get_stats(&self) -> HashMap<String, Float> {
+        self.elapsed_secs.clone()
+    }
+}
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -339,6 +352,12 @@ pub struct LazyGraph {
     total_memory: usize,
 }
 
+impl Default for LazyGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LazyGraph {
     /// Create a new empty lazy graph
     pub fn new() -> Self {
@@ -486,31 +505,101 @@ impl LazyGraph {
         }
     }
 
-    /// Reorder operations for better cache locality and parallelism
+    /// Reorder the node array into a valid dependency-respecting execution order.
+    ///
+    /// This applies the topological ordering computed from each node's input
+    /// dependencies (see [`Self::topological_sort`]). Because the executor runs
+    /// nodes in array order, the array is only permuted into an order that still
+    /// honours every dependency; for the linear chains built by
+    /// [`Self::add_operation`] this is the identity, so the result is unchanged.
+    /// Affinity-based reordering (e.g. for cache locality) is not yet applied.
     fn reorder_operations(&mut self) {
-        // Simple heuristic: move memory-intensive operations later
-        // This is a placeholder for more sophisticated reordering algorithms
-        self.nodes.sort_by_key(|node| node.memory_requirement);
+        let order = self.topological_sort();
+        if order.len() != self.nodes.len() {
+            // Topological order incomplete (e.g. a dependency cycle); leave the
+            // existing order untouched rather than dropping nodes.
+            return;
+        }
+
+        let mut reordered: Vec<Option<LazyNode>> = self.nodes.iter().cloned().map(Some).collect();
+        let nodes: Vec<LazyNode> = order
+            .into_iter()
+            .filter_map(|idx| reordered.get_mut(idx).and_then(Option::take))
+            .collect();
+        self.nodes = nodes;
     }
 
-    /// Identify operations that can be parallelized
+    /// Identify element-wise operations whose rows are independent.
+    ///
+    /// Operations such as standard/min-max scaling and normalization act on each
+    /// sample independently, so they are flagged as candidates for row-parallel
+    /// execution. The flag records this analysis; the executor does not yet
+    /// dispatch flagged nodes across threads, so this pass changes results in no
+    /// observable way.
     fn parallelize_independent_operations(&mut self) {
-        // Mark operations that can be executed in parallel
-        // This is a placeholder for dependency analysis
         for node in &mut self.nodes {
             if matches!(
                 node.operation,
                 LazyOp::StandardScale | LazyOp::MinMaxScale { .. } | LazyOp::Normalize { .. }
             ) {
-                node.optimized = true; // Mark as parallelizable
+                node.optimized = true;
             }
         }
     }
 
-    /// Get topological ordering of nodes
+    /// Compute a dependency-respecting topological ordering of the node array.
+    ///
+    /// Returns node array indices such that every node appears after all of the
+    /// nodes listed in its [`LazyNode::inputs`]. Kahn's algorithm is used; ready
+    /// nodes are emitted in ascending array-index order so that linear chains
+    /// keep their natural order. If a cycle is present the returned order is
+    /// shorter than the node count.
     pub fn topological_sort(&self) -> Vec<usize> {
-        // For linear chains, this is straightforward
-        (0..self.nodes.len()).collect()
+        let n = self.nodes.len();
+
+        // Map each node id to its current array index.
+        let mut index_of_id: HashMap<usize, usize> = HashMap::with_capacity(n);
+        for (idx, node) in self.nodes.iter().enumerate() {
+            index_of_id.insert(node.id, idx);
+        }
+
+        // in_degree[idx] = number of this node's inputs that exist in the graph.
+        // dependents[idx] = indices of nodes that depend on this node.
+        let mut in_degree = vec![0usize; n];
+        let mut dependents: Vec<Vec<usize>> = vec![Vec::new(); n];
+        for (idx, node) in self.nodes.iter().enumerate() {
+            for input_id in &node.inputs {
+                if let Some(&dep_idx) = index_of_id.get(input_id) {
+                    in_degree[idx] += 1;
+                    dependents[dep_idx].push(idx);
+                }
+            }
+        }
+
+        let mut ready: VecDeque<usize> = in_degree
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, &deg)| (deg == 0).then_some(idx))
+            .collect();
+
+        let mut order = Vec::with_capacity(n);
+        while let Some(idx) = ready.pop_front() {
+            order.push(idx);
+            for &dependent in &dependents[idx] {
+                in_degree[dependent] -= 1;
+                if in_degree[dependent] == 0 {
+                    // Insert keeping the ready queue sorted by array index so the
+                    // ordering stays deterministic and stable for linear chains.
+                    let pos = ready
+                        .iter()
+                        .position(|&q| q > dependent)
+                        .unwrap_or(ready.len());
+                    ready.insert(pos, dependent);
+                }
+            }
+        }
+
+        order
     }
 
     /// Get total estimated memory requirement
@@ -530,10 +619,9 @@ pub struct LazyPreprocessor {
     config: LazyConfig,
     /// Computation graph
     graph: LazyGraph,
-    /// Memory optimizer
-    memory_optimizer: MemoryOptimizer,
-    /// Buffer pool for intermediate results
-    buffer_pool: BufferPool<u8>,
+    /// Reusable backing storage for intermediate chunk buffers during
+    /// streaming evaluation, used to amortize allocations across chunks.
+    buffer_pool: BufferPool<Float>,
     /// Performance profiler
     profiler: Profiler,
     /// Result cache
@@ -544,13 +632,11 @@ impl LazyPreprocessor {
     /// Create a new lazy preprocessor
     pub fn new(config: LazyConfig) -> Self {
         let buffer_pool = BufferPool::new();
-        let memory_optimizer = MemoryOptimizer::new();
         let profiler = Profiler::new();
 
         Self {
             config,
             graph: LazyGraph::new(),
-            memory_optimizer,
             buffer_pool,
             profiler,
             cache: HashMap::new(),
@@ -603,7 +689,11 @@ impl LazyPreprocessor {
     ) -> Result<Array2<Float>> {
         match operation {
             LazyOp::StandardScale => {
-                let mean = input.mean_axis(Axis(0)).expect("array should have elements for mean computation");
+                let mean = input.mean_axis(Axis(0)).ok_or_else(|| {
+                    SklearsError::InvalidInput(
+                        "cannot standard-scale an array with no samples".to_string(),
+                    )
+                })?;
                 let std = input.std_axis(Axis(0), 1.0);
                 Ok((input - &mean) / &std.mapv(|s| s.max(Float::EPSILON)))
             }
@@ -655,7 +745,11 @@ impl LazyPreprocessor {
                 // Simple variance-based feature selection
                 let variances = input.var_axis(Axis(0), 1.0);
                 let mut indices: Vec<usize> = (0..input.ncols()).collect();
-                indices.sort_by(|&a, &b| variances[b].partial_cmp(&variances[a]).expect("operation should succeed"));
+                indices.sort_by(|&a, &b| {
+                    variances[b]
+                        .partial_cmp(&variances[a])
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
                 indices.truncate(*k);
                 indices.sort();
 
@@ -682,7 +776,11 @@ impl LazyPreprocessor {
                 match name.as_str() {
                     "standard_normalize" => {
                         // Fused standard scaling + L2 normalization
-                        let mean = input.mean_axis(Axis(0)).expect("array should have elements for mean computation");
+                        let mean = input.mean_axis(Axis(0)).ok_or_else(|| {
+                            SklearsError::InvalidInput(
+                                "cannot standard-normalize an array with no samples".to_string(),
+                            )
+                        })?;
                         let std = input.std_axis(Axis(0), 1.0);
                         let standardized = (input - &mean) / &std.mapv(|s| s.max(Float::EPSILON));
                         let norms = standardized
@@ -705,61 +803,74 @@ impl LazyPreprocessor {
         }
     }
 
-    /// Generate polynomial features
+    /// Generate polynomial (and interaction) features up to `degree`.
+    ///
+    /// Produces, for every monomial of total degree `0..=degree` over the input
+    /// columns, the product of the participating columns (with replacement),
+    /// matching `PolynomialFeatures(include_bias = true)`: the bias term, then
+    /// the linear terms, then each higher-degree combination in lexicographic
+    /// order. Arbitrary `degree` is supported; the output width always equals
+    /// `polynomial_feature_count(n_features, degree)`.
     fn generate_polynomial_features(
         &self,
         input: &Array2<Float>,
         degree: usize,
     ) -> Result<Array2<Float>> {
-        if degree == 0 {
-            return Ok(Array2::ones((input.nrows(), 1)));
-        }
-        if degree == 1 {
-            return Ok(input.clone());
-        }
-
         let n_samples = input.nrows();
         let n_features = input.ncols();
         let output_features = polynomial_feature_count(n_features, degree);
 
         let mut result = Array2::zeros((n_samples, output_features));
+
         let mut col_idx = 0;
-
-        // Constant term
-        result.column_mut(col_idx).fill(1.0);
-        col_idx += 1;
-
-        // Linear terms
-        for j in 0..n_features {
-            result.column_mut(col_idx).assign(&input.column(j));
-            col_idx += 1;
-        }
-
-        // Higher degree terms (simplified - only degree 2 for now)
-        if degree >= 2 {
-            for i in 0..n_features {
-                for j in i..n_features {
-                    let col_i = input.column(i);
-                    let col_j = input.column(j);
-                    result.column_mut(col_idx).assign(&(&col_i * &col_j));
-                    col_idx += 1;
-                }
+        for current_degree in 0..=degree {
+            for combo in combinations_with_replacement(n_features, current_degree) {
+                // The product of the selected columns; the empty combination
+                // (degree 0) yields the constant bias column of ones.
+                let column = combo.iter().fold(
+                    Array2::<Float>::ones((n_samples, 1)).column(0).to_owned(),
+                    |acc, &feature_idx| &acc * &input.column(feature_idx),
+                );
+                result.column_mut(col_idx).assign(&column);
+                col_idx += 1;
             }
         }
 
         Ok(result)
     }
 
-    /// Evaluate using streaming for large datasets
+    /// Evaluate using streaming for large datasets.
+    ///
+    /// Each row-chunk is materialized into a buffer drawn from the buffer pool
+    /// and the buffer is returned to the pool once the chunk has been processed,
+    /// so the backing storage for intermediate chunks is reused across iterations
+    /// instead of being freshly allocated each time.
     fn evaluate_streaming(&mut self, input: &Array2<Float>) -> Result<Array2<Float>> {
-        let chunk_size = self.config.chunk_size;
+        let chunk_size = self.config.chunk_size.max(1);
         let n_samples = input.nrows();
+        let n_features = input.ncols();
         let mut results = Vec::new();
 
         for start in (0..n_samples).step_by(chunk_size) {
             let end = (start + chunk_size).min(n_samples);
-            let chunk = input.slice(s![start..end, ..]).to_owned();
+            let chunk_rows = end - start;
+
+            // Reuse pooled storage for this chunk's contiguous, row-major data.
+            let mut chunk_buffer = self.buffer_pool.acquire_vec(chunk_rows * n_features);
+            chunk_buffer.clear();
+            chunk_buffer.extend(input.slice(s![start..end, ..]).iter().copied());
+
+            let chunk = Array2::from_shape_vec((chunk_rows, n_features), chunk_buffer)
+                .map_err(|e| SklearsError::InvalidInput(e.to_string()))?;
+
             let chunk_result = self.execute_graph(&chunk)?;
+
+            // Reclaim the chunk's backing buffer for the next iteration.
+            let (chunk_buffer, offset) = chunk.into_raw_vec_and_offset();
+            if offset.unwrap_or(0) == 0 {
+                self.buffer_pool.release_vec(chunk_buffer);
+            }
+
             results.push(chunk_result);
         }
 
@@ -796,32 +907,83 @@ impl LazyPreprocessor {
     }
 }
 
-/// Calculate the number of polynomial features for given input features and degree
+/// Number of `PolynomialFeatures(include_bias = true)` columns for `n_features`
+/// inputs expanded to `degree`.
+///
+/// This equals the number of monomials of total degree `0..=degree`, i.e.
+/// `C(n_features + degree, degree)`, computed as the sum over each degree `d` of
+/// the multiset coefficient `C(n_features + d - 1, d)` so the result always
+/// matches the columns produced by `combinations_with_replacement`.
 fn polynomial_feature_count(n_features: usize, degree: usize) -> usize {
-    match degree {
-        0 => 1,
-        1 => 1 + n_features,
-        2 => 1 + n_features + (n_features * (n_features + 1)) / 2,
-        _ => {
-            // General formula for polynomial feature count with degree d and n features:
-            // C(n + d, d) = (n + d)! / (n! * d!)
-            // This is a simplified approximation
-            let mut count = 1 + n_features; // constant + linear terms
-            for d in 2..=degree {
-                count += n_features.pow(d as u32) / factorial(d);
-            }
-            count
-        }
-    }
+    (0..=degree)
+        .map(|d| multiset_coefficient(n_features, d))
+        .sum()
 }
 
-/// Calculate factorial (helper function)
-fn factorial(n: usize) -> usize {
-    if n <= 1 {
-        1
-    } else {
-        n * factorial(n - 1)
+/// Number of multisets of size `k` drawn from `n` items, `C(n + k - 1, k)`.
+///
+/// Returns `1` for `k == 0` (the single empty multiset). Computed with a
+/// multiplicative loop to avoid intermediate factorial overflow.
+fn multiset_coefficient(n: usize, k: usize) -> usize {
+    if k == 0 {
+        return 1;
     }
+    if n == 0 {
+        return 0;
+    }
+    binomial(n + k - 1, k)
+}
+
+/// Binomial coefficient `C(n, k)` computed without factorials.
+fn binomial(n: usize, k: usize) -> usize {
+    if k > n {
+        return 0;
+    }
+    let k = k.min(n - k);
+    (0..k).fold(1usize, |acc, i| acc * (n - i) / (i + 1))
+}
+
+/// Enumerate all combinations of `length` indices drawn from `0..n_features`
+/// *with replacement*, in lexicographic (non-decreasing) order.
+///
+/// `length == 0` yields a single empty combination, which corresponds to the
+/// constant (bias) polynomial term.
+fn combinations_with_replacement(n_features: usize, length: usize) -> Vec<Vec<usize>> {
+    if length == 0 {
+        return vec![Vec::new()];
+    }
+    if n_features == 0 {
+        return Vec::new();
+    }
+
+    let mut combinations = Vec::new();
+    let mut indices = vec![0usize; length];
+
+    loop {
+        combinations.push(indices.clone());
+
+        // Advance to the next non-decreasing combination, odometer-style: find
+        // the right-most position that can still be incremented.
+        let mut position = length;
+        while position > 0 {
+            position -= 1;
+            if indices[position] != n_features - 1 {
+                break;
+            }
+        }
+
+        if indices[position] == n_features - 1 {
+            // Every position is saturated; enumeration is complete.
+            break;
+        }
+
+        let next_value = indices[position] + 1;
+        for slot in indices.iter_mut().skip(position) {
+            *slot = next_value;
+        }
+    }
+
+    combinations
 }
 
 #[allow(non_snake_case)]
@@ -829,7 +991,7 @@ fn factorial(n: usize) -> usize {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::Array2;
+    use scirs2_core::ndarray::{array, Array2};
 
     #[test]
     fn test_lazy_config() {
@@ -888,7 +1050,9 @@ mod tests {
         let result = processor.evaluate(&data)?;
 
         // Check that result has approximately zero mean and unit variance
-        let mean = result.mean_axis(Axis(0)).expect("array should have elements for mean computation");
+        let mean = result
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let std = result.std_axis(Axis(0), 1.0);
 
         for &m in mean.iter() {
@@ -935,7 +1099,7 @@ mod tests {
 
         // Check that all values are between 0 and 1
         for &val in result.iter() {
-            assert!(val >= 0.0 && val <= 1.0);
+            assert!((0.0..=1.0).contains(&val));
         }
 
         // Check that min and max are approximately 0 and 1
@@ -949,6 +1113,202 @@ mod tests {
         for &max_val in max_vals.iter() {
             assert_abs_diff_eq!(max_val, 1.0, epsilon = 1e-10);
         }
+
+        Ok(())
+    }
+
+    /// Compute the same chain eagerly, step by step, with direct array ops so we
+    /// can confirm the lazy pipeline yields an identical result. This is an
+    /// independent reference: it standardizes with plain ndarray operations and
+    /// expands the monomials column-by-column without going through the graph.
+    fn eager_standard_then_poly2(data: &Array2<Float>) -> Array2<Float> {
+        // Step 1: standard scaling (ddof = 1, matching LazyOp::StandardScale).
+        let mean = data
+            .mean_axis(Axis(0))
+            .expect("test data has at least one row");
+        let std = data.std_axis(Axis(0), 1.0);
+        let scaled = (data - &mean) / &std.mapv(|s| s.max(Float::EPSILON));
+
+        // Step 2: degree-2 polynomial features with bias.
+        let n_samples = scaled.nrows();
+        let n_features = scaled.ncols();
+        let n_out = 1 + n_features + (n_features * (n_features + 1)) / 2;
+        let mut expected = Array2::zeros((n_samples, n_out));
+
+        let mut col_idx = 0;
+        for current_degree in 0..=2usize {
+            for combo in combinations_with_replacement(n_features, current_degree) {
+                let column = combo.iter().fold(
+                    Array2::<Float>::ones((n_samples, 1)).column(0).to_owned(),
+                    |acc, &feature_idx| &acc * &scaled.column(feature_idx),
+                );
+                expected.column_mut(col_idx).assign(&column);
+                col_idx += 1;
+            }
+        }
+
+        expected
+    }
+
+    #[test]
+    fn test_lazy_matches_eager_chain() -> Result<()> {
+        let data = array![[1.0, 2.0], [3.0, 7.0], [5.0, 4.0]];
+
+        let mut processor = LazyPreprocessor::new(LazyConfig::new().with_optimization_level(0));
+        processor
+            .add_operation(LazyOp::StandardScale)
+            .add_operation(LazyOp::PolynomialFeatures { degree: 2 });
+
+        let lazy_result = processor.evaluate(&data)?;
+        let eager_result = eager_standard_then_poly2(&data);
+
+        assert_eq!(lazy_result.dim(), eager_result.dim());
+        for (lazy_val, eager_val) in lazy_result.iter().zip(eager_result.iter()) {
+            assert_abs_diff_eq!(*lazy_val, *eager_val, epsilon = 1e-10);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_polynomial_features_general_degree() -> Result<()> {
+        // Degree 3 over 2 features must not silently fabricate zero columns.
+        // Expected count: C(2 + 3, 3) = 10.
+        assert_eq!(polynomial_feature_count(2, 3), 10);
+
+        let data = array![[2.0, 3.0]];
+        let mut processor = LazyPreprocessor::new(LazyConfig::new().with_optimization_level(0));
+        processor.add_operation(LazyOp::PolynomialFeatures { degree: 3 });
+
+        let result = processor.evaluate(&data)?;
+        assert_eq!(result.dim(), (1, 10));
+
+        // Columns, in generation order: bias, x0, x1, x0^2, x0 x1, x1^2,
+        // x0^3, x0^2 x1, x0 x1^2, x1^3, with x0 = 2, x1 = 3.
+        let expected = [1.0, 2.0, 3.0, 4.0, 6.0, 9.0, 8.0, 12.0, 18.0, 27.0];
+        for (got, want) in result.row(0).iter().zip(expected.iter()) {
+            assert_abs_diff_eq!(*got, *want, epsilon = 1e-10);
+        }
+
+        // No column may be a fabricated zero (the old code left degree>2 as 0).
+        assert!(result.iter().all(|&v| v.abs() > 1e-12));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_combinations_with_replacement_layout() {
+        assert_eq!(
+            combinations_with_replacement(2, 0),
+            vec![Vec::<usize>::new()]
+        );
+        assert_eq!(
+            combinations_with_replacement(3, 1),
+            vec![vec![0], vec![1], vec![2]]
+        );
+        assert_eq!(
+            combinations_with_replacement(3, 2),
+            vec![
+                vec![0, 0],
+                vec![0, 1],
+                vec![0, 2],
+                vec![1, 1],
+                vec![1, 2],
+                vec![2, 2],
+            ]
+        );
+        assert!(combinations_with_replacement(0, 2).is_empty());
+    }
+
+    #[test]
+    fn test_topological_sort_is_dependency_respecting() {
+        let mut graph = LazyGraph::new();
+        graph.add_operation(LazyOp::StandardScale);
+        graph.add_operation(LazyOp::PolynomialFeatures { degree: 2 });
+        graph.add_operation(LazyOp::FeatureSelection { k: 2 });
+
+        // A linear chain must topologically sort back to its natural order.
+        assert_eq!(graph.topological_sort(), vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn test_level3_optimization_preserves_result() -> Result<()> {
+        // Level-3 optimization runs reorder + parallelize passes; the dependency
+        // ordering must keep the pipeline correct (it previously corrupted it by
+        // sorting on memory size).
+        let data = array![[1.0, 2.0], [3.0, 7.0], [5.0, 4.0]];
+
+        let mut baseline = LazyPreprocessor::new(LazyConfig::new().with_optimization_level(0));
+        baseline
+            .add_operation(LazyOp::StandardScale)
+            .add_operation(LazyOp::PolynomialFeatures { degree: 2 });
+        let baseline_result = baseline.evaluate(&data)?;
+
+        let mut optimized = LazyPreprocessor::new(LazyConfig::new().with_optimization_level(3));
+        optimized
+            .add_operation(LazyOp::StandardScale)
+            .add_operation(LazyOp::PolynomialFeatures { degree: 2 });
+        let optimized_result = optimized.evaluate(&data)?;
+
+        assert_eq!(baseline_result.dim(), optimized_result.dim());
+        for (base, opt) in baseline_result.iter().zip(optimized_result.iter()) {
+            assert_abs_diff_eq!(*base, *opt, epsilon = 1e-10);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_streaming_matches_in_memory() -> Result<()> {
+        let data = array![
+            [1.0, 10.0],
+            [2.0, 20.0],
+            [3.0, 30.0],
+            [4.0, 40.0],
+            [5.0, 50.0],
+        ];
+
+        // L2 normalization is computed per row, so it is invariant to how rows
+        // are split into chunks. This lets us check that the streaming path
+        // (which materializes chunks through the buffer pool and reuses the
+        // backing storage) yields exactly the in-memory result.
+        let mut in_memory = LazyPreprocessor::new(LazyConfig::new().with_optimization_level(0));
+        in_memory.add_operation(LazyOp::Normalize {
+            norm: "l2".to_string(),
+        });
+        let in_memory_result = in_memory.evaluate(&data)?;
+
+        // Force the streaming path by setting a tiny memory budget and a small
+        // chunk size, so the graph runs over several pooled chunks.
+        let streaming_config = LazyConfig::new()
+            .with_optimization_level(0)
+            .with_memory_budget(1)
+            .with_chunk_size(2);
+        let mut streaming = LazyPreprocessor::new(streaming_config);
+        streaming.add_operation(LazyOp::Normalize {
+            norm: "l2".to_string(),
+        });
+        let streaming_result = streaming.evaluate(&data)?;
+
+        assert_eq!(in_memory_result.dim(), streaming_result.dim());
+        for (a, b) in in_memory_result.iter().zip(streaming_result.iter()) {
+            assert_abs_diff_eq!(*a, *b, epsilon = 1e-10);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_performance_stats_records_execution() -> Result<()> {
+        let data = array![[1.0, 2.0], [3.0, 4.0]];
+        let mut processor = LazyPreprocessor::new(LazyConfig::new().with_optimization_level(0));
+        processor.add_operation(LazyOp::StandardScale);
+        processor.evaluate(&data)?;
+
+        // The lightweight profiler must record a real (non-empty) timing entry
+        // for the graph execution stage.
+        let stats = processor.performance_stats();
+        assert!(stats.contains_key("graph_execution"));
 
         Ok(())
     }

@@ -4,10 +4,10 @@
 //! connections, authentication, health monitoring, caching, validation,
 //! and data transformation for the report generation system.
 
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
 
 /// Central manager for all data sources used in report generation
 ///
@@ -707,6 +707,12 @@ pub struct ValidationConfig {
     pub max_errors: usize,
 }
 
+impl Default for DataSourceManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DataSourceManager {
     /// Create a new data source manager
     pub fn new() -> Self {
@@ -721,7 +727,8 @@ impl DataSourceManager {
 
     /// Add a new data source
     pub fn add_data_source(&mut self, data_source: DataSource) {
-        self.data_sources.insert(data_source.source_id.clone(), data_source);
+        self.data_sources
+            .insert(data_source.source_id.clone(), data_source);
     }
 
     /// Get a data source by ID
@@ -735,6 +742,12 @@ impl DataSourceManager {
     }
 }
 
+impl Default for DataSourceHealthMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DataSourceHealthMonitor {
     pub fn new() -> Self {
         Self {
@@ -745,6 +758,12 @@ impl DataSourceHealthMonitor {
     }
 }
 
+impl Default for DataSourceCacheManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DataSourceCacheManager {
     pub fn new() -> Self {
         Self {
@@ -752,6 +771,12 @@ impl DataSourceCacheManager {
             cache_stats: CacheStatistics::default(),
             eviction_policies: vec![EvictionPolicy::LRU],
         }
+    }
+}
+
+impl Default for DataValidator {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

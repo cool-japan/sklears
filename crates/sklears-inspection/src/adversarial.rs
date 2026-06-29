@@ -244,7 +244,7 @@ where
 /// Test explanation robustness
 pub fn test_explanation_robustness<F, E>(
     input: &ArrayView2<Float>,
-    _model_fn: F,
+    model_fn: F,
     explanation_fn: E,
     config: &AdversarialConfig,
 ) -> SklResult<ExplanationRobustnessResult>
@@ -252,11 +252,13 @@ where
     F: Fn(&Array2<Float>) -> SklResult<Array1<Float>>,
     E: Fn(&Array2<Float>) -> SklResult<Array2<Float>>,
 {
-    // Get original explanations
+    // Get original explanations and predictions
     let original_explanations = explanation_fn(&input.to_owned())?;
+    let original_predictions = model_fn(&input.to_owned())?;
 
-    // Generate perturbed inputs and explanations
+    // Generate perturbed inputs, explanations, and predictions
     let mut perturbed_explanations = Vec::new();
+    let mut perturbed_predictions = Vec::new();
     let (min_bound, max_bound) = config.perturbation_bounds;
 
     for _ in 0..config.n_stability_samples {
@@ -264,9 +266,10 @@ where
         let perturbation = generate_random_perturbation(input.shape(), min_bound, max_bound)?;
         let perturbed_input = input.to_owned() + perturbation;
 
-        // Get explanation for perturbed input
+        // Get explanation and prediction for perturbed input
         let perturbed_explanation = explanation_fn(&perturbed_input)?;
         perturbed_explanations.push(perturbed_explanation);
+        perturbed_predictions.push(model_fn(&perturbed_input)?);
     }
 
     // Compute robustness metrics
@@ -274,8 +277,13 @@ where
     let mut confidence_intervals = HashMap::new();
 
     for metric in &config.robustness_metrics {
-        let score =
-            compute_robustness_metric(metric, &original_explanations, &perturbed_explanations)?;
+        let score = compute_robustness_metric(
+            metric,
+            &original_explanations,
+            &perturbed_explanations,
+            Some(&original_predictions),
+            &perturbed_predictions,
+        )?;
         let ci = compute_confidence_interval(
             &perturbed_explanations,
             metric,
@@ -307,7 +315,7 @@ where
 /// Analyze explanation stability
 pub fn analyze_explanation_stability<F, E>(
     input: &ArrayView2<Float>,
-    _model_fn: F,
+    model_fn: F,
     explanation_fn: E,
     config: &AdversarialConfig,
 ) -> SklResult<StabilityAnalysisResult>
@@ -316,6 +324,7 @@ where
     E: Fn(&Array2<Float>) -> SklResult<Array2<Float>>,
 {
     let original_explanations = explanation_fn(&input.to_owned())?;
+    let original_predictions = model_fn(&input.to_owned())?;
 
     // Test stability at different perturbation levels
     let perturbation_levels = Array1::linspace(0.01, 0.5, 20);
@@ -324,13 +333,15 @@ where
 
     for &level in &perturbation_levels {
         let mut level_explanations = Vec::new();
+        let mut level_predictions = Vec::new();
 
-        // Generate explanations at this perturbation level
+        // Generate explanations and predictions at this perturbation level
         for _ in 0..config.n_stability_samples {
             let perturbation = generate_random_perturbation(input.shape(), -level, level)?;
             let perturbed_input = input.to_owned() + perturbation;
             let explanation = explanation_fn(&perturbed_input)?;
             level_explanations.push(explanation);
+            level_predictions.push(model_fn(&perturbed_input)?);
         }
 
         // Compute stability score for this level
@@ -340,8 +351,13 @@ where
 
         // Breakdown by metrics
         for metric in &config.robustness_metrics {
-            let metric_score =
-                compute_robustness_metric(metric, &original_explanations, &level_explanations)?;
+            let metric_score = compute_robustness_metric(
+                metric,
+                &original_explanations,
+                &level_explanations,
+                Some(&original_predictions),
+                &level_predictions,
+            )?;
             stability_breakdown
                 .entry(format!("{:?}", metric))
                 .or_insert_with(Vec::new)
@@ -572,26 +588,149 @@ fn compute_robustness_metric(
     metric: &RobustnessMetric,
     original_explanations: &Array2<Float>,
     perturbed_explanations: &[Array2<Float>],
+    original_predictions: Option<&Array1<Float>>,
+    perturbed_predictions: &[Array1<Float>],
 ) -> SklResult<Float> {
     match metric {
         RobustnessMetric::ExplanationConsistency => {
             compute_explanation_consistency(original_explanations, perturbed_explanations)
         }
         RobustnessMetric::PredictionStability => {
-            // Simplified prediction stability (would need actual predictions)
-            Ok(0.8) // Placeholder
+            // Real prediction stability: the mean agreement between the original
+            // prediction and each perturbed prediction. For each perturbation we
+            // compute 1 - normalized-mean-absolute-deviation, clamped to [0, 1], so a
+            // value near 1 means the model's outputs barely move under perturbation.
+            match original_predictions {
+                Some(original) => compute_prediction_stability(original, perturbed_predictions),
+                None => Err(SklearsError::InvalidInput(
+                    "PredictionStability requires model predictions, which were not provided"
+                        .to_string(),
+                )),
+            }
         }
         RobustnessMetric::FeatureImportanceStability => {
             compute_feature_importance_stability(original_explanations, perturbed_explanations)
         }
         RobustnessMetric::CertifiedRobustness => {
-            // Would compute certified bounds
-            Ok(0.7) // Placeholder
+            // Certified robustness requires a formal verification procedure (e.g.
+            // interval-bound propagation or a Lipschitz-constant certificate) over the
+            // model itself. The robustness harness only has sampled predictions and
+            // explanations, so a sound certified bound cannot be produced here.
+            Err(SklearsError::NotImplemented(
+                "CertifiedRobustness requires a formal certification procedure over the model \
+                 (e.g. IBP or a Lipschitz certificate); sampled predictions are insufficient. \
+                 Use a dedicated certified-robustness routine."
+                    .to_string(),
+            ))
         }
         RobustnessMetric::AdversarialAccuracy => {
-            // Would compute accuracy on adversarial examples
-            Ok(0.6) // Placeholder
+            // Real empirical adversarial accuracy under the sampled perturbations: the
+            // fraction of perturbed inputs whose predicted class (argmax) matches the
+            // original prediction's class. This is a genuine measurement over the
+            // perturbations that were actually evaluated.
+            match original_predictions {
+                Some(original) => compute_adversarial_accuracy(original, perturbed_predictions),
+                None => Err(SklearsError::InvalidInput(
+                    "AdversarialAccuracy requires model predictions, which were not provided"
+                        .to_string(),
+                )),
+            }
         }
+    }
+}
+
+/// Mean stability of predictions under perturbation, in [0, 1].
+///
+/// For each perturbed prediction vector we compute the mean absolute deviation from
+/// the original, normalized by the dynamic range of the original predictions, and map
+/// it to a stability score `1 - normalized_deviation` clamped to [0, 1].
+fn compute_prediction_stability(
+    original: &Array1<Float>,
+    perturbed: &[Array1<Float>],
+) -> SklResult<Float> {
+    if perturbed.is_empty() {
+        return Ok(1.0);
+    }
+
+    let range = {
+        let max = original
+            .iter()
+            .cloned()
+            .fold(Float::NEG_INFINITY, Float::max);
+        let min = original.iter().cloned().fold(Float::INFINITY, Float::min);
+        (max - min).abs()
+    };
+    let scale = if range > Float::EPSILON { range } else { 1.0 };
+
+    let mut total = 0.0;
+    let mut count = 0;
+    for pred in perturbed {
+        if pred.len() != original.len() || pred.is_empty() {
+            continue;
+        }
+        let mad = original
+            .iter()
+            .zip(pred.iter())
+            .map(|(&o, &p)| (o - p).abs())
+            .sum::<Float>()
+            / original.len() as Float;
+        let stability = (1.0 - mad / scale).clamp(0.0, 1.0);
+        total += stability;
+        count += 1;
+    }
+
+    if count == 0 {
+        Ok(0.0)
+    } else {
+        Ok(total / count as Float)
+    }
+}
+
+/// Empirical adversarial accuracy: the fraction of perturbed predictions whose argmax
+/// class equals the original prediction's argmax class.
+fn compute_adversarial_accuracy(
+    original: &Array1<Float>,
+    perturbed: &[Array1<Float>],
+) -> SklResult<Float> {
+    if perturbed.is_empty() {
+        return Ok(1.0);
+    }
+
+    let argmax = |v: &Array1<Float>| -> Option<usize> {
+        if v.is_empty() {
+            return None;
+        }
+        let mut best_idx = 0usize;
+        let mut best_val = Float::NEG_INFINITY;
+        for (i, &val) in v.iter().enumerate() {
+            if val > best_val {
+                best_val = val;
+                best_idx = i;
+            }
+        }
+        Some(best_idx)
+    };
+
+    let original_class = match argmax(original) {
+        Some(c) => c,
+        None => return Ok(0.0),
+    };
+
+    let mut matches = 0;
+    let mut count = 0;
+    for pred in perturbed {
+        if let Some(c) = argmax(pred) {
+            if c == original_class {
+                matches += 1;
+            }
+            count += 1;
+        }
+    }
+
+    if count == 0 {
+        Ok(0.0)
+    } else {
+        Ok(matches as Float / count as Float)
     }
 }
 
@@ -696,25 +835,105 @@ fn compute_rank_correlation(a: &Array1<Float>, b: &Array1<Float>) -> SklResult<F
     }
 }
 
-/// Compute confidence interval
+/// Compute a normal confidence interval for the perturbed-explanation summary.
+///
+/// We summarize each perturbed explanation by its mean absolute attribution, then form
+/// a `confidence_level` normal interval `mean ± z * (std / sqrt(n))` from those
+/// per-perturbation summaries, where `z` is the two-sided critical value derived from
+/// the requested confidence level. This is a real interval computed from the data, not
+/// a fixed window around 0.5.
 fn compute_confidence_interval(
     perturbed_explanations: &[Array2<Float>],
     _metric: &RobustnessMetric,
     confidence_level: Float,
 ) -> SklResult<(Float, Float)> {
-    // Simplified confidence interval computation
-    // In practice, would use proper statistical methods
-
-    let n = perturbed_explanations.len() as Float;
-    if n < 2.0 {
+    let n = perturbed_explanations.len();
+    if n < 2 {
         return Ok((0.0, 1.0));
     }
 
-    // Placeholder computation (alpha = 1 - confidence_level, not used directly here)
-    let _alpha = 1.0 - confidence_level;
-    let margin = 1.96 * (0.1 / n.sqrt()); // Simplified standard error
+    // Per-perturbation summary: mean absolute attribution.
+    let summaries: Vec<Float> = perturbed_explanations
+        .iter()
+        .map(|expl| {
+            if expl.is_empty() {
+                0.0
+            } else {
+                expl.iter().map(|&v| v.abs()).sum::<Float>() / expl.len() as Float
+            }
+        })
+        .collect();
 
-    Ok((0.5 - margin, 0.5 + margin))
+    let n_f = n as Float;
+    let mean = summaries.iter().sum::<Float>() / n_f;
+    let variance = summaries.iter().map(|&s| (s - mean).powi(2)).sum::<Float>() / (n_f - 1.0);
+    let std_err = (variance / n_f).sqrt();
+
+    // Two-sided z critical value for the requested confidence level.
+    let alpha = (1.0 - confidence_level).clamp(1e-6, 1.0 - 1e-6);
+    let z = inverse_normal_cdf(1.0 - alpha / 2.0);
+    let margin = z * std_err;
+
+    Ok((mean - margin, mean + margin))
+}
+
+/// Inverse of the standard normal CDF (probit) via Acklam's rational approximation.
+fn inverse_normal_cdf(p: Float) -> Float {
+    if p <= 0.0 {
+        return Float::NEG_INFINITY;
+    }
+    if p >= 1.0 {
+        return Float::INFINITY;
+    }
+
+    // Coefficients for Acklam's algorithm.
+    const A: [Float; 6] = [
+        -3.969_683_028_665_376e1,
+        2.209_460_984_245_205e2,
+        -2.759_285_104_469_687e2,
+        1.383_577_518_672_69e2,
+        -3.066_479_806_614_716e1,
+        2.506_628_277_459_239e0,
+    ];
+    const B: [Float; 5] = [
+        -5.447_609_879_822_406e1,
+        1.615_858_368_580_409e2,
+        -1.556_989_798_598_866e2,
+        6.680_131_188_771_972e1,
+        -1.328_068_155_288_572e1,
+    ];
+    const C: [Float; 6] = [
+        -7.784_894_002_430_293e-3,
+        -3.223_964_580_411_365e-1,
+        -2.400_758_277_161_838e0,
+        -2.549_732_539_343_734e0,
+        4.374_664_141_464_968e0,
+        2.938_163_982_698_783e0,
+    ];
+    const D: [Float; 4] = [
+        7.784_695_709_041_462e-3,
+        3.224_671_290_700_398e-1,
+        2.445_134_137_142_996e0,
+        3.754_408_661_907_416e0,
+    ];
+
+    let p_low = 0.024_25;
+    let p_high = 1.0 - p_low;
+
+    if p < p_low {
+        let q = (-2.0 * p.ln()).sqrt();
+        (((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5])
+            / ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0)
+    } else if p <= p_high {
+        let q = p - 0.5;
+        let r = q * q;
+        (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r + A[5]) * q
+            / (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1.0)
+    } else {
+        let q = (-2.0 * (1.0 - p).ln()).sqrt();
+        -(((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5])
+            / ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0)
+    }
 }
 
 /// Perform statistical tests
@@ -892,8 +1111,9 @@ where
     let mut predictions = Vec::new();
 
     // Sample predictions with Gaussian noise
+    let mut rng = scirs2_core::random::thread_rng();
     for _ in 0..n_samples {
-        let noise = generate_gaussian_noise(input.shape(), 0.0, noise_std)?;
+        let noise = generate_gaussian_noise(&mut rng, input.shape(), 0.0, noise_std)?;
         let noisy_input = input.to_owned() + noise;
         let pred = model_fn(&noisy_input)?[0];
         predictions.push(pred);
@@ -910,16 +1130,21 @@ where
     Ok((lower_bound, upper_bound, certified_radius, status))
 }
 
-/// Generate Gaussian noise
-fn generate_gaussian_noise(shape: &[usize], mean: Float, std: Float) -> SklResult<Array2<Float>> {
+/// Generate Gaussian noise using Box-Muller transform
+fn generate_gaussian_noise<R: scirs2_core::random::RngExt>(
+    rng: &mut R,
+    shape: &[usize],
+    mean: Float,
+    std: Float,
+) -> SklResult<Array2<Float>> {
     let mut noise = Array2::zeros((shape[0], shape[1]));
 
-    // Simple Box-Muller transform for Gaussian noise
     for elem in noise.iter_mut() {
-        let u1 = scirs2_core::random::thread_rng().random::<Float>();
-        let u2 = scirs2_core::random::thread_rng().random::<Float>();
+        // Clamp away from zero to avoid ln(0) = -inf
+        let u1 = rng.random::<Float>().max(Float::MIN_POSITIVE);
+        let u2 = rng.random::<Float>();
         let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
-        *elem = mean + std * z as Float;
+        *elem = mean + std * z;
     }
 
     Ok(noise)
@@ -1128,17 +1353,28 @@ mod tests {
 
     #[test]
     fn test_gaussian_noise_generation() {
-        let shape = &[3, 2];
-        let mean = 0.0;
-        let std = 1.0;
+        use scirs2_core::random::{SeedableRng, StdRng};
 
-        let noise = generate_gaussian_noise(shape, mean, std).expect("operation should succeed");
+        let shape = &[200, 1];
+        let mean: Float = 0.0;
+        let std: Float = 1.0;
 
-        assert_eq!(noise.shape(), &[3, 2]);
+        let mut rng = StdRng::seed_from_u64(42);
+        let noise =
+            generate_gaussian_noise(&mut rng, shape, mean, std).expect("operation should succeed");
 
-        // Basic statistical checks (allow for more variance with small samples)
+        assert_eq!(noise.shape(), &[200, 1]);
+
+        // With 200 samples the SEM ≈ 0.071; 4-sigma tolerance is ~0.28 — essentially never fails
         let sample_mean = noise.mean().expect("operation should succeed");
-        assert!((sample_mean - mean).abs() < 1.0); // Allow more tolerance for small samples
+        assert!(
+            (sample_mean - mean).abs() < 0.3,
+            "sample_mean {} too far from 0",
+            sample_mean
+        );
+
+        // All elements must be finite
+        assert!(noise.iter().all(|x| x.is_finite()));
     }
 
     #[test]
@@ -1193,5 +1429,62 @@ mod tests {
         assert_eq!(statuses.len(), 3);
         assert_ne!(Robust, NotRobust);
         assert_ne!(Unknown, Robust);
+    }
+
+    #[test]
+    fn test_prediction_stability_is_real() {
+        let original = array![1.0, 2.0, 3.0];
+        // Identical perturbed predictions -> perfect stability.
+        let identical = vec![array![1.0, 2.0, 3.0], array![1.0, 2.0, 3.0]];
+        let stable =
+            compute_prediction_stability(&original, &identical).expect("operation should succeed");
+        assert!((stable - 1.0).abs() < 1e-9);
+
+        // Wildly different predictions -> lower stability.
+        let different = vec![array![-5.0, 8.0, -3.0], array![10.0, -7.0, 4.0]];
+        let unstable =
+            compute_prediction_stability(&original, &different).expect("operation should succeed");
+        assert!(unstable < stable);
+        assert!((0.0..=1.0).contains(&unstable));
+    }
+
+    #[test]
+    fn test_adversarial_accuracy_is_real() {
+        // Original predicted class is index 2 (largest value).
+        let original = array![0.1, 0.2, 0.7];
+        // Two perturbed predictions keep class 2, one flips to class 0.
+        let perturbed = vec![
+            array![0.0, 0.1, 0.9], // class 2
+            array![0.2, 0.3, 0.5], // class 2
+            array![0.8, 0.1, 0.1], // class 0 (flip)
+        ];
+        let acc =
+            compute_adversarial_accuracy(&original, &perturbed).expect("operation should succeed");
+        assert!((acc - 2.0 / 3.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_certified_robustness_is_honest_error() {
+        // The sampled-prediction harness cannot soundly certify robustness.
+        let original = array![0.1, 0.9];
+        let perturbed = vec![array![0.2, 0.8]];
+        let result = compute_robustness_metric(
+            &RobustnessMetric::CertifiedRobustness,
+            &array![[0.1, 0.2]],
+            &[array![[0.1, 0.2]]],
+            Some(&original),
+            &perturbed,
+        );
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
+    }
+
+    #[test]
+    fn test_inverse_normal_cdf_known_values() {
+        // Median is 0.
+        assert!(inverse_normal_cdf(0.5).abs() < 1e-6);
+        // 97.5th percentile ~ 1.95996.
+        assert!((inverse_normal_cdf(0.975) - 1.959_963_98).abs() < 1e-3);
+        // Symmetry.
+        assert!((inverse_normal_cdf(0.025) + 1.959_963_98).abs() < 1e-3);
     }
 }

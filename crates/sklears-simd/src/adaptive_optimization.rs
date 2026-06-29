@@ -156,7 +156,9 @@ impl AdaptiveOptimizer {
     }
 
     #[cfg(feature = "no-std")]
-    fn lock_cache(&self) -> spin::MutexGuard<'_, HashMap<String, AlgorithmPerformance>> {
+    fn lock_cache(
+        &self,
+    ) -> spin::MutexGuard<'_, HashMap<String, AlgorithmPerformance>, spin::Spin> {
         self.performance_cache.lock()
     }
 
@@ -169,7 +171,9 @@ impl AdaptiveOptimizer {
     }
 
     #[cfg(feature = "no-std")]
-    fn lock_cache_mut(&self) -> spin::MutexGuard<'_, HashMap<String, AlgorithmPerformance>> {
+    fn lock_cache_mut(
+        &self,
+    ) -> spin::MutexGuard<'_, HashMap<String, AlgorithmPerformance>, spin::Spin> {
         self.performance_cache.lock()
     }
 

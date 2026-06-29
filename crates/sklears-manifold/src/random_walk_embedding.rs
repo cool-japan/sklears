@@ -258,10 +258,47 @@ impl RandomWalkEmbedding<Untrained> {
                 break;
             }
 
-            // Simple uniform random choice for now
-            // TODO: Implement biased sampling for node2vec (p, q parameters)
-            let next_idx = rng.random_range(0..neighbors.len());
-            current = neighbors[next_idx];
+            // node2vec biased second-order random walk.
+            //
+            // The unnormalized transition probability from `current` to a
+            // neighbor `v` depends on the previous node `prev`:
+            //   - d(prev, v) == 0  (v == prev):   weight = 1/p  (return bias)
+            //   - d(prev, v) == 1  (v is also a neighbour of prev): weight = 1
+            //   - d(prev, v) == 2  (v is not adjacent to prev):  weight = 1/q
+            //
+            // When p == q == 1 (the defaults) this degenerates to a uniform
+            // walk identical to DeepWalk.
+            let prev = if walk.len() >= 2 {
+                Some(walk[walk.len() - 2])
+            } else {
+                None
+            };
+
+            let weights: Vec<f64> = neighbors
+                .iter()
+                .map(|&v| {
+                    match prev {
+                        None => 1.0, // first step — no bias
+                        Some(p_node) if v == p_node => 1.0 / self.p,
+                        Some(p_node) if adjacency[(p_node, v)] > 0.0 => 1.0,
+                        _ => 1.0 / self.q,
+                    }
+                })
+                .collect();
+
+            // Weighted-reservoir sampling: pick proportionally to `weights`.
+            let total_weight: f64 = weights.iter().sum();
+            let threshold = rng.random_range(0.0..total_weight.max(f64::EPSILON));
+            let mut cumulative = 0.0;
+            let mut chosen = neighbors[0];
+            for (&node, &w) in neighbors.iter().zip(weights.iter()) {
+                cumulative += w;
+                if cumulative >= threshold {
+                    chosen = node;
+                    break;
+                }
+            }
+            current = chosen;
             walk.push(current);
         }
 
@@ -378,5 +415,112 @@ impl RandomWalkEmbedding<RandomWalkEmbeddingTrained> {
     /// Get the vocabulary mapping
     pub fn vocab(&self) -> &HashMap<usize, usize> {
         &self.state.vocab
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::Array2;
+
+    fn make_ring_data(n: usize) -> Array2<f64> {
+        // Simple 2-D ring: equally spaced points on the unit circle.
+        let mut x = Array2::zeros((n, 2));
+        for i in 0..n {
+            let angle = 2.0 * std::f64::consts::PI * i as f64 / n as f64;
+            x[(i, 0)] = angle.cos();
+            x[(i, 1)] = angle.sin();
+        }
+        x
+    }
+
+    #[test]
+    fn test_uniform_walk_produces_embeddings() {
+        // With p == q == 1 the walk is uniform (DeepWalk-style).
+        let x = make_ring_data(8);
+        let view = x.view();
+        let model = RandomWalkEmbedding::new()
+            .n_components(4)
+            .walk_length(5)
+            .num_walks(2)
+            .epochs(1)
+            .random_state(Some(42));
+        let fitted = model.fit(&view, &()).expect("fit should succeed");
+        let emb = fitted.embedding();
+        // Each node should have an embedding of the right dimension.
+        assert_eq!(emb.nrows(), 8);
+        assert_eq!(emb.ncols(), 4);
+    }
+
+    #[test]
+    fn test_biased_walk_different_from_uniform_with_extreme_p() {
+        // With p very small, the walk strongly avoids revisiting the previous node.
+        // With p very large, it is biased to return.  We verify that runs with
+        // different biases don't produce identical embeddings (probabilistic check
+        // using a fixed seed).
+        let x = make_ring_data(10);
+        let view = x.view();
+
+        let model_uniform = RandomWalkEmbedding::new()
+            .n_components(4)
+            .walk_length(10)
+            .num_walks(3)
+            .epochs(2)
+            .p(1.0)
+            .q(1.0)
+            .random_state(Some(7));
+        let model_biased = RandomWalkEmbedding::new()
+            .n_components(4)
+            .walk_length(10)
+            .num_walks(3)
+            .epochs(2)
+            .p(0.1)
+            .q(10.0)
+            .random_state(Some(7));
+
+        let fitted_u = model_uniform.fit(&view, &()).expect("uniform fit");
+        let fitted_b = model_biased.fit(&view, &()).expect("biased fit");
+
+        // The embeddings are unlikely to be identical when biases differ.
+        let diff: f64 = (fitted_u.embedding() - fitted_b.embedding())
+            .mapv(f64::abs)
+            .sum();
+        // With random seed 7 they should diverge (diff > epsilon).
+        assert!(
+            diff > 1e-6,
+            "Expected embeddings to differ between uniform and biased walk, diff={diff}"
+        );
+    }
+
+    #[test]
+    fn test_biased_walk_with_p_eq_q_eq_one_is_deterministic() {
+        // Same seed, same params => same result.
+        let x = make_ring_data(6);
+        let view = x.view();
+        let make_model = || {
+            RandomWalkEmbedding::new()
+                .n_components(3)
+                .walk_length(6)
+                .num_walks(2)
+                .epochs(1)
+                .p(1.0)
+                .q(1.0)
+                .random_state(Some(99))
+        };
+        let e1 = make_model()
+            .fit(&view, &())
+            .expect("fit 1")
+            .embedding()
+            .clone();
+        let e2 = make_model()
+            .fit(&view, &())
+            .expect("fit 2")
+            .embedding()
+            .clone();
+        let diff: f64 = (&e1 - &e2).mapv(f64::abs).sum();
+        assert!(
+            diff < 1e-12,
+            "Deterministic runs should be identical, diff={diff}"
+        );
     }
 }

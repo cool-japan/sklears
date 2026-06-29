@@ -129,9 +129,9 @@ pub use ensemble_evaluation::{
     ProgressivePerformance, StabilityAnalysis, StabilityMetric,
 };
 pub use ensemble_selection::{
-    select_ensemble, DiversityMeasures, EnsemblePerformance, EnsembleSelectionConfig,
-    EnsembleSelectionResult, EnsembleSelector, EnsembleStrategy, ModelInfo as EnsembleModelInfo,
-    ModelPerformance,
+    diversity_from_predictions, select_ensemble, DiversityMeasures, EnsemblePerformance,
+    EnsembleSelectionConfig, EnsembleSelectionResult, EnsembleSelector, EnsembleStrategy,
+    ModelInfo as EnsembleModelInfo, ModelPerformance,
 };
 pub use epistemic_uncertainty::{
     quantify_aleatoric_uncertainty, quantify_epistemic_uncertainty, quantify_uncertainty,

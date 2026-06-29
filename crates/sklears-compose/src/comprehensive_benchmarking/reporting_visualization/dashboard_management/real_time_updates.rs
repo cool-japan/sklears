@@ -1,12 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, RwLock, Mutex};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use uuid::Uuid;
+use std::sync::{Arc, RwLock};
+use std::time::{Duration, SystemTime};
 
 /// Real-time update system for dashboard components
 /// Manages WebSocket connections, server-sent events, and update broadcasting
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default)]
 pub struct RealTimeUpdates {
     /// Active WebSocket connections
     pub websocket_manager: WebSocketManager,
@@ -25,7 +24,7 @@ pub struct RealTimeUpdates {
 }
 
 /// WebSocket connection manager for real-time communication
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct WebSocketManager {
     /// Active WebSocket connections
     pub connections: Arc<RwLock<HashMap<String, WebSocketConnection>>>,
@@ -150,7 +149,7 @@ pub struct UpdateFrequency {
 }
 
 /// Server-sent events manager for one-way communication
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ServerSentEventsManager {
     /// Active SSE streams
     pub streams: Arc<RwLock<HashMap<String, SSEStream>>>,
@@ -322,7 +321,10 @@ pub enum SynchronizationStrategy {
     /// Immediate synchronization
     Immediate,
     /// Batched synchronization
-    Batched { batch_size: usize, interval: Duration },
+    Batched {
+        batch_size: usize,
+        interval: Duration,
+    },
     /// Event-driven synchronization
     EventDriven { triggers: Vec<SyncTrigger> },
     /// Adaptive synchronization
@@ -558,24 +560,21 @@ pub struct CustomFilter {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ThrottlingStrategy {
-    TokenBucket { bucket_size: u32, refill_rate: f64 },
-    SlidingWindow { window_size: Duration, max_requests: u32 },
-    FixedWindow { window_size: Duration, max_requests: u32 },
-    Adaptive { algorithm: AdaptiveThrottling },
-}
-
-impl Default for RealTimeUpdates {
-    fn default() -> Self {
-        Self {
-            websocket_manager: WebSocketManager::default(),
-            sse_manager: ServerSentEventsManager::default(),
-            update_queue: UpdateQueueManager::default(),
-            synchronization: RealTimeSynchronization::default(),
-            broadcaster: UpdateBroadcaster::default(),
-            optimization: RealTimeOptimization::default(),
-            conflict_resolution: ConflictResolution::default(),
-        }
-    }
+    TokenBucket {
+        bucket_size: u32,
+        refill_rate: f64,
+    },
+    SlidingWindow {
+        window_size: Duration,
+        max_requests: u32,
+    },
+    FixedWindow {
+        window_size: Duration,
+        max_requests: u32,
+    },
+    Adaptive {
+        algorithm: AdaptiveThrottling,
+    },
 }
 
 impl Default for WebSocketManager {
@@ -619,8 +618,8 @@ impl Default for WebSocketAuth {
         Self {
             auth_required: true,
             auth_methods: vec![AuthMethod::Token],
-            session_management: SessionManagement::default(),
-            permissions: PermissionSystem::default(),
+            session_management: SessionManagement,
+            permissions: PermissionSystem,
         }
     }
 }
@@ -630,8 +629,8 @@ impl Default for MessageRouter {
         Self {
             routing_rules: Vec::new(),
             default_route: "default".to_string(),
-            load_balancing: RoutingLoadBalancing::default(),
-            filtering: MessageFiltering::default(),
+            load_balancing: RoutingLoadBalancing,
+            filtering: MessageFiltering,
         }
     }
 }
@@ -639,10 +638,10 @@ impl Default for MessageRouter {
 impl Default for ConnectionMonitoring {
     fn default() -> Self {
         Self {
-            health_checks: HealthCheckConfig::default(),
-            metrics_collection: MetricsCollection::default(),
-            alerting: AlertingConfig::default(),
-            diagnostics: DiagnosticsConfig::default(),
+            health_checks: HealthCheckConfig,
+            metrics_collection: MetricsCollection,
+            alerting: AlertingConfig,
+            diagnostics: DiagnosticsConfig,
         }
     }
 }
@@ -651,11 +650,11 @@ impl Default for ServerSentEventsManager {
     fn default() -> Self {
         Self {
             streams: Arc::new(RwLock::new(HashMap::new())),
-            config: SSEConfig::default(),
-            event_formatter: EventFormatter::default(),
-            lifecycle: SSELifecycle::default(),
-            monitoring: SSEMonitoring::default(),
-            retry_logic: RetryLogic::default(),
+            config: SSEConfig,
+            event_formatter: EventFormatter,
+            lifecycle: SSELifecycle,
+            monitoring: SSEMonitoring,
+            retry_logic: RetryLogic,
         }
     }
 }
@@ -664,11 +663,11 @@ impl Default for UpdateQueueManager {
     fn default() -> Self {
         Self {
             priority_queues: HashMap::new(),
-            processing: QueueProcessing::default(),
-            batching: BatchingStrategy::default(),
-            monitoring: QueueMonitoring::default(),
-            load_balancing: QueueLoadBalancing::default(),
-            persistence: QueuePersistence::default(),
+            processing: QueueProcessing,
+            batching: BatchingStrategy,
+            monitoring: QueueMonitoring,
+            load_balancing: QueueLoadBalancing,
+            persistence: QueuePersistence,
         }
     }
 }
@@ -677,11 +676,11 @@ impl Default for RealTimeSynchronization {
     fn default() -> Self {
         Self {
             strategy: SynchronizationStrategy::Immediate,
-            conflict_detection: ConflictDetection::default(),
-            version_control: VersionControl::default(),
-            sync_state: SynchronizationState::default(),
-            peer_sync: PeerSynchronization::default(),
-            monitoring: SyncMonitoring::default(),
+            conflict_detection: ConflictDetection,
+            version_control: VersionControl,
+            sync_state: SynchronizationState,
+            peer_sync: PeerSynchronization,
+            monitoring: SyncMonitoring,
         }
     }
 }
@@ -690,11 +689,11 @@ impl Default for UpdateBroadcaster {
     fn default() -> Self {
         Self {
             channels: HashMap::new(),
-            strategies: BroadcastingStrategy::default(),
-            routing: MessageRouting::default(),
-            performance: BroadcastPerformance::default(),
-            delivery: DeliveryGuarantees::default(),
-            monitoring: BroadcastMonitoring::default(),
+            strategies: BroadcastingStrategy,
+            routing: MessageRouting,
+            performance: BroadcastPerformance,
+            delivery: DeliveryGuarantees,
+            monitoring: BroadcastMonitoring,
         }
     }
 }
@@ -702,12 +701,12 @@ impl Default for UpdateBroadcaster {
 impl Default for RealTimeOptimization {
     fn default() -> Self {
         Self {
-            connection_optimization: ConnectionOptimization::default(),
-            message_optimization: MessageOptimization::default(),
-            network_optimization: NetworkOptimization::default(),
-            cpu_optimization: CPUOptimization::default(),
-            memory_optimization: MemoryOptimization::default(),
-            io_optimization: IOOptimization::default(),
+            connection_optimization: ConnectionOptimization,
+            message_optimization: MessageOptimization,
+            network_optimization: NetworkOptimization,
+            cpu_optimization: CPUOptimization,
+            memory_optimization: MemoryOptimization,
+            io_optimization: IOOptimization,
         }
     }
 }
@@ -715,11 +714,11 @@ impl Default for RealTimeOptimization {
 impl Default for ConflictResolution {
     fn default() -> Self {
         Self {
-            detection: ConflictDetectionStrategy::default(),
+            detection: ConflictDetectionStrategy,
             resolution_policies: Vec::new(),
             merge_strategies: HashMap::new(),
-            audit: ConflictAudit::default(),
-            performance: ResolutionPerformance::default(),
+            audit: ConflictAudit,
+            performance: ResolutionPerformance,
         }
     }
 }
@@ -885,7 +884,13 @@ pub struct ResolutionPerformance;
 pub struct PoolConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct AuthMethod;
+pub enum AuthMethod {
+    #[default]
+    Token,
+    ApiKey,
+    OAuth2,
+    BasicAuth,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SessionManagement;
@@ -972,13 +977,13 @@ impl RealTimeUpdates {
     }
 
     /// Broadcast update to subscribers
-    pub fn broadcast_update(&self, update: PendingUpdate) -> Result<(), String> {
+    pub fn broadcast_update(&self, _update: PendingUpdate) -> Result<(), String> {
         // Broadcasting logic
         Ok(())
     }
 
     /// Handle connection events
-    pub fn handle_connection_event(&mut self, event: ConnectionEvent) -> Result<(), String> {
+    pub fn handle_connection_event(&mut self, _event: ConnectionEvent) -> Result<(), String> {
         // Connection event handling logic
         Ok(())
     }
@@ -990,7 +995,7 @@ impl RealTimeUpdates {
     }
 
     /// Resolve conflicts
-    pub fn resolve_conflicts(&mut self, conflicts: Vec<UpdateConflict>) -> Result<(), String> {
+    pub fn resolve_conflicts(&mut self, _conflicts: Vec<UpdateConflict>) -> Result<(), String> {
         // Conflict resolution logic
         Ok(())
     }
@@ -1010,4 +1015,12 @@ pub struct UpdateConflict {
     pub conflicting_updates: Vec<String>,
     pub conflict_type: String,
     pub resolution_strategy: String,
+}
+
+/// Dashboard refresh settings
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RefreshSettings {
+    pub auto_refresh: bool,
+    pub refresh_interval_seconds: u64,
+    pub refresh_on_focus: bool,
 }

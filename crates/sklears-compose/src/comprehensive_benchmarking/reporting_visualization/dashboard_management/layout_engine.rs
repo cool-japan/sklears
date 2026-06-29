@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 
 /// Layout engine for dashboard responsive design and widget positioning
 /// Handles grid systems, responsive breakpoints, and layout optimization
@@ -1004,7 +1004,11 @@ impl LayoutEngine {
     }
 
     /// Apply layout to widgets
-    pub fn apply_layout(&self, layout: &DashboardLayout, widgets: &mut [super::widget_system::DashboardWidget]) -> Result<(), LayoutError> {
+    pub fn apply_layout(
+        &self,
+        layout: &DashboardLayout,
+        widgets: &mut [super::widget_system::DashboardWidget],
+    ) -> Result<(), LayoutError> {
         // Validate layout configuration
         if self.validation.enabled {
             self.validate_layout(layout)?;
@@ -1031,19 +1035,27 @@ impl LayoutEngine {
     fn validate_layout(&self, layout: &DashboardLayout) -> Result<(), LayoutError> {
         // Basic validation
         if layout.grid_config.columns == 0 {
-            return Err(LayoutError::InvalidConfiguration("Grid columns cannot be zero".to_string()));
+            return Err(LayoutError::InvalidConfiguration(
+                "Grid columns cannot be zero".to_string(),
+            ));
         }
 
         if layout.grid_config.row_height <= 0.0 {
-            return Err(LayoutError::InvalidConfiguration("Row height must be positive".to_string()));
+            return Err(LayoutError::InvalidConfiguration(
+                "Row height must be positive".to_string(),
+            ));
         }
 
         // Additional validation rules
         for rule in &self.validation.rules {
             if !self.evaluate_validation_rule(rule, layout) {
                 match rule.severity {
-                    ValidationSeverity::Critical => return Err(LayoutError::ValidationFailed(rule.name.clone())),
-                    ValidationSeverity::Error => return Err(LayoutError::ValidationFailed(rule.name.clone())),
+                    ValidationSeverity::Critical => {
+                        return Err(LayoutError::ValidationFailed(rule.name.clone()))
+                    }
+                    ValidationSeverity::Error => {
+                        return Err(LayoutError::ValidationFailed(rule.name.clone()))
+                    }
                     ValidationSeverity::Warning => {
                         // Log warning but continue
                         eprintln!("Layout validation warning: {}", rule.description);
@@ -1056,14 +1068,18 @@ impl LayoutEngine {
     }
 
     /// Evaluate validation rule
-    fn evaluate_validation_rule(&self, rule: &ValidationRule, layout: &DashboardLayout) -> bool {
+    fn evaluate_validation_rule(&self, _rule: &ValidationRule, _layout: &DashboardLayout) -> bool {
         // Simplified rule evaluation
         // In a real implementation, this would parse and evaluate the condition string
         true
     }
 
     /// Apply grid layout
-    fn apply_grid_layout(&self, layout: &DashboardLayout, widgets: &mut [super::widget_system::DashboardWidget]) -> Result<(), LayoutError> {
+    fn apply_grid_layout(
+        &self,
+        layout: &DashboardLayout,
+        widgets: &mut [super::widget_system::DashboardWidget],
+    ) -> Result<(), LayoutError> {
         let grid_config = &layout.grid_config;
         let mut current_row = 0;
         let mut current_col = 0;
@@ -1085,34 +1101,55 @@ impl LayoutEngine {
     }
 
     /// Apply flexible layout
-    fn apply_flexible_layout(&self, layout: &DashboardLayout, widgets: &mut [super::widget_system::DashboardWidget]) -> Result<(), LayoutError> {
+    fn apply_flexible_layout(
+        &self,
+        _layout: &DashboardLayout,
+        _widgets: &mut [super::widget_system::DashboardWidget],
+    ) -> Result<(), LayoutError> {
         // Flexible layout implementation
         // This would distribute widgets based on available space and priorities
         Ok(())
     }
 
     /// Apply fixed layout
-    fn apply_fixed_layout(&self, layout: &DashboardLayout, widgets: &mut [super::widget_system::DashboardWidget]) -> Result<(), LayoutError> {
+    fn apply_fixed_layout(
+        &self,
+        _layout: &DashboardLayout,
+        _widgets: &mut [super::widget_system::DashboardWidget],
+    ) -> Result<(), LayoutError> {
         // Fixed layout keeps widgets in their predefined positions
         Ok(())
     }
 
     /// Apply masonry layout
-    fn apply_masonry_layout(&self, layout: &DashboardLayout, widgets: &mut [super::widget_system::DashboardWidget]) -> Result<(), LayoutError> {
+    fn apply_masonry_layout(
+        &self,
+        _layout: &DashboardLayout,
+        _widgets: &mut [super::widget_system::DashboardWidget],
+    ) -> Result<(), LayoutError> {
         // Masonry layout implementation
         // This would arrange widgets in a Pinterest-style layout
         Ok(())
     }
 
     /// Apply flow layout
-    fn apply_flow_layout(&self, layout: &DashboardLayout, widgets: &mut [super::widget_system::DashboardWidget]) -> Result<(), LayoutError> {
+    fn apply_flow_layout(
+        &self,
+        _layout: &DashboardLayout,
+        _widgets: &mut [super::widget_system::DashboardWidget],
+    ) -> Result<(), LayoutError> {
         // Flow layout implementation
         // This would arrange widgets in a flowing manner
         Ok(())
     }
 
     /// Apply custom layout
-    fn apply_custom_layout(&self, algorithm: &LayoutAlgorithm, layout: &DashboardLayout, widgets: &mut [super::widget_system::DashboardWidget]) -> Result<(), LayoutError> {
+    fn apply_custom_layout(
+        &self,
+        _algorithm: &LayoutAlgorithm,
+        _layout: &DashboardLayout,
+        _widgets: &mut [super::widget_system::DashboardWidget],
+    ) -> Result<(), LayoutError> {
         // Custom layout algorithm implementation
         // This would use the specified algorithm to arrange widgets
         Ok(())

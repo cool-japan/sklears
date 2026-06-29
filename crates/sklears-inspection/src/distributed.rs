@@ -21,7 +21,12 @@
 //! # Example
 //!
 //! ```rust
-//! use sklears_inspection::distributed::{DistributedCoordinator, WorkerNode, ClusterConfig};
+//! use sklears_inspection::distributed::{
+//!     DistributedCoordinator, ClusterConfig, DistributedTask, TaskType, LoadBalancingStrategy,
+//! };
+//! use scirs2_core::ndarray::Array2;
+//! use std::collections::HashMap;
+//! use std::time::Instant;
 //!
 //! // Create a cluster configuration
 //! let config = ClusterConfig {
@@ -30,20 +35,31 @@
 //!     retry_attempts: 3,
 //!     load_balancing_strategy: LoadBalancingStrategy::LeastLoaded,
 //!     enable_fault_tolerance: true,
+//!     ..Default::default()
 //! };
 //!
 //! // Initialize coordinator
 //! let coordinator = DistributedCoordinator::new(config)?;
 //!
 //! // Register workers
-//! coordinator.register_worker("worker1".to_string(), "192.168.1.10:8080")?;
-//! coordinator.register_worker("worker2".to_string(), "192.168.1.11:8080")?;
+//! coordinator.register_worker("worker1".to_string(), "192.168.1.10:8080".to_string())?;
+//! coordinator.register_worker("worker2".to_string(), "192.168.1.11:8080".to_string())?;
 //!
-//! // Submit explanation tasks
+//! // Build and submit explanation task
+//! let explanation_task = DistributedTask {
+//!     task_id: "task_001".to_string(),
+//!     task_type: TaskType::ComputeShap,
+//!     priority: 5,
+//!     input_data: Array2::zeros((10, 3)),
+//!     metadata: HashMap::new(),
+//!     created_at: Instant::now(),
+//! };
 //! let task_id = coordinator.submit_task(explanation_task)?;
 //!
-//! // Wait for results
-//! let result = coordinator.get_result(task_id)?;
+//! // Process the task queue and retrieve results
+//! coordinator.schedule_tasks()?;
+//! let result = coordinator.get_result(&task_id)?;
+//! # let _ = result;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
@@ -353,22 +369,37 @@ impl DistributedCoordinator {
             stats.running_tasks += 1;
         } // Release stats lock here
 
-        // In a real implementation, this would send the task to the worker
-        // For now, we simulate immediate processing (all locks released before this call)
-        self.simulate_task_execution(task, worker_id.to_string())?;
+        // A fully distributed deployment would dispatch this to a remote worker over the
+        // network. In this in-process coordinator we execute the task locally and store
+        // a real, data-derived result (no remote transport layer is wired up yet).
+        self.execute_task_locally(task, worker_id.to_string())?;
 
         Ok(())
     }
 
-    /// Simulate task execution (in real implementation, this would be async)
-    fn simulate_task_execution(&self, task: DistributedTask, worker_id: String) -> SklResult<()> {
-        // Simulate task processing
+    /// Execute a task locally and store a real result computed from its input data.
+    ///
+    /// The coordinator does not carry a fitted model, so model-dependent explanations
+    /// (SHAP, permutation importance, counterfactuals) are produced as *model-free,
+    /// data-derived baselines* rather than fabricated constants:
+    ///   * feature-importance tasks return the per-feature variance vector;
+    ///   * SHAP / batch tasks return per-cell mean-centered absolute deviations,
+    ///     flattened row-major (so a batch of `r` samples x `c` features yields `r*c`
+    ///     values, matching the aggregator's layout);
+    ///   * counterfactual tasks return each cell's signed deviation from its column
+    ///     mean (the minimal move toward the feature average).
+    ///
+    /// These are genuine computations over `input_data`; they are documented as
+    /// baselines, never presented as exact model attributions.
+    fn execute_task_locally(&self, task: DistributedTask, worker_id: String) -> SklResult<()> {
+        let start = Instant::now();
+        let result_data = compute_task_result(&task.task_type, &task.input_data);
         let result = TaskResult {
             task_id: task.task_id.clone(),
             worker_id: worker_id.clone(),
             status: TaskStatus::Completed,
-            result_data: Array1::zeros(10), // Placeholder
-            execution_time: Duration::from_millis(100),
+            result_data,
+            execution_time: start.elapsed(),
             retry_count: 0,
         };
 
@@ -661,6 +692,69 @@ pub enum HealthStatus {
     Degraded,
     /// Critical failure
     Critical,
+}
+
+/// Compute a real, data-derived result vector for a distributed task.
+///
+/// See [`ExplanationCoordinator::execute_task_locally`] for the semantics of each task
+/// type. The returned vector is always sized consistently with the task's `input_data`
+/// (never a fixed-length placeholder).
+fn compute_task_result(task_type: &TaskType, input_data: &Array2<Float>) -> Array1<Float> {
+    let n_rows = input_data.nrows();
+    let n_cols = input_data.ncols();
+
+    // Per-feature (column) means, used by several task types.
+    let column_means: Vec<Float> = (0..n_cols)
+        .map(|j| {
+            if n_rows == 0 {
+                0.0
+            } else {
+                input_data.column(j).iter().copied().sum::<Float>() / n_rows as Float
+            }
+        })
+        .collect();
+
+    match task_type {
+        TaskType::ComputeFeatureImportance | TaskType::ComputePermutationImportance => {
+            // Per-feature variance as a model-free importance signal.
+            let mut importance = Array1::<Float>::zeros(n_cols);
+            if n_rows > 0 {
+                for j in 0..n_cols {
+                    let mean = column_means[j];
+                    let var = input_data
+                        .column(j)
+                        .iter()
+                        .map(|&v| (v - mean).powi(2))
+                        .sum::<Float>()
+                        / n_rows as Float;
+                    importance[j] = var;
+                }
+            }
+            importance
+        }
+        TaskType::ComputeShap | TaskType::BatchExplanation => {
+            // Per-cell mean-centered absolute deviation, flattened row-major so the
+            // aggregator can reshape it as (batch_samples x n_features).
+            let mut flat = Array1::<Float>::zeros(n_rows * n_cols);
+            for i in 0..n_rows {
+                for j in 0..n_cols {
+                    flat[i * n_cols + j] = (input_data[[i, j]] - column_means[j]).abs();
+                }
+            }
+            flat
+        }
+        TaskType::GenerateCounterfactuals => {
+            // Signed deviation of each cell from its column mean: the minimal move that
+            // would bring the feature to the dataset average.
+            let mut flat = Array1::<Float>::zeros(n_rows * n_cols);
+            for i in 0..n_rows {
+                for j in 0..n_cols {
+                    flat[i * n_cols + j] = column_means[j] - input_data[[i, j]];
+                }
+            }
+            flat
+        }
+    }
 }
 
 #[cfg(test)]

@@ -3,11 +3,11 @@
 //! This module handles output format management, delivery channel coordination,
 //! delivery scheduling, tracking, and analytics for report distribution.
 
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 
 /// Output format manager
 ///
@@ -74,11 +74,12 @@ pub struct CompressionOption {
 }
 
 /// Supported output format types
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum OutputFormat {
     /// PDF format
     PDF,
     /// HTML format
+    #[default]
     HTML,
     /// Excel format
     Excel,
@@ -218,7 +219,7 @@ pub struct OAuth2Config {
 ///
 /// Manages immediate, batch, and scheduled delivery options
 /// with timing and coordination settings.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DeliveryScheduling {
     /// Immediate delivery settings
     pub immediate_delivery: ImmediateDeliveryConfig,
@@ -289,7 +290,7 @@ pub enum BackoffStrategy {
 ///
 /// Tracks delivery operations with comprehensive logging
 /// and analytics for monitoring and optimization.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DeliveryTracking {
     /// Delivery logs
     pub delivery_logs: Vec<DeliveryLog>,
@@ -352,6 +353,12 @@ pub struct VolumeStatistics {
     pub peak_delivery_rate: f64,
 }
 
+impl Default for OutputFormatManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OutputFormatManager {
     /// Create a new output format manager
     pub fn new() -> Self {
@@ -364,7 +371,8 @@ impl OutputFormatManager {
 
     /// Add a format handler
     pub fn add_handler(&mut self, handler: FormatHandler) -> Result<(), String> {
-        self.format_handlers.insert(handler.handler_id.clone(), handler);
+        self.format_handlers
+            .insert(handler.handler_id.clone(), handler);
         Ok(())
     }
 
@@ -392,6 +400,12 @@ impl OutputFormatManager {
     }
 }
 
+impl Default for ReportDeliveryCoordinator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReportDeliveryCoordinator {
     /// Create a new delivery coordinator
     pub fn new() -> Self {
@@ -405,8 +419,15 @@ impl ReportDeliveryCoordinator {
     /// Add a delivery channel
     pub fn add_channel(&mut self, channel: DeliveryChannel) -> Result<(), String> {
         // Check for duplicate channel IDs
-        if self.delivery_channels.iter().any(|c| c.channel_id == channel.channel_id) {
-            return Err(format!("Channel with ID {} already exists", channel.channel_id));
+        if self
+            .delivery_channels
+            .iter()
+            .any(|c| c.channel_id == channel.channel_id)
+        {
+            return Err(format!(
+                "Channel with ID {} already exists",
+                channel.channel_id
+            ));
         }
 
         self.delivery_channels.push(channel);
@@ -416,7 +437,8 @@ impl ReportDeliveryCoordinator {
     /// Remove a delivery channel
     pub fn remove_channel(&mut self, channel_id: &str) -> Result<(), String> {
         let initial_len = self.delivery_channels.len();
-        self.delivery_channels.retain(|channel| channel.channel_id != channel_id);
+        self.delivery_channels
+            .retain(|channel| channel.channel_id != channel_id);
 
         if self.delivery_channels.len() == initial_len {
             Err(format!("Channel with ID {} not found", channel_id))
@@ -427,7 +449,9 @@ impl ReportDeliveryCoordinator {
 
     /// Get a delivery channel by ID
     pub fn get_channel(&self, channel_id: &str) -> Option<&DeliveryChannel> {
-        self.delivery_channels.iter().find(|channel| channel.channel_id == channel_id)
+        self.delivery_channels
+            .iter()
+            .find(|channel| channel.channel_id == channel_id)
     }
 
     /// Log a delivery attempt
@@ -443,7 +467,8 @@ impl ReportDeliveryCoordinator {
             return;
         }
 
-        let successful_deliveries = self.delivery_tracking
+        let successful_deliveries = self
+            .delivery_tracking
             .delivery_logs
             .iter()
             .filter(|log| matches!(log.status, DeliveryStatus::Success))
@@ -457,22 +482,35 @@ impl ReportDeliveryCoordinator {
         self.delivery_tracking.analytics.average_delivery_time = Duration::from_secs(30);
 
         // Update volume statistics
-        self.delivery_tracking.analytics.volume_stats.total_deliveries = total_deliveries;
+        self.delivery_tracking
+            .analytics
+            .volume_stats
+            .total_deliveries = total_deliveries;
 
         // Calculate deliveries per hour (last 24 hours)
         let day_ago = Utc::now() - chrono::Duration::hours(24);
-        let recent_deliveries = self.delivery_tracking
+        let recent_deliveries = self
+            .delivery_tracking
             .delivery_logs
             .iter()
             .filter(|log| log.delivery_timestamp > day_ago)
             .count();
 
-        self.delivery_tracking.analytics.volume_stats.deliveries_per_hour =
-            recent_deliveries as f64 / 24.0;
+        self.delivery_tracking
+            .analytics
+            .volume_stats
+            .deliveries_per_hour = recent_deliveries as f64 / 24.0;
 
         // Set peak delivery rate (simplified)
-        self.delivery_tracking.analytics.volume_stats.peak_delivery_rate =
-            self.delivery_tracking.analytics.volume_stats.deliveries_per_hour * 2.0;
+        self.delivery_tracking
+            .analytics
+            .volume_stats
+            .peak_delivery_rate = self
+            .delivery_tracking
+            .analytics
+            .volume_stats
+            .deliveries_per_hour
+            * 2.0;
     }
 
     /// Get delivery analytics
@@ -491,16 +529,6 @@ impl ReportDeliveryCoordinator {
     }
 }
 
-impl Default for DeliveryScheduling {
-    fn default() -> Self {
-        Self {
-            immediate_delivery: ImmediateDeliveryConfig::default(),
-            batch_delivery: BatchDeliveryConfig::default(),
-            scheduled_delivery: ScheduledDeliveryConfig::default(),
-        }
-    }
-}
-
 impl Default for ImmediateDeliveryConfig {
     fn default() -> Self {
         Self {
@@ -516,7 +544,7 @@ impl Default for BatchDeliveryConfig {
         Self {
             batch_size: 100,
             batch_interval: Duration::from_secs(300), // 5 minutes
-            max_wait_time: Duration::from_secs(600), // 10 minutes
+            max_wait_time: Duration::from_secs(600),  // 10 minutes
         }
     }
 }
@@ -537,15 +565,6 @@ impl Default for RetryConfiguration {
             max_retries: 3,
             retry_delay: Duration::from_secs(1),
             backoff_strategy: BackoffStrategy::Exponential,
-        }
-    }
-}
-
-impl Default for DeliveryTracking {
-    fn default() -> Self {
-        Self {
-            delivery_logs: Vec::new(),
-            analytics: DeliveryAnalytics::default(),
         }
     }
 }

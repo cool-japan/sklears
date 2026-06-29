@@ -652,29 +652,12 @@ impl StableEigen {
         Ok(l)
     }
 
-    /// Simple matrix inverse (for small matrices)
+    /// Compute matrix inverse using LAPACK-backed LU decomposition.
     fn matrix_inverse(&self, matrix: &Array2<Float>) -> SklResult<Array2<Float>> {
-        // This is a simplified implementation
-        // In practice, you'd use LAPACK's DGETRF/DGETRI or similar
-        let n = matrix.nrows();
-
-        if n <= 3 {
-            // Direct formulas for small matrices
-            if n == 1 {
-                if matrix[[0, 0]].abs() < 1e-14 {
-                    return Err(SklearsError::InvalidParameter {
-                        name: "matrix_inverse".to_string(),
-                        reason: "Matrix is singular".to_string(),
-                    });
-                }
-                let mut inv = Array2::zeros((1, 1));
-                inv[[0, 0]] = 1.0 / matrix[[0, 0]];
-                return Ok(inv);
-            }
-        }
-
-        // For larger matrices, use a placeholder identity (in practice use LAPACK)
-        Ok(Array2::eye(n))
+        matrix.inv().map_err(|e| SklearsError::InvalidParameter {
+            name: "matrix_inverse".to_string(),
+            reason: format!("Matrix inversion failed: {}", e),
+        })
     }
 }
 

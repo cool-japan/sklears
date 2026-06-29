@@ -376,6 +376,138 @@ impl Default for ObjectiveConfig {
     }
 }
 
+/// Model evaluation configuration
+///
+/// Represents the configuration for the `model_evaluation!` macro. It captures
+/// the model and dataset expressions together with the metrics, cross-validation
+/// strategy, and statistical testing options used to generate evaluation code.
+#[derive(Clone)]
+pub struct ModelEvaluationConfig {
+    /// Expression yielding the fitted model (or a model factory) to evaluate
+    pub model: syn::Expr,
+    /// Expression yielding the feature matrix
+    pub features: syn::Expr,
+    /// Expression yielding the target vector
+    pub targets: syn::Expr,
+    /// Metrics to compute during evaluation
+    pub metrics: Vec<OptimizationMetric>,
+    /// Cross-validation configuration applied during evaluation
+    pub cross_validation: Option<CrossValidationConfig>,
+    /// Statistical significance test to apply to the resulting scores
+    pub statistical_test: Option<StatisticalTest>,
+}
+
+/// Statistical test applied to evaluation results
+///
+/// Identifies the statistical hypothesis test used to assess whether the
+/// observed performance differences are significant.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum StatisticalTest {
+    /// Paired Student's t-test on per-fold scores
+    PairedTTest,
+    /// Wilcoxon signed-rank test on per-fold scores
+    Wilcoxon,
+    /// McNemar's test for paired nominal predictions
+    McNemar,
+    /// Custom statistical test referenced by function name
+    Custom(String),
+}
+
+/// Data pipeline configuration
+///
+/// Represents the configuration for the `data_pipeline!` macro. It describes an
+/// ordered set of data processing steps together with the execution mode used to
+/// drive streaming, batch, or real-time transformation code generation.
+#[derive(Clone)]
+pub struct DataPipelineConfig {
+    /// Name of the generated data pipeline
+    pub name: String,
+    /// Expression yielding the input data source
+    pub source: syn::Expr,
+    /// Ordered processing steps applied to the data
+    pub steps: Vec<DataStep>,
+    /// Execution mode driving the generated runtime
+    pub mode: DataPipelineMode,
+    /// Number of records per batch for batch/streaming modes
+    pub batch_size: Option<usize>,
+    /// Whether to execute independent steps in parallel
+    pub parallel: bool,
+}
+
+/// Individual data processing step definition
+///
+/// Defines a single transformation applied to the data stream within a
+/// `DataPipelineConfig`.
+#[derive(Clone)]
+pub struct DataStep {
+    /// Name of the step for identification and tracing
+    pub name: String,
+    /// Kind of data operation performed by the step
+    pub operation: DataOperation,
+    /// Expression implementing the step transformation
+    pub transform: syn::Expr,
+}
+
+/// Kind of data operation performed by a pipeline step
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DataOperation {
+    /// Reading or ingesting data from a source
+    Load,
+    /// Filtering rows based on a predicate
+    Filter,
+    /// Mapping or transforming records element-wise
+    Map,
+    /// Aggregating records into summary values
+    Aggregate,
+    /// Joining with another dataset
+    Join,
+    /// Writing or persisting data to a sink
+    Sink,
+    /// Custom user-defined operation referenced by name
+    Custom(String),
+}
+
+/// Execution mode for data pipelines
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DataPipelineMode {
+    /// Process the entire dataset in a single batch
+    Batch,
+    /// Process records incrementally as a stream
+    Streaming,
+    /// Process records as they arrive in real time
+    RealTime,
+}
+
+/// Experiment configuration
+///
+/// Represents the configuration for the `experiment_config!` macro. It captures
+/// the experiment identity, hyperparameters, tracked metrics, and reproducibility
+/// settings used to generate experiment tracking code.
+#[derive(Clone)]
+pub struct ExperimentConfig {
+    /// Human-readable name of the experiment
+    pub name: String,
+    /// Optional free-form description of the experiment
+    pub description: Option<String>,
+    /// Hyperparameters recorded for the experiment, keyed by name
+    pub parameters: Vec<ExperimentParameter>,
+    /// Names of metrics tracked during the experiment
+    pub tracked_metrics: Vec<String>,
+    /// Random seed pinned for reproducibility
+    pub seed: Option<u64>,
+    /// Tags attached to the experiment for organization
+    pub tags: Vec<String>,
+}
+
+/// Single hyperparameter recorded for an experiment
+#[derive(Clone)]
+pub struct ExperimentParameter {
+    /// Name of the parameter
+    pub name: String,
+    /// Expression yielding the parameter value at runtime
+    pub value: syn::Expr,
+}
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {

@@ -171,8 +171,10 @@ pub type DynamicEnsembleSelectorTrained = DynamicEnsembleSelector<Trained>;
 pub struct CompetenceScores {
     /// Per-estimator competence scores
     pub scores: HashMap<String, Float>,
-    /// Confidence in competence estimation
-    pub confidence: Float,
+    /// Confidence in the competence estimation, in `[0, 1]`, derived from the
+    /// dispersion of the per-estimator scores. `None` when no scores are
+    /// available to derive it from.
+    pub confidence: Option<Float>,
     /// Number of samples used for estimation
     pub n_samples: usize,
     /// Timestamp of last update
@@ -186,8 +188,10 @@ pub struct SelectionResult {
     pub selected_estimators: Vec<String>,
     /// Weights for selected estimators
     pub weights: Vec<Float>,
-    /// Confidence in selection
-    pub selection_confidence: Float,
+    /// Confidence in the selection, in `[0, 1]`, when it can be derived from
+    /// competence/structural evidence. `None` when no confidence signal is
+    /// available (e.g. uniform fallback selection).
+    pub selection_confidence: Option<Float>,
     /// Reasoning for selection (for debugging)
     pub reasoning: String,
 }
@@ -505,8 +509,11 @@ impl DynamicEnsembleSelector<Trained> {
         Ok(SelectionResult {
             selected_estimators: vec![best_name],
             weights: vec![1.0],
-            selection_confidence: 1.0,
-            reasoning: "Selected best overall performer".to_string(),
+            // No validation performance is stored, so "best" is the first
+            // registered estimator by convention, not a measured winner.
+            selection_confidence: None,
+            reasoning: "Selected first registered estimator (no stored validation performance)"
+                .to_string(),
         })
     }
 
@@ -530,8 +537,10 @@ impl DynamicEnsembleSelector<Trained> {
         Ok(SelectionResult {
             selected_estimators: selected,
             weights,
-            selection_confidence: 0.8,
-            reasoning: "Greedy selection based on incremental improvement".to_string(),
+            // Improvement is not actually evaluated yet, so no confidence signal.
+            selection_confidence: None,
+            reasoning: "Greedy selection (incremental improvement evaluation not yet implemented)"
+                .to_string(),
         })
     }
 
@@ -552,8 +561,9 @@ impl DynamicEnsembleSelector<Trained> {
         Ok(SelectionResult {
             selected_estimators: selected,
             weights,
-            selection_confidence: 0.7,
-            reasoning: format!("K-nearest oracle selection with k={}", k),
+            // Oracle performance is not stored, so no confidence signal.
+            selection_confidence: None,
+            reasoning: format!("K-nearest oracle selection with k={} (oracle performance not stored)", k),
         })
     }
 
@@ -574,8 +584,12 @@ impl DynamicEnsembleSelector<Trained> {
         Ok(SelectionResult {
             selected_estimators: selected,
             weights,
-            selection_confidence: 0.75,
-            reasoning: format!("Local accuracy selection in neighborhood of size {}", neighborhood_size),
+            // Local neighborhood performance is not stored, so no confidence signal.
+            selection_confidence: None,
+            reasoning: format!(
+                "Local accuracy selection in neighborhood of size {} (local performance not stored)",
+                neighborhood_size
+            ),
         })
     }
 
@@ -596,7 +610,6 @@ impl DynamicEnsembleSelector<Trained> {
         let mut selected = Vec::new();
 
         for (name, _) in &self.estimators {
-            // Simplified competence calculation
             let competence = self.estimate_competence(name, sample)?;
 
             if let Some(threshold) = self.dynamic_threshold {
@@ -610,8 +623,12 @@ impl DynamicEnsembleSelector<Trained> {
             }
         }
 
+        // Track whether selection had to fall back to the minimum-models rule
+        // (in which case the per-model competences no longer back the weights).
+        let used_fallback = selected.len() < self.min_models;
+
         // Ensure minimum number of models
-        if selected.len() < self.min_models {
+        if used_fallback {
             selected.clear();
             weights.clear();
             for (name, _) in self.estimators.iter().take(self.min_models) {
@@ -619,6 +636,27 @@ impl DynamicEnsembleSelector<Trained> {
                 weights.push(1.0);
             }
         }
+
+        // Derive selection confidence from the dispersion of the (un-normalized)
+        // competence weights: a confident decision is one where the selected
+        // models clearly dominate (high mean competence, low relative spread).
+        // When we fell back to uniform weights we cannot claim competence-backed
+        // confidence, so it is None.
+        let selection_confidence = if used_fallback || weights.is_empty() {
+            None
+        } else {
+            let n = weights.len() as Float;
+            let mean = weights.iter().sum::<Float>() / n;
+            let variance = weights.iter().map(|w| (w - mean).powi(2)).sum::<Float>() / n;
+            let std = variance.sqrt();
+            // Coefficient of variation, clamped; lower spread => higher confidence.
+            let cv = if mean.abs() > Float::EPSILON {
+                (std / mean).min(1.0)
+            } else {
+                1.0
+            };
+            Some((mean * (1.0 - cv)).clamp(0.0, 1.0))
+        };
 
         // Normalize weights
         let weight_sum: Float = weights.iter().sum();
@@ -629,7 +667,7 @@ impl DynamicEnsembleSelector<Trained> {
         Ok(SelectionResult {
             selected_estimators: selected,
             weights,
-            selection_confidence: 0.85,
+            selection_confidence,
             reasoning: "Adaptive weighting based on local competence".to_string(),
         })
     }
@@ -646,32 +684,51 @@ impl DynamicEnsembleSelector<Trained> {
         Ok(SelectionResult {
             selected_estimators: selected,
             weights,
-            selection_confidence: 0.8,
-            reasoning: format!("Top-{} ranking selection", top_k),
+            // Ranking is by registration order (no stored scores), so no confidence signal.
+            selection_confidence: None,
+            reasoning: format!("Top-{} ranking selection (by registration order)", top_k),
         })
     }
 
-    /// Estimate competence for a specific estimator
-    fn estimate_competence(&self, estimator_name: &str, sample: &ArrayView1<'_, Float>) -> SklResult<Float> {
-        match &self.competence_estimation {
+    /// Estimate competence for a specific estimator on a single sample.
+    ///
+    /// Every competence-estimation method needs state that this selector does not
+    /// currently retain after fitting:
+    ///   * `Accuracy` / `LocalAccuracy` require the stored validation set (and its
+    ///     labels) so per-region accuracy can be measured around `sample`.
+    ///   * `DistanceBased` requires the stored training features so the inverse
+    ///     distance to the nearest neighbor can be computed.
+    ///   * `ConfidenceBased` requires probability outputs, but `PipelinePredictor`
+    ///     only exposes `predict`, not `predict_proba`.
+    ///
+    /// Previously this method fabricated fixed competences (0.8 / 0.75 / 0.7 /
+    /// 0.85) that ignored both the estimator and the `sample`, making every
+    /// ranking and weight downstream meaningless. We return an honest error
+    /// instead of inventing a value.
+    fn estimate_competence(
+        &self,
+        estimator_name: &str,
+        sample: &ArrayView1<'_, Float>,
+    ) -> SklResult<Float> {
+        let _ = (estimator_name, sample);
+        let detail = match &self.competence_estimation {
             CompetenceEstimation::Accuracy => {
-                // Return fixed competence for simplicity
-                Ok(0.8)
-            },
+                "Accuracy competence requires a stored validation set with labels"
+            }
             CompetenceEstimation::LocalAccuracy => {
-                // Estimate based on local neighborhood performance
-                Ok(0.75)
-            },
+                "LocalAccuracy competence requires a stored validation set for k-NN local scoring"
+            }
             CompetenceEstimation::DistanceBased => {
-                // Competence based on distance to training data
-                Ok(0.7)
-            },
+                "DistanceBased competence requires stored training features for nearest-neighbor distance"
+            }
             CompetenceEstimation::ConfidenceBased => {
-                // Use model confidence as competence
-                Ok(0.85)
-            },
-            _ => Ok(0.5), // Default competence
-        }
+                "ConfidenceBased competence requires predict_proba, which PipelinePredictor does not expose"
+            }
+            _ => "the selected competence-estimation method requires stored fit-time data",
+        };
+        Err(SklearsError::NotImplemented(format!(
+            "estimate_competence: {detail}; refusing to return a fabricated competence score"
+        )))
     }
 
     /// Get competence scores for all estimators
@@ -694,9 +751,24 @@ impl DynamicEnsembleSelector<Trained> {
             scores.insert(name.clone(), avg_competence);
         }
 
+        // Confidence reflects how clearly the estimators are separated by
+        // competence: a wide spread of average competences yields higher
+        // confidence in the ranking than a flat one.
+        let confidence = if scores.is_empty() {
+            None
+        } else {
+            let values: Vec<Float> = scores.values().copied().collect();
+            let n = values.len() as Float;
+            let mean = values.iter().sum::<Float>() / n;
+            let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<Float>() / n;
+            // Map the standard deviation into [0, 1]; competences live in [0, 1]
+            // so std is bounded by 0.5, giving a stable normalization factor.
+            Some((variance.sqrt() * 2.0).clamp(0.0, 1.0))
+        };
+
         Ok(CompetenceScores {
             scores,
-            confidence: 0.8,
+            confidence,
             n_samples: x.nrows(),
             last_updated: Some(std::time::SystemTime::now()),
         })

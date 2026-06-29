@@ -393,7 +393,7 @@ impl Default for RenderingStatistics {
             total_renders: 0,
             successful_renders: 0,
             failed_renders: 0,
-            average_render_time: Duration::from_secs(0),
+            average_render_time: Duration::seconds(0),
             render_time_distribution: HashMap::new(),
         }
     }
@@ -424,10 +424,10 @@ impl Default for ThroughputMetrics {
 impl Default for LatencyMetrics {
     fn default() -> Self {
         Self {
-            average_latency: Duration::from_secs(0),
-            median_latency: Duration::from_secs(0),
-            p95_latency: Duration::from_secs(0),
-            p99_latency: Duration::from_secs(0),
+            average_latency: Duration::seconds(0),
+            median_latency: Duration::seconds(0),
+            p95_latency: Duration::seconds(0),
+            p99_latency: Duration::seconds(0),
         }
     }
 }
@@ -460,7 +460,7 @@ impl Default for ErrorMetrics {
             error_rate: 0.0,
             error_distribution: HashMap::new(),
             recovery_rate: 100.0,
-            mean_time_to_recovery: Duration::from_secs(0),
+            mean_time_to_recovery: Duration::seconds(0),
         }
     }
 }
@@ -479,7 +479,7 @@ impl Default for UsageMetrics {
 impl Default for EngagementMetrics {
     fn default() -> Self {
         Self {
-            session_duration: Duration::from_secs(0),
+            session_duration: Duration::seconds(0),
             interaction_count: 0,
             return_user_rate: 0.0,
             feature_adoption_rate: 0.0,
@@ -490,7 +490,7 @@ impl Default for EngagementMetrics {
 impl Default for ResourceMonitoring {
     fn default() -> Self {
         Self {
-            interval: Duration::from_secs(60),
+            interval: Duration::seconds(60),
             monitored_resources: vec![ResourceType::CPU, ResourceType::Memory],
             metrics: vec![MonitoringMetric::Utilization],
             alert_thresholds: HashMap::new(),

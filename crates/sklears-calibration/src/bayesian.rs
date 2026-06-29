@@ -595,15 +595,13 @@ impl HierarchicalBayesianCalibrator {
                 continue; // Skip groups with insufficient data
             }
 
-            // Simple logistic regression for each group
+            // Fit per-group Platt sigmoid calibrator and extract its [a, b] parameters.
             let probs_array = Array1::from(group_probs.clone());
             let targets_array = Array1::from(group_targets.clone());
 
-            let group_calibrator = crate::SigmoidCalibrator::new();
-            group_calibrator.fit(&probs_array, &targets_array)?;
-
-            // Extract parameters (simplified - in practice would need proper parameter extraction)
-            let params = Array1::from(vec![1.0, 0.0]); // Placeholder parameters
+            let fitted = crate::SigmoidCalibrator::new().fit(&probs_array, &targets_array)?;
+            let [a, b] = fitted.params();
+            let params = Array1::from(vec![a, b]);
             self.group_params.insert(group.clone(), params.clone());
             all_group_params.push(params);
         }

@@ -49,6 +49,7 @@ pub mod tensor_methods;
 pub mod time_series;
 pub mod type_safe_linalg;
 pub mod validation_framework;
+pub mod validation_metrics;
 
 pub use bayesian::{
     BayesianCCA, BayesianCCAResults, HierarchicalBayesianCCA, HierarchicalBayesianCCAResults,

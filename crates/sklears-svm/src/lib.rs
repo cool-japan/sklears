@@ -42,10 +42,12 @@
 pub use sklears_core::prelude::*;
 
 pub mod adaptive_regularization;
+pub mod advanced_optimization;
 pub mod calibration;
 pub mod chunked_processing;
 pub mod compressed_kernels;
 pub mod computer_vision_kernels;
+pub mod conformal_prediction;
 pub mod crammer_singer;
 pub mod decomposition;
 pub mod distributed_svm;
@@ -73,13 +75,11 @@ pub mod out_of_core_svm;
 pub mod outlier_resistant_svm;
 pub mod parallel_smo;
 pub mod primal_dual_methods;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod property_tests;
+pub mod property_tests;
 pub mod ranking_svm;
 pub mod regularization_path;
 pub mod robust_svm;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod semi_supervised;
+pub mod semi_supervised;
 pub mod sgd_svm;
 pub mod simd_kernels;
 pub mod smo;
@@ -98,12 +98,18 @@ pub mod visualization;
 mod elastic_net_tests;
 
 pub use adaptive_regularization::*;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use advanced_optimization::*;
+// `OptimizationResult` is intentionally excluded here because it collides with
+// the `hyperparameter_optimization::OptimizationResult` re-export below; it
+// remains reachable as `advanced_optimization::OptimizationResult`.
+pub use advanced_optimization::{
+    AcceleratedGradientSVM, AcceleratedMethod, AdvancedOptimizationConfig, NewtonSVM,
+    TrustRegionSVM, ADMMSVM,
+};
 pub use calibration::*;
 pub use chunked_processing::*;
 pub use compressed_kernels::*;
 pub use computer_vision_kernels::*;
+pub use conformal_prediction::*;
 pub use crammer_singer::*;
 pub use decomposition::*;
 pub use distributed_svm::*;
@@ -134,13 +140,11 @@ pub use out_of_core_svm::*;
 pub use outlier_resistant_svm::*;
 pub use parallel_smo::*;
 pub use primal_dual_methods::*;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use property_tests::*;
+pub use property_tests::*;
 pub use ranking_svm::*;
 pub use regularization_path::*;
 pub use robust_svm::*;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use semi_supervised::*;
+pub use semi_supervised::*;
 pub use sgd_svm::*;
 pub use simd_kernels::*;
 pub use smo::*;

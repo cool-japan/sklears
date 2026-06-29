@@ -69,9 +69,12 @@ mod federated_learning;
 mod plugin_architecture;
 mod quantum_methods;
 
-// Serialization support (temporarily disabled due to dependency compilation issues)
-// #[cfg(feature = "serde")]
-// mod serialization;
+// Serialization support (gated behind the `serialization` feature, mirroring
+// the working approach used by sibling crates such as sklears-manifold).
+#[cfg(feature = "serialization")]
+pub mod serialization;
+#[cfg(feature = "serialization")]
+mod serialization_impl;
 
 // Re-export utility functions
 pub use utils::{
@@ -386,12 +389,12 @@ pub use plugin_architecture::{
     RegularizationFunction, GLOBAL_REGISTRY,
 };
 
-// Re-export Serialization (temporarily disabled due to dependency compilation issues)
-// #[cfg(feature = "serde")]
-// pub use serialization::{
-//     CompressionMethod, ModelMetadata, ModelRegistry, ModelValidator, SerializableModelData,
-//     SerializationFormat, ValidationError,
-// };
+// Re-export Serialization
+#[cfg(feature = "serialization")]
+pub use serialization::{
+    ArrayConverter, ModelMetadata, ModelSerializer, ModelState, Serializable, SerializableModel,
+    SerializableModelBuilder, SerializableParam, SerializationFormat,
+};
 
 // All estimators have been successfully modularized!
 // The refactoring is complete with the following modules:

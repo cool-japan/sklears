@@ -27,6 +27,8 @@ bytemuck = { workspace = true }
 rayon = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 memmap2 = { workspace = true, optional = true }
+oxicuda-backend = { workspace = true, optional = true }
+oxicuda-manifold = { workspace = true, optional = true }
 
 # ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
 # ❌ scirs2-autograd - use scirs2_core::ndarray instead
@@ -36,7 +38,7 @@ memmap2 = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
-sklears-metrics = { workspace = true }
+sklears-metrics = { path = "../sklears-metrics" }
 approx = { workspace = true }
 proptest = { workspace = true }
 tempfile = { workspace = true }
@@ -48,6 +50,7 @@ std = ["sklears-core/std"]
 parallel = ["rayon"]
 serde = ["dep:serde", "sklears-core/serde"]
 memmap = ["dep:memmap2"]
+gpu = ["dep:oxicuda-backend", "dep:oxicuda-manifold", "sklears-core/gpu_support"]
 
 [[bench]]
 name = "knn_bench"

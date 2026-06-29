@@ -587,6 +587,84 @@ impl Transform<ArrayView2<'_, Float>, Array2<f64>> for RandomProjection<RPTraine
     }
 }
 
+impl RandomProjection<RPTrained> {
+    /// Return a reference to the fitted projection matrix.
+    ///
+    /// The matrix has shape `(n_features, n_components)` and is applied to the
+    /// input data via a matrix product during [`Transform::transform`].
+    pub fn projection_matrix(&self) -> &Array2<f64> {
+        &self.state.projection_matrix
+    }
+
+    /// Return the scaling factor applied after the random projection.
+    ///
+    /// This is `1 / sqrt(n_components)`, which preserves pairwise distances in
+    /// expectation as guaranteed by the Johnson-Lindenstrauss lemma.
+    pub fn scaling_factor(&self) -> f64 {
+        self.state.scaling_factor
+    }
+
+    /// Return the target dimensionality (number of output components).
+    pub fn n_components(&self) -> usize {
+        self.n_components
+    }
+
+    /// Return the density used to generate the projection matrix.
+    pub fn density(&self) -> f64 {
+        self.density
+    }
+
+    /// Return the random seed used to generate the projection matrix, if any.
+    pub fn random_state(&self) -> Option<u64> {
+        self.random_state
+    }
+
+    /// Reconstruct a fitted [`RandomProjection`] from its projection matrix and
+    /// hyperparameters.
+    ///
+    /// This is the inverse of the public accessors and is primarily used to
+    /// rebuild a model from a serialized representation. The provided matrix is
+    /// taken to be the exact fitted projection matrix; the scaling factor is
+    /// derived from `n_components` so that it stays consistent with [`Fit`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `n_components` is zero or does not match the number
+    /// of columns of `projection_matrix`.
+    pub fn from_fitted(
+        projection_matrix: Array2<f64>,
+        n_components: usize,
+        density: f64,
+        random_state: Option<u64>,
+    ) -> SklResult<Self> {
+        if n_components == 0 {
+            return Err(SklearsError::InvalidInput(
+                "n_components must be greater than zero".to_string(),
+            ));
+        }
+
+        if projection_matrix.ncols() != n_components {
+            return Err(SklearsError::InvalidInput(format!(
+                "projection_matrix has {} columns but n_components is {}",
+                projection_matrix.ncols(),
+                n_components
+            )));
+        }
+
+        let scaling_factor = 1.0 / (n_components as f64).sqrt();
+
+        Ok(RandomProjection {
+            state: RPTrained {
+                projection_matrix,
+                scaling_factor,
+            },
+            n_components,
+            density,
+            random_state,
+        })
+    }
+}
+
 /// Sparse random projection for efficient dimensionality reduction
 ///
 /// This implements sparse random projection matrices that have many zero entries,

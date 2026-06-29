@@ -188,7 +188,15 @@ pub use macro_implementations::{
 // Re-export type definitions
 pub use dsl_types::{
     CrossValidationConfig,
+    // Data pipeline types
+    DataOperation,
+    DataPipelineConfig,
+    DataPipelineMode,
+    DataStep,
     EarlyStoppingConfig,
+    // Experiment configuration types
+    ExperimentConfig,
+    ExperimentParameter,
     FeatureDefinition,
     // Feature engineering types
     FeatureEngineeringConfig,
@@ -196,6 +204,8 @@ pub use dsl_types::{
 
     // Hyperparameter optimization types
     HyperparameterConfig,
+    // Model evaluation types
+    ModelEvaluationConfig,
     ObjectiveConfig,
     OptimizationConfig,
     OptimizationDirection,
@@ -211,15 +221,21 @@ pub use dsl_types::{
     SelectionCriterion,
     SelectionType,
     StageType,
+    StatisticalTest,
     ValidationRule,
 };
 
 // Re-export parsing functionality
-pub use parsers::{parse_feature_engineering, parse_hyperparameter_config, parse_ml_pipeline};
+pub use parsers::{
+    parse_data_pipeline, parse_experiment_config, parse_feature_engineering,
+    parse_hyperparameter_config, parse_ml_pipeline, parse_model_evaluation,
+};
 
 // Re-export code generation functionality
 pub use code_generators::{
-    generate_feature_engineering_code, generate_hyperparameter_code, generate_pipeline_code,
+    generate_data_pipeline_code, generate_experiment_config_code,
+    generate_feature_engineering_code, generate_hyperparameter_code,
+    generate_model_evaluation_code, generate_pipeline_code,
 };
 
 // Re-export visual builder components

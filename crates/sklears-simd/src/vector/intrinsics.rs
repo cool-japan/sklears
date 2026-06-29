@@ -929,11 +929,11 @@ mod tests {
         let data: Vec<f32> = (0..size).map(|i| i as f32).collect();
         let mut result = vec![0.0; size];
 
-        let simd_width = simd_width_f32();
-        let chunks = size / simd_width;
+        let lane_width = 4; // F32x4 processes exactly 4 lanes
+        let chunks = size / lane_width;
 
         for i in 0..chunks {
-            let offset = i * simd_width;
+            let offset = i * lane_width;
             unsafe {
                 let vec = F32x4::load_unaligned(data.as_ptr().add(offset));
                 let doubled = vec + vec; // Double each element
@@ -942,7 +942,7 @@ mod tests {
         }
 
         // Verify first few elements
-        for (i, &val) in result.iter().enumerate().take(chunks * simd_width) {
+        for (i, &val) in result.iter().enumerate().take(chunks * lane_width) {
             assert_eq!(val, 2.0 * (i as f32));
         }
     }

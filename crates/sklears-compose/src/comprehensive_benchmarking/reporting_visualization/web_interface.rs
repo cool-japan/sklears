@@ -3,13 +3,14 @@
 //! Comprehensive web interface system providing REST API, GraphQL, WebSocket support,
 //! authentication, authorization, and real-time communication for the reporting and visualization system.
 
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, RwLock, Mutex};
-use std::time::{Duration, Instant, SystemTime};
+use crate::error::Result;
+use crate::utils::generate_id;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt;
-use serde::{Serialize, Deserialize};
-use crate::error::{Result, BenchmarkError};
-use crate::utils::{generate_id, validate_config, MetricsCollector, SecurityManager};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::RwLock;
 
 /// Main web interface system coordinating all web operations
 #[derive(Debug, Clone)]
@@ -395,6 +396,12 @@ pub enum MiddlewareType {
     Custom(u16),
 }
 
+impl Default for WebInterfaceSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WebInterfaceSystem {
     /// Create new web interface system
     pub fn new() -> Self {
@@ -419,8 +426,10 @@ impl WebInterfaceSystem {
 
         // Start server instance
         {
-            let mut server_manager = self.server_manager.write().unwrap_or_else(|e| e.into_inner());
-            server_manager.start_server(server_id.clone(), config).await?;
+            let mut server_manager = self.server_manager.write().await;
+            server_manager
+                .start_server(server_id.clone(), config)
+                .await?;
         }
 
         // Initialize middleware pipeline
@@ -442,14 +451,16 @@ impl WebInterfaceSystem {
 
         // Register with REST API manager
         {
-            let mut rest_api_manager = self.rest_api_manager.write().unwrap_or_else(|e| e.into_inner());
+            let mut rest_api_manager = self.rest_api_manager.write().await;
             rest_api_manager.register_endpoint(endpoint.clone()).await?;
         }
 
         // Update API documentation
         {
-            let mut documentation_system = self.documentation_system.write().unwrap_or_else(|e| e.into_inner());
-            documentation_system.update_endpoint_documentation(&endpoint).await?;
+            let mut documentation_system = self.documentation_system.write().await;
+            documentation_system
+                .update_endpoint_documentation(&endpoint)
+                .await?;
         }
 
         Ok(())
@@ -462,33 +473,42 @@ impl WebInterfaceSystem {
 
         // Register with GraphQL manager
         {
-            let mut graphql_manager = self.graphql_manager.write().unwrap_or_else(|e| e.into_inner());
+            let mut graphql_manager = self.graphql_manager.write().await;
             graphql_manager.register_schema(schema.clone()).await?;
         }
 
         // Update documentation
         {
-            let mut documentation_system = self.documentation_system.write().unwrap_or_else(|e| e.into_inner());
-            documentation_system.update_graphql_documentation(&schema).await?;
+            let mut documentation_system = self.documentation_system.write().await;
+            documentation_system
+                .update_graphql_documentation(&schema)
+                .await?;
         }
 
         Ok(())
     }
 
     /// Handle WebSocket connection
-    pub async fn handle_websocket_connection(&self, connection_request: WebSocketConnectionRequest) -> Result<String> {
+    pub async fn handle_websocket_connection(
+        &self,
+        connection_request: WebSocketConnectionRequest,
+    ) -> Result<String> {
         let connection_id = generate_id();
 
         // Authenticate connection
-        self.authenticate_websocket_connection(&connection_request).await?;
+        self.authenticate_websocket_connection(&connection_request)
+            .await?;
 
         // Authorize connection
-        self.authorize_websocket_connection(&connection_request).await?;
+        self.authorize_websocket_connection(&connection_request)
+            .await?;
 
         // Establish connection
         {
-            let mut websocket_manager = self.websocket_manager.write().unwrap_or_else(|e| e.into_inner());
-            websocket_manager.establish_connection(connection_id.clone(), connection_request).await?;
+            let mut websocket_manager = self.websocket_manager.write().await;
+            websocket_manager
+                .establish_connection(connection_id.clone(), connection_request)
+                .await?;
         }
 
         Ok(connection_id)
@@ -510,105 +530,137 @@ impl WebInterfaceSystem {
         let processing_time = start_time.elapsed();
 
         // Record metrics
-        self.record_request_metrics(&final_response, processing_time).await?;
+        self.record_request_metrics(&final_response, processing_time)
+            .await?;
 
         Ok(final_response)
     }
 
     /// Authenticate user credentials
-    pub async fn authenticate_user(&self, credentials: UserCredentials) -> Result<AuthenticationResult> {
-        let auth_system = self.auth_system.read().unwrap_or_else(|e| e.into_inner());
+    pub async fn authenticate_user(
+        &self,
+        credentials: UserCredentials,
+    ) -> Result<AuthenticationResult> {
+        let auth_system = self.auth_system.read().await;
         auth_system.authenticate_user(credentials).await
     }
 
     /// Authorize user action
-    pub async fn authorize_action(&self, user_id: &str, action: &str, resource: &str) -> Result<AuthorizationResult> {
-        let authorization_manager = self.authorization_manager.read().unwrap_or_else(|e| e.into_inner());
-        authorization_manager.authorize_action(user_id, action, resource).await
+    pub async fn authorize_action(
+        &self,
+        user_id: &str,
+        action: &str,
+        resource: &str,
+    ) -> Result<AuthorizationResult> {
+        let authorization_manager = self.authorization_manager.read().await;
+        authorization_manager
+            .authorize_action(user_id, action, resource)
+            .await
     }
 
     /// Generate API documentation
-    pub async fn generate_documentation(&self, format: DocumentationFormat) -> Result<GeneratedDocumentation> {
-        let documentation_system = self.documentation_system.read().unwrap_or_else(|e| e.into_inner());
+    pub async fn generate_documentation(
+        &self,
+        format: DocumentationFormat,
+    ) -> Result<GeneratedDocumentation> {
+        let documentation_system = self.documentation_system.read().await;
         documentation_system.generate_documentation(format).await
     }
 
     /// Get server metrics
     pub async fn get_server_metrics(&self) -> Result<ServerMetrics> {
-        let server_manager = self.server_manager.read().unwrap_or_else(|e| e.into_inner());
+        let server_manager = self.server_manager.read().await;
         server_manager.get_comprehensive_metrics().await
     }
 
     /// Validate server configuration
-    async fn validate_server_configuration(&self, config: &ServerConfiguration) -> Result<()> {
+    async fn validate_server_configuration(&self, _config: &ServerConfiguration) -> Result<()> {
         // Implementation for server configuration validation
         Ok(())
     }
 
     /// Initialize middleware pipeline
     async fn initialize_middleware_pipeline(&self, server_id: &str) -> Result<()> {
-        let middleware_manager = self.middleware_manager.read().unwrap_or_else(|e| e.into_inner());
+        let middleware_manager = self.middleware_manager.read().await;
         middleware_manager.initialize_pipeline(server_id).await
     }
 
     /// Configure security systems
-    async fn configure_security_systems(&self, server_id: &str) -> Result<()> {
+    async fn configure_security_systems(&self, _server_id: &str) -> Result<()> {
         // Implementation for security configuration
         Ok(())
     }
 
     /// Start health monitoring
-    async fn start_health_monitoring(&self, server_id: &str) -> Result<()> {
+    async fn start_health_monitoring(&self, _server_id: &str) -> Result<()> {
         // Implementation for health monitoring
         Ok(())
     }
 
     /// Validate endpoint configuration
-    async fn validate_endpoint_configuration(&self, endpoint: &ApiEndpoint) -> Result<()> {
+    async fn validate_endpoint_configuration(&self, _endpoint: &ApiEndpoint) -> Result<()> {
         // Implementation for endpoint validation
         Ok(())
     }
 
     /// Validate GraphQL schema
     async fn validate_graphql_schema(&self, schema: &GraphQlSchema) -> Result<()> {
-        let graphql_manager = self.graphql_manager.read().unwrap_or_else(|e| e.into_inner());
+        let graphql_manager = self.graphql_manager.read().await;
         graphql_manager.validate_schema(schema).await
     }
 
     /// Authenticate WebSocket connection
-    async fn authenticate_websocket_connection(&self, request: &WebSocketConnectionRequest) -> Result<()> {
-        let auth_system = self.auth_system.read().unwrap_or_else(|e| e.into_inner());
+    async fn authenticate_websocket_connection(
+        &self,
+        request: &WebSocketConnectionRequest,
+    ) -> Result<()> {
+        let auth_system = self.auth_system.read().await;
         auth_system.authenticate_websocket(request).await
     }
 
     /// Authorize WebSocket connection
-    async fn authorize_websocket_connection(&self, request: &WebSocketConnectionRequest) -> Result<()> {
-        let authorization_manager = self.authorization_manager.read().unwrap_or_else(|e| e.into_inner());
+    async fn authorize_websocket_connection(
+        &self,
+        request: &WebSocketConnectionRequest,
+    ) -> Result<()> {
+        let authorization_manager = self.authorization_manager.read().await;
         authorization_manager.authorize_websocket(request).await
     }
 
     /// Apply middleware pipeline to request
     async fn apply_middleware_pipeline(&self, request: ApiRequest) -> Result<ApiRequest> {
-        let middleware_manager = self.middleware_manager.read().unwrap_or_else(|e| e.into_inner());
+        let middleware_manager = self.middleware_manager.read().await;
         middleware_manager.apply_request_middleware(request).await
     }
 
     /// Route request to handler
     async fn route_request(&self, request: ApiRequest) -> Result<ApiResponse> {
-        let rest_api_manager = self.rest_api_manager.read().unwrap_or_else(|e| e.into_inner());
+        let rest_api_manager = self.rest_api_manager.read().await;
         rest_api_manager.handle_request(request).await
     }
 
     /// Apply response middleware
     async fn apply_response_middleware(&self, response: ApiResponse) -> Result<ApiResponse> {
-        let middleware_manager = self.middleware_manager.read().unwrap_or_else(|e| e.into_inner());
+        let middleware_manager = self.middleware_manager.read().await;
         middleware_manager.apply_response_middleware(response).await
     }
 
     /// Record request metrics
-    async fn record_request_metrics(&self, response: &ApiResponse, processing_time: Duration) -> Result<()> {
-        let server_manager = self.server_manager.read().unwrap_or_else(|e| e.into_inner());
-        server_manager.record_request_metrics(response, processing_time).await
+    async fn record_request_metrics(
+        &self,
+        response: &ApiResponse,
+        processing_time: Duration,
+    ) -> Result<()> {
+        let server_manager = self.server_manager.read().await;
+        server_manager
+            .record_request_metrics(response, processing_time)
+            .await
+    }
+}
+
+impl Default for WebServerManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -628,7 +680,11 @@ impl WebServerManager {
     }
 
     /// Start server instance
-    pub async fn start_server(&mut self, server_id: String, config: ServerConfiguration) -> Result<()> {
+    pub async fn start_server(
+        &mut self,
+        server_id: String,
+        config: ServerConfiguration,
+    ) -> Result<()> {
         let server_instance = WebServerInstance {
             id: server_id.clone(),
             configuration: config,
@@ -649,8 +705,20 @@ impl WebServerManager {
     }
 
     /// Record request metrics
-    pub async fn record_request_metrics(&self, response: &ApiResponse, processing_time: Duration) -> Result<()> {
-        self.metrics_collector.record_request(response, processing_time).await
+    pub async fn record_request_metrics(
+        &self,
+        response: &ApiResponse,
+        processing_time: Duration,
+    ) -> Result<()> {
+        self.metrics_collector
+            .record_request(response, processing_time)
+            .await
+    }
+}
+
+impl Default for RestApiManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -674,7 +742,8 @@ impl RestApiManager {
         let endpoint_id = endpoint.id.clone();
 
         // Register endpoint
-        self.endpoint_registry.insert(endpoint_id.clone(), endpoint.clone());
+        self.endpoint_registry
+            .insert(endpoint_id.clone(), endpoint.clone());
 
         // Configure routing
         self.route_manager.add_route(&endpoint).await?;
@@ -688,7 +757,9 @@ impl RestApiManager {
         let endpoint = self.route_manager.find_endpoint(&request).await?;
 
         // Validate request
-        self.validation_system.validate_request(&request, &endpoint).await?;
+        self.validation_system
+            .validate_request(&request, &endpoint)
+            .await?;
 
         // Process request
         let response = self.process_request(&request, &endpoint).await?;
@@ -700,7 +771,11 @@ impl RestApiManager {
     }
 
     /// Process request with endpoint
-    async fn process_request(&self, request: &ApiRequest, endpoint: &ApiEndpoint) -> Result<ApiResponse> {
+    async fn process_request(
+        &self,
+        _request: &ApiRequest,
+        _endpoint: &ApiEndpoint,
+    ) -> Result<ApiResponse> {
         // Implementation for request processing
         Ok(ApiResponse::new())
     }
@@ -748,6 +823,12 @@ pub struct ApiRequest {
 #[derive(Debug, Clone)]
 pub struct ApiResponse {
     // Implementation details
+}
+
+impl Default for ApiResponse {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ApiResponse {
@@ -801,26 +882,56 @@ pub struct NetworkAddress;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerPerformanceMetrics;
 
+impl Default for ServerPerformanceMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ServerPerformanceMetrics {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerSecurityConfig;
 
+impl Default for ServerSecurityConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ServerSecurityConfig {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerMetadata;
 
+impl Default for ServerMetadata {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ServerMetadata {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum ServerStatus { Starting, Running, Stopping, Stopped, Error }
+pub enum ServerStatus {
+    Starting,
+    Running,
+    Stopping,
+    Stopped,
+    Error,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkConfiguration;
@@ -863,7 +974,13 @@ pub struct ValidationRule;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchemaMetadata;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum ConnectionStatus { Connecting, Connected, Disconnecting, Disconnected, Error }
+pub enum ConnectionStatus {
+    Connecting,
+    Connected,
+    Disconnecting,
+    Disconnected,
+    Error,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientInfo;
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -879,7 +996,12 @@ pub struct AuthProviderConfiguration;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthProviderCapabilities;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum ProviderStatus { Active, Inactive, Maintenance, Error }
+pub enum ProviderStatus {
+    Active,
+    Inactive,
+    Maintenance,
+    Error,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderMetrics;
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -889,60 +1011,126 @@ pub struct PipelineMetrics;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComponentConfiguration;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum ComponentStatus { Active, Inactive, Error }
+pub enum ComponentStatus {
+    Active,
+    Inactive,
+    Error,
+}
 
 // Implementation stubs for all the main subsystem components
 
 #[derive(Debug, Clone)]
 pub struct ServerHealthMonitor;
 
+impl Default for ServerHealthMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ServerHealthMonitor {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ServerLoadBalancer;
 
+impl Default for ServerLoadBalancer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ServerLoadBalancer {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct SslCertificateManager;
 
+impl Default for SslCertificateManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SslCertificateManager {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ServerMetricsCollector;
 
+impl Default for ServerMetricsCollector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ServerMetricsCollector {
-    pub fn new() -> Self { Self }
-    pub async fn get_comprehensive_metrics(&self) -> Result<ServerMetrics> { Ok(ServerMetrics) }
-    pub async fn record_request(&self, _response: &ApiResponse, _duration: Duration) -> Result<()> { Ok(()) }
+    pub fn new() -> Self {
+        Self
+    }
+    pub async fn get_comprehensive_metrics(&self) -> Result<ServerMetrics> {
+        Ok(ServerMetrics {})
+    }
+    pub async fn record_request(&self, _response: &ApiResponse, _duration: Duration) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ServerLifecycleManager;
 
+impl Default for ServerLifecycleManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ServerLifecycleManager {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ServerSecurityManager;
 
+impl Default for ServerSecurityManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ServerSecurityManager {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct RouteManager;
 
+impl Default for RouteManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RouteManager {
-    pub fn new() -> Self { Self }
-    pub async fn add_route(&mut self, _endpoint: &ApiEndpoint) -> Result<()> { Ok(()) }
+    pub fn new() -> Self {
+        Self
+    }
+    pub async fn add_route(&mut self, _endpoint: &ApiEndpoint) -> Result<()> {
+        Ok(())
+    }
     pub async fn find_endpoint(&self, _request: &ApiRequest) -> Result<ApiEndpoint> {
         Ok(ApiEndpoint {
             id: String::new(),
@@ -962,45 +1150,107 @@ impl RouteManager {
 #[derive(Debug, Clone)]
 pub struct RequestValidationSystem;
 
+impl Default for RequestValidationSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RequestValidationSystem {
-    pub fn new() -> Self { Self }
-    pub async fn validate_request(&self, _request: &ApiRequest, _endpoint: &ApiEndpoint) -> Result<()> { Ok(()) }
+    pub fn new() -> Self {
+        Self
+    }
+    pub async fn validate_request(
+        &self,
+        _request: &ApiRequest,
+        _endpoint: &ApiEndpoint,
+    ) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ResponseFormatter;
 
+impl Default for ResponseFormatter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ResponseFormatter {
-    pub fn new() -> Self { Self }
-    pub async fn format_response(&self, response: ApiResponse) -> Result<ApiResponse> { Ok(response) }
+    pub fn new() -> Self {
+        Self
+    }
+    pub async fn format_response(&self, response: ApiResponse) -> Result<ApiResponse> {
+        Ok(response)
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ApiVersionManager;
 
+impl Default for ApiVersionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ApiVersionManager {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct RateLimitingSystem;
 
+impl Default for RateLimitingSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RateLimitingSystem {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ApiCachingSystem;
 
+impl Default for ApiCachingSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ApiCachingSystem {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ApiMonitoringSystem;
 
+impl Default for ApiMonitoringSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ApiMonitoringSystem {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for GraphQlManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GraphQlManager {
@@ -1023,7 +1273,15 @@ impl GraphQlManager {
         Ok(())
     }
 
-    pub async fn validate_schema(&self, _schema: &GraphQlSchema) -> Result<()> { Ok(()) }
+    pub async fn validate_schema(&self, _schema: &GraphQlSchema) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl Default for WebSocketManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl WebSocketManager {
@@ -1040,7 +1298,19 @@ impl WebSocketManager {
         }
     }
 
-    pub async fn establish_connection(&mut self, _connection_id: String, _request: WebSocketConnectionRequest) -> Result<()> { Ok(()) }
+    pub async fn establish_connection(
+        &mut self,
+        _connection_id: String,
+        _request: WebSocketConnectionRequest,
+    ) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl Default for AuthenticationSystem {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AuthenticationSystem {
@@ -1057,8 +1327,24 @@ impl AuthenticationSystem {
         }
     }
 
-    pub async fn authenticate_user(&self, _credentials: UserCredentials) -> Result<AuthenticationResult> { Ok(AuthenticationResult) }
-    pub async fn authenticate_websocket(&self, _request: &WebSocketConnectionRequest) -> Result<()> { Ok(()) }
+    pub async fn authenticate_user(
+        &self,
+        _credentials: UserCredentials,
+    ) -> Result<AuthenticationResult> {
+        Ok(AuthenticationResult {})
+    }
+    pub async fn authenticate_websocket(
+        &self,
+        _request: &WebSocketConnectionRequest,
+    ) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl Default for AuthorizationManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AuthorizationManager {
@@ -1075,8 +1361,23 @@ impl AuthorizationManager {
         }
     }
 
-    pub async fn authorize_action(&self, _user_id: &str, _action: &str, _resource: &str) -> Result<AuthorizationResult> { Ok(AuthorizationResult) }
-    pub async fn authorize_websocket(&self, _request: &WebSocketConnectionRequest) -> Result<()> { Ok(()) }
+    pub async fn authorize_action(
+        &self,
+        _user_id: &str,
+        _action: &str,
+        _resource: &str,
+    ) -> Result<AuthorizationResult> {
+        Ok(AuthorizationResult {})
+    }
+    pub async fn authorize_websocket(&self, _request: &WebSocketConnectionRequest) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl Default for MiddlewareManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MiddlewareManager {
@@ -1093,9 +1394,21 @@ impl MiddlewareManager {
         }
     }
 
-    pub async fn initialize_pipeline(&self, _server_id: &str) -> Result<()> { Ok(()) }
-    pub async fn apply_request_middleware(&self, request: ApiRequest) -> Result<ApiRequest> { Ok(request) }
-    pub async fn apply_response_middleware(&self, response: ApiResponse) -> Result<ApiResponse> { Ok(response) }
+    pub async fn initialize_pipeline(&self, _server_id: &str) -> Result<()> {
+        Ok(())
+    }
+    pub async fn apply_request_middleware(&self, request: ApiRequest) -> Result<ApiRequest> {
+        Ok(request)
+    }
+    pub async fn apply_response_middleware(&self, response: ApiResponse) -> Result<ApiResponse> {
+        Ok(response)
+    }
+}
+
+impl Default for ApiDocumentationSystem {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ApiDocumentationSystem {
@@ -1112,9 +1425,18 @@ impl ApiDocumentationSystem {
         }
     }
 
-    pub async fn update_endpoint_documentation(&mut self, _endpoint: &ApiEndpoint) -> Result<()> { Ok(()) }
-    pub async fn update_graphql_documentation(&mut self, _schema: &GraphQlSchema) -> Result<()> { Ok(()) }
-    pub async fn generate_documentation(&self, _format: DocumentationFormat) -> Result<GeneratedDocumentation> { Ok(GeneratedDocumentation) }
+    pub async fn update_endpoint_documentation(&mut self, _endpoint: &ApiEndpoint) -> Result<()> {
+        Ok(())
+    }
+    pub async fn update_graphql_documentation(&mut self, _schema: &GraphQlSchema) -> Result<()> {
+        Ok(())
+    }
+    pub async fn generate_documentation(
+        &self,
+        _format: DocumentationFormat,
+    ) -> Result<GeneratedDocumentation> {
+        Ok(GeneratedDocumentation {})
+    }
 }
 
 // Additional placeholder implementations for remaining complex types

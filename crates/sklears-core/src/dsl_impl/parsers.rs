@@ -4,15 +4,37 @@
 //! framework. It transforms TokenStream input into structured configuration
 //! objects that can be used for code generation.
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use syn::{parse2, Error, Result as SynResult};
 
 use crate::dsl_impl::dsl_types::{
-    FeatureDefinition, FeatureEngineeringConfig, FeatureEngineeringOptions, HyperparameterConfig,
-    ObjectiveConfig, OptimizationConfig, ParameterDef, PerformanceConfig, PipelineConfig,
-    PipelineStage, SelectionCriterion, SelectionType, StageType, ValidationRule,
+    CrossValidationConfig, DataOperation, DataPipelineConfig, DataPipelineMode, DataStep,
+    ExperimentConfig, ExperimentParameter, FeatureDefinition, FeatureEngineeringConfig,
+    FeatureEngineeringOptions, HyperparameterConfig, ModelEvaluationConfig, ObjectiveConfig,
+    OptimizationConfig, OptimizationMetric, ParameterDef, PerformanceConfig, PipelineConfig,
+    PipelineStage, SelectionCriterion, SelectionType, StageType, StatisticalTest, ValidationRule,
 };
 use std::collections::HashMap;
+
+/// Map a metric identifier to the corresponding [`OptimizationMetric`].
+///
+/// Unknown identifiers are preserved verbatim as [`OptimizationMetric::Custom`]
+/// so callers can reference user-defined metrics without losing information.
+fn metric_from_ident(ident: &syn::Ident) -> OptimizationMetric {
+    match ident.to_string().as_str() {
+        "accuracy" | "Accuracy" => OptimizationMetric::Accuracy,
+        "precision" | "Precision" => OptimizationMetric::Precision,
+        "recall" | "Recall" => OptimizationMetric::Recall,
+        "f1" | "f1_score" | "F1Score" => OptimizationMetric::F1Score,
+        "auc" | "auc_roc" | "AucRoc" => OptimizationMetric::AucRoc,
+        "mse" | "mean_squared_error" | "MeanSquaredError" => OptimizationMetric::MeanSquaredError,
+        "mae" | "mean_absolute_error" | "MeanAbsoluteError" => {
+            OptimizationMetric::MeanAbsoluteError
+        }
+        "r2" | "r_squared" | "RSquared" => OptimizationMetric::RSquared,
+        other => OptimizationMetric::Custom(other.to_string()),
+    }
+}
 
 /// Parse ml_pipeline! macro input into structured configuration
 ///
@@ -528,6 +550,489 @@ impl syn::parse::Parse for HyperparameterParser {
     }
 }
 
+/// Parse `model_evaluation!` macro input into structured configuration.
+///
+/// Parses the DSL syntax describing how a model should be evaluated and produces
+/// a [`ModelEvaluationConfig`] capturing the model/data expressions, requested
+/// metrics, cross-validation, and statistical testing options.
+///
+/// # Arguments
+/// * `input` - TokenStream containing the evaluation DSL
+///
+/// # Returns
+/// Parsed [`ModelEvaluationConfig`] or syntax error
+pub fn parse_model_evaluation(input: TokenStream) -> SynResult<ModelEvaluationConfig> {
+    let parsed: ModelEvaluationParser = parse2(input)?;
+
+    let model = parsed
+        .model
+        .ok_or_else(|| Error::new(parsed.span, "model_evaluation! requires a `model:` field"))?;
+    let features = parsed.features.ok_or_else(|| {
+        Error::new(
+            parsed.span,
+            "model_evaluation! requires a `features:` field",
+        )
+    })?;
+    let targets = parsed
+        .targets
+        .ok_or_else(|| Error::new(parsed.span, "model_evaluation! requires a `targets:` field"))?;
+
+    let metrics = if parsed.metrics.is_empty() {
+        vec![OptimizationMetric::Accuracy]
+    } else {
+        parsed.metrics
+    };
+
+    Ok(ModelEvaluationConfig {
+        model,
+        features,
+        targets,
+        metrics,
+        cross_validation: parsed.cross_validation,
+        statistical_test: parsed.statistical_test,
+    })
+}
+
+/// Parse `data_pipeline!` macro input into structured configuration.
+///
+/// Parses the DSL syntax describing a data processing pipeline and produces a
+/// [`DataPipelineConfig`] capturing the data source, ordered steps, and the
+/// execution mode driving code generation.
+///
+/// # Arguments
+/// * `input` - TokenStream containing the data pipeline DSL
+///
+/// # Returns
+/// Parsed [`DataPipelineConfig`] or syntax error
+pub fn parse_data_pipeline(input: TokenStream) -> SynResult<DataPipelineConfig> {
+    let parsed: DataPipelineParser = parse2(input)?;
+
+    let source = parsed
+        .source
+        .ok_or_else(|| Error::new(parsed.span, "data_pipeline! requires a `source:` field"))?;
+
+    Ok(DataPipelineConfig {
+        name: parsed.name.unwrap_or_else(|| "data_pipeline".to_string()),
+        source,
+        steps: parsed.steps,
+        mode: parsed.mode.unwrap_or(DataPipelineMode::Batch),
+        batch_size: parsed.batch_size,
+        parallel: parsed.parallel.unwrap_or(false),
+    })
+}
+
+/// Parse `experiment_config!` macro input into structured configuration.
+///
+/// Parses the DSL syntax describing an experiment and produces an
+/// [`ExperimentConfig`] capturing the experiment identity, recorded
+/// hyperparameters, tracked metrics, and reproducibility settings.
+///
+/// # Arguments
+/// * `input` - TokenStream containing the experiment DSL
+///
+/// # Returns
+/// Parsed [`ExperimentConfig`] or syntax error
+pub fn parse_experiment_config(input: TokenStream) -> SynResult<ExperimentConfig> {
+    let parsed: ExperimentConfigParser = parse2(input)?;
+
+    let name = parsed
+        .name
+        .ok_or_else(|| Error::new(parsed.span, "experiment_config! requires a `name:` field"))?;
+
+    Ok(ExperimentConfig {
+        name,
+        description: parsed.description,
+        parameters: parsed.parameters,
+        tracked_metrics: parsed.tracked_metrics,
+        seed: parsed.seed,
+        tags: parsed.tags,
+    })
+}
+
+/// Parser state for the `model_evaluation!` configuration DSL.
+struct ModelEvaluationParser {
+    model: Option<syn::Expr>,
+    features: Option<syn::Expr>,
+    targets: Option<syn::Expr>,
+    metrics: Vec<OptimizationMetric>,
+    cross_validation: Option<CrossValidationConfig>,
+    statistical_test: Option<StatisticalTest>,
+    span: Span,
+}
+
+impl syn::parse::Parse for ModelEvaluationParser {
+    fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
+        let span = input.span();
+        let mut model = None;
+        let mut features = None;
+        let mut targets = None;
+        let mut metrics = Vec::new();
+        let mut cross_validation = None;
+        let mut statistical_test = None;
+
+        let content;
+        syn::braced!(content in input);
+
+        while !content.is_empty() {
+            let ident: syn::Ident = content.parse()?;
+            content.parse::<syn::Token![:]>()?;
+
+            match ident.to_string().as_str() {
+                "model" => {
+                    model = Some(content.parse()?);
+                }
+                "features" => {
+                    features = Some(content.parse()?);
+                }
+                "targets" | "labels" => {
+                    targets = Some(content.parse()?);
+                }
+                "metrics" => {
+                    let metrics_content;
+                    syn::bracketed!(metrics_content in content);
+                    while !metrics_content.is_empty() {
+                        let metric_ident: syn::Ident = metrics_content.parse()?;
+                        metrics.push(metric_from_ident(&metric_ident));
+                        if metrics_content.peek(syn::Token![,]) {
+                            metrics_content.parse::<syn::Token![,]>()?;
+                        }
+                    }
+                }
+                "cross_validation" | "cv" => {
+                    let cv_content;
+                    syn::braced!(cv_content in content);
+                    cross_validation = Some(parse_cross_validation(&cv_content)?);
+                }
+                "statistical_test" => {
+                    let test_ident: syn::Ident = content.parse()?;
+                    statistical_test = Some(statistical_test_from_ident(&test_ident));
+                }
+                _ => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("Unknown model_evaluation option: {}", ident),
+                    ));
+                }
+            }
+
+            if content.peek(syn::Token![,]) {
+                content.parse::<syn::Token![,]>()?;
+            }
+        }
+
+        Ok(ModelEvaluationParser {
+            model,
+            features,
+            targets,
+            metrics,
+            cross_validation,
+            statistical_test,
+            span,
+        })
+    }
+}
+
+/// Map a statistical-test identifier to the corresponding [`StatisticalTest`].
+fn statistical_test_from_ident(ident: &syn::Ident) -> StatisticalTest {
+    match ident.to_string().as_str() {
+        "paired_t_test" | "PairedTTest" | "t_test" => StatisticalTest::PairedTTest,
+        "wilcoxon" | "Wilcoxon" => StatisticalTest::Wilcoxon,
+        "mcnemar" | "McNemar" => StatisticalTest::McNemar,
+        other => StatisticalTest::Custom(other.to_string()),
+    }
+}
+
+/// Parse a cross-validation configuration block.
+fn parse_cross_validation(input: syn::parse::ParseStream) -> SynResult<CrossValidationConfig> {
+    let mut n_folds = 5usize;
+    let mut stratified = false;
+    let mut random_seed = None;
+
+    while !input.is_empty() {
+        let field: syn::Ident = input.parse()?;
+        input.parse::<syn::Token![:]>()?;
+
+        match field.to_string().as_str() {
+            "n_folds" | "folds" => {
+                let folds_lit: syn::LitInt = input.parse()?;
+                n_folds = folds_lit.base10_parse()?;
+            }
+            "stratified" => {
+                let strat_lit: syn::LitBool = input.parse()?;
+                stratified = strat_lit.value;
+            }
+            "random_seed" | "seed" => {
+                let seed_lit: syn::LitInt = input.parse()?;
+                random_seed = Some(seed_lit.base10_parse()?);
+            }
+            _ => {
+                return Err(Error::new(
+                    field.span(),
+                    format!("Unknown cross_validation field: {}", field),
+                ));
+            }
+        }
+
+        if input.peek(syn::Token![,]) {
+            input.parse::<syn::Token![,]>()?;
+        }
+    }
+
+    Ok(CrossValidationConfig {
+        n_folds,
+        stratified,
+        random_seed,
+    })
+}
+
+/// Parser state for the `data_pipeline!` configuration DSL.
+struct DataPipelineParser {
+    name: Option<String>,
+    source: Option<syn::Expr>,
+    steps: Vec<DataStep>,
+    mode: Option<DataPipelineMode>,
+    batch_size: Option<usize>,
+    parallel: Option<bool>,
+    span: Span,
+}
+
+impl syn::parse::Parse for DataPipelineParser {
+    fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
+        let span = input.span();
+        let mut name = None;
+        let mut source = None;
+        let mut steps = Vec::new();
+        let mut mode = None;
+        let mut batch_size = None;
+        let mut parallel = None;
+
+        let content;
+        syn::braced!(content in input);
+
+        while !content.is_empty() {
+            let ident: syn::Ident = content.parse()?;
+            content.parse::<syn::Token![:]>()?;
+
+            match ident.to_string().as_str() {
+                "name" => {
+                    let name_lit: syn::LitStr = content.parse()?;
+                    name = Some(name_lit.value());
+                }
+                "source" => {
+                    source = Some(content.parse()?);
+                }
+                "steps" => {
+                    let steps_content;
+                    syn::bracketed!(steps_content in content);
+                    steps = parse_data_steps(&steps_content)?;
+                }
+                "mode" => {
+                    let mode_ident: syn::Ident = content.parse()?;
+                    mode = Some(match mode_ident.to_string().as_str() {
+                        "batch" | "Batch" => DataPipelineMode::Batch,
+                        "streaming" | "Streaming" => DataPipelineMode::Streaming,
+                        "real_time" | "realtime" | "RealTime" => DataPipelineMode::RealTime,
+                        other => {
+                            return Err(Error::new(
+                                mode_ident.span(),
+                                format!("Unknown data pipeline mode: {}", other),
+                            ));
+                        }
+                    });
+                }
+                "batch_size" => {
+                    let batch_lit: syn::LitInt = content.parse()?;
+                    batch_size = Some(batch_lit.base10_parse()?);
+                }
+                "parallel" => {
+                    let parallel_lit: syn::LitBool = content.parse()?;
+                    parallel = Some(parallel_lit.value);
+                }
+                _ => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("Unknown data_pipeline option: {}", ident),
+                    ));
+                }
+            }
+
+            if content.peek(syn::Token![,]) {
+                content.parse::<syn::Token![,]>()?;
+            }
+        }
+
+        Ok(DataPipelineParser {
+            name,
+            source,
+            steps,
+            mode,
+            batch_size,
+            parallel,
+            span,
+        })
+    }
+}
+
+/// Parse the ordered list of data processing steps.
+///
+/// Each step has the form `name: operation(expr)` where `operation` selects the
+/// [`DataOperation`] and `expr` is the transformation applied at runtime.
+fn parse_data_steps(input: syn::parse::ParseStream) -> SynResult<Vec<DataStep>> {
+    let mut steps = Vec::new();
+
+    while !input.is_empty() {
+        let name: syn::Ident = input.parse()?;
+        input.parse::<syn::Token![:]>()?;
+
+        let operation_ident: syn::Ident = input.parse()?;
+        let operation = match operation_ident.to_string().as_str() {
+            "load" | "Load" => DataOperation::Load,
+            "filter" | "Filter" => DataOperation::Filter,
+            "map" | "Map" => DataOperation::Map,
+            "aggregate" | "Aggregate" => DataOperation::Aggregate,
+            "join" | "Join" => DataOperation::Join,
+            "sink" | "Sink" => DataOperation::Sink,
+            other => DataOperation::Custom(other.to_string()),
+        };
+
+        let transform_content;
+        syn::parenthesized!(transform_content in input);
+        let transform: syn::Expr = transform_content.parse()?;
+
+        steps.push(DataStep {
+            name: name.to_string(),
+            operation,
+            transform,
+        });
+
+        if input.peek(syn::Token![,]) {
+            input.parse::<syn::Token![,]>()?;
+        }
+    }
+
+    Ok(steps)
+}
+
+/// Parser state for the `experiment_config!` configuration DSL.
+struct ExperimentConfigParser {
+    name: Option<String>,
+    description: Option<String>,
+    parameters: Vec<ExperimentParameter>,
+    tracked_metrics: Vec<String>,
+    seed: Option<u64>,
+    tags: Vec<String>,
+    span: Span,
+}
+
+impl syn::parse::Parse for ExperimentConfigParser {
+    fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
+        let span = input.span();
+        let mut name = None;
+        let mut description = None;
+        let mut parameters = Vec::new();
+        let mut tracked_metrics = Vec::new();
+        let mut seed = None;
+        let mut tags = Vec::new();
+
+        let content;
+        syn::braced!(content in input);
+
+        while !content.is_empty() {
+            let ident: syn::Ident = content.parse()?;
+            content.parse::<syn::Token![:]>()?;
+
+            match ident.to_string().as_str() {
+                "name" => {
+                    let name_lit: syn::LitStr = content.parse()?;
+                    name = Some(name_lit.value());
+                }
+                "description" => {
+                    let desc_lit: syn::LitStr = content.parse()?;
+                    description = Some(desc_lit.value());
+                }
+                "parameters" | "params" => {
+                    let params_content;
+                    syn::braced!(params_content in content);
+                    parameters = parse_experiment_parameters(&params_content)?;
+                }
+                "tracked_metrics" | "metrics" => {
+                    let metrics_content;
+                    syn::bracketed!(metrics_content in content);
+                    while !metrics_content.is_empty() {
+                        let metric_lit: syn::LitStr = metrics_content.parse()?;
+                        tracked_metrics.push(metric_lit.value());
+                        if metrics_content.peek(syn::Token![,]) {
+                            metrics_content.parse::<syn::Token![,]>()?;
+                        }
+                    }
+                }
+                "seed" => {
+                    let seed_lit: syn::LitInt = content.parse()?;
+                    seed = Some(seed_lit.base10_parse()?);
+                }
+                "tags" => {
+                    let tags_content;
+                    syn::bracketed!(tags_content in content);
+                    while !tags_content.is_empty() {
+                        let tag_lit: syn::LitStr = tags_content.parse()?;
+                        tags.push(tag_lit.value());
+                        if tags_content.peek(syn::Token![,]) {
+                            tags_content.parse::<syn::Token![,]>()?;
+                        }
+                    }
+                }
+                _ => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("Unknown experiment_config option: {}", ident),
+                    ));
+                }
+            }
+
+            if content.peek(syn::Token![,]) {
+                content.parse::<syn::Token![,]>()?;
+            }
+        }
+
+        Ok(ExperimentConfigParser {
+            name,
+            description,
+            parameters,
+            tracked_metrics,
+            seed,
+            tags,
+            span,
+        })
+    }
+}
+
+/// Parse the recorded hyperparameters for an experiment.
+///
+/// Each entry has the form `name: expr` where `expr` yields the value recorded
+/// for the experiment.
+fn parse_experiment_parameters(
+    input: syn::parse::ParseStream,
+) -> SynResult<Vec<ExperimentParameter>> {
+    let mut parameters = Vec::new();
+
+    while !input.is_empty() {
+        let name: syn::Ident = input.parse()?;
+        input.parse::<syn::Token![:]>()?;
+        let value: syn::Expr = input.parse()?;
+
+        parameters.push(ExperimentParameter {
+            name: name.to_string(),
+            value,
+        });
+
+        if input.peek(syn::Token![,]) {
+            input.parse::<syn::Token![,]>()?;
+        }
+    }
+
+    Ok(parameters)
+}
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -592,5 +1097,144 @@ mod tests {
         let config = result.expect("expected valid value");
         assert_eq!(config.name, "default_pipeline");
         assert_eq!(config.stages.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_model_evaluation() {
+        let input = quote! {
+            {
+                model: RandomForestClassifier::new(),
+                features: x_train,
+                targets: y_train,
+                metrics: [accuracy, f1, recall],
+                cross_validation: {
+                    n_folds: 10,
+                    stratified: true,
+                    random_seed: 7
+                },
+                statistical_test: wilcoxon
+            }
+        };
+
+        let config = parse_model_evaluation(input).expect("model_evaluation should parse");
+        assert_eq!(config.metrics.len(), 3);
+        assert_eq!(config.metrics[0], OptimizationMetric::Accuracy);
+        assert_eq!(config.metrics[1], OptimizationMetric::F1Score);
+        assert_eq!(config.metrics[2], OptimizationMetric::Recall);
+
+        let cv = config
+            .cross_validation
+            .expect("cross_validation should be parsed");
+        assert_eq!(cv.n_folds, 10);
+        assert!(cv.stratified);
+        assert_eq!(cv.random_seed, Some(7));
+
+        assert_eq!(config.statistical_test, Some(StatisticalTest::Wilcoxon));
+    }
+
+    #[test]
+    fn test_parse_model_evaluation_defaults_metric() {
+        let input = quote! {
+            {
+                model: model,
+                features: x,
+                targets: y
+            }
+        };
+
+        let config = parse_model_evaluation(input).expect("model_evaluation should parse");
+        assert_eq!(config.metrics, vec![OptimizationMetric::Accuracy]);
+        assert!(config.cross_validation.is_none());
+        assert!(config.statistical_test.is_none());
+    }
+
+    #[test]
+    fn test_parse_model_evaluation_missing_model_errors() {
+        let input = quote! {
+            {
+                features: x,
+                targets: y
+            }
+        };
+
+        assert!(parse_model_evaluation(input).is_err());
+    }
+
+    #[test]
+    fn test_parse_data_pipeline() {
+        let input = quote! {
+            {
+                name: "etl",
+                source: read_csv("data.csv"),
+                steps: [
+                    clean: filter(|row| row.is_valid()),
+                    normalize: map(|row| row.normalized()),
+                    persist: sink(write_parquet("out.parquet"))
+                ],
+                mode: streaming,
+                batch_size: 256,
+                parallel: true
+            }
+        };
+
+        let config = parse_data_pipeline(input).expect("data_pipeline should parse");
+        assert_eq!(config.name, "etl");
+        assert_eq!(config.steps.len(), 3);
+        assert_eq!(config.steps[0].name, "clean");
+        assert_eq!(config.steps[0].operation, DataOperation::Filter);
+        assert_eq!(config.steps[1].operation, DataOperation::Map);
+        assert_eq!(config.steps[2].operation, DataOperation::Sink);
+        assert_eq!(config.mode, DataPipelineMode::Streaming);
+        assert_eq!(config.batch_size, Some(256));
+        assert!(config.parallel);
+    }
+
+    #[test]
+    fn test_parse_data_pipeline_missing_source_errors() {
+        let input = quote! {
+            {
+                name: "etl",
+                steps: []
+            }
+        };
+
+        assert!(parse_data_pipeline(input).is_err());
+    }
+
+    #[test]
+    fn test_parse_experiment_config() {
+        let input = quote! {
+            {
+                name: "exp-001",
+                description: "baseline run",
+                parameters: {
+                    learning_rate: 0.01,
+                    n_estimators: 100
+                },
+                tracked_metrics: ["accuracy", "loss"],
+                seed: 42,
+                tags: ["baseline", "rf"]
+            }
+        };
+
+        let config = parse_experiment_config(input).expect("experiment_config should parse");
+        assert_eq!(config.name, "exp-001");
+        assert_eq!(config.description.as_deref(), Some("baseline run"));
+        assert_eq!(config.parameters.len(), 2);
+        assert_eq!(config.parameters[0].name, "learning_rate");
+        assert_eq!(config.tracked_metrics, vec!["accuracy", "loss"]);
+        assert_eq!(config.seed, Some(42));
+        assert_eq!(config.tags, vec!["baseline", "rf"]);
+    }
+
+    #[test]
+    fn test_parse_experiment_config_missing_name_errors() {
+        let input = quote! {
+            {
+                seed: 1
+            }
+        };
+
+        assert!(parse_experiment_config(input).is_err());
     }
 }

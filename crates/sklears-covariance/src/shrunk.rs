@@ -164,6 +164,32 @@ impl Fit<ArrayView2<'_, Float>, ()> for ShrunkCovariance<Untrained> {
 }
 
 impl ShrunkCovariance<ShrunkCovarianceTrained> {
+    /// Reconstruct a fitted estimator from previously computed parameters.
+    ///
+    /// Used by the serialization layer to rebuild a fitted model from its
+    /// stored state. `store_precision` is set to `true` exactly when a precision
+    /// matrix is supplied and `assume_centered` is inferred from a zero location.
+    pub fn from_fitted(
+        covariance: Array2<f64>,
+        precision: Option<Array2<f64>>,
+        location: Array1<f64>,
+        shrinkage: f64,
+    ) -> Self {
+        let store_precision = precision.is_some();
+        let assume_centered = location.iter().all(|&value| value == 0.0);
+        Self {
+            state: ShrunkCovarianceTrained {
+                covariance,
+                precision,
+                location,
+                shrinkage,
+            },
+            shrinkage,
+            store_precision,
+            assume_centered,
+        }
+    }
+
     /// Get the covariance matrix
     pub fn get_covariance(&self) -> &Array2<f64> {
         &self.state.covariance

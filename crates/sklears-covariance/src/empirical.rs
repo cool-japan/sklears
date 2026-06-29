@@ -143,6 +143,31 @@ impl Fit<ArrayView2<'_, Float>, ()> for EmpiricalCovariance<Untrained> {
 }
 
 impl EmpiricalCovariance<EmpiricalCovarianceTrained> {
+    /// Reconstruct a fitted estimator from previously computed parameters.
+    ///
+    /// This is primarily used by the serialization layer to rebuild a fitted
+    /// model from its stored state without re-running [`Fit::fit`]. The
+    /// `assume_centered` flag is inferred to be `true` when the supplied
+    /// location is exactly zero, otherwise `false`; `store_precision` is set to
+    /// `true` exactly when a precision matrix is supplied.
+    pub fn from_fitted(
+        covariance: Array2<f64>,
+        precision: Option<Array2<f64>>,
+        location: Array1<f64>,
+    ) -> Self {
+        let store_precision = precision.is_some();
+        let assume_centered = location.iter().all(|&value| value == 0.0);
+        Self {
+            state: EmpiricalCovarianceTrained {
+                covariance,
+                precision,
+                location,
+            },
+            store_precision,
+            assume_centered,
+        }
+    }
+
     /// Get the covariance matrix
     pub fn get_covariance(&self) -> &Array2<f64> {
         &self.state.covariance
@@ -199,6 +224,7 @@ impl EmpiricalCovariance<EmpiricalCovarianceTrained> {
     ///
     /// println!("Is symmetric: {}", properties.is_symmetric);
     /// println!("Condition number: {}", properties.condition_number);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn covariance_properties(&self) -> SklResult<CovarianceProperties<f64>> {
         validate_covariance_matrix(&self.state.covariance)

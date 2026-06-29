@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.1` (April 25, 2026). See the [workspace release notes](../../docs/releases/0.1.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -45,6 +45,6 @@ let (mean, std) = fitted.predict(&x, true)?;
 
 ## Status
 
-- Validated by 149 passing tests (5 skipped) in `0.1.1` (Stable).
+- Validated by 149 passing tests (5 skipped) in `0.1.2` (Stable).
 - Benchmarks show 5–20× faster kernel computations versus CPython implementations.
 - Future milestones (variational inference, GPU sparse GPs) tracked in this crate’s `TODO.md`.

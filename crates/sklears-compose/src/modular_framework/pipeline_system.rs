@@ -511,6 +511,24 @@ impl Pipeline {
     }
 }
 
+impl Default for Pipeline {
+    fn default() -> Self {
+        Self {
+            pipeline_id: uuid::Uuid::new_v4().to_string(),
+            stages: Vec::new(),
+            config: PipelineConfiguration::default(),
+            error_strategy: ErrorHandlingStrategy::FailFast,
+            execution_strategy: ExecutionStrategy::Sequential,
+            metadata: PipelineMetadata::new(),
+            state: PipelineState::Created,
+            components: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            event_bus: Arc::new(RwLock::new(EventBus::new())),
+            execution_context: Arc::new(RwLock::new(ExecutionContext::new())),
+            metrics: Arc::new(Mutex::new(PipelineMetrics::new())),
+        }
+    }
+}
+
 /// Pipeline stage configuration
 #[derive(Debug)]
 pub struct PipelineStage {

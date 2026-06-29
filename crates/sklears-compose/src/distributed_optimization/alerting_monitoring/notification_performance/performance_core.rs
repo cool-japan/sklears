@@ -178,12 +178,49 @@ impl PerformanceManager {
         let monitor = self.monitor.read()
             .map_err(|e| format!("Failed to acquire monitor lock: {}", e))?;
 
+        // Derive active connections from the connection manager's statistics.
+        let active_connections = connection_manager.statistics.active_connections;
+
+        // Derive cache hit rate from the globally-aggregated cache statistics.
+        let total_requests =
+            cache_manager.statistics.total_hits + cache_manager.statistics.total_misses;
+        let cache_hit_rate = if total_requests > 0 {
+            cache_manager.statistics.total_hits as f64 / total_requests as f64
+        } else {
+            0.0
+        };
+
+        // Derive compression ratio from aggregated compression statistics.
+        let compression_ratio = compression_manager.statistics.global_compression_ratio;
+
+        // Derive average response time from the monitor's real-time metrics if
+        // available, otherwise fall back to the aggregate sample processing time
+        // across all agents.
+        let average_response_time = monitor
+            .real_time_metrics
+            .current
+            .get("avg_response_time")
+            .map(|mv| Duration::from_secs_f64(mv.value.max(0.0)))
+            .unwrap_or_else(|| {
+                let agent_count = monitor.agents.len();
+                if agent_count == 0 {
+                    Duration::from_millis(0)
+                } else {
+                    let total_processing: Duration = monitor
+                        .agents
+                        .values()
+                        .map(|a| a.statistics.processing_time)
+                        .fold(Duration::from_millis(0), |acc, d| acc + d);
+                    total_processing / agent_count as u32
+                }
+            });
+
         Ok(PerformanceMetrics {
             total_channels: self.channel_configs.len(),
-            active_connections: 0, // TODO: Get from connection_manager
-            cache_hit_rate: 0.0,   // TODO: Get from cache_manager
-            compression_ratio: 0.0, // TODO: Get from compression_manager
-            average_response_time: Duration::from_millis(0), // TODO: Get from monitor
+            active_connections,
+            cache_hit_rate,
+            compression_ratio,
+            average_response_time,
         })
     }
 
@@ -286,5 +323,30 @@ impl Default for PerformanceMetrics {
             compression_ratio: 0.0,
             average_response_time: Duration::from_millis(0),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_performance_metrics_default_state() {
+        let manager = PerformanceManager::new();
+        let metrics = manager.get_performance_metrics().expect("metrics should be available");
+        assert_eq!(metrics.total_channels, 0);
+        assert_eq!(metrics.active_connections, 0);
+        // Hit rate and compression ratio default to 0.0 with no data.
+        assert!((metrics.cache_hit_rate - 0.0).abs() < 1e-9);
+        assert!((metrics.compression_ratio - 0.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_get_performance_metrics_counts_channels() {
+        let mut manager = PerformanceManager::new();
+        manager.configure_channel("ch1".to_string(), ChannelPerformanceConfig::default());
+        manager.configure_channel("ch2".to_string(), ChannelPerformanceConfig::default());
+        let metrics = manager.get_performance_metrics().expect("metrics should be available");
+        assert_eq!(metrics.total_channels, 2);
     }
 }

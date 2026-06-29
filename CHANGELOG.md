@@ -5,14 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.2] - 2026-06-30
 
-### Planned
-- Performance parity with scikit-learn on large datasets
-- Enhanced GPU acceleration (CUDA/WebGPU)
-- Distributed computing support
-- ONNX/PMML model interchange
-- WebAssembly compilation support
+### Added
+- `sklears-core`: New `system_info` module — `SystemMemory` struct with `system_memory()` and `process_rss_bytes()` reading real OS stats (Linux `/proc/meminfo`; macOS `host_statistics64` + `sysctlbyname`; sysconf on other Unix; `GlobalMemoryStatusEx` on Windows)
+- `sklears-core`: DSL macros fully implemented — `model_evaluation!`, `data_pipeline!`, `experiment_config!` wired through parse → generate pipeline via `dsl_types`/`parsers`/`code_generators`
+- `sklears-core`: `trait_explorer` GPU-context init wired to `scirs2_core::gpu` with honest CPU fallback; where-clause extraction implemented
+- `sklears-compose`: New `comprehensive_benchmarking` module with full regression-detection subsystem (15 trait modules: `AdaptiveThresholds`, `AlertSuppression`, `BaselineComparisons`, `BusinessImpactAssessment`, `EffectSizeAnalysis`, `PatternRecognition`, `RegressionAlertSystem`, `RegressionCache`, `RegressionDetector`, `RegressionDetectorConfig`, `RegressionMetadata`, `SeverityAssessment`, `SignificanceTesting`, `SmartSuppression`, `ThresholdManagement`)
+- `sklears-compose`: `time_series_pipelines` — `LagFeatures`, `RollingWindow`, `Differencing`, `TemporalTrainTestSplit` implemented and re-exported
+- `sklears-compose`: `enhanced_wasm_integration` re-exported in `lib.rs`; new `utils` module
+- `sklears-compose`: Column transformer sparse paths via real CSR operations from `scirs2-sparse` (`sparse_select_columns`, `sparse_hstack`)
+- `sklears-preprocessing`: 12 previously-stub implementations now real — scalers: `MinMaxScaler`, `MaxAbsScaler`, `UnitVectorScaler`, `FeatureWiseScaler`, `OutlierAwareScaler`; imputers: `SimpleImputer`, `KNNImputer` (NaN-aware), `IterativeImputer` (MICE ridge), `MultipleImputer`, `GAINImputer`; encoders: `OrdinalEncoder`, `TargetEncoder` (category smoothing)
+- `sklears-preprocessing`: SIMD paths re-enabled — real AVX kernels `simd_threshold_mask`, `simd_axpy`; `simd_mahalanobis` routed through `simd_dot_product`
+- `sklears-simd`: AVX2 quicksort implementation — `quicksort_avx2_impl`, `partition_avx2_buffered`, `build_compress_lut`; 6 new hardening tests (already_sorted, reverse_sorted, all_equal, heavy_duplicates, non_multiple_of_8, large)
+- `sklears-impute`: `CategoricalClusteringImputer` (k-means), `CategoricalRandomForestImputer` (MissForest/CART), `AssociationRuleImputer` (Apriori), and `validate_imputer` (K-fold MAE cross-validation)
+- `sklears-manifold`: Real serde serialization for `RandomProjection` via new public accessors (`projection_matrix()`, etc.) with lossless round-trip tests
+- `sklears-svm`: `SVC` conformal prediction restructured to `Option<SVC<Trained>>`; unfitted state returns honest `Err(NotTrained)`
+- Workspace: `oxicuda-backend`, `oxicuda-memory`, `oxicuda-blas`, `oxicuda-solver`, `oxicuda-manifold`, `oxicuda-dnn`, `oxicuda-driver`, `oxicuda-ptx`, `oxicuda-primitives` v0.3 added (replacing direct `wgpu`/`cudarc`/`candle-core` dependencies)
+
+### Changed
+- All SciRS2 workspace dependencies updated 0.4.2 → 0.5.1: `scirs2-core`, `scirs2-autograd`, `scirs2-optimize`, `scirs2-linalg`, `scirs2-stats`, `scirs2-cluster`, `scirs2-metrics`, `scirs2-datasets`, `scirs2-sparse`, `scirs2-neural`, `scirs2-special`, `scirs2-spatial`, `scirs2-signal`, `scirs2-series`, `scirs2-text`, `scirs2-fft`, `scirs2-graph`
+- `oxicode` updated 0.2 → 0.2.4; `oxifft` updated 0.3.0 → 0.3.2; `oxiarc-deflate` updated 0.2.6 → 0.3.3; `oxiarc-zstd` updated 0.2.7 → 0.3.3
+- `sklears-svm`: Fully migrated from `nalgebra` → `scirs2-linalg` across `semi_supervised`, `property_tests`, and `advanced_optimization`; no `nalgebra` remaining in `src/`
+- `sklears-metrics`: Fully migrated from `sprs` → `scirs2-sparse`; `sparse` feature re-enabled
+- `sklears-discriminant-analysis`: Parallel eigen computation wired to `scirs2_linalg::eigh`; upstream parallel kernel limitation documented
+
+### Fixed
+- `sklears-simd`: 5 test failures — MAE gradient sign bug, cross-product SSE2 shuffles, F32x4 stride test, AVX2 compress partition
+- `sklears-gaussian-process`: Cholesky stability for indefinite saddle-point system (ordinary kriging) — SPD via regularized Cholesky, indefinite via LU; 5 previously-ignored kriging tests re-enabled; LOO studentized-residual outlier fix
+- `sklears-core`: `system_info` macOS compatibility — `_SC_AVPHYS_PAGES` replaced with `host_statistics64` (the constant is absent from the macOS libc ABI)
+- `sklears-mixture`: `student_t` doctest — `degrees_of_freedom` returns `Result`, chained `.expect()` added
+- `sklears-inspection`: 3 doctest fixes (`schedule_tasks` distributed, federated moved config, quantum `add_parametric_gate`); `test_gaussian_noise_generation` fixed with seeded `StdRng` + 200-sample statistical test
+- `sklears-svm`: 3 real bugs fixed during `nalgebra` migration, including a fabricated `decision_function` implementation replaced with a correct one
+- Doctest fixes across `sklears-covariance`, `sklears-cross-decomposition`, `sklears-isotonic`, `sklears-model-selection`, `sklears-neighbors`, `sklears-semi-supervised` (missing `Ok(())`, invalid imports, wrong type annotations, f32→f64 precision tolerances)
+- Flaky timing tests fixed (`test_decomposition_pipeline`, `test_model_metadata`, `test_historical_summary`, `test_energy_*`) — removed load-sensitive duration/ratio assertions; `ModelMetadata::touch()` now guarantees strict time advancement
 
 ## [0.1.1] - 2026-04-25
 
@@ -72,5 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/cool-japan/sklears/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/cool-japan/sklears/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/cool-japan/sklears/releases/tag/v0.1.2
+[0.1.1]: https://github.com/cool-japan/sklears/releases/tag/v0.1.1
 [0.1.0]: https://github.com/cool-japan/sklears/releases/tag/v0.1.0

@@ -1,65 +1,92 @@
-pub mod config_types;
+#![allow(missing_docs)]
+#![allow(dead_code)]
+
 pub mod benchmark_management;
-pub mod execution_engine;
-pub mod performance_analysis;
 pub mod comparison_engine;
-pub mod regression_detection;
-pub mod forecasting_prediction;
+pub mod config_types;
 pub mod data_storage;
+pub mod execution_engine;
+pub mod forecasting_prediction;
+pub mod performance_analysis;
+pub mod regression_detection;
+pub mod regression_statistics;
 pub mod reporting_visualization;
 
 pub use config_types::*;
 
 pub use benchmark_management::{
-    BenchmarkManager, BenchmarkDefinition, BenchmarkExecutor, BenchmarkScheduler,
-    BenchmarkingError, BenchmarkingResult,
+    BenchmarkDefinition, BenchmarkManager, BenchmarkResult, BenchmarkScheduler,
 };
 
 pub use execution_engine::{
-    ExecutionEngine, ExecutionPool, ResourceManager, SystemMonitor, TaskScheduler,
-    ExecutionCoordinator, ExecutionError, ExecutionResult,
+    ExecutionCoordinator, ExecutionEngine, ExecutionEngineConfig, ExecutionPool, ResourceManager,
+    SystemMonitor, TaskScheduler,
 };
 
 pub use performance_analysis::{
-    PerformanceAnalyzer, TrendAnalyzer, StatisticalAnalyzer, AnomalyDetector,
-    AnalysisResult, AnalysisError, AnalysisEngine,
+    AnalysisResult, AnomalyDetector, PerformanceAnalyzer, TrendAnalyzer,
 };
 
 pub use comparison_engine::{
-    ComparisonEngine, BaselineManager, StatisticalComparison, EffectSizeCalculator,
-    ComparisonReport, ComparisonError, ComparisonResult,
+    BaselineManager, ComparisonEngine, ComparisonEngineConfig, ComparisonReport,
+    StatisticalComparison,
 };
 
-pub use regression_detection::{
-    RegressionDetector, AlertManager, RootCauseAnalyzer, RemediationEngine,
-    RegressionReport, RegressionError, RegressionResult,
-};
+pub use regression_detection::{RegressionDetector, RegressionDetectorConfig, RegressionReport};
 
 pub use forecasting_prediction::{
-    ForecastingEngine, ForecastingModel, PredictionAlgorithm, TrendAnalyzer as ForecastTrendAnalyzer,
-    ModelValidator, ForecastCoordinator, ForecastResult, TrendAnalysisResult,
-    ForecastingError, ForecastingResult,
+    ForecastCoordinator, ForecastResult, ForecastingEngine, ForecastingError, ForecastingModel,
+    ForecastingResult, ModelValidator, PredictionAlgorithm, TrendAnalysisResult,
+    TrendAnalyzer as ForecastTrendAnalyzer,
 };
 
 pub use data_storage::{
-    DataStorageEngine, StorageBackend, IndexingEngine, RetentionManager,
-    CompressionManager, CacheManager, BackupManager, QueryEngine,
-    IntegrityChecker, StorageData, DataStorageError, DataStorageResult,
+    BackupManager, CacheManager, CompressionManager, DataStorageEngine, DataStorageError,
+    DataStorageResult, IndexingEngine, IntegrityChecker, QueryEngine, RetentionManager,
+    StorageBackend,
 };
 
 pub use reporting_visualization::{
-    ReportingVisualizationEngine, ReportGenerator, VisualizationEngine, DashboardManager,
-    TemplateManager, ExportManager, StylingEngine, DistributionManager,
-    WebInterface, GeneratedReport, GeneratedVisualization, VisualizationData,
-    ReportingError, ReportingResult,
+    DashboardManager, DistributionManager, ExportManager, GeneratedReport, GeneratedVisualization,
+    ReportGenerator, ReportingError, ReportingResult, ReportingVisualizationEngine, StylingEngine,
+    TemplateManager, VisualizationData, VisualizationEngine, WebInterface,
 };
 
+// Unit stubs for types used in result structs below
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct TrendResult;
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct AnomalyResult;
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct PerformanceInsight;
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct PerformanceRecommendation;
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct BaselineComparison;
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct DetectedRegression;
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct RegressionSeverity;
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct RootCauseResult;
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct RemediationSuggestion;
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct PerformanceForecast;
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct TrendPrediction;
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct CapacityRecommendation;
+// StorageData stub (previously attempted in config_types)
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct StorageData;
+
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ComprehensiveBenchmarkingSuite {
     config: BenchmarkingConfig,
     benchmark_manager: Arc<RwLock<BenchmarkManager>>,
@@ -76,11 +103,18 @@ impl ComprehensiveBenchmarkingSuite {
     pub fn new(config: BenchmarkingConfig) -> Self {
         Self {
             config: config.clone(),
-            benchmark_manager: Arc::new(RwLock::new(BenchmarkManager::new(config.clone()))),
-            execution_engine: Arc::new(RwLock::new(ExecutionEngine::new())),
+            benchmark_manager: Arc::new(RwLock::new(BenchmarkManager::with_config(config.clone()))),
+            execution_engine: Arc::new(RwLock::new(
+                ExecutionEngine::new(ExecutionEngineConfig::default())
+                    .unwrap_or_else(|_| ExecutionEngine::default()),
+            )),
             performance_analyzer: Arc::new(RwLock::new(PerformanceAnalyzer::new())),
-            comparison_engine: Arc::new(RwLock::new(ComparisonEngine::new())),
-            regression_detector: Arc::new(RwLock::new(RegressionDetector::new())),
+            comparison_engine: Arc::new(RwLock::new(ComparisonEngine::new(
+                ComparisonEngineConfig::default(),
+            ))),
+            regression_detector: Arc::new(RwLock::new(RegressionDetector::new(
+                RegressionDetectorConfig::default(),
+            ))),
             forecasting_engine: Arc::new(RwLock::new(ForecastingEngine::new())),
             data_storage: Arc::new(RwLock::new(DataStorageEngine::new())),
             reporting_engine: Arc::new(RwLock::new(ReportingVisualizationEngine::new())),
@@ -116,7 +150,10 @@ impl ComprehensiveBenchmarkingSuite {
         Ok(())
     }
 
-    pub fn execute_comprehensive_benchmark(&self, benchmark_id: &str) -> Result<ComprehensiveBenchmarkResult, BenchmarkingError> {
+    pub fn execute_comprehensive_benchmark(
+        &self,
+        benchmark_id: &str,
+    ) -> Result<ComprehensiveBenchmarkResult, BenchmarkingError> {
         let start_time = Utc::now();
 
         let benchmark_results = self.execute_benchmarks(benchmark_id)?;
@@ -142,11 +179,17 @@ impl ComprehensiveBenchmarkingSuite {
         })
     }
 
-    fn execute_benchmarks(&self, _benchmark_id: &str) -> Result<Vec<BenchmarkResult>, BenchmarkingError> {
+    fn execute_benchmarks(
+        &self,
+        _benchmark_id: &str,
+    ) -> Result<Vec<BenchmarkResult>, BenchmarkingError> {
         Ok(vec![])
     }
 
-    fn analyze_performance(&self, _results: &[BenchmarkResult]) -> Result<PerformanceAnalysisResult, BenchmarkingError> {
+    fn analyze_performance(
+        &self,
+        _results: &[BenchmarkResult],
+    ) -> Result<PerformanceAnalysisResult, BenchmarkingError> {
         Ok(PerformanceAnalysisResult {
             analysis_id: "analysis_1".to_string(),
             analysis_timestamp: Utc::now(),
@@ -158,7 +201,10 @@ impl ComprehensiveBenchmarkingSuite {
         })
     }
 
-    fn compare_with_baselines(&self, _results: &[BenchmarkResult]) -> Result<ComparisonResults, BenchmarkingError> {
+    fn compare_with_baselines(
+        &self,
+        _results: &[BenchmarkResult],
+    ) -> Result<ComparisonResults, BenchmarkingError> {
         Ok(ComparisonResults {
             comparison_id: "comparison_1".to_string(),
             comparison_timestamp: Utc::now(),
@@ -170,7 +216,10 @@ impl ComprehensiveBenchmarkingSuite {
         })
     }
 
-    fn detect_regressions(&self, _results: &[BenchmarkResult]) -> Result<RegressionAnalysisResult, BenchmarkingError> {
+    fn detect_regressions(
+        &self,
+        _results: &[BenchmarkResult],
+    ) -> Result<RegressionAnalysisResult, BenchmarkingError> {
         Ok(RegressionAnalysisResult {
             analysis_id: "regression_1".to_string(),
             analysis_timestamp: Utc::now(),
@@ -181,7 +230,10 @@ impl ComprehensiveBenchmarkingSuite {
         })
     }
 
-    fn generate_forecasts(&self, _results: &[BenchmarkResult]) -> Result<ForecastingResults, BenchmarkingError> {
+    fn generate_forecasts(
+        &self,
+        _results: &[BenchmarkResult],
+    ) -> Result<ForecastingResults, BenchmarkingError> {
         Ok(ForecastingResults {
             forecasting_id: "forecast_1".to_string(),
             forecasting_timestamp: Utc::now(),
@@ -192,7 +244,11 @@ impl ComprehensiveBenchmarkingSuite {
         })
     }
 
-    fn generate_reports(&self, _results: &[BenchmarkResult], _analysis: &PerformanceAnalysisResult) -> Result<Vec<GeneratedReport>, BenchmarkingError> {
+    fn generate_reports(
+        &self,
+        _results: &[BenchmarkResult],
+        _analysis: &PerformanceAnalysisResult,
+    ) -> Result<Vec<GeneratedReport>, BenchmarkingError> {
         Ok(vec![])
     }
 
@@ -291,7 +347,9 @@ impl Default for ComprehensiveBenchmarkingSuite {
     }
 }
 
-pub fn create_comprehensive_benchmarking_suite(config: BenchmarkingConfig) -> ComprehensiveBenchmarkingSuite {
+pub fn create_comprehensive_benchmarking_suite(
+    config: BenchmarkingConfig,
+) -> ComprehensiveBenchmarkingSuite {
     ComprehensiveBenchmarkingSuite::new(config)
 }
 

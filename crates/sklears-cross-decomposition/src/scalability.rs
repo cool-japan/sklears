@@ -7,6 +7,8 @@
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
+use scirs2_linalg::compat::{eigh, svd, UPLO};
+use scirs2_linalg::LinalgError;
 use sklears_core::error::SklearsError;
 use std::sync::Arc;
 use std::thread;
@@ -63,6 +65,9 @@ pub struct MemoryEfficientCCA {
     running_mean_y: Option<Array1<f64>>,
     running_var_x: Option<Array1<f64>>,
     running_var_y: Option<Array1<f64>>,
+    /// Exponentially-smoothed canonical correlations measured on the most recent
+    /// batches using the current weights (real estimate, not a constant).
+    running_correlations: Option<Array1<f64>>,
     n_samples_seen: usize,
     iteration: usize,
 }
@@ -87,6 +92,7 @@ impl MemoryEfficientCCA {
             running_mean_y: None,
             running_var_x: None,
             running_var_y: None,
+            running_correlations: None,
             n_samples_seen: 0,
             iteration: 0,
         }
@@ -178,7 +184,37 @@ impl MemoryEfficientCCA {
         }
 
         self.n_samples_seen += n_samples;
+
+        // Measure the real per-component canonical correlations achieved by the
+        // current weights on this (normalized) batch and fold them into an
+        // exponentially-smoothed running estimate.
+        self.update_running_correlations(&x_norm, &y_norm);
         Ok(())
+    }
+
+    /// Update the running canonical-correlation estimate from the latest batch.
+    fn update_running_correlations(&mut self, x_norm: &Array2<f64>, y_norm: &Array2<f64>) {
+        let (wx, wy) = match (&self.wx, &self.wy) {
+            (Some(wx), Some(wy)) => (wx, wy),
+            _ => return,
+        };
+        if x_norm.nrows() < 2 {
+            return;
+        }
+        let u = x_norm.dot(wx);
+        let v = y_norm.dot(wy);
+
+        let batch_correlations: Array1<f64> = (0..self.n_components)
+            .map(|k| Self::compute_correlation_static(&u.column(k), &v.column(k)).abs())
+            .collect();
+
+        self.running_correlations = Some(match self.running_correlations.take() {
+            Some(prev) => {
+                let alpha = 0.1;
+                &prev * (1.0 - alpha) + &batch_correlations * alpha
+            }
+            None => batch_correlations,
+        });
     }
 
     fn initialize_parameters(&mut self, p_x: usize, p_y: usize) -> Result<(), SklearsError> {
@@ -392,15 +428,13 @@ impl MemoryEfficientCCA {
         }
     }
 
-    /// Get current canonical correlations
+    /// Get current canonical correlations.
+    ///
+    /// Returns the exponentially-smoothed canonical correlations measured on the
+    /// batches seen so far using the current weights (a real running estimate),
+    /// or `None` if the model has not been fitted yet.
     pub fn canonical_correlations(&self) -> Option<Array1<f64>> {
-        if let (Some(_wx), Some(_wy)) = (&self.wx, &self.wy) {
-            // Return placeholder correlations - in practice, you'd compute these
-            // from a validation set or using running estimates
-            Some(Array1::ones(self.n_components) * 0.8)
-        } else {
-            None
-        }
+        self.running_correlations.clone()
     }
 
     /// Get current canonical weights
@@ -448,6 +482,7 @@ impl MemoryEfficientCCA {
         self.running_mean_y = None;
         self.running_var_x = None;
         self.running_var_y = None;
+        self.running_correlations = None;
         self.n_samples_seen = 0;
         self.iteration = 0;
     }
@@ -583,51 +618,109 @@ impl DistributedCCA {
         })
     }
 
+    /// Fit canonical correlation analysis on a single worker's data shard.
+    ///
+    /// Solves the standard CCA generalized-eigenproblem via the symmetric
+    /// whitening / SVD formulation. Given centered `X` (n x p_x) and
+    /// `Y` (n x p_y):
+    ///
+    /// * `Cxx = Xᵀ X / (n-1) + reg·I`
+    /// * `Cyy = Yᵀ Y / (n-1) + reg·I`
+    /// * `Cxy = Xᵀ Y / (n-1)`
+    /// * `M = Cxx^(-1/2) · Cxy · Cyy^(-1/2)`, then `SVD(M) = U S Vᵀ`.
+    ///
+    /// The canonical correlations are the singular values `S` (clamped to
+    /// `[0, 1]`); the x-weights are `Cxx^(-1/2) · U[:, :n_comp]` and the
+    /// y-weights are `Cyy^(-1/2) · V[:, :n_comp]` with `V = Vt.t()`.
     fn fit_worker_cca(
         x: &Array2<f64>,
         y: &Array2<f64>,
         n_components: usize,
         regularization: f64,
     ) -> Result<WorkerCCAResult, SklearsError> {
-        // Simple CCA implementation for each worker
-        let n = x.nrows() as f64;
+        let n_samples = x.nrows();
+        if n_samples < 2 {
+            return Err(SklearsError::InvalidInput(
+                "fit_worker_cca requires at least two samples to estimate covariance".to_string(),
+            ));
+        }
+        let n = n_samples as f64;
 
-        // Center the data
+        // Center the data.
         let x_mean = x
             .mean_axis(Axis(0))
-            .expect("mean_axis requires non-empty array");
+            .ok_or_else(|| SklearsError::InvalidInput("X shard is empty".to_string()))?;
         let y_mean = y
             .mean_axis(Axis(0))
-            .expect("mean_axis requires non-empty array");
+            .ok_or_else(|| SklearsError::InvalidInput("Y shard is empty".to_string()))?;
         let x_centered = x - &x_mean.insert_axis(Axis(0));
         let y_centered = y - &y_mean.insert_axis(Axis(0));
 
-        // Compute covariance matrices
-        let cxx = x_centered.t().dot(&x_centered) / (n - 1.0);
-        let cyy = y_centered.t().dot(&y_centered) / (n - 1.0);
-        let _cxy = x_centered.t().dot(&y_centered) / (n - 1.0);
-
-        // Add regularization
-        let reg_eye_x = Array2::<f64>::eye(cxx.nrows()) * regularization;
-        let reg_eye_y = Array2::<f64>::eye(cyy.nrows()) * regularization;
-        let _cxx_reg = &cxx + &reg_eye_x;
-        let _cyy_reg = &cyy + &reg_eye_y;
-
-        // Simplified CCA solution (placeholder implementation)
         let p_x = x.ncols();
         let p_y = y.ncols();
-        let n_comp = n_components.min(p_x).min(p_y);
 
-        let wx = Array2::<f64>::eye(p_x).slice(s![.., ..n_comp]).to_owned();
-        let wy = Array2::<f64>::eye(p_y).slice(s![.., ..n_comp]).to_owned();
-        let correlations = Array1::ones(n_comp) * 0.7; // Placeholder
+        // Regularized auto-covariance and cross-covariance matrices.
+        let cxx = &(x_centered.t().dot(&x_centered) / (n - 1.0))
+            + &(Array2::<f64>::eye(p_x) * regularization);
+        let cyy = &(y_centered.t().dot(&y_centered) / (n - 1.0))
+            + &(Array2::<f64>::eye(p_y) * regularization);
+        let cxy = x_centered.t().dot(&y_centered) / (n - 1.0);
+
+        // Symmetric inverse square roots used to whiten each view.
+        let cxx_inv_sqrt = Self::symmetric_inverse_sqrt(&cxx)?;
+        let cyy_inv_sqrt = Self::symmetric_inverse_sqrt(&cyy)?;
+
+        // Whitened cross-covariance: M = Cxx^(-1/2) · Cxy · Cyy^(-1/2).
+        let whitened = cxx_inv_sqrt.dot(&cxy).dot(&cyy_inv_sqrt);
+
+        // SVD of the whitened cross-covariance yields canonical directions.
+        let (u, s, vt) = svd(&whitened, true)
+            .map_err(|e: LinalgError| SklearsError::InvalidInput(e.to_string()))?;
+        let v = vt.t();
+
+        let n_comp = n_components.min(p_x).min(p_y).min(s.len());
+        if n_comp == 0 {
+            return Err(SklearsError::InvalidInput(
+                "No canonical components could be extracted (zero-width input)".to_string(),
+            ));
+        }
+
+        // Canonical correlations are the leading singular values, clamped to
+        // the theoretically valid range [0, 1].
+        let correlations = s.slice(s![..n_comp]).mapv(|sv| sv.clamp(0.0, 1.0));
+
+        // Map whitened singular vectors back to the original feature spaces.
+        let u_top = u.slice(s![.., ..n_comp]);
+        let v_top = v.slice(s![.., ..n_comp]);
+        let wx = cxx_inv_sqrt.dot(&u_top);
+        let wy = cyy_inv_sqrt.dot(&v_top);
 
         Ok(WorkerCCAResult {
             wx,
             wy,
             correlations,
-            n_samples: x.nrows(),
+            n_samples,
         })
+    }
+
+    /// Compute the symmetric inverse square root `C^(-1/2)` of a symmetric
+    /// positive semi-definite matrix via its eigendecomposition.
+    ///
+    /// With `eigh(C) = (w, Q)` (eigenvalues `w`, eigenvectors as columns of
+    /// `Q`), `C^(-1/2) = Q · diag(1 / sqrt(max(w, eps))) · Qᵀ`. A small `eps`
+    /// floor guards against division by zero for (near-)singular directions;
+    /// the caller's regularization keeps conditioning reasonable.
+    fn symmetric_inverse_sqrt(matrix: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
+        const EPS: f64 = 1e-10;
+        let (eigenvalues, eigenvectors) = eigh(matrix, UPLO::Upper)
+            .map_err(|e: LinalgError| SklearsError::InvalidInput(e.to_string()))?;
+
+        let inv_sqrt_eigenvalues = eigenvalues.mapv(|w| 1.0 / w.max(EPS).sqrt());
+
+        // Scale each eigenvector column by its inverse-sqrt eigenvalue, then
+        // reassemble: Q · diag(d) · Qᵀ.
+        let scaled = &eigenvectors * &inv_sqrt_eigenvalues.view().insert_axis(Axis(0));
+        Ok(scaled.dot(&eigenvectors.t()))
     }
 
     #[allow(clippy::type_complexity)] // returns (x_weights, y_weights, correlations) triple
@@ -848,6 +941,43 @@ mod tests {
     }
 
     #[test]
+    fn test_memory_efficient_cca_real_correlations() {
+        // Strongly correlated streaming data: the reported canonical correlation
+        // must be a real value in [0, 1] (never the old hardcoded 0.8), and the
+        // running estimate should track the genuine high correlation.
+        let mut cca = MemoryEfficientCCA::new(1)
+            .batch_size(16)
+            .learning_rate(0.05)
+            .max_iter(2000)
+            .random_state(7);
+
+        let n = 60usize;
+        let mut x = Array2::<f64>::zeros((n, 2));
+        let mut y = Array2::<f64>::zeros((n, 2));
+        for i in 0..n {
+            let t = i as f64 * 0.2;
+            x[[i, 0]] = t.sin();
+            x[[i, 1]] = (0.5 * t).cos();
+            // Y is an almost-deterministic linear image of X.
+            y[[i, 0]] = 0.9 * x[[i, 0]] + 0.1 * x[[i, 1]];
+            y[[i, 1]] = -0.2 * x[[i, 0]] + 0.8 * x[[i, 1]];
+        }
+
+        for _ in 0..30 {
+            cca.partial_fit(&x, &y).expect("partial_fit should succeed");
+        }
+
+        let correlations = cca
+            .canonical_correlations()
+            .expect("correlations should exist after fitting");
+        assert_eq!(correlations.len(), 1);
+        let c = correlations[0];
+        assert!((0.0..=1.0).contains(&c), "correlation out of range: {c}");
+        // A near-deterministic relationship -> strong recovered correlation.
+        assert!(c > 0.5, "expected high canonical correlation, got {c}");
+    }
+
+    #[test]
     fn test_memory_efficient_cca_reset() {
         let mut cca = MemoryEfficientCCA::new(1);
 
@@ -1011,5 +1141,65 @@ mod tests {
         let dcca_many_workers = DistributedCCA::new(1).n_workers(5);
         let result2 = dcca_many_workers.fit(&x_small, &y_small);
         assert!(result2.is_err());
+    }
+
+    #[test]
+    fn test_fit_worker_cca_recovers_linear_relationship() {
+        // Build X with two informative, near-uncorrelated features and define
+        // Y as a known linear function of X plus a tiny deterministic
+        // perturbation. A correctly implemented CCA must recover a leading
+        // canonical correlation very close to 1.0 for such data.
+        let n_samples = 60usize;
+        let mut x = Array2::<f64>::zeros((n_samples, 2));
+        for i in 0..n_samples {
+            let t = i as f64;
+            // Two distinct, well-conditioned directions.
+            x[[i, 0]] = (t * 0.37).sin() * 3.0 + t * 0.05;
+            x[[i, 1]] = (t * 0.21).cos() * 2.0 - t * 0.03;
+        }
+
+        // Mixing matrix B (p_x x p_y) defines Y = X · B (+ tiny noise).
+        let b = array![[1.5, -0.7, 0.2], [0.4, 1.1, -1.3]];
+        let mut y = x.dot(&b);
+        // Deterministic small perturbation so the relationship is strong but
+        // not perfectly degenerate.
+        for i in 0..n_samples {
+            for j in 0..y.ncols() {
+                y[[i, j]] += (i as f64 * 0.13 + j as f64).sin() * 1e-3;
+            }
+        }
+
+        let n_components = 2usize;
+        let result = DistributedCCA::fit_worker_cca(&x, &y, n_components, 1e-8)
+            .expect("fit_worker_cca should succeed on well-conditioned data");
+
+        // Shapes: wx is (p_x, n_comp), wy is (p_y, n_comp), correlations len n_comp.
+        let n_comp = n_components.min(x.ncols()).min(y.ncols());
+        assert_eq!(result.wx.shape(), &[x.ncols(), n_comp]);
+        assert_eq!(result.wy.shape(), &[y.ncols(), n_comp]);
+        assert_eq!(result.correlations.len(), n_comp);
+
+        // Canonical correlations are in [0, 1].
+        assert!(result
+            .correlations
+            .iter()
+            .all(|&c| (0.0..=1.0).contains(&c)));
+
+        // The top canonical correlation must be near 1.0 because Y is an
+        // (almost) exact linear image of X.
+        let top = result.correlations.iter().cloned().fold(f64::MIN, f64::max);
+        assert!(
+            top > 0.9,
+            "expected top canonical correlation > 0.9, got {top}"
+        );
+
+        // Y is a rank-2 linear image of X's two-dimensional column space, so
+        // BOTH canonical correlations must be strong. Check order-independently
+        // via the minimum extracted correlation.
+        let weakest = result.correlations.iter().cloned().fold(f64::MAX, f64::min);
+        assert!(
+            weakest > 0.9,
+            "expected every canonical correlation > 0.9, got min {weakest}"
+        );
     }
 }

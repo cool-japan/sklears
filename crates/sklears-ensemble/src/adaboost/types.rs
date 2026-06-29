@@ -3,7 +3,7 @@
 use scirs2_core::ndarray::Array1;
 use sklears_core::{
     traits::{Trained, Untrained},
-    types::Float,
+    types::{Float, Int},
 };
 use std::marker::PhantomData;
 
@@ -56,7 +56,51 @@ pub struct LogitBoostConfig {
     pub(crate) max_iter: usize,
 }
 
-/// Decision tree classifier (simplified stub for AdaBoost)
+// ---------------------------------------------------------------------------
+// Internal decision-tree node types (used by both classifier and regressor)
+// ---------------------------------------------------------------------------
+
+/// Internal node for classification trees.
+#[derive(Debug, Clone)]
+pub(crate) enum ClassifierNode {
+    Leaf(Int),
+    Split {
+        feature_index: usize,
+        threshold: Float,
+        left: Box<ClassifierNode>,
+        right: Box<ClassifierNode>,
+    },
+}
+
+/// Internal node for regression trees.
+#[derive(Debug, Clone)]
+pub(crate) enum RegressorNode {
+    Leaf(Float),
+    Split {
+        feature_index: usize,
+        threshold: Float,
+        left: Box<RegressorNode>,
+        right: Box<RegressorNode>,
+    },
+}
+
+/// Trained state held by `DecisionTreeClassifier<Trained>`.
+#[derive(Debug, Clone)]
+pub struct DecisionTreeClassifierState {
+    pub(crate) root: ClassifierNode,
+    #[allow(dead_code)]
+    pub(crate) n_features: usize,
+}
+
+/// Trained state held by `DecisionTreeRegressor<Trained>`.
+#[derive(Debug, Clone)]
+pub struct DecisionTreeRegressorState {
+    pub(crate) root: RegressorNode,
+    #[allow(dead_code)]
+    pub(crate) n_features: usize,
+}
+
+/// Decision tree classifier used as base learner in AdaBoost.
 #[derive(Debug, Clone)]
 pub struct DecisionTreeClassifier<T> {
     pub(crate) criterion: SplitCriterion,
@@ -65,9 +109,11 @@ pub struct DecisionTreeClassifier<T> {
     pub(crate) min_samples_leaf: usize,
     pub(crate) random_state: Option<u64>,
     pub(crate) state: PhantomData<T>,
+    /// Populated after fitting; `None` in `Untrained` state.
+    pub(crate) tree_: Option<DecisionTreeClassifierState>,
 }
 
-/// Decision tree regressor (simplified stub for AdaBoost)
+/// Decision tree regressor used as base learner in LogitBoost / gradient boosting.
 #[derive(Debug, Clone)]
 pub struct DecisionTreeRegressor<T> {
     pub(crate) criterion: SplitCriterion,
@@ -76,6 +122,8 @@ pub struct DecisionTreeRegressor<T> {
     pub(crate) min_samples_leaf: usize,
     pub(crate) random_state: Option<u64>,
     pub(crate) state: PhantomData<T>,
+    /// Populated after fitting; `None` in `Untrained` state.
+    pub(crate) tree_: Option<DecisionTreeRegressorState>,
 }
 
 /// AdaBoost Classifier

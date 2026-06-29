@@ -2,9 +2,9 @@
 
 ## Disabled modules (re-enable per empirical protocol)
 
-- [ ] Re-enable `pub mod gpu_acceleration` — Depends on scirs2_core::memory::BufferPool which doesn't exist yet
-- [ ] Re-enable `pub mod lazy_evaluation` — Depends on scirs2_core::memory::BufferPool which doesn't exist yet
-- [ ] Re-enable `pub mod memory_management` — Depends on scirs2_core::memory::BufferPool which doesn't exist yet
+- [x] Re-enable `pub mod gpu_acceleration` — DONE (2026-06-21): `scirs2_core::memory::BufferPool` exists in scirs2-core 0.5.0; re-enabled.
+- [x] Re-enable `pub mod lazy_evaluation` — DONE (2026-06-21): BufferPool available; re-enabled.
+- [x] Re-enable `pub mod memory_management` — DONE (2026-06-21): BufferPool available; re-enabled.
 
 ## Source-level TODOs
 

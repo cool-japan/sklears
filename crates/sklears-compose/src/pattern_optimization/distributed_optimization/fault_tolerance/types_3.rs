@@ -466,9 +466,40 @@ impl ByzantineDetector {
         }
         Ok(byzantine_nodes)
     }
-    /// Traditional Byzantine detection fallback
+    /// Traditional Byzantine detection fallback.
+    ///
+    /// Tallies how often each node has dissented across the recorded consensus
+    /// rounds and how often it participated. A node is flagged as Byzantine
+    /// when its dissent ratio (dissents / participations) exceeds the
+    /// configured `detection_threshold` and it has participated in at least
+    /// three rounds (avoids reacting to single transient disagreements).
     fn traditional_byzantine_detection(&self) -> SklResult<Vec<String>> {
-        Ok(Vec::new())
+        if self.consensus_history.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut participation: HashMap<String, u32> = HashMap::new();
+        let mut dissent: HashMap<String, u32> = HashMap::new();
+        for round in &self.consensus_history {
+            for node in &round.participating_nodes {
+                *participation.entry(node.clone()).or_insert(0) += 1;
+            }
+            for node in &round.dissenting_nodes {
+                *dissent.entry(node.clone()).or_insert(0) += 1;
+            }
+        }
+        let mut byzantine_nodes = Vec::new();
+        for (node, dissent_count) in &dissent {
+            let participation_count = participation.get(node).copied().unwrap_or(0);
+            if participation_count < 3 {
+                continue;
+            }
+            let ratio = f64::from(*dissent_count) / f64::from(participation_count);
+            if ratio > self.detection_threshold {
+                byzantine_nodes.push(node.clone());
+            }
+        }
+        byzantine_nodes.sort();
+        Ok(byzantine_nodes)
     }
     /// Update with new consensus round
     pub fn update_consensus_round(&mut self, round: ConsensusRound) {

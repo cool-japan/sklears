@@ -11,9 +11,10 @@ use std::collections::{BTreeMap, HashMap};
 use super::workflow_definitions::{ExecutionMode, StepDefinition, WorkflowDefinition};
 
 /// Code generation target language
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub enum CodeLanguage {
     /// Rust language
+    #[default]
     Rust,
     /// Python language
     Python,
@@ -157,7 +158,7 @@ pub struct LanguageTemplate {
 }
 
 /// Code generation statistics
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct GenerationStatistics {
     /// The total lines.
     pub total_lines: usize,
@@ -174,7 +175,7 @@ pub struct GenerationStatistics {
 }
 
 /// Generated code result
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct GeneratedCode {
     /// Generated source code
     pub source_code: String,

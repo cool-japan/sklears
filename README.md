@@ -5,15 +5,15 @@ A comprehensive machine learning library in Rust, inspired by scikit-learn's int
 [![Crates.io](https://img.shields.io/crates/v/sklears.svg)](https://crates.io/crates/sklears)
 [![Documentation](https://docs.rs/sklears/badge.svg)](https://docs.rs/sklears)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
+[![Minimum Rust Version](https://img.shields.io/badge/rustc-1.89+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.1` (April 25, 2026) — 11,586+ tests passing across 36 crates. See the [CHANGELOG.md](CHANGELOG.md) for details.
+> **Latest release:** `0.1.2` (June 30, 2026) — 12,242 tests passing across 36 crates. See the [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## Overview
 
 sklears brings the familiar scikit-learn API to Rust, aiming for comprehensive compatibility while leveraging Rust's unique advantages:
 
-- **>99% scikit-learn API coverage** validated for `0.1.1`
+- **>99% scikit-learn API coverage** validated for `0.1.2`
 - **Pure Rust implementation** with zero C/Fortran dependencies
 - **Memory safety** without garbage collection
 - **Type-safe APIs** that catch errors at compile time
@@ -56,7 +56,7 @@ sklears brings the familiar scikit-learn API to Rust, aiming for comprehensive c
 - **Memory Efficiency**: In-place operations and view-based computations
 - **Cache-Friendly Layouts**: Data structures optimized for CPU cache performance
 - **Lock-Free Algorithms**: Wait-free data structures for high-performance concurrent operations
-- **GPU Support**: Optional CUDA and WebGPU backends (coming soon)
+- **GPU Support**: CPU-only today; CUDA/WebGPU not implemented. The `gpu_support` feature provides CPU fallbacks and honest errors.
 - **Profile-Guided Optimization**: Compiler optimizations based on actual usage patterns
 
 ### Algorithm Coverage
@@ -161,10 +161,10 @@ Add sklears to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-sklears = "0.1.1"
+sklears = "0.1.2"
 
 # Or with specific features
-sklears = { version = "0.1.1", features = ["linear", "clustering", "parallel"] }
+sklears = { version = "0.1.2", features = ["linear", "clustering", "parallel"] }
 ```
 
 ## 🎯 Current Implementation Status
@@ -208,7 +208,7 @@ sklears = { version = "0.1.1", features = ["linear", "clustering", "parallel"] }
 | sklears-svm | 273 | 16 | Alpha |
 | sklears-tree | 71 | 8 | Alpha |
 | sklears-utils | 494 | 2 | Stable |
-| **Total** | **~11,586** | **~1,123** | |
+| **Total** | **~12,242** | **~1,123** | |
 
 Legend: **Stable** = <20 stubs, >50 tests · **Alpha** = functional, some stubs · **Partial** = core works, significant stubs remain
 
@@ -293,8 +293,8 @@ serde = ["serde"]                        # Serialization support
 # Backends
 backend-cpu = []                         # Default CPU backend
 backend-blas = []                        # BLAS acceleration
-backend-cuda = []                        # CUDA GPU support
-backend-wgpu = []                        # WebGPU support
+backend-cuda = []                        # NOT IMPLEMENTED — placeholder flag; no CUDA SDK linked
+backend-wgpu = []                        # NOT IMPLEMENTED — placeholder flag; no WebGPU SDK linked
 ```
 
 ## 🎯 Quick Start
@@ -761,17 +761,21 @@ fn embedded_inference(features: &[f32; 10]) -> f32 {
 }
 ```
 
-### GPU Acceleration (Coming Soon)
+### GPU Acceleration
+
+GPU backends (CUDA, WebGPU) are not yet implemented. All computation uses CPU via Rayon
+and SIMD. The `gpu_support` feature flag enables the CPU-fallback GPU API surface and
+returns honest `NotImplemented` errors when CUDA/WebGPU APIs are called.
 
 ```rust
+// CPU-based parallel computation (available now):
 use sklears::prelude::*;
-use sklears::backends::CudaBackend;
 
-let model = MLPRegressor::new()
-    .hidden_layers(&[512, 256, 128])
-    .backend(CudaBackend::new()?)
-    .batch_size(1024)
-    .mixed_precision(true)  // FP16 training
+// All models use CPU automatically — no backend selection needed.
+// Multi-threaded via Rayon:
+let model = RandomForestClassifier::new()
+    .n_estimators(100)
+    .n_jobs(-1)  // use all CPU cores via Rayon
     .fit(&x, &y)?;
 ```
 
@@ -831,18 +835,18 @@ cargo test -p sklears-linear
 
 See [TODO.md](TODO.md) for detailed implementation plans.
 
-### Current Release Snapshot (0.1.0 — March 20, 2026)
+### Current Release Snapshot (0.1.2 — June 30, 2026)
 
 | Area | Status | Notes |
 |------|--------|-------|
 | API Coverage | ✅ >99% | End-to-end parity with scikit-learn's v1.5 feature set across 36 crates |
-| Testing | ✅ 11,222/11,222 passing (100%) | 175 skipped, comprehensive unit/integration/property tests |
+| Testing | ✅ 12,242/12,242 passing (100%) | 166 skipped, comprehensive unit/integration/property tests |
 | Performance | 🔄 Optimization In Progress | Correct results validated, performance optimization ongoing (see benchmarks) |
 | Pure Rust Stack | ✅ 100% | OxiBLAS v0.1.2 + Oxicode v0.1.1, zero system dependencies |
-| SciRS2 Integration | ✅ Complete | v0.1.3 stable, 18 files migrated (sklears-decomposition, linear, svm) |
+| SciRS2 Integration | ✅ Complete | v0.5.1 stable, full workspace migration complete |
 | Tooling | ✅ Ready | AutoML pipeline, benchmarking harnesses, Polars integration |
 
-### Performance Status (v0.1.0)
+### Performance Status (v0.1.2)
 
 **Current Status**: Correctness validated, performance optimization in progress
 
@@ -866,11 +870,12 @@ See [TODO.md](TODO.md) for detailed implementation plans.
 - Future optimization potential with SIMD and GPU acceleration
 
 **Performance Roadmap**:
-- **v0.1.1**: Profiling and algorithmic improvements
+- **v0.1.1**: Profiling and algorithmic improvements ✅ Done
+- **v0.1.2**: GPU-acceleration stubs (oxicuda-*), SIMD hardening, preprocessing completions ✅ Done
 - **v0.2.0**: Performance parity with scikit-learn
 - **v0.3.0**: Exceed scikit-learn with Rust-specific optimizations (SIMD, parallelization)
 
-### Next Up (toward 0.1.1)
+### Next Up (toward 0.2.0)
 1. **Stabilize Public APIs** — finalize breaking-change policy and document RFC process
 2. **Docs & Guides** — expand cookbook coverage, polish Python bridge documentation
 3. **Release Automation** — wire up crates.io + PyPI publishing pipelines
@@ -878,7 +883,7 @@ See [TODO.md](TODO.md) for detailed implementation plans.
 
 ### Long-term Vision
 - **100% scikit-learn compatibility**
-- **GPU acceleration** via CUDA and WebGPU
+- **CPU-accelerated** via SIMD and Rayon; CUDA/WebGPU planned
 - **Distributed computing** support
 - **Advanced AutoML** capabilities
 - **ONNX/PMML** model interchange

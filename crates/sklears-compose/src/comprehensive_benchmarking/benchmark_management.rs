@@ -4,17 +4,17 @@
 //! benchmark registration, execution scheduling, suite organization, and task coordination.
 
 use super::config_types::*;
-use std::collections::{HashMap, VecDeque, BTreeMap};
-use std::sync::{Arc, RwLock, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::thread;
-use serde::{Serialize, Deserialize};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 // ================================================================================================
 // CORE BENCHMARK MANAGER
 // ================================================================================================
 
 /// Benchmark manager for organizing and executing benchmarks
+#[derive(Debug)]
 pub struct BenchmarkManager {
     registered_benchmarks: HashMap<String, BenchmarkDefinition>,
     benchmark_suites: HashMap<String, BenchmarkSuite>,
@@ -35,29 +35,46 @@ impl BenchmarkManager {
         }
     }
 
+    /// Create a new benchmark manager with configuration (config is currently unused but retained for API compatibility)
+    pub fn with_config(_config: BenchmarkingConfig) -> Self {
+        Self::new()
+    }
+
     /// Register a new benchmark definition
-    pub fn register_benchmark(&mut self, benchmark_def: BenchmarkDefinition) -> Result<(), BenchmarkingError> {
-        if self.registered_benchmarks.contains_key(&benchmark_def.benchmark_id) {
-            return Err(BenchmarkingError::ConfigurationError(
-                format!("Benchmark {} already registered", benchmark_def.benchmark_id)
-            ));
+    pub fn register_benchmark(
+        &mut self,
+        benchmark_def: BenchmarkDefinition,
+    ) -> Result<(), BenchmarkingError> {
+        if self
+            .registered_benchmarks
+            .contains_key(&benchmark_def.benchmark_id)
+        {
+            return Err(BenchmarkingError::ConfigurationError(format!(
+                "Benchmark {} already registered",
+                benchmark_def.benchmark_id
+            )));
         }
 
         // Validate benchmark definition
         self.validate_benchmark_definition(&benchmark_def)?;
 
-        self.registered_benchmarks.insert(benchmark_def.benchmark_id.clone(), benchmark_def);
+        self.registered_benchmarks
+            .insert(benchmark_def.benchmark_id.clone(), benchmark_def);
         Ok(())
     }
 
     /// Register a benchmark suite
-    pub fn register_benchmark_suite(&mut self, suite: BenchmarkSuite) -> Result<(), BenchmarkingError> {
+    pub fn register_benchmark_suite(
+        &mut self,
+        suite: BenchmarkSuite,
+    ) -> Result<(), BenchmarkingError> {
         // Validate that all referenced benchmarks exist
         for benchmark_id in &suite.benchmark_ids {
             if !self.registered_benchmarks.contains_key(benchmark_id) {
-                return Err(BenchmarkingError::ConfigurationError(
-                    format!("Benchmark {} referenced in suite {} not found", benchmark_id, suite.suite_id)
-                ));
+                return Err(BenchmarkingError::ConfigurationError(format!(
+                    "Benchmark {} referenced in suite {} not found",
+                    benchmark_id, suite.suite_id
+                )));
             }
         }
 
@@ -69,9 +86,20 @@ impl BenchmarkManager {
     }
 
     /// Execute a single benchmark
-    pub fn execute_benchmark(&mut self, benchmark_id: &str, parameters: HashMap<String, String>) -> Result<String, BenchmarkingError> {
-        let benchmark_def = self.registered_benchmarks.get(benchmark_id)
-            .ok_or_else(|| BenchmarkingError::ConfigurationError(format!("Benchmark {} not found", benchmark_id)))?;
+    pub fn execute_benchmark(
+        &mut self,
+        benchmark_id: &str,
+        parameters: HashMap<String, String>,
+    ) -> Result<String, BenchmarkingError> {
+        let benchmark_def = self
+            .registered_benchmarks
+            .get(benchmark_id)
+            .ok_or_else(|| {
+                BenchmarkingError::ConfigurationError(format!(
+                    "Benchmark {} not found",
+                    benchmark_id
+                ))
+            })?;
 
         // Validate parameters
         self.validate_benchmark_parameters(benchmark_def, &parameters)?;
@@ -92,15 +120,24 @@ impl BenchmarkManager {
         };
 
         self.execution_queue.push_back(execution);
-        self.scheduler.schedule_next_execution(&mut self.execution_queue)?;
+        self.scheduler
+            .schedule_next_execution(&mut self.execution_queue)?;
 
         Ok(execution_id)
     }
 
     /// Execute a benchmark suite
-    pub fn execute_benchmark_suite(&mut self, suite_id: &str, global_parameters: HashMap<String, String>) -> Result<Vec<String>, BenchmarkingError> {
-        let suite = self.benchmark_suites.get(suite_id)
-            .ok_or_else(|| BenchmarkingError::ConfigurationError(format!("Suite {} not found", suite_id)))?
+    pub fn execute_benchmark_suite(
+        &mut self,
+        suite_id: &str,
+        global_parameters: HashMap<String, String>,
+    ) -> Result<Vec<String>, BenchmarkingError> {
+        let suite = self
+            .benchmark_suites
+            .get(suite_id)
+            .ok_or_else(|| {
+                BenchmarkingError::ConfigurationError(format!("Suite {} not found", suite_id))
+            })?
             .clone();
 
         let mut execution_ids = Vec::new();
@@ -108,38 +145,45 @@ impl BenchmarkManager {
         match suite.execution_order {
             ExecutionOrder::Sequential => {
                 for benchmark_id in &suite.benchmark_ids {
-                    let execution_id = self.execute_benchmark_in_suite(benchmark_id, &suite, &global_parameters)?;
+                    let execution_id =
+                        self.execute_benchmark_in_suite(benchmark_id, &suite, &global_parameters)?;
                     execution_ids.push(execution_id);
                 }
-            },
+            }
             ExecutionOrder::Parallel => {
                 for benchmark_id in &suite.benchmark_ids {
-                    let execution_id = self.execute_benchmark_in_suite(benchmark_id, &suite, &global_parameters)?;
+                    let execution_id =
+                        self.execute_benchmark_in_suite(benchmark_id, &suite, &global_parameters)?;
                     execution_ids.push(execution_id);
                 }
-            },
+            }
             ExecutionOrder::Dependency => {
                 let execution_order = self.resolve_dependency_order(&suite)?;
                 for benchmark_id in execution_order {
-                    let execution_id = self.execute_benchmark_in_suite(&benchmark_id, &suite, &global_parameters)?;
+                    let execution_id =
+                        self.execute_benchmark_in_suite(&benchmark_id, &suite, &global_parameters)?;
                     execution_ids.push(execution_id);
                 }
-            },
+            }
             ExecutionOrder::Priority => {
                 let mut prioritized_benchmarks = suite.benchmark_ids.clone();
                 prioritized_benchmarks.sort_by_key(|id| {
-                    self.registered_benchmarks.get(id)
+                    self.registered_benchmarks
+                        .get(id)
                         .map(|def| def.priority.unwrap_or(0))
                         .unwrap_or(0)
                 });
 
                 for benchmark_id in prioritized_benchmarks {
-                    let execution_id = self.execute_benchmark_in_suite(&benchmark_id, &suite, &global_parameters)?;
+                    let execution_id =
+                        self.execute_benchmark_in_suite(&benchmark_id, &suite, &global_parameters)?;
                     execution_ids.push(execution_id);
                 }
-            },
+            }
             ExecutionOrder::Custom(_) => {
-                return Err(BenchmarkingError::ConfigurationError("Custom execution order not implemented".to_string()));
+                return Err(BenchmarkingError::ConfigurationError(
+                    "Custom execution order not implemented".to_string(),
+                ));
             }
         }
 
@@ -147,7 +191,10 @@ impl BenchmarkManager {
     }
 
     /// Get execution result
-    pub fn get_execution_result(&self, execution_id: &str) -> Result<BenchmarkResult, BenchmarkingError> {
+    pub fn get_execution_result(
+        &self,
+        execution_id: &str,
+    ) -> Result<BenchmarkResult, BenchmarkingError> {
         self.result_store.retrieve_result(execution_id)
     }
 
@@ -163,20 +210,27 @@ impl BenchmarkManager {
 
     /// Get benchmark execution status
     pub fn get_execution_status(&self, execution_id: &str) -> Option<ExecutionStatus> {
-        self.execution_queue.iter()
+        self.execution_queue
+            .iter()
             .find(|exec| exec.execution_id == execution_id)
             .map(|exec| exec.status.clone())
     }
 
     /// Cancel a benchmark execution
     pub fn cancel_execution(&mut self, execution_id: &str) -> Result<(), BenchmarkingError> {
-        if let Some(execution) = self.execution_queue.iter_mut()
-            .find(|exec| exec.execution_id == execution_id) {
+        if let Some(execution) = self
+            .execution_queue
+            .iter_mut()
+            .find(|exec| exec.execution_id == execution_id)
+        {
             execution.status = ExecutionStatus::Cancelled;
             execution.end_time = Some(SystemTime::now());
             Ok(())
         } else {
-            Err(BenchmarkingError::ExecutionError(format!("Execution {} not found", execution_id)))
+            Err(BenchmarkingError::ExecutionError(format!(
+                "Execution {} not found",
+                execution_id
+            )))
         }
     }
 
@@ -191,28 +245,42 @@ impl BenchmarkManager {
     }
 
     /// Update benchmark configuration
-    pub fn update_benchmark_config(&mut self, benchmark_id: &str, config: ExecutionConfig) -> Result<(), BenchmarkingError> {
+    pub fn update_benchmark_config(
+        &mut self,
+        benchmark_id: &str,
+        config: ExecutionConfig,
+    ) -> Result<(), BenchmarkingError> {
         if let Some(benchmark) = self.registered_benchmarks.get_mut(benchmark_id) {
             benchmark.execution_config = config;
             Ok(())
         } else {
-            Err(BenchmarkingError::ConfigurationError(format!("Benchmark {} not found", benchmark_id)))
+            Err(BenchmarkingError::ConfigurationError(format!(
+                "Benchmark {} not found",
+                benchmark_id
+            )))
         }
     }
 
     // Private helper methods
-    fn validate_benchmark_definition(&self, benchmark_def: &BenchmarkDefinition) -> Result<(), BenchmarkingError> {
+    fn validate_benchmark_definition(
+        &self,
+        benchmark_def: &BenchmarkDefinition,
+    ) -> Result<(), BenchmarkingError> {
         // Validate required fields
         if benchmark_def.benchmark_id.is_empty() {
-            return Err(BenchmarkingError::ValidationError("Benchmark ID cannot be empty".to_string()));
+            return Err(BenchmarkingError::ValidationError(
+                "Benchmark ID cannot be empty".to_string(),
+            ));
         }
 
         if benchmark_def.name.is_empty() {
-            return Err(BenchmarkingError::ValidationError("Benchmark name cannot be empty".to_string()));
+            return Err(BenchmarkingError::ValidationError(
+                "Benchmark name cannot be empty".to_string(),
+            ));
         }
 
         // Validate parameters
-        for (param_name, param_def) in &benchmark_def.parameters {
+        for param_def in benchmark_def.parameters.values() {
             if param_def.required && param_def.default_value.is_none() {
                 // This is fine - required parameters don't need defaults
             }
@@ -221,13 +289,21 @@ impl BenchmarkManager {
         Ok(())
     }
 
-    fn validate_benchmark_parameters(&self, benchmark_def: &BenchmarkDefinition, parameters: &HashMap<String, String>) -> Result<(), BenchmarkingError> {
+    fn validate_benchmark_parameters(
+        &self,
+        benchmark_def: &BenchmarkDefinition,
+        parameters: &HashMap<String, String>,
+    ) -> Result<(), BenchmarkingError> {
         // Check required parameters
         for (param_name, param_def) in &benchmark_def.parameters {
-            if param_def.required && !parameters.contains_key(param_name) && param_def.default_value.is_none() {
-                return Err(BenchmarkingError::ValidationError(
-                    format!("Required parameter {} not provided", param_name)
-                ));
+            if param_def.required
+                && !parameters.contains_key(param_name)
+                && param_def.default_value.is_none()
+            {
+                return Err(BenchmarkingError::ValidationError(format!(
+                    "Required parameter {} not provided",
+                    param_name
+                )));
             }
         }
 
@@ -241,45 +317,57 @@ impl BenchmarkManager {
         Ok(())
     }
 
-    fn validate_parameter_value(&self, param_def: &ParameterDefinition, value: &str) -> Result<(), BenchmarkingError> {
+    fn validate_parameter_value(
+        &self,
+        param_def: &ParameterDefinition,
+        value: &str,
+    ) -> Result<(), BenchmarkingError> {
         match &param_def.parameter_type {
             ParameterType::Integer => {
-                let parsed: i64 = value.parse()
-                    .map_err(|_| BenchmarkingError::ValidationError(format!("Invalid integer value: {}", value)))?;
+                let parsed: i64 = value.parse().map_err(|_| {
+                    BenchmarkingError::ValidationError(format!("Invalid integer value: {}", value))
+                })?;
 
                 if let Some(ParameterRange::IntegerRange(min, max)) = &param_def.valid_range {
                     if parsed < *min || parsed > *max {
-                        return Err(BenchmarkingError::ValidationError(
-                            format!("Integer value {} out of range [{}, {}]", parsed, min, max)
-                        ));
+                        return Err(BenchmarkingError::ValidationError(format!(
+                            "Integer value {} out of range [{}, {}]",
+                            parsed, min, max
+                        )));
                     }
                 }
-            },
+            }
             ParameterType::Float => {
-                let parsed: f64 = value.parse()
-                    .map_err(|_| BenchmarkingError::ValidationError(format!("Invalid float value: {}", value)))?;
+                let parsed: f64 = value.parse().map_err(|_| {
+                    BenchmarkingError::ValidationError(format!("Invalid float value: {}", value))
+                })?;
 
                 if let Some(ParameterRange::FloatRange(min, max)) = &param_def.valid_range {
                     if parsed < *min || parsed > *max {
-                        return Err(BenchmarkingError::ValidationError(
-                            format!("Float value {} out of range [{}, {}]", parsed, min, max)
-                        ));
+                        return Err(BenchmarkingError::ValidationError(format!(
+                            "Float value {} out of range [{}, {}]",
+                            parsed, min, max
+                        )));
                     }
                 }
-            },
+            }
             ParameterType::String => {
                 if let Some(ParameterRange::StringLength(min, max)) = &param_def.valid_range {
                     if value.len() < *min || value.len() > *max {
-                        return Err(BenchmarkingError::ValidationError(
-                            format!("String length {} out of range [{}, {}]", value.len(), min, max)
-                        ));
+                        return Err(BenchmarkingError::ValidationError(format!(
+                            "String length {} out of range [{}, {}]",
+                            value.len(),
+                            min,
+                            max
+                        )));
                     }
                 }
-            },
+            }
             ParameterType::Boolean => {
-                value.parse::<bool>()
-                    .map_err(|_| BenchmarkingError::ValidationError(format!("Invalid boolean value: {}", value)))?;
-            },
+                value.parse::<bool>().map_err(|_| {
+                    BenchmarkingError::ValidationError(format!("Invalid boolean value: {}", value))
+                })?;
+            }
             _ => {
                 // For complex types, we'll do basic validation
             }
@@ -294,10 +382,16 @@ impl BenchmarkManager {
         let mut recursion_stack = std::collections::HashSet::new();
 
         for benchmark_id in &suite.benchmark_ids {
-            if self.has_circular_dependency(benchmark_id, &suite.dependencies, &mut visited, &mut recursion_stack) {
-                return Err(BenchmarkingError::ConfigurationError(
-                    format!("Circular dependency detected in suite {}", suite.suite_id)
-                ));
+            if self.has_circular_dependency(
+                benchmark_id,
+                &suite.dependencies,
+                &mut visited,
+                &mut recursion_stack,
+            ) {
+                return Err(BenchmarkingError::ConfigurationError(format!(
+                    "Circular dependency detected in suite {}",
+                    suite.suite_id
+                )));
             }
         }
 
@@ -309,7 +403,7 @@ impl BenchmarkManager {
         benchmark_id: &str,
         dependencies: &HashMap<String, Vec<String>>,
         visited: &mut std::collections::HashSet<String>,
-        recursion_stack: &mut std::collections::HashSet<String>
+        recursion_stack: &mut std::collections::HashSet<String>,
     ) -> bool {
         visited.insert(benchmark_id.to_string());
         recursion_stack.insert(benchmark_id.to_string());
@@ -330,7 +424,10 @@ impl BenchmarkManager {
         false
     }
 
-    fn resolve_dependency_order(&self, suite: &BenchmarkSuite) -> Result<Vec<String>, BenchmarkingError> {
+    fn resolve_dependency_order(
+        &self,
+        suite: &BenchmarkSuite,
+    ) -> Result<Vec<String>, BenchmarkingError> {
         let mut result = Vec::new();
         let mut visited = std::collections::HashSet::new();
 
@@ -348,7 +445,7 @@ impl BenchmarkManager {
         benchmark_id: &str,
         dependencies: &HashMap<String, Vec<String>>,
         visited: &mut std::collections::HashSet<String>,
-        result: &mut Vec<String>
+        result: &mut Vec<String>,
     ) {
         visited.insert(benchmark_id.to_string());
 
@@ -363,7 +460,12 @@ impl BenchmarkManager {
         result.push(benchmark_id.to_string());
     }
 
-    fn execute_benchmark_in_suite(&mut self, benchmark_id: &str, suite: &BenchmarkSuite, global_parameters: &HashMap<String, String>) -> Result<String, BenchmarkingError> {
+    fn execute_benchmark_in_suite(
+        &mut self,
+        benchmark_id: &str,
+        suite: &BenchmarkSuite,
+        global_parameters: &HashMap<String, String>,
+    ) -> Result<String, BenchmarkingError> {
         let mut parameters = global_parameters.clone();
 
         // Add suite-specific parameters if any
@@ -396,7 +498,14 @@ impl BenchmarkManager {
     }
 
     fn generate_execution_id(&self, benchmark_id: &str) -> String {
-        format!("exec_{}_{}", benchmark_id, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis())
+        format!(
+            "exec_{}_{}",
+            benchmark_id,
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        )
     }
 
     fn get_git_commit(&self) -> Option<String> {
@@ -452,8 +561,15 @@ impl BenchmarkDefinition {
 
     /// Get required parameter names
     pub fn required_parameters(&self) -> Vec<&str> {
-        self.parameters.iter()
-            .filter_map(|(name, param)| if param.required { Some(name.as_str()) } else { None })
+        self.parameters
+            .iter()
+            .filter_map(|(name, param)| {
+                if param.required {
+                    Some(name.as_str())
+                } else {
+                    None
+                }
+            })
             .collect()
     }
 }
@@ -481,7 +597,7 @@ impl BenchmarkDefinitionBuilder {
                 priority: None,
                 tags: Vec::new(),
                 documentation_url: None,
-            }
+            },
         }
     }
 
@@ -511,7 +627,9 @@ impl BenchmarkDefinitionBuilder {
     }
 
     pub fn add_parameter(mut self, name: &str, parameter: ParameterDefinition) -> Self {
-        self.definition.parameters.insert(name.to_string(), parameter);
+        self.definition
+            .parameters
+            .insert(name.to_string(), parameter);
         self
     }
 
@@ -591,7 +709,7 @@ impl BenchmarkSuiteBuilder {
                 suite_parameters: HashMap::new(),
                 tags: None,
                 timeout: None,
-            }
+            },
         }
     }
 
@@ -616,9 +734,10 @@ impl BenchmarkSuiteBuilder {
     }
 
     pub fn add_dependency(mut self, benchmark_id: &str, dependency: &str) -> Self {
-        self.suite.dependencies
+        self.suite
+            .dependencies
             .entry(benchmark_id.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(dependency.to_string());
         self
     }
@@ -656,12 +775,19 @@ pub struct BenchmarkExecution {
 impl BenchmarkExecution {
     /// Get execution duration
     pub fn duration(&self) -> Option<Duration> {
-        self.end_time.map(|end| end.duration_since(self.start_time).unwrap_or_default())
+        self.end_time
+            .map(|end| end.duration_since(self.start_time).unwrap_or_default())
     }
 
     /// Check if execution is complete
     pub fn is_complete(&self) -> bool {
-        matches!(self.status, ExecutionStatus::Completed | ExecutionStatus::Failed | ExecutionStatus::Cancelled | ExecutionStatus::Timeout)
+        matches!(
+            self.status,
+            ExecutionStatus::Completed
+                | ExecutionStatus::Failed
+                | ExecutionStatus::Cancelled
+                | ExecutionStatus::Timeout
+        )
     }
 
     /// Mark execution as started
@@ -710,6 +836,7 @@ impl Default for ExecutionMetadata {
 // ================================================================================================
 
 /// Benchmark scheduler for execution management
+#[derive(Debug)]
 pub struct BenchmarkScheduler {
     scheduling_policy: SchedulingPolicy,
     resource_constraints: ResourceConstraints,
@@ -746,9 +873,14 @@ impl BenchmarkScheduler {
     }
 
     /// Schedule next execution from queue
-    pub fn schedule_next_execution(&mut self, execution_queue: &mut VecDeque<BenchmarkExecution>) -> Result<(), BenchmarkingError> {
+    pub fn schedule_next_execution(
+        &mut self,
+        execution_queue: &mut VecDeque<BenchmarkExecution>,
+    ) -> Result<(), BenchmarkingError> {
         // Check if we can start more executions
-        if self.active_executions.len() >= self.resource_constraints.max_concurrent_executions as usize {
+        if self.active_executions.len()
+            >= self.resource_constraints.max_concurrent_executions as usize
+        {
             return Ok(()); // Wait for some executions to complete
         }
 
@@ -757,21 +889,23 @@ impl BenchmarkScheduler {
                 if let Some(execution) = execution_queue.pop_front() {
                     self.start_execution(execution)?;
                 }
-            },
+            }
             SchedulingPolicy::Priority => {
                 self.schedule_by_priority(execution_queue)?;
-            },
+            }
             SchedulingPolicy::ResourceBased => {
                 self.schedule_by_resources(execution_queue)?;
-            },
+            }
             SchedulingPolicy::Adaptive => {
                 self.schedule_adaptively(execution_queue)?;
-            },
+            }
             SchedulingPolicy::LoadBalanced => {
                 self.schedule_load_balanced(execution_queue)?;
-            },
+            }
             SchedulingPolicy::Custom(_) => {
-                return Err(BenchmarkingError::ConfigurationError("Custom scheduling policy not implemented".to_string()));
+                return Err(BenchmarkingError::ConfigurationError(
+                    "Custom scheduling policy not implemented".to_string(),
+                ));
             }
         }
 
@@ -789,10 +923,14 @@ impl BenchmarkScheduler {
     }
 
     // Private helper methods
-    fn start_execution(&mut self, mut execution: BenchmarkExecution) -> Result<(), BenchmarkingError> {
+    fn start_execution(
+        &mut self,
+        mut execution: BenchmarkExecution,
+    ) -> Result<(), BenchmarkingError> {
         execution.mark_started();
         let execution_id = execution.execution_id.clone();
-        self.active_executions.insert(execution_id.clone(), execution);
+        self.active_executions
+            .insert(execution_id.clone(), execution);
 
         // In a real implementation, this would actually start the benchmark execution
         // For now, we'll just track it
@@ -800,12 +938,15 @@ impl BenchmarkScheduler {
         Ok(())
     }
 
-    fn schedule_by_priority(&mut self, execution_queue: &mut VecDeque<BenchmarkExecution>) -> Result<(), BenchmarkingError> {
+    fn schedule_by_priority(
+        &mut self,
+        execution_queue: &mut VecDeque<BenchmarkExecution>,
+    ) -> Result<(), BenchmarkingError> {
         // Find highest priority execution
         let mut highest_priority_index = None;
         let mut highest_priority = 0u32;
 
-        for (index, execution) in execution_queue.iter().enumerate() {
+        for (index, _execution) in execution_queue.iter().enumerate() {
             // Priority could be determined by benchmark priority, execution time, etc.
             let priority = 1; // Placeholder
             if priority > highest_priority {
@@ -823,7 +964,10 @@ impl BenchmarkScheduler {
         Ok(())
     }
 
-    fn schedule_by_resources(&mut self, execution_queue: &mut VecDeque<BenchmarkExecution>) -> Result<(), BenchmarkingError> {
+    fn schedule_by_resources(
+        &mut self,
+        execution_queue: &mut VecDeque<BenchmarkExecution>,
+    ) -> Result<(), BenchmarkingError> {
         // Find execution that fits current resource availability
         for i in 0..execution_queue.len() {
             if self.check_resource_availability(&execution_queue[i]) {
@@ -836,13 +980,19 @@ impl BenchmarkScheduler {
         Ok(())
     }
 
-    fn schedule_adaptively(&mut self, execution_queue: &mut VecDeque<BenchmarkExecution>) -> Result<(), BenchmarkingError> {
+    fn schedule_adaptively(
+        &mut self,
+        execution_queue: &mut VecDeque<BenchmarkExecution>,
+    ) -> Result<(), BenchmarkingError> {
         // Adaptive scheduling based on current system load and execution history
         // This is a placeholder for a more sophisticated algorithm
         self.schedule_by_priority(execution_queue)
     }
 
-    fn schedule_load_balanced(&mut self, execution_queue: &mut VecDeque<BenchmarkExecution>) -> Result<(), BenchmarkingError> {
+    fn schedule_load_balanced(
+        &mut self,
+        execution_queue: &mut VecDeque<BenchmarkExecution>,
+    ) -> Result<(), BenchmarkingError> {
         // Distribute executions across available execution pools
         if let Some(execution) = execution_queue.pop_front() {
             self.start_execution(execution)?;
@@ -850,7 +1000,7 @@ impl BenchmarkScheduler {
         Ok(())
     }
 
-    fn check_resource_availability(&self, execution: &BenchmarkExecution) -> bool {
+    fn check_resource_availability(&self, _execution: &BenchmarkExecution) -> bool {
         // Check if system has enough resources for this execution
         // This is a placeholder - real implementation would check actual system resources
         true
@@ -874,6 +1024,18 @@ pub struct ExecutionPool {
     active_executions: HashMap<String, BenchmarkExecution>,
     worker_threads: Vec<thread::JoinHandle<()>>,
     task_queue: VecDeque<BenchmarkTask>,
+}
+
+impl std::fmt::Debug for ExecutionPool {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExecutionPool")
+            .field("pool_name", &self.pool_name)
+            .field("max_workers", &self.max_workers)
+            .field("active_executions", &self.active_executions)
+            .field("worker_threads_count", &self.worker_threads.len())
+            .field("task_queue_len", &self.task_queue.len())
+            .finish()
+    }
 }
 
 impl ExecutionPool {
@@ -909,7 +1071,7 @@ impl ExecutionPool {
         }
     }
 
-    fn execute_task(&mut self, task: BenchmarkTask) -> Result<(), BenchmarkingError> {
+    fn execute_task(&mut self, _task: BenchmarkTask) -> Result<(), BenchmarkingError> {
         // In a real implementation, this would spawn a worker thread to execute the task
         // For now, we'll just track it
         Ok(())
@@ -946,7 +1108,7 @@ impl BenchmarkTask {
         task_id: &str,
         benchmark_id: &str,
         execution_id: &str,
-        parameters: HashMap<String, String>
+        parameters: HashMap<String, String>,
     ) -> Self {
         Self {
             task_id: task_id.to_string(),
@@ -977,6 +1139,7 @@ impl BenchmarkTask {
 // ================================================================================================
 
 /// Benchmark result store for persistence
+#[derive(Debug)]
 pub struct BenchmarkResultStore {
     storage_backend: Box<dyn StorageBackend>,
     indexing_strategy: IndexingStrategy,
@@ -997,20 +1160,28 @@ impl BenchmarkResultStore {
 
     /// Store a benchmark result
     pub fn store_result(&mut self, result: &BenchmarkResult) -> Result<String, BenchmarkingError> {
-        self.storage_backend.store_result(result)
-            .map_err(|e| BenchmarkingError::StorageError(format!("Failed to store result: {:?}", e)))
+        self.storage_backend.store_result(result).map_err(|e| {
+            BenchmarkingError::StorageError(format!("Failed to store result: {:?}", e))
+        })
     }
 
     /// Retrieve a benchmark result
     pub fn retrieve_result(&self, result_id: &str) -> Result<BenchmarkResult, BenchmarkingError> {
-        self.storage_backend.retrieve_result(result_id)
-            .map_err(|e| BenchmarkingError::StorageError(format!("Failed to retrieve result: {:?}", e)))
+        self.storage_backend
+            .retrieve_result(result_id)
+            .map_err(|e| {
+                BenchmarkingError::StorageError(format!("Failed to retrieve result: {:?}", e))
+            })
     }
 
     /// Query results with filters
-    pub fn query_results(&self, query: &ResultQuery) -> Result<Vec<BenchmarkResult>, BenchmarkingError> {
-        self.storage_backend.query_results(query)
-            .map_err(|e| BenchmarkingError::StorageError(format!("Failed to query results: {:?}", e)))
+    pub fn query_results(
+        &self,
+        query: &ResultQuery,
+    ) -> Result<Vec<BenchmarkResult>, BenchmarkingError> {
+        self.storage_backend.query_results(query).map_err(|e| {
+            BenchmarkingError::StorageError(format!("Failed to query results: {:?}", e))
+        })
     }
 
     /// Get storage information
@@ -1026,7 +1197,7 @@ impl Default for BenchmarkResultStore {
 }
 
 /// Storage backend trait for benchmark results
-pub trait StorageBackend: Send + Sync {
+pub trait StorageBackend: Send + Sync + std::fmt::Debug {
     fn store_result(&mut self, result: &BenchmarkResult) -> Result<String, StorageError>;
     fn retrieve_result(&self, result_id: &str) -> Result<BenchmarkResult, StorageError>;
     fn query_results(&self, query: &ResultQuery) -> Result<Vec<BenchmarkResult>, StorageError>;
@@ -1035,6 +1206,7 @@ pub trait StorageBackend: Send + Sync {
 }
 
 /// In-memory storage implementation for testing
+#[derive(Debug)]
 pub struct InMemoryStorage {
     results: HashMap<String, BenchmarkResult>,
 }
@@ -1055,7 +1227,8 @@ impl StorageBackend for InMemoryStorage {
     }
 
     fn retrieve_result(&self, result_id: &str) -> Result<BenchmarkResult, StorageError> {
-        self.results.get(result_id)
+        self.results
+            .get(result_id)
             .cloned()
             .ok_or_else(|| StorageError::NotFound(result_id.to_string()))
     }
@@ -1069,7 +1242,9 @@ impl StorageBackend for InMemoryStorage {
         }
 
         if let Some(time_range) = &query.time_range {
-            results.retain(|r| r.timestamp >= time_range.start_time && r.timestamp <= time_range.end_time);
+            results.retain(|r| {
+                r.timestamp >= time_range.start_time && r.timestamp <= time_range.end_time
+            });
         }
 
         // Apply limit
@@ -1090,7 +1265,7 @@ impl StorageBackend for InMemoryStorage {
 
     fn get_storage_info(&self) -> StorageInfo {
         StorageInfo {
-            total_size: 1024 * 1024 * 1024, // 1GB placeholder
+            total_size: 1024 * 1024 * 1024,              // 1GB placeholder
             used_size: self.results.len() as u64 * 1024, // Rough estimate
             result_count: self.results.len() as u64,
             compression_ratio: 1.0,
@@ -1187,6 +1362,21 @@ pub struct BenchmarkResult {
     pub metadata: HashMap<String, String>,
 }
 
+impl Default for BenchmarkResult {
+    fn default() -> Self {
+        Self {
+            result_id: String::new(),
+            benchmark_id: String::new(),
+            execution_id: String::new(),
+            timestamp: SystemTime::UNIX_EPOCH,
+            metrics: HashMap::new(),
+            execution_info: ExecutionInfo::default(),
+            raw_data: None,
+            metadata: HashMap::new(),
+        }
+    }
+}
+
 /// Execution information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionInfo {
@@ -1195,6 +1385,18 @@ pub struct ExecutionInfo {
     pub error_message: Option<String>,
     pub resource_usage: ResourceUsageInfo,
     pub environment_info: EnvironmentInfo,
+}
+
+impl Default for ExecutionInfo {
+    fn default() -> Self {
+        Self {
+            duration: Duration::from_secs(0),
+            success: false,
+            error_message: None,
+            resource_usage: ResourceUsageInfo::default(),
+            environment_info: EnvironmentInfo::default(),
+        }
+    }
 }
 
 /// Environment information
@@ -1249,7 +1451,10 @@ mod tests {
         assert_eq!(definition.benchmark_id, "test_benchmark");
         assert_eq!(definition.name, "Test Benchmark");
         assert_eq!(definition.description, "A test benchmark");
-        assert!(matches!(definition.category, BenchmarkCategory::Performance));
+        assert!(matches!(
+            definition.category,
+            BenchmarkCategory::Performance
+        ));
         assert_eq!(definition.priority, Some(100));
         assert!(definition.tags.contains(&"test".to_string()));
     }
@@ -1350,7 +1555,7 @@ mod tests {
     #[test]
     fn test_parameter_validation() {
         let manager = BenchmarkManager::new();
-        let mut param_def = ParameterDefinition {
+        let param_def = ParameterDefinition {
             parameter_name: "test_param".to_string(),
             parameter_type: ParameterType::Integer,
             default_value: None,
@@ -1366,7 +1571,9 @@ mod tests {
         assert!(manager.validate_parameter_value(&param_def, "150").is_err());
 
         // Invalid value (not integer)
-        assert!(manager.validate_parameter_value(&param_def, "not_a_number").is_err());
+        assert!(manager
+            .validate_parameter_value(&param_def, "not_a_number")
+            .is_err());
     }
 
     #[test]

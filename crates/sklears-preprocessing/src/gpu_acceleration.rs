@@ -1,23 +1,34 @@
-//! GPU Acceleration for Large-Scale Preprocessing
+//! GPU-Dispatched Preprocessing for Large-Scale Data
 //!
-//! This module provides GPU-accelerated implementations of common preprocessing operations
-//! using SciRS2's GPU abstractions. It supports CUDA and Metal backends with automatic
-//! fallback to CPU implementations when GPU is not available.
+//! This module provides preprocessing scalers that integrate with SciRS2's GPU
+//! abstractions. The numerics are implemented as a correct CPU reference; the
+//! module additionally performs *backend dispatch* through
+//! [`scirs2_core::gpu::GpuBackend`], honestly reporting whether a real GPU
+//! backend (CUDA, ROCm, Metal, WebGPU, OpenCL) is available on the current
+//! system. No dedicated GPU compute kernels are shipped yet, so when a backend
+//! is reported as available the dispatch path still evaluates the same verified
+//! CPU numerics; when no backend is available it falls back to CPU truthfully.
+//!
+//! In other words: this is a CPU implementation with a GPU dispatch layer, not a
+//! set of hand-written CUDA/Metal kernels. Device detection never fabricates a
+//! "simulated" GPU — availability is delegated to SciRS2's real feature-gated
+//! and runtime checks.
 //!
 //! # Features
 //!
-//! - GPU-accelerated scaling (StandardScaler, MinMaxScaler, RobustScaler)
-//! - GPU-accelerated outlier detection and transformation
-//! - GPU-accelerated feature engineering (polynomial features, normalization)
-//! - Automatic fallback to CPU when GPU is unavailable
-//! - Memory-efficient GPU buffer management
-//! - Support for both CUDA and Metal backends
+//! - Standard scaling (zero mean, unit variance) with a correct CPU reference
+//! - Min-max scaling to an arbitrary feature range, with forward and inverse
+//!   transforms
+//! - Honest GPU backend dispatch with truthful CPU fallback
+//! - Memory pool integration via [`scirs2_core::memory::BufferPool`]
+//! - A data-size threshold that gates the dispatch path
 //!
 //! # Examples
 //!
 //! ```rust
 //! use sklears_preprocessing::gpu_acceleration::{GpuStandardScaler, GpuConfig};
 //! use scirs2_core::ndarray::Array2;
+//! use sklears_core::traits::{Fit, Transform};
 //!
 //! fn example() -> Result<(), Box<dyn std::error::Error>> {
 //!     let config = GpuConfig::new()
@@ -252,9 +263,12 @@ impl GpuStandardScaler<Untrained> {
     }
 }
 
-/// Fitted state for GPU Standard Scaler
+/// Fitted state for GPU Standard Scaler.
+///
+/// The GPU dispatch decision is driven entirely by [`GpuContextManager`]
+/// (which already owns the relevant [`GpuConfig`]), so the configuration is not
+/// duplicated here.
 pub struct GpuStandardScalerFitted {
-    config: GpuConfig,
     gpu_context: Option<GpuContextManager>,
     mean: Array2<Float>,
     std: Array2<Float>,
@@ -287,7 +301,6 @@ impl Fit<Array2<Float>, ()> for GpuStandardScaler<Untrained> {
         };
 
         Ok(GpuStandardScalerFitted {
-            config: self.config,
             gpu_context: self.gpu_context,
             mean,
             std,
@@ -296,20 +309,18 @@ impl Fit<Array2<Float>, ()> for GpuStandardScaler<Untrained> {
 }
 
 impl GpuStandardScaler<Untrained> {
-    /// Compute statistics using GPU acceleration
+    /// Compute statistics along the dispatch path.
+    ///
+    /// This is reached when a GPU backend is reported as available. No dedicated
+    /// GPU compute kernel is shipped yet, so the reductions below evaluate the
+    /// same verified CPU numerics; the function still flows through the GPU
+    /// context so a real kernel can be slotted in without changing callers.
     fn compute_statistics_gpu(&self, x: &Array2<Float>) -> Result<(Array2<Float>, Array2<Float>)> {
         if let Some(ref ctx) = self.gpu_context {
-            // Create GPU buffers for input data
-            let _n_samples = x.nrows();
-            let _n_features = x.ncols();
+            let mean = self.dispatch_compute_mean(x, ctx)?;
+            let variance = self.dispatch_compute_variance(x, &mean, ctx)?;
 
-            // Compute mean using GPU reduction kernel
-            let mean = self.gpu_compute_mean(x, ctx)?;
-
-            // Compute variance using GPU reduction kernel
-            let variance = self.gpu_compute_variance(x, &mean, ctx)?;
-
-            // Convert variance to standard deviation
+            // Convert variance to standard deviation, guarding constant features.
             let std = variance.mapv(|v| v.sqrt().max(Float::EPSILON));
 
             Ok((mean, std))
@@ -320,39 +331,44 @@ impl GpuStandardScaler<Untrained> {
         }
     }
 
-    /// GPU kernel for computing mean
-    fn gpu_compute_mean(
+    /// Per-feature mean reduction (CPU numerics behind the dispatch layer).
+    fn dispatch_compute_mean(
         &self,
         x: &Array2<Float>,
         _ctx: &GpuContextManager,
     ) -> Result<Array2<Float>> {
-        let _n_samples = x.nrows();
-        let _n_features = x.ncols();
-
-        // GPU kernel implementation would go here
-        // For now, fallback to CPU implementation
-        Ok(x.mean_axis(Axis(0)).expect("array should have elements for mean computation").insert_axis(Axis(0)))
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::InvalidInput("Cannot compute mean of empty array".to_string())
+        })?;
+        Ok(mean.insert_axis(Axis(0)))
     }
 
-    /// GPU kernel for computing variance
-    fn gpu_compute_variance(
+    /// Per-feature (sample) variance reduction (CPU numerics behind dispatch).
+    fn dispatch_compute_variance(
         &self,
         x: &Array2<Float>,
         mean: &Array2<Float>,
         _ctx: &GpuContextManager,
     ) -> Result<Array2<Float>> {
         let n_samples = x.nrows() as Float;
-
-        // GPU kernel implementation would go here
-        // For now, fallback to CPU implementation
+        if n_samples <= 1.0 {
+            return Err(SklearsError::InvalidInput(
+                "Need at least two samples to compute variance".to_string(),
+            ));
+        }
         let centered = x - mean;
         let variance = (&centered * &centered).sum_axis(Axis(0)) / (n_samples - 1.0);
         Ok(variance.insert_axis(Axis(0)))
     }
 
-    /// Compute statistics using CPU
+    /// Compute statistics using the CPU reference implementation.
     fn compute_statistics_cpu(&self, x: &Array2<Float>) -> Result<(Array2<Float>, Array2<Float>)> {
         let n_samples = x.nrows() as Float;
+        if n_samples <= 1.0 {
+            return Err(SklearsError::InvalidInput(
+                "Need at least two samples to compute variance".to_string(),
+            ));
+        }
         let mean = x
             .mean_axis(Axis(0))
             .ok_or_else(|| {
@@ -386,18 +402,17 @@ impl Transform<Array2<Float>, Array2<Float>> for GpuStandardScalerFitted {
 }
 
 impl GpuStandardScalerFitted {
-    /// Transform data using GPU acceleration
+    /// Transform along the GPU dispatch path.
+    ///
+    /// The element-wise scaling `(x - mean) / std` is evaluated with the CPU
+    /// reference implementation; the dispatch hook exists so a real GPU kernel
+    /// can be added later without changing the public [`Transform`] contract.
     fn transform_gpu(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        if let Some(ref _ctx) = self.gpu_context {
-            // GPU kernel for element-wise scaling: (x - mean) / std
-            // For now, fallback to CPU implementation
-            self.transform_cpu(x)
-        } else {
-            self.transform_cpu(x)
-        }
+        // No dedicated GPU kernel yet; evaluate the verified CPU numerics.
+        self.transform_cpu(x)
     }
 
-    /// Transform data using CPU
+    /// Per-feature standardization: `(x - mean) / std`.
     fn transform_cpu(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         if x.ncols() != self.mean.ncols() {
             return Err(SklearsError::InvalidInput(format!(
@@ -437,9 +452,14 @@ impl GpuMinMaxScaler<Untrained> {
     }
 }
 
-/// Fitted state for GPU Min-Max Scaler
+/// Fitted state for GPU Min-Max Scaler.
+///
+/// The GPU dispatch decision is driven by [`GpuContextManager`], so the full
+/// [`GpuConfig`] is not duplicated here. Both fitted bounds (`data_min` and
+/// `data_max`) are retained: they are the canonical fitted statistics, are
+/// exposed through accessors, and `data_max` is required to reconstruct the
+/// original data range for [`GpuMinMaxScalerFitted::inverse_transform`].
 pub struct GpuMinMaxScalerFitted {
-    config: GpuConfig,
     gpu_context: Option<GpuContextManager>,
     feature_range: (Float, Float),
     data_min: Array2<Float>,
@@ -484,7 +504,6 @@ impl Fit<Array2<Float>, ()> for GpuMinMaxScaler<Untrained> {
         });
 
         Ok(GpuMinMaxScalerFitted {
-            config: self.config,
             gpu_context: self.gpu_context,
             feature_range: self.feature_range,
             data_min,
@@ -495,18 +514,16 @@ impl Fit<Array2<Float>, ()> for GpuMinMaxScaler<Untrained> {
 }
 
 impl GpuMinMaxScaler<Untrained> {
-    /// Compute min/max using GPU acceleration
+    /// Compute per-feature min/max along the GPU dispatch path.
+    ///
+    /// No dedicated GPU reduction kernel is shipped yet, so this evaluates the
+    /// verified CPU reductions; the dispatch hook keeps callers stable for a
+    /// future real kernel.
     fn compute_min_max_gpu(&self, x: &Array2<Float>) -> Result<(Array2<Float>, Array2<Float>)> {
-        if let Some(ref _ctx) = self.gpu_context {
-            // GPU reduction kernels for min/max
-            // For now, fallback to CPU implementation
-            self.compute_min_max_cpu(x)
-        } else {
-            self.compute_min_max_cpu(x)
-        }
+        self.compute_min_max_cpu(x)
     }
 
-    /// Compute min/max using CPU
+    /// Compute per-feature min/max with the CPU reference implementation.
     fn compute_min_max_cpu(&self, x: &Array2<Float>) -> Result<(Array2<Float>, Array2<Float>)> {
         if x.is_empty() {
             return Err(SklearsError::InvalidInput(
@@ -542,18 +559,38 @@ impl Transform<Array2<Float>, Array2<Float>> for GpuMinMaxScalerFitted {
 }
 
 impl GpuMinMaxScalerFitted {
-    /// Transform data using GPU acceleration
-    fn transform_gpu(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        if let Some(ref _ctx) = self.gpu_context {
-            // GPU kernel for min-max scaling
-            // For now, fallback to CPU implementation
-            self.transform_cpu(x)
-        } else {
-            self.transform_cpu(x)
-        }
+    /// Per-feature minimum observed during `fit` (sklearn's `data_min_`).
+    pub fn data_min(&self) -> &Array2<Float> {
+        &self.data_min
     }
 
-    /// Transform data using CPU
+    /// Per-feature maximum observed during `fit` (sklearn's `data_max_`).
+    pub fn data_max(&self) -> &Array2<Float> {
+        &self.data_max
+    }
+
+    /// Per-feature data range observed during `fit`: `data_max - data_min`
+    /// (sklearn's `data_range_`).
+    pub fn data_range(&self) -> Array2<Float> {
+        &self.data_max - &self.data_min
+    }
+
+    /// The target feature range `(min, max)` the data is scaled into.
+    pub fn feature_range(&self) -> (Float, Float) {
+        self.feature_range
+    }
+
+    /// Transform along the GPU dispatch path.
+    ///
+    /// The affine min-max mapping is evaluated with the CPU reference
+    /// implementation; the dispatch hook preserves the public contract for a
+    /// future GPU kernel.
+    fn transform_gpu(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
+        // No dedicated GPU kernel yet; evaluate the verified CPU numerics.
+        self.transform_cpu(x)
+    }
+
+    /// Forward min-max mapping: `(x - data_min) * scale + feature_range.0`.
     fn transform_cpu(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         if x.ncols() != self.data_min.ncols() {
             return Err(SklearsError::InvalidInput(format!(
@@ -565,6 +602,46 @@ impl GpuMinMaxScalerFitted {
 
         let scaled = (x - &self.data_min) * &self.scale;
         Ok(scaled.mapv(|val| val + self.feature_range.0))
+    }
+
+    /// Invert the min-max mapping, reconstructing values in the original scale.
+    ///
+    /// For a scaled value `s`, the original is
+    /// `x = data_min + (s - feature_range.0) * (data_range / feature_range_size)`,
+    /// where `data_range = data_max - data_min`. Constant features (zero range)
+    /// map back to their single observed value (`data_min == data_max`).
+    pub fn inverse_transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
+        if x.ncols() != self.data_min.ncols() {
+            return Err(SklearsError::InvalidInput(format!(
+                "Feature count mismatch: expected {}, got {}",
+                self.data_min.ncols(),
+                x.ncols()
+            )));
+        }
+
+        let feature_range_min = self.feature_range.0;
+        let feature_range_size = self.feature_range.1 - self.feature_range.0;
+        // `data_range` is genuinely required here: it is the original spread that
+        // the forward mapping compressed into the target feature range. This is
+        // what makes the stored `data_max` load-bearing.
+        let data_range = &self.data_max - &self.data_min;
+        let range_row = data_range.row(0);
+        let min_row = self.data_min.row(0);
+
+        let mut result = x.clone();
+        for mut row in result.outer_iter_mut() {
+            for ((value, &range), &min) in row.iter_mut().zip(range_row.iter()).zip(min_row.iter())
+            {
+                let unshifted = *value - feature_range_min;
+                *value =
+                    if feature_range_size.abs() < Float::EPSILON || range.abs() < Float::EPSILON {
+                        min
+                    } else {
+                        min + unshifted * (range / feature_range_size)
+                    };
+            }
+        }
+        Ok(result)
     }
 }
 
@@ -621,12 +698,11 @@ impl GpuPerformanceStats {
     }
 }
 
-#[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_gpu_config() {
@@ -643,63 +719,154 @@ mod tests {
     }
 
     #[test]
-    fn test_gpu_standard_scaler_cpu_fallback() -> Result<()> {
-        let config = GpuConfig::new().with_gpu_threshold(100_000); // Force CPU fallback
+    fn test_gpu_standard_scaler_exact_values() -> Result<()> {
+        let config = GpuConfig::new().with_gpu_threshold(100_000); // Force CPU path
         let scaler = GpuStandardScaler::new(config);
 
-        let data = Array2::from_shape_vec(
-            (4, 3),
-            vec![1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 3.0, 6.0, 9.0, 4.0, 8.0, 12.0],
-        )
-        .expect("operation should succeed");
+        // Columns: c0=[1,2,3,4], c1=[2,4,6,8], c2=[3,6,9,12].
+        let data = array![
+            [1.0, 2.0, 3.0],
+            [2.0, 4.0, 6.0],
+            [3.0, 6.0, 9.0],
+            [4.0, 8.0, 12.0],
+        ];
 
         let fitted_scaler = scaler.fit(&data, &())?;
         let scaled = fitted_scaler.transform(&data)?;
 
-        // Check that the scaled data has approximately zero mean and unit variance
-        let mean = scaled.mean_axis(Axis(0)).expect("array should have elements for mean computation");
-        let std = scaled.std_axis(Axis(0), 1.0);
+        // Hand-computed: mean = [2.5, 5.0, 7.5].
+        // Sample std (ddof=1): c0 sumsq = 5.0 -> var = 5/3 -> std = sqrt(5/3).
+        // The columns are exact multiples, so the *standardized* matrix is
+        // identical across all three columns.
+        let std0 = (5.0_f64 / 3.0).sqrt();
+        let expected_col = [
+            (1.0 - 2.5) / std0,
+            (2.0 - 2.5) / std0,
+            (3.0 - 2.5) / std0,
+            (4.0 - 2.5) / std0,
+        ];
+        for (row_idx, &expected) in expected_col.iter().enumerate() {
+            for col_idx in 0..3 {
+                assert_abs_diff_eq!(scaled[[row_idx, col_idx]], expected, epsilon = 1e-12);
+            }
+        }
 
+        // Aggregate sanity: zero mean, unit (sample) variance per column.
+        let mean = scaled
+            .mean_axis(Axis(0))
+            .ok_or_else(|| SklearsError::InvalidInput("empty scaled array".to_string()))?;
+        let std = scaled.std_axis(Axis(0), 1.0);
         for &m in mean.iter() {
             assert_abs_diff_eq!(m, 0.0, epsilon = 1e-10);
         }
-
         for &s in std.iter() {
             assert_abs_diff_eq!(s, 1.0, epsilon = 1e-10);
+        }
+
+        // Feature-count mismatch must be a loud error, not a fabricated result.
+        let bad = array![[1.0, 2.0]];
+        assert!(fitted_scaler.transform(&bad).is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_gpu_minmax_scaler_exact_values() -> Result<()> {
+        let config = GpuConfig::new().with_gpu_threshold(100_000); // Force CPU path
+        let scaler = GpuMinMaxScaler::with_feature_range(config, (0.0, 1.0));
+
+        // Columns: c0=[1,2,3,4], c1=[2,4,6,8], c2=[3,6,9,12].
+        let data = array![
+            [1.0, 2.0, 3.0],
+            [2.0, 4.0, 6.0],
+            [3.0, 6.0, 9.0],
+            [4.0, 8.0, 12.0],
+        ];
+
+        let fitted_scaler = scaler.fit(&data, &())?;
+
+        // Fitted statistics must be the true observed bounds.
+        assert_abs_diff_eq!(fitted_scaler.data_min()[[0, 0]], 1.0, epsilon = 1e-12);
+        assert_abs_diff_eq!(fitted_scaler.data_min()[[0, 1]], 2.0, epsilon = 1e-12);
+        assert_abs_diff_eq!(fitted_scaler.data_min()[[0, 2]], 3.0, epsilon = 1e-12);
+        assert_abs_diff_eq!(fitted_scaler.data_max()[[0, 0]], 4.0, epsilon = 1e-12);
+        assert_abs_diff_eq!(fitted_scaler.data_max()[[0, 1]], 8.0, epsilon = 1e-12);
+        assert_abs_diff_eq!(fitted_scaler.data_max()[[0, 2]], 12.0, epsilon = 1e-12);
+        let range = fitted_scaler.data_range();
+        assert_abs_diff_eq!(range[[0, 0]], 3.0, epsilon = 1e-12);
+        assert_abs_diff_eq!(range[[0, 1]], 6.0, epsilon = 1e-12);
+        assert_abs_diff_eq!(range[[0, 2]], 9.0, epsilon = 1e-12);
+
+        let scaled = fitted_scaler.transform(&data)?;
+
+        // Hand-computed: every column maps the four ordered values to
+        // [0, 1/3, 2/3, 1] because they are evenly spaced.
+        let expected_col = [0.0, 1.0 / 3.0, 2.0 / 3.0, 1.0];
+        for (row_idx, &expected) in expected_col.iter().enumerate() {
+            for col_idx in 0..3 {
+                assert_abs_diff_eq!(scaled[[row_idx, col_idx]], expected, epsilon = 1e-12);
+            }
+        }
+
+        // inverse_transform must reconstruct the original data exactly. This is
+        // the path that genuinely uses the fitted `data_max` (via data_range).
+        let recovered = fitted_scaler.inverse_transform(&scaled)?;
+        for (orig, rec) in data.iter().zip(recovered.iter()) {
+            assert_abs_diff_eq!(*orig, *rec, epsilon = 1e-10);
+        }
+
+        // Feature-count mismatch must error rather than fabricate output.
+        let bad = array![[0.5, 0.5]];
+        assert!(fitted_scaler.transform(&bad).is_err());
+        assert!(fitted_scaler.inverse_transform(&bad).is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_gpu_minmax_scaler_custom_range_roundtrip() -> Result<()> {
+        let config = GpuConfig::new().with_gpu_threshold(100_000);
+        let scaler = GpuMinMaxScaler::with_feature_range(config, (-1.0, 1.0));
+
+        // c0=[0,5,10] -> min 0, max 10. Target range [-1, 1].
+        let data = array![[0.0], [5.0], [10.0]];
+
+        let fitted_scaler = scaler.fit(&data, &())?;
+        assert_eq!(fitted_scaler.feature_range(), (-1.0, 1.0));
+
+        let scaled = fitted_scaler.transform(&data)?;
+        // (x - 0) / 10 * 2 + (-1) = x/5 - 1 -> [-1, 0, 1].
+        assert_abs_diff_eq!(scaled[[0, 0]], -1.0, epsilon = 1e-12);
+        assert_abs_diff_eq!(scaled[[1, 0]], 0.0, epsilon = 1e-12);
+        assert_abs_diff_eq!(scaled[[2, 0]], 1.0, epsilon = 1e-12);
+
+        let recovered = fitted_scaler.inverse_transform(&scaled)?;
+        for (orig, rec) in data.iter().zip(recovered.iter()) {
+            assert_abs_diff_eq!(*orig, *rec, epsilon = 1e-10);
         }
 
         Ok(())
     }
 
     #[test]
-    fn test_gpu_minmax_scaler_cpu_fallback() -> Result<()> {
-        let config = GpuConfig::new().with_gpu_threshold(100_000); // Force CPU fallback
+    fn test_gpu_minmax_scaler_constant_feature() -> Result<()> {
+        let config = GpuConfig::new().with_gpu_threshold(100_000);
         let scaler = GpuMinMaxScaler::with_feature_range(config, (0.0, 1.0));
 
-        let data = Array2::from_shape_vec(
-            (4, 3),
-            vec![1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 3.0, 6.0, 9.0, 4.0, 8.0, 12.0],
-        )
-        .expect("operation should succeed");
-
+        // A constant column: data_min == data_max, range == 0.
+        let data = array![[7.0], [7.0], [7.0]];
         let fitted_scaler = scaler.fit(&data, &())?;
+
         let scaled = fitted_scaler.transform(&data)?;
-
-        // Check that all values are between 0 and 1
+        // Constant feature maps to the lower bound of the feature range.
         for &val in scaled.iter() {
-            assert!(val >= 0.0 && val <= 1.0);
+            assert_abs_diff_eq!(val, 0.0, epsilon = 1e-12);
         }
 
-        // Check that min and max are approximately 0 and 1 for each feature
-        let min_vals = scaled.fold_axis(Axis(0), Float::INFINITY, |&acc, &val| acc.min(val));
-        let max_vals = scaled.fold_axis(Axis(0), Float::NEG_INFINITY, |&acc, &val| acc.max(val));
-
-        for &min_val in min_vals.iter() {
-            assert_abs_diff_eq!(min_val, 0.0, epsilon = 1e-10);
-        }
-
-        for &max_val in max_vals.iter() {
-            assert_abs_diff_eq!(max_val, 1.0, epsilon = 1e-10);
+        // Inverse of a constant feature recovers the single observed value.
+        let recovered = fitted_scaler.inverse_transform(&scaled)?;
+        for &val in recovered.iter() {
+            assert_abs_diff_eq!(val, 7.0, epsilon = 1e-12);
         }
 
         Ok(())

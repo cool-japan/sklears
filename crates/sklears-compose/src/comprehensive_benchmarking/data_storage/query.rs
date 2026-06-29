@@ -1,12 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
 
-use super::errors::*;
-use super::config_types::*;
-
+use super::indexing::QueryCache;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryEngine {
@@ -53,6 +48,12 @@ pub enum OutputFormat {
     XML,
     Parquet,
     Custom(String),
+}
+
+impl Default for QueryEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl QueryEngine {

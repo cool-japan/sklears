@@ -1,8 +1,7 @@
 //! GPU-accelerated methods for manifold learning
 //!
 //! This module provides GPU-accelerated implementations of core manifold learning
-//! operations using wgpu compute shaders. It supports multiple backends including
-//! DirectX 12, Metal, and Vulkan.
+//! operations using oxicuda-backend for cross-platform GPU compute support.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::random::thread_rng;
@@ -12,24 +11,14 @@ use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
 };
-use std::time::Instant;
 
 #[cfg(feature = "gpu")]
-use wgpu;
+use sklears_core::gpu::{GpuArray, GpuContext, GpuMatrixOps};
 
-/// GPU-accelerated distance computation for manifold learning
+/// GPU-accelerated distance computation for manifold learning.
 ///
-/// This structure provides hardware-accelerated distance computations
-/// that can be used by various manifold learning algorithms for improved
-/// performance on large datasets.
-///
-/// # Features
-///
-/// * Cross-platform GPU support (DirectX 12, Metal, Vulkan)
-/// * Automatic fallback to CPU computation when GPU is not available
-/// * Batch processing for large datasets
-/// * Multiple distance metrics (Euclidean, Manhattan, Cosine)
-/// * Memory-efficient processing for datasets that exceed GPU memory
+/// Provides hardware-accelerated distance computations usable by manifold learning
+/// algorithms. When GPU is unavailable, falls back to CPU computation.
 ///
 /// # Examples
 ///
@@ -40,43 +29,30 @@ use wgpu;
 /// let data = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
 ///
 /// let mut accelerator = GpuAccelerator::new().unwrap();
-/// let distances = accelerator.pairwise_distances(&data, "euclidean").unwrap();
+/// let distances = accelerator.pairwise_distances(&data.view(), "euclidean").unwrap();
 /// ```
-#[allow(dead_code)] // retained for future GPU feature implementation
 pub struct GpuAccelerator {
     #[cfg(feature = "gpu")]
-    device: Option<wgpu::Device>,
-    #[cfg(feature = "gpu")]
-    queue: Option<wgpu::Queue>,
-    #[cfg(feature = "gpu")]
-    distance_pipeline: Option<wgpu::ComputePipeline>,
-    fallback_to_cpu: bool,
+    context: Option<GpuContext>,
 }
 
 impl GpuAccelerator {
-    /// Create a new GPU accelerator instance
-    ///
-    /// This will attempt to initialize a GPU device. If no GPU is available,
-    /// it will set up for CPU fallback.
     pub fn new() -> SklResult<Self> {
-        // For now, we'll create a placeholder that falls back to CPU
-        // In a real implementation, we would initialize wgpu here
-        Ok(Self {
-            #[cfg(feature = "gpu")]
-            device: None,
-            #[cfg(feature = "gpu")]
-            queue: None,
-            #[cfg(feature = "gpu")]
-            distance_pipeline: None,
-            fallback_to_cpu: true,
-        })
+        #[cfg(feature = "gpu")]
+        {
+            match GpuContext::with_device_id(0) {
+                Ok(ctx) => Ok(Self { context: Some(ctx) }),
+                Err(_) => Ok(Self { context: None }),
+            }
+        }
+        #[cfg(not(feature = "gpu"))]
+        Ok(Self {})
     }
 
-    /// Check if GPU acceleration is available
     pub fn is_gpu_available(&self) -> bool {
         #[cfg(feature = "gpu")]
         {
-            self.device.is_some()
+            self.context.is_some()
         }
         #[cfg(not(feature = "gpu"))]
         {
@@ -84,16 +60,7 @@ impl GpuAccelerator {
         }
     }
 
-    /// Compute pairwise distances between all points in the dataset
-    ///
-    /// # Arguments
-    ///
-    /// * `data` - Input data matrix (n_samples x n_features)
-    /// * `metric` - Distance metric to use ("euclidean", "manhattan", "cosine")
-    ///
-    /// # Returns
-    ///
-    /// A symmetric distance matrix (n_samples x n_samples)
+    /// Compute pairwise distances between all points in the dataset.
     pub fn pairwise_distances(
         &mut self,
         data: &ArrayView2<Float>,
@@ -106,24 +73,59 @@ impl GpuAccelerator {
         }
     }
 
-    /// GPU-accelerated pairwise distance computation
+    /// GPU pairwise distances — Euclidean via GEMM trick, others via CPU.
     fn gpu_pairwise_distances(
         &mut self,
         data: &ArrayView2<Float>,
         metric: &str,
     ) -> SklResult<Array2<Float>> {
-        // Placeholder for GPU implementation
-        // In a real implementation, we would:
-        // 1. Create GPU buffers for input and output data
-        // 2. Dispatch compute shaders
-        // 3. Read back results
-
-        // For now, fall back to CPU
-        self.cpu_pairwise_distances(data, metric)
+        match metric {
+            "euclidean" => self.gemm_pairwise_euclidean(data),
+            _ => self.cpu_pairwise_distances(data, metric),
+        }
     }
 
-    /// CPU fallback for pairwise distance computation
-    fn cpu_pairwise_distances(
+    /// Euclidean GEMM trick: D[i,j] = sqrt(||x_i||² + ||y_j||² − 2·x_i·x_j)
+    ///
+    /// Upload X once, compute G = X·Xᵀ on GPU, derive norms from diagonal.
+    #[cfg(feature = "gpu")]
+    fn gemm_pairwise_euclidean(&self, data: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
+        let ctx = self.context.as_ref().expect("checked above");
+        let owned = data.to_owned();
+        let x_gpu = GpuArray::<Float>::from_array2(ctx, &owned)?;
+
+        // Xᵀ: shape (d, n)
+        let (n, d) = data.dim();
+        let mut xt_flat = vec![0.0 as Float; n * d];
+        for r in 0..n {
+            for c in 0..d {
+                xt_flat[c * n + r] = data[[r, c]];
+            }
+        }
+        let xt_array = Array2::from_shape_vec((d, n), xt_flat)
+            .map_err(|e| SklearsError::InvalidInput(format!("Transpose shape error: {}", e)))?;
+        let xt_gpu = GpuArray::<Float>::from_array2(ctx, &xt_array)?;
+
+        // G = X · Xᵀ  [n × n]
+        let gram_gpu = x_gpu.matmul(&xt_gpu)?;
+        let gram = gram_gpu.to_array2()?;
+
+        let mut distances = Array2::<Float>::zeros((n, n));
+        for i in 0..n {
+            for j in 0..n {
+                let sq = (gram[[i, i]] + gram[[j, j]] - 2.0 * gram[[i, j]]).max(0.0);
+                distances[[i, j]] = sq.sqrt();
+            }
+        }
+        Ok(distances)
+    }
+
+    #[cfg(not(feature = "gpu"))]
+    fn gemm_pairwise_euclidean(&self, data: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
+        self.cpu_pairwise_distances(data, "euclidean")
+    }
+
+    pub(crate) fn cpu_pairwise_distances(
         &self,
         data: &ArrayView2<Float>,
         metric: &str,
@@ -152,58 +154,47 @@ impl GpuAccelerator {
         Ok(distances)
     }
 
-    /// Compute k-nearest neighbors using GPU acceleration
-    ///
-    /// # Arguments
-    ///
-    /// * `data` - Input data matrix (n_samples x n_features)
-    /// * `k` - Number of neighbors to find
-    /// * `metric` - Distance metric to use
-    ///
-    /// # Returns
-    ///
-    /// Tuple of (distances, indices) arrays
+    /// Compute k-nearest neighbors.
     pub fn knn_search(
         &mut self,
         data: &ArrayView2<Float>,
         k: usize,
         metric: &str,
     ) -> SklResult<(Array2<Float>, Array2<usize>)> {
-        if self.is_gpu_available() {
-            self.gpu_knn_search(data, k, metric)
-        } else {
-            self.cpu_knn_search(data, k, metric)
+        let distances = self.pairwise_distances(data, metric)?;
+        let n_samples = data.nrows();
+        let k_actual = k.min(n_samples.saturating_sub(1));
+        let mut knn_distances = Array2::zeros((n_samples, k_actual));
+        let mut knn_indices = Array2::zeros((n_samples, k_actual));
+
+        for i in 0..n_samples {
+            let mut row: Vec<(Float, usize)> = (0..n_samples)
+                .filter(|&j| j != i)
+                .map(|j| (distances[[i, j]], j))
+                .collect();
+            row.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+            for (rank, (d, idx)) in row.into_iter().take(k_actual).enumerate() {
+                knn_distances[[i, rank]] = d;
+                knn_indices[[i, rank]] = idx;
+            }
         }
+
+        Ok((knn_distances, knn_indices))
     }
 
-    /// GPU-accelerated k-nearest neighbors search
-    fn gpu_knn_search(
-        &mut self,
-        data: &ArrayView2<Float>,
-        k: usize,
-        metric: &str,
-    ) -> SklResult<(Array2<Float>, Array2<usize>)> {
-        // Placeholder for GPU implementation
-        // In a real implementation, we would use GPU sorting and reduction operations
-
-        // For now, fall back to CPU
-        self.cpu_knn_search(data, k, metric)
-    }
-
-    /// CPU fallback for k-nearest neighbors search
-    fn cpu_knn_search(
+    pub(crate) fn cpu_knn_search(
         &self,
         data: &ArrayView2<Float>,
         k: usize,
         metric: &str,
     ) -> SklResult<(Array2<Float>, Array2<usize>)> {
         let n_samples = data.nrows();
-        let mut knn_distances = Array2::zeros((n_samples, k));
-        let mut knn_indices = Array2::zeros((n_samples, k));
+        let k_actual = k.min(n_samples.saturating_sub(1));
+        let mut knn_distances = Array2::zeros((n_samples, k_actual));
+        let mut knn_indices = Array2::zeros((n_samples, k_actual));
 
         for i in 0..n_samples {
             let mut distances_with_indices: Vec<(Float, usize)> = Vec::new();
-
             for j in 0..n_samples {
                 if i != j {
                     let dist = match metric {
@@ -220,12 +211,11 @@ impl GpuAccelerator {
                     distances_with_indices.push((dist, j));
                 }
             }
-
-            // Sort by distance and take k closest
             distances_with_indices
-                .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
-
-            for (idx, &(dist, neighbor_idx)) in distances_with_indices.iter().take(k).enumerate() {
+                .sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+            for (idx, &(dist, neighbor_idx)) in
+                distances_with_indices.iter().take(k_actual).enumerate()
+            {
                 knn_distances[[i, idx]] = dist;
                 knn_indices[[i, idx]] = neighbor_idx;
             }
@@ -234,10 +224,7 @@ impl GpuAccelerator {
         Ok((knn_distances, knn_indices))
     }
 
-    /// Accelerated matrix operations for manifold learning
-    ///
-    /// This method provides GPU-accelerated matrix operations commonly used
-    /// in manifold learning algorithms.
+    /// Accelerated matrix operations.
     pub fn matrix_operations(
         &mut self,
         operation: &str,
@@ -254,44 +241,38 @@ impl GpuAccelerator {
         }
     }
 
-    /// Compute Gram matrix (X * X^T)
     fn compute_gram_matrix(&mut self, data: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
-        if self.is_gpu_available() {
-            // GPU implementation placeholder
-            self.cpu_gram_matrix(data)
-        } else {
-            self.cpu_gram_matrix(data)
+        #[cfg(feature = "gpu")]
+        if let Some(ctx) = &self.context {
+            let owned = data.to_owned();
+            let x_gpu = GpuArray::<Float>::from_array2(ctx, &owned)?;
+            let (n, d) = data.dim();
+            let mut xt_flat = vec![0.0 as Float; n * d];
+            for r in 0..n {
+                for c in 0..d {
+                    xt_flat[c * n + r] = data[[r, c]];
+                }
+            }
+            let xt_array = Array2::from_shape_vec((d, n), xt_flat)
+                .map_err(|e| SklearsError::InvalidInput(format!("Transpose shape error: {}", e)))?;
+            let xt_gpu = GpuArray::<Float>::from_array2(ctx, &xt_array)?;
+            let gram_gpu = x_gpu.matmul(&xt_gpu)?;
+            return gram_gpu.to_array2();
         }
+        self.cpu_gram_matrix(data)
     }
 
-    /// CPU fallback for Gram matrix computation
     fn cpu_gram_matrix(&self, data: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
-        let gram = data.dot(&data.t());
-        Ok(gram)
+        Ok(data.dot(&data.t()))
     }
 
-    /// Compute graph Laplacian matrix
-    fn compute_laplacian(&mut self, adjacency: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
-        if self.is_gpu_available() {
-            // GPU implementation placeholder
-            self.cpu_laplacian(adjacency)
-        } else {
-            self.cpu_laplacian(adjacency)
-        }
-    }
-
-    /// CPU fallback for Laplacian computation
-    fn cpu_laplacian(&self, adjacency: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
+    fn compute_laplacian(&self, adjacency: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
         let n = adjacency.nrows();
         let mut laplacian = Array2::zeros((n, n));
-
-        // Compute degree matrix
         let mut degrees = Array1::zeros(n);
         for i in 0..n {
             degrees[i] = adjacency.row(i).sum();
         }
-
-        // L = D - A
         for i in 0..n {
             laplacian[[i, i]] = degrees[i];
             for j in 0..n {
@@ -300,35 +281,20 @@ impl GpuAccelerator {
                 }
             }
         }
-
         Ok(laplacian)
     }
 
-    /// Normalize matrix rows to unit norm
-    fn normalize_matrix(&mut self, data: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
-        if self.is_gpu_available() {
-            // GPU implementation placeholder
-            self.cpu_normalize_matrix(data)
-        } else {
-            self.cpu_normalize_matrix(data)
-        }
-    }
-
-    /// CPU fallback for matrix normalization
-    fn cpu_normalize_matrix(&self, data: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
+    fn normalize_matrix(&self, data: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
         let mut normalized = data.to_owned();
-
         for mut row in normalized.rows_mut() {
             let norm = row.mapv(|x| x * x).sum().sqrt();
             if norm > 0.0 {
                 row /= norm;
             }
         }
-
         Ok(normalized)
     }
 
-    /// Helper function to compute Euclidean distance
     fn euclidean_distance(
         &self,
         a: &scirs2_core::ndarray::ArrayView1<Float>,
@@ -341,7 +307,6 @@ impl GpuAccelerator {
             .sqrt()
     }
 
-    /// Helper function to compute Manhattan distance
     fn manhattan_distance(
         &self,
         a: &scirs2_core::ndarray::ArrayView1<Float>,
@@ -350,28 +315,23 @@ impl GpuAccelerator {
         a.iter().zip(b.iter()).map(|(x, y)| (x - y).abs()).sum()
     }
 
-    /// Helper function to compute Cosine distance
     fn cosine_distance(
         &self,
         a: &scirs2_core::ndarray::ArrayView1<Float>,
         b: &scirs2_core::ndarray::ArrayView1<Float>,
     ) -> Float {
-        let dot_product = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<Float>();
-        let norm_a = a.iter().map(|x| x * x).sum::<Float>().sqrt();
-        let norm_b = b.iter().map(|x| x * x).sum::<Float>().sqrt();
-
-        if norm_a > 0.0 && norm_b > 0.0 {
-            1.0 - dot_product / (norm_a * norm_b)
+        let dot = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<Float>();
+        let na = a.iter().map(|x| x * x).sum::<Float>().sqrt();
+        let nb = b.iter().map(|x| x * x).sum::<Float>().sqrt();
+        if na > 0.0 && nb > 0.0 {
+            1.0 - dot / (na * nb)
         } else {
             0.0
         }
     }
 }
 
-/// GPU-accelerated t-SNE implementation
-///
-/// This provides a GPU-accelerated version of t-SNE that can handle larger
-/// datasets more efficiently than the CPU version.
+/// GPU-accelerated t-SNE implementation.
 pub struct GpuTSNE {
     accelerator: GpuAccelerator,
     n_components: usize,
@@ -382,7 +342,6 @@ pub struct GpuTSNE {
 }
 
 impl GpuTSNE {
-    /// Create a new GPU-accelerated t-SNE instance
     pub fn new() -> SklResult<Self> {
         Ok(Self {
             accelerator: GpuAccelerator::new()?,
@@ -394,65 +353,44 @@ impl GpuTSNE {
         })
     }
 
-    /// Set the number of components for the embedding
     pub fn n_components(mut self, n_components: usize) -> Self {
         self.n_components = n_components;
         self
     }
 
-    /// Set the perplexity parameter
     pub fn perplexity(mut self, perplexity: f64) -> Self {
         self.perplexity = perplexity;
         self
     }
 
-    /// Set the learning rate
     pub fn learning_rate(mut self, learning_rate: f64) -> Self {
         self.learning_rate = learning_rate;
         self
     }
 
-    /// Set the number of iterations
     pub fn n_iter(mut self, n_iter: usize) -> Self {
         self.n_iter = n_iter;
         self
     }
 
-    /// Set the random state for reproducibility
     pub fn random_state(mut self, random_state: u64) -> Self {
         self.random_state = Some(random_state);
         self
     }
 
-    /// Fit t-SNE to the data and return the embedding
+    /// Fit t-SNE and return the low-dimensional embedding.
     pub fn fit_transform(&mut self, data: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
-        // For now, this is a placeholder that uses the CPU implementation
-        // In a real implementation, we would:
-        // 1. Use GPU to compute pairwise distances
-        // 2. Use GPU to compute probability distributions
-        // 3. Use GPU to perform gradient descent optimization
-
-        // Compute pairwise distances using GPU acceleration
         let distances = self.accelerator.pairwise_distances(data, "euclidean")?;
-
-        // For now, fall back to CPU t-SNE implementation
-        // This would be replaced with GPU-accelerated gradient descent
         self.cpu_tsne_fallback(data, &distances)
     }
 
-    /// CPU fallback for t-SNE implementation
     fn cpu_tsne_fallback(
         &self,
         data: &ArrayView2<Float>,
         _distances: &Array2<Float>,
     ) -> SklResult<Array2<Float>> {
-        // Simplified t-SNE implementation for demonstration
-        // In practice, this would use the full t-SNE algorithm
-
         let n_samples = data.nrows();
         let mut embedding = Array2::zeros((n_samples, self.n_components));
-
-        // Initialize with random values
 
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
@@ -469,26 +407,23 @@ impl GpuTSNE {
         Ok(embedding)
     }
 
-    /// Check if GPU acceleration is available
     pub fn is_gpu_available(&self) -> bool {
         self.accelerator.is_gpu_available()
     }
 }
 
-/// Performance benchmarking utilities for GPU acceleration
+/// Performance benchmarking utilities for GPU acceleration.
 pub struct GpuBenchmark {
     accelerator: GpuAccelerator,
 }
 
 impl GpuBenchmark {
-    /// Create a new benchmarking instance
     pub fn new() -> SklResult<Self> {
         Ok(Self {
             accelerator: GpuAccelerator::new()?,
         })
     }
 
-    /// Benchmark GPU vs CPU performance for distance computation
     pub fn benchmark_distance_computation(
         &mut self,
         data: &ArrayView2<Float>,
@@ -496,12 +431,10 @@ impl GpuBenchmark {
     ) -> SklResult<(f64, f64)> {
         use std::time::Instant;
 
-        // Benchmark CPU implementation
         let start = Instant::now();
         let _cpu_result = self.accelerator.cpu_pairwise_distances(data, metric)?;
         let cpu_time = start.elapsed().as_secs_f64();
 
-        // Benchmark GPU implementation (currently falls back to CPU)
         let start = Instant::now();
         let _gpu_result = self.accelerator.pairwise_distances(data, metric)?;
         let gpu_time = start.elapsed().as_secs_f64();
@@ -509,19 +442,18 @@ impl GpuBenchmark {
         Ok((cpu_time, gpu_time))
     }
 
-    /// Benchmark GPU vs CPU performance for k-NN search
     pub fn benchmark_knn_search(
         &mut self,
         data: &ArrayView2<Float>,
         k: usize,
         metric: &str,
     ) -> SklResult<(f64, f64)> {
-        // Benchmark CPU implementation
+        use std::time::Instant;
+
         let start = Instant::now();
         let _cpu_result = self.accelerator.cpu_knn_search(data, k, metric)?;
         let cpu_time = start.elapsed().as_secs_f64();
 
-        // Benchmark GPU implementation (currently falls back to CPU)
         let start = Instant::now();
         let _gpu_result = self.accelerator.knn_search(data, k, metric)?;
         let gpu_time = start.elapsed().as_secs_f64();
@@ -546,7 +478,7 @@ mod tests {
     #[test]
     fn test_pairwise_distances() {
         let mut accelerator = GpuAccelerator::new().expect("operation should succeed");
-        let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
+        let data = array![[1.0_f64, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         let distances = accelerator
             .pairwise_distances(&data.view(), "euclidean")
@@ -560,7 +492,7 @@ mod tests {
     #[test]
     fn test_knn_search() {
         let mut accelerator = GpuAccelerator::new().expect("operation should succeed");
-        let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
+        let data = array![[1.0_f64, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
         let (distances, indices) = accelerator
             .knn_search(&data.view(), 2, "euclidean")
@@ -573,7 +505,7 @@ mod tests {
     #[test]
     fn test_matrix_operations() {
         let mut accelerator = GpuAccelerator::new().expect("operation should succeed");
-        let data = array![[1.0, 2.0], [3.0, 4.0]];
+        let data = array![[1.0_f64, 2.0], [3.0, 4.0]];
 
         let gram = accelerator
             .matrix_operations("gram_matrix", &data.view())
@@ -589,7 +521,7 @@ mod tests {
     #[test]
     fn test_gpu_tsne() {
         let mut tsne = GpuTSNE::new().expect("operation should succeed");
-        let data = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+        let data = array![[1.0_f64, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
 
         let embedding = tsne
             .fit_transform(&data.view())
@@ -600,7 +532,7 @@ mod tests {
     #[test]
     fn test_benchmarking() {
         let mut benchmark = GpuBenchmark::new().expect("operation should succeed");
-        let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
+        let data = array![[1.0_f64, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         let (cpu_time, gpu_time) = benchmark
             .benchmark_distance_computation(&data.view(), "euclidean")

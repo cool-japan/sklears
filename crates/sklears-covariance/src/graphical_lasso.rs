@@ -222,6 +222,40 @@ impl GraphicalLasso<Untrained> {
 }
 
 impl GraphicalLasso<GraphicalLassoTrained> {
+    /// Reconstruct a fitted estimator from previously computed parameters.
+    ///
+    /// Used by the serialization layer to rebuild a fitted model from its
+    /// stored state. The hyperparameters (`mode`, `tol`, `max_iter`,
+    /// `assume_centered`) are restored from the supplied values; `assume_centered`
+    /// is inferred from a zero location.
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_fitted(
+        covariance: Array2<f64>,
+        precision: Array2<f64>,
+        location: Array1<f64>,
+        alpha: f64,
+        n_iter: usize,
+        mode: String,
+        tol: f64,
+        max_iter: usize,
+    ) -> Self {
+        let assume_centered = location.iter().all(|&value| value == 0.0);
+        Self {
+            state: GraphicalLassoTrained {
+                covariance,
+                precision,
+                location,
+                alpha,
+                n_iter,
+            },
+            alpha,
+            mode,
+            tol,
+            max_iter,
+            assume_centered,
+        }
+    }
+
     /// Get the covariance matrix
     pub fn get_covariance(&self) -> &Array2<f64> {
         &self.state.covariance

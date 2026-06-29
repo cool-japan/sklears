@@ -143,11 +143,29 @@ impl NumericalStability {
             ));
         }
 
+        // The generalized symmetric-definite problem assumes A and B are
+        // symmetric. Real inputs (e.g. between/within-class scatter matrices
+        // accumulated by explicit summation) are symmetric in exact arithmetic
+        // but carry round-off asymmetry. Project both onto their symmetric part
+        // `(M + Mᵀ) / 2` so the strict machine-epsilon symmetry checks in the
+        // downstream eigensolver and `matrix_sqrt_inverse` accept them. This is
+        // a no-op on a genuinely symmetric matrix.
+        let a = Self::symmetric_part(a);
+        let b = Self::symmetric_part(b);
+
         // Compute B^{-1/2} for transformation to standard eigenvalue problem
-        let b_inv_sqrt = self.matrix_sqrt_inverse(b)?;
+        let b_inv_sqrt = self.matrix_sqrt_inverse(&b)?;
 
         // Transform to standard eigenvalue problem: (B^{-1/2} * A * B^{-1/2}) * v' = lambda * v'
-        let transformed_a = b_inv_sqrt.dot(a).dot(&b_inv_sqrt);
+        //
+        // `B^{-1/2} A B^{-1/2}` is mathematically symmetric whenever A and B are
+        // symmetric, but the three chained matrix products accumulate round-off
+        // that breaks exact symmetry. The downstream symmetric eigensolver
+        // (`eigh`) rejects matrices that are not symmetric to machine epsilon, so
+        // we project the transformed matrix onto its symmetric part
+        // `(M + Mᵀ) / 2` to remove that round-off without changing the (real)
+        // spectrum.
+        let transformed_a = Self::symmetric_part(&b_inv_sqrt.dot(&a).dot(&b_inv_sqrt));
 
         // Solve standard eigenvalue problem
         let (eigenvalues, transformed_eigenvectors) =
@@ -157,6 +175,100 @@ impl NumericalStability {
         let eigenvectors = b_inv_sqrt.dot(&transformed_eigenvectors);
 
         Ok((eigenvalues, eigenvectors))
+    }
+
+    /// Compute eigenvalue decomposition using the SciRS2 symmetric eigensolver
+    /// (`scirs2_linalg::eigh`).
+    ///
+    /// This mirrors [`Self::stable_eigen_decomposition`] (symmetry check, optional
+    /// regularization, condition-number monitoring, descending sort, and
+    /// small-eigenvalue filtering) but performs the underlying decomposition with
+    /// `scirs2_linalg::eigh` (the dedicated `eigen` module solver) rather than the
+    /// `compat::Eigh` trait.
+    ///
+    /// The `workers` argument is accepted for API symmetry with the parallel
+    /// driver. It is deliberately **not** forwarded to `eigh` as a value greater
+    /// than one: in scirs2-linalg 0.5.0 the work-stealing parallel kernel
+    /// (engaged for `workers > 1 && n > 100`) does not converge and returns
+    /// non-finite (`inf`) eigenvalues, whereas the sequential kernel is accurate
+    /// to ~1e-13. To guarantee mathematically correct eigenpairs this method
+    /// always solves a single matrix on the accurate sequential path; genuine
+    /// parallelism is exploited across *independent* problems by the block /
+    /// distributed driver and the parallel matrix products in `parallel_eigen`.
+    ///
+    /// Returns `(eigenvalues, eigenvectors)` with eigenvalues sorted in descending
+    /// order. The eigenvectors are stored column-wise.
+    pub fn stable_eigen_decomposition_parallel(
+        &self,
+        matrix: &Array2<Float>,
+        workers: usize,
+    ) -> Result<(Array1<Float>, Array2<Float>)> {
+        // `workers` is part of the contract but, per the doc comment above, the
+        // upstream multi-worker kernel is numerically unreliable, so we do not
+        // forward a value > 1 to `eigh`. Touch it to keep the signature honest.
+        let _ = workers;
+
+        if matrix.nrows() != matrix.ncols() {
+            return Err(SklearsError::InvalidInput(
+                "Matrix must be square for eigenvalue decomposition".to_string(),
+            ));
+        }
+
+        // The symmetric solver requires a symmetric (Hermitian) matrix.
+        if !self.is_symmetric(matrix) {
+            return Err(SklearsError::InvalidInput(
+                "Matrix must be symmetric for stable eigenvalue decomposition".to_string(),
+            ));
+        }
+
+        // Add regularization if needed to improve conditioning.
+        let regularized_matrix = if self.config.use_regularization {
+            self.add_regularization(matrix)?
+        } else {
+            matrix.clone()
+        };
+
+        // Condition number monitoring (consistent with the serial path).
+        let condition_number = self.estimate_condition_number(&regularized_matrix)?;
+        if condition_number > self.config.max_condition_number {
+            eprintln!(
+                "Warning: Matrix condition number ({:.2e}) exceeds threshold ({:.2e})",
+                condition_number, self.config.max_condition_number
+            );
+        }
+
+        // Real symmetric eigen-decomposition via the SciRS2 `eigen` solver on its
+        // accurate sequential code path (`workers = None`).
+        let (eigenvalues, eigenvectors) = scirs2_linalg::eigh(&regularized_matrix.view(), None)
+            .map_err(|e| {
+                SklearsError::InvalidInput(format!("Eigenvalue decomposition failed: {}", e))
+            })?;
+
+        // Sort eigenvalues and eigenvectors in descending order.
+        let (sorted_eigenvalues, sorted_eigenvectors) =
+            self.sort_eigen_desc(eigenvalues, eigenvectors);
+
+        // Filter out negligibly small eigenvalues for numerical stability.
+        let (filtered_eigenvalues, filtered_eigenvectors) =
+            self.filter_small_eigenvalues(sorted_eigenvalues, sorted_eigenvectors)?;
+
+        Ok((filtered_eigenvalues, filtered_eigenvectors))
+    }
+
+    /// Project a square matrix onto its symmetric part `(M + Mᵀ) / 2`.
+    ///
+    /// For a matrix that is symmetric in exact arithmetic this removes only the
+    /// round-off asymmetry; the (real) spectrum is unchanged. Used to satisfy
+    /// the strict machine-epsilon symmetry checks of the symmetric eigensolver.
+    fn symmetric_part(matrix: &Array2<Float>) -> Array2<Float> {
+        let n = matrix.nrows();
+        let mut symmetric = Array2::zeros((n, n));
+        for i in 0..n {
+            for j in 0..n {
+                symmetric[[i, j]] = 0.5 * (matrix[[i, j]] + matrix[[j, i]]);
+            }
+        }
+        symmetric
     }
 
     /// Check if a matrix is symmetric within numerical tolerance

@@ -213,17 +213,17 @@ impl ProcessingStage {
     /// Estimate execution time for this stage
     pub fn estimate_execution_time(&self) -> Duration {
         match self.stage_type {
-            ProcessingStageType::Validation => Duration::from_millis(100),
-            ProcessingStageType::Cleaning => Duration::from_millis(500),
-            ProcessingStageType::Conversion => Duration::from_millis(200),
-            ProcessingStageType::Aggregation => Duration::from_millis(800),
-            ProcessingStageType::Enrichment => Duration::from_millis(1000),
-            ProcessingStageType::Statistical => Duration::from_millis(1500),
-            ProcessingStageType::Filtering => Duration::from_millis(300),
-            ProcessingStageType::Sorting => Duration::from_millis(600),
-            ProcessingStageType::Grouping => Duration::from_millis(400),
-            ProcessingStageType::Joining => Duration::from_millis(1200),
-            ProcessingStageType::Custom(_) => Duration::from_millis(1000),
+            ProcessingStageType::Validation => Duration::milliseconds(100),
+            ProcessingStageType::Cleaning => Duration::milliseconds(500),
+            ProcessingStageType::Conversion => Duration::milliseconds(200),
+            ProcessingStageType::Aggregation => Duration::milliseconds(800),
+            ProcessingStageType::Enrichment => Duration::milliseconds(1000),
+            ProcessingStageType::Statistical => Duration::milliseconds(1500),
+            ProcessingStageType::Filtering => Duration::milliseconds(300),
+            ProcessingStageType::Sorting => Duration::milliseconds(600),
+            ProcessingStageType::Grouping => Duration::milliseconds(400),
+            ProcessingStageType::Joining => Duration::milliseconds(1200),
+            ProcessingStageType::Custom(_) => Duration::milliseconds(1000),
         }
     }
 
@@ -494,7 +494,7 @@ impl Default for SchedulerConfig {
     fn default() -> Self {
         Self {
             max_concurrent_executions: 10,
-            default_timeout: Duration::from_secs(3600),
+            default_timeout: Duration::seconds(3600),
             priority_weights: PriorityWeights::default(),
         }
     }

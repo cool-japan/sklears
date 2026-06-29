@@ -1557,16 +1557,65 @@ impl PermutationTester {
         })
     }
 
-    fn compute_statistic(&self, data: &Array2<Float>, _n_components: usize) -> Result<Float> {
-        // Simplified statistic computation
+    fn compute_statistic(&self, data: &Array2<Float>, n_components: usize) -> Result<Float> {
         let variance = data.mapv(|x| x.powi(2)).mean().unwrap_or(0.0);
 
         match self.config.test_statistic {
             TestStatistic::ExplainedVariance => {
-                Ok(0.9) // Simplified placeholder
+                // Compute the fraction of variance explained by the top n_components
+                // via truncated SVD.  Explained variance = Σ s_i² / Σ_all s_j²
+                let (_u, singular_values, _vt) = scirs2_linalg::svd(&data.view(), false, None)
+                    .map_err(|e| {
+                        SklearsError::NumericalError(format!(
+                            "SVD failed in ExplainedVariance statistic: {e}"
+                        ))
+                    })?;
+
+                let total_var: Float = singular_values.iter().map(|&s| s * s).sum();
+                if total_var < Float::EPSILON {
+                    return Ok(0.0);
+                }
+                let k = n_components.min(singular_values.len());
+                let explained_var: Float = singular_values.iter().take(k).map(|&s| s * s).sum();
+                Ok(explained_var / total_var)
             }
             TestStatistic::ReconstructionError => {
-                Ok(0.1) // Simplified placeholder
+                // Reconstruct data from top n_components singular triplets and
+                // compute normalised Frobenius reconstruction error:
+                // ‖X − X̂‖_F / ‖X‖_F
+                let (u, singular_values, vt) = scirs2_linalg::svd(&data.view(), true, None)
+                    .map_err(|e| {
+                        SklearsError::NumericalError(format!(
+                            "SVD failed in ReconstructionError statistic: {e}"
+                        ))
+                    })?;
+
+                let (m, n) = data.dim();
+                let k = n_components.min(singular_values.len());
+
+                // Build low-rank reconstruction X̂ = U[:, :k] * diag(s[:k]) * Vt[:k, :]
+                let mut x_hat = Array2::<Float>::zeros((m, n));
+                for i in 0..k {
+                    let s_i = singular_values[i];
+                    let u_col = u.column(i);
+                    let vt_row = vt.row(i);
+                    for row in 0..m {
+                        for col in 0..n {
+                            x_hat[[row, col]] += s_i * u_col[row] * vt_row[col];
+                        }
+                    }
+                }
+
+                let residual_norm_sq: Float = data
+                    .iter()
+                    .zip(x_hat.iter())
+                    .map(|(&d, &h)| (d - h).powi(2))
+                    .sum();
+                let data_norm_sq: Float = data.iter().map(|&d| d * d).sum();
+                if data_norm_sq < Float::EPSILON {
+                    return Ok(0.0);
+                }
+                Ok((residual_norm_sq / data_norm_sq).sqrt())
             }
             TestStatistic::FirstComponent => Ok(variance.sqrt()),
         }

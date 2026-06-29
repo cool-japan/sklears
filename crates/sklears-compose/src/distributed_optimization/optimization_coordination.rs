@@ -348,6 +348,9 @@ pub enum OptimizationError {
     SynchronizationError(String),
     TimeoutError(String),
     InvalidStateError(String),
+    /// A requested capability is not yet implemented (returned instead of
+    /// fabricating a plausible-but-fake value).
+    NotImplemented(String),
 }
 
 impl Default for CoordinationConfig {
@@ -1035,6 +1038,7 @@ impl fmt::Display for OptimizationError {
             OptimizationError::SynchronizationError(msg) => write!(f, "Synchronization error: {}", msg),
             OptimizationError::TimeoutError(msg) => write!(f, "Timeout error: {}", msg),
             OptimizationError::InvalidStateError(msg) => write!(f, "Invalid state error: {}", msg),
+            OptimizationError::NotImplemented(msg) => write!(f, "Not implemented: {}", msg),
         }
     }
 }

@@ -4,6 +4,8 @@
 
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2};
 use scirs2_core::random::thread_rng;
+use scirs2_linalg::compat::UPLO;
+use scirs2_linalg::LinalgError;
 use sklears_core::types::Float;
 use std::collections::HashSet;
 
@@ -473,42 +475,55 @@ impl AdvancedManifoldLearning {
                 kernel_matrix[[i, j]] = (-distance * distance / epsilon).exp();
             }
         }
+        // Density normalization (alpha-family): K_alpha = D^-alpha K D^-alpha.
         let mut row_sums = Array1::zeros(n_samples);
         for i in 0..n_samples {
             row_sums[i] = kernel_matrix.row(i).sum();
         }
-        let mut transition_matrix = kernel_matrix;
+        let mut anisotropic = kernel_matrix;
         for i in 0..n_samples {
             for j in 0..n_samples {
-                transition_matrix[[i, j]] /= row_sums[i].powf(alpha);
-            }
-        }
-        for i in 0..n_samples {
-            row_sums[i] = transition_matrix.row(i).sum();
-        }
-        for i in 0..n_samples {
-            for j in 0..n_samples {
-                transition_matrix[[i, j]] /= row_sums[j].powf(alpha);
-            }
-        }
-        let mut diffusion_matrix = transition_matrix.clone();
-        for _ in 1..diffusion_time {
-            let mut new_matrix = Array2::zeros((n_samples, n_samples));
-            for i in 0..n_samples {
-                for j in 0..n_samples {
-                    for k in 0..n_samples {
-                        new_matrix[[i, j]] += diffusion_matrix[[i, k]] * transition_matrix[[k, j]];
-                    }
+                let denom = row_sums[i].powf(alpha) * row_sums[j].powf(alpha);
+                if denom > 0.0 {
+                    anisotropic[[i, j]] /= denom;
                 }
             }
-            diffusion_matrix = new_matrix;
         }
-        let (eigenvalues, eigenvectors) =
-            self.compute_largest_eigenvectors(&diffusion_matrix, self.embedding_dimension)?;
-        let mut embedding = Array2::zeros((n_samples, self.embedding_dimension));
+
+        // Build the SYMMETRIC diffusion operator A_s = D^-1/2 K_alpha D^-1/2,
+        // which is similar to the random-walk transition matrix P = D^-1 K_alpha
+        // and shares its eigenvalues. Solving the symmetric problem is both
+        // numerically stable (eigh) and mathematically correct; the diffusion
+        // eigenvectors are recovered as psi = D^-1/2 v.
+        let mut degree = Array1::zeros(n_samples);
         for i in 0..n_samples {
-            for j in 0..self.embedding_dimension {
-                embedding[[i, j]] = eigenvectors[[i, j]] * eigenvalues[j].sqrt();
+            degree[i] = anisotropic.row(i).sum();
+        }
+        let inv_sqrt_deg: Array1<Float> =
+            degree.mapv(|d| if d > 0.0 { 1.0 / d.sqrt() } else { 0.0 });
+
+        let mut symmetric = Array2::zeros((n_samples, n_samples));
+        for i in 0..n_samples {
+            for j in 0..n_samples {
+                symmetric[[i, j]] = inv_sqrt_deg[i] * anisotropic[[i, j]] * inv_sqrt_deg[j];
+            }
+        }
+
+        // Take the leading (embedding_dimension + 1) eigenpairs; the first
+        // corresponds to the stationary distribution and is dropped.
+        let n_take = (self.embedding_dimension + 1).min(n_samples);
+        let (eigenvalues, eigenvectors) = self.compute_largest_eigenvectors(&symmetric, n_take)?;
+
+        let mut embedding = Array2::zeros((n_samples, self.embedding_dimension));
+        for j in 0..self.embedding_dimension {
+            let src = j + 1; // skip the trivial leading eigenvector
+            if src >= eigenvalues.len() {
+                break;
+            }
+            // Diffusion coordinate: lambda^t * psi, with psi = D^-1/2 v.
+            let scale = eigenvalues[src].max(0.0).powi(diffusion_time as i32);
+            for i in 0..n_samples {
+                embedding[[i, j]] = inv_sqrt_deg[i] * eigenvectors[[i, src]] * scale;
             }
         }
         let manifold_properties = self.compute_manifold_properties(&data, &embedding)?;
@@ -983,18 +998,116 @@ impl AdvancedManifoldLearning {
     fn build_fuzzy_simplicial_set(
         &self,
         data: &ArrayView2<Float>,
-        _neighbors: &[Vec<usize>],
+        neighbors: &[Vec<usize>],
         _local_connectivity: &Array1<Float>,
     ) -> Result<Array2<Float>, ManifoldError> {
+        // Real UMAP fuzzy simplicial set. For each point we set rho = distance to
+        // the nearest neighbour and choose a per-point bandwidth sigma (by binary
+        // search) so the membership row sums to log2(k); membership strength is
+        // exp(-(d - rho) / sigma). The directed graph is then symmetrised by the
+        // probabilistic t-conorm  p = a + aᵀ - a ∘ aᵀ.
         let n_samples = data.nrows();
-        Ok(Array2::zeros((n_samples, n_samples)))
+        let mut directed = Array2::<Float>::zeros((n_samples, n_samples));
+
+        for (i, nbrs) in neighbors.iter().enumerate() {
+            // Distances from i to each of its neighbours.
+            let mut dists: Vec<Float> = Vec::with_capacity(nbrs.len());
+            for &j in nbrs {
+                if j == i {
+                    continue;
+                }
+                dists.push(self.compute_distance(&data.row(i), &data.row(j))?);
+            }
+            if dists.is_empty() {
+                continue;
+            }
+
+            let rho = dists.iter().cloned().fold(Float::INFINITY, Float::min);
+            let target = (dists.len() as Float).log2().max(1.0);
+
+            // Binary search for sigma so that sum_j exp(-(d_j - rho)/sigma) = target.
+            let mut lo = 1e-6 as Float;
+            let mut hi = 1e6 as Float;
+            let mut sigma = 1.0 as Float;
+            for _ in 0..64 {
+                sigma = 0.5 * (lo + hi);
+                let psum: Float = dists
+                    .iter()
+                    .map(|&d| {
+                        let v = (d - rho) / sigma;
+                        if v <= 0.0 {
+                            1.0
+                        } else {
+                            (-v).exp()
+                        }
+                    })
+                    .sum();
+                if (psum - target).abs() < 1e-5 {
+                    break;
+                }
+                if psum > target {
+                    hi = sigma;
+                } else {
+                    lo = sigma;
+                }
+            }
+
+            for (&j, &d) in nbrs.iter().filter(|&&j| j != i).zip(dists.iter()) {
+                let v = (d - rho) / sigma;
+                let membership = if v <= 0.0 { 1.0 } else { (-v).exp() };
+                directed[[i, j]] = membership;
+            }
+        }
+
+        // Symmetrise: p_ij = a_ij + a_ji - a_ij * a_ji.
+        let mut fuzzy = Array2::<Float>::zeros((n_samples, n_samples));
+        for i in 0..n_samples {
+            for j in 0..n_samples {
+                let a = directed[[i, j]];
+                let b = directed[[j, i]];
+                fuzzy[[i, j]] = a + b - a * b;
+            }
+        }
+        Ok(fuzzy)
     }
     fn spectral_initialization(
         &self,
         fuzzy_set: &Array2<Float>,
     ) -> Result<Array2<Float>, ManifoldError> {
+        // Real spectral initialization: embed using the leading non-trivial
+        // eigenvectors of the symmetric normalized graph Laplacian of the fuzzy
+        // set. The very first eigenvector (smallest eigenvalue) is the trivial
+        // constant component, so we skip it and take the next
+        // `embedding_dimension` eigenvectors.
         let n_samples = fuzzy_set.nrows();
-        Ok(Array2::zeros((n_samples, self.embedding_dimension)))
+        let dim = self.embedding_dimension;
+        if n_samples <= dim + 1 {
+            // Too few points for a meaningful spectral embedding; fall back to a
+            // small deterministic spread so the optimizer still has signal.
+            let mut init = Array2::<Float>::zeros((n_samples, dim));
+            for i in 0..n_samples {
+                for j in 0..dim {
+                    init[[i, j]] = ((i * (j + 1)) as Float).sin() * 1e-4;
+                }
+            }
+            return Ok(init);
+        }
+
+        let laplacian = self.compute_normalized_laplacian(fuzzy_set)?;
+        let (_values, vectors) = self.compute_smallest_eigenvectors(&laplacian, dim + 1)?;
+
+        // Skip the first (trivial) eigenvector.
+        let mut embedding = Array2::<Float>::zeros((n_samples, dim));
+        for j in 0..dim {
+            embedding.column_mut(j).assign(&vectors.column(j + 1));
+        }
+
+        // Scale to a small spread typical of UMAP initialization.
+        let max_abs = embedding.iter().fold(0.0 as Float, |m, &v| m.max(v.abs()));
+        if max_abs > 0.0 {
+            embedding.mapv_inplace(|v| v / max_abs * 10.0);
+        }
+        Ok(embedding)
     }
     fn compute_embedding_distance(
         &self,
@@ -1090,20 +1203,44 @@ impl AdvancedManifoldLearning {
         matrix: &Array2<Float>,
         n_vectors: usize,
     ) -> Result<(Array1<Float>, Array2<Float>), ManifoldError> {
+        // Real symmetric eigendecomposition. The matrices handed here (graph
+        // Laplacians, MDS Gram matrices, LLE M-matrices) are symmetric, so
+        // `eigh` is correct. `eigh` returns eigenvalues in ascending order with
+        // eigenvectors as columns; the smallest `n_vectors` are the leading
+        // columns.
         let n = matrix.nrows();
-        let eigenvalues = Array1::from_iter((0..n_vectors).map(|i| i as Float * 0.1));
-        let eigenvectors = Array2::zeros((n, n_vectors));
-        Ok((eigenvalues, eigenvectors))
+        let k = n_vectors.min(n);
+        let (eigenvalues, eigenvectors) = scirs2_linalg::compat::eigh(matrix, UPLO::Upper)
+            .map_err(|e: LinalgError| ManifoldError::NumericalInstability(e.to_string()))?;
+
+        let selected_values = eigenvalues.slice(s![..k]).to_owned();
+        let selected_vectors = eigenvectors.slice(s![.., ..k]).to_owned();
+        Ok((selected_values, selected_vectors))
     }
     fn compute_largest_eigenvectors(
         &self,
         matrix: &Array2<Float>,
         n_vectors: usize,
     ) -> Result<(Array1<Float>, Array2<Float>), ManifoldError> {
+        // Real symmetric eigendecomposition; the largest `n_vectors` are the
+        // trailing columns of the ascending `eigh` output, returned in
+        // descending order.
         let n = matrix.nrows();
-        let eigenvalues = Array1::from_iter((0..n_vectors).map(|i| 1.0 - i as Float * 0.1));
-        let eigenvectors = Array2::zeros((n, n_vectors));
-        Ok((eigenvalues, eigenvectors))
+        let k = n_vectors.min(n);
+        let (eigenvalues, eigenvectors) = scirs2_linalg::compat::eigh(matrix, UPLO::Upper)
+            .map_err(|e: LinalgError| ManifoldError::NumericalInstability(e.to_string()))?;
+
+        let total = eigenvalues.len();
+        let mut selected_values = Array1::zeros(k);
+        let mut selected_vectors = Array2::zeros((n, k));
+        for idx in 0..k {
+            let src = total - 1 - idx;
+            selected_values[idx] = eigenvalues[src];
+            selected_vectors
+                .column_mut(idx)
+                .assign(&eigenvectors.column(src));
+        }
+        Ok((selected_values, selected_vectors))
     }
     fn compute_geodesic_distances_dijkstra(
         &self,
@@ -1239,10 +1376,33 @@ impl AdvancedManifoldLearning {
     }
     fn compute_reconstruction_error(
         &self,
-        _original: &ArrayView2<Float>,
-        _embedding: &Array2<Float>,
+        original: &ArrayView2<Float>,
+        embedding: &Array2<Float>,
     ) -> Result<Float, ManifoldError> {
-        Ok(0.1)
+        // Real reconstruction error: the normalized distance-preservation stress
+        // between the pairwise distances in the original space and those in the
+        // embedding. 0 means distances are preserved exactly; larger values mean
+        // worse reconstruction.
+        let original_distances = self.compute_pairwise_distances(original)?;
+        let embedding_distances = self.compute_pairwise_distances(&embedding.view())?;
+
+        let n = original_distances.nrows();
+        let mut stress = 0.0;
+        let mut total_distance_sq = 0.0;
+        for i in 0..n {
+            for j in (i + 1)..original_distances.ncols() {
+                let orig_dist = original_distances[[i, j]];
+                let emb_dist = embedding_distances[[i, j]];
+                let diff = orig_dist - emb_dist;
+                stress += diff * diff;
+                total_distance_sq += orig_dist * orig_dist;
+            }
+        }
+
+        if total_distance_sq <= 0.0 {
+            return Ok(0.0);
+        }
+        Ok((stress / total_distance_sq).sqrt())
     }
     fn compute_mds_stress(
         &self,
@@ -1464,4 +1624,137 @@ pub enum EigenSolver {
     Lanczos,
     /// Randomized SVD
     RandomizedSVD,
+}
+
+#[cfg(test)]
+mod eigen_tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    /// Build two well-separated 2D clusters embedded in higher dimensions.
+    fn two_clusters() -> Array2<Float> {
+        array![
+            [0.0, 0.0, 0.0],
+            [0.2, 0.1, 0.0],
+            [0.1, 0.2, 0.1],
+            [0.0, 0.1, 0.2],
+            [8.0, 8.0, 8.0],
+            [8.2, 7.9, 8.1],
+            [7.9, 8.1, 8.0],
+            [8.1, 8.0, 7.9],
+        ]
+    }
+
+    #[test]
+    fn smallest_eigenvectors_are_real() {
+        // Symmetric matrix with known eigenstructure: diag(1,2,3).
+        let m = array![[1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]];
+        let learner = AdvancedManifoldLearning::new(2, 2);
+        let (values, vectors) = learner
+            .compute_smallest_eigenvectors(&m, 2)
+            .expect("eigensolve");
+        // Two smallest eigenvalues are 1 and 2 (ascending).
+        assert!((values[0] - 1.0).abs() < 1e-9, "got {}", values[0]);
+        assert!((values[1] - 2.0).abs() < 1e-9, "got {}", values[1]);
+        // Eigenvectors must NOT be all zeros (the old fabrication returned zeros).
+        let norm: Float = vectors.iter().map(|&v| v * v).sum();
+        assert!(norm > 1e-6, "eigenvectors are degenerate/zero");
+    }
+
+    #[test]
+    fn largest_eigenvectors_are_real_and_descending() {
+        let m = array![[1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]];
+        let learner = AdvancedManifoldLearning::new(2, 2);
+        let (values, vectors) = learner
+            .compute_largest_eigenvectors(&m, 2)
+            .expect("eigensolve");
+        assert!((values[0] - 3.0).abs() < 1e-9, "got {}", values[0]);
+        assert!((values[1] - 2.0).abs() < 1e-9, "got {}", values[1]);
+        let norm: Float = vectors.iter().map(|&v| v * v).sum();
+        assert!(norm > 1e-6);
+    }
+
+    #[test]
+    fn laplacian_eigenmaps_produces_nonzero_embedding() {
+        // The old zero-eigenvector fabrication made every spectral embedding all
+        // zeros. A real eigensolver must separate the two clusters.
+        let data = two_clusters();
+        let learner = AdvancedManifoldLearning::new(1, 1).n_neighbors(3).method(
+            ManifoldMethod::LaplacianEigenmaps {
+                sigma: 2.0,
+                reg_parameter: 1e-6,
+                use_normalized_laplacian: true,
+            },
+        );
+        let result = learner.fit_transform(data.view()).expect("fit");
+        let energy: Float = result.embedding.iter().map(|&v| v * v).sum();
+        assert!(energy > 1e-8, "embedding is all zeros: energy {energy}");
+
+        // The two clusters should map to different embedding coordinates.
+        let mean_a: Float = (0..4).map(|i| result.embedding[[i, 0]]).sum::<Float>() / 4.0;
+        let mean_b: Float = (4..8).map(|i| result.embedding[[i, 0]]).sum::<Float>() / 4.0;
+        assert!(
+            (mean_a - mean_b).abs() > 1e-6,
+            "clusters not separated: {mean_a} vs {mean_b}"
+        );
+    }
+
+    #[test]
+    fn reconstruction_error_is_computed_not_constant() {
+        let learner = AdvancedManifoldLearning::new(2, 2);
+        let data = two_clusters();
+        // A perfect reconstruction (embedding == first two original coords scaled
+        // to match) is hard to hand-build; instead check that two different
+        // embeddings yield different errors, which the old hardcoded 0.1 could
+        // never do.
+        let good = array![
+            [0.0, 0.0],
+            [0.2, 0.1],
+            [0.1, 0.2],
+            [0.0, 0.1],
+            [8.0, 8.0],
+            [8.2, 7.9],
+            [7.9, 8.1],
+            [8.1, 8.0],
+        ];
+        let collapsed = Array2::<Float>::zeros((8, 2));
+        let err_good = learner
+            .compute_reconstruction_error(&data.view(), &good)
+            .expect("err good");
+        let err_collapsed = learner
+            .compute_reconstruction_error(&data.view(), &collapsed)
+            .expect("err collapsed");
+        assert!(err_good >= 0.0 && err_collapsed >= 0.0);
+        assert!(
+            (err_good - err_collapsed).abs() > 1e-6,
+            "reconstruction error is constant: {err_good} vs {err_collapsed}"
+        );
+        // The structure-preserving embedding must reconstruct better.
+        assert!(err_good < err_collapsed, "{err_good} !< {err_collapsed}");
+    }
+
+    #[test]
+    fn fuzzy_simplicial_set_is_nontrivial() {
+        let data = two_clusters();
+        let learner = AdvancedManifoldLearning::new(1, 1).n_neighbors(3);
+        let neighbors = learner
+            .compute_nearest_neighbors(&data.view(), 3)
+            .expect("neighbors");
+        let connectivity = learner
+            .compute_local_connectivity(&data.view(), &neighbors)
+            .expect("connectivity");
+        let fuzzy = learner
+            .build_fuzzy_simplicial_set(&data.view(), &neighbors, &connectivity)
+            .expect("fuzzy set");
+        // Must contain positive memberships (the old version returned all zeros,
+        // which silently disabled UMAP optimization).
+        let total: Float = fuzzy.iter().sum();
+        assert!(total > 0.0, "fuzzy set is all zeros");
+        // Symmetric by construction.
+        for i in 0..fuzzy.nrows() {
+            for j in 0..fuzzy.ncols() {
+                assert!((fuzzy[[i, j]] - fuzzy[[j, i]]).abs() < 1e-9);
+            }
+        }
+    }
 }

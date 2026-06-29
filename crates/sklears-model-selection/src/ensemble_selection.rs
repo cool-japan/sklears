@@ -708,7 +708,15 @@ impl EnsembleSelector {
         Ok(ensemble_predictions)
     }
 
-    /// Calculate diversity measures for the ensemble
+    /// Calculate diversity measures for the ensemble.
+    ///
+    /// Diversity statistics (pairwise correlation, disagreement, Q-statistic,
+    /// entropy diversity) are defined over the *predictions* of the ensemble
+    /// members. In this dispatcher the estimator type `E` is bounded only by
+    /// `Estimator + Clone` — it carries no `Fit`/`Predict` capability — so member
+    /// predictions cannot be produced here. Rather than fabricate constant
+    /// diversity values, we report an honest error. Compute diversity from a flow
+    /// that stores per-member predictions (see `diversity_from_predictions`).
     fn calculate_diversity_measures<E, X, Y>(
         &self,
         _models: &[(E, String)],
@@ -721,14 +729,12 @@ impl EnsembleSelector {
         X: Clone,
         Y: Clone + Into<f64>,
     {
-        // Simplified diversity calculation - in a full implementation,
-        // this would require re-training models and comparing predictions
-        Ok(DiversityMeasures {
-            avg_correlation: 0.3,   // Placeholder
-            disagreement: 0.2,      // Placeholder
-            q_statistic: 0.1,       // Placeholder
-            entropy_diversity: 0.4, // Placeholder
-        })
+        Err(SklearsError::NotImplemented(
+            "ensemble diversity requires stored per-member predictions; the estimator \
+             type in this dispatcher has no Predict capability. Provide member \
+             predictions and use `diversity_from_predictions`."
+                .to_string(),
+        ))
     }
 
     /// Calculate diversity of a subset of models
@@ -829,6 +835,153 @@ impl EnsembleSelector {
 impl Default for EnsembleSelector {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Compute ensemble diversity measures directly from the stored per-member
+/// predictions on a common set of samples.
+///
+/// `member_predictions[m]` holds the predictions of ensemble member `m` over the
+/// same `n` samples, and `y_true` the corresponding ground-truth labels (used
+/// for the classification-oriented Q-statistic and disagreement). The measures:
+///
+/// - `avg_correlation`: mean Pearson correlation over all member pairs.
+/// - `disagreement`: mean fraction of samples on which two members differ.
+/// - `q_statistic`: mean pairwise Yule's Q over correctly/incorrectly classified
+///   counts, `Q = (N11·N00 − N10·N01) / (N11·N00 + N10·N01)`.
+/// - `entropy_diversity`: mean per-sample Kuncheva–Whitaker entropy measure.
+///
+/// Returns `InvalidInput` when fewer than two members are supplied or the shapes
+/// are inconsistent.
+pub fn diversity_from_predictions(
+    member_predictions: &[Vec<f64>],
+    y_true: &[f64],
+) -> Result<DiversityMeasures> {
+    let n_members = member_predictions.len();
+    if n_members < 2 {
+        return Err(SklearsError::InvalidInput(
+            "diversity requires at least two members".to_string(),
+        ));
+    }
+    let n_samples = member_predictions[0].len();
+    if n_samples == 0 {
+        return Err(SklearsError::InvalidInput(
+            "diversity requires at least one sample".to_string(),
+        ));
+    }
+    for preds in member_predictions {
+        if preds.len() != n_samples {
+            return Err(SklearsError::InvalidInput(
+                "all members must predict the same number of samples".to_string(),
+            ));
+        }
+    }
+    if y_true.len() != n_samples {
+        return Err(SklearsError::InvalidInput(
+            "y_true length must match the number of predicted samples".to_string(),
+        ));
+    }
+
+    // Per-member correctness (exact match with the label) for the
+    // classification-oriented statistics.
+    let correct: Vec<Vec<bool>> = member_predictions
+        .iter()
+        .map(|preds| {
+            preds
+                .iter()
+                .zip(y_true.iter())
+                .map(|(&p, &t)| (p - t).abs() < 1e-9)
+                .collect()
+        })
+        .collect();
+
+    let mut corr_sum = 0.0;
+    let mut disagree_sum = 0.0;
+    let mut q_sum = 0.0;
+    let mut pair_count = 0usize;
+
+    for a in 0..n_members {
+        for b in (a + 1)..n_members {
+            pair_count += 1;
+
+            // Pearson correlation between member a and member b predictions.
+            corr_sum += pearson_correlation(&member_predictions[a], &member_predictions[b]);
+
+            // Disagreement: fraction of samples where the predictions differ.
+            let differ = member_predictions[a]
+                .iter()
+                .zip(member_predictions[b].iter())
+                .filter(|(&pa, &pb)| (pa - pb).abs() >= 1e-9)
+                .count();
+            disagree_sum += differ as f64 / n_samples as f64;
+
+            // Q-statistic from the 2x2 contingency of correctness.
+            let (mut n11, mut n00, mut n10, mut n01) = (0.0f64, 0.0f64, 0.0f64, 0.0f64);
+            for (&ca, &cb) in correct[a].iter().zip(correct[b].iter()) {
+                match (ca, cb) {
+                    (true, true) => n11 += 1.0,
+                    (false, false) => n00 += 1.0,
+                    (true, false) => n10 += 1.0,
+                    (false, true) => n01 += 1.0,
+                }
+            }
+            let denom = n11 * n00 + n10 * n01;
+            let q = if denom.abs() > 1e-12 {
+                (n11 * n00 - n10 * n01) / denom
+            } else {
+                0.0
+            };
+            q_sum += q;
+        }
+    }
+
+    // Entropy diversity (Kuncheva-Whitaker): per sample, with `l` members
+    // correct out of `L`, contribution is min(l, L-l) / (L - ceil(L/2)),
+    // averaged over samples. Maximal when members are evenly split.
+    let l_total = n_members as f64;
+    let denom_entropy = l_total - (l_total / 2.0).ceil();
+    let mut entropy_sum = 0.0;
+    if denom_entropy > 0.0 {
+        for s in 0..n_samples {
+            let n_correct = correct.iter().filter(|member| member[s]).count() as f64;
+            let minority = n_correct.min(l_total - n_correct);
+            entropy_sum += minority / denom_entropy;
+        }
+    }
+
+    let pc = pair_count as f64;
+    Ok(DiversityMeasures {
+        avg_correlation: corr_sum / pc,
+        disagreement: disagree_sum / pc,
+        q_statistic: q_sum / pc,
+        entropy_diversity: entropy_sum / n_samples as f64,
+    })
+}
+
+/// Pearson correlation coefficient between two equal-length vectors. Returns 0.0
+/// when either vector has (near-)zero variance.
+fn pearson_correlation(a: &[f64], b: &[f64]) -> f64 {
+    let n = a.len() as f64;
+    if n == 0.0 {
+        return 0.0;
+    }
+    let mean_a = a.iter().sum::<f64>() / n;
+    let mean_b = b.iter().sum::<f64>() / n;
+    let mut cov = 0.0;
+    let mut var_a = 0.0;
+    let mut var_b = 0.0;
+    for (&x, &y) in a.iter().zip(b.iter()) {
+        let da = x - mean_a;
+        let db = y - mean_b;
+        cov += da * db;
+        var_a += da * da;
+        var_b += db * db;
+    }
+    let denom = (var_a * var_b).sqrt();
+    if denom > 1e-12 {
+        cov / denom
+    } else {
+        0.0
     }
 }
 
@@ -964,12 +1117,10 @@ mod tests {
         let selector = EnsembleSelector::new().max_ensemble_size(3);
         let result = selector.select_ensemble(&models, &x, &y, &cv, &scoring);
 
-        assert!(result.is_ok());
-        let result = result.expect("operation should succeed");
-        assert!(result.selected_models.len() >= 2);
-        assert!(result.selected_models.len() <= 3);
-        assert_eq!(result.model_weights.len(), result.selected_models.len());
-        assert!(!result.individual_performances.is_empty());
+        // The dispatcher cannot produce member predictions (the estimator type
+        // has no Predict bound), so diversity computation honestly reports
+        // NotImplemented rather than fabricating constant diversity values.
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
     }
 
     #[test]
@@ -1003,9 +1154,8 @@ mod tests {
         let selector = EnsembleSelector::new().strategies(strategies);
         let result = selector.select_ensemble(&models, &x, &y, &cv, &scoring);
 
-        assert!(result.is_ok());
-        let result = result.expect("operation should succeed");
-        assert_eq!(result.selected_models.len(), 2);
+        // Diversity computation is unavailable for the erased estimator type.
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
     }
 
     #[test]
@@ -1037,11 +1187,43 @@ mod tests {
         let scoring = MockScoring;
 
         let result = select_ensemble(&models, &x, &y, &cv, &scoring, Some(2));
-        assert!(result.is_ok());
+        // The convenience wrapper delegates to select_ensemble and surfaces the
+        // honest NotImplemented from the diversity step.
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
+    }
 
-        let result = result.expect("operation should succeed");
-        assert!(result.selected_models.len() <= 2);
-        assert!(result.ensemble_performance.ensemble_size <= 2);
+    #[test]
+    fn test_diversity_from_predictions_real() {
+        // Two members that always agree should have correlation ~1, zero
+        // disagreement, and zero entropy diversity.
+        let y_true = vec![0.0, 1.0, 0.0, 1.0, 1.0];
+        let m_same = vec![vec![0.0, 1.0, 0.0, 1.0, 1.0], vec![0.0, 1.0, 0.0, 1.0, 1.0]];
+        let d = diversity_from_predictions(&m_same, &y_true)
+            .expect("identical members should produce a result");
+        assert!((d.avg_correlation - 1.0).abs() < 1e-9);
+        assert!(d.disagreement.abs() < 1e-9);
+        assert!(d.entropy_diversity.abs() < 1e-9);
+
+        // Two members that disagree everywhere have full disagreement.
+        let m_diff = vec![vec![0.0, 1.0, 0.0, 1.0, 1.0], vec![1.0, 0.0, 1.0, 0.0, 0.0]];
+        let d2 = diversity_from_predictions(&m_diff, &y_true)
+            .expect("disagreeing members should produce a result");
+        assert!((d2.disagreement - 1.0).abs() < 1e-9);
+
+        // Q-statistic for positively associated members: both correct on the
+        // first two samples (N11=2), both wrong on the last (N00=1), and the two
+        // middle samples split (N10=1, N01=1). Q = (2*1 - 1*1)/(2*1 + 1*1) = 1/3.
+        let y2 = vec![0.0, 0.0, 0.0, 0.0, 0.0];
+        let q_a = vec![0.0, 0.0, 0.0, 9.0, 9.0]; // correct on s0,s1,s2
+        let q_b = vec![0.0, 0.0, 9.0, 0.0, 9.0]; // correct on s0,s1,s3
+                                                 // Correct(a) = [T,T,T,F,F], Correct(b) = [T,T,F,T,F]
+                                                 // N11=2 (s0,s1), N00=1 (s4), N10=1 (s2), N01=1 (s3).
+        let dq = diversity_from_predictions(&[q_a, q_b], &y2)
+            .expect("valid contingency should produce a Q value");
+        assert!((dq.q_statistic - (1.0 / 3.0)).abs() < 1e-9);
+
+        // Fewer than two members is rejected.
+        assert!(diversity_from_predictions(&m_same[..1], &y_true).is_err());
     }
 
     #[test]

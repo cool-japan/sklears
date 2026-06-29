@@ -1,12 +1,6 @@
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
-
-use super::errors::*;
-use super::config_types::*;
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceMetrics {
@@ -357,4 +351,47 @@ pub struct CompressionMetrics {
     average_compression_ratio: f64,
     total_compression_time: Duration,
     compression_throughput: f64,
+}
+
+impl Default for ComplianceManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ComplianceManager {
+    pub fn new() -> Self {
+        Self {
+            compliance_frameworks: vec![],
+            audit_trails: vec![],
+            compliance_reports: vec![],
+            data_classification: DataClassification {
+                classification_schemes: vec![],
+                classification_rules: vec![],
+                classified_data: HashMap::new(),
+            },
+        }
+    }
+}
+
+impl Default for CompressionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CompressionManager {
+    pub fn new() -> Self {
+        Self {
+            compression_algorithms: HashMap::new(),
+            compression_strategies: vec![],
+            compression_metrics: CompressionMetrics {
+                total_compressed_size: 0,
+                total_uncompressed_size: 0,
+                average_compression_ratio: 0.0,
+                total_compression_time: Duration::seconds(0),
+                compression_throughput: 0.0,
+            },
+        }
+    }
 }

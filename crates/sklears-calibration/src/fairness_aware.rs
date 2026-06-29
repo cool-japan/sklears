@@ -4,14 +4,14 @@
 //! demographic groups, including demographic parity, equalized odds, individual fairness,
 //! and bias mitigation in calibration.
 
-use scirs2_core::ndarray::{s, Array1, Array2};
-use scirs2_core::random::{Distribution, Normal, Uniform};
+use scirs2_core::ndarray::Array1;
 use sklears_core::{
-    error::{Result},
+    error::{Result, SklearsError},
     types::Float,
 };
+use std::collections::HashMap;
 
-use crate::{numerical_stability::SafeProbabilityOps, CalibrationEstimator};
+use crate::CalibrationEstimator;
 
 /// Demographic group identifier
 pub type GroupId = usize;
@@ -32,6 +32,10 @@ pub struct FairnessAwareCalibrator {
     fairness_weight: Float,
     /// Group memberships for training data
     training_groups: Array1<GroupId>,
+    /// Per-group additive probability offsets learned by the active fairness
+    /// constraint. These are applied on top of each group's calibrated output
+    /// at prediction time so the enforcement actually changes the predictions.
+    group_offsets: HashMap<GroupId, Float>,
     /// Whether the calibrator is fitted
     is_fitted: bool,
 }
@@ -60,6 +64,7 @@ impl FairnessAwareCalibrator {
             fairness_constraint,
             fairness_weight: 0.5,
             training_groups: Array1::zeros(0),
+            group_offsets: HashMap::new(),
             is_fitted: false,
         }
     }
@@ -77,7 +82,11 @@ impl FairnessAwareCalibrator {
     }
 
     /// Add group-specific calibrator
-    pub fn add_group_calibrator(&mut self, group_id: GroupId, calibrator: Box<dyn CalibrationEstimator>) {
+    pub fn add_group_calibrator(
+        &mut self,
+        group_id: GroupId,
+        calibrator: Box<dyn CalibrationEstimator>,
+    ) {
         self.group_calibrators.insert(group_id, calibrator);
     }
 
@@ -89,7 +98,7 @@ impl FairnessAwareCalibrator {
         groups: &Array1<GroupId>,
     ) -> Result<()> {
         self.training_groups = groups.clone();
-        
+
         // Get unique groups
         let mut unique_groups = Vec::new();
         for &group in groups.iter() {
@@ -100,24 +109,24 @@ impl FairnessAwareCalibrator {
 
         // Fit group-specific calibrators
         for &group_id in &unique_groups {
-            let group_indices: Vec<usize> = groups.iter()
+            let group_indices: Vec<usize> = groups
+                .iter()
                 .enumerate()
                 .filter(|(_, &g)| g == group_id)
                 .map(|(i, _)| i)
                 .collect();
 
             if !group_indices.is_empty() {
-                let group_probs = Array1::from_iter(group_indices.iter().map(|&i| probabilities[i]));
+                let group_probs =
+                    Array1::from_iter(group_indices.iter().map(|&i| probabilities[i]));
                 let group_targets = Array1::from_iter(group_indices.iter().map(|&i| y_true[i]));
 
-                // Create calibrator if not exists
-                if !self.group_calibrators.contains_key(&group_id) {
-                    self.group_calibrators.insert(group_id, crate::SigmoidCalibrator::new().clone_box());
-                }
-
-                if let Some(calibrator) = self.group_calibrators.get_mut(&group_id) {
-                    calibrator.fit(&group_probs, &group_targets)?;
-                }
+                // Create calibrator if not present.
+                let calibrator = self
+                    .group_calibrators
+                    .entry(group_id)
+                    .or_insert_with(|| crate::SigmoidCalibrator::new().clone_box());
+                calibrator.fit(&group_probs, &group_targets)?;
             }
         }
 
@@ -164,41 +173,51 @@ impl FairnessAwareCalibrator {
     fn enforce_demographic_parity(
         &mut self,
         probabilities: &Array1<Float>,
-        y_true: &Array1<i32>,
+        _y_true: &Array1<i32>,
         groups: &Array1<GroupId>,
     ) -> Result<()> {
-        // Compute group-specific positive prediction rates
-        let mut group_rates = HashMap::new();
+        // Demographic parity requires the expected positive prediction to be
+        // equal across groups. We equalize each group's *mean calibrated
+        // probability* (a continuous proxy for the positive rate that, unlike a
+        // hard 0.5-threshold count, responds smoothly to an additive shift).
+        let mut group_prob_sums = HashMap::new();
         let mut group_counts = HashMap::new();
 
-        for (i, (&prob, &group)) in probabilities.iter().zip(groups.iter()).enumerate() {
+        for (&prob, &group) in probabilities.iter().zip(groups.iter()) {
             if let Some(calibrator) = self.group_calibrators.get(&group) {
                 let calibrated_prob = calibrator.predict_proba(&Array1::from(vec![prob]))?[0];
-                let prediction = if calibrated_prob > 0.5 { 1.0 } else { 0.0 };
-                
-                *group_rates.entry(group).or_insert(0.0) += prediction;
+                *group_prob_sums.entry(group).or_insert(0.0) += calibrated_prob;
                 *group_counts.entry(group).or_insert(0) += 1;
             }
         }
 
-        // Normalize rates
+        // Mean calibrated probability per group.
+        let mut group_means = HashMap::new();
         for (&group, &count) in &group_counts {
             if count > 0 {
-                if let Some(rate) = group_rates.get_mut(&group) {
-                    *rate /= count as Float;
-                }
+                let mean = group_prob_sums.get(&group).copied().unwrap_or(0.0) / count as Float;
+                group_means.insert(group, mean);
             }
         }
 
-        // Compute overall rate
-        let overall_rate = group_rates.values().sum::<Float>() / group_rates.len() as Float;
+        // Target = overall mean calibrated probability.
+        let overall_mean = if group_means.is_empty() {
+            0.0
+        } else {
+            group_means.values().sum::<Float>() / group_means.len() as Float
+        };
 
-        // Adjust calibrators to match overall rate
-        for (&group_id, calibrator) in &mut self.group_calibrators {
-            if let Some(&group_rate) = group_rates.get(&group_id) {
-                let adjustment = overall_rate - group_rate;
-                // Simple bias adjustment (in practice, would retrain with fairness loss)
-                // This is a placeholder implementation
+        // Store the per-group offset needed to move each group's mean calibrated
+        // probability towards the overall mean. A group whose mean is below the
+        // population mean receives a positive offset (and vice versa). The offset
+        // is applied additively at prediction time, so this genuinely changes the
+        // calibrated outputs and provably equalizes the per-group mean prediction.
+        self.group_offsets.clear();
+        let group_ids: Vec<GroupId> = self.group_calibrators.keys().copied().collect();
+        for group_id in group_ids {
+            if let Some(&group_mean) = group_means.get(&group_id) {
+                let adjustment = overall_mean - group_mean;
+                self.group_offsets.insert(group_id, adjustment);
             }
         }
 
@@ -216,53 +235,77 @@ impl FairnessAwareCalibrator {
         let mut group_metrics = HashMap::new();
 
         for &group in groups.iter() {
-            let group_indices: Vec<usize> = groups.iter()
+            let group_indices: Vec<usize> = groups
+                .iter()
                 .enumerate()
                 .filter(|(_, &g)| g == group)
                 .map(|(i, _)| i)
                 .collect();
 
             if !group_indices.is_empty() {
-                let group_probs = Array1::from_iter(group_indices.iter().map(|&i| probabilities[i]));
+                let group_probs =
+                    Array1::from_iter(group_indices.iter().map(|&i| probabilities[i]));
                 let group_targets = Array1::from_iter(group_indices.iter().map(|&i| y_true[i]));
 
                 if let Some(calibrator) = self.group_calibrators.get(&group) {
                     let calibrated_probs = calibrator.predict_proba(&group_probs)?;
-                    
+
                     let mut tp = 0;
                     let mut fp = 0;
                     let mut tn = 0;
                     let mut fn_ = 0;
 
-                    for (i, (&pred, &target)) in calibrated_probs.iter().zip(group_targets.iter()).enumerate() {
+                    for (&pred, &target) in calibrated_probs.iter().zip(group_targets.iter()) {
                         let prediction = if pred > 0.5 { 1 } else { 0 };
                         match (prediction, target) {
                             (1, 1) => tp += 1,
                             (1, 0) => fp += 1,
                             (0, 0) => tn += 1,
                             (0, 1) => fn_ += 1,
+                            _ => {}
                         }
                     }
 
-                    let tpr = if tp + fn_ > 0 { tp as Float / (tp + fn_) as Float } else { 0.0 };
-                    let fpr = if fp + tn > 0 { fp as Float / (fp + tn) as Float } else { 0.0 };
+                    let tpr = if tp + fn_ > 0 {
+                        tp as Float / (tp + fn_) as Float
+                    } else {
+                        0.0
+                    };
+                    let fpr = if fp + tn > 0 {
+                        fp as Float / (fp + tn) as Float
+                    } else {
+                        0.0
+                    };
 
                     group_metrics.insert(group, (tpr, fpr));
                 }
             }
         }
 
-        // Compute average TPR and FPR
-        let avg_tpr = group_metrics.values().map(|(tpr, _)| tpr).sum::<Float>() / group_metrics.len() as Float;
-        let avg_fpr = group_metrics.values().map(|(_, fpr)| fpr).sum::<Float>() / group_metrics.len() as Float;
+        if group_metrics.is_empty() {
+            self.group_offsets.clear();
+            return Ok(());
+        }
 
-        // Adjust calibrators to match average metrics
-        // This is a simplified implementation - in practice would require more sophisticated optimization
-        for (&group_id, calibrator) in &mut self.group_calibrators {
+        // Compute average TPR and FPR
+        let avg_tpr = group_metrics.values().map(|(tpr, _)| tpr).sum::<Float>()
+            / group_metrics.len() as Float;
+        let avg_fpr = group_metrics.values().map(|(_, fpr)| fpr).sum::<Float>()
+            / group_metrics.len() as Float;
+
+        // Store the per-group offset that moves both TPR and FPR towards the
+        // group-averaged operating point. We use the mean of the TPR and FPR
+        // gaps: a group with both rates below average is shifted upward, a group
+        // above average is shifted downward. This offset is applied at prediction
+        // time, so equalized-odds enforcement actually alters the outputs.
+        self.group_offsets.clear();
+        let group_ids: Vec<GroupId> = self.group_calibrators.keys().copied().collect();
+        for group_id in group_ids {
             if let Some(&(group_tpr, group_fpr)) = group_metrics.get(&group_id) {
                 let tpr_diff = avg_tpr - group_tpr;
                 let fpr_diff = avg_fpr - group_fpr;
-                // Apply adjustment (placeholder implementation)
+                let offset = 0.5 * (tpr_diff + fpr_diff);
+                self.group_offsets.insert(group_id, offset);
             }
         }
 
@@ -280,19 +323,21 @@ impl FairnessAwareCalibrator {
         let mut group_tprs = HashMap::new();
 
         for &group in groups.iter() {
-            let group_indices: Vec<usize> = groups.iter()
+            let group_indices: Vec<usize> = groups
+                .iter()
                 .enumerate()
                 .filter(|(_, &g)| g == group)
                 .map(|(i, _)| i)
                 .collect();
 
             if !group_indices.is_empty() {
-                let group_probs = Array1::from_iter(group_indices.iter().map(|&i| probabilities[i]));
+                let group_probs =
+                    Array1::from_iter(group_indices.iter().map(|&i| probabilities[i]));
                 let group_targets = Array1::from_iter(group_indices.iter().map(|&i| y_true[i]));
 
                 if let Some(calibrator) = self.group_calibrators.get(&group) {
                     let calibrated_probs = calibrator.predict_proba(&group_probs)?;
-                    
+
                     let mut tp = 0;
                     let mut fn_ = 0;
 
@@ -307,19 +352,33 @@ impl FairnessAwareCalibrator {
                         }
                     }
 
-                    let tpr = if tp + fn_ > 0 { tp as Float / (tp + fn_) as Float } else { 0.0 };
+                    let tpr = if tp + fn_ > 0 {
+                        tp as Float / (tp + fn_) as Float
+                    } else {
+                        0.0
+                    };
                     group_tprs.insert(group, tpr);
                 }
             }
         }
 
-        // Adjust calibrators to achieve equal TPR
+        if group_tprs.is_empty() {
+            self.group_offsets.clear();
+            return Ok(());
+        }
+
+        // Adjust calibrators to achieve equal TPR. The offset moves each group's
+        // positive rate towards the level that equalizes true-positive rates;
+        // groups with below-average TPR get a positive shift. The stored offset
+        // is applied at prediction time.
         let target_tpr = group_tprs.values().sum::<Float>() / group_tprs.len() as Float;
-        
-        for (&group_id, calibrator) in &mut self.group_calibrators {
+
+        self.group_offsets.clear();
+        let group_ids: Vec<GroupId> = self.group_calibrators.keys().copied().collect();
+        for group_id in group_ids {
             if let Some(&group_tpr) = group_tprs.get(&group_id) {
                 let tpr_diff = target_tpr - group_tpr;
-                // Apply adjustment (placeholder implementation)
+                self.group_offsets.insert(group_id, tpr_diff);
             }
         }
 
@@ -330,42 +389,61 @@ impl FairnessAwareCalibrator {
     fn enforce_individual_fairness(
         &mut self,
         probabilities: &Array1<Float>,
-        y_true: &Array1<i32>,
+        _y_true: &Array1<i32>,
         groups: &Array1<GroupId>,
     ) -> Result<()> {
-        // Individual fairness: similar individuals should receive similar treatment
+        // Individual fairness: similar individuals should receive similar
+        // treatment. For each pair of similar individuals in different groups we
+        // measure the signed treatment gap and accumulate, per group, the net
+        // correction that would pull that group's predictions towards the pair
+        // average. The accumulated correction is stored as a per-group offset
+        // applied at prediction time.
         let n_samples = probabilities.len();
-        
-        // Compute pairwise similarities and check fairness violations
+        let similarity_threshold = 0.9; // 1 - |p_i - p_j| above this => "similar"
+        let fairness_threshold = 0.05;
+        let damping = 0.5;
+
+        let mut correction_sum: HashMap<GroupId, Float> = HashMap::new();
+        let mut correction_count: HashMap<GroupId, usize> = HashMap::new();
+
         for i in 0..n_samples {
             for j in (i + 1)..n_samples {
                 let prob_similarity = 1.0 - (probabilities[i] - probabilities[j]).abs();
-                let threshold = 0.1; // Similarity threshold
-                
-                if prob_similarity > threshold {
-                    // These individuals are similar, check if they receive similar treatment
-                    let group_i = groups[i];
-                    let group_j = groups[j];
-                    
-                    if let (Some(cal_i), Some(cal_j)) = (
-                        self.group_calibrators.get(&group_i),
-                        self.group_calibrators.get(&group_j)
-                    ) {
-                        let pred_i = cal_i.predict_proba(&Array1::from(vec![probabilities[i]]))?[0];
-                        let pred_j = cal_j.predict_proba(&Array1::from(vec![probabilities[j]]))?[0];
-                        
-                        let treatment_diff = (pred_i - pred_j).abs();
-                        let fairness_threshold = 0.05;
-                        
-                        if treatment_diff > fairness_threshold {
-                            // Fairness violation detected - apply correction
-                            // This is a simplified approach
-                            let correction = treatment_diff * self.fairness_weight * 0.0.5;
-                            // In practice, would adjust calibrator parameters
-                        }
+                if prob_similarity <= similarity_threshold {
+                    continue;
+                }
+
+                let group_i = groups[i];
+                let group_j = groups[j];
+                if group_i == group_j {
+                    continue;
+                }
+
+                if let (Some(cal_i), Some(cal_j)) = (
+                    self.group_calibrators.get(&group_i),
+                    self.group_calibrators.get(&group_j),
+                ) {
+                    let pred_i = cal_i.predict_proba(&Array1::from(vec![probabilities[i]]))?[0];
+                    let pred_j = cal_j.predict_proba(&Array1::from(vec![probabilities[j]]))?[0];
+
+                    let treatment_diff = (pred_i - pred_j).abs();
+                    if treatment_diff > fairness_threshold {
+                        // Move each group towards the pair midpoint.
+                        let midpoint = 0.5 * (pred_i + pred_j);
+                        *correction_sum.entry(group_i).or_insert(0.0) += midpoint - pred_i;
+                        *correction_count.entry(group_i).or_insert(0) += 1;
+                        *correction_sum.entry(group_j).or_insert(0.0) += midpoint - pred_j;
+                        *correction_count.entry(group_j).or_insert(0) += 1;
                     }
                 }
             }
+        }
+
+        self.group_offsets.clear();
+        for (group_id, sum) in correction_sum {
+            let count = correction_count.get(&group_id).copied().unwrap_or(1).max(1);
+            let offset = self.fairness_weight * damping * (sum / count as Float);
+            self.group_offsets.insert(group_id, offset);
         }
 
         Ok(())
@@ -383,72 +461,128 @@ impl FairnessAwareCalibrator {
 
         // Compute calibration error for each group
         for &group in groups.iter() {
-            let group_indices: Vec<usize> = groups.iter()
+            let group_indices: Vec<usize> = groups
+                .iter()
                 .enumerate()
                 .filter(|(_, &g)| g == group)
                 .map(|(i, _)| i)
                 .collect();
 
             if !group_indices.is_empty() {
-                let group_probs = Array1::from_iter(group_indices.iter().map(|&i| probabilities[i]));
+                let group_probs =
+                    Array1::from_iter(group_indices.iter().map(|&i| probabilities[i]));
                 let group_targets = Array1::from_iter(group_indices.iter().map(|&i| y_true[i]));
 
                 if let Some(calibrator) = self.group_calibrators.get(&group) {
                     let calibrated_probs = calibrator.predict_proba(&group_probs)?;
-                    
+
                     // Compute Expected Calibration Error (ECE)
                     let mut ece = 0.0;
                     for bin_idx in 0..n_bins {
                         let bin_start = bin_idx as Float / n_bins as Float;
                         let bin_end = (bin_idx + 1) as Float / n_bins as Float;
-                        
-                        let bin_predictions: Vec<(Float, i32)> = calibrated_probs.iter()
+
+                        let bin_predictions: Vec<(Float, i32)> = calibrated_probs
+                            .iter()
                             .zip(group_targets.iter())
                             .filter(|(&pred, _)| pred >= bin_start && pred < bin_end)
                             .map(|(&pred, &target)| (pred, target))
                             .collect();
-                        
+
                         if !bin_predictions.is_empty() {
-                            let bin_confidence = bin_predictions.iter().map(|(pred, _)| pred).sum::<Float>() / bin_predictions.len() as Float;
-                            let bin_accuracy = bin_predictions.iter().map(|(_, target)| *target as Float).sum::<Float>() / bin_predictions.len() as Float;
-                            
-                            ece += (bin_predictions.len() as Float / calibrated_probs.len() as Float) * (bin_confidence - bin_accuracy).abs();
+                            let bin_confidence =
+                                bin_predictions.iter().map(|(pred, _)| pred).sum::<Float>()
+                                    / bin_predictions.len() as Float;
+                            let bin_accuracy = bin_predictions
+                                .iter()
+                                .map(|(_, target)| *target as Float)
+                                .sum::<Float>()
+                                / bin_predictions.len() as Float;
+
+                            ece += (bin_predictions.len() as Float
+                                / calibrated_probs.len() as Float)
+                                * (bin_confidence - bin_accuracy).abs();
                         }
                     }
-                    
+
                     group_calibration_errors.insert(group, ece);
                 }
             }
         }
 
-        // Adjust calibrators to minimize difference in calibration errors
-        let target_ece = group_calibration_errors.values().sum::<Float>() / group_calibration_errors.len() as Float;
-        
-        for (&group_id, calibrator) in &mut self.group_calibrators {
-            if let Some(&group_ece) = group_calibration_errors.get(&group_id) {
-                let ece_diff = group_ece - target_ece;
-                // Apply calibration adjustment (placeholder implementation)
+        if group_calibration_errors.is_empty() {
+            self.group_offsets.clear();
+            return Ok(());
+        }
+
+        // Adjust calibrators to reduce the spread in calibration error. A group
+        // whose ECE exceeds the target is over/under-confident; we derive a
+        // signed offset from its mean residual (mean target minus mean predicted)
+        // scaled by how far its ECE is above the target. This is stored and
+        // applied at prediction time.
+        let target_ece = group_calibration_errors.values().sum::<Float>()
+            / group_calibration_errors.len() as Float;
+
+        self.group_offsets.clear();
+        for (&group, &group_ece) in &group_calibration_errors {
+            let group_indices: Vec<usize> = groups
+                .iter()
+                .enumerate()
+                .filter(|(_, &g)| g == group)
+                .map(|(i, _)| i)
+                .collect();
+            if group_indices.is_empty() {
+                continue;
             }
+
+            let group_probs = Array1::from_iter(group_indices.iter().map(|&i| probabilities[i]));
+            let calibrated_probs = match self.group_calibrators.get(&group) {
+                Some(calibrator) => calibrator.predict_proba(&group_probs)?,
+                None => continue,
+            };
+            let mean_pred =
+                calibrated_probs.iter().sum::<Float>() / calibrated_probs.len() as Float;
+            let mean_target = group_indices
+                .iter()
+                .map(|&i| y_true[i] as Float)
+                .sum::<Float>()
+                / group_indices.len() as Float;
+
+            // Residual direction (positive => under-confident group), scaled by
+            // the excess ECE so well-calibrated groups are barely touched.
+            let excess = (group_ece - target_ece).max(0.0);
+            let residual = mean_target - mean_pred;
+            let offset = residual.signum() * excess;
+            self.group_offsets.insert(group, offset);
         }
 
         Ok(())
     }
 
     /// Get group-aware predictions
-    fn predict_with_groups(&self, probabilities: &Array1<Float>, groups: &Array1<GroupId>) -> Result<Array1<Float>> {
+    fn predict_with_groups(
+        &self,
+        probabilities: &Array1<Float>,
+        groups: &Array1<GroupId>,
+    ) -> Result<Array1<Float>> {
         let mut predictions = Array1::zeros(probabilities.len());
 
         for (i, (&prob, &group)) in probabilities.iter().zip(groups.iter()).enumerate() {
             if let Some(calibrator) = self.group_calibrators.get(&group) {
                 let group_pred = calibrator.predict_proba(&Array1::from(vec![prob]))?[0];
-                
+
                 // Combine with global prediction if available
-                if let Some(ref global_cal) = self.global_calibrator {
+                let base_pred = if let Some(ref global_cal) = self.global_calibrator {
                     let global_pred = global_cal.predict_proba(&Array1::from(vec![prob]))?[0];
-                    predictions[i] = (1.0 - self.fairness_weight) * global_pred + self.fairness_weight * group_pred;
+                    (1.0 - self.fairness_weight) * global_pred + self.fairness_weight * group_pred
                 } else {
-                    predictions[i] = group_pred;
-                }
+                    group_pred
+                };
+
+                // Apply the fairness offset learned for this group so the
+                // enforcement actually changes the prediction.
+                let offset = self.group_offsets.get(&group).copied().unwrap_or(0.0);
+                predictions[i] = (base_pred + offset).clamp(0.0, 1.0);
             } else {
                 // Fallback to global calibrator or uncalibrated probability
                 if let Some(ref global_cal) = self.global_calibrator {
@@ -553,20 +687,26 @@ impl BiasMitigationCalibrator {
         groups: &Array1<GroupId>,
     ) -> Result<()> {
         // Statistical parity bias
-        let statistical_parity_bias = self.detect_statistical_parity_bias(probabilities, y_true, groups)?;
-        self.bias_patterns.insert("statistical_parity".to_string(), statistical_parity_bias);
+        let statistical_parity_bias =
+            self.detect_statistical_parity_bias(probabilities, y_true, groups)?;
+        self.bias_patterns
+            .insert("statistical_parity".to_string(), statistical_parity_bias);
 
         // Equalized odds bias
         let equalized_odds_bias = self.detect_equalized_odds_bias(probabilities, y_true, groups)?;
-        self.bias_patterns.insert("equalized_odds".to_string(), equalized_odds_bias);
+        self.bias_patterns
+            .insert("equalized_odds".to_string(), equalized_odds_bias);
 
         // Calibration bias
         let calibration_bias = self.detect_calibration_bias(probabilities, y_true, groups)?;
-        self.bias_patterns.insert("calibration".to_string(), calibration_bias);
+        self.bias_patterns
+            .insert("calibration".to_string(), calibration_bias);
 
         // Individual fairness bias
-        let individual_fairness_bias = self.detect_individual_fairness_bias(probabilities, y_true, groups)?;
-        self.bias_patterns.insert("individual_fairness".to_string(), individual_fairness_bias);
+        let individual_fairness_bias =
+            self.detect_individual_fairness_bias(probabilities, y_true, groups)?;
+        self.bias_patterns
+            .insert("individual_fairness".to_string(), individual_fairness_bias);
 
         Ok(())
     }
@@ -575,13 +715,13 @@ impl BiasMitigationCalibrator {
     fn detect_statistical_parity_bias(
         &self,
         probabilities: &Array1<Float>,
-        y_true: &Array1<i32>,
+        _y_true: &Array1<i32>,
         groups: &Array1<GroupId>,
     ) -> Result<Float> {
         let mut group_positive_rates = HashMap::new();
         let mut group_counts = HashMap::new();
 
-        for (i, (&prob, &group)) in probabilities.iter().zip(groups.iter()).enumerate() {
+        for (&prob, &group) in probabilities.iter().zip(groups.iter()) {
             let prediction = if prob > 0.5 { 1 } else { 0 };
             *group_positive_rates.entry(group).or_insert(0) += prediction;
             *group_counts.entry(group).or_insert(0) += 1;
@@ -591,7 +731,8 @@ impl BiasMitigationCalibrator {
         let mut rates = Vec::new();
         for (&group, &count) in &group_counts {
             if count > 0 {
-                let rate = *group_positive_rates.get(&group).unwrap_or(&0) as Float / count as Float;
+                let rate =
+                    *group_positive_rates.get(&group).unwrap_or(&0) as Float / count as Float;
                 rates.push(rate);
             }
         }
@@ -599,7 +740,7 @@ impl BiasMitigationCalibrator {
         // Compute bias as maximum difference between group rates
         let max_rate = rates.iter().fold(0.0f64, |a, &b| a.max(b));
         let min_rate = rates.iter().fold(1.0f64, |a, &b| a.min(b));
-        
+
         Ok(max_rate - min_rate)
     }
 
@@ -614,7 +755,8 @@ impl BiasMitigationCalibrator {
         let mut group_fprs = Vec::new();
 
         for &group in groups.iter() {
-            let group_indices: Vec<usize> = groups.iter()
+            let group_indices: Vec<usize> = groups
+                .iter()
                 .enumerate()
                 .filter(|(_, &g)| g == group)
                 .map(|(i, _)| i)
@@ -629,17 +771,26 @@ impl BiasMitigationCalibrator {
                 for &idx in &group_indices {
                     let prediction = if probabilities[idx] > 0.5 { 1 } else { 0 };
                     let target = y_true[idx];
-                    
+
                     match (prediction, target) {
                         (1, 1) => tp += 1,
                         (1, 0) => fp += 1,
                         (0, 0) => tn += 1,
                         (0, 1) => fn_ += 1,
+                        _ => {}
                     }
                 }
 
-                let tpr = if tp + fn_ > 0 { tp as Float / (tp + fn_) as Float } else { 0.0 };
-                let fpr = if fp + tn > 0 { fp as Float / (fp + tn) as Float } else { 0.0 };
+                let tpr = if tp + fn_ > 0 {
+                    tp as Float / (tp + fn_) as Float
+                } else {
+                    0.0
+                };
+                let fpr = if fp + tn > 0 {
+                    fp as Float / (fp + tn) as Float
+                } else {
+                    0.0
+                };
 
                 group_tprs.push(tpr);
                 group_fprs.push(fpr);
@@ -666,7 +817,8 @@ impl BiasMitigationCalibrator {
         let mut group_eces = Vec::new();
 
         for &group in groups.iter() {
-            let group_indices: Vec<usize> = groups.iter()
+            let group_indices: Vec<usize> = groups
+                .iter()
                 .enumerate()
                 .filter(|(_, &g)| g == group)
                 .map(|(i, _)| i)
@@ -674,24 +826,34 @@ impl BiasMitigationCalibrator {
 
             if !group_indices.is_empty() {
                 let mut ece = 0.0;
-                
+
                 for bin_idx in 0..n_bins {
                     let bin_start = bin_idx as Float / n_bins as Float;
                     let bin_end = (bin_idx + 1) as Float / n_bins as Float;
-                    
-                    let bin_samples: Vec<(Float, i32)> = group_indices.iter()
-                        .filter(|&&idx| probabilities[idx] >= bin_start && probabilities[idx] < bin_end)
+
+                    let bin_samples: Vec<(Float, i32)> = group_indices
+                        .iter()
+                        .filter(|&&idx| {
+                            probabilities[idx] >= bin_start && probabilities[idx] < bin_end
+                        })
                         .map(|&idx| (probabilities[idx], y_true[idx]))
                         .collect();
-                    
+
                     if !bin_samples.is_empty() {
-                        let bin_confidence = bin_samples.iter().map(|(prob, _)| prob).sum::<Float>() / bin_samples.len() as Float;
-                        let bin_accuracy = bin_samples.iter().map(|(_, target)| *target as Float).sum::<Float>() / bin_samples.len() as Float;
-                        
-                        ece += (bin_samples.len() as Float / group_indices.len() as Float) * (bin_confidence - bin_accuracy).abs();
+                        let bin_confidence =
+                            bin_samples.iter().map(|(prob, _)| prob).sum::<Float>()
+                                / bin_samples.len() as Float;
+                        let bin_accuracy = bin_samples
+                            .iter()
+                            .map(|(_, target)| *target as Float)
+                            .sum::<Float>()
+                            / bin_samples.len() as Float;
+
+                        ece += (bin_samples.len() as Float / group_indices.len() as Float)
+                            * (bin_confidence - bin_accuracy).abs();
                     }
                 }
-                
+
                 group_eces.push(ece);
             }
         }
@@ -699,7 +861,7 @@ impl BiasMitigationCalibrator {
         // Compute bias as maximum difference in ECE across groups
         let max_ece = group_eces.iter().fold(0.0f64, |a, &b| a.max(b));
         let min_ece = group_eces.iter().fold(1.0f64, |a, &b| a.min(b));
-        
+
         Ok(max_ece - min_ece)
     }
 
@@ -707,8 +869,8 @@ impl BiasMitigationCalibrator {
     fn detect_individual_fairness_bias(
         &self,
         probabilities: &Array1<Float>,
-        y_true: &Array1<i32>,
-        groups: &Array1<GroupId>,
+        _y_true: &Array1<i32>,
+        _groups: &Array1<GroupId>,
     ) -> Result<Float> {
         let n_samples = probabilities.len();
         let mut fairness_violations = 0;
@@ -718,14 +880,14 @@ impl BiasMitigationCalibrator {
             for j in (i + 1)..n_samples {
                 let similarity = 1.0 - (probabilities[i] - probabilities[j]).abs();
                 let threshold = 0.1;
-                
+
                 if similarity > threshold {
                     total_comparisons += 1;
-                    
+
                     // Check if similar individuals receive different treatment
                     let treatment_diff = (probabilities[i] - probabilities[j]).abs();
                     let fairness_threshold = 0.05;
-                    
+
                     if treatment_diff > fairness_threshold {
                         fairness_violations += 1;
                     }
@@ -765,7 +927,8 @@ impl BiasMitigationCalibrator {
             }
             BiasStrategy::PostProcessingAdjustment => {
                 // Adjust predictions post-hoc to reduce bias
-                let adjustments = self.compute_post_processing_adjustments(probabilities, y_true, groups)?;
+                let adjustments =
+                    self.compute_post_processing_adjustments(probabilities, y_true, groups)?;
                 self.correction_params = adjustments;
             }
         }
@@ -781,43 +944,46 @@ impl BiasMitigationCalibrator {
     ) -> Result<Array1<Float>> {
         let n_samples = probabilities.len();
         let mut weights = Array1::ones(n_samples);
-        
+
         // Compute group statistics
         let mut group_stats = HashMap::new();
         for &group in groups.iter() {
-            let group_indices: Vec<usize> = groups.iter()
+            let group_indices: Vec<usize> = groups
+                .iter()
                 .enumerate()
                 .filter(|(_, &g)| g == group)
                 .map(|(i, _)| i)
                 .collect();
-            
+
             if !group_indices.is_empty() {
-                let positive_count = group_indices.iter()
+                let positive_count = group_indices
+                    .iter()
                     .filter(|&&idx| y_true[idx] == 1)
                     .count();
                 let total_count = group_indices.len();
                 let positive_rate = positive_count as Float / total_count as Float;
-                
+
                 group_stats.insert(group, (positive_rate, total_count));
             }
         }
-        
+
         // Compute target positive rate (global average)
-        let overall_positive_rate = y_true.iter().map(|&x| x as Float).sum::<Float>() / n_samples as Float;
-        
+        let overall_positive_rate =
+            y_true.iter().map(|&x| x as Float).sum::<Float>() / n_samples as Float;
+
         // Adjust weights to balance representation
         for (i, (&group, &target)) in groups.iter().zip(y_true.iter()).enumerate() {
-            if let Some(&(group_positive_rate, group_size)) = group_stats.get(&group) {
+            if let Some(&(group_positive_rate, _group_size)) = group_stats.get(&group) {
                 let target_weight = if target == 1 {
                     overall_positive_rate / group_positive_rate
                 } else {
                     (1.0 - overall_positive_rate) / (1.0 - group_positive_rate)
                 };
-                
+
                 weights[i] = target_weight.clamp(0.1, 10.0); // Clamp to reasonable range
             }
         }
-        
+
         Ok(weights)
     }
 
@@ -826,36 +992,37 @@ impl BiasMitigationCalibrator {
         &mut self,
         probabilities: &Array1<Float>,
         y_true: &Array1<i32>,
-        groups: &Array1<GroupId>,
+        _groups: &Array1<GroupId>,
     ) -> Result<()> {
         // Simplified adversarial training
         let n_params = 5;
         self.correction_params = Array1::zeros(n_params);
-        
+
         let learning_rate = 0.01;
         let n_iterations = 50;
-        
+
         for _ in 0..n_iterations {
             // Compute prediction loss
             let mut pred_loss = 0.0;
-            for (i, (&prob, &target)) in probabilities.iter().zip(y_true.iter()).enumerate() {
+            for (&prob, &target) in probabilities.iter().zip(y_true.iter()) {
                 let adjusted_prob = self.apply_adversarial_adjustment(prob);
                 pred_loss += (adjusted_prob - target as Float).powi(2);
             }
             pred_loss /= probabilities.len() as Float;
-            
+
             // Compute fairness loss (simplified)
-            let fairness_loss = self.bias_patterns.values().sum::<Float>() / self.bias_patterns.len() as Float;
-            
+            let fairness_loss =
+                self.bias_patterns.values().sum::<Float>() / self.bias_patterns.len() as Float;
+
             // Combined loss with adversarial component
             let total_loss = pred_loss - 0.1 * fairness_loss; // Adversarial term
-            
+
             // Simple gradient update (placeholder)
             for param in self.correction_params.iter_mut() {
                 *param -= learning_rate * total_loss;
             }
         }
-        
+
         Ok(())
     }
 
@@ -878,39 +1045,45 @@ impl BiasMitigationCalibrator {
     ) -> Result<Array1<Float>> {
         let n_samples = probabilities.len();
         let mut adjustments = Array1::zeros(n_samples);
-        
+
         // Compute group-specific adjustments
         for &group in groups.iter() {
-            let group_indices: Vec<usize> = groups.iter()
+            let group_indices: Vec<usize> = groups
+                .iter()
                 .enumerate()
                 .filter(|(_, &g)| g == group)
                 .map(|(i, _)| i)
                 .collect();
-            
+
             if !group_indices.is_empty() {
                 // Compute group bias
-                let group_probs: Vec<Float> = group_indices.iter().map(|&idx| probabilities[idx]).collect();
-                let group_targets: Vec<i32> = group_indices.iter().map(|&idx| y_true[idx]).collect();
-                
+                let group_probs: Vec<Float> = group_indices
+                    .iter()
+                    .map(|&idx| probabilities[idx])
+                    .collect();
+                let group_targets: Vec<i32> =
+                    group_indices.iter().map(|&idx| y_true[idx]).collect();
+
                 let mean_prob = group_probs.iter().sum::<Float>() / group_probs.len() as Float;
-                let mean_target = group_targets.iter().map(|&x| x as Float).sum::<Float>() / group_targets.len() as Float;
-                
+                let mean_target = group_targets.iter().map(|&x| x as Float).sum::<Float>()
+                    / group_targets.len() as Float;
+
                 let bias_adjustment = mean_target - mean_prob;
-                
-                // Apply adjustment to group members
+
+                // Apply adjustment to group members (damped to avoid overshoot).
                 for &idx in &group_indices {
-                    adjustments[idx] = bias_adjustment * 0.0.5; // Damped adjustment
+                    adjustments[idx] = bias_adjustment * 0.5; // Damped adjustment
                 }
             }
         }
-        
+
         Ok(adjustments)
     }
 
     /// Apply bias corrections to predictions
     fn apply_bias_corrections(&self, probabilities: &Array1<Float>) -> Array1<Float> {
         let mut corrected_probs = probabilities.clone();
-        
+
         match self.mitigation_strategy {
             BiasStrategy::PostProcessingAdjustment => {
                 if self.correction_params.len() == probabilities.len() {
@@ -928,7 +1101,7 @@ impl BiasMitigationCalibrator {
                 // Other strategies applied during training
             }
         }
-        
+
         corrected_probs
     }
 }
@@ -937,13 +1110,13 @@ impl CalibrationEstimator for BiasMitigationCalibrator {
     fn fit(&mut self, probabilities: &Array1<Float>, y_true: &Array1<i32>) -> Result<()> {
         // Assume single group for base implementation
         let groups = Array1::zeros(probabilities.len());
-        
+
         // Detect bias patterns
         self.detect_bias_patterns(probabilities, y_true, &groups)?;
-        
+
         // Apply bias mitigation
         self.apply_bias_mitigation(probabilities, y_true, &groups)?;
-        
+
         // Fit base calibrator
         if let Some(ref mut base_cal) = self.base_calibrator {
             base_cal.fit(probabilities, y_true)?;
@@ -997,11 +1170,15 @@ mod tests {
         calibrator.add_group_calibrator(0, Box::new(SigmoidCalibrator::new()));
         calibrator.add_group_calibrator(1, Box::new(SigmoidCalibrator::new()));
 
-        calibrator.fit_with_groups(&probabilities, &targets, &groups).expect("operation should succeed");
-        let predictions = calibrator.predict_with_groups(&probabilities, &groups).expect("operation should succeed");
+        calibrator
+            .fit_with_groups(&probabilities, &targets, &groups)
+            .expect("operation should succeed");
+        let predictions = calibrator
+            .predict_with_groups(&probabilities, &groups)
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1011,11 +1188,15 @@ mod tests {
         let mut calibrator = BiasMitigationCalibrator::new(BiasStrategy::PostProcessingAdjustment)
             .with_base_calibrator(Box::new(SigmoidCalibrator::new()));
 
-        calibrator.fit(&probabilities, &targets).expect("fit should succeed");
-        let predictions = calibrator.predict_proba(&probabilities).expect("predict_proba should succeed");
+        calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1035,12 +1216,75 @@ mod tests {
             calibrator.add_group_calibrator(0, Box::new(SigmoidCalibrator::new()));
             calibrator.add_group_calibrator(1, Box::new(SigmoidCalibrator::new()));
 
-            calibrator.fit_with_groups(&probabilities, &targets, &groups).expect("operation should succeed");
-            let predictions = calibrator.predict_with_groups(&probabilities, &groups).expect("operation should succeed");
+            calibrator
+                .fit_with_groups(&probabilities, &targets, &groups)
+                .expect("operation should succeed");
+            let predictions = calibrator
+                .predict_with_groups(&probabilities, &groups)
+                .expect("operation should succeed");
 
             assert_eq!(predictions.len(), probabilities.len());
-            assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+            assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }
+    }
+
+    #[test]
+    fn test_demographic_parity_changes_predictions() {
+        // Two groups whose calibrated positive-prediction rates differ: group 0
+        // is skewed (a high outlier drags its mean up, leaving most points below
+        // the fitted threshold => low positive rate), group 1 the opposite. Both
+        // groups have majority-positive targets so the simplified Platt fit uses
+        // a positive slope. Enforcing demographic parity must learn a non-zero,
+        // opposite-signed offset for each group — proving the enforcement alters
+        // predictions rather than returning them unchanged.
+        let probabilities = Array1::from(vec![
+            0.2, 0.22, 0.24, 0.26, 0.95, // group 0: low rate after calibration
+            0.05, 0.74, 0.76, 0.78, 0.8, // group 1: high rate after calibration
+        ]);
+        let targets = Array1::from(vec![0, 1, 1, 1, 1, 0, 1, 1, 1, 1]);
+        let groups = Array1::from(vec![0, 0, 0, 0, 0, 1, 1, 1, 1, 1]);
+
+        let mut calibrator = FairnessAwareCalibrator::new(FairnessConstraint::DemographicParity);
+        calibrator.add_group_calibrator(0, Box::new(SigmoidCalibrator::new()));
+        calibrator.add_group_calibrator(1, Box::new(SigmoidCalibrator::new()));
+        calibrator
+            .fit_with_groups(&probabilities, &targets, &groups)
+            .expect("fit should succeed");
+
+        // The learned offsets must be non-trivial and pull the groups together.
+        let offset0 = *calibrator.group_offsets.get(&0).unwrap_or(&0.0);
+        let offset1 = *calibrator.group_offsets.get(&1).unwrap_or(&0.0);
+        assert!(
+            offset0.abs() + offset1.abs() > 1e-6,
+            "enforcement must learn a non-zero adjustment"
+        );
+
+        // After enforcement the per-group MEAN calibrated probability must be
+        // (nearly) equalized — that is precisely what the offset targets. We
+        // compare the mean-probability gap before vs after applying the offset.
+        let predictions = calibrator
+            .predict_with_groups(&probabilities, &groups)
+            .expect("predict should succeed");
+        let group_idx = |g: GroupId| -> Vec<usize> {
+            groups
+                .iter()
+                .enumerate()
+                .filter(|(_, &gg)| gg == g)
+                .map(|(i, _)| i)
+                .collect()
+        };
+        let mean_after = |g: GroupId| -> Float {
+            let idx = group_idx(g);
+            idx.iter().map(|&i| predictions[i]).sum::<Float>() / idx.len() as Float
+        };
+        let gap_after = (mean_after(0) - mean_after(1)).abs();
+        // The unadjusted per-group mean probabilities differ noticeably; after
+        // applying the learned offsets the means must be essentially equal
+        // (modulo clamping at the [0, 1] boundaries).
+        assert!(
+            gap_after < 0.05,
+            "mean predicted probability must converge across groups, gap = {gap_after}"
+        );
     }
 
     #[test]
@@ -1058,11 +1302,15 @@ mod tests {
             let mut calibrator = BiasMitigationCalibrator::new(strategy)
                 .with_base_calibrator(Box::new(SigmoidCalibrator::new()));
 
-            calibrator.fit(&probabilities, &targets).expect("fit should succeed");
-            let predictions = calibrator.predict_proba(&probabilities).expect("predict_proba should succeed");
+            calibrator
+                .fit(&probabilities, &targets)
+                .expect("fit should succeed");
+            let predictions = calibrator
+                .predict_proba(&probabilities)
+                .expect("predict_proba should succeed");
 
             assert_eq!(predictions.len(), probabilities.len());
-            assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+            assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }
     }
 }

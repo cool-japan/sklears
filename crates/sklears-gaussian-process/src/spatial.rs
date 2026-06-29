@@ -1088,52 +1088,74 @@ impl Fit<Array2<f64>, Array1<f64>> for SpatialGaussianProcessRegressor<Untrained
             }
         };
 
-        // Add regularization to diagonal
-        let mut K_reg = augmented_matrix.clone();
-        let matrix_size = K_reg.nrows();
-
-        // Regularize the kernel part
-        for i in 0..K.nrows() {
-            K_reg[[i, i]] += self.alpha;
+        // Regularize the covariance (kernel) block of the system. The kernel
+        // block `K` is symmetric positive semi-definite; `alpha` (the user
+        // nugget/observation noise) lifts the smallest eigenvalue and makes it
+        // positive definite so that a Cholesky factorization is well defined.
+        let n_train = K.nrows();
+        let mut k_block_reg = K.clone();
+        for i in 0..n_train {
+            k_block_reg[[i, i]] += self.alpha;
         }
 
-        // For ordinary/universal kriging, add regularization to constraint diagonal
-        // Note: Saddle-point systems are indefinite, but we can make them positive definite
-        // by adding a small positive regularization to the constraint diagonal
-        match self.kriging_type {
-            KrigingType::Simple { .. } => {}
-            _ => {
-                // Add regularization to make the system positive definite
-                // Use a much larger value to ensure numerical stability
-                // This is necessary because saddle-point systems are indefinite
-                if matrix_size > K.nrows() {
-                    K_reg[[K.nrows(), K.nrows()]] = 0.01;
-                }
+        // Cholesky factor of the (regularized) kernel block only. This factor
+        // is symmetric-positive-definite by construction (adaptive jitter is
+        // applied internally if `alpha` alone is insufficient) and is reused
+        // downstream for the kriging *variance*, which is a Gaussian-process
+        // posterior variance defined purely by the covariance block.
+        let chol_block = utils::robust_cholesky(&k_block_reg)?;
+
+        // Solve for the kriging weights. The numerical character of the system
+        // differs fundamentally between simple and ordinary/universal kriging.
+        let alpha = match self.kriging_type {
+            KrigingType::Simple { .. } => {
+                // Simple kriging: weights solve the SPD system `K w = y_c`,
+                // handled directly and stably by the Cholesky factor above.
+                utils::triangular_solve(&chol_block, &y_for_gp)?
             }
-        }
-
-        // Prepare right-hand side for different kriging types
-        let rhs = match self.kriging_type {
-            KrigingType::Simple { .. } => y_for_gp,
             _ => {
-                let mut extended_y = Array1::zeros(y_for_gp.len() + 1);
-                for i in 0..y_for_gp.len() {
-                    extended_y[i] = y_for_gp[i];
+                // Ordinary / universal / co-kriging augment `K` with an
+                // unbiasedness (Lagrange) constraint, producing a SYMMETRIC
+                // INDEFINITE saddle-point (KKT) system:
+                //
+                //     [ K   1 ] [ w ]   [ y ]
+                //     [ 1^T 0 ] [ λ ] = [ 0 ]
+                //
+                // Such a system can never be Cholesky-factored (it always has a
+                // negative eigenvalue), so we regularize the SPD kernel block
+                // with the same nugget used above and solve the full system with
+                // a general LU-based solver, which correctly handles indefinite
+                // matrices. This is the principled fix for the instability:
+                // Cholesky is used only where it is mathematically valid.
+                let mut a = augmented_matrix.clone();
+                for i in 0..n_train {
+                    a[[i, i]] += self.alpha;
                 }
-                // Last element (Lagrange multiplier) is 0
-                extended_y
+
+                let mut rhs = Array1::zeros(n_train + 1);
+                for i in 0..n_train {
+                    rhs[i] = y_for_gp[i];
+                }
+                // The trailing entry (Lagrange multiplier row) is the
+                // unbiasedness condition sum(w) = 1, hence rhs = 0 there.
+
+                scirs2_linalg::solve(&a.view(), &rhs.view(), None).map_err(|e| {
+                    SklearsError::NumericalError(format!(
+                        "Failed to solve ordinary/universal kriging system: {e}"
+                    ))
+                })?
             }
         };
 
-        // Solve linear system
-        let chol_decomp = utils::robust_cholesky(&K_reg)?;
-        let alpha = utils::triangular_solve(&chol_decomp, &rhs)?;
+        // Log marginal likelihood is defined for the Gaussian-process model on
+        // the covariance block (the unbiasedness constraint is not part of the
+        // likelihood). Use the SPD kernel block and the matching weight vector.
+        let weights_block = alpha.slice(s![0..n_train]).to_owned();
+        let log_det = chol_block.diag().iter().map(|x| x.ln()).sum::<f64>() * 2.0;
+        let data_fit = y_for_gp.dot(&weights_block);
+        let log_likelihood = -0.5 * (data_fit + log_det + n_train as f64 * (2.0 * PI).ln());
 
-        // Compute log marginal likelihood
-        let log_det = chol_decomp.diag().iter().map(|x| x.ln()).sum::<f64>() * 2.0;
-        let data_fit = rhs.dot(&alpha);
-        let n = rhs.len();
-        let log_likelihood = -0.5 * (data_fit + log_det + n as f64 * (2.0 * PI).ln());
+        let chol_decomp = chol_block;
 
         Ok(SpatialGaussianProcessRegressor {
             spatial_kernel: self.spatial_kernel,
@@ -1245,18 +1267,74 @@ impl SpatialGaussianProcessRegressor<Trained> {
         (distances, correlations)
     }
 
-    /// Detect spatial outliers using kriging residuals
+    /// Detect spatial outliers using leave-one-out kriging cross-validation.
+    ///
+    /// A kriging model interpolates its training data exactly, so *in-sample*
+    /// residuals are identically zero and carry no information about outliers.
+    /// The standard geostatistical diagnostic is therefore the **leave-one-out
+    /// (LOO) cross-validated, studentized residual**: each observation is
+    /// removed, predicted from the remaining points, and the prediction error
+    /// is standardized by the kriging standard deviation at that location:
+    ///
+    /// ```text
+    /// z_i = (y_i - yhat_{-i}) / sigma_{-i}
+    /// ```
+    ///
+    /// Spatially anomalous observations are those whose value disagrees with
+    /// what their neighbours predict, yielding a large |z_i|. Points are
+    /// flagged when |z_i| exceeds `threshold` (a number of standard deviations).
     pub fn detect_spatial_outliers(&self, threshold: f64) -> SklResult<Vec<usize>> {
-        let (predictions, _) = self.predict_with_variance(&self._state.training_data.0)?;
-        let residuals = &self._state.training_data.1 - &predictions;
-
-        // Compute standardized residuals
-        let residual_std = residuals.std(0.0);
-        let standardized_residuals = residuals / residual_std;
+        let coords = &self._state.training_data.0;
+        let targets = &self._state.training_data.1;
+        let n = coords.nrows();
+        let n_features = coords.ncols();
 
         let mut outliers = Vec::new();
-        for (i, &residual) in standardized_residuals.iter().enumerate() {
-            if residual.abs() > threshold {
+
+        for i in 0..n {
+            // Build the leave-one-out training set (all points except `i`).
+            let mut train_coords = Vec::with_capacity((n - 1) * n_features);
+            let mut train_values = Vec::with_capacity(n - 1);
+            for j in 0..n {
+                if j != i {
+                    train_coords.extend(coords.row(j).iter().copied());
+                    train_values.push(targets[j]);
+                }
+            }
+
+            let train_coords_array = Array2::from_shape_vec((n - 1, n_features), train_coords)
+                .map_err(|_| {
+                    SklearsError::InvalidInput(
+                        "Failed to build leave-one-out coordinates".to_string(),
+                    )
+                })?;
+            let train_values_array = Array1::from_vec(train_values);
+
+            let reduced_gp = SpatialGaussianProcessRegressor::builder()
+                .spatial_kernel(self._state.spatial_kernel.clone())
+                .kriging_type(self._state.kriging_type)
+                .alpha(self.alpha)
+                .build();
+
+            let fitted = reduced_gp.fit(&train_coords_array, &train_values_array)?;
+
+            let test_coords = coords.slice(s![i..i + 1, ..]).to_owned();
+            let (prediction, std_dev) = fitted.predict_with_variance(&test_coords)?;
+
+            let residual = targets[i] - prediction[0];
+            // Standardize by the kriging standard deviation. Guard against a
+            // degenerate (zero) predictive std with a trace-proportional floor
+            // derived from the data scale so the z-score stays finite.
+            let sigma = std_dev[0];
+            let sigma = if sigma.is_finite() && sigma > 1e-12 {
+                sigma
+            } else {
+                let scale = targets.std(0.0);
+                (scale * 1e-6).max(1e-12)
+            };
+
+            let z_score = residual / sigma;
+            if z_score.is_finite() && z_score.abs() > threshold {
                 outliers.push(i);
             }
         }
@@ -1379,7 +1457,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // TODO: Fix Cholesky decomposition numerical stability for ordinary kriging
     fn test_spatial_gp_ordinary_kriging() {
         let coords = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
         let values = array![1.0, 2.0, 1.5, 2.5];
@@ -1416,7 +1493,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // TODO: Fix Cholesky decomposition numerical stability
     fn test_spatial_gp_with_variance() {
         let coords = array![[0.0, 0.0], [2.0, 0.0], [0.0, 2.0], [2.0, 2.0]];
         let values = array![1.0, 3.0, 2.0, 4.0];
@@ -1492,7 +1568,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // TODO: Fix Cholesky decomposition numerical stability
     fn test_spatial_outlier_detection() {
         let coords = array![[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [3.0, 0.0]];
         let values = array![1.0, 2.0, 3.0, 10.0]; // Last value is outlier
@@ -1514,7 +1589,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // TODO: Fix Cholesky decomposition numerical stability
     fn test_spatial_cross_validation() {
         let coords = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0], [0.5, 0.5]];
         let values = array![1.0, 2.0, 1.5, 2.5, 1.8];
@@ -1549,7 +1623,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // TODO: Fix Cholesky decomposition numerical stability
     fn test_correlation_structure() {
         let coords = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]];
         let values = array![1.0, 2.0, 1.5];

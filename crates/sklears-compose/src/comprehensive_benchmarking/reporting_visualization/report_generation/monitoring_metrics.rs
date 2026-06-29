@@ -3,11 +3,11 @@
 //! This module handles performance monitoring, metrics collection,
 //! health monitoring, alerting, and notification systems for report generation.
 
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 
 /// Report generation metrics collector
 ///
@@ -102,7 +102,7 @@ pub struct NetworkIOStatistics {
 ///
 /// Tracks error occurrences, patterns, and common issues
 /// for system reliability monitoring and debugging.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ErrorStatistics {
     /// Error count by type
     pub error_counts: HashMap<String, usize>,
@@ -236,7 +236,7 @@ pub struct AlertRateLimiting {
 ///
 /// Manages notification channels, escalation policies,
 /// and message templates for different event types.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NotificationSettings {
     pub success_notifications: Vec<NotificationChannel>,
     pub failure_notifications: Vec<NotificationChannel>,
@@ -349,6 +349,12 @@ pub struct EscalationLevel {
     pub required_acknowledgment: bool,
 }
 
+impl Default for ReportGenerationMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReportGenerationMetrics {
     /// Create a new metrics collector
     pub fn new() -> Self {
@@ -367,7 +373,8 @@ impl ReportGenerationMetrics {
 
         if success {
             // Update success rate
-            let successful_reports = (self.success_rate * (self.total_reports - 1) as f64) as usize + 1;
+            let successful_reports =
+                (self.success_rate * (self.total_reports - 1) as f64) as usize + 1;
             self.success_rate = successful_reports as f64 / self.total_reports as f64;
         } else {
             // Update success rate for failure
@@ -376,13 +383,18 @@ impl ReportGenerationMetrics {
         }
 
         // Update average generation time
-        let total_duration = self.average_generation_time * (self.total_reports - 1) as u32 + duration;
+        let total_duration =
+            self.average_generation_time * (self.total_reports - 1) as u32 + duration;
         self.average_generation_time = total_duration / self.total_reports as u32;
     }
 
     /// Record an error occurrence
     pub fn record_error(&mut self, error_type: String) {
-        *self.error_statistics.error_counts.entry(error_type).or_insert(0) += 1;
+        *self
+            .error_statistics
+            .error_counts
+            .entry(error_type)
+            .or_insert(0) += 1;
     }
 
     /// Get current metrics snapshot
@@ -405,6 +417,12 @@ pub struct MetricsSnapshot {
     pub success_rate: f64,
     pub average_generation_time: Duration,
     pub error_count: usize,
+}
+
+impl Default for DataSourceHealthMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DataSourceHealthMonitor {
@@ -436,7 +454,9 @@ impl DataSourceHealthMonitor {
     pub fn get_unhealthy_sources(&self) -> Vec<(&String, &HealthStatus)> {
         self.health_status
             .iter()
-            .filter(|(_, status)| matches!(status, HealthStatus::Unhealthy | HealthStatus::Degraded))
+            .filter(|(_, status)| {
+                matches!(status, HealthStatus::Unhealthy | HealthStatus::Degraded)
+            })
             .collect()
     }
 }
@@ -469,16 +489,6 @@ impl Default for NetworkIOStatistics {
             bytes_received_per_sec: 0.0,
             bytes_sent_per_sec: 0.0,
             network_latency: Duration::from_millis(0),
-        }
-    }
-}
-
-impl Default for ErrorStatistics {
-    fn default() -> Self {
-        Self {
-            error_counts: HashMap::new(),
-            error_rates: HashMap::new(),
-            common_errors: vec![],
         }
     }
 }
@@ -530,17 +540,6 @@ impl Default for AlertRateLimiting {
         Self {
             max_alerts_per_hour: 10,
             min_alert_interval: Duration::from_secs(300),
-        }
-    }
-}
-
-impl Default for NotificationSettings {
-    fn default() -> Self {
-        Self {
-            success_notifications: Vec::new(),
-            failure_notifications: Vec::new(),
-            warning_notifications: Vec::new(),
-            escalation_policy: EscalationPolicy::default(),
         }
     }
 }

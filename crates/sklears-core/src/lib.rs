@@ -153,6 +153,7 @@ pub mod distributed;
 pub mod distributed_algorithms;
 pub mod error;
 pub mod parallel;
+pub mod system_info;
 pub mod traits;
 pub mod types;
 pub mod utils;
@@ -390,6 +391,9 @@ pub mod prelude {
         is_ml_data_safe, sanitize_ml_data, InputSanitizer, SafetyIssue, SanitizationConfig,
         Sanitize,
     };
+
+    // System memory statistics — real OS values, never fabricated
+    pub use crate::system_info::{process_rss_bytes, system_memory, SystemMemory};
 
     // Advanced array operations for high-performance computing
     pub use crate::advanced_array_ops::{ArrayStats, MatrixOps, MemoryOps};

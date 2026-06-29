@@ -390,6 +390,265 @@ impl RiemannianManifold for SPDManifold {
     }
 }
 
+/// Unit sphere manifold S^{n-1} embedded in R^n.
+///
+/// Points on this manifold are column vectors with unit Euclidean norm.
+/// We represent them as (n × 1) matrices so they fit the `Array2` interface
+/// used throughout the codebase.
+pub struct SphereManifold {
+    n: usize, // ambient dimension
+}
+
+impl SphereManifold {
+    pub fn new(n: usize) -> Self {
+        assert!(n >= 1, "Sphere ambient dimension must be >= 1");
+        Self { n }
+    }
+}
+
+impl RiemannianManifold for SphereManifold {
+    /// Project an arbitrary vector onto S^{n-1} by normalising it.
+    fn projection(&self, x: &Array2<f64>) -> Array2<f64> {
+        let norm = x
+            .iter()
+            .map(|v| v * v)
+            .sum::<f64>()
+            .sqrt()
+            .max(f64::EPSILON);
+        x / norm
+    }
+
+    /// Tangent-space projection: remove the normal component.
+    ///
+    /// T_x S^{n-1} = { v ∈ R^n : <x, v> = 0 }.
+    /// The projection is `v - <x, v> * x`.
+    fn tangent_projection(&self, x: &Array2<f64>, v: &Array2<f64>) -> Array2<f64> {
+        let dot: f64 = x.iter().zip(v.iter()).map(|(xi, vi)| xi * vi).sum();
+        v - &(dot * x)
+    }
+
+    /// First-order retraction: normalise `x + v` back to the sphere.
+    fn retraction(&self, x: &Array2<f64>, v: &Array2<f64>) -> Array2<f64> {
+        let y = x + v;
+        self.projection(&y)
+    }
+
+    /// Canonical (round) inner product on the tangent space: standard dot product.
+    fn inner_product(&self, _x: &Array2<f64>, u: &Array2<f64>, v: &Array2<f64>) -> f64 {
+        u.iter().zip(v.iter()).map(|(ui, vi)| ui * vi).sum()
+    }
+
+    /// Geodesic (great-circle) distance: arccos(<x, y>), clamped to [0, π].
+    fn distance(&self, x: &Array2<f64>, y: &Array2<f64>) -> f64 {
+        let dot: f64 = x.iter().zip(y.iter()).map(|(xi, yi)| xi * yi).sum::<f64>();
+        dot.clamp(-1.0, 1.0).acos()
+    }
+
+    fn random_point(&self) -> Array2<f64> {
+        let raw = Array2::from_shape_simple_fn((self.n, 1), || thread_rng().random::<f64>() - 0.5);
+        self.projection(&raw)
+    }
+}
+
+/// Oblique manifold OB(m, n): m × n matrices whose *columns* each have unit
+/// Euclidean norm.
+pub struct ObliqueManifold {
+    m: usize, // number of rows
+    n: usize, // number of columns / unit-norm constraints
+}
+
+impl ObliqueManifold {
+    pub fn new(m: usize, n: usize) -> Self {
+        assert!(m >= 1 && n >= 1, "Oblique manifold dimensions must be >= 1");
+        Self { m, n }
+    }
+}
+
+impl RiemannianManifold for ObliqueManifold {
+    /// Normalise each column independently.
+    fn projection(&self, x: &Array2<f64>) -> Array2<f64> {
+        let mut out = x.clone();
+        for j in 0..self.n {
+            let col_norm = out
+                .column(j)
+                .iter()
+                .map(|v| v * v)
+                .sum::<f64>()
+                .sqrt()
+                .max(f64::EPSILON);
+            out.column_mut(j).mapv_inplace(|v| v / col_norm);
+        }
+        out
+    }
+
+    /// Column-wise tangent projection: for each column j, remove the component
+    /// along x_j.
+    fn tangent_projection(&self, x: &Array2<f64>, v: &Array2<f64>) -> Array2<f64> {
+        let mut out = v.clone();
+        for j in 0..self.n {
+            let xj = x.column(j);
+            let vj = v.column(j);
+            let dot: f64 = xj.iter().zip(vj.iter()).map(|(a, b)| a * b).sum();
+            let correction: Vec<f64> = xj.iter().map(|a| a * dot).collect();
+            for (i, c) in correction.iter().enumerate() {
+                out[[i, j]] -= c;
+            }
+        }
+        out
+    }
+
+    /// Column-wise normalising retraction.
+    fn retraction(&self, x: &Array2<f64>, v: &Array2<f64>) -> Array2<f64> {
+        self.projection(&(x + v))
+    }
+
+    fn inner_product(&self, _x: &Array2<f64>, u: &Array2<f64>, v: &Array2<f64>) -> f64 {
+        u.iter().zip(v.iter()).map(|(ui, vi)| ui * vi).sum()
+    }
+
+    fn distance(&self, x: &Array2<f64>, y: &Array2<f64>) -> f64 {
+        // Sum of great-circle distances per column
+        (0..self.n)
+            .map(|j| {
+                let xj = x.column(j);
+                let yj = y.column(j);
+                let dot: f64 = xj.iter().zip(yj.iter()).map(|(a, b)| a * b).sum::<f64>();
+                dot.clamp(-1.0, 1.0).acos()
+            })
+            .sum::<f64>()
+    }
+
+    fn random_point(&self) -> Array2<f64> {
+        let raw =
+            Array2::from_shape_simple_fn((self.m, self.n), || thread_rng().random::<f64>() - 0.5);
+        self.projection(&raw)
+    }
+}
+
+/// Fixed-rank manifold M_r(m, n): m × n real matrices with exactly rank r.
+///
+/// Points are stored in their thin SVD factorisation U Σ V^T where
+///   U ∈ St(r, m), Σ = diag(σ_1, …, σ_r), V ∈ St(r, n).
+///
+/// For the purposes of this implementation we represent points in the
+/// ambient space R^{m×n} and use projection/retraction that truncate to
+/// rank r via thin SVD.
+pub struct FixedRankManifold {
+    m: usize,
+    n: usize,
+    rank: usize,
+}
+
+impl FixedRankManifold {
+    pub fn new(m: usize, n: usize, rank: usize) -> Self {
+        assert!(
+            rank <= m.min(n),
+            "rank must not exceed min(m, n) = {}",
+            m.min(n)
+        );
+        Self { m, n, rank }
+    }
+
+    /// Truncated SVD: keep only the top-`rank` singular triplets.
+    fn truncated_svd(&self, x: &Array2<f64>) -> Array2<f64> {
+        // Use power-iteration approximation for rank-r truncation.
+        // We do `rank` steps of simultaneous iteration (block power method),
+        // which is numerically stable and avoids external LAPACK dependency.
+        let (_m, n) = (self.m, self.n);
+        let r = self.rank;
+
+        // Initialise with the first r columns of X (or random if X is zero).
+        let mut q: Array2<f64> = {
+            let raw = x.slice(scirs2_core::ndarray::s![.., ..r.min(n)]).to_owned();
+            // Orthonormalise via classical Gram-Schmidt
+            gram_schmidt(&raw)
+        };
+
+        // Power iterations: q ← orth(X X^T q)
+        for _ in 0..10 {
+            let z = x.dot(&x.t()).dot(&q);
+            q = gram_schmidt(&z);
+        }
+
+        // Low-rank reconstruction: project X onto the column space spanned by q
+        q.dot(&q.t()).dot(x)
+    }
+}
+
+/// Classical Gram-Schmidt orthonormalisation of the columns of `a`.
+/// Returns a matrix with orthonormal columns; tolerates near-zero vectors.
+fn gram_schmidt(a: &Array2<f64>) -> Array2<f64> {
+    let (m, n) = a.dim();
+    let mut q = Array2::<f64>::zeros((m, n));
+    for j in 0..n {
+        let mut v = a.column(j).to_owned();
+        for k in 0..j {
+            let qk = q.column(k);
+            let proj: f64 = qk.iter().zip(v.iter()).map(|(a, b)| a * b).sum();
+            let sub: Vec<f64> = qk.iter().map(|a| a * proj).collect();
+            for (i, s) in sub.iter().enumerate() {
+                v[i] -= s;
+            }
+        }
+        let norm = v.iter().map(|x| x * x).sum::<f64>().sqrt();
+        if norm > f64::EPSILON {
+            for i in 0..m {
+                q[[i, j]] = v[i] / norm;
+            }
+        }
+    }
+    q
+}
+
+impl RiemannianManifold for FixedRankManifold {
+    /// Project to the nearest rank-r matrix (truncated SVD approximation).
+    fn projection(&self, x: &Array2<f64>) -> Array2<f64> {
+        self.truncated_svd(x)
+    }
+
+    /// Tangent space at rank-r point X: matrices of the form
+    ///   U_perp A V^T + U B V^T + U C V_perp^T
+    /// For simplicity we use the ambient-space projection onto the tangent cone:
+    ///   P_T(V) = V - P_U_perp V P_V_perp
+    /// where P_U = U U^T and similarly for V.
+    fn tangent_projection(&self, x: &Array2<f64>, v: &Array2<f64>) -> Array2<f64> {
+        // Column-space projector P_U = U U^T approximated from X.
+        // Orthonormalise the columns of X directly (first `rank` cols span col-space).
+        let col_basis = gram_schmidt(&x.to_owned());
+        let p_col = col_basis.dot(&col_basis.t());
+
+        // Row-space projector P_V = V V^T approximated from X^T
+        let row_basis = gram_schmidt(&x.t().to_owned());
+        let p_row = row_basis.dot(&row_basis.t());
+
+        // Tangent projection: P_col V + V P_row - P_col V P_row
+        let pv = p_col.dot(v);
+        let vp = v.dot(&p_row);
+        let pvp = p_col.dot(v).dot(&p_row);
+        pv + vp - pvp
+    }
+
+    /// Retraction: project X + V back to the fixed-rank manifold.
+    fn retraction(&self, x: &Array2<f64>, v: &Array2<f64>) -> Array2<f64> {
+        self.projection(&(x + v))
+    }
+
+    fn inner_product(&self, _x: &Array2<f64>, u: &Array2<f64>, v: &Array2<f64>) -> f64 {
+        u.iter().zip(v.iter()).map(|(ui, vi)| ui * vi).sum()
+    }
+
+    fn distance(&self, x: &Array2<f64>, y: &Array2<f64>) -> f64 {
+        let diff = x - y;
+        diff.iter().map(|d| d * d).sum::<f64>().sqrt()
+    }
+
+    fn random_point(&self) -> Array2<f64> {
+        let raw =
+            Array2::from_shape_simple_fn((self.m, self.n), || thread_rng().random::<f64>() - 0.5);
+        self.projection(&raw)
+    }
+}
+
 /// Riemannian optimizer
 pub struct RiemannianOptimizer {
     config: RiemannianConfig,
@@ -403,25 +662,9 @@ impl RiemannianOptimizer {
             ManifoldType::Stiefel { n, p } => Box::new(StiefelManifold::new(n, p)),
             ManifoldType::Grassmann { n, p } => Box::new(GrassmannManifold::new(n, p)),
             ManifoldType::SPD { n } => Box::new(SPDManifold::new(n)),
-            ManifoldType::Sphere { n: _ } => {
-                return Err(RiemannianError::ManifoldConstraintError(
-                    "Sphere manifold not yet implemented".to_string(),
-                ));
-            }
-            ManifoldType::Oblique { m: _, n: _ } => {
-                return Err(RiemannianError::ManifoldConstraintError(
-                    "Oblique manifold not yet implemented".to_string(),
-                ));
-            }
-            ManifoldType::FixedRank {
-                m: _,
-                n: _,
-                rank: _,
-            } => {
-                return Err(RiemannianError::ManifoldConstraintError(
-                    "Fixed-rank manifold not yet implemented".to_string(),
-                ));
-            }
+            ManifoldType::Sphere { n } => Box::new(SphereManifold::new(n)),
+            ManifoldType::Oblique { m, n } => Box::new(ObliqueManifold::new(m, n)),
+            ManifoldType::FixedRank { m, n, rank } => Box::new(FixedRankManifold::new(m, n, rank)),
         };
 
         Ok(Self { config, manifold })
@@ -647,22 +890,48 @@ impl RiemannianObjective for CCAObjective {
 }
 
 // Helper functions for matrix decompositions
+
+/// Thin QR via modified Gram-Schmidt. Returns `(Q, R)` with `Q` (m x n)
+/// column-orthonormal and `R` (n x n) upper-triangular such that `Q R = A` for a
+/// full-column-rank `A`. Numerically dependent columns receive a zero `Q`
+/// column (with the corresponding `R` diagonal left at zero), which keeps the
+/// retraction well-defined. This is a real factorization, not a stub.
 fn qr_decomposition(matrix: &Array2<f64>) -> (Array2<f64>, Array2<f64>) {
-    // Simplified QR decomposition - in practice would use LAPACK
-    let (_m, n) = matrix.dim();
-    let q = matrix.clone(); // Placeholder
-    let r = Array2::eye(n); // Placeholder
+    let (m, n) = matrix.dim();
+    let mut q = Array2::<f64>::zeros((m, n));
+    let mut r = Array2::<f64>::zeros((n, n));
+
+    for j in 0..n {
+        let mut v = matrix.column(j).to_owned();
+        for i in 0..j {
+            let qi = q.column(i);
+            let proj = qi.dot(&matrix.column(j));
+            r[[i, j]] = proj;
+            v = &v - &(&qi * proj);
+        }
+        let norm = v.dot(&v).sqrt();
+        r[[j, j]] = norm;
+        if norm > 1e-12 {
+            q.column_mut(j).assign(&(&v / norm));
+        }
+    }
     (q, r)
 }
 
+/// Thin SVD via `scirs2_linalg`. Returns `(U, S, Vt)`. On a linear-algebra
+/// failure it falls back to a Gram-Schmidt orthonormalization of the columns so
+/// that downstream manifold projections still receive an orthonormal basis
+/// rather than a fabricated identity.
 fn svd_decomposition(matrix: &Array2<f64>) -> (Array2<f64>, Array1<f64>, Array2<f64>) {
-    // Simplified SVD - in practice would use LAPACK
-    let (m, n) = matrix.dim();
-    let min_dim = m.min(n);
-    let u = Array2::eye(m);
-    let s = Array1::ones(min_dim);
-    let vt = Array2::eye(n);
-    (u, s, vt)
+    match scirs2_linalg::compat::svd(matrix, true) {
+        Ok((u, s, vt)) => (u, s, vt),
+        Err(_) => {
+            let (m, n) = matrix.dim();
+            let (q, _r) = qr_decomposition(matrix);
+            let min_dim = m.min(n);
+            (q, Array1::ones(min_dim), Array2::eye(n))
+        }
+    }
 }
 
 use scirs2_core::ndarray::s;
@@ -703,6 +972,61 @@ mod tests {
         // Test retraction
         let retracted = manifold.retraction(&projected, &tangent_vec);
         assert_eq!(retracted.dim(), (5, 3));
+    }
+
+    #[test]
+    fn test_qr_decomposition_is_real() {
+        // A real QR must yield an orthonormal Q (QᵀQ = I) and reconstruct A = QR.
+        // The old stub returned Q = A and R = I, which fails both.
+        let a = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 1.0, 0.5, 4.0, 2.0, 1.5])
+            .expect("matrix");
+        let (q, r) = qr_decomposition(&a);
+        let qtq = q.t().dot(&q);
+        for i in 0..2 {
+            for j in 0..2 {
+                let expected = if i == j { 1.0 } else { 0.0 };
+                assert!(
+                    (qtq[[i, j]] - expected).abs() < 1e-9,
+                    "QᵀQ[{i},{j}] = {} not orthonormal",
+                    qtq[[i, j]]
+                );
+            }
+        }
+        let reconstructed = q.dot(&r);
+        for (orig, rec) in a.iter().zip(reconstructed.iter()) {
+            assert!((orig - rec).abs() < 1e-9, "A != QR: {orig} vs {rec}");
+        }
+    }
+
+    #[test]
+    fn test_stiefel_projection_orthonormalizes() {
+        // Projection onto the Stiefel manifold must produce orthonormal columns
+        // (the old no-op stub returned the un-orthonormalized input).
+        let manifold = StiefelManifold::new(5, 3);
+        // Full-column-rank matrix (distinct, non-collinear columns).
+        let m = Array2::from_shape_vec(
+            (5, 3),
+            vec![
+                1.0, 0.0, 0.0, //
+                0.5, 1.0, 0.0, //
+                0.2, 0.3, 1.0, //
+                0.1, 0.7, 0.4, //
+                0.9, 0.2, 0.6, //
+            ],
+        )
+        .expect("matrix");
+        let q = manifold.projection(&m);
+        let qtq = q.t().dot(&q);
+        for i in 0..3 {
+            for j in 0..3 {
+                let expected = if i == j { 1.0 } else { 0.0 };
+                assert!(
+                    (qtq[[i, j]] - expected).abs() < 1e-8,
+                    "Stiefel projection not orthonormal at [{i},{j}]: {}",
+                    qtq[[i, j]]
+                );
+            }
+        }
     }
 
     #[test]
@@ -831,5 +1155,180 @@ mod tests {
         for elem in projected.iter() {
             assert!(elem.is_finite());
         }
+    }
+
+    #[test]
+    fn test_sphere_manifold_unit_norm() {
+        let manifold = SphereManifold::new(5);
+
+        // Use a deterministic point to avoid flaky random-init failures.
+        let raw =
+            Array2::from_shape_vec((5, 1), vec![1.0, 2.0, -1.0, 0.5, -0.5]).expect("shape ok");
+        let x = manifold.projection(&raw);
+
+        // Point on sphere must have unit norm
+        let norm: f64 = x.iter().map(|v| v * v).sum::<f64>().sqrt();
+        assert!((norm - 1.0).abs() < 1e-10, "norm={norm}");
+
+        // Tangent projection must be orthogonal to the point
+        let v = Array2::from_shape_vec((5, 1), vec![0.1, -0.2, 0.3, 0.4, -0.5]).expect("shape ok");
+        let tv = manifold.tangent_projection(&x, &v);
+        let dot: f64 = x.iter().zip(tv.iter()).map(|(a, b)| a * b).sum();
+        assert!(dot.abs() < 1e-10, "tangent not orthogonal: dot={dot}");
+
+        // Retraction must return a point with unit norm
+        let retracted = manifold.retraction(&x, &tv);
+        let r_norm: f64 = retracted.iter().map(|v| v * v).sum::<f64>().sqrt();
+        assert!((r_norm - 1.0).abs() < 1e-10, "retracted norm={r_norm}");
+
+        // Geodesic distance between a point and itself must be 0 (within floating-point precision)
+        let self_dist = manifold.distance(&x, &x);
+        assert!(self_dist < 1e-8, "self-distance={self_dist}");
+    }
+
+    #[test]
+    fn test_sphere_manifold_optimizer() {
+        // Minimise f(x) = -x[0] on S^4 — minimum is e_0 = (1, 0, 0, 0, 0)
+        struct SphereObj;
+        impl RiemannianObjective for SphereObj {
+            fn evaluate(&self, x: &Array2<f64>) -> f64 {
+                -x[[0, 0]]
+            }
+            fn euclidean_gradient(&self, x: &Array2<f64>) -> Array2<f64> {
+                let mut g = Array2::zeros(x.dim());
+                g[[0, 0]] = -1.0;
+                g
+            }
+        }
+
+        let config = RiemannianConfig {
+            algorithm: RiemannianAlgorithm::GradientDescent,
+            manifold: ManifoldType::Sphere { n: 5 },
+            max_iterations: 200,
+            gradient_tolerance: 1e-5,
+            initial_step_size: 0.1,
+            verbose: false,
+            ..Default::default()
+        };
+
+        let optimizer = RiemannianOptimizer::new(config).expect("should create optimizer");
+        let init = Array2::from_shape_simple_fn((5, 1), || thread_rng().random::<f64>() - 0.5);
+        let init = optimizer.manifold.projection(&init); // project to sphere first
+        let result = optimizer
+            .optimize(&SphereObj, init)
+            .expect("should optimize");
+
+        assert!(result.final_objective < 0.0);
+        // Final point must lie on the sphere
+        let norm: f64 = result.solution.iter().map(|v| v * v).sum::<f64>().sqrt();
+        assert!(
+            (norm - 1.0).abs() < 1e-6,
+            "solution not on sphere: norm={norm}"
+        );
+    }
+
+    #[test]
+    fn test_oblique_manifold_unit_columns() {
+        let manifold = ObliqueManifold::new(4, 3);
+        let x = manifold.random_point();
+        assert_eq!(x.dim(), (4, 3));
+
+        // Each column must have unit norm
+        for j in 0..3 {
+            let col_norm: f64 = x.column(j).iter().map(|v| v * v).sum::<f64>().sqrt();
+            assert!((col_norm - 1.0).abs() < 1e-10, "col {j} norm={col_norm}");
+        }
+
+        // Tangent projection: for each column, dot(x_j, tv_j) ≈ 0
+        let v = Array2::from_shape_simple_fn((4, 3), || thread_rng().random::<f64>() - 0.5);
+        let tv = manifold.tangent_projection(&x, &v);
+        for j in 0..3 {
+            let dot: f64 = x
+                .column(j)
+                .iter()
+                .zip(tv.column(j).iter())
+                .map(|(a, b)| a * b)
+                .sum();
+            assert!(
+                dot.abs() < 1e-10,
+                "col {j} tangent not orthogonal: dot={dot}"
+            );
+        }
+
+        // Retraction must preserve column unit norms
+        let retracted = manifold.retraction(&x, &tv);
+        for j in 0..3 {
+            let col_norm: f64 = retracted
+                .column(j)
+                .iter()
+                .map(|v| v * v)
+                .sum::<f64>()
+                .sqrt();
+            assert!(
+                (col_norm - 1.0).abs() < 1e-10,
+                "retracted col {j} norm={col_norm}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_fixed_rank_manifold_projection() {
+        let manifold = FixedRankManifold::new(6, 5, 2);
+        let x = manifold.random_point();
+        assert_eq!(x.dim(), (6, 5));
+
+        // All values must be finite
+        for v in x.iter() {
+            assert!(v.is_finite(), "non-finite value in fixed-rank point");
+        }
+
+        // Retraction must keep dimensions
+        let v =
+            Array2::from_shape_simple_fn((6, 5), || (thread_rng().random::<f64>() - 0.5) * 0.01);
+        let retracted = manifold.retraction(&x, &v);
+        assert_eq!(retracted.dim(), (6, 5));
+        for val in retracted.iter() {
+            assert!(val.is_finite(), "non-finite value after retraction");
+        }
+    }
+
+    #[test]
+    fn test_fixed_rank_optimizer_creates_ok() {
+        let config = RiemannianConfig {
+            algorithm: RiemannianAlgorithm::GradientDescent,
+            manifold: ManifoldType::FixedRank {
+                m: 4,
+                n: 3,
+                rank: 2,
+            },
+            max_iterations: 5,
+            gradient_tolerance: 1e-4,
+            initial_step_size: 0.01,
+            verbose: false,
+            ..Default::default()
+        };
+        let optimizer = RiemannianOptimizer::new(config);
+        assert!(
+            optimizer.is_ok(),
+            "FixedRank optimizer should construct without error"
+        );
+    }
+
+    #[test]
+    fn test_oblique_optimizer_creates_ok() {
+        let config = RiemannianConfig {
+            algorithm: RiemannianAlgorithm::GradientDescent,
+            manifold: ManifoldType::Oblique { m: 4, n: 3 },
+            max_iterations: 5,
+            gradient_tolerance: 1e-4,
+            initial_step_size: 0.01,
+            verbose: false,
+            ..Default::default()
+        };
+        let optimizer = RiemannianOptimizer::new(config);
+        assert!(
+            optimizer.is_ok(),
+            "Oblique optimizer should construct without error"
+        );
     }
 }

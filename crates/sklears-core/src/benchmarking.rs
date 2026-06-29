@@ -15,7 +15,14 @@
 ///
 /// # Usage
 ///
-/// ```rust
+/// Note: the built-in algorithm benchmarks (`linear_regression`, `random_forest`,
+/// `k_means`, ...) return [`SklearsError::NotImplemented`] when run from
+/// `sklears-core`, because core cannot depend on the algorithm crates
+/// (`sklears-linear`, `sklears-ensemble`, `sklears-cluster`) that themselves
+/// depend on core. Drive these specs from a crate that wires the algorithms in.
+/// The example below is therefore `no_run` — it shows the API shape:
+///
+/// ```rust,no_run
 /// use sklears_core::benchmarking::{BenchmarkSuite, AlgorithmBenchmark, BenchmarkConfig};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -30,7 +37,7 @@
 /// suite.add_benchmark("linear_regression", AlgorithmBenchmark::linear_regression());
 /// suite.add_benchmark("random_forest", AlgorithmBenchmark::random_forest());
 ///
-/// // Run benchmarks
+/// // Run benchmarks (requires the algorithm crates to be wired in)
 /// let results = suite.run()?;
 ///
 /// // Generate report
@@ -324,15 +331,17 @@ impl BenchmarkSuite {
         })
     }
 
-    /// Get reference accuracy from scikit-learn (placeholder implementation)
+    /// Get reference accuracy from scikit-learn — requires Python/scikit-learn FFI integration
     fn get_reference_accuracy(
         &self,
         _benchmark: &AlgorithmBenchmark,
         _dataset: &BenchmarkDataset,
     ) -> Result<f64> {
-        // This would integrate with Python/scikit-learn to get reference results
-        // For now, return a placeholder value
-        Ok(0.95)
+        Err(SklearsError::NotImplemented(
+            "get_reference_accuracy: Python/scikit-learn FFI not available; \
+             wire via pyo3 or sklears-compat crate"
+                .to_string(),
+        ))
     }
 }
 
@@ -371,20 +380,15 @@ impl AlgorithmBenchmark {
     pub fn linear_regression() -> Self {
         Self::new(
             AlgorithmType::Regression,
-            Box::new(|dataset| {
-                match dataset {
-                    BenchmarkDataset::Regression {
-                        features: _,
-                        target: _,
-                    } => {
-                        // Placeholder - would run actual linear regression
-                        std::thread::sleep(Duration::from_millis(10));
-                        Ok(0.95)
-                    }
-                    _ => Err(SklearsError::InvalidInput(
-                        "Invalid dataset type for linear regression".to_string(),
-                    )),
-                }
+            Box::new(|dataset| match dataset {
+                BenchmarkDataset::Regression { .. } => Err(SklearsError::NotImplemented(
+                    "linear regression benchmark: wire to sklears-linear \
+                             OrdinaryLeastSquares to get real accuracy"
+                        .to_string(),
+                )),
+                _ => Err(SklearsError::InvalidInput(
+                    "Invalid dataset type for linear regression".to_string(),
+                )),
             }),
             "Linear Regression with normal equations".to_string(),
         )
@@ -394,20 +398,15 @@ impl AlgorithmBenchmark {
     pub fn random_forest() -> Self {
         Self::new(
             AlgorithmType::Classification,
-            Box::new(|dataset| {
-                match dataset {
-                    BenchmarkDataset::Classification {
-                        features: _,
-                        target: _,
-                    } => {
-                        // Placeholder - would run actual random forest
-                        std::thread::sleep(Duration::from_millis(50));
-                        Ok(0.92)
-                    }
-                    _ => Err(SklearsError::InvalidInput(
-                        "Invalid dataset type for random forest".to_string(),
-                    )),
-                }
+            Box::new(|dataset| match dataset {
+                BenchmarkDataset::Classification { .. } => Err(SklearsError::NotImplemented(
+                    "random forest benchmark: wire to sklears-ensemble \
+                             RandomForestClassifier to get real accuracy"
+                        .to_string(),
+                )),
+                _ => Err(SklearsError::InvalidInput(
+                    "Invalid dataset type for random forest".to_string(),
+                )),
             }),
             "Random Forest Classifier".to_string(),
         )
@@ -417,17 +416,15 @@ impl AlgorithmBenchmark {
     pub fn k_means() -> Self {
         Self::new(
             AlgorithmType::Clustering,
-            Box::new(|dataset| {
-                match dataset {
-                    BenchmarkDataset::Clustering { features: _ } => {
-                        // Placeholder - would run actual k-means
-                        std::thread::sleep(Duration::from_millis(30));
-                        Ok(0.88) // Silhouette score placeholder
-                    }
-                    _ => Err(SklearsError::InvalidInput(
-                        "Invalid dataset type for k-means".to_string(),
-                    )),
-                }
+            Box::new(|dataset| match dataset {
+                BenchmarkDataset::Clustering { .. } => Err(SklearsError::NotImplemented(
+                    "k-means benchmark: wire to sklears-cluster \
+                             KMeans to get real silhouette score"
+                        .to_string(),
+                )),
+                _ => Err(SklearsError::InvalidInput(
+                    "Invalid dataset type for k-means".to_string(),
+                )),
             }),
             "K-Means Clustering".to_string(),
         )

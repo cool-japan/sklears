@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "sklears"
-version = "0.1.0rc1"
+version = "0.1.2"
 description = "High-performance machine learning library with scikit-learn compatibility - Pure Rust implementation"
 readme = "README.md"
 requires-python = ">=3.9"

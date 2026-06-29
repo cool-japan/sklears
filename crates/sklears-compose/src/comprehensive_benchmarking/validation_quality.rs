@@ -683,9 +683,18 @@ impl QualityCalculator {
 
     /// Calculate data accuracy
     fn calculate_accuracy(&self, data: &TransformationData) -> Result<f64, ProcessingError> {
-        // Simplified accuracy calculation
-        // In practice, would compare against reference data
-        Ok(0.95) // Placeholder
+        if data.records.is_empty() {
+            return Ok(1.0);
+        }
+        let total_fields: usize = data.records.iter().map(|r| r.fields.len()).sum();
+        if total_fields == 0 {
+            return Ok(1.0);
+        }
+        let non_null = data.records.iter()
+            .flat_map(|r| r.fields.values())
+            .filter(|v| !matches!(v, DataValue::Null))
+            .count();
+        Ok(non_null as f64 / total_fields as f64)
     }
 
     /// Calculate data consistency
@@ -739,9 +748,16 @@ impl QualityCalculator {
 
     /// Calculate data validity
     fn calculate_validity(&self, data: &TransformationData) -> Result<f64, ProcessingError> {
-        // Simplified validity calculation
-        // In practice, would validate against business rules
-        Ok(0.92) // Placeholder
+        if data.records.is_empty() || data.schema.fields.is_empty() {
+            return Ok(1.0);
+        }
+        let field_scores: Vec<f64> = data.schema.fields.keys()
+            .map(|name| self.calculate_field_consistency(data, name))
+            .collect::<Result<_, _>>()?;
+        if field_scores.is_empty() {
+            return Ok(1.0);
+        }
+        Ok(field_scores.iter().sum::<f64>() / field_scores.len() as f64)
     }
 
     /// Calculate data uniqueness
@@ -767,11 +783,11 @@ impl QualityCalculator {
         for record in &data.records {
             if let Some(timestamp) = &record.timestamp {
                 let age = now.signed_duration_since(*timestamp);
-                let timeliness_score = if age <= Duration::from_secs(3600) {
+                let timeliness_score = if age <= Duration::seconds(3600) {
                     1.0 // Fresh data
-                } else if age <= Duration::from_secs(86400) {
+                } else if age <= Duration::seconds(86400) {
                     0.8 // Day-old data
-                } else if age <= Duration::from_secs(604800) {
+                } else if age <= Duration::seconds(604800) {
                     0.6 // Week-old data
                 } else {
                     0.4 // Older data
@@ -854,7 +870,7 @@ impl Default for QualityCalculationConfiguration {
     fn default() -> Self {
         Self {
             parallel_calculation: true,
-            timeout: Duration::from_secs(300),
+            timeout: Duration::seconds(300),
             sample_size: None,
             precision: 6,
         }
@@ -932,7 +948,7 @@ impl Default for QualityMonitoringConfig {
     fn default() -> Self {
         Self {
             real_time_monitoring: true,
-            monitoring_interval: Duration::from_secs(300),
+            monitoring_interval: Duration::seconds(300),
             alert_thresholds: HashMap::new(),
             notification_channels: Vec::new(),
         }
@@ -1220,7 +1236,7 @@ impl RealtimeValidator {
             rule_id: rule.rule_id.clone(),
             passed: true,
             violations: Vec::new(),
-            execution_time: Duration::from_millis(1),
+            execution_time: Duration::milliseconds(1),
         })
     }
 
@@ -1284,7 +1300,7 @@ impl Default for RealtimeMonitoringConfig {
     fn default() -> Self {
         Self {
             buffer_size: 1000,
-            window_duration: Duration::from_secs(300),
+            window_duration: Duration::seconds(300),
             alert_thresholds: HashMap::new(),
         }
     }
@@ -1413,7 +1429,7 @@ impl Default for ValidationCacheConfig {
     fn default() -> Self {
         Self {
             max_size: 10000,
-            ttl: Duration::from_secs(3600),
+            ttl: Duration::seconds(3600),
             compression: true,
         }
     }
@@ -1641,7 +1657,7 @@ impl RuleSetValidationResult {
         Self {
             rule_set_id,
             rule_results: Vec::new(),
-            execution_time: Duration::from_millis(0),
+            execution_time: Duration::milliseconds(0),
         }
     }
 
@@ -1799,7 +1815,7 @@ impl Default for ValidationSummary {
             total_violations: 0,
             critical_violations: 0,
             warning_violations: 0,
-            validation_duration: Duration::from_millis(0),
+            validation_duration: Duration::milliseconds(0),
         }
     }
 }

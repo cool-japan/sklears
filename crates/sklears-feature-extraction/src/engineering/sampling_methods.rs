@@ -196,7 +196,7 @@ impl ImportanceSampler {
 
     /// Sample indices based on importance weights
     pub fn sample_indices(&self, weights: &ArrayView1<Float>) -> SklResult<Vec<usize>> {
-        if weights.len() == 0 {
+        if weights.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "Weights cannot be empty".to_string(),
             ));
@@ -348,7 +348,7 @@ impl StratifiedSampler {
 
     /// Sample indices using stratified sampling
     pub fn sample_indices(&self, strata: &ArrayView1<Float>) -> SklResult<Vec<usize>> {
-        if strata.len() == 0 {
+        if strata.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "Strata cannot be empty".to_string(),
             ));

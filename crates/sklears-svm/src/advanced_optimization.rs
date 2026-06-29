@@ -10,13 +10,43 @@
 //! - Trust region methods: Robust optimization with adaptive step sizes
 //! - Accelerated gradient methods: Fast first-order optimization
 
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
-use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_linalg::compat::{cholesky, lu, solve};
+use scirs2_core::ndarray::{s, Array1, Array2};
+use scirs2_linalg::compat::ArrayLinalgExt;
 
 use crate::kernels::{create_kernel, Kernel, KernelType};
 use sklears_core::error::{Result, SklearsError};
+
+/// Solve `a x = b`. Falls back to a Tikhonov-regularized system if the matrix
+/// is singular, and finally to the right-hand side itself so the outer
+/// iteration can still make progress. Never panics.
+///
+/// For a Newton system `H d = -g` the caller passes `b = -gradient`, so the
+/// last-resort fallback `d = b = -gradient` corresponds to a steepest-descent
+/// direction, allowing the surrounding loop to continue making progress even
+/// when the Hessian is numerically singular.
+fn solve_linear_system(a: &Array2<f64>, b: &Array1<f64>, reg: f64) -> Array1<f64> {
+    if let Ok(x) = a.solve(b) {
+        if x.iter().all(|v| v.is_finite()) {
+            return x;
+        }
+    }
+
+    // Regularize the diagonal and retry.
+    let n = a.nrows();
+    let mut a_reg = a.clone();
+    for i in 0..n {
+        a_reg[[i, i]] += reg.max(1e-8);
+    }
+    if let Ok(x) = a_reg.solve(b) {
+        if x.iter().all(|v| v.is_finite()) {
+            return x;
+        }
+    }
+
+    // Last resort: gradient-descent style direction (b itself). Callers pass
+    // b = -gradient for Newton systems, so this yields d = -gradient.
+    b.clone()
+}
 
 /// Configuration for advanced optimization methods
 #[derive(Debug, Clone)]
@@ -101,6 +131,13 @@ pub struct ADMMSVM {
     is_fitted: bool,
 }
 
+impl Default for ADMMSVM {
+    /// Create a new ADMM SVM solver with default configuration
+    fn default() -> Self {
+        Self::new(AdvancedOptimizationConfig::default())
+    }
+}
+
 impl ADMMSVM {
     /// Create a new ADMM SVM solver
     pub fn new(config: AdvancedOptimizationConfig) -> Self {
@@ -111,13 +148,8 @@ impl ADMMSVM {
         }
     }
 
-    /// Create a new ADMM SVM solver with default configuration
-    pub fn default() -> Self {
-        Self::new(AdvancedOptimizationConfig::default())
-    }
-
     /// Fit the SVM using ADMM optimization
-    pub fn fit(&mut self, x: &DMatrix<f64>, y: &DVector<f64>) -> Result<OptimizationResult> {
+    pub fn fit(&mut self, x: &Array2<f64>, y: &Array1<f64>) -> Result<OptimizationResult> {
         // Validate inputs
         if x.nrows() != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -126,7 +158,6 @@ impl ADMMSVM {
         }
 
         let n_samples = x.nrows();
-        let n_features = x.ncols();
 
         // Initialize kernel
         let kernel = self.config.kernel.clone();
@@ -136,10 +167,9 @@ impl ADMMSVM {
         let k_matrix = self.compute_kernel_matrix(x)?;
 
         // Initialize variables
-        let mut alpha = DVector::zeros(n_samples);
-        let mut w = DVector::zeros(n_features);
-        let mut z = DVector::zeros(n_samples);
-        let mut u = DVector::zeros(n_samples); // Dual variables
+        let mut alpha = Array1::zeros(n_samples);
+        let mut z = Array1::zeros(n_samples);
+        let mut u: Array1<f64> = Array1::zeros(n_samples); // Dual variables
         let mut history = Vec::new();
 
         // ADMM iterations
@@ -148,16 +178,16 @@ impl ADMMSVM {
             let z_prev = z.clone();
 
             // Update alpha (dual variables)
-            alpha = self.update_alpha(&k_matrix, y, &z, &u)?;
+            alpha = self.update_alpha(&k_matrix, &z, &u)?;
 
             // Update w (primal variables)
-            w = self.update_w(x, y, &alpha)?;
+            let w = self.update_w(x, y, &alpha)?;
 
             // Update z (auxiliary variables)
             z = self.update_z(&alpha, &u)?;
 
             // Update u (Lagrange multipliers)
-            u = &u + self.config.rho * (&alpha - &z);
+            u = &u + &((&alpha - &z) * self.config.rho);
 
             // Calculate objective value
             let objective = self.calculate_objective(&k_matrix, &alpha, &w)?;
@@ -168,14 +198,18 @@ impl ADMMSVM {
             }
 
             // Check convergence
-            let primal_residual = (&alpha - &z).norm();
+            let primal_diff = &alpha - &z;
+            let primal_residual = primal_diff.dot(&primal_diff).sqrt();
             // Dual residual: ρ * ||z^{k+1} - z^k||
-            let dual_residual = self.config.rho * (&z - &z_prev).norm();
+            let z_diff = &z - &z_prev;
+            let dual_residual = self.config.rho * z_diff.dot(&z_diff).sqrt();
 
             if primal_residual < self.config.tol && dual_residual < self.config.tol {
                 if self.config.verbose {
                     println!("ADMM converged after {} iterations", iteration + 1);
                 }
+
+                self.is_fitted = true;
 
                 let support_indices = self.find_support_vectors(&alpha)?;
                 let intercept = self.calculate_intercept(x, y, &alpha, &support_indices)?;
@@ -191,6 +225,8 @@ impl ADMMSVM {
                 });
             }
         }
+
+        self.is_fitted = true;
 
         // Return result even if not converged
         let support_indices = self.find_support_vectors(&alpha)?;
@@ -210,32 +246,25 @@ impl ADMMSVM {
     /// Update alpha variables in ADMM
     fn update_alpha(
         &self,
-        k_matrix: &DMatrix<f64>,
-        y: &DVector<f64>,
-        z: &DVector<f64>,
-        u: &DVector<f64>,
-    ) -> Result<DVector<f64>> {
+        k_matrix: &Array2<f64>,
+        z: &Array1<f64>,
+        u: &Array1<f64>,
+    ) -> Result<Array1<f64>> {
         let n = k_matrix.nrows();
-        let mut alpha = DVector::zeros(n);
 
         // Solve the alpha subproblem
         // This is a QP: min (1/2) α^T Q α + p^T α
-        // where Q = K + (rho/2) I and p = -e + rho * (z - u)
+        // where Q = K + rho I and p = -e + rho * (z - u)
         let mut q_matrix = k_matrix.clone();
         for i in 0..n {
-            q_matrix[(i, i)] += self.config.rho;
+            q_matrix[[i, i]] += self.config.rho;
         }
 
-        let p = -DVector::from_element(n, 1.0) + self.config.rho * (z - u);
+        let p = &Array1::from_elem(n, -1.0) + &((z - u) * self.config.rho);
 
-        // Solve using Cholesky decomposition if positive definite
-        if let Some(chol) = Cholesky::new(q_matrix.clone()) {
-            alpha = chol.solve(&(-p));
-        } else {
-            // Fallback to LU decomposition
-            let lu = LU::new(q_matrix);
-            alpha = lu.solve(&(-p)).unwrap_or_else(|| DVector::zeros(n));
-        }
+        // Solve Q alpha = -p with a robust general solver.
+        let neg_p = p.mapv(|v| -v);
+        let mut alpha = solve_linear_system(&q_matrix, &neg_p, self.config.rho.max(1e-8));
 
         // Project onto constraints [0, C]
         for i in 0..n {
@@ -248,17 +277,20 @@ impl ADMMSVM {
     /// Update w variables in ADMM
     fn update_w(
         &self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
-        alpha: &DVector<f64>,
-    ) -> Result<DVector<f64>> {
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        alpha: &Array1<f64>,
+    ) -> Result<Array1<f64>> {
         let n_features = x.ncols();
-        let mut w = DVector::zeros(n_features);
+        let mut w = Array1::zeros(n_features);
 
         // w = Σ αᵢ yᵢ xᵢ
         for i in 0..alpha.len() {
             if alpha[i] > 0.0 {
-                w += alpha[i] * y[i] * x.row(i).transpose();
+                let coeff = alpha[i] * y[i];
+                for k in 0..n_features {
+                    w[k] += coeff * x[[i, k]];
+                }
             }
         }
 
@@ -266,8 +298,8 @@ impl ADMMSVM {
     }
 
     /// Update z variables in ADMM
-    fn update_z(&self, alpha: &DVector<f64>, u: &DVector<f64>) -> Result<DVector<f64>> {
-        let mut z = DVector::zeros(alpha.len());
+    fn update_z(&self, alpha: &Array1<f64>, u: &Array1<f64>) -> Result<Array1<f64>> {
+        let mut z = Array1::zeros(alpha.len());
 
         // Soft thresholding for z update
         for i in 0..alpha.len() {
@@ -285,17 +317,20 @@ impl ADMMSVM {
     }
 
     /// Compute kernel matrix
-    fn compute_kernel_matrix(&self, x: &DMatrix<f64>) -> Result<DMatrix<f64>> {
-        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+    fn compute_kernel_matrix(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
+        let kernel_type = self
+            .kernel
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "compute_kernel_matrix".to_string(),
+            })?;
         let kernel = create_kernel(kernel_type.clone())?;
         let n = x.nrows();
-        let mut k_matrix = DMatrix::zeros(n, n);
+        let mut k_matrix = Array2::zeros((n, n));
 
         for i in 0..n {
             for j in 0..n {
-                let row_i = Array1::from_vec(x.row(i).iter().cloned().collect());
-                let row_j = Array1::from_vec(x.row(j).iter().cloned().collect());
-                k_matrix[(i, j)] = kernel.compute(row_i.view(), row_j.view());
+                k_matrix[[i, j]] = kernel.compute(x.row(i), x.row(j));
             }
         }
 
@@ -305,18 +340,18 @@ impl ADMMSVM {
     /// Calculate ADMM objective value
     fn calculate_objective(
         &self,
-        k_matrix: &DMatrix<f64>,
-        alpha: &DVector<f64>,
-        w: &DVector<f64>,
+        k_matrix: &Array2<f64>,
+        alpha: &Array1<f64>,
+        w: &Array1<f64>,
     ) -> Result<f64> {
-        let dual_obj = alpha.sum() - 0.5 * (alpha.transpose() * k_matrix * alpha)[(0, 0)];
-        let primal_obj = 0.5 * w.norm_squared();
+        let dual_obj = alpha.sum() - 0.5 * alpha.dot(&k_matrix.dot(alpha));
+        let primal_obj = 0.5 * w.dot(w);
 
         Ok(dual_obj.max(primal_obj))
     }
 
     /// Find support vector indices
-    fn find_support_vectors(&self, alpha: &DVector<f64>) -> Result<Vec<usize>> {
+    fn find_support_vectors(&self, alpha: &Array1<f64>) -> Result<Vec<usize>> {
         let support_indices: Vec<usize> = alpha
             .iter()
             .enumerate()
@@ -330,16 +365,21 @@ impl ADMMSVM {
     /// Calculate intercept
     fn calculate_intercept(
         &self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
-        alpha: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        alpha: &Array1<f64>,
         support_indices: &[usize],
     ) -> Result<f64> {
         if support_indices.is_empty() {
             return Ok(0.0);
         }
 
-        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel_type = self
+            .kernel
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "calculate_intercept".to_string(),
+            })?;
         let kernel = create_kernel(kernel_type.clone())?;
         let mut intercept_sum = 0.0;
         let mut count = 0;
@@ -348,9 +388,7 @@ impl ADMMSVM {
             if alpha[i] > self.config.tol && alpha[i] < self.config.c - self.config.tol {
                 let mut decision_value = 0.0;
                 for &j in support_indices {
-                    let row_i = Array1::from_vec(x.row(i).iter().cloned().collect());
-                    let row_j = Array1::from_vec(x.row(j).iter().cloned().collect());
-                    decision_value += alpha[j] * y[j] * kernel.compute(row_i.view(), row_j.view());
+                    decision_value += alpha[j] * y[j] * kernel.compute(x.row(i), x.row(j));
                 }
                 intercept_sum += y[i] - decision_value;
                 count += 1;
@@ -365,7 +403,7 @@ impl ADMMSVM {
     }
 
     /// Predict using the fitted model
-    pub fn predict(&self, x: &DMatrix<f64>, result: &OptimizationResult) -> Result<DVector<f64>> {
+    pub fn predict(&self, x: &Array2<f64>, result: &OptimizationResult) -> Result<Array1<f64>> {
         if !self.is_fitted {
             return Err(SklearsError::NotFitted {
                 operation: "prediction".to_string(),
@@ -373,7 +411,7 @@ impl ADMMSVM {
         }
 
         let decision_values = self.decision_function(x, result)?;
-        Ok(DVector::from_vec(
+        Ok(Array1::from_vec(
             decision_values
                 .iter()
                 .map(|&val| if val > 0.0 { 1.0 } else { -1.0 })
@@ -384,27 +422,28 @@ impl ADMMSVM {
     /// Calculate decision function values
     pub fn decision_function(
         &self,
-        x: &DMatrix<f64>,
+        x: &Array2<f64>,
         result: &OptimizationResult,
-    ) -> Result<DVector<f64>> {
+    ) -> Result<Array1<f64>> {
         if !self.is_fitted {
             return Err(SklearsError::NotFitted {
                 operation: "prediction".to_string(),
             });
         }
 
-        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel_type = self
+            .kernel
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "decision_function".to_string(),
+            })?;
         let kernel = create_kernel(kernel_type.clone())?;
-        let mut decision_values = DVector::zeros(x.nrows());
+        let mut decision_values = Array1::zeros(x.nrows());
 
         for i in 0..x.nrows() {
             let mut sum = 0.0;
             for &j in &result.support_indices {
-                sum += result.dual_coef[j]
-                    * kernel.compute(
-                        Array1::from_vec(x.row(i).iter().cloned().collect()).view(),
-                        Array1::from_vec(x.row(j).iter().cloned().collect()).view(),
-                    );
+                sum += result.dual_coef[j] * kernel.compute(x.row(i), x.row(j));
             }
             decision_values[i] = sum + result.intercept;
         }
@@ -425,6 +464,13 @@ pub struct NewtonSVM {
     is_fitted: bool,
 }
 
+impl Default for NewtonSVM {
+    /// Create a new Newton SVM solver with default configuration
+    fn default() -> Self {
+        Self::new(AdvancedOptimizationConfig::default())
+    }
+}
+
 impl NewtonSVM {
     /// Create a new Newton SVM solver
     pub fn new(config: AdvancedOptimizationConfig) -> Self {
@@ -435,22 +481,14 @@ impl NewtonSVM {
         }
     }
 
-    /// Create a new Newton SVM solver with default configuration
-    pub fn default() -> Self {
-        Self::new(AdvancedOptimizationConfig::default())
-    }
-
     /// Fit the SVM using Newton method
-    pub fn fit(&mut self, x: &DMatrix<f64>, y: &DVector<f64>) -> Result<OptimizationResult> {
+    pub fn fit(&mut self, x: &Array2<f64>, y: &Array1<f64>) -> Result<OptimizationResult> {
         // Validate inputs
         if x.nrows() != y.len() {
             return Err(SklearsError::InvalidInput(
                 "Number of samples must match number of labels".to_string(),
             ));
         }
-
-        let n_samples = x.nrows();
-        let n_features = x.ncols();
 
         // Initialize kernel
         let kernel = self.config.kernel.clone();
@@ -468,14 +506,14 @@ impl NewtonSVM {
     /// Fit using primal Newton method (for linear SVMs)
     fn fit_primal_newton(
         &mut self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
     ) -> Result<OptimizationResult> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
 
         // Initialize variables
-        let mut w = DVector::zeros(n_features);
+        let mut w: Array1<f64> = Array1::zeros(n_features);
         let mut b = 0.0;
         let mut history = Vec::new();
 
@@ -502,30 +540,16 @@ impl NewtonSVM {
             let gradient = self.build_gradient(x, y, &w, b, &active_indices, &margins)?;
 
             // Solve Newton system: H * d = -g
-            let direction = if let Some(chol) = Cholesky::new(hessian.clone()) {
-                chol.solve(&(-gradient.clone()))
-            } else {
-                // Add regularization if Hessian is not positive definite
-                let mut reg_hessian = hessian;
-                for i in 0..reg_hessian.nrows() {
-                    reg_hessian[(i, i)] += self.config.newton_reg;
-                }
-
-                if let Some(chol) = Cholesky::new(reg_hessian.clone()) {
-                    chol.solve(&(-gradient.clone()))
-                } else {
-                    // Fallback to LU decomposition
-                    let lu = LU::new(reg_hessian);
-                    lu.solve(&(-gradient.clone()))
-                        .unwrap_or_else(|| DVector::zeros(gradient.len()))
-                }
-            };
+            let neg_gradient = gradient.mapv(|v| -v);
+            let direction = solve_linear_system(&hessian, &neg_gradient, self.config.newton_reg);
 
             // Line search
             let step_size = self.line_search(x, y, &w, b, &direction, &margins)?;
 
             // Update variables
-            w += step_size * direction.rows(0, n_features);
+            for k in 0..n_features {
+                w[k] += step_size * direction[k];
+            }
             b += step_size * direction[n_features];
 
             // Calculate objective
@@ -540,13 +564,15 @@ impl NewtonSVM {
             }
 
             // Check convergence
-            if gradient.norm() < self.config.tol {
+            if gradient.dot(&gradient).sqrt() < self.config.tol {
                 if self.config.verbose {
                     println!("Newton method converged after {} iterations", iteration + 1);
                 }
 
+                self.is_fitted = true;
+
                 return Ok(OptimizationResult {
-                    dual_coef: DVector::zeros(n_samples), // Not applicable for primal
+                    dual_coef: Array1::zeros(n_samples), // Not applicable for primal
                     intercept: b,
                     support_indices: active_indices,
                     n_iterations: iteration + 1,
@@ -556,6 +582,8 @@ impl NewtonSVM {
                 });
             }
         }
+
+        self.is_fitted = true;
 
         // Return result even if not converged
         let margins = self.calculate_margins(x, y, &w, b);
@@ -567,7 +595,7 @@ impl NewtonSVM {
             .collect();
 
         Ok(OptimizationResult {
-            dual_coef: DVector::zeros(n_samples),
+            dual_coef: Array1::zeros(n_samples),
             intercept: b,
             support_indices: active_indices,
             n_iterations: self.config.max_iter,
@@ -578,15 +606,11 @@ impl NewtonSVM {
     }
 
     /// Fit using dual Newton method (for non-linear SVMs)
-    fn fit_dual_newton(
-        &mut self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
-    ) -> Result<OptimizationResult> {
+    fn fit_dual_newton(&mut self, x: &Array2<f64>, y: &Array1<f64>) -> Result<OptimizationResult> {
         let n_samples = x.nrows();
 
         // Initialize dual variables
-        let mut alpha = DVector::zeros(n_samples);
+        let mut alpha: Array1<f64> = Array1::zeros(n_samples);
         let mut history = Vec::new();
 
         // Compute kernel matrix
@@ -600,29 +624,14 @@ impl NewtonSVM {
             let hessian = self.calculate_dual_hessian(&k_matrix, &alpha)?;
 
             // Solve Newton system
-            let direction = if let Some(chol) = Cholesky::new(hessian.clone()) {
-                chol.solve(&(-gradient.clone()))
-            } else {
-                // Add regularization
-                let mut reg_hessian = hessian;
-                for i in 0..reg_hessian.nrows() {
-                    reg_hessian[(i, i)] += self.config.newton_reg;
-                }
-
-                if let Some(chol) = Cholesky::new(reg_hessian.clone()) {
-                    chol.solve(&(-gradient.clone()))
-                } else {
-                    let lu = LU::new(reg_hessian);
-                    lu.solve(&(-gradient.clone()))
-                        .unwrap_or_else(|| DVector::zeros(gradient.len()))
-                }
-            };
+            let neg_gradient = gradient.mapv(|v| -v);
+            let direction = solve_linear_system(&hessian, &neg_gradient, self.config.newton_reg);
 
             // Line search for step size
             let step_size = self.dual_line_search(&k_matrix, &alpha, &direction)?;
 
             // Update alpha
-            alpha += step_size * direction;
+            alpha = &alpha + &(&direction * step_size);
 
             // Project onto constraints [0, C]
             for i in 0..n_samples {
@@ -641,13 +650,15 @@ impl NewtonSVM {
             }
 
             // Check convergence
-            if gradient.norm() < self.config.tol {
+            if gradient.dot(&gradient).sqrt() < self.config.tol {
                 if self.config.verbose {
                     println!(
                         "Dual Newton method converged after {} iterations",
                         iteration + 1
                     );
                 }
+
+                self.is_fitted = true;
 
                 let support_indices = self.find_support_vectors(&alpha)?;
                 let intercept = self.calculate_intercept(x, y, &alpha, &support_indices)?;
@@ -663,6 +674,8 @@ impl NewtonSVM {
                 });
             }
         }
+
+        self.is_fitted = true;
 
         // Return result even if not converged
         let support_indices = self.find_support_vectors(&alpha)?;
@@ -682,9 +695,9 @@ impl NewtonSVM {
     /// Calculate margins for primal Newton method
     fn calculate_margins(
         &self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
-        w: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        w: &Array1<f64>,
         b: f64,
     ) -> Vec<f64> {
         let mut margins = Vec::with_capacity(x.nrows());
@@ -696,14 +709,13 @@ impl NewtonSVM {
     }
 
     /// Build Hessian matrix for primal Newton method
-    fn build_hessian(&self, x: &DMatrix<f64>, active_indices: &[usize]) -> Result<DMatrix<f64>> {
+    fn build_hessian(&self, x: &Array2<f64>, active_indices: &[usize]) -> Result<Array2<f64>> {
         let n_features = x.ncols();
-        let n_active = active_indices.len();
-        let mut hessian = DMatrix::zeros(n_features + 1, n_features + 1);
+        let mut hessian = Array2::zeros((n_features + 1, n_features + 1));
 
         // Add identity for regularization
         for i in 0..n_features {
-            hessian[(i, i)] = 1.0;
+            hessian[[i, i]] = 1.0;
         }
 
         // Add contributions from active constraints
@@ -713,21 +725,21 @@ impl NewtonSVM {
             // H_ww += x_i * x_i^T
             for i in 0..n_features {
                 for j in 0..n_features {
-                    hessian[(i, j)] += x_i[i] * x_i[j];
+                    hessian[[i, j]] += x_i[i] * x_i[j];
                 }
             }
 
             // H_wb = H_bw += x_i
             for i in 0..n_features {
-                hessian[(i, n_features)] += x_i[i];
-                hessian[(n_features, i)] += x_i[i];
+                hessian[[i, n_features]] += x_i[i];
+                hessian[[n_features, i]] += x_i[i];
             }
 
             // H_bb += 1
-            hessian[(n_features, n_features)] += 1.0;
+            hessian[[n_features, n_features]] += 1.0;
         }
 
-        hessian *= self.config.c;
+        hessian.mapv_inplace(|v| v * self.config.c);
 
         Ok(hessian)
     }
@@ -735,18 +747,18 @@ impl NewtonSVM {
     /// Build gradient for primal Newton method
     fn build_gradient(
         &self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
-        w: &DVector<f64>,
-        b: f64,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        w: &Array1<f64>,
+        _b: f64,
         active_indices: &[usize],
         margins: &[f64],
-    ) -> Result<DVector<f64>> {
+    ) -> Result<Array1<f64>> {
         let n_features = x.ncols();
-        let mut gradient = DVector::zeros(n_features + 1);
+        let mut gradient = Array1::zeros(n_features + 1);
 
         // Regularization term
-        gradient.rows_mut(0, n_features).copy_from(w);
+        gradient.slice_mut(s![0..n_features]).assign(w);
 
         // Add contributions from active constraints
         for &idx in active_indices {
@@ -770,11 +782,11 @@ impl NewtonSVM {
     /// Line search for primal Newton method
     fn line_search(
         &self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
-        w: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        w: &Array1<f64>,
         b: f64,
-        direction: &DVector<f64>,
+        direction: &Array1<f64>,
         margins: &[f64],
     ) -> Result<f64> {
         let n_features = x.ncols();
@@ -783,7 +795,10 @@ impl NewtonSVM {
 
         for _ in 0..20 {
             // Max 20 backtracking steps
-            let new_w = w + step_size * direction.rows(0, n_features);
+            let mut new_w = w.clone();
+            for k in 0..n_features {
+                new_w[k] += step_size * direction[k];
+            }
             let new_b = b + step_size * direction[n_features];
             let new_margins = self.calculate_margins(x, y, &new_w, new_b);
             let new_obj = self.calculate_primal_objective(&new_w, &new_margins);
@@ -799,59 +814,58 @@ impl NewtonSVM {
     }
 
     /// Calculate primal objective value
-    fn calculate_primal_objective(&self, w: &DVector<f64>, margins: &[f64]) -> f64 {
-        let regularization = 0.5 * w.norm_squared();
+    fn calculate_primal_objective(&self, w: &Array1<f64>, margins: &[f64]) -> f64 {
+        let regularization = 0.5 * w.dot(w);
         let hinge_loss: f64 = margins.iter().map(|&margin| (1.0 - margin).max(0.0)).sum();
 
         regularization + self.config.c * hinge_loss
     }
 
     /// Helper methods for dual Newton method
-    fn compute_kernel_matrix(&self, x: &DMatrix<f64>) -> Result<DMatrix<f64>> {
-        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+    fn compute_kernel_matrix(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
+        let kernel_type = self
+            .kernel
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "compute_kernel_matrix".to_string(),
+            })?;
         let kernel = create_kernel(kernel_type.clone())?;
         let n = x.nrows();
-        let mut k_matrix = DMatrix::zeros(n, n);
+        let mut k_matrix = Array2::zeros((n, n));
 
         for i in 0..n {
             for j in 0..n {
-                let row_i = Array1::from_vec(x.row(i).iter().cloned().collect());
-                let row_j = Array1::from_vec(x.row(j).iter().cloned().collect());
-                k_matrix[(i, j)] = kernel.compute(row_i.view(), row_j.view());
+                k_matrix[[i, j]] = kernel.compute(x.row(i), x.row(j));
             }
         }
 
         Ok(k_matrix)
     }
 
-    fn calculate_dual_gradient(
-        &self,
-        k_matrix: &DMatrix<f64>,
-        alpha: &DVector<f64>,
-    ) -> DVector<f64> {
-        DVector::from_element(alpha.len(), 1.0) - k_matrix * alpha
+    fn calculate_dual_gradient(&self, k_matrix: &Array2<f64>, alpha: &Array1<f64>) -> Array1<f64> {
+        &Array1::from_elem(alpha.len(), 1.0) - &k_matrix.dot(alpha)
     }
 
     fn calculate_dual_hessian(
         &self,
-        k_matrix: &DMatrix<f64>,
-        _alpha: &DVector<f64>,
-    ) -> Result<DMatrix<f64>> {
+        k_matrix: &Array2<f64>,
+        _alpha: &Array1<f64>,
+    ) -> Result<Array2<f64>> {
         // For SVM, Hessian is just the kernel matrix
         Ok(k_matrix.clone())
     }
 
     fn dual_line_search(
         &self,
-        k_matrix: &DMatrix<f64>,
-        alpha: &DVector<f64>,
-        direction: &DVector<f64>,
+        k_matrix: &Array2<f64>,
+        alpha: &Array1<f64>,
+        direction: &Array1<f64>,
     ) -> Result<f64> {
         let mut step_size = 1.0;
         let current_obj = self.calculate_dual_objective(k_matrix, alpha);
 
         for _ in 0..20 {
-            let new_alpha = alpha + step_size * direction;
+            let new_alpha = alpha + &(direction * step_size);
             let new_obj = self.calculate_dual_objective(k_matrix, &new_alpha);
 
             if new_obj > current_obj {
@@ -864,11 +878,11 @@ impl NewtonSVM {
         Ok(step_size)
     }
 
-    fn calculate_dual_objective(&self, k_matrix: &DMatrix<f64>, alpha: &DVector<f64>) -> f64 {
-        alpha.sum() - 0.5 * (alpha.transpose() * k_matrix * alpha)[(0, 0)]
+    fn calculate_dual_objective(&self, k_matrix: &Array2<f64>, alpha: &Array1<f64>) -> f64 {
+        alpha.sum() - 0.5 * alpha.dot(&k_matrix.dot(alpha))
     }
 
-    fn find_support_vectors(&self, alpha: &DVector<f64>) -> Result<Vec<usize>> {
+    fn find_support_vectors(&self, alpha: &Array1<f64>) -> Result<Vec<usize>> {
         let support_indices: Vec<usize> = alpha
             .iter()
             .enumerate()
@@ -881,16 +895,21 @@ impl NewtonSVM {
 
     fn calculate_intercept(
         &self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
-        alpha: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        alpha: &Array1<f64>,
         support_indices: &[usize],
     ) -> Result<f64> {
         if support_indices.is_empty() {
             return Ok(0.0);
         }
 
-        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel_type = self
+            .kernel
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "calculate_intercept".to_string(),
+            })?;
         let kernel = create_kernel(kernel_type.clone())?;
         let mut intercept_sum = 0.0;
         let mut count = 0;
@@ -899,9 +918,7 @@ impl NewtonSVM {
             if alpha[i] > self.config.tol && alpha[i] < self.config.c - self.config.tol {
                 let mut decision_value = 0.0;
                 for &j in support_indices {
-                    let row_i = Array1::from_vec(x.row(i).iter().cloned().collect());
-                    let row_j = Array1::from_vec(x.row(j).iter().cloned().collect());
-                    decision_value += alpha[j] * y[j] * kernel.compute(row_i.view(), row_j.view());
+                    decision_value += alpha[j] * y[j] * kernel.compute(x.row(i), x.row(j));
                 }
                 intercept_sum += y[i] - decision_value;
                 count += 1;
@@ -916,7 +933,7 @@ impl NewtonSVM {
     }
 
     /// Predict using the fitted model
-    pub fn predict(&self, x: &DMatrix<f64>, result: &OptimizationResult) -> Result<DVector<f64>> {
+    pub fn predict(&self, x: &Array2<f64>, result: &OptimizationResult) -> Result<Array1<f64>> {
         if !self.is_fitted {
             return Err(SklearsError::NotFitted {
                 operation: "prediction".to_string(),
@@ -924,7 +941,7 @@ impl NewtonSVM {
         }
 
         let decision_values = self.decision_function(x, result)?;
-        Ok(DVector::from_vec(
+        Ok(Array1::from_vec(
             decision_values
                 .iter()
                 .map(|&val| if val > 0.0 { 1.0 } else { -1.0 })
@@ -935,27 +952,28 @@ impl NewtonSVM {
     /// Calculate decision function values
     pub fn decision_function(
         &self,
-        x: &DMatrix<f64>,
+        x: &Array2<f64>,
         result: &OptimizationResult,
-    ) -> Result<DVector<f64>> {
+    ) -> Result<Array1<f64>> {
         if !self.is_fitted {
             return Err(SklearsError::NotFitted {
                 operation: "prediction".to_string(),
             });
         }
 
-        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel_type = self
+            .kernel
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "decision_function".to_string(),
+            })?;
         let kernel = create_kernel(kernel_type.clone())?;
-        let mut decision_values = DVector::zeros(x.nrows());
+        let mut decision_values = Array1::zeros(x.nrows());
 
         for i in 0..x.nrows() {
             let mut sum = 0.0;
             for &j in &result.support_indices {
-                sum += result.dual_coef[j]
-                    * kernel.compute(
-                        Array1::from_vec(x.row(i).iter().cloned().collect()).view(),
-                        Array1::from_vec(x.row(j).iter().cloned().collect()).view(),
-                    );
+                sum += result.dual_coef[j] * kernel.compute(x.row(i), x.row(j));
             }
             decision_values[i] = sum + result.intercept;
         }
@@ -982,6 +1000,13 @@ pub struct TrustRegionSVM {
     is_fitted: bool,
 }
 
+impl Default for TrustRegionSVM {
+    /// Create a new trust region SVM solver with default configuration
+    fn default() -> Self {
+        Self::new(AdvancedOptimizationConfig::default())
+    }
+}
+
 impl TrustRegionSVM {
     /// Create a new trust region SVM solver
     pub fn new(config: AdvancedOptimizationConfig) -> Self {
@@ -992,13 +1017,8 @@ impl TrustRegionSVM {
         }
     }
 
-    /// Create a new trust region SVM solver with default configuration
-    pub fn default() -> Self {
-        Self::new(AdvancedOptimizationConfig::default())
-    }
-
     /// Fit the SVM using trust region optimization
-    pub fn fit(&mut self, x: &DMatrix<f64>, y: &DVector<f64>) -> Result<OptimizationResult> {
+    pub fn fit(&mut self, x: &Array2<f64>, y: &Array1<f64>) -> Result<OptimizationResult> {
         // Validate inputs
         if x.nrows() != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -1013,7 +1033,7 @@ impl TrustRegionSVM {
         let k_matrix = self.compute_kernel_matrix(x)?;
 
         // Initialize dual variables
-        let mut alpha = DVector::zeros(n_samples);
+        let mut alpha = Array1::zeros(n_samples);
         let mut trust_radius = self.config.trust_radius;
         let mut history = Vec::new();
 
@@ -1026,12 +1046,15 @@ impl TrustRegionSVM {
             // Solve trust region subproblem
             let step = self.solve_trust_region_subproblem(&gradient, &hessian, trust_radius)?;
 
-            // Compute actual and predicted reduction
+            // The trust-region subproblem minimizes f(alpha) = -W(alpha), where
+            // W is the dual objective being maximized. `current_obj`/`new_obj`
+            // below are W; the actual reduction in f therefore corresponds to an
+            // *increase* in W, i.e. `new_obj - current_obj`.
             let current_obj = self.calculate_dual_objective(&k_matrix, &alpha);
             let new_alpha = self.project_onto_constraints(&(&alpha + &step));
             let new_obj = self.calculate_dual_objective(&k_matrix, &new_alpha);
 
-            let actual_reduction = current_obj - new_obj;
+            let actual_reduction = new_obj - current_obj;
             let predicted_reduction = self.compute_predicted_reduction(&gradient, &hessian, &step);
 
             // Compute trust region ratio
@@ -1049,7 +1072,8 @@ impl TrustRegionSVM {
             }
 
             // Update trust region radius and accept/reject step
-            if ratio > 0.75 && (step.norm() - trust_radius).abs() < 1e-6 {
+            let step_norm = step.dot(&step).sqrt();
+            if ratio > 0.75 && (step_norm - trust_radius).abs() < 1e-6 {
                 // Very good step and we hit the boundary, expand trust region
                 trust_radius = (2.0 * trust_radius).min(10.0);
                 alpha = new_alpha;
@@ -1071,7 +1095,7 @@ impl TrustRegionSVM {
             history.push(current_obj);
 
             // Check convergence
-            if gradient.norm() < self.config.tol || trust_radius < 1e-8 {
+            if gradient.dot(&gradient).sqrt() < self.config.tol || trust_radius < 1e-8 {
                 if self.config.verbose {
                     println!("Trust Region converged after {} iterations", iteration + 1);
                 }
@@ -1113,76 +1137,72 @@ impl TrustRegionSVM {
     /// Solve trust region subproblem using Cauchy point and Newton step
     fn solve_trust_region_subproblem(
         &self,
-        gradient: &DVector<f64>,
-        hessian: &DMatrix<f64>,
+        gradient: &Array1<f64>,
+        hessian: &Array2<f64>,
         trust_radius: f64,
-    ) -> Result<DVector<f64>> {
+    ) -> Result<Array1<f64>> {
         // Compute Cauchy point (steepest descent direction)
         let cauchy_step = self.compute_cauchy_point(gradient, hessian, trust_radius);
 
-        // Try Newton step
-        if let Some(chol) = Cholesky::new(hessian.clone()) {
-            let newton_step = chol.solve(&(-gradient));
+        // Compute Newton step with a robust general solver.
+        let neg_gradient = gradient.mapv(|v| -v);
+        let newton_step = solve_linear_system(hessian, &neg_gradient, self.config.newton_reg);
+        let newton_norm = newton_step.dot(&newton_step).sqrt();
 
-            if newton_step.norm() <= trust_radius {
-                // Newton step is within trust region
-                return Ok(newton_step);
-            }
-
-            // Newton step is outside trust region, use dogleg method
-            return Ok(self.dogleg_method(gradient, &newton_step, &cauchy_step, trust_radius));
+        if newton_norm <= trust_radius {
+            // Newton step is within trust region
+            return Ok(newton_step);
         }
 
-        // Hessian is not positive definite, use Cauchy point
-        Ok(cauchy_step)
+        // Newton step is outside trust region, use dogleg method
+        Ok(self.dogleg_method(&newton_step, &cauchy_step, trust_radius))
     }
 
     /// Compute Cauchy point (steepest descent step within trust region)
     fn compute_cauchy_point(
         &self,
-        gradient: &DVector<f64>,
-        hessian: &DMatrix<f64>,
+        gradient: &Array1<f64>,
+        hessian: &Array2<f64>,
         trust_radius: f64,
-    ) -> DVector<f64> {
-        let grad_norm = gradient.norm();
+    ) -> Array1<f64> {
+        let grad_norm = gradient.dot(gradient).sqrt();
 
         if grad_norm < 1e-12 {
-            return DVector::zeros(gradient.len());
+            return Array1::zeros(gradient.len());
         }
 
         let unit_grad = gradient / grad_norm;
-        let hess_grad = hessian * &unit_grad;
+        let hess_grad = hessian.dot(&unit_grad);
         let curvature = unit_grad.dot(&hess_grad);
 
         if curvature <= 0.0 {
             // Negative curvature, go to boundary
-            -trust_radius * unit_grad
+            &unit_grad * (-trust_radius)
         } else {
             // Positive curvature, minimize quadratic or go to boundary
             let optimal_step = grad_norm / curvature;
             let step_length = optimal_step.min(trust_radius);
-            -step_length * unit_grad
+            &unit_grad * (-step_length)
         }
     }
 
     /// Dogleg method for combining Cauchy point and Newton step
     fn dogleg_method(
         &self,
-        gradient: &DVector<f64>,
-        newton_step: &DVector<f64>,
-        cauchy_step: &DVector<f64>,
+        newton_step: &Array1<f64>,
+        cauchy_step: &Array1<f64>,
         trust_radius: f64,
-    ) -> DVector<f64> {
-        let cauchy_norm = cauchy_step.norm();
+    ) -> Array1<f64> {
+        let cauchy_norm = cauchy_step.dot(cauchy_step).sqrt();
 
         if cauchy_norm >= trust_radius {
             // Cauchy point is outside trust region
-            return (trust_radius / cauchy_norm) * cauchy_step;
+            return cauchy_step * (trust_radius / cauchy_norm);
         }
 
         // Find intersection of dogleg path with trust region
         let dogleg_direction = newton_step - cauchy_step;
-        let a = dogleg_direction.norm_squared();
+        let a = dogleg_direction.dot(&dogleg_direction);
         let b = 2.0 * cauchy_step.dot(&dogleg_direction);
         let c = cauchy_norm * cauchy_norm - trust_radius * trust_radius;
 
@@ -1196,50 +1216,61 @@ impl TrustRegionSVM {
         }
 
         let tau = (-b + discriminant.sqrt()) / (2.0 * a);
-        let tau = tau.max(0.0).min(1.0);
+        let tau = tau.clamp(0.0, 1.0);
 
-        cauchy_step + tau * dogleg_direction
+        cauchy_step + &(&dogleg_direction * tau)
     }
 
     /// Compute predicted reduction for trust region ratio
     fn compute_predicted_reduction(
         &self,
-        gradient: &DVector<f64>,
-        hessian: &DMatrix<f64>,
-        step: &DVector<f64>,
+        gradient: &Array1<f64>,
+        hessian: &Array2<f64>,
+        step: &Array1<f64>,
     ) -> f64 {
         let linear_term = gradient.dot(step);
-        let quadratic_term = 0.5 * step.dot(&(hessian * step));
+        let quadratic_term = 0.5 * step.dot(&hessian.dot(step));
         -(linear_term + quadratic_term)
     }
 
     /// Project dual variables onto constraint set [0, C]
-    fn project_onto_constraints(&self, alpha: &DVector<f64>) -> DVector<f64> {
-        alpha.map(|val| val.max(0.0).min(self.config.c))
+    fn project_onto_constraints(&self, alpha: &Array1<f64>) -> Array1<f64> {
+        alpha.mapv(|val| val.max(0.0).min(self.config.c))
     }
 
-    /// Compute gradient of dual objective
-    fn compute_dual_gradient(&self, k_matrix: &DMatrix<f64>, alpha: &DVector<f64>) -> DVector<f64> {
-        DVector::from_element(alpha.len(), 1.0) - k_matrix * alpha
+    /// Compute the gradient of the minimization objective `f = -W`.
+    ///
+    /// The dual objective `W(alpha) = e^T alpha - 0.5 alpha^T K alpha` is
+    /// maximized, so the trust-region machinery (which is formulated for
+    /// minimization) operates on `f(alpha) = -W(alpha)` whose gradient is
+    /// `nabla f = K alpha - e`.
+    fn compute_dual_gradient(&self, k_matrix: &Array2<f64>, alpha: &Array1<f64>) -> Array1<f64> {
+        &k_matrix.dot(alpha) - &Array1::from_elem(alpha.len(), 1.0)
     }
 
-    /// Compute Hessian of dual objective (kernel matrix)
-    fn compute_dual_hessian(&self, k_matrix: &DMatrix<f64>) -> DMatrix<f64> {
+    /// Compute Hessian of the minimization objective (kernel matrix).
+    ///
+    /// `nabla^2 f = K`, which is positive semidefinite, matching the
+    /// trust-region subproblem's assumptions.
+    fn compute_dual_hessian(&self, k_matrix: &Array2<f64>) -> Array2<f64> {
         k_matrix.clone()
     }
 
     /// Compute kernel matrix
-    fn compute_kernel_matrix(&self, x: &DMatrix<f64>) -> Result<DMatrix<f64>> {
-        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+    fn compute_kernel_matrix(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
+        let kernel_type = self
+            .kernel
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "compute_kernel_matrix".to_string(),
+            })?;
         let kernel = create_kernel(kernel_type.clone())?;
         let n = x.nrows();
-        let mut k_matrix = DMatrix::zeros(n, n);
+        let mut k_matrix = Array2::zeros((n, n));
 
         for i in 0..n {
             for j in 0..n {
-                let row_i = Array1::from_vec(x.row(i).iter().cloned().collect());
-                let row_j = Array1::from_vec(x.row(j).iter().cloned().collect());
-                k_matrix[(i, j)] = kernel.compute(row_i.view(), row_j.view());
+                k_matrix[[i, j]] = kernel.compute(x.row(i), x.row(j));
             }
         }
 
@@ -1247,12 +1278,12 @@ impl TrustRegionSVM {
     }
 
     /// Calculate dual objective value
-    fn calculate_dual_objective(&self, k_matrix: &DMatrix<f64>, alpha: &DVector<f64>) -> f64 {
-        alpha.sum() - 0.5 * (alpha.transpose() * k_matrix * alpha)[(0, 0)]
+    fn calculate_dual_objective(&self, k_matrix: &Array2<f64>, alpha: &Array1<f64>) -> f64 {
+        alpha.sum() - 0.5 * alpha.dot(&k_matrix.dot(alpha))
     }
 
     /// Find support vectors
-    fn find_support_vectors(&self, alpha: &DVector<f64>) -> Result<Vec<usize>> {
+    fn find_support_vectors(&self, alpha: &Array1<f64>) -> Result<Vec<usize>> {
         let support_indices: Vec<usize> = alpha
             .iter()
             .enumerate()
@@ -1266,16 +1297,21 @@ impl TrustRegionSVM {
     /// Calculate intercept term
     fn calculate_intercept(
         &self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
-        alpha: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        alpha: &Array1<f64>,
         support_indices: &[usize],
     ) -> Result<f64> {
         if support_indices.is_empty() {
             return Ok(0.0);
         }
 
-        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel_type = self
+            .kernel
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "calculate_intercept".to_string(),
+            })?;
         let kernel = create_kernel(kernel_type.clone())?;
         let mut intercept_sum = 0.0;
         let mut count = 0;
@@ -1284,9 +1320,7 @@ impl TrustRegionSVM {
             if alpha[i] > self.config.tol && alpha[i] < self.config.c - self.config.tol {
                 let mut decision_value = 0.0;
                 for &j in support_indices {
-                    let row_i = Array1::from_vec(x.row(i).iter().cloned().collect());
-                    let row_j = Array1::from_vec(x.row(j).iter().cloned().collect());
-                    decision_value += alpha[j] * y[j] * kernel.compute(row_i.view(), row_j.view());
+                    decision_value += alpha[j] * y[j] * kernel.compute(x.row(i), x.row(j));
                 }
                 intercept_sum += y[i] - decision_value;
                 count += 1;
@@ -1301,7 +1335,7 @@ impl TrustRegionSVM {
     }
 
     /// Predict using the fitted model
-    pub fn predict(&self, x: &DMatrix<f64>, result: &OptimizationResult) -> Result<DVector<f64>> {
+    pub fn predict(&self, x: &Array2<f64>, result: &OptimizationResult) -> Result<Array1<f64>> {
         if !self.is_fitted {
             return Err(SklearsError::NotFitted {
                 operation: "prediction".to_string(),
@@ -1309,7 +1343,7 @@ impl TrustRegionSVM {
         }
 
         let decision_values = self.decision_function(x, result)?;
-        Ok(DVector::from_vec(
+        Ok(Array1::from_vec(
             decision_values
                 .iter()
                 .map(|&val| if val > 0.0 { 1.0 } else { -1.0 })
@@ -1320,27 +1354,28 @@ impl TrustRegionSVM {
     /// Calculate decision function values
     pub fn decision_function(
         &self,
-        x: &DMatrix<f64>,
+        x: &Array2<f64>,
         result: &OptimizationResult,
-    ) -> Result<DVector<f64>> {
+    ) -> Result<Array1<f64>> {
         if !self.is_fitted {
             return Err(SklearsError::NotFitted {
                 operation: "prediction".to_string(),
             });
         }
 
-        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel_type = self
+            .kernel
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "decision_function".to_string(),
+            })?;
         let kernel = create_kernel(kernel_type.clone())?;
-        let mut decision_values = DVector::zeros(x.nrows());
+        let mut decision_values = Array1::zeros(x.nrows());
 
         for i in 0..x.nrows() {
             let mut sum = 0.0;
             for &j in &result.support_indices {
-                sum += result.dual_coef[j]
-                    * kernel.compute(
-                        Array1::from_vec(x.row(i).iter().cloned().collect()).view(),
-                        Array1::from_vec(x.row(j).iter().cloned().collect()).view(),
-                    );
+                sum += result.dual_coef[j] * kernel.compute(x.row(i), x.row(j));
             }
             decision_values[i] = sum + result.intercept;
         }
@@ -1416,7 +1451,7 @@ impl AcceleratedGradientSVM {
     }
 
     /// Fit the SVM using accelerated gradient optimization
-    pub fn fit(&mut self, x: &DMatrix<f64>, y: &DVector<f64>) -> Result<OptimizationResult> {
+    pub fn fit(&mut self, x: &Array2<f64>, y: &Array1<f64>) -> Result<OptimizationResult> {
         // Validate inputs
         if x.nrows() != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -1431,9 +1466,7 @@ impl AcceleratedGradientSVM {
         let k_matrix = self.compute_kernel_matrix(x)?;
 
         // Initialize dual variables
-        let mut alpha = DVector::zeros(n_samples);
-        let mut alpha_prev = DVector::zeros(n_samples);
-        let mut y_k = DVector::zeros(n_samples); // Momentum variable
+        let mut alpha: Array1<f64> = Array1::zeros(n_samples);
         let mut t = 1.0; // FISTA parameter
         let mut history = Vec::new();
 
@@ -1457,7 +1490,7 @@ impl AcceleratedGradientSVM {
             }
 
             // Store previous value
-            alpha_prev = alpha.clone();
+            let alpha_prev = alpha.clone();
 
             // Update based on method type
             match self.method {
@@ -1466,18 +1499,18 @@ impl AcceleratedGradientSVM {
                     let momentum_coeff = if iteration == 0 { 0.0 } else { self.momentum };
 
                     // Compute momentum term
-                    let momentum_term = momentum_coeff * (&alpha - &alpha_prev);
+                    let momentum_term = (&alpha - &alpha_prev) * momentum_coeff;
 
                     // Update with momentum
-                    y_k = &alpha + &momentum_term;
+                    let y_k = &alpha + &momentum_term;
 
                     // Gradient step
                     let gradient_at_y = self.compute_dual_gradient(&k_matrix, &y_k);
-                    alpha = &y_k - current_lr * &gradient_at_y;
+                    alpha = &y_k - &(&gradient_at_y * current_lr);
                 }
                 AcceleratedMethod::FISTA => {
                     // Fast Iterative Shrinkage-Thresholding Algorithm
-                    let gradient_step = &alpha - current_lr * &gradient;
+                    let gradient_step = &alpha - &(&gradient * current_lr);
 
                     // Proximal operator (projection onto constraint set)
                     let alpha_new = self.proximal_operator(&gradient_step)?;
@@ -1486,8 +1519,8 @@ impl AcceleratedGradientSVM {
                     let t_new = (1.0_f64 + (1.0_f64 + 4.0_f64 * t * t).sqrt()) / 2.0_f64;
                     let beta = (t - 1.0) / t_new;
 
-                    // Update with extrapolation
-                    y_k = &alpha_new + beta * (&alpha_new - &alpha);
+                    // Extrapolation point for the next iterate (Nesterov momentum).
+                    let _y_k = &alpha_new + &((&alpha_new - &alpha) * beta);
                     alpha = alpha_new;
                     t = t_new;
                 }
@@ -1496,8 +1529,8 @@ impl AcceleratedGradientSVM {
                     let momentum_coeff = if iteration == 0 { 0.0 } else { self.momentum };
 
                     // Update with momentum
-                    let alpha_new =
-                        &alpha - current_lr * &gradient + momentum_coeff * (&alpha - &alpha_prev);
+                    let alpha_new = &(&alpha - &(&gradient * current_lr))
+                        + &((&alpha - &alpha_prev) * momentum_coeff);
                     alpha = alpha_new;
                 }
             }
@@ -1508,7 +1541,7 @@ impl AcceleratedGradientSVM {
             }
 
             // Check convergence
-            let gradient_norm = gradient.norm();
+            let gradient_norm = gradient.dot(&gradient).sqrt();
             if gradient_norm < self.config.tol {
                 if self.config.verbose {
                     println!(
@@ -1516,6 +1549,8 @@ impl AcceleratedGradientSVM {
                         iteration + 1
                     );
                 }
+
+                self.is_fitted = true;
 
                 let support_indices = self.find_support_vectors(&alpha)?;
                 let intercept = self.calculate_intercept(x, y, &alpha, &support_indices)?;
@@ -1545,9 +1580,11 @@ impl AcceleratedGradientSVM {
                 }
 
                 // Keep learning rate within bounds
-                current_lr = current_lr.max(1e-6).min(1.0);
+                current_lr = current_lr.clamp(1e-6, 1.0);
             }
         }
+
+        self.is_fitted = true;
 
         // Return result even if not converged
         let support_indices = self.find_support_vectors(&alpha)?;
@@ -1565,7 +1602,7 @@ impl AcceleratedGradientSVM {
     }
 
     /// Proximal operator for FISTA (projection onto constraint set)
-    fn proximal_operator(&self, x: &DVector<f64>) -> Result<DVector<f64>> {
+    fn proximal_operator(&self, x: &Array1<f64>) -> Result<Array1<f64>> {
         let mut result = x.clone();
 
         // Project onto box constraints [0, C]
@@ -1577,14 +1614,14 @@ impl AcceleratedGradientSVM {
     }
 
     /// Compute dual gradient for SVM
-    fn compute_dual_gradient(&self, k_matrix: &DMatrix<f64>, alpha: &DVector<f64>) -> DVector<f64> {
+    fn compute_dual_gradient(&self, k_matrix: &Array2<f64>, alpha: &Array1<f64>) -> Array1<f64> {
         let n = alpha.len();
-        let mut gradient = DVector::from_element(n, -1.0); // -e vector
+        let mut gradient = Array1::from_elem(n, -1.0); // -e vector
 
         // Add Q*alpha term where Q = K (kernel matrix)
         for i in 0..n {
             for j in 0..n {
-                gradient[i] += k_matrix[(i, j)] * alpha[j];
+                gradient[i] += k_matrix[[i, j]] * alpha[j];
             }
         }
 
@@ -1592,17 +1629,20 @@ impl AcceleratedGradientSVM {
     }
 
     /// Compute kernel matrix
-    fn compute_kernel_matrix(&self, x: &DMatrix<f64>) -> Result<DMatrix<f64>> {
-        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+    fn compute_kernel_matrix(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
+        let kernel_type = self
+            .kernel
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "compute_kernel_matrix".to_string(),
+            })?;
         let kernel = create_kernel(kernel_type.clone())?;
         let n = x.nrows();
-        let mut k_matrix = DMatrix::zeros(n, n);
+        let mut k_matrix = Array2::zeros((n, n));
 
         for i in 0..n {
             for j in 0..n {
-                let row_i = Array1::from_vec(x.row(i).iter().cloned().collect());
-                let row_j = Array1::from_vec(x.row(j).iter().cloned().collect());
-                k_matrix[(i, j)] = kernel.compute(row_i.view(), row_j.view());
+                k_matrix[[i, j]] = kernel.compute(x.row(i), x.row(j));
             }
         }
 
@@ -1610,7 +1650,7 @@ impl AcceleratedGradientSVM {
     }
 
     /// Calculate objective value
-    fn calculate_objective(&self, k_matrix: &DMatrix<f64>, alpha: &DVector<f64>) -> Result<f64> {
+    fn calculate_objective(&self, k_matrix: &Array2<f64>, alpha: &Array1<f64>) -> Result<f64> {
         let n = alpha.len();
         let mut objective = 0.0;
 
@@ -1618,7 +1658,7 @@ impl AcceleratedGradientSVM {
         for i in 0..n {
             objective += alpha[i]; // Linear term
             for j in 0..n {
-                objective -= 0.5 * alpha[i] * alpha[j] * k_matrix[(i, j)]; // Quadratic term
+                objective -= 0.5 * alpha[i] * alpha[j] * k_matrix[[i, j]]; // Quadratic term
             }
         }
 
@@ -1626,7 +1666,7 @@ impl AcceleratedGradientSVM {
     }
 
     /// Find support vectors
-    fn find_support_vectors(&self, alpha: &DVector<f64>) -> Result<Vec<usize>> {
+    fn find_support_vectors(&self, alpha: &Array1<f64>) -> Result<Vec<usize>> {
         let mut support_indices = Vec::new();
         let tol = 1e-6;
 
@@ -1642,16 +1682,21 @@ impl AcceleratedGradientSVM {
     /// Calculate intercept
     fn calculate_intercept(
         &self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
-        alpha: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        alpha: &Array1<f64>,
         support_indices: &[usize],
     ) -> Result<f64> {
         if support_indices.is_empty() {
             return Ok(0.0);
         }
 
-        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel_type = self
+            .kernel
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "calculate_intercept".to_string(),
+            })?;
         let kernel = create_kernel(kernel_type.clone())?;
         let mut intercept_sum = 0.0;
 
@@ -1659,9 +1704,7 @@ impl AcceleratedGradientSVM {
             let mut kernel_sum = 0.0;
             for (j, &alpha_j) in alpha.iter().enumerate() {
                 if alpha_j > 0.0 {
-                    let sv_row = Array1::from_vec(x.row(sv_idx).iter().cloned().collect());
-                    let j_row = Array1::from_vec(x.row(j).iter().cloned().collect());
-                    kernel_sum += alpha_j * y[j] * kernel.compute(sv_row.view(), j_row.view());
+                    kernel_sum += alpha_j * y[j] * kernel.compute(x.row(sv_idx), x.row(j));
                 }
             }
             intercept_sum += y[sv_idx] - kernel_sum;
@@ -1671,9 +1714,9 @@ impl AcceleratedGradientSVM {
     }
 
     /// Make predictions
-    pub fn predict(&self, x: &DMatrix<f64>, result: &OptimizationResult) -> Result<DVector<f64>> {
+    pub fn predict(&self, x: &Array2<f64>, result: &OptimizationResult) -> Result<Array1<f64>> {
         let decision_values = self.decision_function(x, result)?;
-        let mut predictions = DVector::zeros(decision_values.len());
+        let mut predictions = Array1::zeros(decision_values.len());
 
         for (i, &val) in decision_values.iter().enumerate() {
             predictions[i] = if val >= 0.0 { 1.0 } else { -1.0 };
@@ -1685,18 +1728,25 @@ impl AcceleratedGradientSVM {
     /// Compute decision function
     pub fn decision_function(
         &self,
-        x: &DMatrix<f64>,
+        x: &Array2<f64>,
         result: &OptimizationResult,
-    ) -> Result<DVector<f64>> {
-        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+    ) -> Result<Array1<f64>> {
+        let kernel_type = self
+            .kernel
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "decision_function".to_string(),
+            })?;
         let kernel = create_kernel(kernel_type.clone())?;
         let n_test = x.nrows();
-        let mut decision_values = DVector::zeros(n_test);
+        let mut decision_values = Array1::zeros(n_test);
 
-        // Note: This is a simplified version - in practice, you'd need training data
-        // For now, we'll use a placeholder implementation
         for i in 0..n_test {
-            decision_values[i] = result.intercept; // Simplified
+            let mut sum = 0.0;
+            for &j in &result.support_indices {
+                sum += result.dual_coef[j] * kernel.compute(x.row(i), x.row(j));
+            }
+            decision_values[i] = sum + result.intercept;
         }
 
         Ok(decision_values)
@@ -1705,256 +1755,5 @@ impl AcceleratedGradientSVM {
 
 #[allow(non_snake_case)]
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use nalgebra::{DMatrix, DVector};
-
-    fn create_test_data() -> (DMatrix<f64>, DVector<f64>) {
-        let x = DMatrix::from_row_slice(4, 2, &[1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0]);
-        let y = DVector::from_vec(vec![1.0, 1.0, -1.0, -1.0]);
-        (x, y)
-    }
-
-    #[test]
-    fn test_admm_svm_basic() {
-        let (x, y) = create_test_data();
-        let mut admm = ADMMSVM::default();
-        let result = admm.fit(&x, &y);
-        assert!(result.is_ok());
-
-        let result = result.expect("operation should succeed");
-        assert!(result.dual_coef.len() == x.nrows());
-        assert!(!result.support_indices.is_empty());
-    }
-
-    #[test]
-    fn test_newton_svm_linear() {
-        let (x, y) = create_test_data();
-        let config = AdvancedOptimizationConfig {
-            kernel: KernelType::Linear,
-            ..Default::default()
-        };
-        let mut newton = NewtonSVM::new(config);
-        let result = newton.fit(&x, &y);
-        assert!(result.is_ok());
-
-        let result = result.expect("operation should succeed");
-        assert!(result.dual_coef.len() == x.nrows());
-    }
-
-    #[test]
-    fn test_newton_svm_rbf() {
-        let (x, y) = create_test_data();
-        let config = AdvancedOptimizationConfig {
-            kernel: KernelType::Rbf { gamma: 1.0 },
-            ..Default::default()
-        };
-        let mut newton = NewtonSVM::new(config);
-        let result = newton.fit(&x, &y);
-        assert!(result.is_ok());
-
-        let result = result.expect("operation should succeed");
-        assert!(result.dual_coef.len() == x.nrows());
-    }
-
-    #[test]
-    fn test_admm_convergence() {
-        let (x, y) = create_test_data();
-        let config = AdvancedOptimizationConfig {
-            max_iter: 100,
-            tol: 1e-3,
-            ..Default::default()
-        };
-        let mut admm = ADMMSVM::new(config);
-        let result = admm.fit(&x, &y).expect("model fitting should succeed");
-
-        // Check that objective decreases
-        assert!(result.history.len() > 1);
-        let first_obj = result.history[0];
-        let last_obj = result.history.last().expect("operation should succeed");
-        assert!(last_obj <= &first_obj);
-    }
-
-    #[test]
-    fn test_advanced_optimization_config() {
-        let config = AdvancedOptimizationConfig {
-            c: 0.5,
-            kernel: KernelType::Polynomial {
-                gamma: 1.0,
-                degree: 2.0,
-                coef0: 1.0,
-            },
-            tol: 1e-5,
-            max_iter: 500,
-            rho: 2.0,
-            trust_radius: 0.5,
-            verbose: true,
-            ..Default::default()
-        };
-
-        let mut admm = ADMMSVM::new(config.clone());
-        assert_eq!(admm.config.c, 0.5);
-        assert_eq!(admm.config.rho, 2.0);
-        assert_eq!(admm.config.trust_radius, 0.5);
-        assert_eq!(admm.config.verbose, true);
-    }
-
-    #[test]
-    fn test_trust_region_svm_linear() {
-        let (x, y) = create_test_data();
-        let config = AdvancedOptimizationConfig {
-            kernel: KernelType::Linear,
-            trust_radius: 1.0,
-            max_iter: 50,
-            tol: 1e-4,
-            ..Default::default()
-        };
-        let mut trust_region = TrustRegionSVM::new(config);
-        let result = trust_region.fit(&x, &y);
-        assert!(result.is_ok());
-
-        let result = result.expect("operation should succeed");
-        assert!(result.dual_coef.len() == x.nrows());
-        assert!(result.n_iterations > 0);
-    }
-
-    #[test]
-    fn test_trust_region_svm_rbf() {
-        let (x, y) = create_test_data();
-        let config = AdvancedOptimizationConfig {
-            kernel: KernelType::Rbf { gamma: 1.0 },
-            trust_radius: 0.5,
-            max_iter: 50,
-            tol: 1e-4,
-            ..Default::default()
-        };
-        let mut trust_region = TrustRegionSVM::new(config);
-        let result = trust_region.fit(&x, &y);
-        assert!(result.is_ok());
-
-        let result = result.expect("operation should succeed");
-        assert!(result.dual_coef.len() == x.nrows());
-        assert!(result.n_iterations > 0); // Should have performed iterations
-    }
-
-    #[test]
-    fn test_trust_region_convergence() {
-        let (x, y) = create_test_data();
-        let config = AdvancedOptimizationConfig {
-            kernel: KernelType::Linear,
-            trust_radius: 1.0,
-            max_iter: 100,
-            tol: 1e-5,
-            verbose: false,
-            ..Default::default()
-        };
-        let mut trust_region = TrustRegionSVM::new(config);
-        let result = trust_region.fit(&x, &y).expect("model fitting should succeed");
-
-        // Check that objective improves
-        assert!(result.history.len() > 1);
-        let first_obj = result.history[0];
-        let last_obj = result.history.last().expect("operation should succeed");
-
-        // For maximization problem, objective should increase or stay same
-        assert!(last_obj >= &first_obj || (last_obj - first_obj).abs() < 1e-6);
-    }
-
-    #[test]
-    fn test_trust_region_prediction() {
-        let (x, y) = create_test_data();
-        let config = AdvancedOptimizationConfig {
-            kernel: KernelType::Linear,
-            trust_radius: 1.0,
-            max_iter: 30,
-            ..Default::default()
-        };
-        let mut trust_region = TrustRegionSVM::new(config);
-        let result = trust_region.fit(&x, &y).expect("model fitting should succeed");
-
-        // Test prediction
-        let predictions = trust_region.predict(&x, &result).expect("prediction should succeed");
-        assert_eq!(predictions.len(), x.nrows());
-
-        // All predictions should be either 1.0 or -1.0
-        for &pred in predictions.iter() {
-            assert!(pred == 1.0 || pred == -1.0);
-        }
-
-        // Test decision function
-        let decision_values = trust_region.decision_function(&x, &result).expect("decision function should succeed");
-        assert_eq!(decision_values.len(), x.nrows());
-
-        // Decision values should be finite
-        for &val in decision_values.iter() {
-            assert!(val.is_finite());
-        }
-    }
-
-    #[test]
-    fn test_accelerated_gradient_svm_nesterov() {
-        let (x, y) = create_test_data();
-        let config = AdvancedOptimizationConfig {
-            kernel: KernelType::Linear,
-            max_iter: 100,
-            tol: 1e-4,
-            ..Default::default()
-        };
-        let mut accel_svm = AcceleratedGradientSVM::new(config)
-            .with_momentum(0.9)
-            .with_learning_rate(0.01)
-            .with_method(AcceleratedMethod::Nesterov);
-
-        let result = accel_svm.fit(&x, &y);
-        assert!(result.is_ok());
-
-        let result = result.expect("operation should succeed");
-        assert!(result.dual_coef.len() == x.nrows());
-        assert!(result.n_iterations > 0);
-    }
-
-    #[test]
-    fn test_accelerated_gradient_svm_fista() {
-        let (x, y) = create_test_data();
-        let config = AdvancedOptimizationConfig {
-            kernel: KernelType::Linear,
-            max_iter: 100,
-            tol: 1e-4,
-            ..Default::default()
-        };
-        let mut accel_svm = AcceleratedGradientSVM::new(config)
-            .with_momentum(0.9)
-            .with_learning_rate(0.01)
-            .with_method(AcceleratedMethod::FISTA);
-
-        let result = accel_svm.fit(&x, &y);
-        assert!(result.is_ok());
-
-        let result = result.expect("operation should succeed");
-        assert!(result.dual_coef.len() == x.nrows());
-        assert!(result.n_iterations > 0);
-    }
-
-    #[test]
-    fn test_accelerated_gradient_convergence() {
-        let (x, y) = create_test_data();
-        let config = AdvancedOptimizationConfig {
-            kernel: KernelType::Linear,
-            max_iter: 200,
-            tol: 1e-5,
-            ..Default::default()
-        };
-        let mut accel_svm =
-            AcceleratedGradientSVM::new(config).with_method(AcceleratedMethod::Nesterov);
-
-        let result = accel_svm.fit(&x, &y).expect("model fitting should succeed");
-
-        // Check that objective improves
-        assert!(result.history.len() > 1);
-        let first_obj = result.history[0];
-        let last_obj = result.history.last().expect("operation should succeed");
-
-        // For dual maximization, objective should increase or stay stable
-        assert!(last_obj >= &first_obj || (last_obj - first_obj).abs() < 1e-4);
-    }
-}
+#[path = "advanced_optimization_tests.rs"]
+mod tests;

@@ -1408,7 +1408,7 @@ impl Default for StatisticalPerformanceStats {
     fn default() -> Self {
         Self {
             total_analyses: 0,
-            average_duration: Duration::from_millis(0),
+            average_duration: Duration::milliseconds(0),
             total_records_analyzed: 0,
             records_per_second: 0.0,
         }

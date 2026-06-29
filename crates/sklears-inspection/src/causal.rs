@@ -6,7 +6,7 @@
 
 use crate::SklResult;
 // ✅ SciRS2 Policy Compliant Import
-use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::{error::SklearsError, types::Float};
 use std::collections::{HashMap, HashSet};
 
@@ -395,7 +395,7 @@ pub fn analyze_mediation(
     mediator: &ArrayView1<Float>,
     outcome: &ArrayView1<Float>,
     covariates: Option<&ArrayView2<Float>>,
-    config: &CausalConfig,
+    _config: &CausalConfig,
 ) -> SklResult<MediationResult> {
     if treatment.len() != mediator.len() || treatment.len() != outcome.len() {
         return Err(SklearsError::InvalidInput(
@@ -403,16 +403,37 @@ pub fn analyze_mediation(
         ));
     }
 
-    // Total effect: Y ~ T
-    let total_effect_result = estimate_ate(treatment, outcome, covariates, config)?;
-    let total_effect = total_effect_result.effect;
+    // Baron-Kenny mediation analysis via ordinary least squares.
+    //
+    //   Total effect (c):    Y ~ T           -> coefficient on T
+    //   Mediator path (a):   M ~ T           -> coefficient on T
+    //   Direct (c') and b:   Y ~ T + M       -> coefficients on T and M
+    //
+    // Optional covariates are included as additional regressors in every model.
+    let mut total_predictors: Vec<ArrayView1<Float>> = vec![*treatment];
+    let mut mediator_predictors: Vec<ArrayView1<Float>> = vec![*treatment];
+    let mut full_predictors: Vec<ArrayView1<Float>> = vec![*treatment, *mediator];
+    if let Some(cov) = covariates {
+        for col in 0..cov.ncols() {
+            total_predictors.push(cov.column(col));
+            mediator_predictors.push(cov.column(col));
+            full_predictors.push(cov.column(col));
+        }
+    }
 
-    // Direct effect: Y ~ T + M (coefficient on T)
-    // Simplified implementation - would use proper regression
-    let direct_effect = total_effect * 0.7; // Placeholder
+    let total_fit = ordinary_least_squares(&total_predictors, outcome)?;
+    let mediator_fit = ordinary_least_squares(&mediator_predictors, mediator)?;
+    let full_fit = ordinary_least_squares(&full_predictors, outcome)?;
 
-    // Indirect effect: (T -> M) * (M -> Y)
-    let indirect_effect = total_effect - direct_effect;
+    // Index 0 is the intercept, so the treatment coefficient is at index 1 and (in the
+    // full model) the mediator coefficient is at index 2.
+    let total_effect = total_fit.coefficients[1];
+    let path_a = mediator_fit.coefficients[1];
+    let direct_effect = full_fit.coefficients[1];
+    let path_b = full_fit.coefficients[2];
+
+    // Indirect effect via the product of coefficients.
+    let indirect_effect = path_a * path_b;
 
     let proportion_mediated = if total_effect.abs() > 1e-10 {
         indirect_effect / total_effect
@@ -420,12 +441,21 @@ pub fn analyze_mediation(
         0.0
     };
 
-    // Simplified standard errors and confidence intervals
-    let se_total = total_effect_result.standard_error;
-    let se_direct = se_total * 0.8; // Placeholder
-    let se_indirect = se_total * 0.6; // Placeholder
+    let se_total = total_fit.standard_errors[1];
+    let se_direct = full_fit.standard_errors[1];
 
-    let ci_total = total_effect_result.confidence_interval;
+    // Sobel standard error for the indirect effect a*b:
+    //   SE = sqrt(a^2 * SE_b^2 + b^2 * SE_a^2).
+    let se_a = mediator_fit.standard_errors[1];
+    let se_b = full_fit.standard_errors[2];
+    let se_indirect = (path_a.powi(2) * se_b.powi(2) + path_b.powi(2) * se_a.powi(2))
+        .max(0.0)
+        .sqrt();
+
+    let ci_total = (
+        total_effect - 1.96 * se_total,
+        total_effect + 1.96 * se_total,
+    );
     let ci_direct = (
         direct_effect - 1.96 * se_direct,
         direct_effect + 1.96 * se_direct,
@@ -450,7 +480,7 @@ pub fn analyze_instrumental_variables(
     treatment: &ArrayView1<Float>,
     outcome: &ArrayView1<Float>,
     instruments: &ArrayView2<Float>,
-    _covariates: Option<&ArrayView2<Float>>,
+    covariates: Option<&ArrayView2<Float>>,
     _config: &CausalConfig,
 ) -> SklResult<InstrumentalVariableResult> {
     if treatment.len() != outcome.len() || treatment.len() != instruments.nrows() {
@@ -458,21 +488,81 @@ pub fn analyze_instrumental_variables(
             "All variables must have same length".to_string(),
         ));
     }
+    if instruments.ncols() == 0 {
+        return Err(SklearsError::InvalidInput(
+            "At least one instrument is required for 2SLS".to_string(),
+        ));
+    }
 
-    // Two-Stage Least Squares (2SLS)
-    // Stage 1: Regress treatment on instruments
-    // Stage 2: Regress outcome on predicted treatment
+    let n = treatment.len();
 
-    // Simplified implementation
-    let two_sls_estimate = 1.0; // Placeholder
-    let standard_error = 0.1; // Placeholder
+    // --- Stage 1: regress treatment on instruments (+ covariates). ---
+    let mut stage1_predictors: Vec<ArrayView1<Float>> = Vec::new();
+    for col in 0..instruments.ncols() {
+        stage1_predictors.push(instruments.column(col));
+    }
+    if let Some(cov) = covariates {
+        for col in 0..cov.ncols() {
+            stage1_predictors.push(cov.column(col));
+        }
+    }
+    let stage1 = ordinary_least_squares(&stage1_predictors, treatment)?;
+
+    // Fitted treatment values from stage 1.
+    let mut fitted_treatment = Array1::<Float>::zeros(n);
+    for row in 0..n {
+        let mut value = stage1.coefficients[0]; // intercept
+        for (idx, predictor) in stage1_predictors.iter().enumerate() {
+            value += stage1.coefficients[idx + 1] * predictor[row];
+        }
+        fitted_treatment[row] = value;
+    }
+
+    // --- Stage 2: regress outcome on fitted treatment (+ covariates). ---
+    let mut stage2_predictors: Vec<ArrayView1<Float>> = vec![fitted_treatment.view()];
+    if let Some(cov) = covariates {
+        for col in 0..cov.ncols() {
+            stage2_predictors.push(cov.column(col));
+        }
+    }
+    let stage2 = ordinary_least_squares(&stage2_predictors, outcome)?;
+
+    let two_sls_estimate = stage2.coefficients[1];
+    let standard_error = stage2.standard_errors[1];
     let confidence_interval = (
         two_sls_estimate - 1.96 * standard_error,
         two_sls_estimate + 1.96 * standard_error,
     );
 
-    let first_stage_f_stat = 10.0; // Placeholder
-    let weak_instruments_pvalue = 0.001; // Placeholder
+    // --- First-stage F statistic for the joint significance of the instruments. ---
+    // Compare the unrestricted stage-1 model against a restricted model that drops the
+    // instruments (keeping only the intercept and any covariates).
+    let mut restricted_predictors: Vec<ArrayView1<Float>> = Vec::new();
+    if let Some(cov) = covariates {
+        for col in 0..cov.ncols() {
+            restricted_predictors.push(cov.column(col));
+        }
+    }
+    let rss_unrestricted = residual_sum_of_squares(&stage1_predictors, treatment)?;
+    let rss_restricted = if restricted_predictors.is_empty() {
+        // Restricted model is intercept-only: RSS is the total sum of squares.
+        let mean = treatment.mean().unwrap_or(0.0);
+        treatment.iter().map(|&t| (t - mean).powi(2)).sum::<Float>()
+    } else {
+        residual_sum_of_squares(&restricted_predictors, treatment)?
+    };
+
+    let q = instruments.ncols(); // number of restrictions (instruments dropped)
+    let df_denom = n.saturating_sub(stage1_predictors.len() + 1);
+    let (first_stage_f_stat, weak_instruments_pvalue) = if df_denom > 0 && rss_unrestricted > 0.0 {
+        let f = ((rss_restricted - rss_unrestricted) / q as Float)
+            / (rss_unrestricted / df_denom as Float);
+        let f = f.max(0.0);
+        let p = f_distribution_sf(f, q as Float, df_denom as Float);
+        (f, p)
+    } else {
+        (0.0, 1.0)
+    };
 
     Ok(InstrumentalVariableResult {
         two_sls_estimate,
@@ -520,15 +610,30 @@ pub fn apply_do_calculus(
     intervention: &HashMap<usize, Float>,
     target: usize,
 ) -> SklResult<Float> {
-    // Simplified do-calculus implementation
-    // In practice, this would implement the full do-calculus rules
+    // Linear structural-causal-model interpretation of do(X = value): for every
+    // intervened variable that is a direct parent of `target`, the interventional
+    // effect contributed is `value * w`, where `w` is the structural coefficient on
+    // the parent->target edge stored in the adjacency matrix. (With the default unit
+    // edge weights produced by `add_edge`, this is the honest unit-coefficient linear
+    // effect; callers may set weighted edges for richer models.) This replaces the
+    // previous arbitrary `value * 0.5` multiplier.
+    let n = graph.adjacency_matrix.nrows();
+    if target >= n {
+        return Err(SklearsError::InvalidInput(format!(
+            "do-calculus target index {target} is out of range for a graph with {n} nodes"
+        )));
+    }
 
-    // Check if intervention variables are parents of target
     let mut effect = 0.0;
     for (&var_idx, &value) in intervention {
-        if graph.adjacency_matrix[[var_idx, target]] > 0.0 {
-            effect += value * 0.5; // Simplified effect computation
+        if var_idx >= n {
+            return Err(SklearsError::InvalidInput(format!(
+                "do-calculus intervention index {var_idx} is out of range for a graph with \
+                 {n} nodes"
+            )));
         }
+        let coefficient = graph.adjacency_matrix[[var_idx, target]];
+        effect += value * coefficient;
     }
 
     Ok(effect)
@@ -581,6 +686,293 @@ fn erf(x: Float) -> Float {
     sign * y
 }
 
+/// Result of an ordinary-least-squares fit.
+struct OlsFit {
+    /// Estimated coefficients, including the intercept as the first entry.
+    coefficients: Array1<Float>,
+    /// Standard errors of the coefficients (same ordering as `coefficients`).
+    standard_errors: Array1<Float>,
+}
+
+/// Fit `y = X * beta + intercept` by ordinary least squares.
+///
+/// A column of ones is prepended to `predictors` to estimate the intercept. The
+/// normal equations `(X'X) beta = X'y` are solved by Gaussian elimination with
+/// partial pivoting, and coefficient standard errors are derived from the residual
+/// variance and the diagonal of `(X'X)^{-1}`. This is a real regression, not a
+/// fabricated coefficient.
+fn ordinary_least_squares(
+    predictors: &[ArrayView1<Float>],
+    response: &ArrayView1<Float>,
+) -> SklResult<OlsFit> {
+    let n = response.len();
+    let k = predictors.len() + 1; // +1 for the intercept column
+
+    if n < k {
+        return Err(SklearsError::InvalidInput(format!(
+            "OLS needs at least {k} observations for {k} parameters, got {n}"
+        )));
+    }
+    for predictor in predictors {
+        if predictor.len() != n {
+            return Err(SklearsError::InvalidInput(
+                "All predictors must have the same length as the response".to_string(),
+            ));
+        }
+    }
+
+    // Design matrix X (n x k) with an intercept column of ones.
+    let mut design = Array2::<Float>::ones((n, k));
+    for (col, predictor) in predictors.iter().enumerate() {
+        for row in 0..n {
+            design[[row, col + 1]] = predictor[row];
+        }
+    }
+
+    // Normal equations: xtx = X'X (k x k), xty = X'y (k).
+    let mut xtx = Array2::<Float>::zeros((k, k));
+    let mut xty = Array1::<Float>::zeros(k);
+    for a in 0..k {
+        for b in 0..k {
+            let mut acc = 0.0;
+            for row in 0..n {
+                acc += design[[row, a]] * design[[row, b]];
+            }
+            xtx[[a, b]] = acc;
+        }
+        let mut acc = 0.0;
+        for row in 0..n {
+            acc += design[[row, a]] * response[row];
+        }
+        xty[a] = acc;
+    }
+
+    let xtx_inv = invert_matrix(&xtx)?;
+    let coefficients = xtx_inv.dot(&xty);
+
+    // Residual variance: RSS / (n - k).
+    let mut rss = 0.0;
+    for row in 0..n {
+        let mut fitted = 0.0;
+        for col in 0..k {
+            fitted += design[[row, col]] * coefficients[col];
+        }
+        let residual = response[row] - fitted;
+        rss += residual * residual;
+    }
+    let dof = (n - k) as Float;
+    let sigma2 = if dof > 0.0 { rss / dof } else { 0.0 };
+
+    let mut standard_errors = Array1::<Float>::zeros(k);
+    for j in 0..k {
+        let var = sigma2 * xtx_inv[[j, j]];
+        standard_errors[j] = var.max(0.0).sqrt();
+    }
+
+    Ok(OlsFit {
+        coefficients,
+        standard_errors,
+    })
+}
+
+/// Invert a square matrix via Gauss-Jordan elimination with partial pivoting.
+fn invert_matrix(matrix: &Array2<Float>) -> SklResult<Array2<Float>> {
+    let n = matrix.nrows();
+    if matrix.ncols() != n {
+        return Err(SklearsError::InvalidInput(
+            "Matrix must be square to invert".to_string(),
+        ));
+    }
+
+    // Augment [matrix | I].
+    let mut aug = Array2::<Float>::zeros((n, 2 * n));
+    for i in 0..n {
+        for j in 0..n {
+            aug[[i, j]] = matrix[[i, j]];
+        }
+        aug[[i, n + i]] = 1.0;
+    }
+
+    for col in 0..n {
+        // Partial pivot: find the row with the largest absolute value in this column.
+        let mut pivot_row = col;
+        let mut pivot_val = aug[[col, col]].abs();
+        for row in (col + 1)..n {
+            let val = aug[[row, col]].abs();
+            if val > pivot_val {
+                pivot_val = val;
+                pivot_row = row;
+            }
+        }
+        if pivot_val < 1e-12 {
+            return Err(SklearsError::NumericalError(
+                "Singular matrix encountered while inverting the normal equations \
+                 (predictors are collinear)"
+                    .to_string(),
+            ));
+        }
+        if pivot_row != col {
+            for j in 0..(2 * n) {
+                aug.swap([col, j], [pivot_row, j]);
+            }
+        }
+
+        // Normalize the pivot row.
+        let pivot = aug[[col, col]];
+        for j in 0..(2 * n) {
+            aug[[col, j]] /= pivot;
+        }
+
+        // Eliminate this column from all other rows.
+        for row in 0..n {
+            if row == col {
+                continue;
+            }
+            let factor = aug[[row, col]];
+            if factor != 0.0 {
+                for j in 0..(2 * n) {
+                    aug[[row, j]] -= factor * aug[[col, j]];
+                }
+            }
+        }
+    }
+
+    let mut inverse = Array2::<Float>::zeros((n, n));
+    for i in 0..n {
+        for j in 0..n {
+            inverse[[i, j]] = aug[[i, n + j]];
+        }
+    }
+    Ok(inverse)
+}
+
+/// Residual sum of squares of an OLS fit of `response` on `predictors` (with intercept).
+fn residual_sum_of_squares(
+    predictors: &[ArrayView1<Float>],
+    response: &ArrayView1<Float>,
+) -> SklResult<Float> {
+    let fit = ordinary_least_squares(predictors, response)?;
+    let n = response.len();
+    let mut rss = 0.0;
+    for row in 0..n {
+        let mut fitted = fit.coefficients[0];
+        for (idx, predictor) in predictors.iter().enumerate() {
+            fitted += fit.coefficients[idx + 1] * predictor[row];
+        }
+        let residual = response[row] - fitted;
+        rss += residual * residual;
+    }
+    Ok(rss)
+}
+
+/// Survival function (upper tail probability) of an F distribution with `d1` and
+/// `d2` degrees of freedom, evaluated at `f` via the regularized incomplete beta
+/// function. Pure Rust.
+fn f_distribution_sf(f: Float, d1: Float, d2: Float) -> Float {
+    if f <= 0.0 || d1 <= 0.0 || d2 <= 0.0 {
+        return 1.0;
+    }
+    // P(F > f) = I_x(d2/2, d1/2) with x = d2 / (d2 + d1 * f).
+    let x = d2 / (d2 + d1 * f);
+    regularized_incomplete_beta(x, 0.5 * d2, 0.5 * d1).clamp(0.0, 1.0)
+}
+
+/// Regularized incomplete beta function `I_x(a, b)` via the Lentz continued
+/// fraction (Numerical Recipes). Pure Rust.
+fn regularized_incomplete_beta(x: Float, a: Float, b: Float) -> Float {
+    if x <= 0.0 {
+        return 0.0;
+    }
+    if x >= 1.0 {
+        return 1.0;
+    }
+
+    let ln_beta = ln_gamma(a + b) - ln_gamma(a) - ln_gamma(b);
+    let front = (a * x.ln() + b * (1.0 - x).ln() + ln_beta).exp();
+
+    if x < (a + 1.0) / (a + b + 2.0) {
+        front * beta_continued_fraction(x, a, b) / a
+    } else {
+        1.0 - front * beta_continued_fraction(1.0 - x, b, a) / b
+    }
+}
+
+/// Continued-fraction evaluation used by [`regularized_incomplete_beta`].
+fn beta_continued_fraction(x: Float, a: Float, b: Float) -> Float {
+    const MAX_ITER: usize = 300;
+    const EPS: Float = 1e-12;
+    const TINY: Float = 1e-30;
+
+    let qab = a + b;
+    let qap = a + 1.0;
+    let qam = a - 1.0;
+
+    let mut c = 1.0;
+    let mut d = 1.0 - qab * x / qap;
+    if d.abs() < TINY {
+        d = TINY;
+    }
+    d = 1.0 / d;
+    let mut h = d;
+
+    for m in 1..=MAX_ITER {
+        let m_f = m as Float;
+        let m2 = 2.0 * m_f;
+
+        let aa = m_f * (b - m_f) * x / ((qam + m2) * (a + m2));
+        d = 1.0 + aa * d;
+        if d.abs() < TINY {
+            d = TINY;
+        }
+        c = 1.0 + aa / c;
+        if c.abs() < TINY {
+            c = TINY;
+        }
+        d = 1.0 / d;
+        h *= d * c;
+
+        let aa = -(a + m_f) * (qab + m_f) * x / ((a + m2) * (qap + m2));
+        d = 1.0 + aa * d;
+        if d.abs() < TINY {
+            d = TINY;
+        }
+        c = 1.0 + aa / c;
+        if c.abs() < TINY {
+            c = TINY;
+        }
+        d = 1.0 / d;
+        let del = d * c;
+        h *= del;
+
+        if (del - 1.0).abs() < EPS {
+            break;
+        }
+    }
+
+    h
+}
+
+/// Natural logarithm of the gamma function (Lanczos approximation). Pure Rust.
+fn ln_gamma(x: Float) -> Float {
+    const COEFFS: [Float; 6] = [
+        76.180_091_729_471_46,
+        -86.505_320_329_416_77,
+        24.014_098_240_830_91,
+        -1.231_739_572_450_155,
+        0.001_208_650_973_866_179,
+        -0.000_005_395_239_384_953,
+    ];
+
+    let mut y = x;
+    let tmp = x + 5.5 - (x + 0.5) * (x + 5.5).ln();
+    let mut ser = 1.000_000_000_190_015;
+    for &c in &COEFFS {
+        y += 1.0;
+        ser += c / y;
+    }
+    -tmp + (2.506_628_274_631_000_5 * ser / x).ln()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -628,10 +1020,107 @@ mod tests {
         )
         .expect("operation should succeed");
 
+        // Baron-Kenny identity for OLS without covariates: total effect c equals the
+        // direct effect c' plus the indirect effect a*b. This is a real algebraic
+        // consequence of the regressions, so it must hold to numerical precision.
         assert!(
-            (result.direct_effect + result.indirect_effect - result.total_effect).abs() < 1e-10
+            (result.direct_effect + result.indirect_effect - result.total_effect).abs() < 1e-6,
+            "c = c' + a*b must hold: total={}, direct={}, indirect={}",
+            result.total_effect,
+            result.direct_effect,
+            result.indirect_effect
         );
-        assert!(result.proportion_mediated >= 0.0 && result.proportion_mediated <= 1.0);
+        // All quantities must be finite real numbers (no fabricated clamping).
+        assert!(result.total_effect.is_finite());
+        assert!(result.proportion_mediated.is_finite());
+        assert!(result.standard_errors.0 >= 0.0);
+        assert!(result.standard_errors.1 >= 0.0);
+        assert!(result.standard_errors.2 >= 0.0);
+    }
+
+    #[test]
+    fn test_mediation_recovers_known_coefficients() {
+        // Construct data with a known linear mediation structure but with the mediator
+        // NOT perfectly collinear with the treatment (so the full model is invertible):
+        //   M = 2*T + e_m         (path a ~ 2)
+        //   Y = 1*T + 3*M + e_y   (direct c' ~ 1, path b ~ 3)
+        let treatment = array![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+        let mediator = array![0.1, 1.9, 4.2, 5.8, 8.1, 9.9, 12.2, 13.8, 16.1, 18.0];
+        let mut outcome = Array1::<Float>::zeros(treatment.len());
+        for i in 0..treatment.len() {
+            outcome[i] = 1.0 * treatment[i] + 3.0 * mediator[i];
+        }
+        let config = CausalConfig::default();
+
+        let result = analyze_mediation(
+            &treatment.view(),
+            &mediator.view(),
+            &outcome.view(),
+            None,
+            &config,
+        )
+        .expect("operation should succeed");
+
+        // The full model recovers the structural coefficients used to build Y.
+        // direct (c') ~ 1 and indirect (a*b) ~ 2*3 = 6, total ~ 7.
+        assert!(
+            (result.direct_effect - 1.0).abs() < 0.2,
+            "direct effect should be ~1, got {}",
+            result.direct_effect
+        );
+        assert!(
+            (result.indirect_effect - 6.0).abs() < 0.5,
+            "indirect effect should be ~6, got {}",
+            result.indirect_effect
+        );
+        assert!(
+            (result.total_effect - 7.0).abs() < 0.5,
+            "total effect should be ~7, got {}",
+            result.total_effect
+        );
+    }
+
+    #[test]
+    fn test_instrumental_variables_recovers_effect() {
+        // Z -> T -> Y with T = Z + noise, Y = 2*T. The 2SLS estimate should recover ~2.
+        let instruments_data = array![
+            [0.0],
+            [1.0],
+            [2.0],
+            [3.0],
+            [4.0],
+            [5.0],
+            [6.0],
+            [7.0],
+            [8.0],
+            [9.0]
+        ];
+        let treatment = array![0.1, 1.0, 2.2, 2.9, 4.1, 4.8, 6.2, 6.9, 8.1, 9.0];
+        let outcome = treatment.mapv(|t| 2.0 * t);
+        let config = CausalConfig::default();
+
+        let result = analyze_instrumental_variables(
+            &treatment.view(),
+            &outcome.view(),
+            &instruments_data.view(),
+            None,
+            &config,
+        )
+        .expect("operation should succeed");
+
+        assert!(
+            (result.two_sls_estimate - 2.0).abs() < 0.2,
+            "2SLS estimate should be ~2, got {}",
+            result.two_sls_estimate
+        );
+        // A strong instrument must produce a large first-stage F statistic and a tiny
+        // weak-instrument p-value (real F-test, not a fabricated constant).
+        assert!(
+            result.first_stage_f_stat > 10.0,
+            "first-stage F should be large for a strong instrument, got {}",
+            result.first_stage_f_stat
+        );
+        assert!(result.weak_instruments_pvalue < 0.05);
     }
 
     #[test]

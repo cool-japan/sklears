@@ -411,18 +411,39 @@ impl IntrinsicCoregionalizationModel<IcmTrained> {
         correlations
     }
 
-    /// Get eigendecomposition of coregionalization matrix for interpretability
+    /// Get eigendecomposition of coregionalization matrix for interpretability.
+    ///
+    /// Returns eigenvalues in descending order along with the corresponding eigenvectors.
     #[allow(non_snake_case)]
     pub fn coregionalization_eigendecomposition(&self) -> SklResult<(Array1<f64>, Array2<f64>)> {
-        // Note: This is a placeholder implementation since eigendecomposition_symmetric
-        // is not available in scirs2-core. In a real implementation, we would use
-        // an appropriate eigendecomposition function from a linear algebra library.
-        let B = &self._state.coregionalization_matrix;
-        let n = B.nrows();
+        use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 
-        // For now, return identity eigenvalues and eigenvectors as a placeholder
-        let eigenvalues = Array1::<f64>::ones(n);
-        let eigenvectors = Array2::<f64>::eye(n);
+        let B = &self._state.coregionalization_matrix;
+
+        let (raw_eigenvalues, raw_eigenvectors) = B.eigh(UPLO::Lower).map_err(|e| {
+            SklearsError::NumericalError(format!(
+                "Eigendecomposition of coregionalization matrix failed: {}",
+                e
+            ))
+        })?;
+
+        let n = raw_eigenvalues.len();
+
+        // eigh returns ascending order; sort descending for interpretability
+        let mut indices: Vec<usize> = (0..n).collect();
+        indices.sort_by(|&i, &j| {
+            raw_eigenvalues[j]
+                .partial_cmp(&raw_eigenvalues[i])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        let eigenvalues = Array1::<f64>::from_shape_fn(n, |i| raw_eigenvalues[indices[i]]);
+        let mut eigenvectors = Array2::<f64>::zeros((n, n));
+        for (col, &src) in indices.iter().enumerate() {
+            eigenvectors
+                .column_mut(col)
+                .assign(&raw_eigenvectors.column(src));
+        }
 
         Ok((eigenvalues, eigenvectors))
     }

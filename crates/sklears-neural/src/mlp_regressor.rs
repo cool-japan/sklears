@@ -2,7 +2,10 @@
 
 use crate::{
     activation::Activation,
-    solvers::{AdamSolver, LambSolver, LarsSolver, LearningRateSchedule, SgdSolver, Solver},
+    solvers::{
+        AdamSolver, AdamWSolver, LambSolver, LarsSolver, LbfgsSolver, LearningRateSchedule,
+        NadamSolver, RMSpropSolver, SgdSolver, Solver,
+    },
     utils::{
         create_batches_regression, initialize_biases, initialize_weights, EarlyStopping, WeightInit,
     },
@@ -269,26 +272,31 @@ impl Fit<Array2<f64>, Array2<f64>> for MLPRegressor<sklears_core::traits::Untrai
                 self.beta_2,
                 self.epsilon,
             )),
-            Solver::AdamW => {
-                return Err(SklearsError::NotImplemented(
-                    "AdamW solver not yet integrated with MLP".to_string(),
-                ));
-            }
-            Solver::RMSprop => {
-                return Err(SklearsError::NotImplemented(
-                    "RMSprop solver not yet integrated with MLP".to_string(),
-                ));
-            }
-            Solver::Nadam => {
-                return Err(SklearsError::NotImplemented(
-                    "Nadam solver not yet integrated with MLP".to_string(),
-                ));
-            }
-            Solver::Lbfgs => {
-                return Err(SklearsError::NotImplemented(
-                    "L-BFGS solver not yet implemented".to_string(),
-                ));
-            }
+            Solver::AdamW => SolverType::AdamW(AdamWSolver::new(
+                self.learning_rate_init,
+                self.beta_1,
+                self.beta_2,
+                self.epsilon,
+                self.alpha, // L2 penalty applied as decoupled weight decay
+            )),
+            Solver::RMSprop => SolverType::RMSprop(RMSpropSolver::new(
+                self.learning_rate_init,
+                0.99, // squared-gradient smoothing constant
+                self.epsilon,
+                self.momentum,
+                false, // uncentered variant
+            )),
+            Solver::Nadam => SolverType::Nadam(NadamSolver::new(
+                self.learning_rate_init,
+                self.beta_1,
+                self.beta_2,
+                self.epsilon,
+            )),
+            Solver::Lbfgs => SolverType::Lbfgs(LbfgsSolver::new(
+                self.learning_rate_init,
+                10,    // number of retained (s, y) correction pairs
+                1e-10, // curvature acceptance threshold
+            )),
             Solver::Lars => SolverType::Lars(LarsSolver::new(
                 self.learning_rate_init,
                 self.momentum,
@@ -311,6 +319,10 @@ impl Fit<Array2<f64>, Array2<f64>> for MLPRegressor<sklears_core::traits::Untrai
         match &mut solver {
             SolverType::Sgd(sgd) => sgd.initialize(&weights, &biases),
             SolverType::Adam(adam) => adam.initialize(&weights, &biases),
+            SolverType::AdamW(adamw) => adamw.initialize(&weights, &biases),
+            SolverType::RMSprop(rmsprop) => rmsprop.initialize(&weights, &biases),
+            SolverType::Nadam(nadam) => nadam.initialize(&weights, &biases),
+            SolverType::Lbfgs(lbfgs) => lbfgs.initialize(&weights, &biases),
             SolverType::Lars(lars) => lars.initialize(&weights, &biases),
             SolverType::Lamb(lamb) => lamb.initialize(&weights, &biases),
         }
@@ -346,6 +358,38 @@ impl Fit<Array2<f64>, Array2<f64>> for MLPRegressor<sklears_core::traits::Untrai
                     }
                     SolverType::Adam(adam) => {
                         adam.update_params(&mut weights, &mut biases, &weight_grads, &bias_grads)?;
+                    }
+                    SolverType::AdamW(adamw) => {
+                        adamw.update_params(
+                            &mut weights,
+                            &mut biases,
+                            &weight_grads,
+                            &bias_grads,
+                        )?;
+                    }
+                    SolverType::RMSprop(rmsprop) => {
+                        rmsprop.update_params(
+                            &mut weights,
+                            &mut biases,
+                            &weight_grads,
+                            &bias_grads,
+                        )?;
+                    }
+                    SolverType::Nadam(nadam) => {
+                        nadam.update_params(
+                            &mut weights,
+                            &mut biases,
+                            &weight_grads,
+                            &bias_grads,
+                        )?;
+                    }
+                    SolverType::Lbfgs(lbfgs) => {
+                        lbfgs.update_params(
+                            &mut weights,
+                            &mut biases,
+                            &weight_grads,
+                            &bias_grads,
+                        )?;
                     }
                     SolverType::Lars(lars) => {
                         lars.update_params(&mut weights, &mut biases, &weight_grads, &bias_grads)?;
@@ -581,6 +625,10 @@ impl Default for MLPRegressor<sklears_core::traits::Untrained> {
 enum SolverType {
     Sgd(SgdSolver),
     Adam(AdamSolver),
+    AdamW(AdamWSolver),
+    RMSprop(RMSpropSolver),
+    Nadam(NadamSolver),
+    Lbfgs(LbfgsSolver),
     Lars(LarsSolver),
     Lamb(LambSolver),
 }
@@ -760,6 +808,73 @@ mod tests {
         assert!(
             differences > 0,
             "Different random seeds should produce different results"
+        );
+    }
+
+    #[test]
+    fn test_issue_2_mlp_reproducible_with_random_state() {
+        // Regression test for issue #2: MLPRegressor must produce bit-identical
+        // predictions when the same `random_state` is used.
+        //
+        // Root cause (confirmed fixed): `fit()` now constructs a seeded
+        // `ChaCha8Rng` from `random_state` and passes `&mut rng` to both
+        // `initialize_weights`/`initialize_biases` and `create_batches_regression`,
+        // so `thread_rng()` is never called in those code paths.
+        let x = array![
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [2.0, 0.5],
+            [0.5, 2.0],
+            [1.5, 1.5],
+        ];
+        let y = array![[1.0], [1.0], [2.0], [2.5], [2.5], [3.0]];
+
+        // Two models trained with the same seed must produce bit-identical predictions.
+        let pred1 = MLPRegressor::new()
+            .hidden_layer_sizes(&[8, 4])
+            .max_iter(30)
+            .random_state(42)
+            .fit(&x, &y)
+            .expect("fit should succeed")
+            .predict(&x)
+            .expect("predict should succeed");
+
+        let pred2 = MLPRegressor::new()
+            .hidden_layer_sizes(&[8, 4])
+            .max_iter(30)
+            .random_state(42)
+            .fit(&x, &y)
+            .expect("fit should succeed")
+            .predict(&x)
+            .expect("predict should succeed");
+
+        assert_eq!(pred1.dim(), pred2.dim());
+        for (a, b) in pred1.iter().zip(pred2.iter()) {
+            assert_eq!(
+                a.to_bits(),
+                b.to_bits(),
+                "same random_state must give bit-identical predictions"
+            );
+        }
+
+        // A third model with a different seed must produce different predictions.
+        let pred3 = MLPRegressor::new()
+            .hidden_layer_sizes(&[8, 4])
+            .max_iter(30)
+            .random_state(999)
+            .fit(&x, &y)
+            .expect("fit should succeed")
+            .predict(&x)
+            .expect("predict should succeed");
+
+        let any_diff = pred1
+            .iter()
+            .zip(pred3.iter())
+            .any(|(a, b)| a.to_bits() != b.to_bits());
+        assert!(
+            any_diff,
+            "different random_state values must produce different predictions"
         );
     }
 }

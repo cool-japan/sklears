@@ -399,8 +399,16 @@ impl KernelFunction {
                 period,
             } => PeriodicKernel::new(*length_scale, *period).compute(x, y),
             KernelType::Precomputed => {
-                // For precomputed kernels, we assume x and y contain indices
-                0.0 // Placeholder - actual implementation would look up precomputed values
+                // A precomputed kernel has no closed-form value for two arbitrary
+                // feature vectors: the kernel matrix must be supplied directly and
+                // indexed by sample position. The pointwise `compute` API cannot
+                // express this, so refuse rather than fabricate a 0.0 entry.
+                // `create_kernel` rejects `Precomputed` up front, so reaching here
+                // indicates misuse of the pointwise API.
+                panic!(
+                    "precomputed kernel cannot be evaluated pointwise; supply the \
+                     kernel matrix and index it by sample position instead"
+                )
             }
             KernelType::Custom(_name) => {
                 // Default custom implementation
@@ -511,20 +519,131 @@ impl RandomWalkKernel {
         Self { lambda, max_steps }
     }
 
+    /// Compute the random-walk graph kernel (Gärtner / Kashima et al.).
+    ///
+    /// The geometric random-walk kernel between graphs `G1` and `G2` is
+    /// ```text
+    /// K(G1, G2) = Σ_{i,j} [ (I - λ A_×)^{-1} ]_{ij}
+    /// ```
+    /// where `A_×` is the adjacency matrix of the direct (tensor) product graph
+    /// `G1 × G2`, whose nodes are pairs `(u, v)` with `u ∈ G1`, `v ∈ G2`, and
+    /// `A_×[(u,v),(u',v')] = A1[u,u'] · A2[v,v']`. The closed form sums the
+    /// geometric series `Σ_t λ^t A_×^t = (I - λ A_×)^{-1}` over all start/end
+    /// pairs (uniform start/stop probabilities).
+    ///
+    /// We form `A_×` of size `(n1·n2) × (n1·n2)`, then solve the linear system
+    /// `(I - λ A_×) s = 1` for `s` and return `Σ_i s_i`. The kernel is
+    /// well-defined when `λ < 1 / ρ(A_×)`; if the system is singular or the
+    /// product graph is empty we fall back to `0.0`.
     pub fn compute_graph_kernel(&self, g1: &Graph, g2: &Graph) -> f64 {
-        // Simplified random walk kernel computation
-        // In practice, this would involve computing the product graph
-        // and solving the linear system (I - λA_product)^-1
-
         let n1 = g1.adjacency_matrix.nrows();
         let n2 = g2.adjacency_matrix.nrows();
+        let n = n1 * n2;
 
-        // Placeholder implementation - compute similarity based on graph sizes and densities
-        let density1 = g1.adjacency_matrix.sum() / (n1 * n1) as f64;
-        let density2 = g2.adjacency_matrix.sum() / (n2 * n2) as f64;
+        if n == 0 {
+            return 0.0;
+        }
 
-        (-(density1 - density2).abs()).exp()
+        // Build M = I - λ A_×, where A_×[(a*n2+b), (c*n2+d)] = A1[a,c] * A2[b,d].
+        let a1 = &g1.adjacency_matrix;
+        let a2 = &g2.adjacency_matrix;
+        let mut m = Array2::<f64>::zeros((n, n));
+        for a in 0..n1 {
+            for c in 0..n1 {
+                let a1_ac = a1[[a, c]];
+                if a1_ac == 0.0 {
+                    continue;
+                }
+                for b in 0..n2 {
+                    for d in 0..n2 {
+                        let a2_bd = a2[[b, d]];
+                        if a2_bd == 0.0 {
+                            continue;
+                        }
+                        let row = a * n2 + b;
+                        let col = c * n2 + d;
+                        m[[row, col]] = -self.lambda * a1_ac * a2_bd;
+                    }
+                }
+            }
+        }
+        for i in 0..n {
+            m[[i, i]] += 1.0;
+        }
+
+        // Solve (I - λ A_×) s = 1 via Gaussian elimination with partial pivoting.
+        let mut rhs = Array1::<f64>::from_elem(n, 1.0);
+        match gaussian_solve(&mut m, &mut rhs) {
+            Some(s) => s.sum(),
+            None => 0.0,
+        }
     }
+}
+
+/// Solve a dense linear system `A x = b` via Gaussian elimination with partial
+/// pivoting. Returns `None` if the matrix is (numerically) singular. `a` and
+/// `b` are consumed/overwritten as scratch space.
+fn gaussian_solve(a: &mut Array2<f64>, b: &mut Array1<f64>) -> Option<Array1<f64>> {
+    let n = a.nrows();
+    if n == 0 || a.ncols() != n || b.len() != n {
+        return None;
+    }
+
+    for col in 0..n {
+        // Partial pivoting: find the row with the largest magnitude in this column.
+        let mut pivot_row = col;
+        let mut pivot_val = a[[col, col]].abs();
+        for row in (col + 1)..n {
+            let val = a[[row, col]].abs();
+            if val > pivot_val {
+                pivot_val = val;
+                pivot_row = row;
+            }
+        }
+
+        if pivot_val < 1e-12 {
+            return None; // Singular.
+        }
+
+        if pivot_row != col {
+            for k in 0..n {
+                let tmp = a[[col, k]];
+                a[[col, k]] = a[[pivot_row, k]];
+                a[[pivot_row, k]] = tmp;
+            }
+            b.swap(col, pivot_row);
+        }
+
+        // Eliminate below the pivot.
+        let pivot = a[[col, col]];
+        for row in (col + 1)..n {
+            let factor = a[[row, col]] / pivot;
+            if factor == 0.0 {
+                continue;
+            }
+            for k in col..n {
+                let sub = factor * a[[col, k]];
+                a[[row, k]] -= sub;
+            }
+            b[row] -= factor * b[col];
+        }
+    }
+
+    // Back-substitution.
+    let mut x = Array1::<f64>::zeros(n);
+    for row in (0..n).rev() {
+        let mut sum = b[row];
+        for k in (row + 1)..n {
+            sum -= a[[row, k]] * x[k];
+        }
+        let diag = a[[row, row]];
+        if diag.abs() < 1e-12 {
+            return None;
+        }
+        x[row] = sum / diag;
+    }
+
+    Some(x)
 }
 
 /// Hellinger kernel implementation
@@ -616,8 +735,13 @@ impl Kernel for KernelType {
                 period,
             } => PeriodicKernel::new(*length_scale, *period).compute(x, y),
             KernelType::Precomputed => {
-                // For precomputed kernels, we assume x and y contain indices
-                0.0 // Placeholder - actual implementation would look up precomputed values
+                // See the note in `KernelFunction::compute`: a precomputed kernel
+                // must be indexed directly from a supplied matrix and has no
+                // pointwise value. Refuse rather than fabricate a 0.0 entry.
+                panic!(
+                    "precomputed kernel cannot be evaluated pointwise; supply the \
+                     kernel matrix and index it by sample position instead"
+                )
             }
             KernelType::Custom(_name) => {
                 // Default custom implementation

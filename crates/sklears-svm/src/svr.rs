@@ -2,7 +2,6 @@
 
 use crate::{
     kernels::{create_kernel, Kernel, KernelType},
-    smo::SmoConfig,
     svc::SvcKernel,
 };
 use scirs2_core::ndarray::{Array1, Array2};
@@ -109,6 +108,16 @@ impl SVR<Untrained> {
         self
     }
 
+    /// Set the kernel directly from an [`SvcKernel`] specification.
+    ///
+    /// This preserves deferred parameters (such as a `None` gamma, which is
+    /// resolved to `1 / n_features` at fit time) instead of forcing a concrete
+    /// value up front.
+    pub fn svc_kernel(mut self, kernel: SvcKernel) -> Self {
+        self.config.kernel = kernel;
+        self
+    }
+
     /// Set the tolerance for stopping criterion
     pub fn tol(mut self, tol: Float) -> Self {
         self.config.tol = tol;
@@ -164,25 +173,171 @@ impl SVR<Untrained> {
         }
     }
 
-    /// Transform regression problem to epsilon-insensitive classification
-    /// Creates dual problem with alpha+ and alpha- variables
-    fn transform_to_dual_problem(&self, y: &Array1<Float>) -> (Array2<Float>, Array1<Float>) {
+    /// Solve the epsilon-SVR dual problem using a Sequential Minimal
+    /// Optimization (SMO) algorithm.
+    ///
+    /// The epsilon-SVR dual problem is:
+    /// ```text
+    /// minimize:  ½ (α - α*)ᵀ Q (α - α*) + ε Σ(α_i + α_i*) - Σ y_i (α_i - α_i*)
+    /// subject to: Σ(α_i - α_i*) = 0
+    ///             0 ≤ α_i, α_i* ≤ C
+    /// ```
+    /// where `Q_ij = K(x_i, x_j)`.
+    ///
+    /// We track the signed coefficient `w_i = α_i - α_i*` and the cached
+    /// decision values `decision_i = Σ_j w_j K(i,j)`. A maximal-violating pair
+    /// is selected from the KKT conditions, the 2-variable subproblem is solved
+    /// analytically subject to the equality constraint `Σ w = 0` and the box
+    /// constraints, and the decision cache is updated incrementally.
+    ///
+    /// Returns `(dual_coef, intercept)` where `dual_coef[i] = α_i - α_i*`.
+    fn solve_dual_smo(
+        &self,
+        kernel: &KernelType,
+        x: &Array2<Float>,
+        y: &Array1<Float>,
+    ) -> Result<(Array1<Float>, Float)> {
         let n_samples = y.len();
+        let c = self.config.c;
+        let epsilon = self.config.epsilon;
+        let tol = self.config.tol;
 
-        // Create expanded feature matrix for dual variables
-        // Each sample becomes two samples (for alpha+ and alpha-)
-        let x_dual = Array2::<Float>::zeros((2 * n_samples, 1)); // Placeholder
-
-        // Create target vector for epsilon-insensitive loss
-        let mut y_dual = Array1::<Float>::zeros(2 * n_samples);
-
+        // Precompute the kernel (Gram) matrix.
+        let kernel_fn = create_kernel(kernel.clone())?;
+        let mut q = Array2::<Float>::zeros((n_samples, n_samples));
         for i in 0..n_samples {
-            // Upper constraints: y_i - epsilon <= f(x_i) <= y_i + epsilon
-            y_dual[i] = 1.0; // For alpha+ (error > epsilon)
-            y_dual[i + n_samples] = -1.0; // For alpha- (error < -epsilon)
+            for j in i..n_samples {
+                let val = kernel_fn.compute(x.row(i), x.row(j));
+                q[[i, j]] = val;
+                q[[j, i]] = val;
+            }
         }
 
-        (x_dual, y_dual)
+        // alpha_i and alpha_i* (both non-negative, bounded by C).
+        let mut alpha = Array1::<Float>::zeros(n_samples);
+        let mut alpha_star = Array1::<Float>::zeros(n_samples);
+        // decision_i = Σ_j (alpha_j - alpha_j*) K(i,j).
+        let mut decision = Array1::<Float>::zeros(n_samples);
+
+        let max_iter = self.config.max_iter.max(1) * n_samples.max(1);
+
+        for _iter in 0..max_iter {
+            // Select the maximal-violating pair from the residual gradient.
+            // r_i = decision_i - y_i. The epsilon-insensitive offsets give two
+            // candidate gradients per sample, one for the "increase w" direction
+            // and one for the "decrease w" direction.
+            let mut i_up = None;
+            let mut g_max = Float::NEG_INFINITY;
+            let mut i_low = None;
+            let mut g_min = Float::INFINITY;
+
+            for i in 0..n_samples {
+                let r_i = decision[i] - y[i];
+                let grad_up = -r_i - epsilon; // gradient when increasing w_i
+                let grad_down = -r_i + epsilon; // gradient when decreasing w_i
+
+                let can_increase = alpha[i] < c - tol || alpha_star[i] > tol;
+                let can_decrease = alpha_star[i] < c - tol || alpha[i] > tol;
+
+                if can_increase && grad_up > g_max {
+                    g_max = grad_up;
+                    i_up = Some(i);
+                }
+                if can_decrease && grad_down < g_min {
+                    g_min = grad_down;
+                    i_low = Some(i);
+                }
+            }
+
+            if g_max - g_min < tol {
+                break;
+            }
+
+            let (i, j) = match (i_up, i_low) {
+                (Some(i), Some(j)) if i != j => (i, j),
+                _ => break,
+            };
+
+            // Curvature of the 2-variable subproblem.
+            let eta = q[[i, i]] + q[[j, j]] - 2.0 * q[[i, j]];
+            if eta <= 1e-12 {
+                continue;
+            }
+
+            let w_i_old = alpha[i] - alpha_star[i];
+            let w_j_old = alpha[j] - alpha_star[j];
+
+            let r_i = decision[i] - y[i];
+            let r_j = decision[j] - y[j];
+            // Optimal step along the (i up, j down) direction for the
+            // epsilon-insensitive quadratic.
+            let delta = ((r_j - r_i) - 2.0 * epsilon) / eta;
+
+            // Project signed coefficients back onto [-C, C].
+            let w_i_new = (w_i_old + delta).clamp(-c, c);
+            let w_j_new = (w_j_old - delta).clamp(-c, c);
+
+            // Enforce Σ w = 0 by taking the smaller-magnitude feasible step.
+            let actual_delta_i = w_i_new - w_i_old;
+            let actual_delta_j = w_j_new - w_j_old;
+            let step = if actual_delta_i.abs() <= actual_delta_j.abs() {
+                actual_delta_i
+            } else {
+                -actual_delta_j
+            };
+
+            if step.abs() < 1e-12 {
+                continue;
+            }
+
+            let w_i_final = w_i_old + step;
+            let w_j_final = w_j_old - step;
+
+            // Decompose signed coefficients into (alpha, alpha*).
+            alpha[i] = w_i_final.max(0.0);
+            alpha_star[i] = (-w_i_final).max(0.0);
+            alpha[j] = w_j_final.max(0.0);
+            alpha_star[j] = (-w_j_final).max(0.0);
+
+            let dw_i = w_i_final - w_i_old;
+            let dw_j = w_j_final - w_j_old;
+            for k in 0..n_samples {
+                decision[k] += dw_i * q[[k, i]] + dw_j * q[[k, j]];
+            }
+        }
+
+        // Signed dual coefficients.
+        let mut dual_coef = Array1::<Float>::zeros(n_samples);
+        for i in 0..n_samples {
+            dual_coef[i] = alpha[i] - alpha_star[i];
+        }
+
+        // Compute the bias b by averaging over free (unbounded) support vectors,
+        // for which the KKT conditions fix the residual at +/- epsilon.
+        let mut bias_sum = 0.0;
+        let mut bias_count = 0usize;
+        for i in 0..n_samples {
+            let w_i = dual_coef[i];
+            if w_i > tol && w_i < c - tol {
+                bias_sum += y[i] - decision[i] - epsilon;
+                bias_count += 1;
+            } else if w_i < -tol && w_i > -(c - tol) {
+                bias_sum += y[i] - decision[i] + epsilon;
+                bias_count += 1;
+            }
+        }
+
+        let intercept = if bias_count > 0 {
+            bias_sum / bias_count as Float
+        } else {
+            let mut sum = 0.0;
+            for i in 0..n_samples {
+                sum += y[i] - decision[i];
+            }
+            sum / n_samples as Float
+        };
+
+        Ok((dual_coef, intercept))
     }
 }
 
@@ -288,48 +443,43 @@ impl Fit<Array2<Float>, Array1<Float>> for SVR<Untrained> {
         // Create kernel
         let kernel = self.create_kernel(n_features);
 
-        // For simplicity, we'll implement a basic SVR using the SMO framework
-        // In practice, SVR requires a more sophisticated dual formulation
+        // Solve the epsilon-SVR dual problem via SMO to obtain the signed dual
+        // coefficients w_i = (alpha_i - alpha_i*) and the bias.
+        let (full_dual_coef, intercept) = self.solve_dual_smo(&kernel, x, y)?;
 
-        // Simplified approach: treat as regression with epsilon-insensitive loss
-        // Create pseudo-classification problem for SMO solver
-        let (_x_dual, _y_dual) = self.transform_to_dual_problem(y);
-
-        // Configure SMO solver
-        let _smo_config = SmoConfig {
-            c: self.config.c,
-            tol: self.config.tol,
-            max_iter: self.config.max_iter,
-            cache_size: self.config.cache_size,
-            shrinking: self.config.shrinking,
-            working_set_strategy: crate::smo::WorkingSetStrategy::SecondOrder,
-            early_stopping_tol: 1e-4,
-            convergence_check_interval: 10,
-        };
-
-        // For now, use a simplified linear approach
-        // In a full implementation, you'd solve the dual SVR problem
-
-        // Placeholder: find support vectors as samples with largest residuals
+        // Support vectors are samples with non-negligible dual coefficient.
+        let sv_threshold = 1e-8 * self.config.c.max(1.0);
         let mut support_indices = Vec::new();
         let mut dual_coef = Vec::new();
-
-        // Simple heuristic: select samples as support vectors
-        for i in 0..n_samples.min(n_samples / 2) {
-            support_indices.push(i);
-            dual_coef.push(1.0 / n_samples as Float);
+        for i in 0..n_samples {
+            if full_dual_coef[i].abs() > sv_threshold {
+                support_indices.push(i);
+                dual_coef.push(full_dual_coef[i]);
+            }
         }
 
-        // Extract support vectors
+        // Degenerate fallback: if the solver found no support vectors (e.g. a
+        // perfectly fittable problem with large epsilon), keep at least the
+        // sample with the largest coefficient so prediction stays well-defined.
+        if support_indices.is_empty() {
+            let best = (0..n_samples)
+                .max_by(|&a, &b| {
+                    full_dual_coef[a]
+                        .abs()
+                        .partial_cmp(&full_dual_coef[b].abs())
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .unwrap_or(0);
+            support_indices.push(best);
+            dual_coef.push(full_dual_coef[best]);
+        }
+
+        // Extract support vectors.
         let n_support = support_indices.len();
         let mut support_vectors = Array2::zeros((n_support, n_features));
-
         for (i, &support_idx) in support_indices.iter().enumerate() {
             support_vectors.row_mut(i).assign(&x.row(support_idx));
         }
-
-        // Compute intercept (simplified)
-        let intercept = y.mean().unwrap_or(0.0);
 
         Ok(SVR {
             config: self.config,
@@ -447,7 +597,13 @@ mod tests {
         let predictions = svr.predict(&x_test).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 1);
-        // Note: exact prediction depends on support vector selection
+        // The SMO solver should recover the linear trend y = 2*x, so the
+        // prediction at x = 3 should be close to 6 (within epsilon + slack).
+        assert!(
+            (predictions[0] - 6.0).abs() < 1.0,
+            "SVR prediction {} too far from expected 6.0",
+            predictions[0]
+        );
     }
 
     #[test]

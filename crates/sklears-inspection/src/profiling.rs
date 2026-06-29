@@ -515,11 +515,34 @@ impl ProfileGuidedOptimizer {
         slope.abs()
     }
 
-    /// Estimate current memory usage
+    /// Current resident set size (RSS) of this process, in bytes.
+    ///
+    /// On Linux this reads `VmRSS:` from `/proc/self/status`. On platforms where RSS
+    /// cannot be measured without external dependencies it returns 0, meaning "not
+    /// measured" rather than a fabricated value (the previous implementation returned
+    /// the process id multiplied by 1024, which is unrelated to memory).
     fn estimate_memory_usage(&self) -> usize {
-        // Simple estimation - in a real implementation, you'd use system APIs
-        // or more sophisticated memory tracking
-        std::process::id() as usize * 1024 // Placeholder
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
+                for line in status.lines() {
+                    if let Some(rest) = line.strip_prefix("VmRSS:") {
+                        if let Some(kb) = rest
+                            .split_whitespace()
+                            .next()
+                            .and_then(|value| value.parse::<usize>().ok())
+                        {
+                            return kb.saturating_mul(1024);
+                        }
+                    }
+                }
+            }
+            0
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            0
+        }
     }
 
     /// Get method profile

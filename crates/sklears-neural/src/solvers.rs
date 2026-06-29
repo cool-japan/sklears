@@ -2,6 +2,7 @@
 
 use crate::NeuralResult;
 use scirs2_core::ndarray::{Array1, Array2};
+use std::collections::VecDeque;
 
 /// Gradient clipping methods
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -88,34 +89,18 @@ impl GradientClipper {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Solver {
-    /// Limited-memory BFGS algorithm
-    ///
-    /// # Note
-    ///
-    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+    /// Limited-memory BFGS algorithm (two-loop recursion, [`LbfgsSolver`])
     Lbfgs,
     /// Stochastic Gradient Descent
     Sgd,
     /// Adam optimizer
     #[default]
     Adam,
-    /// AdamW optimizer (Adam with decoupled weight decay)
-    ///
-    /// # Note
-    ///
-    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+    /// AdamW optimizer (Adam with decoupled weight decay, [`AdamWSolver`])
     AdamW,
-    /// RMSprop optimizer
-    ///
-    /// # Note
-    ///
-    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+    /// RMSprop optimizer ([`RMSpropSolver`])
     RMSprop,
-    /// Nadam optimizer (Nesterov-accelerated Adam)
-    ///
-    /// # Note
-    ///
-    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+    /// Nadam optimizer (Nesterov-accelerated Adam, [`NadamSolver`])
     Nadam,
     /// LARS optimizer (Layer-wise Adaptive Rate Scaling)
     Lars,
@@ -957,6 +942,172 @@ impl LambSolver {
     }
 }
 
+/// Limited-memory BFGS (L-BFGS) optimizer.
+///
+/// Maintains a short history of parameter and gradient differences and uses the
+/// classic two-loop recursion (Nocedal & Wright, *Numerical Optimization*,
+/// Algorithm 7.4) to compute the quasi-Newton search direction `d = -H_k g_k`
+/// without ever forming the inverse Hessian. The configured `learning_rate` is
+/// applied as a fixed step length in place of a Wolfe line search, because the
+/// streaming per-batch `update_params` interface does not expose the loss
+/// function a line search would require. With an empty history the direction
+/// reduces to scaled steepest descent, and curvature pairs that fail the
+/// `sᵀy > epsilon` condition are skipped to keep the implicit Hessian positive
+/// definite.
+#[derive(Debug, Clone)]
+pub struct LbfgsSolver {
+    /// Step length applied to the L-BFGS search direction
+    pub learning_rate: f64,
+    /// Maximum number of `(s, y)` correction pairs retained
+    pub history_size: usize,
+    /// Curvature threshold; pairs with `sᵀy` at or below this are skipped
+    pub epsilon: f64,
+    s_history: VecDeque<Vec<f64>>,
+    y_history: VecDeque<Vec<f64>>,
+    rho_history: VecDeque<f64>,
+    prev_params: Option<Vec<f64>>,
+    prev_grad: Option<Vec<f64>>,
+}
+
+impl LbfgsSolver {
+    /// Create a new L-BFGS optimizer with the given step length, memory depth,
+    /// and curvature threshold.
+    pub fn new(learning_rate: f64, history_size: usize, epsilon: f64) -> Self {
+        Self {
+            learning_rate,
+            history_size: history_size.max(1),
+            epsilon,
+            s_history: VecDeque::new(),
+            y_history: VecDeque::new(),
+            rho_history: VecDeque::new(),
+            prev_params: None,
+            prev_grad: None,
+        }
+    }
+
+    /// Reset all optimizer state; parameter shapes are inferred from the first update.
+    pub fn initialize(&mut self, _weights: &[Array2<f64>], _biases: &[Array1<f64>]) {
+        self.s_history.clear();
+        self.y_history.clear();
+        self.rho_history.clear();
+        self.prev_params = None;
+        self.prev_grad = None;
+    }
+
+    /// Flatten weight matrices followed by bias vectors into a single parameter vector.
+    fn flatten(weights: &[Array2<f64>], biases: &[Array1<f64>]) -> Vec<f64> {
+        let total: usize = weights.iter().map(|w| w.len()).sum::<usize>()
+            + biases.iter().map(|b| b.len()).sum::<usize>();
+        let mut flat = Vec::with_capacity(total);
+        for w in weights {
+            flat.extend(w.iter().copied());
+        }
+        for b in biases {
+            flat.extend(b.iter().copied());
+        }
+        flat
+    }
+
+    /// Scatter a flattened parameter vector back into weight matrices and bias vectors.
+    fn write_back(flat: &[f64], weights: &mut [Array2<f64>], biases: &mut [Array1<f64>]) {
+        let mut offset = 0;
+        for w in weights.iter_mut() {
+            for value in w.iter_mut() {
+                *value = flat[offset];
+                offset += 1;
+            }
+        }
+        for b in biases.iter_mut() {
+            for value in b.iter_mut() {
+                *value = flat[offset];
+                offset += 1;
+            }
+        }
+    }
+
+    fn dot(a: &[f64], b: &[f64]) -> f64 {
+        a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
+    }
+
+    /// Perform one L-BFGS step using the provided gradients; updates `weights`
+    /// and `biases` in place.
+    pub fn update_params(
+        &mut self,
+        weights: &mut [Array2<f64>],
+        biases: &mut [Array1<f64>],
+        weight_grads: &[Array2<f64>],
+        bias_grads: &[Array1<f64>],
+    ) -> NeuralResult<()> {
+        let x = Self::flatten(weights, biases);
+        let g = Self::flatten(weight_grads, bias_grads);
+
+        // Record the curvature pair (s, y) produced by the previous step.
+        if let (Some(prev_x), Some(prev_g)) = (&self.prev_params, &self.prev_grad) {
+            let s: Vec<f64> = x.iter().zip(prev_x).map(|(a, b)| a - b).collect();
+            let y: Vec<f64> = g.iter().zip(prev_g).map(|(a, b)| a - b).collect();
+            let sy = Self::dot(&s, &y);
+            if sy > self.epsilon {
+                if self.s_history.len() == self.history_size {
+                    self.s_history.pop_front();
+                    self.y_history.pop_front();
+                    self.rho_history.pop_front();
+                }
+                self.rho_history.push_back(1.0 / sy);
+                self.s_history.push_back(s);
+                self.y_history.push_back(y);
+            }
+        }
+
+        // First loop: q starts at the gradient, peeling off the newest corrections.
+        let m = self.s_history.len();
+        let mut q = g.clone();
+        let mut alphas = vec![0.0_f64; m];
+        for i in (0..m).rev() {
+            let alpha = self.rho_history[i] * Self::dot(&self.s_history[i], &q);
+            alphas[i] = alpha;
+            for (qj, yj) in q.iter_mut().zip(self.y_history[i].iter()) {
+                *qj -= alpha * yj;
+            }
+        }
+
+        // Initial inverse-Hessian scaling gamma = (sᵀy)/(yᵀy) from the latest pair.
+        let gamma = if m > 0 {
+            let yy = Self::dot(&self.y_history[m - 1], &self.y_history[m - 1]);
+            if yy > 0.0 {
+                Self::dot(&self.s_history[m - 1], &self.y_history[m - 1]) / yy
+            } else {
+                1.0
+            }
+        } else {
+            1.0
+        };
+        let mut r: Vec<f64> = q.iter().map(|value| value * gamma).collect();
+
+        // Second loop: re-apply the corrections from oldest to newest.
+        for i in 0..m {
+            let beta = self.rho_history[i] * Self::dot(&self.y_history[i], &r);
+            let coeff = alphas[i] - beta;
+            for (rj, sj) in r.iter_mut().zip(self.s_history[i].iter()) {
+                *rj += coeff * sj;
+            }
+        }
+
+        // r now holds H_k g_k; descend with d = -r scaled by the step length.
+        let new_x: Vec<f64> = x
+            .iter()
+            .zip(r.iter())
+            .map(|(xj, rj)| xj - self.learning_rate * rj)
+            .collect();
+        Self::write_back(&new_x, weights, biases);
+
+        // Stash the pre-update params/grad for the next curvature pair.
+        self.prev_params = Some(x);
+        self.prev_grad = Some(g);
+
+        Ok(())
+    }
+}
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -1175,6 +1326,54 @@ mod tests {
             .zip(original_biases.iter())
             .any(|(a, b)| (a - b).abs() > 1e-10);
         assert!(biases_changed);
+    }
+
+    #[test]
+    fn test_lbfgs_solver_updates_parameters() {
+        let mut solver = LbfgsSolver::new(0.1, 10, 1e-10);
+
+        let mut weights = vec![array![[1.0, 2.0], [3.0, 4.0]]];
+        let mut biases = vec![array![0.5, -0.5]];
+        let weight_grads = vec![array![[0.1, 0.2], [0.3, 0.4]]];
+        let bias_grads = vec![array![0.1, -0.1]];
+
+        let original_weights = weights[0].clone();
+
+        solver.initialize(&weights, &biases);
+        solver
+            .update_params(&mut weights, &mut biases, &weight_grads, &bias_grads)
+            .expect("operation should succeed");
+
+        // First step (empty history) is scaled steepest descent: w - lr * g.
+        let expected = &original_weights - &weight_grads[0] * 0.1;
+        for (a, b) in weights[0].iter().zip(expected.iter()) {
+            assert_abs_diff_eq!(*a, *b, epsilon = 1e-12);
+        }
+    }
+
+    #[test]
+    fn test_lbfgs_minimizes_quadratic() {
+        // Minimize f(w) = 0.5 * sum((w - target)^2); gradient = w - target.
+        // L-BFGS should drive the parameters to `target`.
+        let target = array![[2.0, -3.0], [0.5, 4.0]];
+        let mut solver = LbfgsSolver::new(1.0, 10, 1e-12);
+
+        let mut weights = vec![Array2::<f64>::zeros((2, 2))];
+        let mut biases = vec![Array1::<f64>::zeros(0)];
+        solver.initialize(&weights, &biases);
+
+        for _ in 0..50 {
+            let grad = &weights[0] - &target;
+            let weight_grads = vec![grad];
+            let bias_grads = vec![Array1::<f64>::zeros(0)];
+            solver
+                .update_params(&mut weights, &mut biases, &weight_grads, &bias_grads)
+                .expect("operation should succeed");
+        }
+
+        for (w, t) in weights[0].iter().zip(target.iter()) {
+            assert_abs_diff_eq!(*w, *t, epsilon = 1e-6);
+        }
     }
 
     #[test]

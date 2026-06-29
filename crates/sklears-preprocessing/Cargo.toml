@@ -15,7 +15,7 @@ categories = ["science", "mathematics"]
 [dependencies]
 # SciRS2 Policy Compliant Dependencies
 sklears-core = { workspace = true }
-scirs2-core = { workspace = true }
+scirs2-core = { workspace = true, features = ["memory_management"] }
 
 # Core SciRS2 modules for Preprocessing
 scirs2-stats = { workspace = true }  # For statistical preprocessing operations

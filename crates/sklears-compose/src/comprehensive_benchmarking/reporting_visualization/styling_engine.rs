@@ -3,13 +3,13 @@
 //! Comprehensive styling engine for theme management, CSS generation, dynamic styling,
 //! and style optimization across all visualization and reporting components.
 
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, RwLock, Mutex};
+use crate::error::{BenchmarkError, Result};
+use crate::utils::generate_id;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
-use std::fmt;
-use serde::{Serialize, Deserialize};
-use crate::error::{Result, BenchmarkError};
-use crate::utils::{generate_id, validate_config, MetricsCollector, SecurityManager};
+use tokio::sync::RwLock;
 
 /// Main styling engine coordinating all theme and CSS operations
 #[derive(Debug, Clone)]
@@ -464,6 +464,12 @@ pub struct Color {
     pub metadata: ColorMetadata,
 }
 
+impl Default for StylingEngineSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StylingEngineSystem {
     /// Create new styling engine system
     pub fn new() -> Self {
@@ -489,7 +495,7 @@ impl StylingEngineSystem {
 
         // Register with theme manager
         {
-            let mut theme_manager = self.theme_manager.write().unwrap_or_else(|e| e.into_inner());
+            let mut theme_manager = self.theme_manager.write().await;
             theme_manager.register_theme(theme.clone()).await?;
         }
 
@@ -498,8 +504,10 @@ impl StylingEngineSystem {
 
         // Update performance metrics
         {
-            let mut performance_monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
-            performance_monitor.record_theme_registration(&theme.id).await?;
+            let mut performance_monitor = self.performance_monitor.write().await;
+            performance_monitor
+                .record_theme_registration(&theme.id)
+                .await?;
         }
 
         Ok(())
@@ -514,34 +522,42 @@ impl StylingEngineSystem {
 
         // Generate base CSS
         let base_css = {
-            let css_generator = self.css_generator.read().unwrap_or_else(|e| e.into_inner());
+            let css_generator = self.css_generator.read().await;
             css_generator.generate_base_css(&request).await?
         };
 
         // Apply optimizations
         let optimized_css = {
-            let optimization_system = self.optimization_system.read().unwrap_or_else(|e| e.into_inner());
-            optimization_system.optimize_css(base_css, &request.optimization_config).await?
+            let optimization_system = self.optimization_system.read().await;
+            optimization_system
+                .optimize_css(base_css, &request.optimization_config)
+                .await?
         };
 
         // Validate generated CSS
         {
-            let validation_system = self.validation_system.read().unwrap_or_else(|e| e.into_inner());
-            validation_system.validate_css(&optimized_css, &request.validation_config).await?;
+            let validation_system = self.validation_system.read().await;
+            validation_system
+                .validate_css(&optimized_css, &request.validation_config)
+                .await?;
         }
 
         // Check accessibility compliance
         {
-            let accessibility_manager = self.accessibility_manager.read().unwrap_or_else(|e| e.into_inner());
-            accessibility_manager.validate_css_accessibility(&optimized_css).await?;
+            let accessibility_manager = self.accessibility_manager.read().await;
+            accessibility_manager
+                .validate_css_accessibility(&optimized_css)
+                .await?;
         }
 
         let generation_time = start_time.elapsed();
 
         // Record performance metrics
         {
-            let mut performance_monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
-            performance_monitor.record_css_generation(&request.id, generation_time).await?;
+            let mut performance_monitor = self.performance_monitor.write().await;
+            performance_monitor
+                .record_css_generation(&request.id, generation_time)
+                .await?;
         }
 
         Ok(GeneratedCss {
@@ -561,26 +577,27 @@ impl StylingEngineSystem {
     /// Apply theme to target scope
     pub async fn apply_theme(&self, theme_id: &str, scope: ThemeScope) -> Result<()> {
         // Get theme from registry
-        let theme = {
-            let theme_manager = self.theme_manager.read().unwrap_or_else(|e| e.into_inner());
+        let _theme = {
+            let theme_manager = self.theme_manager.read().await;
             theme_manager.get_theme(theme_id).await?
         };
 
         // Generate CSS for theme and scope
+        let scope_clone = scope.clone();
         let css_request = CssGenerationRequest {
             id: generate_id(),
             theme_id: Some(theme_id.to_string()),
-            scope: Some(scope),
+            scope: Some(scope_clone),
             components: Vec::new(),
             optimization_config: OptimizationConfig::default(),
-            validation_config: ValidationConfig::default(),
+            validation_config: ValidationConfig,
         };
 
         let generated_css = self.generate_css(css_request).await?;
 
         // Apply CSS to target scope
         {
-            let mut dynamic_engine = self.dynamic_engine.write().unwrap_or_else(|e| e.into_inner());
+            let mut dynamic_engine = self.dynamic_engine.write().await;
             dynamic_engine.apply_css(&generated_css, &scope).await?;
         }
 
@@ -588,68 +605,90 @@ impl StylingEngineSystem {
     }
 
     /// Switch theme with animation
-    pub async fn switch_theme(&self, from_theme: &str, to_theme: &str, animation_config: ThemeTransitionConfig) -> Result<()> {
+    pub async fn switch_theme(
+        &self,
+        from_theme: &str,
+        to_theme: &str,
+        animation_config: ThemeTransitionConfig,
+    ) -> Result<()> {
         // Prepare theme transition
         {
-            let mut dynamic_engine = self.dynamic_engine.write().unwrap_or_else(|e| e.into_inner());
-            dynamic_engine.prepare_theme_transition(from_theme, to_theme, &animation_config).await?;
+            let mut dynamic_engine = self.dynamic_engine.write().await;
+            dynamic_engine
+                .prepare_theme_transition(from_theme, to_theme, &animation_config)
+                .await?;
         }
 
         // Execute transition
         {
-            let mut dynamic_engine = self.dynamic_engine.write().unwrap_or_else(|e| e.into_inner());
+            let mut dynamic_engine = self.dynamic_engine.write().await;
             dynamic_engine.execute_theme_transition().await?;
         }
 
         // Update performance metrics
         {
-            let mut performance_monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
-            performance_monitor.record_theme_switch(from_theme, to_theme).await?;
+            let mut performance_monitor = self.performance_monitor.write().await;
+            performance_monitor
+                .record_theme_switch(from_theme, to_theme)
+                .await?;
         }
 
         Ok(())
     }
 
     /// Optimize styles for performance
-    pub async fn optimize_styles(&self, optimization_config: StyleOptimizationConfig) -> Result<OptimizationResult> {
-        let optimization_system = self.optimization_system.read().unwrap_or_else(|e| e.into_inner());
-        optimization_system.optimize_styles(optimization_config).await
+    pub async fn optimize_styles(
+        &self,
+        optimization_config: StyleOptimizationConfig,
+    ) -> Result<OptimizationResult> {
+        let optimization_system = self.optimization_system.read().await;
+        optimization_system
+            .optimize_styles(optimization_config)
+            .await
     }
 
     /// Validate theme accessibility
     pub async fn validate_accessibility(&self, theme_id: &str) -> Result<AccessibilityReport> {
-        let accessibility_manager = self.accessibility_manager.read().unwrap_or_else(|e| e.into_inner());
-        accessibility_manager.validate_theme_accessibility(theme_id).await
+        let accessibility_manager = self.accessibility_manager.read().await;
+        accessibility_manager
+            .validate_theme_accessibility(theme_id)
+            .await
     }
 
     /// Get style performance metrics
     pub async fn get_performance_metrics(&self) -> Result<StylePerformanceMetrics> {
-        let performance_monitor = self.performance_monitor.read().unwrap_or_else(|e| e.into_inner());
+        let performance_monitor = self.performance_monitor.read().await;
         performance_monitor.get_comprehensive_metrics().await
     }
 
     /// Validate theme configuration
     async fn validate_theme(&self, theme: &Theme) -> Result<()> {
-        let validation_system = self.validation_system.read().unwrap_or_else(|e| e.into_inner());
+        let validation_system = self.validation_system.read().await;
         validation_system.validate_theme(theme).await
     }
 
     /// Check accessibility compliance
     async fn check_accessibility_compliance(&self, theme: &Theme) -> Result<()> {
-        let accessibility_manager = self.accessibility_manager.read().unwrap_or_else(|e| e.into_inner());
+        let accessibility_manager = self.accessibility_manager.read().await;
         accessibility_manager.check_theme_compliance(theme).await
     }
 
     /// Generate CSS for theme
     async fn generate_theme_css(&self, theme: &Theme) -> Result<()> {
-        let css_generator = self.css_generator.read().unwrap_or_else(|e| e.into_inner());
+        let css_generator = self.css_generator.read().await;
         css_generator.generate_theme_css(theme).await
     }
 
     /// Validate CSS generation request
     async fn validate_generation_request(&self, request: &CssGenerationRequest) -> Result<()> {
-        let validation_system = self.validation_system.read().unwrap_or_else(|e| e.into_inner());
+        let validation_system = self.validation_system.read().await;
         validation_system.validate_generation_request(request).await
+    }
+}
+
+impl Default for ThemeManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -689,12 +728,13 @@ impl ThemeManager {
         self.theme_registry
             .get(theme_id)
             .cloned()
-            .ok_or_else(|| BenchmarkError::ThemeNotFound(theme_id.to_string()))
+            .ok_or_else(|| BenchmarkError::ThemeNotFound(theme_id.to_string()).into())
     }
 
     /// List available themes
     pub async fn list_themes(&self) -> Result<Vec<ThemeInfo>> {
-        Ok(self.theme_registry
+        Ok(self
+            .theme_registry
             .values()
             .map(|theme| ThemeInfo {
                 id: theme.id.clone(),
@@ -703,6 +743,12 @@ impl ThemeManager {
                 categories: theme.metadata.categories.clone(),
             })
             .collect())
+    }
+}
+
+impl Default for CssGenerationEngine {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -722,13 +768,13 @@ impl CssGenerationEngine {
     }
 
     /// Generate base CSS
-    pub async fn generate_base_css(&self, request: &CssGenerationRequest) -> Result<String> {
+    pub async fn generate_base_css(&self, _request: &CssGenerationRequest) -> Result<String> {
         // Implementation for CSS generation
         Ok(String::new())
     }
 
     /// Generate CSS for theme
-    pub async fn generate_theme_css(&self, theme: &Theme) -> Result<()> {
+    pub async fn generate_theme_css(&self, _theme: &Theme) -> Result<()> {
         // Implementation for theme CSS generation
         Ok(())
     }
@@ -841,94 +887,202 @@ pub struct ThemeCategory;
 #[derive(Debug, Clone)]
 pub struct ThemeVersioningSystem;
 
+impl Default for ThemeVersioningSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ThemeVersioningSystem {
-    pub fn new() -> Self { Self }
-    pub async fn register_version(&mut self, _theme_id: &str) -> Result<()> { Ok(()) }
+    pub fn new() -> Self {
+        Self
+    }
+    pub async fn register_version(&mut self, _theme_id: &str) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ThemeInheritanceHierarchy;
 
+impl Default for ThemeInheritanceHierarchy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ThemeInheritanceHierarchy {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ThemeValidationEngine;
 
+impl Default for ThemeValidationEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ThemeValidationEngine {
-    pub fn new() -> Self { Self }
-    pub async fn validate(&self, _theme: &Theme) -> Result<()> { Ok(()) }
+    pub fn new() -> Self {
+        Self
+    }
+    pub async fn validate(&self, _theme: &Theme) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ThemeCompositionSystem;
 
+impl Default for ThemeCompositionSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ThemeCompositionSystem {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ThemeCustomizationManager;
 
+impl Default for ThemeCustomizationManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ThemeCustomizationManager {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ThemeDeploymentTracker;
 
+impl Default for ThemeDeploymentTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ThemeDeploymentTracker {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct CssPreprocessingPipeline;
 
+impl Default for CssPreprocessingPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CssPreprocessingPipeline {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct CssOptimizationEngine;
 
+impl Default for CssOptimizationEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CssOptimizationEngine {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct CssMinificationSystem;
 
+impl Default for CssMinificationSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CssMinificationSystem {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct VendorPrefixManager;
 
+impl Default for VendorPrefixManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VendorPrefixManager {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct MediaQueryManager;
 
+impl Default for MediaQueryManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MediaQueryManager {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct CustomPropertiesManager;
 
+impl Default for CustomPropertiesManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CustomPropertiesManager {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct CssOutputFormatter;
 
+impl Default for CssOutputFormatter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CssOutputFormatter {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 // Additional placeholder implementations for the remaining complex types
@@ -1091,6 +1245,12 @@ pub struct ColorMetadata;
 
 // Implementation stubs for the main subsystem components
 
+impl Default for StyleValidationSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StyleValidationSystem {
     pub fn new() -> Self {
         Self {
@@ -1105,9 +1265,21 @@ impl StyleValidationSystem {
         }
     }
 
-    pub async fn validate_theme(&self, _theme: &Theme) -> Result<()> { Ok(()) }
-    pub async fn validate_css(&self, _css: &str, _config: &ValidationConfig) -> Result<()> { Ok(()) }
-    pub async fn validate_generation_request(&self, _request: &CssGenerationRequest) -> Result<()> { Ok(()) }
+    pub async fn validate_theme(&self, _theme: &Theme) -> Result<()> {
+        Ok(())
+    }
+    pub async fn validate_css(&self, _css: &str, _config: &ValidationConfig) -> Result<()> {
+        Ok(())
+    }
+    pub async fn validate_generation_request(&self, _request: &CssGenerationRequest) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl Default for DynamicStylingEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DynamicStylingEngine {
@@ -1124,9 +1296,26 @@ impl DynamicStylingEngine {
         }
     }
 
-    pub async fn apply_css(&mut self, _css: &GeneratedCss, _scope: &ThemeScope) -> Result<()> { Ok(()) }
-    pub async fn prepare_theme_transition(&mut self, _from: &str, _to: &str, _config: &ThemeTransitionConfig) -> Result<()> { Ok(()) }
-    pub async fn execute_theme_transition(&mut self) -> Result<()> { Ok(()) }
+    pub async fn apply_css(&mut self, _css: &GeneratedCss, _scope: &ThemeScope) -> Result<()> {
+        Ok(())
+    }
+    pub async fn prepare_theme_transition(
+        &mut self,
+        _from: &str,
+        _to: &str,
+        _config: &ThemeTransitionConfig,
+    ) -> Result<()> {
+        Ok(())
+    }
+    pub async fn execute_theme_transition(&mut self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl Default for StyleOptimizationSystem {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StyleOptimizationSystem {
@@ -1143,8 +1332,21 @@ impl StyleOptimizationSystem {
         }
     }
 
-    pub async fn optimize_css(&self, css: String, _config: &OptimizationConfig) -> Result<String> { Ok(css) }
-    pub async fn optimize_styles(&self, _config: StyleOptimizationConfig) -> Result<OptimizationResult> { Ok(OptimizationResult) }
+    pub async fn optimize_css(&self, css: String, _config: &OptimizationConfig) -> Result<String> {
+        Ok(css)
+    }
+    pub async fn optimize_styles(
+        &self,
+        _config: StyleOptimizationConfig,
+    ) -> Result<OptimizationResult> {
+        Ok(OptimizationResult {})
+    }
+}
+
+impl Default for StyleInheritanceManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StyleInheritanceManager {
@@ -1162,6 +1364,12 @@ impl StyleInheritanceManager {
     }
 }
 
+impl Default for StylePerformanceMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StylePerformanceMonitor {
     pub fn new() -> Self {
         Self {
@@ -1176,10 +1384,28 @@ impl StylePerformanceMonitor {
         }
     }
 
-    pub async fn record_theme_registration(&mut self, _theme_id: &str) -> Result<()> { Ok(()) }
-    pub async fn record_css_generation(&mut self, _request_id: &str, _duration: Duration) -> Result<()> { Ok(()) }
-    pub async fn record_theme_switch(&mut self, _from: &str, _to: &str) -> Result<()> { Ok(()) }
-    pub async fn get_comprehensive_metrics(&self) -> Result<StylePerformanceMetrics> { Ok(StylePerformanceMetrics) }
+    pub async fn record_theme_registration(&mut self, _theme_id: &str) -> Result<()> {
+        Ok(())
+    }
+    pub async fn record_css_generation(
+        &mut self,
+        _request_id: &str,
+        _duration: Duration,
+    ) -> Result<()> {
+        Ok(())
+    }
+    pub async fn record_theme_switch(&mut self, _from: &str, _to: &str) -> Result<()> {
+        Ok(())
+    }
+    pub async fn get_comprehensive_metrics(&self) -> Result<StylePerformanceMetrics> {
+        Ok(StylePerformanceMetrics {})
+    }
+}
+
+impl Default for StyleAccessibilityManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StyleAccessibilityManager {
@@ -1196,9 +1422,18 @@ impl StyleAccessibilityManager {
         }
     }
 
-    pub async fn check_theme_compliance(&self, _theme: &Theme) -> Result<()> { Ok(()) }
-    pub async fn validate_css_accessibility(&self, _css: &str) -> Result<()> { Ok(()) }
-    pub async fn validate_theme_accessibility(&self, _theme_id: &str) -> Result<AccessibilityReport> { Ok(AccessibilityReport) }
+    pub async fn check_theme_compliance(&self, _theme: &Theme) -> Result<()> {
+        Ok(())
+    }
+    pub async fn validate_css_accessibility(&self, _css: &str) -> Result<()> {
+        Ok(())
+    }
+    pub async fn validate_theme_accessibility(
+        &self,
+        _theme_id: &str,
+    ) -> Result<AccessibilityReport> {
+        Ok(AccessibilityReport {})
+    }
 }
 
 // Final placeholder implementations for remaining complex types

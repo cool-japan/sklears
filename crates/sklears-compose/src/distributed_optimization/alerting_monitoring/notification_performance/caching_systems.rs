@@ -161,6 +161,18 @@ pub struct AccessTracker {
     pub cold_keys: VecDeque<String>,
     /// Access statistics
     pub statistics: AccessStatistics,
+    /// Ordered history of recently accessed keys (most recent at the back).
+    ///
+    /// Bounded by [`AccessTracker::MAX_SEQUENCE_LEN`]. Used both for
+    /// recency-weighted scoring and to derive first-order Markov transition
+    /// statistics for next-key prediction.
+    pub access_sequence: VecDeque<String>,
+    /// First-order Markov transition counts.
+    ///
+    /// `transitions[a][b]` is the number of times key `b` was accessed
+    /// immediately after key `a`. This is the empirical basis for predicting
+    /// which key is likely to be requested next given the most recent access.
+    pub transitions: HashMap<String, HashMap<String, u64>>,
 }
 
 /// Access pattern for cache optimization
@@ -312,17 +324,52 @@ impl CacheManager {
         }
     }
 
-    /// Warm cache with predictive loading
-    pub fn warm_cache(&mut self, cache_id: &str, keys: Vec<String>) -> Result<(), String> {
-        let cache = self.get_cache_mut(cache_id)
-            .ok_or_else(|| format!("Cache {} not found", cache_id))?;
+    /// Predict which keys are most worth preloading for a cache.
+    ///
+    /// Delegates to the cache's [`AccessTracker`], combining recency-weighted
+    /// frequency (LFU) with first-order Markov next-key prediction over the
+    /// recorded access history. Keys already resident in the cache are excluded.
+    ///
+    /// Returns an honest `Err` if the cache does not exist. Returns an empty
+    /// vector if there is no usable access history yet (rather than fabricating
+    /// recommendations).
+    pub fn predict_warm_keys(
+        &self,
+        cache_id: &str,
+        max_keys: usize,
+    ) -> Result<Vec<String>, String> {
+        let cache = self
+            .get_cache(cache_id)
+            .ok_or_else(|| format!("Cache {cache_id} not found"))?;
+        Ok(cache.predicted_preload_keys(max_keys))
+    }
 
-        for key in keys {
-            // TODO: Implement predictive loading logic
-            cache.preload_key(key);
+    /// Warm a cache by loading caller-supplied real key/value pairs.
+    ///
+    /// Cache warming cannot fabricate values: the data must come from the
+    /// backing source the caller owns. This method inserts the provided
+    /// `entries` (each already fetched from the source) into the cache so that
+    /// subsequent reads hit warm. To decide *which* keys to fetch ahead of
+    /// time, call [`CacheManager::predict_warm_keys`] first.
+    ///
+    /// Returns the number of entries actually loaded, or an honest `Err` if the
+    /// cache does not exist.
+    pub fn warm_cache(
+        &mut self,
+        cache_id: &str,
+        entries: Vec<(String, Vec<u8>)>,
+    ) -> Result<usize, String> {
+        let cache = self
+            .get_cache_mut(cache_id)
+            .ok_or_else(|| format!("Cache {cache_id} not found"))?;
+
+        let mut loaded = 0;
+        for (key, value) in entries {
+            if cache.preload_entry(key, value) {
+                loaded += 1;
+            }
         }
-
-        Ok(())
+        Ok(loaded)
     }
 
     /// Set eviction policy for a cache
@@ -495,14 +542,30 @@ impl CacheInstance {
         }
     }
 
-    /// Preload key (for cache warming)
-    pub fn preload_key(&mut self, key: String) {
-        // TODO: Implement predictive preloading
-        // This would typically involve loading data from the source
-        // For now, just add an empty placeholder
-        if !self.data.contains_key(&key) {
-            self.put(key, Vec::new());
+    /// Recommend keys to preload, predicted from this cache's access history.
+    ///
+    /// Pure read-only recommendation: combines recency-weighted frequency with
+    /// Markov next-key prediction (see [`AccessTracker::predict_preload_keys`]).
+    /// Keys already present are excluded. The caller is responsible for fetching
+    /// the actual values for the returned keys and passing them to
+    /// [`CacheInstance::preload_entry`].
+    pub fn predicted_preload_keys(&self, max_keys: usize) -> Vec<String> {
+        let data = &self.data;
+        self.access_tracker
+            .predict_preload_keys(max_keys, &|key| data.contains_key(key))
+    }
+
+    /// Preload a single real key/value pair fetched from the backing source.
+    ///
+    /// Returns `true` if the entry was inserted, `false` if the key was already
+    /// resident (warming never overwrites live data). No fabrication: the value
+    /// must be supplied by the caller from the real data source.
+    pub fn preload_entry(&mut self, key: String, value: Vec<u8>) -> bool {
+        if self.data.contains_key(&key) {
+            return false;
         }
+        self.put(key, value);
+        true
     }
 
     fn should_evict(&self) -> bool {
@@ -527,35 +590,53 @@ impl CacheInstance {
     }
 
     fn evict_lru(&mut self, count: usize) {
-        let mut entries: Vec<_> = self.data.iter().collect();
-        entries.sort_by_key(|(_, entry)| entry.metadata.last_accessed);
+        // Rank by last-accessed time (oldest first), collecting owned keys so the
+        // immutable borrow of `self.data` is released before we mutate it.
+        let mut entries: Vec<(String, SystemTime)> = self
+            .data
+            .iter()
+            .map(|(key, entry)| (key.clone(), entry.metadata.last_accessed))
+            .collect();
+        entries.sort_by_key(|(_, last_accessed)| *last_accessed);
 
-        for (key, _) in entries.iter().take(count) {
-            self.data.remove(*key);
+        for (key, _) in entries.into_iter().take(count) {
+            self.data.remove(&key);
         }
     }
 
     fn evict_lfu(&mut self, count: usize) {
-        let mut entries: Vec<_> = self.data.iter().collect();
-        entries.sort_by_key(|(_, entry)| entry.metadata.access_count);
+        // Rank by access count (least frequently used first).
+        let mut entries: Vec<(String, u64)> = self
+            .data
+            .iter()
+            .map(|(key, entry)| (key.clone(), entry.metadata.access_count))
+            .collect();
+        entries.sort_by_key(|(_, access_count)| *access_count);
 
-        for (key, _) in entries.iter().take(count) {
-            self.data.remove(*key);
+        for (key, _) in entries.into_iter().take(count) {
+            self.data.remove(&key);
         }
     }
 
     fn evict_fifo(&mut self, count: usize) {
-        let mut entries: Vec<_> = self.data.iter().collect();
-        entries.sort_by_key(|(_, entry)| entry.metadata.created_at);
+        // Rank by creation time (oldest first).
+        let mut entries: Vec<(String, SystemTime)> = self
+            .data
+            .iter()
+            .map(|(key, entry)| (key.clone(), entry.metadata.created_at))
+            .collect();
+        entries.sort_by_key(|(_, created_at)| *created_at);
 
-        for (key, _) in entries.iter().take(count) {
-            self.data.remove(*key);
+        for (key, _) in entries.into_iter().take(count) {
+            self.data.remove(&key);
         }
     }
 
     fn evict_ttl(&mut self, count: usize) {
         let now = SystemTime::now();
-        let mut expired_keys: Vec<_> = self.data.iter()
+        let expired_keys: Vec<String> = self
+            .data
+            .iter()
             .filter_map(|(key, entry)| {
                 if let Some(expires_at) = entry.metadata.expires_at {
                     if now > expires_at {
@@ -583,16 +664,24 @@ impl CacheInstance {
     }
 
     fn evict_priority(&mut self, count: usize) {
-        let mut entries: Vec<_> = self.data.iter().collect();
-        entries.sort_by_key(|(_, entry)| match entry.metadata.priority {
-            CachePriority::Critical => 4,
-            CachePriority::High => 3,
-            CachePriority::Normal => 2,
-            CachePriority::Low => 1,
-        });
+        // Evict lowest-priority entries first.
+        let mut entries: Vec<(String, u8)> = self
+            .data
+            .iter()
+            .map(|(key, entry)| {
+                let rank = match entry.metadata.priority {
+                    CachePriority::Critical => 4,
+                    CachePriority::High => 3,
+                    CachePriority::Normal => 2,
+                    CachePriority::Low => 1,
+                };
+                (key.clone(), rank)
+            })
+            .collect();
+        entries.sort_by_key(|(_, rank)| *rank);
 
-        for (key, _) in entries.iter().take(count) {
-            self.data.remove(*key);
+        for (key, _) in entries.into_iter().take(count) {
+            self.data.remove(&key);
         }
     }
 
@@ -604,6 +693,13 @@ impl CacheInstance {
 }
 
 impl AccessTracker {
+    /// Maximum number of accesses retained in the ordered access history.
+    ///
+    /// Bounds the memory used by [`AccessTracker::access_sequence`] while still
+    /// providing a long enough window for stable frequency and transition
+    /// estimates.
+    pub const MAX_SEQUENCE_LEN: usize = 4096;
+
     /// Create a new access tracker
     pub fn new() -> Self {
         Self {
@@ -611,22 +707,130 @@ impl AccessTracker {
             hot_keys: VecDeque::new(),
             cold_keys: VecDeque::new(),
             statistics: AccessStatistics::default(),
+            access_sequence: VecDeque::new(),
+            transitions: HashMap::new(),
         }
     }
 
     /// Record access to a key
     pub fn record_access(&mut self, key: &str) {
-        let pattern = self.access_patterns.entry(key.to_string())
+        let is_new_key = !self.access_patterns.contains_key(key);
+
+        let pattern = self
+            .access_patterns
+            .entry(key.to_string())
             .or_insert_with(|| AccessPattern::new(key.to_string()));
 
         pattern.frequency += 1.0;
         pattern.recency = 1.0; // Reset recency on access
         self.statistics.total_accesses += 1;
 
-        // Update unique keys count
-        if !self.access_patterns.contains_key(key) {
+        // Update unique keys count (the entry was absent before this access).
+        if is_new_key {
             self.statistics.unique_keys += 1;
         }
+
+        // Update the first-order Markov transition counts from the previous
+        // access to this one. This records the empirical "what comes next"
+        // distribution used by predictive cache warming.
+        if let Some(previous) = self.access_sequence.back() {
+            if previous != key {
+                *self
+                    .transitions
+                    .entry(previous.clone())
+                    .or_default()
+                    .entry(key.to_string())
+                    .or_insert(0) += 1;
+            }
+        }
+
+        // Append to the bounded ordered history.
+        self.access_sequence.push_back(key.to_string());
+        while self.access_sequence.len() > Self::MAX_SEQUENCE_LEN {
+            self.access_sequence.pop_front();
+        }
+    }
+
+    /// Predict the set of keys most worth preloading from recorded access data.
+    ///
+    /// The selection blends two real, complementary signals derived purely from
+    /// observed history (no fabricated values):
+    ///
+    /// 1. **Frequency (LFU)** — keys accessed most often are most likely to be
+    ///    requested again, scored by their recorded [`AccessPattern::frequency`]
+    ///    decayed by [`AccessPattern::recency`].
+    /// 2. **Markov next-key prediction** — given the most recently accessed key,
+    ///    the empirical transition distribution in [`AccessTracker::transitions`]
+    ///    predicts which keys typically follow it; their conditional probability
+    ///    boosts the score.
+    ///
+    /// Keys already resident (`already_cached`) are never returned. Results are
+    /// ranked by combined score, highest first, and truncated to `max_keys`.
+    /// Returns an empty vector only when there is genuinely no usable history.
+    pub fn predict_preload_keys(
+        &self,
+        max_keys: usize,
+        already_cached: &dyn Fn(&str) -> bool,
+    ) -> Vec<String> {
+        if max_keys == 0 || self.access_patterns.is_empty() {
+            return Vec::new();
+        }
+
+        // Base score: recency-weighted frequency (LFU with recency decay).
+        let max_frequency = self
+            .access_patterns
+            .values()
+            .map(|p| p.frequency)
+            .fold(0.0_f64, f64::max)
+            .max(1.0);
+
+        let mut scores: HashMap<String, f64> = HashMap::new();
+        for (key, pattern) in &self.access_patterns {
+            if already_cached(key) {
+                continue;
+            }
+            // Normalised frequency in [0, 1] weighted by current recency.
+            let lfu_score = (pattern.frequency / max_frequency) * pattern.recency.clamp(0.0, 1.0);
+            scores.insert(key.clone(), lfu_score);
+        }
+
+        // Markov boost: conditional probability of the next key given the most
+        // recent access. This is the actual predictive component.
+        if let Some(last_key) = self.access_sequence.back() {
+            if let Some(next_counts) = self.transitions.get(last_key) {
+                let total: u64 = next_counts.values().copied().sum();
+                if total > 0 {
+                    for (next_key, &count) in next_counts {
+                        if already_cached(next_key) {
+                            continue;
+                        }
+                        let conditional = count as f64 / total as f64;
+                        // Weight the transition signal strongly relative to the
+                        // raw LFU base so an imminent, predictable access wins.
+                        *scores.entry(next_key.clone()).or_insert(0.0) += 2.0 * conditional;
+                    }
+                }
+            }
+        }
+
+        if scores.is_empty() {
+            return Vec::new();
+        }
+
+        let mut ranked: Vec<(String, f64)> = scores.into_iter().collect();
+        // Sort by score descending; break ties deterministically by key so the
+        // output is stable across runs.
+        ranked.sort_by(|a, b| {
+            b.1.partial_cmp(&a.1)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.0.cmp(&b.0))
+        });
+
+        ranked
+            .into_iter()
+            .take(max_keys)
+            .map(|(key, _)| key)
+            .collect()
     }
 
     /// Update access patterns
@@ -753,5 +957,98 @@ impl Default for AccessStatistics {
             hot_key_threshold: 10.0,
             cold_key_threshold: 1.0,
         }
+    }
+}
+
+#[cfg(test)]
+mod predictive_preload_tests {
+    use super::*;
+
+    #[test]
+    fn lfu_ranks_most_frequent_uncached_keys_first() {
+        let mut tracker = AccessTracker::new();
+        // "hot" accessed 5x, "warm" 2x, "cold" 1x.
+        for _ in 0..5 {
+            tracker.record_access("hot");
+        }
+        for _ in 0..2 {
+            tracker.record_access("warm");
+        }
+        tracker.record_access("cold");
+
+        // Nothing is cached yet.
+        let predicted = tracker.predict_preload_keys(2, &|_| false);
+        assert_eq!(predicted.len(), 2);
+        // "hot" has the highest recency-weighted frequency.
+        assert_eq!(predicted[0], "hot");
+    }
+
+    #[test]
+    fn already_cached_keys_are_excluded() {
+        let mut tracker = AccessTracker::new();
+        for _ in 0..5 {
+            tracker.record_access("a");
+        }
+        tracker.record_access("b");
+
+        // Pretend "a" is already resident; it must not be recommended.
+        let predicted = tracker.predict_preload_keys(5, &|k| k == "a");
+        assert!(!predicted.contains(&"a".to_string()));
+        assert!(predicted.contains(&"b".to_string()));
+    }
+
+    #[test]
+    fn markov_predicts_next_key_after_last_access() {
+        let mut tracker = AccessTracker::new();
+        // Establish a strong x -> y transition pattern.
+        for _ in 0..6 {
+            tracker.record_access("x");
+            tracker.record_access("y");
+        }
+        // A single, much rarer, standalone key.
+        tracker.record_access("z");
+        // Make the most recent access "x" so the Markov boost targets "y".
+        tracker.record_access("x");
+
+        let predicted = tracker.predict_preload_keys(1, &|_| false);
+        assert_eq!(predicted, vec!["y".to_string()]);
+    }
+
+    #[test]
+    fn empty_history_yields_no_predictions() {
+        let tracker = AccessTracker::new();
+        assert!(tracker.predict_preload_keys(10, &|_| false).is_empty());
+    }
+
+    #[test]
+    fn cache_manager_warm_loads_real_entries_only() {
+        let mut manager = CacheManager::new();
+        manager.create_cache("c1".to_string(), CacheType::Memory);
+
+        let loaded = manager
+            .warm_cache(
+                "c1",
+                vec![
+                    ("k1".to_string(), b"v1".to_vec()),
+                    ("k2".to_string(), b"v2".to_vec()),
+                ],
+            )
+            .expect("cache exists");
+        assert_eq!(loaded, 2);
+
+        // Re-warming the same key does not overwrite (already resident).
+        let reloaded = manager
+            .warm_cache("c1", vec![("k1".to_string(), b"other".to_vec())])
+            .expect("cache exists");
+        assert_eq!(reloaded, 0);
+
+        let cache = manager.get_cache_mut("c1").expect("cache exists");
+        assert_eq!(cache.get("k1"), Some(b"v1".to_vec()));
+    }
+
+    #[test]
+    fn predict_warm_keys_errors_for_missing_cache() {
+        let manager = CacheManager::new();
+        assert!(manager.predict_warm_keys("missing", 5).is_err());
     }
 }

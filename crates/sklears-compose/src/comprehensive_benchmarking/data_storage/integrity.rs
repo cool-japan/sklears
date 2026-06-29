@@ -1,12 +1,6 @@
+use chrono::Duration;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
-
-use super::errors::*;
-use super::config_types::*;
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IntegrityChecker {
@@ -50,7 +44,7 @@ pub struct IntegrityValidationRule {
 pub enum IntegrityValidationMethod {
     Checksum,
     Hash,
-    Digital Signature,
+    DigitalSignature,
     Custom(String),
 }
 
@@ -90,6 +84,12 @@ pub struct MonitoringSchedule {
     alert_thresholds: HashMap<String, f64>,
 }
 
+impl Default for IntegrityChecker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IntegrityChecker {
     pub fn new() -> Self {
         Self {
@@ -98,7 +98,7 @@ impl IntegrityChecker {
             corruption_detection: CorruptionDetection {
                 detection_algorithms: vec![],
                 monitoring_schedule: MonitoringSchedule {
-                    monitoring_frequency: Duration::from_hours(1),
+                    monitoring_frequency: Duration::hours(1),
                     continuous_monitoring: false,
                     alert_thresholds: HashMap::new(),
                 },

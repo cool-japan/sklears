@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.1` (April 25, 2026). See the [workspace release notes](../../docs/releases/0.1.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -42,6 +42,6 @@ let predictions = fitted.predict(&x)?;
 
 ## Status
 
-- Included in 247 passing tests in `0.1.1` (Stable).
+- Included in 247 passing tests in `0.1.2` (Stable).
 - Perfect for establishing baselines before deploying advanced models.
 - Future enhancements (time-series baselines, streaming priors) logged in `TODO.md`.

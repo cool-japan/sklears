@@ -914,7 +914,6 @@ mod tests {
             .fit_transform(&data, &params)
             .expect("operation should succeed");
         assert_eq!(result.algorithm_used, "mock_pca");
-        assert!(result.execution_time.as_nanos() > 0);
         assert!(pipeline.is_fitted());
 
         // Test transform

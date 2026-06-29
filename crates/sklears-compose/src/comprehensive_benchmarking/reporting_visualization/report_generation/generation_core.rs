@@ -4,23 +4,23 @@
 //! for the report generation system, including the main orchestration manager,
 //! core error handling, and basic configuration types.
 
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
 
 // Forward declarations for types defined in other modules
 use super::data_sources::DataSourceManager;
-use super::template_engine::ReportTemplateEngine;
-use super::scheduler_execution::ReportScheduler;
-use super::output_delivery::{OutputFormatManager, ReportDeliveryCoordinator, OutputFormat};
 use super::monitoring_metrics::ReportGenerationMetrics;
+use super::output_delivery::{OutputFormat, OutputFormatManager, ReportDeliveryCoordinator};
+use super::scheduler_execution::ReportScheduler;
+use super::template_engine::ReportTemplateEngine;
 
 /// Main orchestration manager for report generation system
 ///
 /// Coordinates all aspects of report generation including data sources,
 /// templates, scheduling, output formatting, and delivery.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ReportGenerationManager {
     /// Configured report generators for different report types
     pub report_generators: Arc<RwLock<HashMap<String, ReportGenerator>>>,
@@ -261,7 +261,7 @@ pub enum OptimizationLevel {
 ///
 /// Defines when and how reports should be generated,
 /// including timing, frequency, and automation settings.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ReportScheduling {
     /// Scheduling enabled flag
     pub enabled: bool,
@@ -390,6 +390,19 @@ pub struct GeneratedReport {
     pub file_size: usize,
 }
 
+impl Default for GeneratedReport {
+    fn default() -> Self {
+        Self {
+            report_id: String::new(),
+            generation_timestamp: chrono::Utc::now(),
+            output_format: OutputFormat::default(),
+            content: Vec::new(),
+            metadata: HashMap::new(),
+            file_size: 0,
+        }
+    }
+}
+
 /// Comprehensive error types for report generation
 ///
 /// Covers all possible error conditions that can occur
@@ -435,6 +448,12 @@ pub enum ReportGenerationError {
 /// Result type for report generation operations
 pub type ReportGenerationResult<T> = Result<T, ReportGenerationError>;
 
+impl Default for ReportGenerationManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReportGenerationManager {
     /// Create a new report generation manager
     pub fn new() -> Self {
@@ -452,15 +471,22 @@ impl ReportGenerationManager {
 
     /// Register a new report generator
     pub fn register_generator(&self, generator: ReportGenerator) -> ReportGenerationResult<()> {
-        let mut generators = self.report_generators.write().unwrap_or_else(|e| e.into_inner());
+        let mut generators = self
+            .report_generators
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         generators.insert(generator.generator_id.clone(), generator);
         Ok(())
     }
 
     /// Get a report generator by ID
     pub fn get_generator(&self, generator_id: &str) -> ReportGenerationResult<ReportGenerator> {
-        let generators = self.report_generators.read().unwrap_or_else(|e| e.into_inner());
-        generators.get(generator_id)
+        let generators = self
+            .report_generators
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
+        generators
+            .get(generator_id)
             .cloned()
             .ok_or_else(|| ReportGenerationError::GeneratorNotFound(generator_id.to_string()))
     }
@@ -468,8 +494,8 @@ impl ReportGenerationManager {
     /// Generate a report using the specified generator
     pub fn generate_report(
         &self,
-        generator_id: &str,
-        template_id: &str,
+        _generator_id: &str,
+        _template_id: &str,
         parameters: HashMap<String, String>,
     ) -> ReportGenerationResult<GeneratedReport> {
         // Implementation would coordinate the full report generation process
@@ -490,7 +516,7 @@ impl Default for GenerationConfig {
         Self {
             parallel_generation: true,
             max_concurrent_reports: 4,
-            memory_limit: 1_000_000_000, // 1GB
+            memory_limit: 1_000_000_000,     // 1GB
             timeout: Duration::seconds(300), // 5 minutes
             quality_settings: QualitySettings::default(),
             optimization_level: OptimizationLevel::Standard,
@@ -509,28 +535,13 @@ impl Default for QualitySettings {
     }
 }
 
-impl Default for ReportScheduling {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            schedule: None,
-            delivery_options: Vec::new(),
-            retry_policy: RetryPolicy::default(),
-            notifications: NotificationSettings::default(),
-        }
-    }
-}
-
 impl Default for RetryPolicy {
     fn default() -> Self {
         Self {
             max_retries: 3,
             retry_delay: Duration::seconds(30),
             backoff_strategy: BackoffStrategy::Exponential,
-            retry_conditions: vec![
-                "NetworkError".to_string(),
-                "TemporaryFailure".to_string(),
-            ],
+            retry_conditions: vec!["NetworkError".to_string(), "TemporaryFailure".to_string()],
         }
     }
 }

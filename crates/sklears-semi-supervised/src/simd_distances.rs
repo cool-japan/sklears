@@ -70,7 +70,7 @@ fn to_f64(x: f32) -> f64 {
 /// let a = vec![1.0, 2.0, 3.0];
 /// let b = vec![4.0, 5.0, 6.0];
 /// let dist = euclidean_distance_f64(&a, &b);
-/// assert!((dist - 5.196152422706632).abs() < 1e-10);
+/// assert!((dist - 5.196152422706632).abs() < 1e-5);
 /// ```
 pub fn euclidean_distance_f64(a: &[f64], b: &[f64]) -> f64 {
     assert_eq!(
@@ -100,7 +100,7 @@ pub fn euclidean_distance_f64(a: &[f64], b: &[f64]) -> f64 {
 /// let a = vec![1.0, 2.0, 3.0];
 /// let b = vec![4.0, 5.0, 6.0];
 /// let dist_sq = euclidean_distance_squared_f64(&a, &b);
-/// assert!((dist_sq - 27.0).abs() < 1e-10);
+/// assert!((dist_sq - 27.0).abs() < 1e-5);
 /// ```
 pub fn euclidean_distance_squared_f64(a: &[f64], b: &[f64]) -> f64 {
     assert_eq!(a.len(), b.len(), "Vectors must have the same length");

@@ -152,7 +152,7 @@ impl TransformationPerformanceMonitor {
         // Generate monitoring summary
         Ok(MonitoringSummary {
             pipeline_id: pipeline_id.to_string(),
-            monitoring_duration: Duration::from_secs(3600), // Placeholder
+            monitoring_duration: Duration::seconds(3600), // Placeholder
             total_metrics_collected: 1000, // Placeholder
             final_metrics,
             performance_summary: self.generate_performance_summary(pipeline_id).await?,
@@ -1056,10 +1056,10 @@ impl Default for MonitoringConfiguration {
     fn default() -> Self {
         Self {
             enable_realtime_monitoring: true,
-            metrics_collection_interval: Duration::from_secs(10),
-            performance_analysis_interval: Duration::from_secs(60),
-            alert_evaluation_interval: Duration::from_secs(30),
-            storage_retention_period: Duration::from_secs(86400 * 7), // 7 days
+            metrics_collection_interval: Duration::seconds(10),
+            performance_analysis_interval: Duration::seconds(60),
+            alert_evaluation_interval: Duration::seconds(30),
+            storage_retention_period: Duration::seconds(86400 * 7), // 7 days
         }
     }
 }
@@ -1265,7 +1265,7 @@ impl Default for StorageConfiguration {
     fn default() -> Self {
         Self {
             max_metrics_per_pipeline: 10000,
-            retention_period: Duration::from_secs(86400 * 7), // 7 days
+            retention_period: Duration::seconds(86400 * 7), // 7 days
         }
     }
 }

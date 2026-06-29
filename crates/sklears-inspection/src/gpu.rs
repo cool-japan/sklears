@@ -339,19 +339,65 @@ impl GpuExplanationComputer {
             .await
     }
 
-    /// CPU fallback for SHAP computation
+    /// CPU reference path for SHAP value computation.
+    ///
+    /// Computes interventional Shapley contributions via the marginal-contribution
+    /// estimator: for each feature, the attribution is the change in the model
+    /// output when that feature is restored from the explained instance versus
+    /// drawn from the background distribution, averaged over all background rows.
+    /// This mirrors the estimator in [`crate::parallel`], generalized to a
+    /// multi-row background and batched into a single forward pass per feature.
     async fn compute_shap_cpu<F>(
         &self,
         features: &ArrayView2<'_, Float>,
-        _background: &ArrayView2<'_, Float>,
-        _predict_fn: F,
+        background: &ArrayView2<'_, Float>,
+        predict_fn: F,
     ) -> SklResult<Array2<Float>>
     where
         F: Fn(&ArrayView2<'_, Float>) -> Array1<Float> + Send + Sync + 'static,
     {
-        // Placeholder CPU implementation
-        let (n_samples, n_features) = features.dim();
-        Ok(Array2::zeros((n_samples, n_features)))
+        let n_samples = features.nrows();
+        let n_features = features.ncols();
+        let n_background = background.nrows();
+
+        if n_background == 0 {
+            return Err(SklearsError::InvalidInput(
+                "SHAP CPU computation requires a non-empty background dataset".to_string(),
+            ));
+        }
+        if background.ncols() != n_features {
+            return Err(SklearsError::InvalidInput(format!(
+                "background feature dimension {} does not match instance feature dimension {}",
+                background.ncols(),
+                n_features
+            )));
+        }
+
+        let mut shap = Array2::<Float>::zeros((n_samples, n_features));
+
+        for s in 0..n_samples {
+            let x = features.row(s);
+
+            // Full-coalition prediction f(x); identical across features.
+            let mut x_row = Array2::<Float>::zeros((1, n_features));
+            x_row.row_mut(0).assign(&x);
+            let full_pred = predict_fn(&x_row.view())[0];
+
+            for f in 0..n_features {
+                // Replace feature f of x with each background reference and run a
+                // single batched forward pass to obtain f(x with feature f absent).
+                let mut perturbed = Array2::<Float>::zeros((n_background, n_features));
+                for b in 0..n_background {
+                    perturbed.row_mut(b).assign(&x);
+                    perturbed[[b, f]] = background[[b, f]];
+                }
+                let preds = predict_fn(&perturbed.view());
+                let mean_without = preds.sum() / n_background as Float;
+                shap[[s, f]] = full_pred - mean_without;
+            }
+        }
+
+        Ok(shap)
     }
 
     /// Compute permutation importance using GPU acceleration
@@ -377,20 +423,76 @@ impl GpuExplanationComputer {
             .await
     }
 
-    /// CPU fallback for permutation importance computation
+    /// CPU reference path for permutation importance computation.
+    ///
+    /// For each feature, its column is shuffled `n_permutations` times and the
+    /// resulting rise in mean-squared error relative to the unshuffled baseline
+    /// is averaged. A larger increase indicates a more important feature. The
+    /// shuffle is driven by a seeded `ChaCha8Rng` for reproducibility, matching
+    /// the estimator in [`crate::parallel`].
     async fn compute_permutation_importance_cpu<F>(
         &self,
         features: &ArrayView2<'_, Float>,
-        _targets: &Array1<Float>,
-        _predict_fn: F,
-        _n_permutations: usize,
+        targets: &Array1<Float>,
+        predict_fn: F,
+        n_permutations: usize,
     ) -> SklResult<Array1<Float>>
     where
         F: Fn(&ArrayView2<'_, Float>) -> Array1<Float> + Send + Sync + 'static,
     {
-        // Placeholder CPU implementation
+        use scirs2_core::random::{seq::SliceRandom, ChaCha8Rng, SeedableRng};
+
+        let n_samples = features.nrows();
         let n_features = features.ncols();
-        Ok(Array1::zeros(n_features))
+
+        if n_samples == 0 || n_features == 0 {
+            return Ok(Array1::zeros(n_features));
+        }
+        if targets.len() != n_samples {
+            return Err(SklearsError::InvalidInput(format!(
+                "targets length {} does not match number of samples {}",
+                targets.len(),
+                n_samples
+            )));
+        }
+        let repeats = n_permutations.max(1);
+
+        let mse = |pred: &Array1<Float>| -> Float {
+            pred.iter()
+                .zip(targets.iter())
+                .map(|(p, t)| {
+                    let d = p - t;
+                    d * d
+                })
+                .sum::<Float>()
+                / n_samples as Float
+        };
+
+        let baseline_error = mse(&predict_fn(features));
+
+        let mut importances = Array1::<Float>::zeros(n_features);
+        let mut rng = ChaCha8Rng::seed_from_u64(0);
+
+        for f in 0..n_features {
+            let mut accumulated = 0.0;
+            for _ in 0..repeats {
+                let mut perturbed: Array2<Float> = features.to_owned();
+                let original: Vec<Float> = perturbed.column(f).to_vec();
+                let mut order: Vec<usize> = (0..n_samples).collect();
+                order.shuffle(&mut rng);
+                {
+                    let mut col = perturbed.column_mut(f);
+                    for (i, &src) in order.iter().enumerate() {
+                        col[i] = original[src];
+                    }
+                }
+                let permuted_error = mse(&predict_fn(&perturbed.view()));
+                accumulated += permuted_error - baseline_error;
+            }
+            importances[f] = accumulated / repeats as Float;
+        }
+
+        Ok(importances)
     }
 }
 

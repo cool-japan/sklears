@@ -25,6 +25,9 @@ scirs2-linalg = { workspace = true }  # For linear algebra operations
 # ❌ ndarray-linalg - use scirs2-linalg instead (SciRS2 Policy)
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = { workspace = true, optional = true }
+oxicode = { workspace = true, optional = true }
+rmp-serde = { workspace = true, optional = true }
 oxiarc-deflate = { workspace = true }
 rayon = { workspace = true }
 lazy_static = { workspace = true }
@@ -37,6 +40,7 @@ criterion = { workspace = true }
 [features]
 default = []
 serde = ["dep:serde", "sklears-core/serde"]
+serialization = ["serde", "dep:serde_json", "dep:oxicode", "dep:rmp-serde"]
 
 [[example]]
 name = "advanced_covariance_analysis"

@@ -325,7 +325,7 @@ impl Default for RenderingEngineManager {
 impl Default for EngineHealthMonitoring {
     fn default() -> Self {
         Self {
-            check_interval: Duration::from_secs(30),
+            check_interval: Duration::seconds(30),
             health_metrics: vec![
                 HealthMetric::ResponseTime,
                 HealthMetric::ErrorRate,
@@ -365,15 +365,15 @@ impl Default for EscalationPolicy {
                 EscalationLevel {
                     level_id: "level1".to_string(),
                     alert_channels: vec![AlertChannel::Email("team@example.com".to_string())],
-                    wait_time: Duration::from_secs(300), // 5 minutes
+                    wait_time: Duration::seconds(300), // 5 minutes
                 },
                 EscalationLevel {
                     level_id: "level2".to_string(),
                     alert_channels: vec![AlertChannel::SMS("emergency@example.com".to_string())],
-                    wait_time: Duration::from_secs(900), // 15 minutes
+                    wait_time: Duration::seconds(900), // 15 minutes
                 },
             ],
-            timeout: Duration::from_secs(1800), // 30 minutes
+            timeout: Duration::seconds(1800), // 30 minutes
         }
     }
 }
@@ -392,8 +392,8 @@ impl Default for EngineLoadBalancing {
 impl Default for LoadBalancingHealthChecks {
     fn default() -> Self {
         Self {
-            interval: Duration::from_secs(10),
-            timeout: Duration::from_secs(5),
+            interval: Duration::seconds(10),
+            timeout: Duration::seconds(5),
             unhealthy_threshold: 3,
             healthy_threshold: 2,
         }
@@ -404,7 +404,7 @@ impl Default for FailoverConfig {
     fn default() -> Self {
         Self {
             automatic_failover: true,
-            failover_timeout: Duration::from_secs(30),
+            failover_timeout: Duration::seconds(30),
             backup_engines: Vec::new(),
             failback_policy: FailbackPolicy::Automatic,
         }
@@ -437,7 +437,7 @@ impl Default for EnginePerformanceMetrics {
     fn default() -> Self {
         Self {
             throughput: 0.0,
-            average_latency: Duration::from_millis(0),
+            average_latency: Duration::milliseconds(0),
             error_rate: 0.0,
             resource_utilization: ResourceUtilization::default(),
         }

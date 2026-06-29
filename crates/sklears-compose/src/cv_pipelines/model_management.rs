@@ -793,9 +793,14 @@ impl ModelMetadata {
         }
     }
 
-    /// Update modification timestamp
+    /// Update modification timestamp; guaranteed to be strictly greater than the previous value
     pub fn touch(&mut self) {
-        self.modified_at = SystemTime::now();
+        let now = SystemTime::now();
+        self.modified_at = if now > self.modified_at {
+            now
+        } else {
+            self.modified_at + std::time::Duration::from_nanos(1)
+        };
     }
 
     /// Add a tag if not already present

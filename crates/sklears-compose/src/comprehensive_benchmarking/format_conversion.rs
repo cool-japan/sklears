@@ -713,10 +713,27 @@ impl DataFormatConverter {
         Ok((target_fields as f64 / source_fields as f64).min(1.0))
     }
 
-    /// Calculate accuracy score
+    /// Calculate accuracy score by comparing field values between source and target
     fn calculate_accuracy(&self, source: &TransformationData, target: &TransformationData) -> Result<f64, ProcessingError> {
-        // Simplified accuracy calculation based on field type consistency
-        Ok(0.95) // Placeholder
+        if source.records.is_empty() || target.records.is_empty() {
+            return Ok(1.0);
+        }
+        let mut matching = 0usize;
+        let mut total = 0usize;
+        for (src_rec, tgt_rec) in source.records.iter().zip(target.records.iter()) {
+            for (field, src_val) in &src_rec.fields {
+                if let Some(tgt_val) = tgt_rec.fields.get(field) {
+                    total += 1;
+                    if self.values_equal(src_val, tgt_val) {
+                        matching += 1;
+                    }
+                }
+            }
+        }
+        if total == 0 {
+            return Ok(1.0);
+        }
+        Ok(matching as f64 / total as f64)
     }
 
     /// Identify data loss indicators
@@ -1136,7 +1153,7 @@ impl Default for ConversionPerformanceStats {
     fn default() -> Self {
         Self {
             total_conversions: 0,
-            average_duration: Duration::from_millis(0),
+            average_duration: Duration::milliseconds(0),
             total_records_converted: 0,
             conversion_throughput: 0.0,
         }

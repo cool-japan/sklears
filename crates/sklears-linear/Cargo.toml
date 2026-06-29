@@ -32,6 +32,8 @@ log = { workspace = true }
 # TRANSITIONAL: Legacy dependencies during SciRS2 migration
 # These will be removed once full SciRS2 API coverage is available
 scirs2-autograd = { workspace = true }  # TRANSITIONAL: For array! macro and ndarray types
+oxicuda-blas   = { workspace = true, optional = true }
+oxicuda-solver = { workspace = true, optional = true }
 memmap2 = { workspace = true }
 libc = { workspace = true }
 num_cpus = { workspace = true }
@@ -46,7 +48,7 @@ winapi = { workspace = true, features = ["sysinfoapi"] }
 [dev-dependencies]
 criterion = { workspace = true }
 proptest = { workspace = true }
-sklears-metrics = { workspace = true }
+sklears-metrics = { path = "../sklears-metrics" }
 tempfile = { workspace = true }
 
 [features]
@@ -90,7 +92,7 @@ early-stopping = []
 # Performance and memory
 parallel = ["rayon"]
 simd = []
-gpu = ["sklears-core/gpu_support"]
+gpu = ["sklears-core/gpu_support", "dep:oxicuda-blas", "dep:oxicuda-solver"]
 memory-mapping = []
 streaming = []
 chunked-processing = ["memory-mapping"]

@@ -513,11 +513,25 @@ impl WasmExplainer {
         )
     }
 
-    /// Get memory usage information
+    /// Current size of the WebAssembly linear memory, in megabytes.
+    ///
+    /// On `wasm32` this reads the real number of allocated 64 KiB pages via
+    /// `core::arch::wasm32::memory_size` and converts to MB. On non-wasm targets the
+    /// WASM linear memory does not exist, so this returns 0.0 meaning "not measured"
+    /// (never a fabricated constant).
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
     pub fn memory_usage(&self) -> f32 {
-        // Return a placeholder value since we can't access the mutable memory manager
-        0.0
+        #[cfg(target_arch = "wasm32")]
+        {
+            const WASM_PAGE_BYTES: f32 = 65_536.0;
+            let pages = core::arch::wasm32::memory_size(0) as f32;
+            pages * WASM_PAGE_BYTES / (1024.0 * 1024.0)
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // Not measured: the WASM linear memory only exists on the wasm32 target.
+            0.0
+        }
     }
 }
 

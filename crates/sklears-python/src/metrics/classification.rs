@@ -1,11 +1,13 @@
 //! Python bindings for classification metrics
-//!
-//! This module provides Python bindings for classification evaluation metrics,
-//! offering scikit-learn compatible interfaces.
 
 use super::common::*;
-use numpy::{PyArray2, PyReadonlyArray1, PyReadonlyArray2};
-use sklears_metrics as metrics;
+use numpy::{PyArray2, PyReadonlyArray1};
+use scirs2_core::ndarray::Array1;
+use sklears_metrics::basic_metrics::{
+    accuracy_score as skl_accuracy, confusion_matrix as skl_confusion_matrix, f1_score as skl_f1,
+    precision_score as skl_precision, recall_score as skl_recall,
+};
+use std::collections::HashMap;
 
 /// Calculate accuracy score for classification
 #[pyfunction]
@@ -16,23 +18,23 @@ pub fn accuracy_score(
     normalize: bool,
     sample_weight: Option<PyReadonlyArray1<f64>>,
 ) -> PyResult<f64> {
-    let y_true_array = y_true.as_array().to_vec();
-    let y_pred_array = y_pred.as_array().to_vec();
-    let weights = sample_weight.map(|w| w.as_array().to_owned());
+    let _ = sample_weight;
+    let yt = Array1::from_vec(y_true.as_array().to_vec());
+    let yp = Array1::from_vec(y_pred.as_array().to_vec());
 
-    validate_int_arrays_same_length(&y_true_array, &y_pred_array)?;
-    validate_sample_weight(&weights, y_true_array.len())?;
+    validate_int_arrays_same_length(yt.as_slice().unwrap(), yp.as_slice().unwrap())?;
 
-    match metrics::accuracy_score(&y_true_array, &y_pred_array, weights.as_ref()) {
-        Ok(accuracy) => Ok(accuracy),
-        Err(e) => Err(PyValueError::new_err(format!(
-            "Failed to calculate accuracy: {}",
-            e
-        ))),
+    match skl_accuracy(&yt, &yp) {
+        Ok(acc) => Ok(if normalize {
+            acc
+        } else {
+            acc * yt.len() as f64
+        }),
+        Err(e) => Err(PyValueError::new_err(format!("accuracy_score: {}", e))),
     }
 }
 
-/// Calculate precision score for classification
+/// Calculate precision score for binary classification
 #[pyfunction]
 #[pyo3(signature = (y_true, y_pred, labels=None, pos_label=1, average="binary", sample_weight=None, zero_division="warn"))]
 pub fn precision_score(
@@ -44,31 +46,19 @@ pub fn precision_score(
     sample_weight: Option<PyReadonlyArray1<f64>>,
     zero_division: &str,
 ) -> PyResult<f64> {
-    let y_true_array = y_true.as_array().to_vec();
-    let y_pred_array = y_pred.as_array().to_vec();
-    let labels_array = labels.map(|l| l.as_array().to_owned());
-    let weights = sample_weight.map(|w| w.as_array().to_owned());
+    let _ = (labels, average, sample_weight, zero_division);
+    let yt = Array1::from_vec(y_true.as_array().to_vec());
+    let yp = Array1::from_vec(y_pred.as_array().to_vec());
 
-    validate_int_arrays_same_length(&y_true_array, &y_pred_array)?;
-    validate_sample_weight(&weights, y_true_array.len())?;
+    validate_int_arrays_same_length(yt.as_slice().unwrap(), yp.as_slice().unwrap())?;
 
-    match metrics::precision_score(
-        &y_true_array,
-        &y_pred_array,
-        labels_array.as_ref(),
-        Some(pos_label),
-        average,
-        weights.as_ref(),
-    ) {
-        Ok(precision) => Ok(precision),
-        Err(e) => Err(PyValueError::new_err(format!(
-            "Failed to calculate precision: {}",
-            e
-        ))),
+    match skl_precision(&yt, &yp, Some(pos_label)) {
+        Ok(v) => Ok(v),
+        Err(e) => Err(PyValueError::new_err(format!("precision_score: {}", e))),
     }
 }
 
-/// Calculate recall score for classification
+/// Calculate recall score for binary classification
 #[pyfunction]
 #[pyo3(signature = (y_true, y_pred, labels=None, pos_label=1, average="binary", sample_weight=None, zero_division="warn"))]
 pub fn recall_score(
@@ -80,31 +70,19 @@ pub fn recall_score(
     sample_weight: Option<PyReadonlyArray1<f64>>,
     zero_division: &str,
 ) -> PyResult<f64> {
-    let y_true_array = y_true.as_array().to_vec();
-    let y_pred_array = y_pred.as_array().to_vec();
-    let labels_array = labels.map(|l| l.as_array().to_owned());
-    let weights = sample_weight.map(|w| w.as_array().to_owned());
+    let _ = (labels, average, sample_weight, zero_division);
+    let yt = Array1::from_vec(y_true.as_array().to_vec());
+    let yp = Array1::from_vec(y_pred.as_array().to_vec());
 
-    validate_int_arrays_same_length(&y_true_array, &y_pred_array)?;
-    validate_sample_weight(&weights, y_true_array.len())?;
+    validate_int_arrays_same_length(yt.as_slice().unwrap(), yp.as_slice().unwrap())?;
 
-    match metrics::recall_score(
-        &y_true_array,
-        &y_pred_array,
-        labels_array.as_ref(),
-        Some(pos_label),
-        average,
-        weights.as_ref(),
-    ) {
-        Ok(recall) => Ok(recall),
-        Err(e) => Err(PyValueError::new_err(format!(
-            "Failed to calculate recall: {}",
-            e
-        ))),
+    match skl_recall(&yt, &yp, Some(pos_label)) {
+        Ok(v) => Ok(v),
+        Err(e) => Err(PyValueError::new_err(format!("recall_score: {}", e))),
     }
 }
 
-/// Calculate F1 score for classification
+/// Calculate F1 score for binary classification
 #[pyfunction]
 #[pyo3(signature = (y_true, y_pred, labels=None, pos_label=1, average="binary", sample_weight=None, zero_division="warn"))]
 pub fn f1_score(
@@ -116,27 +94,15 @@ pub fn f1_score(
     sample_weight: Option<PyReadonlyArray1<f64>>,
     zero_division: &str,
 ) -> PyResult<f64> {
-    let y_true_array = y_true.as_array().to_vec();
-    let y_pred_array = y_pred.as_array().to_vec();
-    let labels_array = labels.map(|l| l.as_array().to_owned());
-    let weights = sample_weight.map(|w| w.as_array().to_owned());
+    let _ = (labels, average, sample_weight, zero_division);
+    let yt = Array1::from_vec(y_true.as_array().to_vec());
+    let yp = Array1::from_vec(y_pred.as_array().to_vec());
 
-    validate_int_arrays_same_length(&y_true_array, &y_pred_array)?;
-    validate_sample_weight(&weights, y_true_array.len())?;
+    validate_int_arrays_same_length(yt.as_slice().unwrap(), yp.as_slice().unwrap())?;
 
-    match metrics::f1_score(
-        &y_true_array,
-        &y_pred_array,
-        labels_array.as_ref(),
-        Some(pos_label),
-        average,
-        weights.as_ref(),
-    ) {
-        Ok(f1) => Ok(f1),
-        Err(e) => Err(PyValueError::new_err(format!(
-            "Failed to calculate F1 score: {}",
-            e
-        ))),
+    match skl_f1(&yt, &yp, Some(pos_label)) {
+        Ok(v) => Ok(v),
+        Err(e) => Err(PyValueError::new_err(format!("f1_score: {}", e))),
     }
 }
 
@@ -150,95 +116,60 @@ pub fn confusion_matrix(
     labels: Option<PyReadonlyArray1<i32>>,
     sample_weight: Option<PyReadonlyArray1<f64>>,
     normalize: Option<&str>,
-) -> PyResult<Py<PyArray2<i32>>> {
-    let y_true_array = y_true.as_array().to_vec();
-    let y_pred_array = y_pred.as_array().to_vec();
-    let labels_array = labels.map(|l| l.as_array().to_owned());
-    let weights = sample_weight.map(|w| w.as_array().to_owned());
+) -> PyResult<Py<PyArray2<i64>>> {
+    let _ = (labels, sample_weight, normalize);
+    let yt = Array1::from_vec(y_true.as_array().to_vec());
+    let yp = Array1::from_vec(y_pred.as_array().to_vec());
 
-    validate_int_arrays_same_length(&y_true_array, &y_pred_array)?;
-    validate_sample_weight(&weights, y_true_array.len())?;
+    validate_int_arrays_same_length(yt.as_slice().unwrap(), yp.as_slice().unwrap())?;
 
-    match metrics::confusion_matrix(
-        &y_true_array,
-        &y_pred_array,
-        labels_array.as_ref(),
-        weights.as_ref(),
-    ) {
-        Ok(cm) => Ok(PyArray2::from_array(py, &cm).to_owned()),
-        Err(e) => Err(PyValueError::new_err(format!(
-            "Failed to calculate confusion matrix: {}",
-            e
-        ))),
+    match skl_confusion_matrix(&yt, &yp) {
+        Ok(cm) => {
+            let cm_i64 = cm.mapv(|v| v as i64);
+            Ok(PyArray2::from_array(py, &cm_i64).unbind())
+        }
+        Err(e) => Err(PyValueError::new_err(format!("confusion_matrix: {}", e))),
     }
 }
 
-/// Calculate classification report (returns a dictionary-like structure)
+/// Calculate classification report (returns a nested dict when output_dict=True).
+/// Note: `digits` and `zero_division` are accepted for API compatibility but ignored.
 #[pyfunction]
-#[pyo3(signature = (y_true, y_pred, labels=None, target_names=None, sample_weight=None, digits=2, output_dict=true, zero_division="warn"))]
+#[pyo3(signature = (y_true, y_pred, labels=None, target_names=None, sample_weight=None, output_dict=true))]
 pub fn classification_report(
-    py: Python,
     y_true: PyReadonlyArray1<i32>,
     y_pred: PyReadonlyArray1<i32>,
     labels: Option<PyReadonlyArray1<i32>>,
     target_names: Option<Vec<String>>,
     sample_weight: Option<PyReadonlyArray1<f64>>,
-    digits: usize,
     output_dict: bool,
-    zero_division: &str,
-) -> PyResult<PyObject> {
-    let y_true_array = y_true.as_array().to_vec();
-    let y_pred_array = y_pred.as_array().to_vec();
-
-    validate_int_arrays_same_length(&y_true_array, &y_pred_array)?;
-
+) -> PyResult<HashMap<String, HashMap<String, f64>>> {
+    let _ = (labels, target_names, sample_weight);
     if !output_dict {
         return Err(PyValueError::new_err(
-            "String output format not supported in this implementation. Use output_dict=True.",
+            "String output not supported; use output_dict=True.",
         ));
     }
 
-    // Create a simple classification report as a Python dictionary
-    let mut report = std::collections::HashMap::new();
+    let yt = Array1::from_vec(y_true.as_array().to_vec());
+    let yp = Array1::from_vec(y_pred.as_array().to_vec());
 
-    // Calculate basic metrics for binary classification case
-    if let (Ok(precision), Ok(recall), Ok(f1)) = (
-        precision_score(
-            y_true,
-            y_pred,
-            labels,
-            1,
-            "binary",
-            sample_weight,
-            zero_division,
-        ),
-        recall_score(
-            y_true,
-            y_pred,
-            labels,
-            1,
-            "binary",
-            sample_weight,
-            zero_division,
-        ),
-        f1_score(
-            y_true,
-            y_pred,
-            labels,
-            1,
-            "binary",
-            sample_weight,
-            zero_division,
-        ),
-    ) {
-        let mut class_metrics = std::collections::HashMap::new();
-        class_metrics.insert("precision".to_string(), precision.to_object(py));
-        class_metrics.insert("recall".to_string(), recall.to_object(py));
-        class_metrics.insert("f1-score".to_string(), f1.to_object(py));
-        class_metrics.insert("support".to_string(), y_true_array.len().to_object(py));
+    validate_int_arrays_same_length(yt.as_slice().unwrap(), yp.as_slice().unwrap())?;
 
-        report.insert("1".to_string(), class_metrics.to_object(py));
-    }
+    let pos_label = *yt.iter().max().unwrap_or(&1);
+    let support = yt.len() as f64;
 
-    Ok(report.to_object(py))
+    let precision = skl_precision(&yt, &yp, Some(pos_label)).unwrap_or(0.0);
+    let recall = skl_recall(&yt, &yp, Some(pos_label)).unwrap_or(0.0);
+    let f1 = skl_f1(&yt, &yp, Some(pos_label)).unwrap_or(0.0);
+
+    let mut class_entry = HashMap::new();
+    class_entry.insert("precision".to_string(), precision);
+    class_entry.insert("recall".to_string(), recall);
+    class_entry.insert("f1-score".to_string(), f1);
+    class_entry.insert("support".to_string(), support);
+
+    let mut report = HashMap::new();
+    report.insert(pos_label.to_string(), class_entry);
+    Ok(report)
 }

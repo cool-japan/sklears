@@ -18,10 +18,12 @@ pub fn quicksort_f32_simd(arr: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
+        #[cfg(not(feature = "no-std"))]
         if crate::simd_feature_detected!("avx2") && arr.len() >= 16 {
             unsafe { quicksort_avx2(arr) };
             return;
-        } else if crate::simd_feature_detected!("sse2") && arr.len() >= 8 {
+        }
+        if crate::simd_feature_detected!("sse2") && arr.len() >= 8 {
             unsafe { quicksort_sse2(arr) };
             return;
         }
@@ -60,139 +62,166 @@ fn partition_scalar(arr: &mut [f32]) -> usize {
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
 unsafe fn quicksort_sse2(arr: &mut [f32]) {
+    // SSE2 lacks variable-index vector permute (_mm_permutevar_ps requires AVX),
+    // so we use the proven scalar Lomuto partition while keeping the SIMD
+    // insertion-sort base case for small sub-arrays.
     if arr.len() <= 8 {
-        // Use insertion sort for small arrays
         insertion_sort_simd_sse2(arr);
         return;
     }
-
-    let pivot_index = partition_sse2(arr);
+    let pivot_index = partition_scalar(arr);
     quicksort_sse2(&mut arr[0..pivot_index]);
     quicksort_sse2(&mut arr[pivot_index + 1..]);
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[target_feature(enable = "sse2")]
-unsafe fn partition_sse2(arr: &mut [f32]) -> usize {
-    use core::arch::x86_64::*;
-
-    let len = arr.len();
-    let pivot = arr[len - 1];
-    let pivot_vec = _mm_set1_ps(pivot);
-
-    let mut left = 0;
-    let mut right = len - 1;
-
-    while left + 4 <= right {
-        // Load 4 elements from left
-        let left_vec = _mm_loadu_ps(&arr[left]);
-
-        // Compare with pivot
-        let cmp_mask = _mm_cmple_ps(left_vec, pivot_vec);
-        let mask = _mm_movemask_ps(cmp_mask);
-
-        // Process elements based on comparison
-        for i in 0..4 {
-            if left < right {
-                if (mask & (1 << i)) != 0 {
-                    // Element is <= pivot, keep it on the left
-                    left += 1;
-                } else {
-                    // Element is > pivot, swap with element from right
-                    while right > left && arr[right - 1] > pivot {
-                        right -= 1;
-                    }
-                    if right > left {
-                        arr.swap(left, right - 1);
-                        right -= 1;
-                        left += 1;
-                    }
-                }
+// Compile-time permutation LUT for AVX2 compress.
+// COMPRESS_LUT[mask] is a permutation of [0..8] where the set-bit (≤pivot) lanes
+// come first (positions 0..popcount(mask)), followed by the clear-bit (>pivot) lanes.
+// Used with _mm256_permutevar8x32_ps to gather matching elements contiguously.
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    not(feature = "no-std")
+))]
+const fn build_compress_lut() -> [[u32; 8]; 256] {
+    let mut lut = [[0u32; 8]; 256];
+    let mut m: usize = 0;
+    while m < 256 {
+        let mut count_set: usize = 0;
+        let mut b: usize = 0;
+        while b < 8 {
+            if (m >> b) & 1 == 1 {
+                count_set += 1;
             }
+            b += 1;
         }
-    }
-
-    // Handle remaining elements with scalar code
-    while left < right - 1 {
-        if arr[left] <= pivot {
-            left += 1;
-        } else {
-            right -= 1;
-            arr.swap(left, right);
+        let mut cur_lo: usize = 0;
+        let mut cur_hi: usize = count_set;
+        let mut b2: usize = 0;
+        while b2 < 8 {
+            if (m >> b2) & 1 == 1 {
+                lut[m][cur_lo] = b2 as u32;
+                cur_lo += 1;
+            } else {
+                lut[m][cur_hi] = b2 as u32;
+                cur_hi += 1;
+            }
+            b2 += 1;
         }
+        m += 1;
     }
-
-    arr.swap(left, len - 1);
-    left
+    lut
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    not(feature = "no-std")
+))]
+static COMPRESS_LUT: [[u32; 8]; 256] = build_compress_lut();
+
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    not(feature = "no-std")
+))]
 #[target_feature(enable = "avx2")]
 unsafe fn quicksort_avx2(arr: &mut [f32]) {
-    if arr.len() <= 16 {
-        // Use insertion sort for small arrays
+    if arr.len() <= 1 {
+        return;
+    }
+    let len = arr.len();
+    let mut le_buf: Vec<f32> = Vec::with_capacity(len);
+    let mut gt_buf: Vec<f32> = Vec::with_capacity(len);
+    quicksort_avx2_impl(arr, &mut le_buf, &mut gt_buf);
+}
+
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    not(feature = "no-std")
+))]
+#[target_feature(enable = "avx2")]
+unsafe fn quicksort_avx2_impl(arr: &mut [f32], le_buf: &mut Vec<f32>, gt_buf: &mut Vec<f32>) {
+    let len = arr.len();
+    if len <= 1 {
+        return;
+    }
+    if len <= 16 {
         insertion_sort_simd_avx2(arr);
         return;
     }
-
-    let pivot_index = partition_avx2(arr);
-    quicksort_avx2(&mut arr[0..pivot_index]);
-    quicksort_avx2(&mut arr[pivot_index + 1..]);
+    let pivot_pos = partition_avx2_buffered(arr, le_buf, gt_buf);
+    let (left, rest) = arr.split_at_mut(pivot_pos);
+    let right = &mut rest[1..];
+    quicksort_avx2_impl(left, le_buf, gt_buf);
+    quicksort_avx2_impl(right, le_buf, gt_buf);
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+// Lomuto-style partition using AVX2 compress: in each 8-lane pass, elements ≤ pivot
+// are gathered contiguously via _mm256_permutevar8x32_ps + LUT, then buffered.
+// The array is reassembled as [≤pivot elements | pivot | >pivot elements].
+// Buffers are allocated once by the entry point and reused across all recursive calls.
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    not(feature = "no-std")
+))]
 #[target_feature(enable = "avx2")]
-unsafe fn partition_avx2(arr: &mut [f32]) -> usize {
+unsafe fn partition_avx2_buffered(
+    arr: &mut [f32],
+    le_buf: &mut Vec<f32>,
+    gt_buf: &mut Vec<f32>,
+) -> usize {
     use core::arch::x86_64::*;
 
     let len = arr.len();
     let pivot = arr[len - 1];
     let pivot_vec = _mm256_set1_ps(pivot);
 
-    let mut left = 0;
-    let mut right = len - 1;
+    le_buf.clear();
+    gt_buf.clear();
 
-    while left + 8 <= right {
-        // Load 8 elements from left
-        let left_vec = _mm256_loadu_ps(&arr[left]);
+    let mut i = 0;
 
-        // Compare with pivot
-        let cmp_mask = _mm256_cmp_ps(left_vec, pivot_vec, _CMP_LE_OQ);
-        let mask = _mm256_movemask_ps(cmp_mask);
+    // Process 8 elements per iteration (all elements before the pivot at arr[len-1])
+    while i + 8 < len {
+        let data_vec = _mm256_loadu_ps(arr.as_ptr().add(i));
+        let cmp = _mm256_cmp_ps(data_vec, pivot_vec, _CMP_LE_OQ);
+        let mask = _mm256_movemask_ps(cmp) as usize;
+        let count_le = mask.count_ones() as usize;
+        let count_gt = 8 - count_le;
 
-        // Process elements based on comparison
-        for i in 0..8 {
-            if left < right {
-                if (mask & (1 << i)) != 0 {
-                    // Element is <= pivot, keep it on the left
-                    left += 1;
-                } else {
-                    // Element is > pivot, swap with element from right
-                    while right > left && arr[right - 1] > pivot {
-                        right -= 1;
-                    }
-                    if right > left {
-                        arr.swap(left, right - 1);
-                        right -= 1;
-                        left += 1;
-                    }
-                }
-            }
-        }
+        // Permute so the ≤pivot lanes land in the low prefix
+        let le_perm = _mm256_loadu_si256(COMPRESS_LUT[mask].as_ptr() as *const __m256i);
+        let le_result = _mm256_permutevar8x32_ps(data_vec, le_perm);
+        let mut tmp = [0.0f32; 8];
+        _mm256_storeu_ps(tmp.as_mut_ptr(), le_result);
+        le_buf.extend_from_slice(&tmp[..count_le]);
+
+        // Permute so the >pivot lanes land in the low prefix
+        let gt_mask = (!mask) & 0xFF;
+        let gt_perm = _mm256_loadu_si256(COMPRESS_LUT[gt_mask].as_ptr() as *const __m256i);
+        let gt_result = _mm256_permutevar8x32_ps(data_vec, gt_perm);
+        _mm256_storeu_ps(tmp.as_mut_ptr(), gt_result);
+        gt_buf.extend_from_slice(&tmp[..count_gt]);
+
+        i += 8;
     }
 
-    // Handle remaining elements with scalar code
-    while left < right - 1 {
-        if arr[left] <= pivot {
-            left += 1;
+    // Scalar tail for any remaining elements before the pivot
+    while i < len - 1 {
+        if arr[i] <= pivot {
+            le_buf.push(arr[i]);
         } else {
-            right -= 1;
-            arr.swap(left, right);
+            gt_buf.push(arr[i]);
         }
+        i += 1;
     }
 
-    arr.swap(left, len - 1);
-    left
+    // Reassemble: [ ≤pivot elements | pivot | >pivot elements ]
+    let pivot_pos = le_buf.len();
+    arr[..pivot_pos].copy_from_slice(le_buf.as_slice());
+    arr[pivot_pos] = pivot;
+    let gt_start = pivot_pos + 1;
+    arr[gt_start..gt_start + gt_buf.len()].copy_from_slice(gt_buf.as_slice());
+
+    pivot_pos
 }
 
 /// SIMD-optimized insertion sort for small arrays
@@ -249,7 +278,10 @@ unsafe fn insertion_sort_simd_sse2(arr: &mut [f32]) {
     }
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    not(feature = "no-std")
+))]
 #[target_feature(enable = "avx2")]
 unsafe fn insertion_sort_simd_avx2(arr: &mut [f32]) {
     use core::arch::x86_64::*;
@@ -729,5 +761,80 @@ mod tests {
 
         let median = median_f32_simd(&mut arr);
         assert_eq!(median, Some(42.0));
+    }
+
+    fn multiset_eq(a: &[f32], b: &[f32]) -> bool {
+        let mut va: Vec<u32> = a.iter().map(|x| x.to_bits()).collect();
+        let mut vb: Vec<u32> = b.iter().map(|x| x.to_bits()).collect();
+        va.sort_unstable();
+        vb.sort_unstable();
+        va == vb
+    }
+
+    #[test]
+    fn test_quicksort_already_sorted() {
+        let mut arr: Vec<f32> = (0..50).map(|i| i as f32).collect();
+        let original = arr.clone();
+        quicksort_f32_simd(&mut arr);
+        assert!(is_sorted(&arr, true));
+        assert!(multiset_eq(&arr, &original));
+    }
+
+    #[test]
+    fn test_quicksort_reverse_sorted() {
+        let mut arr: Vec<f32> = (0..50).rev().map(|i| i as f32).collect();
+        let original = arr.clone();
+        quicksort_f32_simd(&mut arr);
+        assert!(is_sorted(&arr, true));
+        assert!(multiset_eq(&arr, &original));
+    }
+
+    #[test]
+    fn test_quicksort_all_equal() {
+        let mut arr = vec![7.0f32; 100];
+        let original = arr.clone();
+        quicksort_f32_simd(&mut arr);
+        assert!(is_sorted(&arr, true));
+        assert!(multiset_eq(&arr, &original));
+    }
+
+    #[test]
+    fn test_quicksort_heavy_duplicates() {
+        let mut rng = thread_rng();
+        // Only 3 distinct values among 200 elements: lots of ties in the partition
+        let mut arr: Vec<f32> = (0..200)
+            .map(|_| [1.0f32, 2.0, 3.0][rng.random_range(0usize..3)])
+            .collect();
+        let original = arr.clone();
+        quicksort_f32_simd(&mut arr);
+        assert!(is_sorted(&arr, true));
+        assert!(multiset_eq(&arr, &original));
+    }
+
+    #[test]
+    fn test_quicksort_non_multiple_of_8() {
+        let mut rng = thread_rng();
+        // Sizes that don't align to the 8-lane AVX2 width
+        for size in [17usize, 23, 31, 41, 97, 103] {
+            let mut arr: Vec<f32> = (0..size)
+                .map(|_| rng.random_range(0.0f32..1000.0))
+                .collect();
+            let original = arr.clone();
+            quicksort_f32_simd(&mut arr);
+            assert!(is_sorted(&arr, true), "size {size} not sorted");
+            assert!(multiset_eq(&arr, &original), "size {size} multiset changed");
+        }
+    }
+
+    #[test]
+    fn test_quicksort_large() {
+        let mut rng = thread_rng();
+        let mut arr: Vec<f32> = (0..1000)
+            .map(|_| rng.random_range(0.0f32..10000.0))
+            .collect();
+        let original = arr.clone();
+        quicksort_f32_simd(&mut arr);
+        assert!(is_sorted(&arr, true));
+        assert!(multiset_eq(&arr, &original));
     }
 }

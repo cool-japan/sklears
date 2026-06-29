@@ -753,19 +753,15 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, usize>> for DistributedDBSCAN<Unt
 }
 
 impl Predict<ArrayView2<'_, Float>, Array1<i32>> for DistributedDBSCAN<Trained> {
-    fn predict(&self, x: &ArrayView2<Float>) -> Result<Array1<i32>> {
-        // For simplicity, assign new points to nearest existing cluster
-        // In a full implementation, this would involve the full distributed prediction process
-        let _labels = self.labels()?;
-        let n_new = x.nrows();
-        let mut predictions = Array1::from_elem(n_new, -1); // Default to noise
-
-        // Simple nearest-cluster assignment (can be improved)
-        for i in 0..n_new {
-            predictions[i] = 0; // Placeholder - would implement proper prediction
-        }
-
-        Ok(predictions)
+    fn predict(&self, _x: &ArrayView2<Float>) -> Result<Array1<i32>> {
+        // DBSCAN predict on unseen data requires the original training points to determine
+        // density-reachability. The fitted model does not retain training data (partitions: None).
+        // Callers should use fit() to re-cluster data that includes the new points.
+        Err(SklearsError::NotImplemented(
+            "DistributedDBSCAN::predict: density-reachability requires stored training data; \
+             re-fit with the combined point set instead"
+                .to_string(),
+        ))
     }
 }
 
@@ -863,11 +859,15 @@ mod tests {
             .expect("operation should succeed");
 
         let test_data = array![[0.05, 0.05], [1.05, 1.05]];
-        let predictions = model
-            .predict(&test_data.view())
-            .expect("operation should succeed");
-
-        assert_eq!(predictions.len(), 2);
+        // DBSCAN predict on new points requires density-reachability from stored
+        // training data, which is not available after distributed fit. Re-fit with
+        // the combined point set instead.
+        let result = model.predict(&test_data.view());
+        assert!(
+            matches!(result, Err(SklearsError::NotImplemented(_))),
+            "predict on new points must return NotImplemented; got {:?}",
+            result
+        );
     }
 
     #[test]

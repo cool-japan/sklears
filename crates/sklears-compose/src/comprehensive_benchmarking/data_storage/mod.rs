@@ -3,23 +3,26 @@
 //! This module provides comprehensive data storage capabilities for benchmark results
 //! including backend management, indexing, retention, compression, caching, and backup.
 
-pub mod storage_backend;
-pub mod indexing;
-pub mod retention;
-pub mod compression;
-pub mod cache;
+// Re-export config_types so child modules can use `super::config_types::*`
+pub use crate::comprehensive_benchmarking::config_types;
+
 pub mod backup;
-pub mod query;
-pub mod integrity;
+pub mod cache;
+pub mod compression;
 pub mod errors;
+pub mod indexing;
+pub mod integrity;
+pub mod query;
+pub mod retention;
+pub mod storage_backend;
 
 // Re-export main types
-pub use storage_backend::*;
-pub use indexing::*;
-pub use retention::*;
-pub use compression::*;
-pub use cache::*;
 pub use backup::*;
-pub use query::*;
-pub use integrity::*;
+pub use cache::*;
+pub use compression::*;
 pub use errors::*;
+pub use indexing::*;
+pub use integrity::*;
+pub use query::*;
+pub use retention::*;
+pub use storage_backend::*;

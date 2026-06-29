@@ -144,55 +144,27 @@ impl GpuContext {
     }
 
     fn initialize_cuda(&mut self) -> Result<()> {
-        // In a real implementation, this would use CUDA runtime APIs
-        // For now, we'll simulate initialization
-        let device = GpuDevice {
-            id: self.config.device_id,
-            name: "Simulated CUDA Device".to_string(),
-            compute_capability: (8, 6),
-            total_memory: 12 * 1024 * 1024 * 1024, // 12GB
-            multiprocessor_count: 82,
-            max_threads_per_block: 1024,
-            max_shared_memory: 48 * 1024,
-        };
-
-        self.device = Some(device);
-        self.is_initialized = true;
-        Ok(())
+        // CUDA runtime is not linked — this backend is not implemented.
+        Err(SklearsError::NotImplemented(
+            "CUDA runtime is not linked; recompile with a real CUDA SDK to enable this backend"
+                .to_string(),
+        ))
     }
 
     fn initialize_opencl(&mut self) -> Result<()> {
-        // Simulate OpenCL initialization
-        let device = GpuDevice {
-            id: self.config.device_id,
-            name: "Simulated OpenCL Device".to_string(),
-            compute_capability: (0, 0),
-            total_memory: 8 * 1024 * 1024 * 1024, // 8GB
-            multiprocessor_count: 64,
-            max_threads_per_block: 256,
-            max_shared_memory: 32 * 1024,
-        };
-
-        self.device = Some(device);
-        self.is_initialized = true;
-        Ok(())
+        // OpenCL runtime is not linked — this backend is not implemented.
+        Err(SklearsError::NotImplemented(
+            "OpenCL runtime is not linked; recompile with a real OpenCL SDK to enable this backend"
+                .to_string(),
+        ))
     }
 
     fn initialize_metal(&mut self) -> Result<()> {
-        // Simulate Metal initialization (macOS)
-        let device = GpuDevice {
-            id: self.config.device_id,
-            name: "Simulated Metal Device".to_string(),
-            compute_capability: (0, 0),
-            total_memory: 16 * 1024 * 1024 * 1024, // 16GB unified memory
-            multiprocessor_count: 32,
-            max_threads_per_block: 1024,
-            max_shared_memory: 32 * 1024,
-        };
-
-        self.device = Some(device);
-        self.is_initialized = true;
-        Ok(())
+        // Metal framework is not linked — this backend is not implemented.
+        Err(SklearsError::NotImplemented(
+            "Metal framework is not linked; build on macOS with Metal SDK to enable this backend"
+                .to_string(),
+        ))
     }
 
     pub fn get_optimal_block_size(&self, problem_size: usize) -> usize {

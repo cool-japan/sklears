@@ -3,13 +3,12 @@
 //! Apply different transformers to different subsets of features.
 
 use scirs2_core::ndarray::{s, Array2, ArrayView1, ArrayView2};
+use scirs2_sparse::csr::CsrMatrix;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
     types::Float,
 };
-// TODO: Migrate to scirs2-sparse when implementing sparse functionality
-// use scirs2_sparse::{CsMat, TriMat};
 use std::collections::HashMap;
 
 use crate::{
@@ -365,45 +364,175 @@ impl Transform<ArrayView2<'_, Float>, Array2<f64>> for ColumnTransformer<ColumnT
 /// Sparse output support for `ColumnTransformer`
 #[derive(Debug, Clone)]
 pub enum ColumnTransformerOutput {
-    /// Dense
+    /// Dense output stored as a row-major 2-D array.
     Dense(Array2<f64>),
-    // TODO: Re-enable sparse support with scirs2-sparse
-    // Sparse(CsMat<f64>),
+    /// Sparse output stored in compressed-sparse-row (CSR) form, used when the
+    /// transformed matrix is sparse enough (see `sparse_threshold`).
+    Sparse(CsrMatrix<f64>),
+}
+
+impl ColumnTransformerOutput {
+    /// Materialise the output as a dense array regardless of the underlying
+    /// representation. CSR output is expanded back into a dense `Array2`.
+    #[must_use]
+    pub fn to_dense(&self) -> Array2<f64> {
+        match self {
+            ColumnTransformerOutput::Dense(dense) => dense.clone(),
+            ColumnTransformerOutput::Sparse(sparse) => {
+                let (rows, cols) = sparse.shape();
+                let mut dense = Array2::zeros((rows, cols));
+                // CSR row pointers index into `indices`/`data`; reconstruct each
+                // non-zero entry into its dense position.
+                for row in 0..rows {
+                    let start = sparse.indptr[row];
+                    let end = sparse.indptr[row + 1];
+                    for idx in start..end {
+                        dense[[row, sparse.indices[idx]]] = sparse.data[idx];
+                    }
+                }
+                dense
+            }
+        }
+    }
+
+    /// Number of stored explicit values. For dense output this is the full
+    /// element count; for sparse output it is the number of non-zeros.
+    #[must_use]
+    pub fn stored_len(&self) -> usize {
+        match self {
+            ColumnTransformerOutput::Dense(dense) => dense.len(),
+            ColumnTransformerOutput::Sparse(sparse) => sparse.nnz(),
+        }
+    }
 }
 
 impl ColumnTransformer<ColumnTransformerTrained> {
-    /// Transform data and return appropriate output format (dense or sparse)
+    /// Transform data and return appropriate output format (dense or sparse).
+    ///
+    /// When the fitted transformer determined (at fit time, from the input
+    /// sparsity vs. `sparse_threshold`) that output should be sparse, the dense
+    /// result is converted into a [`CsrMatrix`]; otherwise the dense array is
+    /// returned directly.
     pub fn transform_output(
         &self,
         x: &ArrayView2<'_, Float>,
     ) -> SklResult<ColumnTransformerOutput> {
         let dense_result = self.transform(x)?;
 
-        // TODO: Re-enable sparse support with scirs2-sparse
-        // if self.state.sparse_output {
-        //     // Convert to sparse matrix if threshold is met
-        //     let sparse_result = self.dense_to_sparse(&dense_result)?;
-        //     Ok(ColumnTransformerOutput::Sparse(sparse_result))
-        // } else {
-        Ok(ColumnTransformerOutput::Dense(dense_result))
-        // }
+        if self.state.sparse_output {
+            let sparse_result = Self::dense_to_sparse(&dense_result)?;
+            Ok(ColumnTransformerOutput::Sparse(sparse_result))
+        } else {
+            Ok(ColumnTransformerOutput::Dense(dense_result))
+        }
     }
 
-    // TODO: Re-enable sparse support with scirs2-sparse
-    // /// Convert dense matrix to sparse CSR format
-    // fn dense_to_sparse(&self, dense: &Array2<f64>) -> SklResult<CsMat<f64>> {
-    //     let mut triplets = TriMat::new((dense.nrows(), dense.ncols()));
-    //
-    //     for (i, row) in dense.outer_iter().enumerate() {
-    //         for (j, &value) in row.iter().enumerate() {
-    //             if value != 0.0 {
-    //                 triplets.add_triplet(i, j, value);
-    //             }
-    //         }
-    //     }
-    //
-    //     Ok(triplets.to_csr())
-    // }
+    /// Convert a dense matrix to CSR sparse format, keeping only non-zero
+    /// entries.
+    fn dense_to_sparse(dense: &Array2<f64>) -> SklResult<CsrMatrix<f64>> {
+        let (n_rows, n_cols) = (dense.nrows(), dense.ncols());
+
+        let mut row_indices: Vec<usize> = Vec::new();
+        let mut col_indices: Vec<usize> = Vec::new();
+        let mut values: Vec<f64> = Vec::new();
+
+        for (i, row) in dense.outer_iter().enumerate() {
+            for (j, &value) in row.iter().enumerate() {
+                if value != 0.0 {
+                    row_indices.push(i);
+                    col_indices.push(j);
+                    values.push(value);
+                }
+            }
+        }
+
+        CsrMatrix::new(values, row_indices, col_indices, (n_rows, n_cols))
+            .map_err(|e| SklearsError::InvalidInput(format!("Failed to build CSR matrix: {e}")))
+    }
+
+    /// Subset columns of a CSR matrix, returning a new CSR matrix containing
+    /// only the requested columns (in the order given).
+    ///
+    /// This is the sparse counterpart of dense column extraction: it walks the
+    /// CSR structure once and re-maps surviving entries to their new column
+    /// positions, so it never densifies the matrix.
+    pub fn sparse_select_columns(
+        matrix: &CsrMatrix<f64>,
+        columns: &[usize],
+    ) -> SklResult<CsrMatrix<f64>> {
+        let (n_rows, n_cols) = matrix.shape();
+
+        // Map original column index -> new column index (None if not selected).
+        let mut remap: Vec<Option<usize>> = vec![None; n_cols];
+        for (new_idx, &orig) in columns.iter().enumerate() {
+            if orig >= n_cols {
+                return Err(SklearsError::InvalidInput(format!(
+                    "Column index {orig} out of bounds for {n_cols} columns"
+                )));
+            }
+            remap[orig] = Some(new_idx);
+        }
+
+        let mut row_indices: Vec<usize> = Vec::new();
+        let mut col_indices: Vec<usize> = Vec::new();
+        let mut values: Vec<f64> = Vec::new();
+
+        for row in 0..n_rows {
+            let start = matrix.indptr[row];
+            let end = matrix.indptr[row + 1];
+            for idx in start..end {
+                if let Some(new_col) = remap[matrix.indices[idx]] {
+                    row_indices.push(row);
+                    col_indices.push(new_col);
+                    values.push(matrix.data[idx]);
+                }
+            }
+        }
+
+        CsrMatrix::new(values, row_indices, col_indices, (n_rows, columns.len()))
+            .map_err(|e| SklearsError::InvalidInput(format!("Failed to build CSR matrix: {e}")))
+    }
+
+    /// Horizontally concatenate CSR matrices that share the same row count,
+    /// producing a single wider CSR matrix. This is the sparse analogue of
+    /// `ColumnTransformer::concatenate_results`.
+    pub fn sparse_hstack(matrices: &[CsrMatrix<f64>]) -> SklResult<CsrMatrix<f64>> {
+        if matrices.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "Cannot concatenate zero sparse matrices".to_string(),
+            ));
+        }
+
+        let n_rows = matrices[0].shape().0;
+        let mut total_cols = 0usize;
+
+        let mut row_indices: Vec<usize> = Vec::new();
+        let mut col_indices: Vec<usize> = Vec::new();
+        let mut values: Vec<f64> = Vec::new();
+
+        for matrix in matrices {
+            let (rows, cols) = matrix.shape();
+            if rows != n_rows {
+                return Err(SklearsError::InvalidInput(
+                    "All sparse matrices must have the same number of rows".to_string(),
+                ));
+            }
+            let col_offset = total_cols;
+            for row in 0..rows {
+                let start = matrix.indptr[row];
+                let end = matrix.indptr[row + 1];
+                for idx in start..end {
+                    row_indices.push(row);
+                    col_indices.push(matrix.indices[idx] + col_offset);
+                    values.push(matrix.data[idx]);
+                }
+            }
+            total_cols += cols;
+        }
+
+        CsrMatrix::new(values, row_indices, col_indices, (n_rows, total_cols))
+            .map_err(|e| SklearsError::InvalidInput(format!("Failed to build CSR matrix: {e}")))
+    }
 
     /// Concatenate multiple transformed results
     fn concatenate_results(&self, results: Vec<Array2<f64>>) -> SklResult<Array2<f64>> {
@@ -556,5 +685,101 @@ impl ColumnTransformerBuilder {
 impl Default for ColumnTransformerBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod sparse_tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    type TrainedCt = ColumnTransformer<ColumnTransformerTrained>;
+
+    #[test]
+    fn dense_to_sparse_roundtrip() {
+        let dense = array![[0.0, 2.0, 0.0], [3.0, 0.0, 0.0], [0.0, 0.0, 5.0]];
+        let sparse = TrainedCt::dense_to_sparse(&dense).expect("build csr");
+        assert_eq!(sparse.shape(), (3, 3));
+        assert_eq!(sparse.nnz(), 3); // only the 3 non-zeros stored
+
+        let out = ColumnTransformerOutput::Sparse(sparse);
+        let back = out.to_dense();
+        assert_eq!(back, dense);
+        assert_eq!(out.stored_len(), 3);
+    }
+
+    #[test]
+    fn sparse_select_columns_keeps_only_requested() {
+        let dense = array![[1.0, 0.0, 7.0], [0.0, 4.0, 0.0]];
+        let sparse = TrainedCt::dense_to_sparse(&dense).expect("csr");
+        // Select columns [2, 0] (reordered).
+        let subset = TrainedCt::sparse_select_columns(&sparse, &[2, 0]).expect("subset");
+        assert_eq!(subset.shape(), (2, 2));
+        let dense_subset = ColumnTransformerOutput::Sparse(subset).to_dense();
+        // New col 0 == old col 2, new col 1 == old col 0.
+        assert_eq!(dense_subset, array![[7.0, 1.0], [0.0, 0.0]]);
+    }
+
+    #[test]
+    fn sparse_select_columns_out_of_bounds_errors() {
+        let dense = array![[1.0, 2.0]];
+        let sparse = TrainedCt::dense_to_sparse(&dense).expect("csr");
+        assert!(TrainedCt::sparse_select_columns(&sparse, &[5]).is_err());
+    }
+
+    #[test]
+    fn sparse_hstack_concatenates_columns() {
+        let a = TrainedCt::dense_to_sparse(&array![[1.0, 0.0], [0.0, 2.0]]).expect("a");
+        let b = TrainedCt::dense_to_sparse(&array![[0.0, 3.0], [4.0, 0.0]]).expect("b");
+        let stacked = TrainedCt::sparse_hstack(&[a, b]).expect("hstack");
+        assert_eq!(stacked.shape(), (2, 4));
+        let dense = ColumnTransformerOutput::Sparse(stacked).to_dense();
+        assert_eq!(dense, array![[1.0, 0.0, 0.0, 3.0], [0.0, 2.0, 4.0, 0.0]]);
+    }
+
+    #[test]
+    fn sparse_hstack_row_mismatch_errors() {
+        let a = TrainedCt::dense_to_sparse(&array![[1.0]]).expect("a");
+        let b = TrainedCt::dense_to_sparse(&array![[1.0], [2.0]]).expect("b");
+        assert!(TrainedCt::sparse_hstack(&[a, b]).is_err());
+    }
+
+    #[test]
+    fn transform_output_returns_sparse_when_threshold_met() {
+        // Mostly-zero input so should_output_sparse() is true at default 0.3.
+        let data = array![
+            [0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 2.0]
+        ];
+        let y: Option<&ArrayView1<'_, Float>> = None;
+
+        let mut ct = ColumnTransformer::new().remainder("passthrough".to_string());
+        ct.add_transformer("passthrough".to_string(), vec![0, 1, 2]);
+        let fitted = ct.fit(&data.view(), &y).expect("fit");
+
+        let output = fitted.transform_output(&data.view()).expect("transform");
+        match output {
+            ColumnTransformerOutput::Sparse(ref sparse) => {
+                assert_eq!(sparse.shape().0, 4);
+                // The dense reconstruction matches the passthrough output.
+                assert_eq!(output.to_dense().nrows(), 4);
+            }
+            ColumnTransformerOutput::Dense(_) => {
+                panic!("expected sparse output for highly sparse input")
+            }
+        }
+    }
+
+    #[test]
+    fn transform_output_returns_dense_when_threshold_not_met() {
+        let data = array![[1.0, 2.0], [3.0, 4.0]];
+        let y: Option<&ArrayView1<'_, Float>> = None;
+        let mut ct = ColumnTransformer::new().remainder("passthrough".to_string());
+        ct.add_transformer("passthrough".to_string(), vec![0, 1]);
+        let fitted = ct.fit(&data.view(), &y).expect("fit");
+        let output = fitted.transform_output(&data.view()).expect("transform");
+        assert!(matches!(output, ColumnTransformerOutput::Dense(_)));
     }
 }

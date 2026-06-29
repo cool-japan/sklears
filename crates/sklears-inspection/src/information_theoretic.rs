@@ -1030,65 +1030,89 @@ fn optimize_information_bottleneck_step(
 
 #[allow(non_snake_case)] // standard ML notation
 fn compute_ib_objective(
-    _X_discrete: &Array2<usize>,
-    _y_discrete: &Array1<usize>,
+    X_discrete: &Array2<usize>,
+    y_discrete: &Array1<usize>,
     T: &Array2<Float>,
     config: &InformationTheoreticConfig,
 ) -> SklResult<Float> {
-    // Simplified IB objective: I(T;Y) - β*I(T;X)
+    // Information Bottleneck objective: L = I(T;Y) - beta * I(T;X).
+    //
+    // T holds soft cluster responsibilities of shape (n_samples, n_clusters). We
+    // derive the hard representation label per sample by taking the argmax cluster,
+    // then estimate the two mutual-information terms with the same discrete MI
+    // estimator used elsewhere in this module:
+    //   * I(T;Y): MI between the representation label and the target.
+    //   * I(T;X): the mean per-feature MI between the representation label and each
+    //             input feature (a bounded, real estimate of the compression cost).
+    let n_samples = T.nrows();
+    if n_samples == 0 || T.ncols() == 0 {
+        return Ok(0.0);
+    }
 
-    // For continuous T, we need to discretize or use differential entropy
-    // This is a simplified version
-    let relevant_info = compute_matrix_frobenius_norm(T); // Placeholder
-    let compression_cost = compute_matrix_frobenius_norm(T); // Placeholder
+    let t_labels = representation_labels(T);
 
-    let objective = relevant_info - config.beta * compression_cost;
-    Ok(objective)
+    // I(T;Y)
+    let relevant_info = if y_discrete.len() == n_samples {
+        compute_mutual_information(&t_labels.view(), &y_discrete.view(), config)?
+    } else {
+        0.0
+    };
+
+    // I(T;X) approximated as the mean MI between T and each input feature.
+    let compression_cost = if X_discrete.nrows() == n_samples && X_discrete.ncols() > 0 {
+        let mut total = 0.0;
+        for feature in 0..X_discrete.ncols() {
+            let column = X_discrete.column(feature).to_owned();
+            total += compute_mutual_information(&t_labels.view(), &column.view(), config)?;
+        }
+        total / X_discrete.ncols() as Float
+    } else {
+        0.0
+    };
+
+    Ok(relevant_info - config.beta * compression_cost)
+}
+
+/// Convert a soft representation matrix `T` (rows = samples, columns = clusters)
+/// into a hard per-sample representation label by taking the argmax cluster.
+fn representation_labels(t: &Array2<Float>) -> Array1<usize> {
+    Array1::from_iter((0..t.nrows()).map(|i| {
+        let row = t.row(i);
+        let mut best_idx = 0usize;
+        let mut best_val = Float::NEG_INFINITY;
+        for (j, &val) in row.iter().enumerate() {
+            if val > best_val {
+                best_val = val;
+                best_idx = j;
+            }
+        }
+        best_idx
+    }))
 }
 
 #[allow(non_snake_case)] // standard ML notation
 fn compute_mutual_information_matrices(
     T: &Array2<Float>,
     Y: &Array2<usize>,
-    _config: &InformationTheoreticConfig,
+    config: &InformationTheoreticConfig,
 ) -> SklResult<Float> {
-    // Simplified MI computation for matrices
-    let correlation = compute_matrix_correlation(T, Y);
-    Ok(correlation.abs())
-}
-
-#[allow(non_snake_case)] // standard ML notation
-fn compute_matrix_correlation(A: &Array2<Float>, B: &Array2<usize>) -> Float {
-    // Simplified correlation computation
-    let a_flat: Vec<Float> = A.iter().cloned().collect();
-    let b_flat: Vec<Float> = B.iter().map(|&x| x as Float).collect();
-
-    if a_flat.len() != b_flat.len() {
-        return 0.0;
+    // Genuine mutual information between the (hard) representation label derived from
+    // T and the columns of Y, using the discrete MI estimator. When Y has multiple
+    // columns (e.g. the feature matrix), we average the per-column MI. This replaces
+    // the previous correlation-as-MI stand-in.
+    let n_samples = T.nrows();
+    if n_samples == 0 || T.ncols() == 0 || Y.nrows() != n_samples || Y.ncols() == 0 {
+        return Ok(0.0);
     }
 
-    let mean_a = a_flat.iter().sum::<Float>() / a_flat.len() as Float;
-    let mean_b = b_flat.iter().sum::<Float>() / b_flat.len() as Float;
+    let t_labels = representation_labels(T);
 
-    let mut numerator = 0.0;
-    let mut sum_sq_a = 0.0;
-    let mut sum_sq_b = 0.0;
-
-    for i in 0..a_flat.len() {
-        let a_dev = a_flat[i] - mean_a;
-        let b_dev = b_flat[i] - mean_b;
-
-        numerator += a_dev * b_dev;
-        sum_sq_a += a_dev * a_dev;
-        sum_sq_b += b_dev * b_dev;
+    let mut total = 0.0;
+    for col in 0..Y.ncols() {
+        let column = Y.column(col).to_owned();
+        total += compute_mutual_information(&t_labels.view(), &column.view(), config)?;
     }
-
-    let denominator = (sum_sq_a * sum_sq_b).sqrt();
-    if denominator.abs() < Float::EPSILON {
-        0.0
-    } else {
-        numerator / denominator
-    }
+    Ok(total / Y.ncols() as Float)
 }
 
 fn compute_matrix_frobenius_norm(matrix: &Array2<Float>) -> Float {

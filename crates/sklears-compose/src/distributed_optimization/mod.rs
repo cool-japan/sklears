@@ -603,15 +603,33 @@ impl DistributedOptimizer {
             // Update metrics
             active_session.performance_metrics.iterations_completed = session.get_iterations_completed();
             active_session.performance_metrics.best_objective_value = session.get_best_objective_value();
-            active_session.performance_metrics.resource_utilization = self.calculate_resource_utilization(session_id)?;
+            // Resource utilization is only updated when it can be genuinely
+            // computed. If worker timing stats are not tracked we leave the
+            // previously recorded value untouched rather than overwriting it with
+            // an invented number.
+            match self.calculate_resource_utilization(session_id) {
+                Ok(utilization) => {
+                    active_session.performance_metrics.resource_utilization = utilization;
+                }
+                Err(OptimizationError::NotImplemented(_)) => {}
+                Err(other) => return Err(other),
+            }
         }
 
         Ok(())
     }
 
+    /// Compute the fraction of available worker time spent doing useful work.
+    ///
+    /// A real utilization figure is `busy_time / total_time` aggregated over the
+    /// session's workers. The coordinator does not yet track per-worker
+    /// `busy_time` / `total_time`, so there is nothing honest to compute. We
+    /// return `NotImplemented` instead of the previous fabricated `0.75`.
     fn calculate_resource_utilization(&self, _session_id: &str) -> Result<f64, OptimizationError> {
-        // Implementation would calculate actual resource utilization
-        Ok(0.75) // Mock value
+        Err(OptimizationError::NotImplemented(
+            "resource_utilization: per-worker busy_time/total_time stats are not tracked yet"
+                .to_string(),
+        ))
     }
 
     fn get_communication_health(&self) -> Result<CommunicationHealth, OptimizationError> {

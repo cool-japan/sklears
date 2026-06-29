@@ -12,17 +12,13 @@
 
 use std::time::Instant;
 
-// TODO: Replace with scirs2-linalg
-// use nalgebra::{DMatrix, DVector};
-// use proptest::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::SeedableRng;
-use scirs2_core::Rng;
+use scirs2_core::random::{seeded_rng, CoreRandom};
 
 use crate::kernels::{Kernel, KernelType};
 use crate::svc::SVC;
-use sklears_core::error::{Result, SklearsError};
+use sklears_core::error::Result;
 use sklears_core::traits::{Fit, Predict};
 
 /// Configuration for property-based testing
@@ -99,48 +95,38 @@ impl PropertyTestResult {
 /// Property-based test runner for SVM algorithms
 pub struct SVMPropertyTester {
     config: PropertyTestConfig,
-    rng: StdRng,
+    rng: CoreRandom<StdRng>,
 }
 
 impl SVMPropertyTester {
     /// Create a new property tester
     pub fn new(config: PropertyTestConfig) -> Self {
-        let rng = StdRng::seed_from_u64(42);
+        let rng = seeded_rng(config.random_seed.unwrap_or(42));
 
         Self { config, rng }
     }
 
-    /// Create a new property tester with default configuration
-    pub fn default() -> Self {
-        Self::new(PropertyTestConfig::default())
-    }
-
     /// Run all property tests
     pub fn run_all_tests(&mut self) -> Vec<PropertyTestResult> {
-        let mut results = Vec::new();
-
-        // Mathematical properties
-        results.push(self.test_convexity_property());
-        results.push(self.test_kkt_conditions());
-        results.push(self.test_dual_gap());
-        results.push(self.test_kernel_properties());
-
-        // Numerical stability
-        results.push(self.test_numerical_stability());
-        results.push(self.test_convergence_properties());
-        results.push(self.test_scale_invariance());
-
-        // Robustness tests
-        results.push(self.test_outlier_robustness());
-        results.push(self.test_noise_robustness());
-        results.push(self.test_edge_cases());
-
-        // Performance properties
-        results.push(self.test_training_time_bounds());
-        results.push(self.test_memory_usage());
-        results.push(self.test_prediction_consistency());
-
-        results
+        vec![
+            // Mathematical properties
+            self.test_convexity_property(),
+            self.test_kkt_conditions(),
+            self.test_dual_gap(),
+            self.test_kernel_properties(),
+            // Numerical stability
+            self.test_numerical_stability(),
+            self.test_convergence_properties(),
+            self.test_scale_invariance(),
+            // Robustness tests
+            self.test_outlier_robustness(),
+            self.test_noise_robustness(),
+            self.test_edge_cases(),
+            // Performance properties
+            self.test_training_time_bounds(),
+            self.test_memory_usage(),
+            self.test_prediction_consistency(),
+        ]
     }
 
     /// Test convexity property of SVM optimization
@@ -582,29 +568,22 @@ impl SVMPropertyTester {
     }
 
     // Helper methods for single test cases
-    fn test_convexity_single_case(&mut self, x: &DMatrix<f64>, y: &DVector<f64>) -> Result<bool> {
+    fn test_convexity_single_case(&mut self, x: &Array2<f64>, y: &Array1<f64>) -> Result<bool> {
         // Test convexity by checking that the objective function is convex
         let svm1 = SVC::new().c(1.0).linear().tol(1e-6).max_iter(1000);
         let svm2 = SVC::new().c(1.0).linear().tol(1e-6).max_iter(1000);
 
         // Train two different models with different initializations
-        // Convert to ndarray for SVM
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-        let y_ndarray = Array1::from_vec(y.iter().cloned().collect());
-
-        let fitted_svm1 = svm1.fit(&x_ndarray, &y_ndarray)?;
-        let fitted_svm2 = svm2.fit(&x_ndarray, &y_ndarray)?;
+        let fitted_svm1 = svm1.fit(x, y)?;
+        let fitted_svm2 = svm2.fit(x, y)?;
 
         // Check if both converged to similar solutions (indicating convexity)
-        let decision1 = fitted_svm1.decision_function(&x_ndarray)?;
-        let decision2 = fitted_svm2.decision_function(&x_ndarray)?;
+        let decision1 = fitted_svm1.decision_function(x)?;
+        let decision2 = fitted_svm2.decision_function(x)?;
 
         let diff_norm = (&decision1 - &decision2)
             .iter()
-            .map(|x| x * x)
+            .map(|v| v * v)
             .sum::<f64>()
             .sqrt();
         Ok(diff_norm < self.config.numerical_tolerance * 10.0)
@@ -612,21 +591,15 @@ impl SVMPropertyTester {
 
     fn test_kkt_conditions_single_case(
         &mut self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
     ) -> Result<bool> {
         let svm = SVC::new().c(1.0).linear().tol(1e-6).max_iter(1000);
-        // Convert to ndarray for SVM
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-        let y_ndarray = Array1::from_vec(y.iter().cloned().collect());
 
-        let fitted_svm = svm.fit(&x_ndarray, &y_ndarray)?;
+        let fitted_svm = svm.fit(x, y)?;
 
         // Check KKT conditions
-        let decision_values = fitted_svm.decision_function(&x_ndarray)?;
+        let decision_values = fitted_svm.decision_function(x)?;
         let margins: Vec<f64> = decision_values
             .iter()
             .zip(y.iter())
@@ -634,21 +607,21 @@ impl SVMPropertyTester {
             .collect();
 
         // Check complementary slackness and stationarity conditions
+        let dual_coef = fitted_svm.dual_coef();
         let mut kkt_satisfied = true;
-        for i in 0..margins.len() {
-            let margin = margins[i];
-            let alpha = if i < fitted_svm.dual_coef().len() {
-                fitted_svm.dual_coef()[i]
+        for (i, &margin) in margins.iter().enumerate() {
+            let alpha = if i < dual_coef.len() {
+                dual_coef[i]
             } else {
                 0.0
             };
 
             // Check complementary slackness: α_i * (1 - y_i * f(x_i)) = 0
-            if alpha > self.config.numerical_tolerance {
-                if (margin - 1.0).abs() > self.config.numerical_tolerance {
-                    kkt_satisfied = false;
-                    break;
-                }
+            if alpha > self.config.numerical_tolerance
+                && (margin - 1.0).abs() > self.config.numerical_tolerance
+            {
+                kkt_satisfied = false;
+                break;
             }
 
             // Check bounds: 0 ≤ α_i ≤ C
@@ -663,19 +636,13 @@ impl SVMPropertyTester {
         Ok(kkt_satisfied)
     }
 
-    fn test_dual_gap_single_case(&mut self, x: &DMatrix<f64>, y: &DVector<f64>) -> Result<bool> {
+    fn test_dual_gap_single_case(&mut self, x: &Array2<f64>, y: &Array1<f64>) -> Result<bool> {
         let svm = SVC::new().c(1.0).linear().tol(1e-6).max_iter(1000);
-        // Convert to ndarray for SVM
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-        let y_ndarray = Array1::from_vec(y.iter().cloned().collect());
 
-        let fitted_svm = svm.fit(&x_ndarray, &y_ndarray)?;
+        let fitted_svm = svm.fit(x, y)?;
 
         // Calculate primal and dual objectives
-        let decision_values = fitted_svm.decision_function(&x_ndarray)?;
+        let decision_values = fitted_svm.decision_function(x)?;
         let margins: Vec<f64> = decision_values
             .iter()
             .zip(y.iter())
@@ -685,11 +652,11 @@ impl SVMPropertyTester {
         // Primal objective: (1/2)||w||² + C∑max(0, 1-y_i*f(x_i))
         let hinge_loss: f64 = margins.iter().map(|&m| (1.0 - m).max(0.0)).sum();
         let primal_obj =
-            0.5 * fitted_svm.dual_coef().iter().map(|x| x * x).sum::<f64>() + 1.0 * hinge_loss;
+            0.5 * fitted_svm.dual_coef().iter().map(|v| v * v).sum::<f64>() + hinge_loss;
 
         // Dual objective: ∑α_i - (1/2)∑∑α_i*α_j*y_i*y_j*K(x_i,x_j)
         let dual_obj = fitted_svm.dual_coef().iter().sum::<f64>()
-            - 0.5 * fitted_svm.dual_coef().iter().map(|x| x * x).sum::<f64>();
+            - 0.5 * fitted_svm.dual_coef().iter().map(|v| v * v).sum::<f64>();
 
         // Dual gap should be non-negative and small at optimum
         let dual_gap = primal_obj - dual_obj;
@@ -698,7 +665,7 @@ impl SVMPropertyTester {
 
     fn test_kernel_properties_single_case(
         &mut self,
-        x: &DMatrix<f64>,
+        x: &Array2<f64>,
         kernel_type: &KernelType,
     ) -> Result<bool> {
         let kernel = kernel_type.clone();
@@ -707,12 +674,8 @@ impl SVMPropertyTester {
         // Test symmetry: K(x_i, x_j) = K(x_j, x_i)
         for i in 0..n.min(10) {
             for j in (i + 1)..n.min(10) {
-                let row_i = Array1::from_vec(x.row(i).iter().cloned().collect());
-                let row_j = Array1::from_vec(x.row(j).iter().cloned().collect());
-                let k_ij = kernel.compute(row_i.view(), row_j.view());
-                let row_j = Array1::from_vec(x.row(j).iter().cloned().collect());
-                let row_i = Array1::from_vec(x.row(i).iter().cloned().collect());
-                let k_ji = kernel.compute(row_j.view(), row_i.view());
+                let k_ij = kernel.compute(x.row(i), x.row(j));
+                let k_ji = kernel.compute(x.row(j), x.row(i));
 
                 if (k_ij - k_ji).abs() > self.config.numerical_tolerance {
                     return Ok(false);
@@ -721,39 +684,32 @@ impl SVMPropertyTester {
         }
 
         // Test positive definiteness (at least positive semidefinite)
-        let mut gram_matrix = DMatrix::zeros(n.min(20), n.min(20));
-        for i in 0..n.min(20) {
-            for j in 0..n.min(20) {
-                let row_i = Array1::from_vec(x.row(i).iter().cloned().collect());
-                let row_j = Array1::from_vec(x.row(j).iter().cloned().collect());
-                gram_matrix[(i, j)] = kernel.compute(row_i.view(), row_j.view());
+        let m = n.min(20);
+        let mut gram_matrix = Array2::zeros((m, m));
+        for i in 0..m {
+            for j in 0..m {
+                gram_matrix[[i, j]] = kernel.compute(x.row(i), x.row(j));
             }
         }
 
-        // Check that all eigenvalues are non-negative (simplified check)
-        let trace = gram_matrix.trace();
+        // Check that all eigenvalues are non-negative (simplified check):
+        // a positive semidefinite matrix has a non-negative trace.
+        let trace = (0..m).map(|i| gram_matrix[[i, i]]).sum::<f64>();
         Ok(trace >= 0.0)
     }
 
     fn test_numerical_stability_single_case(
         &mut self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
     ) -> Result<bool> {
         let svm = SVC::new().c(1.0).linear().tol(1e-6).max_iter(1000);
 
         // Try to fit and check for numerical issues
-        // Convert to ndarray for SVM
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-        let y_ndarray = Array1::from_vec(y.iter().cloned().collect());
-
-        match svm.fit(&x_ndarray, &y_ndarray) {
+        match svm.fit(x, y) {
             Ok(fitted_svm) => {
                 // Check if predictions are reasonable
-                let predictions = fitted_svm.predict(&x_ndarray)?;
+                let predictions = fitted_svm.predict(x)?;
                 let has_nan = predictions.iter().any(|&p| p.is_nan());
                 let has_inf = predictions.iter().any(|&p| p.is_infinite());
 
@@ -763,21 +719,14 @@ impl SVMPropertyTester {
         }
     }
 
-    fn test_convergence_single_case(&mut self, x: &DMatrix<f64>, y: &DVector<f64>) -> Result<bool> {
+    fn test_convergence_single_case(&mut self, x: &Array2<f64>, y: &Array1<f64>) -> Result<bool> {
         let svm = SVC::new().c(1.0).linear().tol(1e-6).max_iter(1000);
 
         // Train with different tolerances and check convergence
-        // Convert to ndarray for SVM
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-        let y_ndarray = Array1::from_vec(y.iter().cloned().collect());
-
-        let fitted_svm = svm.fit(&x_ndarray, &y_ndarray)?;
+        let fitted_svm = svm.fit(x, y)?;
 
         // Check if the algorithm converged (basic check)
-        let decision_values = fitted_svm.decision_function(&x_ndarray)?;
+        let decision_values = fitted_svm.decision_function(x)?;
         let margins: Vec<f64> = decision_values
             .iter()
             .zip(y.iter())
@@ -791,59 +740,41 @@ impl SVMPropertyTester {
 
     fn test_scale_invariance_single_case(
         &mut self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
     ) -> Result<bool> {
         // Test with original data
         let svm1 = SVC::new().c(1.0).linear().tol(1e-6).max_iter(1000);
-        // Convert to ndarray for SVM
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-        let y_ndarray = Array1::from_vec(y.iter().cloned().collect());
 
-        let fitted_svm1 = svm1.fit(&x_ndarray, &y_ndarray)?;
-        let pred1 = fitted_svm1.predict(&x_ndarray)?;
+        let fitted_svm1 = svm1.fit(x, y)?;
+        let pred1 = fitted_svm1.predict(x)?;
 
         // Test with scaled data
         let scale_factor = 10.0;
         let x_scaled = x * scale_factor;
-        let x_scaled_ndarray = Array2::from_shape_vec(
-            (x_scaled.nrows(), x_scaled.ncols()),
-            x_scaled.iter().cloned().collect(),
-        )
-        .map_err(|e| SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}")))?;
         let svm2 = SVC::new().c(1.0).linear().tol(1e-6).max_iter(1000);
-        let fitted_svm2 = svm2.fit(&x_scaled_ndarray, &y_ndarray)?;
-        let pred2 = fitted_svm2.predict(&x_scaled_ndarray)?;
+        let fitted_svm2 = svm2.fit(&x_scaled, y)?;
+        let pred2 = fitted_svm2.predict(&x_scaled)?;
 
         // Predictions should be the same
-        let diff = (&pred1 - &pred2).iter().map(|x| x * x).sum::<f64>().sqrt();
+        let diff = (&pred1 - &pred2).iter().map(|v| v * v).sum::<f64>().sqrt();
         Ok(diff < self.config.numerical_tolerance * 10.0)
     }
 
     fn test_outlier_robustness_single_case(
         &mut self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
     ) -> Result<bool> {
         let svm = SVC::new().c(1.0).linear().tol(1e-6).max_iter(1000);
 
         // Train on data with outliers
-        // Convert to ndarray for SVM
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-        let y_ndarray = Array1::from_vec(y.iter().cloned().collect());
-
-        let result = svm.fit(&x_ndarray, &y_ndarray);
+        let result = svm.fit(x, y);
 
         // Check that the algorithm can handle outliers without failing
         match result {
             Ok(fitted_svm) => {
-                let predictions = fitted_svm.predict(&x_ndarray)?;
+                let predictions = fitted_svm.predict(x)?;
                 let accuracy = predictions
                     .iter()
                     .zip(y.iter())
@@ -859,24 +790,17 @@ impl SVMPropertyTester {
 
     fn test_noise_robustness_single_case(
         &mut self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
     ) -> Result<bool> {
         let svm = SVC::new().c(1.0).linear().tol(1e-6).max_iter(1000);
 
         // Train on noisy data
-        // Convert to ndarray for SVM
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-        let y_ndarray = Array1::from_vec(y.iter().cloned().collect());
-
-        let result = svm.fit(&x_ndarray, &y_ndarray);
+        let result = svm.fit(x, y);
 
         match result {
             Ok(fitted_svm) => {
-                let predictions = fitted_svm.predict(&x_ndarray)?;
+                let predictions = fitted_svm.predict(x)?;
                 let accuracy = predictions
                     .iter()
                     .zip(y.iter())
@@ -892,23 +816,16 @@ impl SVMPropertyTester {
 
     fn test_edge_case_single(
         &mut self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
         case_name: &str,
     ) -> Result<bool> {
         let svm = SVC::new().c(1.0).linear().tol(1e-6).max_iter(1000);
 
         // Try to handle edge case gracefully
-        // Convert to ndarray for SVM
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-        let y_ndarray = Array1::from_vec(y.iter().cloned().collect());
-
-        match svm.fit(&x_ndarray, &y_ndarray) {
+        match svm.fit(x, y) {
             Ok(fitted_svm) => {
-                let predictions = fitted_svm.predict(&x_ndarray)?;
+                let predictions = fitted_svm.predict(x)?;
                 let has_valid_predictions = predictions.iter().all(|&p| p.is_finite());
                 Ok(has_valid_predictions)
             }
@@ -922,22 +839,11 @@ impl SVMPropertyTester {
         }
     }
 
-    fn test_training_time_single_case(
-        &mut self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
-    ) -> Result<bool> {
+    fn test_training_time_single_case(&mut self, x: &Array2<f64>, y: &Array1<f64>) -> Result<bool> {
         let svm = SVC::new().c(1.0).linear().tol(1e-6).max_iter(1000);
 
-        // Convert to ndarray for SVM
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-        let y_ndarray = Array1::from_vec(y.iter().cloned().collect());
-
         let start_time = Instant::now();
-        let result = svm.fit(&x_ndarray, &y_ndarray);
+        let result = svm.fit(x, y);
         let training_time = start_time.elapsed().as_secs_f64();
 
         match result {
@@ -946,23 +852,12 @@ impl SVMPropertyTester {
         }
     }
 
-    fn test_memory_usage_single_case(
-        &mut self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
-    ) -> Result<bool> {
+    fn test_memory_usage_single_case(&mut self, x: &Array2<f64>, y: &Array1<f64>) -> Result<bool> {
         let svm = SVC::new().c(1.0).linear().tol(1e-6).max_iter(1000);
 
         // This is a simplified memory test
         // In practice, you'd want to use a proper memory profiler
-        // Convert to ndarray for SVM
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-        let y_ndarray = Array1::from_vec(y.iter().cloned().collect());
-
-        let result = svm.fit(&x_ndarray, &y_ndarray);
+        let result = svm.fit(x, y);
 
         match result {
             Ok(fitted_svm) => {
@@ -977,24 +872,18 @@ impl SVMPropertyTester {
 
     fn test_prediction_consistency_single_case(
         &mut self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
     ) -> Result<bool> {
         let svm = SVC::new().c(1.0).linear().tol(1e-6).max_iter(1000);
-        // Convert to ndarray for SVM
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-        let y_ndarray = Array1::from_vec(y.iter().cloned().collect());
 
-        let fitted_svm = svm.fit(&x_ndarray, &y_ndarray)?;
+        let fitted_svm = svm.fit(x, y)?;
 
         // Test that predictions are consistent across multiple calls
-        let pred1 = fitted_svm.predict(&x_ndarray)?;
-        let pred2 = fitted_svm.predict(&x_ndarray)?;
+        let pred1 = fitted_svm.predict(x)?;
+        let pred2 = fitted_svm.predict(x)?;
 
-        let diff = (&pred1 - &pred2).iter().map(|x| x * x).sum::<f64>().sqrt();
+        let diff = (&pred1 - &pred2).iter().map(|v| v * v).sum::<f64>().sqrt();
         Ok(diff < self.config.numerical_tolerance)
     }
 
@@ -1003,12 +892,10 @@ impl SVMPropertyTester {
         &mut self,
         n_samples: usize,
         n_features: usize,
-    ) -> (DMatrix<f64>, DVector<f64>) {
-        let x = DMatrix::from_fn(n_samples, n_features, |_, _| {
-            self.rng.gen_range(-1.0..1.0 + 1)
-        });
-        let y = DVector::from_fn(n_samples, |_, _| {
-            if self.rng.gen() > 0.5 {
+    ) -> (Array2<f64>, Array1<f64>) {
+        let x = Array2::from_shape_fn((n_samples, n_features), |_| self.rng.gen_range(-1.0..2.0));
+        let y = Array1::from_shape_fn(n_samples, |_| {
+            if self.rng.random::<f64>() > 0.5 {
                 1.0
             } else {
                 -1.0
@@ -1021,14 +908,13 @@ impl SVMPropertyTester {
         &mut self,
         n_samples: usize,
         n_features: usize,
-    ) -> (DMatrix<f64>, DVector<f64>) {
-        let mut x = DMatrix::from_fn(n_samples, n_features, |_, _| {
-            self.rng.gen_range(-1.0..1.0 + 1)
-        });
-        let w = DVector::from_fn(n_features, |_, _| self.rng.gen_range(-1.0..1.0 + 1));
+    ) -> (Array2<f64>, Array1<f64>) {
+        let mut x =
+            Array2::from_shape_fn((n_samples, n_features), |_| self.rng.gen_range(-1.0..2.0));
+        let w = Array1::from_shape_fn(n_features, |_| self.rng.gen_range(-1.0..2.0));
 
         // Create linearly separable labels
-        let mut y = DVector::zeros(n_samples);
+        let mut y = Array1::zeros(n_samples);
         for i in 0..n_samples {
             let decision = x.row(i).dot(&w);
             y[i] = if decision > 0.0 { 1.0 } else { -1.0 };
@@ -1037,42 +923,37 @@ impl SVMPropertyTester {
         // Add some margin to ensure separability
         for i in 0..n_samples {
             let margin = 0.1 * y[i];
-            let row_update = &w * margin;
             for k in 0..n_features {
-                x[(i, k)] += row_update[k];
+                x[[i, k]] += w[k] * margin;
             }
         }
 
         (x, y)
     }
 
-    fn generate_random_matrix(&mut self, n_rows: usize, n_cols: usize) -> DMatrix<f64> {
-        DMatrix::from_fn(n_rows, n_cols, |_, _| self.rng.gen_range(-1.0..1.0 + 1))
+    fn generate_random_matrix(&mut self, n_rows: usize, n_cols: usize) -> Array2<f64> {
+        Array2::from_shape_fn((n_rows, n_cols), |_| self.rng.gen_range(-1.0..2.0))
     }
 
     fn generate_ill_conditioned_dataset(
         &mut self,
         n_samples: usize,
         n_features: usize,
-    ) -> (DMatrix<f64>, DVector<f64>) {
+    ) -> (Array2<f64>, Array1<f64>) {
         let mut x = self.generate_random_matrix(n_samples, n_features);
 
         // Make the matrix ill-conditioned by making some columns nearly identical
         if n_features > 1 {
             let noise_scale = 1e-10;
-            for i in 1..n_features {
-                x.set_column(
-                    i,
-                    &(x.column(0)
-                        + DVector::from_fn(n_samples, |_, _| {
-                            self.rng.gen_range(-noise_scale..noise_scale + 1)
-                        })),
-                );
+            for j in 1..n_features {
+                for i in 0..n_samples {
+                    x[[i, j]] = x[[i, 0]] + self.rng.gen_range(-noise_scale..noise_scale + 1.0);
+                }
             }
         }
 
-        let y = DVector::from_fn(n_samples, |_, _| {
-            if self.rng.gen() > 0.5 {
+        let y = Array1::from_shape_fn(n_samples, |_| {
+            if self.rng.random::<f64>() > 0.5 {
                 1.0
             } else {
                 -1.0
@@ -1085,13 +966,13 @@ impl SVMPropertyTester {
         &mut self,
         n_samples: usize,
         n_features: usize,
-    ) -> (DMatrix<f64>, DVector<f64>) {
+    ) -> (Array2<f64>, Array1<f64>) {
         let scale = 1e-10;
-        let x = DMatrix::from_fn(n_samples, n_features, |_, _| {
-            self.rng.gen_range(-scale..scale + 1)
+        let x = Array2::from_shape_fn((n_samples, n_features), |_| {
+            self.rng.gen_range(-scale..scale + 1.0)
         });
-        let y = DVector::from_fn(n_samples, |_, _| {
-            if self.rng.gen() > 0.5 {
+        let y = Array1::from_shape_fn(n_samples, |_| {
+            if self.rng.random::<f64>() > 0.5 {
                 1.0
             } else {
                 -1.0
@@ -1104,13 +985,13 @@ impl SVMPropertyTester {
         &mut self,
         n_samples: usize,
         n_features: usize,
-    ) -> (DMatrix<f64>, DVector<f64>) {
+    ) -> (Array2<f64>, Array1<f64>) {
         let scale = 1e10;
-        let x = DMatrix::from_fn(n_samples, n_features, |_, _| {
-            self.rng.gen_range(-scale..scale + 1)
+        let x = Array2::from_shape_fn((n_samples, n_features), |_| {
+            self.rng.gen_range(-scale..scale + 1.0)
         });
-        let y = DVector::from_fn(n_samples, |_, _| {
-            if self.rng.gen() > 0.5 {
+        let y = Array1::from_shape_fn(n_samples, |_| {
+            if self.rng.random::<f64>() > 0.5 {
                 1.0
             } else {
                 -1.0
@@ -1123,20 +1004,19 @@ impl SVMPropertyTester {
         &mut self,
         n_samples: usize,
         n_features: usize,
-    ) -> (DMatrix<f64>, DVector<f64>) {
-        let base_sample = DVector::from_fn(n_features, |_, _| self.rng.gen_range(-1.0..1.0 + 1));
+    ) -> (Array2<f64>, Array1<f64>) {
+        let base_sample = Array1::from_shape_fn(n_features, |_| self.rng.gen_range(-1.0..2.0));
         let noise_scale = 1e-8;
 
-        let mut x = DMatrix::zeros(n_samples, n_features);
+        let mut x = Array2::zeros((n_samples, n_features));
         for i in 0..n_samples {
-            let noise = DVector::from_fn(n_features, |_, _| {
-                self.rng.gen_range(-noise_scale..noise_scale + 1)
-            });
-            x.set_row(i, &(base_sample.clone() + noise).transpose());
+            for j in 0..n_features {
+                x[[i, j]] = base_sample[j] + self.rng.gen_range(-noise_scale..noise_scale + 1.0);
+            }
         }
 
-        let y = DVector::from_fn(n_samples, |_, _| {
-            if self.rng.gen() > 0.5 {
+        let y = Array1::from_shape_fn(n_samples, |_| {
+            if self.rng.random::<f64>() > 0.5 {
                 1.0
             } else {
                 -1.0
@@ -1150,43 +1030,38 @@ impl SVMPropertyTester {
         n_samples: usize,
         n_features: usize,
         outlier_fraction: f64,
-    ) -> (DMatrix<f64>, DVector<f64>) {
+    ) -> (Array2<f64>, Array1<f64>) {
         let n_outliers = (n_samples as f64 * outlier_fraction) as usize;
         let n_normal = n_samples - n_outliers;
 
+        // Combine normal and outlier samples into a single dataset
+        let mut x = Array2::zeros((n_samples, n_features));
+        let mut y = Array1::zeros(n_samples);
+
         // Generate normal samples
-        let x_normal = DMatrix::from_fn(n_normal, n_features, |_, _| {
-            self.rng.gen_range(-1.0..1.0 + 1)
-        });
-        let y_normal = DVector::from_fn(n_normal, |_, _| {
-            if self.rng.gen() > 0.5 {
+        for i in 0..n_normal {
+            for j in 0..n_features {
+                x[[i, j]] = self.rng.gen_range(-1.0..2.0);
+            }
+            y[i] = if self.rng.random::<f64>() > 0.5 {
                 1.0
             } else {
                 -1.0
-            }
-        });
+            };
+        }
 
         // Generate outliers
         let outlier_scale = 10.0;
-        let x_outliers = DMatrix::from_fn(n_outliers, n_features, |_, _| {
-            self.rng.gen_range(-outlier_scale..outlier_scale + 1)
-        });
-        let y_outliers = DVector::from_fn(n_outliers, |_, _| {
-            if self.rng.gen() > 0.5 {
+        for i in n_normal..n_samples {
+            for j in 0..n_features {
+                x[[i, j]] = self.rng.gen_range(-outlier_scale..outlier_scale + 1.0);
+            }
+            y[i] = if self.rng.random::<f64>() > 0.5 {
                 1.0
             } else {
                 -1.0
-            }
-        });
-
-        // Combine normal and outlier samples
-        let mut x = DMatrix::zeros(n_samples, n_features);
-        let mut y = DVector::zeros(n_samples);
-
-        x.rows_mut(0, n_normal).copy_from(&x_normal);
-        x.rows_mut(n_normal, n_outliers).copy_from(&x_outliers);
-        y.rows_mut(0, n_normal).copy_from(&y_normal);
-        y.rows_mut(n_normal, n_outliers).copy_from(&y_outliers);
+            };
+        }
 
         (x, y)
     }
@@ -1196,13 +1071,13 @@ impl SVMPropertyTester {
         n_samples: usize,
         n_features: usize,
         noise_level: f64,
-    ) -> (DMatrix<f64>, DVector<f64>) {
+    ) -> (Array2<f64>, Array1<f64>) {
         let (mut x, mut y) = self.generate_linearly_separable_dataset(n_samples, n_features);
 
         // Add noise to features
         for i in 0..n_samples {
             for j in 0..n_features {
-                x[(i, j)] += self.rng.gen_range(-noise_level..noise_level + 1);
+                x[[i, j]] += self.rng.gen_range(-noise_level..noise_level + 1.0);
             }
         }
 
@@ -1288,6 +1163,13 @@ impl SVMPropertyTester {
     }
 }
 
+impl Default for SVMPropertyTester {
+    /// Create a new property tester with default configuration
+    fn default() -> Self {
+        Self::new(PropertyTestConfig::default())
+    }
+}
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -1296,7 +1178,7 @@ mod tests {
     #[test]
     fn test_property_tester_creation() {
         let config = PropertyTestConfig::default();
-        let mut tester = SVMPropertyTester::new(config);
+        let tester = SVMPropertyTester::new(config);
 
         // Test that the tester was created successfully
         assert!(tester.config.test_cases > 0);

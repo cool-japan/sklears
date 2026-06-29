@@ -4,18 +4,19 @@
 //! thread pool management, resource allocation, task scheduling, and system monitoring.
 
 use super::config_types::*;
-use std::collections::{HashMap, VecDeque, BTreeMap};
-use std::sync::{Arc, RwLock, Mutex, mpsc, Condvar};
-use std::time::{Duration, SystemTime, Instant};
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::thread::{self, JoinHandle};
-use serde::{Serialize, Deserialize};
-use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
+use std::time::{Duration, Instant, SystemTime};
 
 // ================================================================================================
 // CORE EXECUTION ENGINE
 // ================================================================================================
 
 /// Central execution engine for benchmark orchestration
+#[derive(Debug)]
 pub struct ExecutionEngine {
     execution_pools: HashMap<String, Arc<Mutex<ExecutionPool>>>,
     resource_manager: Arc<RwLock<ResourceManager>>,
@@ -51,25 +52,37 @@ impl ExecutionEngine {
     }
 
     /// Add a new execution pool
-    pub fn add_execution_pool(&mut self, pool_name: &str, pool_config: ExecutionPoolConfig) -> Result<(), ExecutionEngineError> {
+    pub fn add_execution_pool(
+        &mut self,
+        pool_name: &str,
+        pool_config: ExecutionPoolConfig,
+    ) -> Result<(), ExecutionEngineError> {
         let pool = ExecutionPool::new(pool_name, pool_config)?;
-        self.execution_pools.insert(pool_name.to_string(), Arc::new(Mutex::new(pool)));
+        self.execution_pools
+            .insert(pool_name.to_string(), Arc::new(Mutex::new(pool)));
         Ok(())
     }
 
     /// Submit a task for execution
     pub fn submit_task(&self, task: BenchmarkTask) -> Result<TaskHandle, ExecutionEngineError> {
         // Check resource availability
-        let resource_manager = self.resource_manager.read().unwrap_or_else(|e| e.into_inner());
+        let resource_manager = self
+            .resource_manager
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         if !resource_manager.can_allocate_resources(&task.resource_requirements) {
-            return Err(ExecutionEngineError::InsufficientResources(
-                format!("Not enough resources for task {}", task.task_id)
-            ));
+            return Err(ExecutionEngineError::InsufficientResources(format!(
+                "Not enough resources for task {}",
+                task.task_id
+            )));
         }
         drop(resource_manager);
 
         // Schedule the task
-        let mut scheduler = self.task_scheduler.lock().unwrap_or_else(|e| e.into_inner());
+        let mut scheduler = self
+            .task_scheduler
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let task_handle = scheduler.schedule_task(task)?;
 
         // Try to execute immediately if possible
@@ -80,18 +93,24 @@ impl ExecutionEngine {
 
     /// Get execution engine statistics
     pub fn get_statistics(&self) -> ExecutionEngineStats {
-        self.engine_stats.read().unwrap_or_else(|e| e.into_inner()).clone()
+        self.engine_stats
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Get system information
     pub fn get_system_info(&self) -> SystemInfo {
-        self.system_monitor.read().unwrap_or_else(|e| e.into_inner()).get_system_info()
+        self.system_monitor
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .get_system_info()
     }
 
     /// Shutdown the execution engine
     pub fn shutdown(&mut self) -> Result<(), ExecutionEngineError> {
         // Signal all pools to shutdown
-        for (_, pool) in &self.execution_pools {
+        for pool in self.execution_pools.values() {
             pool.lock().unwrap_or_else(|e| e.into_inner()).shutdown()?;
         }
 
@@ -109,7 +128,9 @@ impl ExecutionEngine {
     /// Get pool statistics
     pub fn get_pool_statistics(&self, pool_name: &str) -> Option<ExecutionPoolStatistics> {
         self.execution_pools.get(pool_name).map(|pool| {
-            pool.lock().unwrap_or_else(|e| e.into_inner()).get_statistics()
+            pool.lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get_statistics()
         })
     }
 
@@ -136,7 +157,12 @@ impl ExecutionEngine {
         self.add_execution_pool("io_intensive", io_pool_config)?;
 
         // GPU pool (if available)
-        if self.system_monitor.read().unwrap_or_else(|e| e.into_inner()).has_gpu() {
+        if self
+            .system_monitor
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .has_gpu()
+        {
             let gpu_pool_config = ExecutionPoolConfig {
                 max_workers: self.engine_config.default_gpu_workers,
                 queue_capacity: 50,
@@ -151,11 +177,16 @@ impl ExecutionEngine {
     }
 
     fn try_execute_next_task(&self) -> Result<(), ExecutionEngineError> {
-        let mut scheduler = self.task_scheduler.lock().unwrap_or_else(|e| e.into_inner());
+        let mut scheduler = self
+            .task_scheduler
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(task) = scheduler.get_next_ready_task() {
             let pool_name = self.determine_best_pool(&task)?;
             if let Some(pool) = self.execution_pools.get(&pool_name) {
-                pool.lock().unwrap_or_else(|e| e.into_inner()).submit_task(task)?;
+                pool.lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .submit_task(task)?;
             }
         }
         Ok(())
@@ -171,7 +202,7 @@ impl ExecutionEngine {
                 } else {
                     Ok("cpu_intensive".to_string())
                 }
-            },
+            }
             TaskType::Mixed => Ok("cpu_intensive".to_string()),
             TaskType::Custom(ref pool_name) => {
                 if self.execution_pools.contains_key(pool_name) {
@@ -186,7 +217,9 @@ impl ExecutionEngine {
     fn wait_for_completion(&self, timeout: Duration) -> Result<(), ExecutionEngineError> {
         let start = Instant::now();
         while start.elapsed() < timeout {
-            let all_idle = self.execution_pools.values()
+            let all_idle = self
+                .execution_pools
+                .values()
                 .all(|pool| pool.lock().unwrap_or_else(|e| e.into_inner()).is_idle());
 
             if all_idle {
@@ -196,7 +229,23 @@ impl ExecutionEngine {
             thread::sleep(Duration::from_millis(100));
         }
 
-        Err(ExecutionEngineError::TimeoutError("Timeout waiting for completion".to_string()))
+        Err(ExecutionEngineError::TimeoutError(
+            "Timeout waiting for completion".to_string(),
+        ))
+    }
+}
+
+impl Default for ExecutionEngine {
+    fn default() -> Self {
+        Self {
+            execution_pools: HashMap::new(),
+            resource_manager: Arc::new(RwLock::new(ResourceManager::default())),
+            system_monitor: Arc::new(RwLock::new(SystemMonitor::default())),
+            task_scheduler: Arc::new(Mutex::new(TaskScheduler::new())),
+            execution_coordinator: Arc::new(RwLock::new(ExecutionCoordinator::new())),
+            engine_config: ExecutionEngineConfig::default(),
+            engine_stats: Arc::new(RwLock::new(ExecutionEngineStats::new())),
+        }
     }
 }
 
@@ -238,6 +287,12 @@ pub struct ExecutionEngineStats {
     pub pool_statistics: HashMap<String, ExecutionPoolStatistics>,
 }
 
+impl Default for ExecutionEngineStats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExecutionEngineStats {
     pub fn new() -> Self {
         Self {
@@ -257,6 +312,7 @@ impl ExecutionEngineStats {
 // ================================================================================================
 
 /// Execution pool for parallel benchmark execution
+#[derive(Debug)]
 pub struct ExecutionPool {
     pool_name: String,
     config: ExecutionPoolConfig,
@@ -330,7 +386,10 @@ impl ExecutionPool {
 
     /// Get pool statistics
     pub fn get_statistics(&self) -> ExecutionPoolStatistics {
-        self.pool_stats.read().unwrap_or_else(|e| e.into_inner()).clone()
+        self.pool_stats
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Check if pool is idle
@@ -359,12 +418,18 @@ impl ExecutionPool {
 
     /// Get active task count
     pub fn active_task_count(&self) -> usize {
-        self.active_tasks.lock().unwrap_or_else(|e| e.into_inner()).len()
+        self.active_tasks
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .len()
     }
 
     /// Get queued task count
     pub fn queued_task_count(&self) -> usize {
-        self.task_queue.lock().unwrap_or_else(|e| e.into_inner()).len()
+        self.task_queue
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .len()
     }
 }
 
@@ -388,7 +453,7 @@ pub struct ExecutionPoolStatistics {
     pub total_completed: u64,
     pub total_failed: u64,
     pub average_execution_time: Duration,
-    pub throughput: f64, // tasks per second
+    pub throughput: f64,  // tasks per second
     pub utilization: f64, // percentage
 }
 
@@ -417,6 +482,19 @@ pub struct Worker {
     worker_id: usize,
     pool_name: String,
     join_handle: Option<JoinHandle<()>>,
+}
+
+impl std::fmt::Debug for Worker {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Worker")
+            .field("worker_id", &self.worker_id)
+            .field("pool_name", &self.pool_name)
+            .field(
+                "join_handle",
+                &self.join_handle.as_ref().map(|_| "<JoinHandle>"),
+            )
+            .finish()
+    }
 }
 
 impl Worker {
@@ -458,10 +536,12 @@ impl Worker {
     /// Join the worker thread
     pub fn join(&mut self) -> Result<(), ExecutionEngineError> {
         if let Some(handle) = self.join_handle.take() {
-            handle.join()
-                .map_err(|_| ExecutionEngineError::ThreadJoinError(
-                    format!("Failed to join worker {}", self.worker_id)
-                ))?;
+            handle.join().map_err(|_| {
+                ExecutionEngineError::ThreadJoinError(format!(
+                    "Failed to join worker {}",
+                    self.worker_id
+                ))
+            })?;
         }
         Ok(())
     }
@@ -491,21 +571,17 @@ impl Worker {
             match task {
                 Some(task) => {
                     // Execute the task
-                    Self::execute_task(
-                        worker_id,
-                        task,
-                        &active_tasks,
-                        &pool_stats,
-                        &config,
-                    );
-                },
+                    Self::execute_task(worker_id, task, &active_tasks, &pool_stats, &config);
+                }
                 None => {
                     // No tasks available, wait for signal or timeout
                     let (lock, cvar) = &*coordinator;
-                    let result = cvar.wait_timeout(
-                        lock.lock().unwrap_or_else(|e| e.into_inner()),
-                        config.worker_timeout,
-                    ).unwrap_or_default();
+                    let result = cvar
+                        .wait_timeout(
+                            lock.lock().unwrap_or_else(|e| e.into_inner()),
+                            config.worker_timeout,
+                        )
+                        .unwrap_or_else(|e| e.into_inner());
 
                     if result.1.timed_out() {
                         // Consider scaling down if idle for too long
@@ -529,12 +605,15 @@ impl Worker {
         // Add to active tasks
         {
             let mut active = active_tasks.lock().unwrap_or_else(|e| e.into_inner());
-            active.insert(task_id.clone(), TaskExecution {
-                task: task.clone(),
-                worker_id,
-                start_time,
-                status: TaskExecutionStatus::Running,
-            });
+            active.insert(
+                task_id.clone(),
+                TaskExecution {
+                    task: task.clone(),
+                    worker_id,
+                    start_time,
+                    status: TaskExecutionStatus::Running,
+                },
+            );
         }
 
         // Execute the actual benchmark task
@@ -553,7 +632,7 @@ impl Worker {
             match result {
                 Ok(_) => {
                     stats.total_completed += 1;
-                },
+                }
                 Err(_) => {
                     stats.total_failed += 1;
                 }
@@ -562,14 +641,19 @@ impl Worker {
             // Update average execution time
             let total_tasks = stats.total_completed + stats.total_failed;
             if total_tasks > 0 {
-                let total_time_ms = stats.average_execution_time.as_millis() * (total_tasks - 1) as u128
+                let total_time_ms = stats.average_execution_time.as_millis()
+                    * (total_tasks - 1) as u128
                     + execution_time.as_millis();
-                stats.average_execution_time = Duration::from_millis((total_time_ms / total_tasks as u128) as u64);
+                stats.average_execution_time =
+                    Duration::from_millis((total_time_ms / total_tasks as u128) as u64);
             }
         }
     }
 
-    fn run_benchmark_task(task: &BenchmarkTask, config: &ExecutionPoolConfig) -> Result<TaskResult, ExecutionEngineError> {
+    fn run_benchmark_task(
+        task: &BenchmarkTask,
+        _config: &ExecutionPoolConfig,
+    ) -> Result<TaskResult, ExecutionEngineError> {
         // This is where the actual benchmark execution would happen
         // For now, we'll simulate execution
 
@@ -583,7 +667,7 @@ impl Worker {
                     metrics: generate_mock_metrics(&task.task_id),
                     error_message: None,
                 })
-            },
+            }
             Some(SimulationMode::MemoryIntensive(memory_mb)) => {
                 // Simulate memory-intensive task
                 let _memory_buffer: Vec<u8> = vec![0; (*memory_mb * 1024 * 1024) as usize];
@@ -595,7 +679,7 @@ impl Worker {
                     metrics: generate_mock_metrics(&task.task_id),
                     error_message: None,
                 })
-            },
+            }
             Some(SimulationMode::CPUIntensive(iterations)) => {
                 // Simulate CPU-intensive task
                 let mut sum = 0u64;
@@ -609,7 +693,7 @@ impl Worker {
                     metrics: generate_mock_metrics(&task.task_id),
                     error_message: None,
                 })
-            },
+            }
             None => {
                 // Real execution would happen here
                 // For now, simulate with a short delay
@@ -648,13 +732,19 @@ pub struct BenchmarkTask {
     pub simulation_mode: Option<SimulationMode>,
 }
 
+impl Default for BenchmarkTask {
+    fn default() -> Self {
+        Self::new("", "", "", HashMap::new())
+    }
+}
+
 impl BenchmarkTask {
     /// Create a new benchmark task
     pub fn new(
         task_id: &str,
         benchmark_id: &str,
         execution_id: &str,
-        parameters: HashMap<String, String>
+        parameters: HashMap<String, String>,
     ) -> Self {
         Self {
             task_id: task_id.to_string(),
@@ -704,7 +794,7 @@ pub enum TaskType {
 pub enum SimulationMode {
     FastSimulation(Duration),
     MemoryIntensive(u64), // MB
-    CPUIntensive(u64),   // iterations
+    CPUIntensive(u64),    // iterations
 }
 
 /// Task execution tracking
@@ -755,13 +845,18 @@ impl TaskHandle {
     }
 
     pub fn get_status(&self) -> TaskExecutionStatus {
-        self.status.read().unwrap_or_else(|e| e.into_inner()).clone()
+        self.status
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     pub fn is_complete(&self) -> bool {
         matches!(
             *self.status.read().unwrap_or_else(|e| e.into_inner()),
-            TaskExecutionStatus::Completed | TaskExecutionStatus::Failed | TaskExecutionStatus::Cancelled
+            TaskExecutionStatus::Completed
+                | TaskExecutionStatus::Failed
+                | TaskExecutionStatus::Cancelled
         )
     }
 }
@@ -771,12 +866,19 @@ impl TaskHandle {
 // ================================================================================================
 
 /// Advanced task scheduler with priority and dependency management
+#[derive(Debug)]
 pub struct TaskScheduler {
     task_queue: BTreeMap<u32, VecDeque<BenchmarkTask>>, // Priority -> Tasks
     dependency_graph: HashMap<String, Vec<String>>,
     completed_tasks: std::collections::HashSet<String>,
     task_handles: HashMap<String, TaskHandle>,
     scheduler_stats: TaskSchedulerStats,
+}
+
+impl Default for TaskScheduler {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TaskScheduler {
@@ -792,21 +894,26 @@ impl TaskScheduler {
     }
 
     /// Schedule a task
-    pub fn schedule_task(&mut self, task: BenchmarkTask) -> Result<TaskHandle, ExecutionEngineError> {
+    pub fn schedule_task(
+        &mut self,
+        task: BenchmarkTask,
+    ) -> Result<TaskHandle, ExecutionEngineError> {
         let task_handle = TaskHandle::new(task.task_id.clone());
 
         // Add dependencies to graph
         if task.has_dependencies() {
-            self.dependency_graph.insert(task.task_id.clone(), task.dependencies.clone());
+            self.dependency_graph
+                .insert(task.task_id.clone(), task.dependencies.clone());
         }
 
         // Add to priority queue
         self.task_queue
             .entry(task.priority)
-            .or_insert_with(VecDeque::new)
+            .or_default()
             .push_back(task);
 
-        self.task_handles.insert(task_handle.task_id.clone(), task_handle.clone());
+        self.task_handles
+            .insert(task_handle.task_id.clone(), task_handle.clone());
         self.scheduler_stats.total_scheduled += 1;
 
         Ok(task_handle)
@@ -815,14 +922,23 @@ impl TaskScheduler {
     /// Get the next ready task (with all dependencies satisfied)
     pub fn get_next_ready_task(&mut self) -> Option<BenchmarkTask> {
         // Find highest priority task that's ready to execute
-        for (_, queue) in self.task_queue.iter_mut().rev() {
-            let mut i = 0;
-            while i < queue.len() {
-                let task = &queue[i];
-                if self.are_dependencies_satisfied(&task.task_id) {
-                    return queue.remove(i);
+        // First pass: find index of ready task
+        let found = self.task_queue.keys().rev().cloned().collect::<Vec<_>>();
+        for priority in found {
+            if let Some(queue) = self.task_queue.get(&priority) {
+                let ready_idx = queue.iter().enumerate().find_map(|(i, task)| {
+                    let task_id = task.task_id.clone();
+                    if self.are_dependencies_satisfied(&task_id) {
+                        Some(i)
+                    } else {
+                        None
+                    }
+                });
+                if let Some(idx) = ready_idx {
+                    if let Some(q) = self.task_queue.get_mut(&priority) {
+                        return q.remove(idx);
+                    }
                 }
-                i += 1;
             }
         }
         None
@@ -835,7 +951,8 @@ impl TaskScheduler {
 
         // Update task handle status
         if let Some(handle) = self.task_handles.get(task_id) {
-            *handle.status.write().unwrap_or_else(|e| e.into_inner()) = TaskExecutionStatus::Completed;
+            *handle.status.write().unwrap_or_else(|e| e.into_inner()) =
+                TaskExecutionStatus::Completed;
         }
     }
 
@@ -862,7 +979,9 @@ impl TaskScheduler {
     // Private helper methods
     fn are_dependencies_satisfied(&self, task_id: &str) -> bool {
         if let Some(dependencies) = self.dependency_graph.get(task_id) {
-            dependencies.iter().all(|dep| self.completed_tasks.contains(dep))
+            dependencies
+                .iter()
+                .all(|dep| self.completed_tasks.contains(dep))
         } else {
             true // No dependencies
         }
@@ -876,6 +995,12 @@ pub struct TaskSchedulerStats {
     pub total_completed: u64,
     pub total_failed: u64,
     pub average_wait_time: Duration,
+}
+
+impl Default for TaskSchedulerStats {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TaskSchedulerStats {
@@ -894,6 +1019,7 @@ impl TaskSchedulerStats {
 // ================================================================================================
 
 /// Resource manager for tracking and allocating system resources
+#[derive(Debug, Default)]
 pub struct ResourceManager {
     available_resources: SystemResources,
     allocated_resources: HashMap<String, ResourceAllocation>,
@@ -921,17 +1047,24 @@ impl ResourceManager {
     pub fn can_allocate_resources(&self, requirements: &ResourceRequirements) -> bool {
         let current_usage = self.calculate_current_usage();
 
-        current_usage.cpu_cores + requirements.cpu_cores <= self.resource_limits.max_cpu_cores &&
-        current_usage.memory_mb + requirements.memory_mb <= self.resource_limits.max_memory_mb &&
-        current_usage.gpu_count + requirements.gpu_count <= self.resource_limits.max_gpu_count
+        current_usage.cpu_cores + requirements.cpu_cores <= self.resource_limits.max_cpu_cores
+            && current_usage.memory_mb + requirements.memory_mb
+                <= self.resource_limits.max_memory_mb
+            && current_usage.gpu_count + requirements.gpu_count
+                <= self.resource_limits.max_gpu_count
     }
 
     /// Allocate resources for a task
-    pub fn allocate_resources(&mut self, task_id: &str, requirements: ResourceRequirements) -> Result<ResourceAllocation, ExecutionEngineError> {
+    pub fn allocate_resources(
+        &mut self,
+        task_id: &str,
+        requirements: ResourceRequirements,
+    ) -> Result<ResourceAllocation, ExecutionEngineError> {
         if !self.can_allocate_resources(&requirements) {
-            return Err(ExecutionEngineError::InsufficientResources(
-                format!("Cannot allocate resources for task {}", task_id)
-            ));
+            return Err(ExecutionEngineError::InsufficientResources(format!(
+                "Cannot allocate resources for task {}",
+                task_id
+            )));
         }
 
         let allocation = ResourceAllocation {
@@ -941,7 +1074,8 @@ impl ResourceManager {
             status: AllocationStatus::Allocated,
         };
 
-        self.allocated_resources.insert(task_id.to_string(), allocation.clone());
+        self.allocated_resources
+            .insert(task_id.to_string(), allocation.clone());
         Ok(allocation)
     }
 
@@ -951,9 +1085,10 @@ impl ResourceManager {
             allocation.status = AllocationStatus::Released;
             Ok(())
         } else {
-            Err(ExecutionEngineError::ResourceError(
-                format!("No allocation found for task {}", task_id)
-            ))
+            Err(ExecutionEngineError::ResourceError(format!(
+                "No allocation found for task {}",
+                task_id
+            )))
         }
     }
 
@@ -962,20 +1097,25 @@ impl ResourceManager {
         let current_usage = self.calculate_current_usage();
 
         ResourceUtilization {
-            cpu_utilization: (current_usage.cpu_cores as f64 / self.available_resources.cpu_cores as f64) * 100.0,
-            memory_utilization: (current_usage.memory_mb as f64 / self.available_resources.memory_mb as f64) * 100.0,
+            cpu_utilization: (current_usage.cpu_cores as f64
+                / self.available_resources.cpu_cores as f64)
+                * 100.0,
+            memory_utilization: (current_usage.memory_mb as f64
+                / self.available_resources.memory_mb as f64)
+                * 100.0,
             gpu_utilization: if self.available_resources.gpu_count > 0 {
                 (current_usage.gpu_count as f64 / self.available_resources.gpu_count as f64) * 100.0
             } else {
                 0.0
             },
             network_utilization: 0.0, // Would be monitored in real implementation
-            storage_utilization: 0.0,  // Would be monitored in real implementation
+            storage_utilization: 0.0, // Would be monitored in real implementation
         }
     }
 
     fn calculate_current_usage(&self) -> ResourceRequirements {
-        self.allocated_resources.values()
+        self.allocated_resources
+            .values()
             .filter(|alloc| matches!(alloc.status, AllocationStatus::Allocated))
             .fold(ResourceRequirements::default(), |acc, alloc| {
                 ResourceRequirements {
@@ -983,14 +1123,15 @@ impl ResourceManager {
                     memory_mb: acc.memory_mb + alloc.allocated_resources.memory_mb,
                     gpu_count: acc.gpu_count + alloc.allocated_resources.gpu_count,
                     disk_space_mb: acc.disk_space_mb + alloc.allocated_resources.disk_space_mb,
-                    network_bandwidth_mbps: acc.network_bandwidth_mbps + alloc.allocated_resources.network_bandwidth_mbps,
+                    network_bandwidth_mbps: acc.network_bandwidth_mbps
+                        + alloc.allocated_resources.network_bandwidth_mbps,
                 }
             })
     }
 }
 
 /// System resources available for allocation
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SystemResources {
     pub cpu_cores: u32,
     pub memory_mb: u64,
@@ -1028,7 +1169,7 @@ impl SystemResources {
 }
 
 /// Resource limits for safe allocation
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ResourceLimits {
     pub max_cpu_cores: u32,
     pub max_memory_mb: u64,
@@ -1068,11 +1209,12 @@ pub enum AllocationStatus {
 }
 
 /// Resource allocation strategy
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum AllocationStrategy {
     Conservative, // Reserve extra resources
     Aggressive,   // Use maximum available
-    Balanced,     // Balance between performance and stability
+    #[default]
+    Balanced, // Balance between performance and stability
 }
 
 /// Resource utilization metrics
@@ -1102,6 +1244,7 @@ impl Default for ResourceUtilization {
 // ================================================================================================
 
 /// System monitor for real-time resource tracking
+#[derive(Debug)]
 pub struct SystemMonitor {
     hardware_info: HardwareInfo,
     monitoring_config: MonitoringConfig,
@@ -1133,7 +1276,7 @@ impl SystemMonitor {
         let handle = thread::spawn(move || {
             while !shutdown_signal.load(Ordering::Relaxed) {
                 // Collect resource snapshot
-                if let Ok(snapshot) = ResourceSnapshot::capture() {
+                if let Ok(_snapshot) = ResourceSnapshot::capture() {
                     // In a real implementation, this would be stored or processed
                 }
 
@@ -1150,8 +1293,11 @@ impl SystemMonitor {
         self.shutdown_signal.store(true, Ordering::Relaxed);
 
         if let Some(handle) = self.monitoring_thread.take() {
-            handle.join()
-                .map_err(|_| ExecutionEngineError::ThreadJoinError("Failed to join monitoring thread".to_string()))?;
+            handle.join().map_err(|_| {
+                ExecutionEngineError::ThreadJoinError(
+                    "Failed to join monitoring thread".to_string(),
+                )
+            })?;
         }
 
         Ok(())
@@ -1173,17 +1319,34 @@ impl SystemMonitor {
 
     fn get_current_availability(&self) -> ResourceAvailability {
         // In a real implementation, this would calculate based on current usage
+        let total_mem = self.hardware_info.memory_info.total_memory;
         ResourceAvailability {
             available_cpu_cores: self.hardware_info.cpu_info.cores,
-            available_memory_mb: self.hardware_info.memory_info.total_memory / (1024 * 1024),
+            available_memory_mb: if total_mem > 0 {
+                total_mem / (1024 * 1024)
+            } else {
+                0
+            },
             available_gpu_count: self.hardware_info.gpu_info.len() as u32,
             available_storage_mb: 100 * 1024, // Placeholder
         }
     }
 }
 
+impl Default for SystemMonitor {
+    fn default() -> Self {
+        Self {
+            hardware_info: HardwareInfo::default(),
+            monitoring_config: MonitoringConfig::default(),
+            resource_history: VecDeque::new(),
+            monitoring_thread: None,
+            shutdown_signal: Arc::new(AtomicBool::new(false)),
+        }
+    }
+}
+
 /// Hardware information detection
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HardwareInfo {
     pub cpu_info: CPUInfo,
     pub memory_info: MemoryInfo,
@@ -1206,7 +1369,7 @@ impl HardwareInfo {
 }
 
 /// CPU information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CPUInfo {
     pub model: String,
     pub cores: u32,
@@ -1232,7 +1395,7 @@ impl CPUInfo {
 }
 
 /// Memory information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MemoryInfo {
     pub total_memory: u64,
     pub available_memory: u64,
@@ -1244,7 +1407,7 @@ pub struct MemoryInfo {
 impl MemoryInfo {
     fn detect() -> Result<Self, ExecutionEngineError> {
         Ok(Self {
-            total_memory: 8 * 1024 * 1024 * 1024, // 8GB
+            total_memory: 8 * 1024 * 1024 * 1024,     // 8GB
             available_memory: 6 * 1024 * 1024 * 1024, // 6GB
             memory_type: "DDR4".to_string(),
             memory_speed: 3200,
@@ -1254,7 +1417,7 @@ impl MemoryInfo {
 }
 
 /// GPU information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GPUInfo {
     pub model: String,
     pub memory: u64,
@@ -1271,7 +1434,7 @@ impl GPUInfo {
 }
 
 /// Storage device information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct StorageDeviceInfo {
     pub device_name: String,
     pub device_type: StorageType,
@@ -1288,23 +1451,24 @@ impl StorageDeviceInfo {
             device_type: StorageType::SSD,
             total_capacity: 500 * 1024 * 1024 * 1024, // 500GB
             available_capacity: 300 * 1024 * 1024 * 1024, // 300GB
-            read_speed: 500.0,  // MB/s
-            write_speed: 450.0, // MB/s
+            read_speed: 500.0,                        // MB/s
+            write_speed: 450.0,                       // MB/s
         }])
     }
 }
 
 /// Storage device types
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum StorageType {
     HDD,
+    #[default]
     SSD,
     NVMe,
     Network,
 }
 
 /// Motherboard information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MotherboardInfo {
     pub manufacturer: String,
     pub model: String,
@@ -1382,12 +1546,12 @@ impl ResourceSnapshot {
     pub fn capture() -> Result<Self, ExecutionEngineError> {
         Ok(Self {
             timestamp: SystemTime::now(),
-            cpu_usage: 0.0,     // Would be measured in real implementation
-            memory_usage: 0.0,  // Would be measured in real implementation
+            cpu_usage: 0.0,        // Would be measured in real implementation
+            memory_usage: 0.0,     // Would be measured in real implementation
             gpu_usage: Vec::new(), // Would be measured in real implementation
             disk_io: DiskIOStats::default(),
             network_io: NetworkIOStats::default(),
-            temperature: 45.0,  // Placeholder
+            temperature: 45.0, // Placeholder
         })
     }
 }
@@ -1397,10 +1561,17 @@ impl ResourceSnapshot {
 // ================================================================================================
 
 /// Execution coordinator for managing complex execution workflows
+#[derive(Debug)]
 pub struct ExecutionCoordinator {
     active_workflows: HashMap<String, ExecutionWorkflow>,
     workflow_templates: HashMap<String, WorkflowTemplate>,
     coordinator_stats: ExecutionCoordinatorStats,
+}
+
+impl Default for ExecutionCoordinator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ExecutionCoordinator {
@@ -1415,16 +1586,24 @@ impl ExecutionCoordinator {
 
     /// Register a workflow template
     pub fn register_workflow_template(&mut self, template: WorkflowTemplate) {
-        self.workflow_templates.insert(template.template_id.clone(), template);
+        self.workflow_templates
+            .insert(template.template_id.clone(), template);
     }
 
     /// Start a workflow execution
-    pub fn start_workflow(&mut self, workflow_id: &str, template_id: &str, parameters: HashMap<String, String>) -> Result<(), ExecutionEngineError> {
-        let template = self.workflow_templates.get(template_id)
-            .ok_or_else(|| ExecutionEngineError::ConfigurationError(format!("Template {} not found", template_id)))?;
+    pub fn start_workflow(
+        &mut self,
+        workflow_id: &str,
+        template_id: &str,
+        parameters: HashMap<String, String>,
+    ) -> Result<(), ExecutionEngineError> {
+        let template = self.workflow_templates.get(template_id).ok_or_else(|| {
+            ExecutionEngineError::ConfigurationError(format!("Template {} not found", template_id))
+        })?;
 
         let workflow = ExecutionWorkflow::from_template(workflow_id, template, parameters)?;
-        self.active_workflows.insert(workflow_id.to_string(), workflow);
+        self.active_workflows
+            .insert(workflow_id.to_string(), workflow);
 
         Ok(())
     }
@@ -1449,7 +1628,11 @@ pub struct ExecutionWorkflow {
 
 impl ExecutionWorkflow {
     /// Create workflow from template
-    pub fn from_template(workflow_id: &str, template: &WorkflowTemplate, parameters: HashMap<String, String>) -> Result<Self, ExecutionEngineError> {
+    pub fn from_template(
+        workflow_id: &str,
+        template: &WorkflowTemplate,
+        parameters: HashMap<String, String>,
+    ) -> Result<Self, ExecutionEngineError> {
         Ok(Self {
             workflow_id: workflow_id.to_string(),
             template_id: template.template_id.clone(),
@@ -1511,6 +1694,12 @@ pub struct ExecutionCoordinatorStats {
     pub average_workflow_duration: Duration,
 }
 
+impl Default for ExecutionCoordinatorStats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExecutionCoordinatorStats {
     pub fn new() -> Self {
         Self {
@@ -1544,8 +1733,17 @@ pub struct ResourceAvailability {
 }
 
 /// Resource monitor for real-time tracking
+#[derive(Debug)]
 pub struct ResourceMonitor {
     monitoring_active: AtomicBool,
+}
+
+impl Default for ResourceMonitor {
+    fn default() -> Self {
+        Self {
+            monitoring_active: AtomicBool::new(false),
+        }
+    }
 }
 
 impl ResourceMonitor {

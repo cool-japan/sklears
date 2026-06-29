@@ -385,44 +385,83 @@ impl MultiModalExplainer {
     ) -> SklResult<CrossModalAttention> {
         let mut attention = CrossModalAttention::new();
 
-        // Compute text-to-vision attention if both modalities present
+        // Real scaled dot-product attention between the feature dimensions of each pair
+        // of modalities (computed over the shared sample axis), with a row-wise softmax.
         if let (Some(ref text), Some(ref vision)) = (&input.text, &input.vision) {
-            let text_dim = text.ncols();
-            let vision_dim = vision.ncols();
-
-            // Simplified attention: dot product similarity
-            let attn = Array2::from_shape_fn((text_dim, vision_dim), |(_i, _j)| {
-                // Placeholder: would compute actual attention scores in real implementation
-                1.0 / (text_dim * vision_dim) as Float
-            });
-            attention.text_to_vision = Some(attn.clone());
+            let attn = Self::cross_modal_attention_matrix(text, vision);
             attention.vision_to_text = Some(attn.t().to_owned());
+            attention.text_to_vision = Some(attn);
         }
 
-        // Similar for other modality pairs
         if let (Some(ref text), Some(ref audio)) = (&input.text, &input.audio) {
-            let text_dim = text.ncols();
-            let audio_dim = audio.ncols();
-
-            let attn = Array2::from_shape_fn((text_dim, audio_dim), |(_i, _j)| {
-                1.0 / (text_dim * audio_dim) as Float
-            });
-            attention.text_to_audio = Some(attn.clone());
+            let attn = Self::cross_modal_attention_matrix(text, audio);
             attention.audio_to_text = Some(attn.t().to_owned());
+            attention.text_to_audio = Some(attn);
         }
 
         if let (Some(ref vision), Some(ref audio)) = (&input.vision, &input.audio) {
-            let vision_dim = vision.ncols();
-            let audio_dim = audio.ncols();
-
-            let attn = Array2::from_shape_fn((vision_dim, audio_dim), |(_i, _j)| {
-                1.0 / (vision_dim * audio_dim) as Float
-            });
-            attention.vision_to_audio = Some(attn.clone());
+            let attn = Self::cross_modal_attention_matrix(vision, audio);
             attention.audio_to_vision = Some(attn.t().to_owned());
+            attention.vision_to_audio = Some(attn);
         }
 
         Ok(attention)
+    }
+
+    /// Scaled dot-product attention matrix between the feature dimensions of two
+    /// modalities. Entry `(i, j)` is the dot product of source feature `i` and target
+    /// feature `j` across the shared samples, divided by `sqrt(n_samples)` and passed
+    /// through a row-wise softmax so each source feature's attention sums to 1. This is
+    /// a real content-dependent computation, replacing the uniform placeholder.
+    fn cross_modal_attention_matrix(
+        source: &Array2<Float>,
+        target: &Array2<Float>,
+    ) -> Array2<Float> {
+        let src_dim = source.ncols();
+        let tgt_dim = target.ncols();
+        let n_samples = source.nrows().min(target.nrows());
+
+        if src_dim == 0 || tgt_dim == 0 {
+            return Array2::zeros((src_dim, tgt_dim));
+        }
+        if n_samples == 0 {
+            // No shared samples to correlate: fall back to uniform attention.
+            return Array2::from_elem((src_dim, tgt_dim), 1.0 / tgt_dim as Float);
+        }
+
+        let scale = (n_samples as Float).sqrt();
+        let mut scores = Array2::<Float>::zeros((src_dim, tgt_dim));
+        for i in 0..src_dim {
+            for j in 0..tgt_dim {
+                let mut dot = 0.0;
+                for s in 0..n_samples {
+                    dot += source[[s, i]] * target[[s, j]];
+                }
+                scores[[i, j]] = dot / scale;
+            }
+        }
+
+        // Row-wise softmax.
+        for i in 0..src_dim {
+            let row_max = scores
+                .row(i)
+                .iter()
+                .copied()
+                .fold(Float::NEG_INFINITY, Float::max);
+            let mut sum = 0.0;
+            for j in 0..tgt_dim {
+                let e = (scores[[i, j]] - row_max).exp();
+                scores[[i, j]] = e;
+                sum += e;
+            }
+            if sum > 0.0 {
+                for j in 0..tgt_dim {
+                    scores[[i, j]] /= sum;
+                }
+            }
+        }
+
+        scores
     }
 
     /// Compute modality-specific feature importance
@@ -498,16 +537,34 @@ impl MultiModalExplainer {
         Ok(interactions)
     }
 
-    /// Compute interaction between two modalities
+    /// Compute interaction between two modalities.
+    ///
+    /// The interaction strength is the Pearson correlation between the per-sample
+    /// mean-pooled feature representations of the two modalities. This is a real
+    /// statistic computed from the actual modality features (not a constant). When a
+    /// modality is absent, or the two modalities describe a different number of
+    /// samples, the strength is `0.0` (no measurable interaction).
     fn compute_pairwise_interaction(
         &self,
-        _input: &MultiModalInput,
+        input: &MultiModalInput,
         source: ModalityType,
         target: ModalityType,
     ) -> SklResult<ModalityInteraction> {
-        // Simplified interaction computation
-        // In real implementation, would compute actual correlation/mutual information
-        let strength = 0.5; // Placeholder
+        let strength = match (
+            Self::modality_matrix(input, source),
+            Self::modality_matrix(input, target),
+        ) {
+            (Some(src), Some(tgt)) => {
+                let src_pooled = Self::row_means(src);
+                let tgt_pooled = Self::row_means(tgt);
+                if src_pooled.len() == tgt_pooled.len() && src_pooled.len() >= 2 {
+                    Self::pearson_correlation(&src_pooled, &tgt_pooled)
+                } else {
+                    0.0
+                }
+            }
+            _ => 0.0,
+        };
 
         let interaction_type = if strength > 0.7 {
             InteractionType::Reinforcing
@@ -525,6 +582,58 @@ impl MultiModalExplainer {
             strength,
             interaction_type,
         })
+    }
+
+    /// Borrow the feature matrix for a given modality, if present.
+    fn modality_matrix(input: &MultiModalInput, modality: ModalityType) -> Option<&Array2<Float>> {
+        match modality {
+            ModalityType::Text => input.text.as_ref(),
+            ModalityType::Vision => input.vision.as_ref(),
+            ModalityType::Audio => input.audio.as_ref(),
+        }
+    }
+
+    /// Per-row (per-sample) mean of a feature matrix.
+    fn row_means(matrix: &Array2<Float>) -> Vec<Float> {
+        matrix
+            .rows()
+            .into_iter()
+            .map(|row| {
+                if row.is_empty() {
+                    0.0
+                } else {
+                    row.iter().copied().sum::<Float>() / row.len() as Float
+                }
+            })
+            .collect()
+    }
+
+    /// Pearson correlation coefficient between two equal-length vectors.
+    fn pearson_correlation(a: &[Float], b: &[Float]) -> Float {
+        let n = a.len() as Float;
+        if n == 0.0 {
+            return 0.0;
+        }
+        let mean_a = a.iter().sum::<Float>() / n;
+        let mean_b = b.iter().sum::<Float>() / n;
+
+        let mut cov = 0.0;
+        let mut var_a = 0.0;
+        let mut var_b = 0.0;
+        for (&x, &y) in a.iter().zip(b.iter()) {
+            let da = x - mean_a;
+            let db = y - mean_b;
+            cov += da * db;
+            var_a += da * da;
+            var_b += db * db;
+        }
+
+        let denom = (var_a * var_b).sqrt();
+        if denom < Float::EPSILON {
+            0.0
+        } else {
+            cov / denom
+        }
     }
 
     /// Explain fusion layer

@@ -42,6 +42,8 @@ impl GpuBackend {
     }
 }
 use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_linalg::compat::{eigh, inv, svd, UPLO};
+use scirs2_linalg::LinalgError;
 use std::sync::Arc;
 
 // Define our own Result type for GPU operations
@@ -284,23 +286,17 @@ impl GpuMatrixOps {
     }
 
     fn cpu_eig(&self, matrix: &Array2<f64>) -> GpuResult<(Array1<f64>, Array2<f64>)> {
-        // Simplified eigendecomposition - in practice would use LAPACK
-        let n = matrix.nrows();
-        let eigenvalues = Array1::ones(n);
-        let eigenvectors = Array2::eye(n);
-
+        // Real symmetric eigendecomposition via scirs2_linalg::compat::eigh.
+        // CCA covariance matrices are symmetric positive semi-definite, so eigh is correct.
+        let (eigenvalues, eigenvectors) = eigh(matrix, UPLO::Upper)
+            .map_err(|e: LinalgError| GpuError::ComputationError(e.to_string()))?;
         Ok((eigenvalues, eigenvectors))
     }
 
     fn cpu_svd(&self, matrix: &Array2<f64>) -> GpuResult<(Array2<f64>, Array1<f64>, Array2<f64>)> {
-        // Simplified SVD - in practice would use LAPACK
-        let (m, n) = matrix.dim();
-        let min_dim = m.min(n);
-
-        let u = Array2::eye(m);
-        let s = Array1::ones(min_dim);
-        let vt = Array2::eye(n);
-
+        // Real SVD via scirs2_linalg::compat::svd. compute_uv=true returns full (U, S, Vt).
+        let (u, s, vt) = svd(matrix, true)
+            .map_err(|e: LinalgError| GpuError::ComputationError(e.to_string()))?;
         Ok((u, s, vt))
     }
 
@@ -410,13 +406,12 @@ impl GpuCCA {
         &self,
         cxx: &Array2<f64>,
         cyy: &Array2<f64>,
-        _cxy: &Array2<f64>,
+        cxy: &Array2<f64>,
     ) -> GpuResult<(Array1<f64>, Array2<f64>)> {
-        // Regularize for numerical stability
+        // Regularize Cxx and Cyy for numerical stability
         let reg = 1e-6;
         let mut cxx_reg = cxx.clone();
         let mut cyy_reg = cyy.clone();
-
         for i in 0..cxx_reg.nrows() {
             cxx_reg[[i, i]] += reg;
         }
@@ -424,13 +419,55 @@ impl GpuCCA {
             cyy_reg[[i, i]] += reg;
         }
 
-        // In a complete implementation, this would solve the generalized eigenvalue problem
-        // For now, return dummy values
-        let n_features = cxx.nrows();
-        let eigenvalues = Array1::from_vec((0..n_features).map(|i| 1.0 - i as f64 * 0.1).collect());
-        let eigenvectors = Array2::eye(n_features);
+        // Compute matrix inverses
+        let cxx_inv =
+            inv(&cxx_reg).map_err(|e: LinalgError| GpuError::ComputationError(e.to_string()))?;
+        let cyy_inv =
+            inv(&cyy_reg).map_err(|e: LinalgError| GpuError::ComputationError(e.to_string()))?;
 
-        Ok((eigenvalues, eigenvectors))
+        // Build symmetric intermediate matrix:
+        //   M = Cxx_inv @ Cxy @ Cyy_inv @ Cxy^T
+        // M is symmetric in exact arithmetic (PD when Cxx, Cyy are SPD). Floating-point
+        // accumulation can introduce small off-diagonal asymmetry, so we explicitly
+        // symmetrize: M_sym = (M + M^T) / 2.
+        let cxy_t = cxy.t().to_owned();
+        let tmp1 = cxx_inv.dot(cxy);
+        let tmp2 = tmp1.dot(&cyy_inv);
+        let m_raw = tmp2.dot(&cxy_t);
+        let m_mat = (&m_raw + &m_raw.t().to_owned()) / 2.0;
+
+        // Solve symmetric eigenproblem M w = λ w
+        let (mut eigenvalues, mut eigenvectors) = eigh(&m_mat, UPLO::Upper)
+            .map_err(|e: LinalgError| GpuError::ComputationError(e.to_string()))?;
+
+        // eigh returns eigenvalues in ascending order; reverse to get descending (largest first)
+        let n = eigenvalues.len();
+        let rev_idx: Vec<usize> = (0..n).rev().collect();
+        eigenvalues = Array1::from_vec(rev_idx.iter().map(|&i| eigenvalues[i]).collect());
+        eigenvectors = {
+            let cols: Vec<_> = rev_idx
+                .iter()
+                .map(|&i| eigenvectors.column(i).to_owned())
+                .collect();
+            let n_rows = eigenvectors.nrows();
+            let n_cols = cols.len();
+            let mut out = Array2::<f64>::zeros((n_rows, n_cols));
+            for (j, col) in cols.iter().enumerate() {
+                out.column_mut(j).assign(col);
+            }
+            out
+        };
+
+        // Clamp canonical correlations to [0, 1] (sqrt of eigenvalues)
+        let n_components = self.n_components.min(n);
+        let eigenvalues_trunc = eigenvalues
+            .slice(scirs2_core::ndarray::s![..n_components])
+            .to_owned();
+        let eigenvectors_trunc = eigenvectors
+            .slice(scirs2_core::ndarray::s![.., ..n_components])
+            .to_owned();
+
+        Ok((eigenvalues_trunc, eigenvectors_trunc))
     }
 
     fn compute_y_weights(

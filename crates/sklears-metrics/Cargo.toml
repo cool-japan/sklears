@@ -28,7 +28,8 @@ scirs2-metrics = { workspace = true, optional = true }
 approx = { workspace = true }
 thiserror = { workspace = true }
 
-# Sparse matrix support
+# Sparse matrix support (scirs2-sparse per SciRS2 Policy; sprs removed)
+scirs2-sparse = { workspace = true, optional = true }
 
 # Performance and parallelism
 rayon = { workspace = true, optional = true }
@@ -74,7 +75,7 @@ default = ["std"]
 std = ["sklears-core/std"]
 parallel = ["rayon"]
 simd = ["wide", "bytemuck"]
-# sparse = ["sprs"]  # Removed: Use scirs2-sparse instead (SciRS2 Policy)
+sparse = ["dep:scirs2-sparse"]  # Sparse metric computations via scirs2-sparse (SciRS2 Policy)
 gpu = []  # GPU acceleration support (temporarily disabled)
 cuda = ["gpu"]  # Alias for GPU support
 async = ["tokio", "futures", "tokio-stream"]  # Async streaming support
@@ -85,8 +86,7 @@ latex = ["tinytemplate"]  # LaTeX/PDF export functionality (tex disabled until m
 distributed = ["mpi", "oxicode"]  # Message-passing distributed metrics (requires full MPI installation)
 disabled-for-stability = []  # Feature flag for experimental/unstable code
 # Note: "distributed" excluded from "full" due to platform-specific MPI requirements
-# Note: "sparse" removed from "full" - use scirs2-sparse instead (SciRS2 Policy)
-full = ["parallel", "simd", "gpu", "async", "latex", "mmap"]
+full = ["parallel", "simd", "sparse", "gpu", "async", "latex", "mmap"]
 
 [[bench]]
 name = "metrics_benchmarks"

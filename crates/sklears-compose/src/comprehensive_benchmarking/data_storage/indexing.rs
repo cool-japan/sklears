@@ -1,11 +1,8 @@
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
 
-use super::errors::*;
-use super::config_types::*;
+use super::retention::{EscalationPolicy, MaintenanceResourceLimits, NotificationConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexingEngine {
@@ -348,3 +345,108 @@ pub struct MaintenancePolicies {
 pub struct MaintenanceTrigger {
     trigger_type: MaintenanceTriggerType,
     threshold: f64,
+    evaluation_frequency: std::time::Duration,
+    action: MaintenanceAction,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MaintenanceTriggerType {
+    IndexFragmentation,
+    StatisticsOutdated,
+    QueryPerformance,
+    StorageSpace,
+    Custom(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MaintenanceAction {
+    Schedule,
+    Execute,
+    Alert,
+    Custom(String),
+}
+
+/// Simple schedule descriptor
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Schedule {
+    pub cron_expression: String,
+    pub timezone: String,
+}
+
+impl Default for QueryCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl QueryCache {
+    pub fn new() -> Self {
+        Self {
+            cache_entries: HashMap::new(),
+            cache_policy: CachePolicy {
+                max_cache_size: 1024 * 1024 * 1024,
+                eviction_strategy: EvictionStrategy::LRU,
+                ttl: Some(Duration::seconds(3600)),
+                cache_warming: false,
+            },
+            cache_statistics: CacheStatistics {
+                hit_rate: 0.0,
+                miss_rate: 0.0,
+                eviction_rate: 0.0,
+                average_lookup_time: Duration::milliseconds(10),
+            },
+        }
+    }
+}
+
+impl Default for IndexingEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl IndexingEngine {
+    pub fn new() -> Self {
+        Self {
+            indexes: HashMap::new(),
+            indexing_strategies: vec![],
+            query_optimizer: QueryOptimizer {
+                optimization_strategies: vec![],
+                cost_model: CostModel {
+                    cost_factors: HashMap::new(),
+                    calibration_data: vec![],
+                    model_accuracy: 0.0,
+                },
+                execution_plans: HashMap::new(),
+                query_cache: QueryCache::new(),
+            },
+            index_maintenance: IndexMaintenance {
+                maintenance_tasks: vec![],
+                maintenance_schedule: MaintenanceSchedule {
+                    scheduled_tasks: vec![],
+                    maintenance_windows: vec![],
+                    conflict_resolution: MaintenanceConflictResolution::PriorityBased,
+                },
+                maintenance_policies: MaintenancePolicies {
+                    automatic_maintenance: true,
+                    maintenance_triggers: vec![],
+                    resource_limits: MaintenanceResourceLimits {
+                        max_cpu_usage: 0.8,
+                        max_memory_usage: 1024 * 1024 * 1024,
+                        max_disk_io: 100.0,
+                        max_duration: Duration::hours(2),
+                    },
+                    notification_config: NotificationConfig {
+                        notification_channels: vec![],
+                        notification_rules: vec![],
+                        escalation_policy: EscalationPolicy {
+                            escalation_levels: vec![],
+                            escalation_timeout: Duration::minutes(30),
+                            max_escalations: 3,
+                        },
+                    },
+                },
+            },
+        }
+    }
+}

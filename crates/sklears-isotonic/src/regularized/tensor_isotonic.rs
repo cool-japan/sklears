@@ -499,6 +499,7 @@ impl Predict<Array2<Float>, Array1<Float>> for TensorIsotonicRegression<Trained>
 ///     vec![true], // increasing
 ///     true // separable
 /// )?;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub fn tensor_isotonic_regression(
     tensor_data: &Array2<Float>,

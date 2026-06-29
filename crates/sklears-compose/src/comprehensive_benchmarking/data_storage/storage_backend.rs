@@ -1,40 +1,38 @@
+use chrono::Duration;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
-use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
 
-use super::errors::*;
-use super::config_types::*;
+use super::backup::BackupManager;
+use super::cache::CacheManager;
+use super::compression::CompressionManager;
+use super::indexing::IndexingEngine;
+use super::integrity::IntegrityChecker;
+use super::query::QueryEngine;
+use super::retention::RetentionManager;
 
-use std::sync::{Arc, RwLock, Mutex};
-use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
-
-use super::config_types::*;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct DataStorageEngine {
-    storage_backends: HashMap<String, Arc<RwLock<StorageBackend>>>,
-    indexing_engine: Arc<RwLock<IndexingEngine>>,
-    retention_manager: Arc<RwLock<RetentionManager>>,
-    compression_manager: Arc<RwLock<CompressionManager>>,
-    cache_manager: Arc<RwLock<CacheManager>>,
-    backup_manager: Arc<RwLock<BackupManager>>,
-    query_engine: Arc<RwLock<QueryEngine>>,
-    integrity_checker: Arc<RwLock<IntegrityChecker>>,
+    pub(crate) storage_backends: HashMap<String, Arc<RwLock<StorageBackend>>>,
+    pub(crate) indexing_engine: Arc<RwLock<IndexingEngine>>,
+    pub(crate) retention_manager: Arc<RwLock<RetentionManager>>,
+    pub(crate) compression_manager: Arc<RwLock<CompressionManager>>,
+    pub(crate) cache_manager: Arc<RwLock<CacheManager>>,
+    pub(crate) backup_manager: Arc<RwLock<BackupManager>>,
+    pub(crate) query_engine: Arc<RwLock<QueryEngine>>,
+    pub(crate) integrity_checker: Arc<RwLock<IntegrityChecker>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageBackend {
-    backend_id: String,
-    backend_type: StorageBackendType,
-    connection_config: ConnectionConfig,
-    storage_policies: StoragePolicies,
-    performance_metrics: StorageMetrics,
-    status: BackendStatus,
-    capabilities: BackendCapabilities,
+    pub backend_id: String,
+    pub backend_type: StorageBackendType,
+    pub connection_config: ConnectionConfig,
+    pub storage_policies: StoragePolicies,
+    pub performance_metrics: StorageMetrics,
+    pub status: BackendStatus,
+    pub capabilities: BackendCapabilities,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -298,13 +296,23 @@ pub enum BackendStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackendCapabilities {
-    supports_transactions: bool,
-    supports_indexing: bool,
-    supports_compression: bool,
-    supports_encryption: bool,
-    supports_replication: bool,
-    supports_sharding: bool,
-    max_object_size: usize,
-    concurrent_connections: usize,
+    pub supports_transactions: bool,
+    pub supports_indexing: bool,
+    pub supports_compression: bool,
+    pub supports_encryption: bool,
+    pub supports_replication: bool,
+    pub supports_sharding: bool,
+    pub max_object_size: usize,
+    pub concurrent_connections: usize,
 }
 
+/// Type of storage operation being performed
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum StorageOperation {
+    Read,
+    Write,
+    Delete,
+    List,
+    Update,
+    Custom(String),
+}

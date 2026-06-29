@@ -319,10 +319,27 @@ impl PerformanceManagerBuilder {
     pub fn build(self) -> PerformanceManager {
         let mut manager = PerformanceManager::new();
 
-        // Apply custom configuration if provided
+        // Apply custom configuration if provided by pushing each sub-config
+        // directly into the corresponding subsystem via its public `config` field.
         if let Some(config) = self.custom_config {
-            // TODO: Apply custom configuration to subsystems
-            // This would involve updating each subsystem's configuration
+            if let Ok(mut cm) = manager.connection_manager.write() {
+                cm.config = config.connection_config;
+            }
+            if let Ok(mut cache) = manager.cache_manager.write() {
+                cache.config = config.cache_config;
+            }
+            if let Ok(mut comp) = manager.compression_manager.write() {
+                comp.config = config.compression_config;
+            }
+            if let Ok(mut opt) = manager.optimizer.write() {
+                opt.config = config.optimizer_config;
+            }
+            if let Ok(mut mon) = manager.monitor.write() {
+                mon.config = config.monitor_config;
+            }
+            if let Ok(mut lb) = manager.load_balancer.write() {
+                lb.config = config.load_balancer_config;
+            }
         }
 
         manager

@@ -654,7 +654,8 @@ unsafe fn mae_gradient_sse2(y_true: &[f32], y_pred: &[f32], output: &mut [f32], 
 
     while i < y_true.len() {
         let diff = y_pred[i] - y_true[i];
-        output[i] = scale * diff.signum();
+        let sign = if diff == 0.0 { 0.0 } else { diff.signum() };
+        output[i] = scale * sign;
         i += 1;
     }
 }
@@ -691,7 +692,8 @@ unsafe fn mae_gradient_avx2(y_true: &[f32], y_pred: &[f32], output: &mut [f32], 
 
     while i < y_true.len() {
         let diff = y_pred[i] - y_true[i];
-        output[i] = scale * diff.signum();
+        let sign = if diff == 0.0 { 0.0 } else { diff.signum() };
+        output[i] = scale * sign;
         i += 1;
     }
 }

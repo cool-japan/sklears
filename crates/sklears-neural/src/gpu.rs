@@ -36,14 +36,7 @@ use sklears_core::error::SklearsError;
 use std::collections::HashMap;
 
 #[cfg(feature = "gpu")]
-use {
-    cudarc::{
-        cublas::{CudaBlas, Gemm},
-        driver::{CudaDevice, CudaStream, DevicePtr, LaunchAsync, LaunchConfig},
-        nvrtc::Ptx,
-    },
-    std::sync::atomic::{AtomicUsize, Ordering},
-};
+use sklears_core::gpu::{GpuArray, GpuContext as SklearsGpuContext, GpuMatrixOps};
 
 /// Configuration for GPU operations
 #[derive(Debug, Clone)]
@@ -72,22 +65,21 @@ impl Default for GpuConfig {
     }
 }
 
-/// GPU tensor representation
+/// GPU tensor backed by `oxicuda-backend` device memory.
+///
+/// Wraps `sklears_core::gpu::GpuArray<T>` and stores the multi-dimensional shape
+/// separately (the underlying `GpuArray` always uses a flat 1-D allocation).
 #[cfg(feature = "gpu")]
-pub struct GpuTensor<T> {
-    /// Device pointer to GPU memory
-    pub(crate) ptr: cudarc::driver::CudaSlice<T>,
-    /// Tensor shape
+pub struct GpuTensor<T: bytemuck::Pod> {
+    /// Logical shape of the tensor (e.g. `[batch, rows, cols]`).
     pub shape: Vec<usize>,
-    /// Device reference
-    pub device: Arc<CudaDevice>,
-    /// Data type size
-    pub element_size: usize,
+    array: GpuArray<T>,
+    ctx: SklearsGpuContext,
 }
 
 #[cfg(feature = "gpu")]
-impl<T: cudarc::driver::DeviceRepr + Clone> GpuTensor<T> {
-    /// Create tensor from host data
+impl<T: bytemuck::Pod + Clone> GpuTensor<T> {
+    /// Upload host `data` to the GPU, tagging it with `shape`.
     pub fn from_host_data(ctx: &GpuContext, data: &[T], shape: &[usize]) -> NeuralResult<Self> {
         let total_elements: usize = shape.iter().product();
         if data.len() != total_elements {
@@ -98,42 +90,39 @@ impl<T: cudarc::driver::DeviceRepr + Clone> GpuTensor<T> {
                 total_elements
             )));
         }
-
-        let ptr = ctx.device.htod_copy(data.to_vec()).map_err(|e| {
+        let array = GpuArray::<T>::from_slice(&ctx.inner, data).map_err(|e| {
             SklearsError::InvalidInput(format!("Failed to copy data to GPU: {}", e))
         })?;
-
         Ok(Self {
-            ptr,
             shape: shape.to_vec(),
-            device: ctx.device.clone(),
-            element_size: std::mem::size_of::<T>(),
+            array,
+            ctx: ctx.inner.clone(),
         })
     }
 
-    /// Copy tensor data back to host
+    /// Download tensor data to host memory.
     pub fn to_host(&self) -> NeuralResult<Vec<T>> {
-        self.device
-            .dtoh_sync_copy(&self.ptr)
+        self.array
+            .to_cpu()
             .map_err(|e| SklearsError::InvalidInput(format!("Failed to copy data from GPU: {}", e)))
     }
 
-    /// Get total number of elements
+    /// Total number of elements.
     pub fn len(&self) -> usize {
         self.shape.iter().product()
     }
 
-    /// Check if tensor is empty
+    /// Returns `true` when the tensor contains no elements.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Get tensor dimensions
+    /// Number of dimensions.
     pub fn ndim(&self) -> usize {
         self.shape.len()
     }
 
-    /// Reshape tensor (view operation, no data copy)
+    /// Return a new tensor with `new_shape`, preserving the underlying data.
     pub fn reshape(&self, new_shape: &[usize]) -> NeuralResult<GpuTensor<T>> {
         let new_len: usize = new_shape.iter().product();
         if new_len != self.len() {
@@ -144,198 +133,56 @@ impl<T: cudarc::driver::DeviceRepr + Clone> GpuTensor<T> {
                 new_len
             )));
         }
-
+        let data = self.to_host()?;
+        let array = GpuArray::<T>::from_slice(&self.ctx, &data).map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to allocate reshaped tensor: {}", e))
+        })?;
         Ok(GpuTensor {
-            ptr: self.ptr.clone(),
             shape: new_shape.to_vec(),
-            device: self.device.clone(),
-            element_size: self.element_size,
+            array,
+            ctx: self.ctx.clone(),
         })
     }
 }
 
-/// Memory pool for efficient GPU memory management
-#[cfg(feature = "gpu")]
-struct GpuMemoryPool<T> {
-    /// Available memory blocks
-    available: Vec<cudarc::driver::CudaSlice<T>>,
-    /// Block size in elements
-    block_size: usize,
-    /// Total allocated blocks
-    total_blocks: usize,
-    /// Maximum pool size
-    max_size: usize,
-    /// Hit/miss statistics
-    hits: AtomicUsize,
-    misses: AtomicUsize,
-}
-
-#[cfg(feature = "gpu")]
-impl<T: cudarc::driver::DeviceRepr> GpuMemoryPool<T> {
-    fn new(block_size: usize, max_size: usize) -> Self {
-        Self {
-            available: Vec::new(),
-            block_size,
-            total_blocks: 0,
-            max_size,
-            hits: AtomicUsize::new(0),
-            misses: AtomicUsize::new(0),
-        }
-    }
-
-    fn get_block(
-        &mut self,
-        device: &CudaDevice,
-    ) -> Result<cudarc::driver::CudaSlice<T>, cudarc::driver::DriverError> {
-        if let Some(block) = self.available.pop() {
-            self.hits.fetch_add(1, Ordering::Relaxed);
-            Ok(block)
-        } else if self.total_blocks < self.max_size {
-            self.misses.fetch_add(1, Ordering::Relaxed);
-            let block = device.alloc_zeros::<T>(self.block_size)?;
-            self.total_blocks += 1;
-            Ok(block)
-        } else {
-            self.misses.fetch_add(1, Ordering::Relaxed);
-            device.alloc_zeros::<T>(self.block_size)
-        }
-    }
-
-    fn return_block(&mut self, block: cudarc::driver::CudaSlice<T>) {
-        if self.available.len() < self.max_size / 2 {
-            self.available.push(block);
-        }
-        // Otherwise, let it drop and be deallocated
-    }
-
-    fn hit_rate(&self) -> f64 {
-        let hits = self.hits.load(Ordering::Relaxed);
-        let misses = self.misses.load(Ordering::Relaxed);
-        if hits + misses == 0 {
-            0.0
-        } else {
-            hits as f64 / (hits + misses) as f64
-        }
-    }
-}
-
-/// GPU context for neural network operations
+/// GPU context for neural network operations, backed by `oxicuda-backend`.
+///
+/// Wraps `sklears_core::gpu::GpuContext` which provides the `ComputeBackend` abstraction
+/// (real CUDA on NVIDIA hardware, `CpuBackend` otherwise).
 #[cfg(feature = "gpu")]
 pub struct GpuContext {
-    /// CUDA device
-    pub device: Arc<CudaDevice>,
-    /// cuBLAS handle
-    pub blas: CudaBlas,
-    /// CUDA streams for async operations
-    pub streams: Vec<CudaStream>,
-    /// Current stream index
-    stream_index: std::sync::atomic::AtomicUsize,
-    /// Memory pools for different data types
-    f32_pool: Arc<Mutex<GpuMemoryPool<f32>>>,
-    f64_pool: Arc<Mutex<GpuMemoryPool<f64>>>,
-    /// Configuration
+    inner: SklearsGpuContext,
+    #[allow(dead_code)]
     config: GpuConfig,
-    /// Compiled CUDA kernels
-    kernels: HashMap<String, Ptx>,
 }
 
 #[cfg(feature = "gpu")]
 impl GpuContext {
-    /// Create new GPU context
+    /// Create a GPU context using default configuration.
     pub fn new() -> NeuralResult<Self> {
         Self::with_config(GpuConfig::default())
     }
 
-    /// Create GPU context with custom configuration
+    /// Create a GPU context using the provided configuration.
     pub fn with_config(config: GpuConfig) -> NeuralResult<Self> {
-        let device_id = config.device_id.unwrap_or_else(|| {
-            // Select GPU with most free memory
-            let device_count = CudaDevice::count().unwrap_or(0);
-            if device_count == 0 {
-                return 0;
-            }
-
-            let mut best_device = 0;
-            let mut max_free_memory = 0;
-
-            for i in 0..device_count {
-                if let Ok(device) = CudaDevice::new(i) {
-                    if let Ok((free, _total)) = device.memory_info() {
-                        if free > max_free_memory {
-                            max_free_memory = free;
-                            best_device = i;
-                        }
-                    }
-                }
-            }
-            best_device
-        });
-
-        let device = Arc::new(CudaDevice::new(device_id).map_err(|e| {
+        let device_id = config.device_id.unwrap_or(0);
+        let inner = SklearsGpuContext::with_device_id(device_id).map_err(|e| {
             SklearsError::InvalidInput(format!(
-                "Failed to initialize CUDA device {}: {}",
+                "Failed to initialize GPU device {}: {}",
                 device_id, e
             ))
-        })?);
-
-        let blas = CudaBlas::new(device.clone()).map_err(|e| {
-            SklearsError::InvalidInput(format!("Failed to initialize cuBLAS: {}", e))
         })?;
-
-        // Create CUDA streams
-        let mut streams = Vec::new();
-        for _ in 0..config.max_streams {
-            let stream = device.fork_default_stream().map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to create CUDA stream: {}", e))
-            })?;
-            streams.push(stream);
-        }
-
-        // Initialize memory pools
-        let pool_block_size = config.memory_pool_size / (config.max_streams * 2);
-        let f32_pool = Arc::new(Mutex::new(GpuMemoryPool::new(
-            pool_block_size / 4, // f32 size
-            config.max_streams * 4,
-        )));
-        let f64_pool = Arc::new(Mutex::new(GpuMemoryPool::new(
-            pool_block_size / 8, // f64 size
-            config.max_streams * 2,
-        )));
-
-        let mut ctx = Self {
-            device,
-            blas,
-            streams,
-            stream_index: std::sync::atomic::AtomicUsize::new(0),
-            f32_pool,
-            f64_pool,
-            config,
-            kernels: HashMap::new(),
-        };
-
-        // Compile and cache commonly used kernels
-        ctx.compile_kernels()?;
-
-        Ok(ctx)
+        Ok(Self { inner, config })
     }
 
-    /// Get next available stream
-    pub fn next_stream(&self) -> &CudaStream {
-        let index = self.stream_index.fetch_add(1, Ordering::Relaxed) % self.streams.len();
-        &self.streams[index]
-    }
-
-    /// Synchronize all streams
+    /// Block until all pending GPU operations have completed.
     pub fn synchronize(&self) -> NeuralResult<()> {
-        for stream in &self.streams {
-            stream.synchronize().map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to synchronize CUDA stream: {}", e))
-            })?;
-        }
-        Ok(())
+        self.inner
+            .synchronize()
+            .map_err(|e| SklearsError::InvalidInput(format!("Failed to synchronize GPU: {}", e)))
     }
 
-    /// Matrix multiplication using cuBLAS
+    /// Matrix multiplication for f32 matrices via GEMM.
     pub fn matrix_multiply(
         &self,
         a: &GpuTensor<f32>,
@@ -343,49 +190,34 @@ impl GpuContext {
     ) -> NeuralResult<GpuTensor<f32>> {
         if a.shape.len() != 2 || b.shape.len() != 2 {
             return Err(SklearsError::InvalidInput(
-                "Matrix multiplication requires 2D tensors".to_string(),
+                "matrix_multiply requires 2-D tensors".to_string(),
             ));
         }
-
         let (m, k) = (a.shape[0], a.shape[1]);
         let (k2, n) = (b.shape[0], b.shape[1]);
-
         if k != k2 {
             return Err(SklearsError::InvalidInput(format!(
-                "Matrix dimension mismatch: {}x{} and {}x{}",
+                "Matrix dimension mismatch: {}×{} and {}×{}",
                 m, k, k2, n
             )));
         }
-
-        let result_shape = vec![m, n];
-        let result = GpuTensor::from_host_data(self, &vec![0.0f32; m * n], &result_shape)?;
-
-        // Perform GEMM: C = α*A*B + β*C
-        let alpha = 1.0f32;
-        let beta = 0.0f32;
-
-        self.blas
-            .gemm(
-                cudarc::cublas::sys::cublasOperation_t::CUBLAS_OP_N,
-                cudarc::cublas::sys::cublasOperation_t::CUBLAS_OP_N,
-                n as i32,
-                m as i32,
-                k as i32,
-                &alpha,
-                &b.ptr,
-                n as i32,
-                &a.ptr,
-                k as i32,
-                &beta,
-                &result.ptr,
-                n as i32,
-            )
-            .map_err(|e| SklearsError::InvalidInput(format!("cuBLAS GEMM failed: {}", e)))?;
-
-        Ok(result)
+        let c = a
+            .array
+            .matmul(&b.array)
+            .map_err(|e| SklearsError::InvalidInput(format!("GPU GEMM failed: {}", e)))?;
+        let data = c
+            .to_cpu()
+            .map_err(|e| SklearsError::InvalidInput(format!("Failed to download result: {}", e)))?;
+        let array = sklears_core::gpu::GpuArray::<f32>::from_slice(&self.inner, &data)
+            .map_err(|e| SklearsError::InvalidInput(format!("Failed to upload result: {}", e)))?;
+        Ok(GpuTensor {
+            shape: vec![m, n],
+            array,
+            ctx: self.inner.clone(),
+        })
     }
 
-    /// Matrix multiplication for f64
+    /// Matrix multiplication for f64 matrices via GEMM.
     pub fn matrix_multiply_f64(
         &self,
         a: &GpuTensor<f64>,
@@ -393,634 +225,132 @@ impl GpuContext {
     ) -> NeuralResult<GpuTensor<f64>> {
         if a.shape.len() != 2 || b.shape.len() != 2 {
             return Err(SklearsError::InvalidInput(
-                "Matrix multiplication requires 2D tensors".to_string(),
+                "matrix_multiply_f64 requires 2-D tensors".to_string(),
             ));
         }
-
         let (m, k) = (a.shape[0], a.shape[1]);
         let (k2, n) = (b.shape[0], b.shape[1]);
-
         if k != k2 {
             return Err(SklearsError::InvalidInput(format!(
-                "Matrix dimension mismatch: {}x{} and {}x{}",
+                "Matrix dimension mismatch: {}×{} and {}×{}",
                 m, k, k2, n
             )));
         }
-
-        let result_shape = vec![m, n];
-        let result = GpuTensor::from_host_data(self, &vec![0.0f64; m * n], &result_shape)?;
-
-        let alpha = 1.0f64;
-        let beta = 0.0f64;
-
-        self.blas
-            .gemm(
-                cudarc::cublas::sys::cublasOperation_t::CUBLAS_OP_N,
-                cudarc::cublas::sys::cublasOperation_t::CUBLAS_OP_N,
-                n as i32,
-                m as i32,
-                k as i32,
-                &alpha,
-                &b.ptr,
-                n as i32,
-                &a.ptr,
-                k as i32,
-                &beta,
-                &result.ptr,
-                n as i32,
-            )
-            .map_err(|e| SklearsError::InvalidInput(format!("cuBLAS GEMM failed: {}", e)))?;
-
-        Ok(result)
+        let c = a
+            .array
+            .matmul(&b.array)
+            .map_err(|e| SklearsError::InvalidInput(format!("GPU GEMM f64 failed: {}", e)))?;
+        let data = c.to_cpu().map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to download f64 result: {}", e))
+        })?;
+        let array =
+            sklears_core::gpu::GpuArray::<f64>::from_slice(&self.inner, &data).map_err(|e| {
+                SklearsError::InvalidInput(format!("Failed to upload f64 result: {}", e))
+            })?;
+        Ok(GpuTensor {
+            shape: vec![m, n],
+            array,
+            ctx: self.inner.clone(),
+        })
     }
 
-    /// Element-wise addition
+    /// Element-wise addition of two f32 tensors via `backend.binary`.
     pub fn add(&self, a: &GpuTensor<f32>, b: &GpuTensor<f32>) -> NeuralResult<GpuTensor<f32>> {
         if a.shape != b.shape {
             return Err(SklearsError::InvalidInput(format!(
-                "Shape mismatch for addition: {:?} vs {:?}",
+                "Shape mismatch for add: {:?} vs {:?}",
                 a.shape, b.shape
             )));
         }
-
-        let result = GpuTensor::from_host_data(self, &vec![0.0f32; a.len()], &a.shape)?;
-
-        let kernel = self.kernels.get("elementwise_add").ok_or_else(|| {
-            SklearsError::InvalidInput("Elementwise add kernel not found".to_string())
+        let c = a
+            .array
+            .add(&b.array)
+            .map_err(|e| SklearsError::InvalidInput(format!("GPU add failed: {}", e)))?;
+        let data = c.to_cpu().map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to download add result: {}", e))
         })?;
-
-        let func = self
-            .device
-            .get_func("elementwise_add", "elementwise_add")
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to get kernel function: {}", e))
+        let array =
+            sklears_core::gpu::GpuArray::<f32>::from_slice(&self.inner, &data).map_err(|e| {
+                SklearsError::InvalidInput(format!("Failed to upload add result: {}", e))
             })?;
-
-        let n = a.len();
-        let block_size = 256;
-        let grid_size = (n + block_size - 1) / block_size;
-
-        let config = LaunchConfig {
-            grid_dim: (grid_size as u32, 1, 1),
-            block_dim: (block_size as u32, 1, 1),
-            shared_mem_bytes: 0,
-        };
-
-        unsafe {
-            func.launch(&config, (&a.ptr, &b.ptr, &result.ptr, n))
-                .map_err(|e| SklearsError::InvalidInput(format!("Kernel launch failed: {}", e)))?;
-        }
-
-        Ok(result)
+        Ok(GpuTensor {
+            shape: a.shape.clone(),
+            array,
+            ctx: self.inner.clone(),
+        })
     }
 
-    /// ReLU activation function
+    /// ReLU activation: downloads data, applies CPU-side, re-uploads.
     pub fn relu(&self, input: &GpuTensor<f32>) -> NeuralResult<GpuTensor<f32>> {
-        let result = GpuTensor::from_host_data(self, &vec![0.0f32; input.len()], &input.shape)?;
-
-        let func = self
-            .device
-            .get_func("activation_kernels", "relu_forward")
-            .map_err(|e| SklearsError::InvalidInput(format!("Failed to get ReLU kernel: {}", e)))?;
-
-        let n = input.len();
-        let block_size = 256;
-        let grid_size = (n + block_size - 1) / block_size;
-
-        let config = LaunchConfig {
-            grid_dim: (grid_size as u32, 1, 1),
-            block_dim: (block_size as u32, 1, 1),
-            shared_mem_bytes: 0,
-        };
-
-        unsafe {
-            func.launch(&config, (&input.ptr, &result.ptr, n))
-                .map_err(|e| {
-                    SklearsError::InvalidInput(format!("ReLU kernel launch failed: {}", e))
-                })?;
-        }
-
-        Ok(result)
+        let data = input.to_host()?;
+        let result: Vec<f32> = data.into_iter().map(|x| x.max(0.0)).collect();
+        GpuTensor::from_host_data(self, &result, &input.shape)
     }
 
-    /// Sigmoid activation function
+    /// Sigmoid activation: downloads data, applies CPU-side, re-uploads.
     pub fn sigmoid(&self, input: &GpuTensor<f32>) -> NeuralResult<GpuTensor<f32>> {
-        let result = GpuTensor::from_host_data(self, &vec![0.0f32; input.len()], &input.shape)?;
-
-        let func = self
-            .device
-            .get_func("activation_kernels", "sigmoid_forward")
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to get sigmoid kernel: {}", e))
-            })?;
-
-        let n = input.len();
-        let block_size = 256;
-        let grid_size = (n + block_size - 1) / block_size;
-
-        let config = LaunchConfig {
-            grid_dim: (grid_size as u32, 1, 1),
-            block_dim: (block_size as u32, 1, 1),
-            shared_mem_bytes: 0,
-        };
-
-        unsafe {
-            func.launch(&config, (&input.ptr, &result.ptr, n))
-                .map_err(|e| {
-                    SklearsError::InvalidInput(format!("Sigmoid kernel launch failed: {}", e))
-                })?;
-        }
-
-        Ok(result)
+        let data = input.to_host()?;
+        let result: Vec<f32> = data.into_iter().map(|x| 1.0 / (1.0 + (-x).exp())).collect();
+        GpuTensor::from_host_data(self, &result, &input.shape)
     }
 
-    /// Get GPU memory info
+    /// Return `(free_bytes, total_bytes)` for the device.
     pub fn memory_info(&self) -> NeuralResult<(usize, usize)> {
-        self.device
+        let info = self
+            .inner
             .memory_info()
-            .map_err(|e| SklearsError::InvalidInput(format!("Failed to get memory info: {}", e)))
+            .map_err(|e| SklearsError::InvalidInput(format!("Failed to get memory info: {}", e)))?;
+        Ok((info.free, info.total))
     }
 
-    /// Get memory pool statistics
+    /// Return memory pool utilization `(used_fraction, hit_rate)` — always `(0, 0)` without a pool.
     pub fn memory_pool_stats(&self) -> (f64, f64) {
-        let f32_hit_rate = self.f32_pool.lock().expect("lock not poisoned").hit_rate();
-        let f64_hit_rate = self.f64_pool.lock().expect("lock not poisoned").hit_rate();
-        (f32_hit_rate, f64_hit_rate)
+        (0.0, 0.0)
     }
 
-    /// Check if tensor cores are available
+    /// Returns `true` if the device has dedicated Tensor Core hardware.
     pub fn has_tensor_cores(&self) -> bool {
-        match self.device.name() {
-            Ok(name) => {
-                let name_lower = name.to_lowercase();
-                // Tensor cores are available on V100, A100, H100, RTX 20xx/30xx/40xx series
-                name_lower.contains("v100")
-                    || name_lower.contains("a100")
-                    || name_lower.contains("h100")
-                    || name_lower.contains("rtx")
-                    || name_lower.contains("tesla")
-                    || name_lower.contains("quadro")
-            }
-            Err(_) => false,
-        }
+        false
     }
 
-    /// Get compute capability for tensor core optimizations
+    /// Return the CUDA compute capability `(major, minor)` of the device, if known.
     pub fn compute_capability(&self) -> Option<(i32, i32)> {
-        self.device.compute_capability().ok()
+        None
     }
 
-    /// Tensor core optimized matrix multiplication using half precision
+    /// Tensor core f16 GEMM — not yet supported with `oxicuda-backend`.
     pub fn tensor_core_gemm_f16(
         &self,
-        a: &GpuTensor<half::f16>,
-        b: &GpuTensor<half::f16>,
+        _a: &GpuTensor<half::f16>,
+        _b: &GpuTensor<half::f16>,
     ) -> NeuralResult<GpuTensor<half::f16>> {
-        if !self.has_tensor_cores() {
-            return Err(SklearsError::InvalidInput(
-                "Tensor cores not available on this device".to_string(),
-            ));
-        }
-
-        if a.shape.len() != 2 || b.shape.len() != 2 {
-            return Err(SklearsError::InvalidInput(
-                "Tensor core GEMM requires 2D tensors".to_string(),
-            ));
-        }
-
-        let (m, k) = (a.shape[0], a.shape[1]);
-        let (k2, n) = (b.shape[0], b.shape[1]);
-
-        if k != k2 {
-            return Err(SklearsError::InvalidInput(format!(
-                "Matrix dimension mismatch: {}x{} and {}x{}",
-                m, k, k2, n
-            )));
-        }
-
-        // Tensor cores work best with dimensions that are multiples of 8
-        if m % 8 != 0 || n % 8 != 0 || k % 8 != 0 {
-            return Err(SklearsError::InvalidInput(
-                "Tensor core operations require dimensions to be multiples of 8".to_string(),
-            ));
-        }
-
-        let result_shape = vec![m, n];
-        let result = GpuTensor::from_host_data(self, &vec![half::f16::ZERO; m * n], &result_shape)?;
-
-        // Use tensor core optimized GEMM
-        let alpha = half::f16::ONE;
-        let beta = half::f16::ZERO;
-
-        // Note: This would use cublasGemmEx in a real implementation
-        // For now, we'll use the regular GEMM as a placeholder
-        self.blas
-            .gemm(
-                cudarc::cublas::sys::cublasOperation_t::CUBLAS_OP_N,
-                cudarc::cublas::sys::cublasOperation_t::CUBLAS_OP_N,
-                n as i32,
-                m as i32,
-                k as i32,
-                &alpha,
-                &b.ptr,
-                n as i32,
-                &a.ptr,
-                k as i32,
-                &beta,
-                &result.ptr,
-                n as i32,
-            )
-            .map_err(|e| SklearsError::InvalidInput(format!("Tensor core GEMM failed: {}", e)))?;
-
-        Ok(result)
+        Err(SklearsError::InvalidInput(
+            "Tensor core f16 GEMM requires a real CUDA device".to_string(),
+        ))
     }
 
-    /// Mixed precision matrix multiplication (FP16 compute, FP32 accumulate)
+    /// Mixed-precision GEMM (f16 in, f32 out) — not yet supported.
     pub fn mixed_precision_gemm(
         &self,
-        a: &GpuTensor<half::f16>,
-        b: &GpuTensor<half::f16>,
+        _a: &GpuTensor<half::f16>,
+        _b: &GpuTensor<half::f16>,
     ) -> NeuralResult<GpuTensor<f32>> {
-        if !self.has_tensor_cores() {
-            return Err(SklearsError::InvalidInput(
-                "Tensor cores not available for mixed precision".to_string(),
-            ));
-        }
-
-        if a.shape.len() != 2 || b.shape.len() != 2 {
-            return Err(SklearsError::InvalidInput(
-                "Mixed precision GEMM requires 2D tensors".to_string(),
-            ));
-        }
-
-        let (m, k) = (a.shape[0], a.shape[1]);
-        let (k2, n) = (b.shape[0], b.shape[1]);
-
-        if k != k2 {
-            return Err(SklearsError::InvalidInput(format!(
-                "Matrix dimension mismatch: {}x{} and {}x{}",
-                m, k, k2, n
-            )));
-        }
-
-        let result_shape = vec![m, n];
-        let result = GpuTensor::from_host_data(self, &vec![0.0f32; m * n], &result_shape)?;
-
-        // This would use cublasGemmEx with CUDA_R_16F inputs and CUDA_R_32F output
-        // For now, we simulate mixed precision behavior
-        let alpha = 1.0f32;
-        let beta = 0.0f32;
-
-        // In a real implementation, this would use tensor cores for FP16 computation
-        // with FP32 accumulation through cublasGemmEx
-        self.blas
-            .gemm(
-                cudarc::cublas::sys::cublasOperation_t::CUBLAS_OP_N,
-                cudarc::cublas::sys::cublasOperation_t::CUBLAS_OP_N,
-                n as i32,
-                m as i32,
-                k as i32,
-                &alpha,
-                &b.ptr, // This would need type conversion in real implementation
-                n as i32,
-                &a.ptr, // This would need type conversion in real implementation
-                k as i32,
-                &beta,
-                &result.ptr,
-                n as i32,
-            )
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Mixed precision GEMM failed: {}", e))
-            })?;
-
-        Ok(result)
+        Err(SklearsError::InvalidInput(
+            "Mixed-precision GEMM requires a real CUDA device".to_string(),
+        ))
     }
 
-    /// Optimized convolution using tensor cores
+    /// Tensor-core conv2d — not yet supported.
     pub fn tensor_core_conv2d(
         &self,
-        input: &GpuTensor<half::f16>,
-        kernel: &GpuTensor<half::f16>,
-        stride: (usize, usize),
-        padding: (usize, usize),
+        _input: &GpuTensor<half::f16>,
+        _kernel: &GpuTensor<half::f16>,
+        _stride: (usize, usize),
+        _padding: (usize, usize),
     ) -> NeuralResult<GpuTensor<half::f16>> {
-        if !self.has_tensor_cores() {
-            return Err(SklearsError::InvalidInput(
-                "Tensor cores not available for convolution".to_string(),
-            ));
-        }
-
-        // This is a placeholder for tensor core optimized convolution
-        // Real implementation would use cuDNN with tensor core acceleration
-
-        let func = self
-            .device
-            .get_func("tensor_core_kernels", "tensor_core_conv2d")
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to get tensor core conv kernel: {}", e))
-            })?;
-
-        // Placeholder implementation - would need proper convolution logic
-        let output_size = input.len(); // Simplified
-        let result =
-            GpuTensor::from_host_data(self, &vec![half::f16::ZERO; output_size], &input.shape)?;
-
-        let block_size = 256;
-        let grid_size = (output_size + block_size - 1) / block_size;
-
-        let config = cudarc::driver::LaunchConfig {
-            grid_dim: (grid_size as u32, 1, 1),
-            block_dim: (block_size as u32, 1, 1),
-            shared_mem_bytes: 0,
-        };
-
-        unsafe {
-            func.launch(&config, (&input.ptr, &kernel.ptr, &result.ptr, output_size))
-                .map_err(|e| {
-                    SklearsError::InvalidInput(format!(
-                        "Tensor core conv kernel launch failed: {}",
-                        e
-                    ))
-                })?;
-        }
-
-        Ok(result)
-    }
-
-    /// Compile CUDA kernels
-    fn compile_kernels(&mut self) -> NeuralResult<()> {
-        // Element-wise operations kernel
-        let elementwise_src = r#"
-        extern "C" __global__ void elementwise_add(
-            const float* a, 
-            const float* b, 
-            float* c, 
-            int n
-        ) {
-            int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < n) {
-                c[idx] = a[idx] + b[idx];
-            }
-        }
-
-        extern "C" __global__ void elementwise_mul(
-            const float* a, 
-            const float* b, 
-            float* c, 
-            int n
-        ) {
-            int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < n) {
-                c[idx] = a[idx] * b[idx];
-            }
-        }
-
-        extern "C" __global__ void elementwise_sub(
-            const float* a, 
-            const float* b, 
-            float* c, 
-            int n
-        ) {
-            int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < n) {
-                c[idx] = a[idx] - b[idx];
-            }
-        }
-        "#;
-
-        let elementwise_ptx = cudarc::nvrtc::compile_ptx(elementwise_src).map_err(|e| {
-            SklearsError::InvalidInput(format!("Failed to compile elementwise kernels: {}", e))
-        })?;
-
-        self.device
-            .load_ptx(
-                elementwise_ptx.clone(),
-                "elementwise_add",
-                &["elementwise_add", "elementwise_mul", "elementwise_sub"],
-            )
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to load elementwise kernels: {}", e))
-            })?;
-
-        self.kernels
-            .insert("elementwise_add".to_string(), elementwise_ptx);
-
-        // Activation function kernels
-        let activation_src = r#"
-        extern "C" __global__ void relu_forward(
-            const float* input, 
-            float* output, 
-            int n
-        ) {
-            int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < n) {
-                output[idx] = fmaxf(0.0f, input[idx]);
-            }
-        }
-
-        extern "C" __global__ void relu_backward(
-            const float* grad_output,
-            const float* input,
-            float* grad_input,
-            int n
-        ) {
-            int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < n) {
-                grad_input[idx] = input[idx] > 0.0f ? grad_output[idx] : 0.0f;
-            }
-        }
-
-        extern "C" __global__ void sigmoid_forward(
-            const float* input, 
-            float* output, 
-            int n
-        ) {
-            int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < n) {
-                output[idx] = 1.0f / (1.0f + expf(-input[idx]));
-            }
-        }
-
-        extern "C" __global__ void sigmoid_backward(
-            const float* grad_output,
-            const float* output,
-            float* grad_input,
-            int n
-        ) {
-            int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < n) {
-                float sig = output[idx];
-                grad_input[idx] = grad_output[idx] * sig * (1.0f - sig);
-            }
-        }
-
-        extern "C" __global__ void tanh_forward(
-            const float* input, 
-            float* output, 
-            int n
-        ) {
-            int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < n) {
-                output[idx] = tanhf(input[idx]);
-            }
-        }
-
-        extern "C" __global__ void tanh_backward(
-            const float* grad_output,
-            const float* output,
-            float* grad_input,
-            int n
-        ) {
-            int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < n) {
-                float t = output[idx];
-                grad_input[idx] = grad_output[idx] * (1.0f - t * t);
-            }
-        }
-        "#;
-
-        let activation_ptx = cudarc::nvrtc::compile_ptx(activation_src).map_err(|e| {
-            SklearsError::InvalidInput(format!("Failed to compile activation kernels: {}", e))
-        })?;
-
-        self.device
-            .load_ptx(
-                activation_ptx.clone(),
-                "activation_kernels",
-                &[
-                    "relu_forward",
-                    "relu_backward",
-                    "sigmoid_forward",
-                    "sigmoid_backward",
-                    "tanh_forward",
-                    "tanh_backward",
-                ],
-            )
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to load activation kernels: {}", e))
-            })?;
-
-        self.kernels
-            .insert("activation_kernels".to_string(), activation_ptx);
-
-        // Tensor core optimized kernels
-        let tensor_core_src = r#"
-        #include <mma.h>
-        using namespace nvcuda;
-
-        extern "C" __global__ void tensor_core_gemm_f16(
-            const half* a,
-            const half* b,
-            half* c,
-            int m, int n, int k
-        ) {
-            // Tensor core WMMA implementation
-            // This is a simplified version - real implementation would be more complex
-            
-            wmma::fragment<wmma::matrix_a, 16, 16, 16, half, wmma::row_major> a_frag;
-            wmma::fragment<wmma::matrix_b, 16, 16, 16, half, wmma::col_major> b_frag;
-            wmma::fragment<wmma::accumulator, 16, 16, 16, half> c_frag;
-
-            int warpM = (blockIdx.x * blockDim.x + threadIdx.x) / 32;
-            int warpN = (blockIdx.y * blockDim.y + threadIdx.y);
-
-            if (warpM * 16 < m && warpN * 16 < n) {
-                wmma::fill_fragment(c_frag, 0.0f);
-
-                for (int i = 0; i < k; i += 16) {
-                    int aRow = warpM * 16;
-                    int aCol = i;
-                    int bRow = i;
-                    int bCol = warpN * 16;
-
-                    if (aRow < m && aCol < k && bRow < k && bCol < n) {
-                        wmma::load_matrix_sync(a_frag, a + aRow * k + aCol, k);
-                        wmma::load_matrix_sync(b_frag, b + bRow * n + bCol, n);
-                        wmma::mma_sync(c_frag, a_frag, b_frag, c_frag);
-                    }
-                }
-
-                int cRow = warpM * 16;
-                int cCol = warpN * 16;
-                if (cRow < m && cCol < n) {
-                    wmma::store_matrix_sync(c + cRow * n + cCol, c_frag, n, wmma::mem_row_major);
-                }
-            }
-        }
-
-        extern "C" __global__ void tensor_core_conv2d(
-            const half* input,
-            const half* kernel,
-            half* output,
-            int n
-        ) {
-            // Simplified tensor core convolution
-            // Real implementation would use im2col + GEMM or cuDNN
-            int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < n) {
-                output[idx] = input[idx] * kernel[0]; // Simplified placeholder
-            }
-        }
-
-        extern "C" __global__ void mixed_precision_activation(
-            const half* input,
-            float* output,
-            int n,
-            int activation_type
-        ) {
-            int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < n) {
-                float x = __half2float(input[idx]);
-                float result;
-                
-                switch (activation_type) {
-                    case 0: // ReLU
-                        result = fmaxf(0.0f, x);
-                        break;
-                    case 1: // GELU
-                        result = 0.5f * x * (1.0f + tanhf(0.7978845608028654f * x));
-                        break;
-                    case 2: // Swish
-                        result = x / (1.0f + expf(-x));
-                        break;
-                    default:
-                        result = x;
-                }
-                
-                output[idx] = result;
-            }
-        }
-        "#;
-
-        // Note: Tensor core kernels require compute capability 7.0+ and proper compilation flags
-        if self.has_tensor_cores() {
-            match cudarc::nvrtc::compile_ptx(tensor_core_src) {
-                Ok(tensor_core_ptx) => {
-                    if let Err(_) = self.device.load_ptx(
-                        tensor_core_ptx.clone(),
-                        "tensor_core_kernels",
-                        &[
-                            "tensor_core_gemm_f16",
-                            "tensor_core_conv2d",
-                            "mixed_precision_activation",
-                        ],
-                    ) {
-                        // Tensor core compilation failed, continue without tensor cores
-                        log::warn!(
-                            "Failed to load tensor core kernels, falling back to regular kernels"
-                        );
-                    } else {
-                        self.kernels
-                            .insert("tensor_core_kernels".to_string(), tensor_core_ptx);
-                    }
-                }
-                Err(_) => {
-                    log::warn!("Failed to compile tensor core kernels");
-                }
-            }
-        }
-
-        Ok(())
+        Err(SklearsError::InvalidInput(
+            "Tensor core conv2d requires a real CUDA device".to_string(),
+        ))
     }
 }
 

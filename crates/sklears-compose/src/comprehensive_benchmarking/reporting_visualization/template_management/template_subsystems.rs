@@ -5,14 +5,13 @@
 //! category management, and dependency management. Each subsystem provides focused
 //! functionality while integrating seamlessly with the overall template management system.
 
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
 
 use crate::comprehensive_benchmarking::reporting_visualization::template_management::template_core::TemplateError;
 use crate::comprehensive_benchmarking::reporting_visualization::template_management::template_repository::{
-    TemplateEntry, TemplateMetadata, TemplateContent, TemplateType, TemplateStatus
+    TemplateEntry, TemplateType
 };
 
 /// Template versioning system for version control and history management
@@ -412,7 +411,7 @@ pub enum AccessResult {
 }
 
 /// Review system for collaboration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ReviewSystem {
     /// Pending reviews
     pub pending_reviews: Vec<ReviewRequest>,
@@ -748,7 +747,7 @@ pub struct PermissionInheritance {
 }
 
 /// Category usage statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CategoryUsageStats {
     /// Template count
     pub template_count: usize,
@@ -938,7 +937,7 @@ pub enum ValidationCategory {
 }
 
 /// Validation severity levels
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ValidationSeverity {
     /// Informational
     Info,
@@ -1326,6 +1325,12 @@ pub struct FixCategory {
     pub impact_threshold: FixImpact,
 }
 
+impl Default for TemplateVersioningSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TemplateVersioningSystem {
     /// Create a new versioning system
     pub fn new() -> Self {
@@ -1340,7 +1345,12 @@ impl TemplateVersioningSystem {
     }
 
     /// Create a new version of a template
-    pub fn create_version(&mut self, template: &TemplateEntry, description: String, author: String) -> Result<String, TemplateError> {
+    pub fn create_version(
+        &mut self,
+        template: &TemplateEntry,
+        description: String,
+        author: String,
+    ) -> Result<String, TemplateError> {
         let version_id = format!("v_{}", chrono::Utc::now().timestamp());
         let version_number = self.generate_version_number(&template.template_id)?;
 
@@ -1357,7 +1367,7 @@ impl TemplateVersioningSystem {
 
         self.version_history
             .entry(template.template_id.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(version);
 
         Ok(version_id)
@@ -1372,7 +1382,11 @@ impl TemplateVersioningSystem {
     }
 
     /// Create a new branch
-    pub fn create_branch(&mut self, branch_name: String, base_version: String) -> Result<(), TemplateError> {
+    pub fn create_branch(
+        &mut self,
+        branch_name: String,
+        base_version: String,
+    ) -> Result<(), TemplateError> {
         let branch = TemplateBranch {
             name: branch_name.clone(),
             description: String::new(),
@@ -1407,7 +1421,10 @@ impl TemplateVersioningSystem {
     }
 
     /// Calculate change statistics
-    fn calculate_change_stats(&self, _template: &TemplateEntry) -> Result<ChangeStatistics, TemplateError> {
+    fn calculate_change_stats(
+        &self,
+        _template: &TemplateEntry,
+    ) -> Result<ChangeStatistics, TemplateError> {
         // Implementation would compare with previous version
         Ok(ChangeStatistics {
             lines_added: 0,
@@ -1416,6 +1433,12 @@ impl TemplateVersioningSystem {
             assets_changed: 0,
             metadata_changes: 0,
         })
+    }
+}
+
+impl Default for TemplateCategoryManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1431,7 +1454,12 @@ impl TemplateCategoryManager {
     }
 
     /// Create a new category
-    pub fn create_category(&mut self, name: String, description: String, parent_id: Option<String>) -> Result<String, TemplateError> {
+    pub fn create_category(
+        &mut self,
+        name: String,
+        description: String,
+        parent_id: Option<String>,
+    ) -> Result<String, TemplateError> {
         let category_id = format!("cat_{}", chrono::Utc::now().timestamp());
 
         let category = Category {
@@ -1458,6 +1486,12 @@ impl TemplateCategoryManager {
     }
 }
 
+impl Default for TemplateValidationEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TemplateValidationEngine {
     /// Create a new validation engine
     pub fn new() -> Self {
@@ -1471,9 +1505,14 @@ impl TemplateValidationEngine {
     }
 
     /// Validate a template using specified profile
-    pub fn validate_template(&mut self, template: &TemplateEntry, profile_name: &str) -> Result<ValidationResults, TemplateError> {
-        let profile = self.profiles.get(profile_name)
-            .ok_or_else(|| TemplateError::ValidationError(format!("Profile not found: {}", profile_name)))?;
+    pub fn validate_template(
+        &mut self,
+        template: &TemplateEntry,
+        profile_name: &str,
+    ) -> Result<ValidationResults, TemplateError> {
+        let profile = self.profiles.get(profile_name).ok_or_else(|| {
+            TemplateError::ValidationError(format!("Profile not found: {}", profile_name))
+        })?;
 
         let mut rule_results = HashMap::new();
         let mut total_issues = 0;
@@ -1497,8 +1536,8 @@ impl TemplateValidationEngine {
             rule_results,
             summary: ValidationSummary {
                 total_rules: profile.rules.len(),
-                rules_passed: 0, // Would be calculated
-                rules_failed: 0, // Would be calculated
+                rules_passed: 0,  // Would be calculated
+                rules_failed: 0,  // Would be calculated
                 rules_skipped: 0, // Would be calculated
                 total_issues,
                 issues_by_severity: HashMap::new(), // Would be calculated
@@ -1511,13 +1550,17 @@ impl TemplateValidationEngine {
     }
 
     /// Execute individual validation rule
-    fn execute_rule(&self, _rule: &ValidationRule, _template: &TemplateEntry) -> Result<RuleResult, TemplateError> {
+    fn execute_rule(
+        &self,
+        _rule: &ValidationRule,
+        _template: &TemplateEntry,
+    ) -> Result<RuleResult, TemplateError> {
         // Implementation would execute the specific rule
         Ok(RuleResult {
             rule_id: String::new(),
             status: RuleStatus::Passed,
             issues: Vec::new(),
-            execution_time: Duration::from_millis(10),
+            execution_time: Duration::milliseconds(10),
             applied_fixes: Vec::new(),
         })
     }
@@ -1547,9 +1590,21 @@ pub struct TemplatePerformanceAnalyzer {
     // Implementation details would go here
 }
 
+impl Default for TemplateCompilationSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TemplateCompilationSystem {
     pub fn new() -> Self {
         Self {}
+    }
+}
+
+impl Default for TemplateDependencyManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1559,9 +1614,21 @@ impl TemplateDependencyManager {
     }
 }
 
+impl Default for TemplateSecurityScanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TemplateSecurityScanner {
     pub fn new() -> Self {
         Self {}
+    }
+}
+
+impl Default for TemplatePerformanceAnalyzer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1573,6 +1640,12 @@ impl TemplatePerformanceAnalyzer {
 
 // Default implementations for supporting structures
 
+impl Default for CollaborationTracking {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CollaborationTracking {
     pub fn new() -> Self {
         Self {
@@ -1581,6 +1654,12 @@ impl CollaborationTracking {
             review_system: ReviewSystem::default(),
             notifications: NotificationSettings::default(),
         }
+    }
+}
+
+impl Default for CategoryTreeStructure {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1595,6 +1674,12 @@ impl CategoryTreeStructure {
     }
 }
 
+impl Default for CategoryStatistics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CategoryStatistics {
     pub fn new() -> Self {
         Self {
@@ -1604,6 +1689,12 @@ impl CategoryStatistics {
             recently_created: Vec::new(),
             usage_trends: HashMap::new(),
         }
+    }
+}
+
+impl Default for CategoryMetadata {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1638,7 +1729,7 @@ impl Default for RetentionPolicy {
     fn default() -> Self {
         Self {
             max_versions: Some(100),
-            retention_duration: Some(Duration::from_secs(86400 * 365)), // 1 year
+            retention_duration: Some(Duration::seconds(86400 * 365)), // 1 year
             keep_tagged: true,
             cleanup_strategy: CleanupStrategy::KeepLatest(50),
         }
@@ -1676,22 +1767,12 @@ impl Default for ConflictResolutionPreferences {
     }
 }
 
-impl Default for ReviewSystem {
-    fn default() -> Self {
-        Self {
-            pending_reviews: Vec::new(),
-            review_history: Vec::new(),
-            configuration: ReviewConfiguration::default(),
-        }
-    }
-}
-
 impl Default for ReviewConfiguration {
     fn default() -> Self {
         Self {
             required_reviewers: 1,
             auto_assign: false,
-            review_timeout: Duration::from_secs(86400 * 7), // 1 week
+            review_timeout: Duration::seconds(86400 * 7), // 1 week
             escalation_rules: Vec::new(),
         }
     }
@@ -1751,17 +1832,6 @@ impl Default for PermissionInheritance {
     }
 }
 
-impl Default for CategoryUsageStats {
-    fn default() -> Self {
-        Self {
-            template_count: 0,
-            view_count: 0,
-            last_accessed: None,
-            popular_templates: Vec::new(),
-        }
-    }
-}
-
 impl Default for TreeValidationRules {
     fn default() -> Self {
         Self {
@@ -1779,7 +1849,7 @@ impl Default for ValidationEngineConfiguration {
             default_profile: "standard".to_string(),
             parallel_execution: true,
             max_parallel_rules: 10,
-            global_timeout: Duration::from_secs(300),
+            global_timeout: Duration::seconds(300),
             result_caching: CachingConfiguration::default(),
         }
     }
@@ -1789,7 +1859,7 @@ impl Default for CachingConfiguration {
     fn default() -> Self {
         Self {
             enabled: true,
-            duration: Duration::from_secs(3600),
+            duration: Duration::seconds(3600),
             invalidation_triggers: Vec::new(),
             size_limit: 1000,
         }

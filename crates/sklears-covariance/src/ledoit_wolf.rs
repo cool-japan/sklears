@@ -221,6 +221,36 @@ impl LedoitWolf<Untrained> {
 }
 
 impl LedoitWolf<LedoitWolfTrained> {
+    /// Reconstruct a fitted estimator from previously computed parameters.
+    ///
+    /// Used by the serialization layer to rebuild a fitted model from its
+    /// stored state. The configuration is reconstructed with the provided
+    /// `block_size`; `store_precision` is set to `true` exactly when a precision
+    /// matrix is supplied and `assume_centered` is inferred from a zero location.
+    pub fn from_fitted(
+        covariance: Array2<f64>,
+        precision: Option<Array2<f64>>,
+        location: Array1<f64>,
+        shrinkage: f64,
+        block_size: usize,
+    ) -> Self {
+        let store_precision = precision.is_some();
+        let assume_centered = location.iter().all(|&value| value == 0.0);
+        Self {
+            state: LedoitWolfTrained {
+                covariance,
+                precision,
+                location,
+                shrinkage,
+            },
+            config: LedoitWolfConfig {
+                store_precision,
+                assume_centered,
+                block_size,
+            },
+        }
+    }
+
     /// Get the covariance matrix
     pub fn get_covariance(&self) -> &Array2<f64> {
         &self.state.covariance

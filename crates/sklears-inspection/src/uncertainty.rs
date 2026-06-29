@@ -187,13 +187,17 @@ pub fn quantify_uncertainty<M: UncertaintyEstimator>(
     let confidence_intervals =
         compute_confidence_intervals(&prediction_samples, config.confidence_level);
 
-    // Placeholder calibration metrics (would need true labels for proper calibration)
+    // Calibration metrics require ground-truth labels (to compare predicted confidence
+    // against observed accuracy), which this uncertainty estimator does not receive.
+    // They are therefore reported as "not computed" (zeros / empty diagrams) rather than
+    // fabricated values. Call `compute_calibration_metrics(predicted_probs, true_labels)`
+    // (used by the calibration routines) to obtain the real metrics when labels exist.
     let calibration_metrics = CalibrationMetrics {
         expected_calibration_error: 0.0,
         maximum_calibration_error: 0.0,
         brier_score: 0.0,
-        reliability_diagram: (Array1::zeros(10), Array1::zeros(10)),
-        calibration_curve: (Array1::zeros(10), Array1::zeros(10)),
+        reliability_diagram: (Array1::zeros(0), Array1::zeros(0)),
+        calibration_curve: (Array1::zeros(0), Array1::zeros(0)),
     };
 
     Ok(UncertaintyResult {

@@ -629,18 +629,39 @@ impl AutoMLOptimizer {
         Ok(PipelineConfiguration::default())
     }
 
-    /// Generate configuration using genetic algorithm
+    /// Generate configuration using genetic algorithm.
+    ///
+    /// A genuine genetic strategy requires a population of `PipelineConfiguration`
+    /// values together with crossover/mutation operators over the search space.
+    /// The current `PipelineConfiguration` type only carries execution settings
+    /// (parallelism, memory, caching) and does not expose the sampled
+    /// algorithm/hyperparameter genome needed to perform crossover. Until that
+    /// genome representation is added we refuse to silently fall back to random
+    /// sampling while claiming to be genetic.
     fn generate_genetic_config(&mut self) -> SklResult<PipelineConfiguration> {
-        // Simplified genetic algorithm implementation
-        // In practice, this would maintain a population and perform crossover/mutation
-        self.generate_random_config()
+        Err(SklearsError::NotImplemented(
+            "generate_genetic_config: genetic search requires a mutable hyperparameter \
+             genome on PipelineConfiguration and crossover/mutation operators that are \
+             not yet implemented"
+                .to_string(),
+        ))
     }
 
-    /// Generate configuration using Bayesian optimization
+    /// Generate configuration using Bayesian optimization.
+    ///
+    /// A genuine Bayesian strategy fits a surrogate model (e.g. a Gaussian
+    /// process) over observed (config, score) pairs and maximizes an acquisition
+    /// function such as expected improvement. This needs a featurizable
+    /// representation of `PipelineConfiguration` plus the observed trial history.
+    /// Neither is wired up yet, so we return an honest error rather than silently
+    /// delegating to random sampling.
     fn generate_bayesian_config(&mut self) -> SklResult<PipelineConfiguration> {
-        // Simplified Bayesian optimization
-        // In practice, this would use Gaussian processes or other surrogate models
-        self.generate_random_config()
+        Err(SklearsError::NotImplemented(
+            "generate_bayesian_config: Bayesian search requires a featurizable \
+             configuration encoding and a surrogate model over the trial history that \
+             are not yet implemented"
+                .to_string(),
+        ))
     }
 
     /// Evaluate a configuration
@@ -653,32 +674,30 @@ impl AutoMLOptimizer {
         _y_val: Option<&ArrayView1<Float>>,
         trial_id: usize,
     ) -> SklResult<TrialResult> {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
 
-        // Create pipeline from configuration
+        // Build the pipeline that this configuration describes. Building succeeds,
+        // but actually *fitting* the resulting pipeline on (x_train, y_train) and
+        // scoring it on the validation split is not yet wired into this evaluator:
+        // `FluentPipelineBuilder` does not expose a typed fit/score entrypoint that
+        // can be driven from a generic estimator-agnostic AutoML loop here.
+        //
+        // Previously this method fabricated a random score in [0.5, 1.0) and random
+        // per-fold cv_scores, which made every reported "best" configuration
+        // meaningless. We refuse to return invented metrics. Once the pipeline
+        // execution path is available, the implementation must:
+        //   1. Build the pipeline from `config_to_builder`.
+        //   2. Fit it on the training data (or run cv_folds-fold CV).
+        //   3. Compute the metric in `self.config.metric` on the validation data.
         let _pipeline_builder = self.config_to_builder(config.clone());
+        let _ = trial_id;
 
-        // For now, return a mock result
-        // In a real implementation, this would:
-        // 1. Build the pipeline
-        // 2. Perform cross-validation or train/validation split
-        // 3. Calculate the specified metric
-
-        let mock_score = self.rng.random_range(0.5..1.0);
-        let cv_scores = (0..self.config.cv_folds)
-            .map(|_| self.rng.random_range(0.4..1.0))
-            .collect();
-
-        Ok(TrialResult {
-            trial_id,
-            config: config.clone(),
-            score: mock_score,
-            training_time: start_time.elapsed(),
-            cv_scores,
-            timestamp: start_time,
-            status: TrialStatus::Success,
-            error: None,
-        })
+        Err(SklearsError::NotImplemented(
+            "evaluate_config: scoring a configuration requires fitting and evaluating \
+             the built pipeline, which is not yet implemented; returning fabricated \
+             scores is disallowed"
+                .to_string(),
+        ))
     }
 
     /// Convert configuration to `FluentPipelineBuilder`

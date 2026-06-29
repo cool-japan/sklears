@@ -236,7 +236,7 @@ impl PluginRegistry {
     }
 
     #[cfg(feature = "no-std")]
-    fn lock_stats(&self) -> spin::MutexGuard<'_, HashMap<String, ExecutionStats>> {
+    fn lock_stats(&self) -> spin::MutexGuard<'_, HashMap<String, ExecutionStats>, spin::Spin> {
         self.execution_stats.lock()
     }
 

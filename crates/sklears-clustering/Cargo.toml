@@ -21,6 +21,7 @@ sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
 scirs2-core = { workspace = true }
 scirs2-cluster = { workspace = true }
+scirs2-linalg = { workspace = true }
 
 # ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
 # ❌ scirs2-autograd - use scirs2_core::ndarray instead
@@ -35,13 +36,15 @@ memmap2 = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true, optional = true }
 num_cpus = { workspace = true }
-wgpu = { workspace = true, optional = true }
+oxicuda-backend    = { workspace = true, optional = true }
+oxicuda-blas       = { workspace = true, optional = true }
+oxicuda-primitives = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
 proptest = { workspace = true }
-sklears-metrics = { workspace = true }
+sklears-metrics = { path = "../sklears-metrics" }
 pollster = "0.4"
 # rand_distr usage replaced with scirs2-core random module per SciRS2 policy
 
@@ -50,4 +53,4 @@ default = ["std", "serde"]
 std = ["sklears-core/std"]
 parallel = ["rayon"]
 serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]
-gpu = ["wgpu", "bytemuck"]
+gpu = ["dep:oxicuda-backend", "dep:oxicuda-blas", "dep:oxicuda-primitives", "bytemuck", "sklears-core/gpu_support"]

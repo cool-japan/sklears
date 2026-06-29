@@ -609,7 +609,7 @@ impl Default for BatchRenderingConfig {
         Self {
             enabled: true,
             max_batch_size: 100,
-            batch_timeout: Duration::from_millis(100),
+            batch_timeout: Duration::milliseconds(100),
             priority_batching: false,
         }
     }
@@ -620,8 +620,8 @@ impl Default for ResourcePoolingConfig {
         Self {
             enabled: true,
             max_pool_size: 10,
-            resource_timeout: Duration::from_secs(60),
-            cleanup_interval: Duration::from_secs(300),
+            resource_timeout: Duration::seconds(60),
+            cleanup_interval: Duration::seconds(300),
         }
     }
 }
@@ -630,7 +630,7 @@ impl Default for PerformanceMonitoringConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            monitoring_interval: Duration::from_secs(30),
+            monitoring_interval: Duration::seconds(30),
             metrics_collection: true,
             performance_alerts: true,
         }

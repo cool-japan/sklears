@@ -23,6 +23,8 @@ pub mod advanced_manifold;
 
 // Re-export from the original manifold_learning.rs file content
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_linalg::compat::{eigh, svd, UPLO};
+use scirs2_linalg::LinalgError;
 use sklears_core::types::Float;
 
 // Re-export the advanced manifold learning components
@@ -131,7 +133,9 @@ impl ManifoldLearning {
         &self,
         data: ArrayView2<Float>,
     ) -> Result<ManifoldLearningResult, ManifoldError> {
-        // For now, delegate to the advanced manifold learning implementation
+        // The simple interface is a thin wrapper that maps the user-facing method
+        // selection onto the comprehensive `AdvancedManifoldLearning` engine, which
+        // performs the actual embedding computation in `advanced_manifold`.
         let advanced_method = match self.method {
             ManifoldMethod::LLE => AdvancedManifoldMethod::LocallyLinearEmbedding {
                 n_neighbors: self.n_neighbors,
@@ -169,16 +173,23 @@ impl ManifoldLearning {
                 epsilon: 1.0,
             },
             ManifoldMethod::KernelPCA => {
-                // For now, use LLE as a fallback
-                AdvancedManifoldMethod::LocallyLinearEmbedding {
-                    n_neighbors: self.n_neighbors,
-                    reg_parameter: 0.001,
-                    eigen_solver: EigenSolver::Standard,
-                }
+                // Kernel PCA is exposed in the simple `ManifoldMethod` enum but the
+                // advanced engine (`AdvancedManifoldMethod`) has no Kernel PCA backend.
+                // Silently substituting a different algorithm (e.g. LLE) would return
+                // an embedding that misrepresents what was requested, so we surface an
+                // honest error instead of fabricating a result.
+                return Err(ManifoldError::InvalidParameters(
+                    "Kernel PCA is not implemented for the manifold-learning interface; \
+                     no Kernel PCA backend exists in AdvancedManifoldLearning. Select \
+                     another method (LLE, Isomap, LaplacianEigenmaps, TSNE, UMAP, or \
+                     DiffusionMaps)."
+                        .to_string(),
+                ));
             }
         };
 
-        // Estimate intrinsic dimension (simplified)
+        // Use the requested embedding dimension (bounded by the data's feature
+        // count) as the intrinsic-dimension hint for the advanced engine.
         let intrinsic_dim = self.n_components.min(data.ncols());
 
         let advanced_manifold = AdvancedManifoldLearning::new(intrinsic_dim, self.n_components)
@@ -278,7 +289,8 @@ impl ManifoldAwareCCA {
         let cxx = self.compute_regularized_covariance(&x_centered)?;
         let cyy = self.compute_regularized_covariance(&y_centered)?;
 
-        // Solve generalized eigenvalue problem (simplified)
+        // Solve the CCA generalized eigenvalue problem on the embedding-space
+        // covariances via whitening + SVD of the cross-covariance.
         let (correlations, x_canonical, y_canonical) =
             self.solve_cca_eigenvalue_problem(&cxx, &cyy, &cxy, n_components)?;
 
@@ -333,31 +345,87 @@ impl ManifoldAwareCCA {
         &self,
         cxx: &Array2<Float>,
         cyy: &Array2<Float>,
-        _cxy: &Array2<Float>,
+        cxy: &Array2<Float>,
         n_components: usize,
     ) -> Result<(Array1<Float>, Array2<Float>, Array2<Float>), ManifoldError> {
-        // Simplified CCA eigenvalue solution
-        // In practice, this would use proper numerical linear algebra
-
+        // Canonical Correlation Analysis via the whitened cross-covariance.
+        //
+        // With Cxx, Cyy regularized (hence symmetric positive definite) and the
+        // cross-covariance Cxy, define the whitening transforms Cxx^(-1/2) and
+        // Cyy^(-1/2). The matrix
+        //     M = Cxx^(-1/2) * Cxy * Cyy^(-1/2)
+        // has singular values equal to the canonical correlations, and its left and
+        // right singular vectors map back to the canonical weight vectors:
+        //     Wx = Cxx^(-1/2) * U,    Wy = Cyy^(-1/2) * V.
         let n_x = cxx.nrows();
         let n_y = cyy.nrows();
 
-        // Create placeholder results
-        let correlations = Array1::from_iter((0..n_components).map(|i| 1.0 - i as Float * 0.1));
-        let mut x_canonical = Array2::zeros((n_x, n_components));
-        let mut y_canonical = Array2::zeros((n_y, n_components));
-
-        // Initialize with identity-like patterns
-        for i in 0..n_components {
-            if i < n_x {
-                x_canonical[[i, i]] = 1.0;
-            }
-            if i < n_y {
-                y_canonical[[i, i]] = 1.0;
-            }
+        // Validate that the cross-covariance is consistent with the two
+        // auto-covariance blocks before attempting the decomposition.
+        if cxy.nrows() != n_x || cxy.ncols() != n_y {
+            return Err(ManifoldError::DimensionMismatch(format!(
+                "cross-covariance shape {:?} is incompatible with Cxx ({}x{}) and Cyy ({}x{})",
+                cxy.dim(),
+                n_x,
+                n_x,
+                n_y,
+                n_y
+            )));
         }
 
+        let cxx_inv_sqrt = Self::symmetric_inverse_sqrt(cxx)?;
+        let cyy_inv_sqrt = Self::symmetric_inverse_sqrt(cyy)?;
+
+        // M = Cxx^(-1/2) * Cxy * Cyy^(-1/2)  (shape n_x x n_y)
+        let m = cxx_inv_sqrt.dot(cxy).dot(&cyy_inv_sqrt);
+
+        // SVD: M = U * diag(s) * Vt. Singular values are the canonical correlations.
+        let (u, s, vt) = svd(&m, false)
+            .map_err(|e: LinalgError| ManifoldError::NumericalInstability(e.to_string()))?;
+
+        let max_rank = s.len().min(u.ncols()).min(vt.nrows());
+        let k = n_components.min(max_rank);
+
+        // Canonical correlations are singular values clamped to the valid [0, 1] range.
+        let correlations = Array1::from_iter(s.iter().take(k).map(|&sv| sv.clamp(0.0, 1.0)));
+
+        // Wx = Cxx^(-1/2) * U[:, :k]  (n_x x k)
+        let u_k = u.slice(scirs2_core::ndarray::s![.., ..k]).to_owned();
+        let x_canonical = cxx_inv_sqrt.dot(&u_k);
+
+        // Wy = Cyy^(-1/2) * V[:, :k]. SVD returns Vt, so V[:, :k] = Vt[:k, :]^T.
+        let v_k = vt.slice(scirs2_core::ndarray::s![..k, ..]).t().to_owned();
+        let y_canonical = cyy_inv_sqrt.dot(&v_k);
+
         Ok((correlations, x_canonical, y_canonical))
+    }
+
+    /// Compute the symmetric inverse square root of a symmetric positive
+    /// (semi-)definite matrix via its eigendecomposition: for `A = U Λ Uᵀ`,
+    /// returns `U Λ^(-1/2) Uᵀ`. Eigenvalues below a small floor are clamped to
+    /// avoid division by (near-)zero, keeping the result finite for the
+    /// regularized covariance matrices used in CCA.
+    fn symmetric_inverse_sqrt(matrix: &Array2<Float>) -> Result<Array2<Float>, ManifoldError> {
+        let (eigenvalues, eigenvectors) = eigh(matrix, UPLO::Upper)
+            .map_err(|e: LinalgError| ManifoldError::NumericalInstability(e.to_string()))?;
+
+        let floor = 1e-12;
+        let inv_sqrt_values: Array1<Float> = eigenvalues
+            .iter()
+            .map(|&lambda| {
+                let safe = if lambda > floor { lambda } else { floor };
+                1.0 / safe.sqrt()
+            })
+            .collect();
+
+        // Reconstruct U * diag(inv_sqrt_values) * Uᵀ.
+        let mut scaled = Array2::zeros(eigenvectors.raw_dim());
+        for ((i, j), value) in scaled.indexed_iter_mut() {
+            *value = eigenvectors[[i, j]] * inv_sqrt_values[j];
+        }
+        let result = scaled.dot(&eigenvectors.t());
+
+        Ok(result)
     }
 }
 
@@ -367,24 +435,31 @@ impl FittedManifoldAwareCCA {
         &self.canonical_correlations
     }
 
-    /// Transform new data using the fitted model
+    /// Transform new (out-of-sample) data using the fitted model.
+    ///
+    /// # Errors
+    ///
+    /// Projecting unseen samples requires an out-of-sample extension of the
+    /// underlying manifold embedding (e.g. a Nyström extension or a learned
+    /// parametric mapping). The fitted model only retains the training
+    /// embeddings and the canonical vectors in embedding space; it does not
+    /// store the original training data or a parametric forward map, so new
+    /// samples cannot be embedded. Rather than return fabricated zero matrices,
+    /// this method reports an honest error. Use [`Self::manifold_embeddings`] to
+    /// retrieve the embeddings computed for the training data.
     pub fn transform(
         &self,
         x: ArrayView2<Float>,
         y: ArrayView2<Float>,
     ) -> Result<(Array2<Float>, Array2<Float>), ManifoldError> {
-        // This would involve projecting new data into the manifold embeddings
-        // and then applying the canonical transformations
-        // For now, return placeholder results
-
-        let n_samples_x = x.nrows();
-        let n_samples_y = y.nrows();
-        let n_components = self.canonical_correlations.len();
-
-        let x_transformed = Array2::zeros((n_samples_x, n_components));
-        let y_transformed = Array2::zeros((n_samples_y, n_components));
-
-        Ok((x_transformed, y_transformed))
+        let _ = (x, y);
+        Err(ManifoldError::InvalidParameters(
+            "Out-of-sample transform is not supported by ManifoldAwareCCA: the fitted \
+             model does not retain the training data or a parametric mapping required \
+             to embed new samples into the manifold. Re-fit including the new samples, \
+             or use manifold_embeddings() to access the training-set embeddings."
+                .to_string(),
+        ))
     }
 
     /// Get manifold embeddings
@@ -504,7 +579,10 @@ mod tests {
     }
 
     #[test]
-    fn test_manifold_aware_cca_transform() {
+    fn test_manifold_aware_cca_transform_returns_honest_error() {
+        // Out-of-sample transform cannot be performed with only the stored
+        // embeddings and canonical vectors, so the method must return an honest
+        // error rather than fabricated zero matrices.
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         let y = array![[2.0, 3.0], [4.0, 5.0], [6.0, 7.0]];
@@ -516,11 +594,111 @@ mod tests {
         let new_y = array![[8.0, 9.0], [10.0, 11.0]];
 
         let result = fitted.transform(new_x.view(), new_y.view());
-        assert!(result.is_ok());
+        assert!(result.is_err());
+        match result {
+            Err(ManifoldError::InvalidParameters(msg)) => {
+                assert!(msg.contains("Out-of-sample transform is not supported"));
+            }
+            other => panic!(
+                "expected an honest InvalidParameters error, got {:?}",
+                other
+            ),
+        }
+    }
 
-        let (x_transformed, y_transformed) = result.expect("operation should succeed");
-        assert_eq!(x_transformed.nrows(), 2);
-        assert_eq!(y_transformed.nrows(), 2);
+    #[test]
+    fn test_kernel_pca_returns_honest_error() {
+        // Kernel PCA has no backend in AdvancedManifoldLearning; selecting it must
+        // produce an honest error instead of silently running a different method.
+        let data = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
+
+        let manifold = ManifoldLearning::new(ManifoldMethod::KernelPCA, 2);
+        let result = manifold.fit_transform(data.view());
+
+        assert!(result.is_err());
+        match result {
+            Err(ManifoldError::InvalidParameters(msg)) => {
+                assert!(msg.contains("Kernel PCA is not implemented"));
+            }
+            other => panic!(
+                "expected an honest InvalidParameters error, got {:?}",
+                other
+            ),
+        }
+    }
+
+    #[test]
+    fn test_solve_cca_eigenvalue_problem_real_correlation() {
+        // A real CCA solve must recover a meaningful canonical correlation from
+        // correlated data, NOT the previously fabricated constant 1.0 - i*0.1.
+        // Construct data where X and Y share a single strong latent direction.
+        let cca = ManifoldAwareCCA::new(1).regularization(1e-6);
+
+        // X = [latent, noise], Y = [latent (sign-flipped + scaled), noise]
+        // The first canonical correlation should be close to 1.
+        let x = array![
+            [1.0, 0.2],
+            [2.0, -0.1],
+            [3.0, 0.05],
+            [4.0, 0.3],
+            [5.0, -0.2],
+            [6.0, 0.1],
+        ];
+        let y = array![
+            [-2.0, 0.1],
+            [-4.0, 0.4],
+            [-6.0, -0.2],
+            [-8.0, 0.15],
+            [-10.0, -0.05],
+            [-12.0, 0.25],
+        ];
+
+        let x_centered = cca.center_data(&x).expect("center x");
+        let y_centered = cca.center_data(&y).expect("center y");
+
+        let n_samples = x_centered.nrows();
+        let n_x = x_centered.ncols();
+        let n_y = y_centered.ncols();
+        let mut cxy = Array2::zeros((n_x, n_y));
+        for i in 0..n_x {
+            for j in 0..n_y {
+                let mut cov = 0.0;
+                for k in 0..n_samples {
+                    cov += x_centered[[k, i]] * y_centered[[k, j]];
+                }
+                cxy[[i, j]] = cov / (n_samples - 1) as Float;
+            }
+        }
+        let cxx = cca
+            .compute_regularized_covariance(&x_centered)
+            .expect("cxx");
+        let cyy = cca
+            .compute_regularized_covariance(&y_centered)
+            .expect("cyy");
+
+        let (correlations, x_canonical, y_canonical) = cca
+            .solve_cca_eigenvalue_problem(&cxx, &cyy, &cxy, 1)
+            .expect("cca solve should succeed");
+
+        assert_eq!(correlations.len(), 1);
+        // Correlation must be a valid value in [0, 1] ...
+        assert!((0.0..=1.0 + 1e-9).contains(&correlations[0]));
+        // ... and, because X and Y share a near-perfect linear relationship, it
+        // must be high. This would be impossible with fabricated identity output.
+        assert!(
+            correlations[0] > 0.9,
+            "expected strong canonical correlation, got {}",
+            correlations[0]
+        );
+
+        // Canonical weight matrices must have the right shapes and contain finite,
+        // non-degenerate values (not the old identity pattern).
+        assert_eq!(x_canonical.dim(), (n_x, 1));
+        assert_eq!(y_canonical.dim(), (n_y, 1));
+        assert!(x_canonical.iter().all(|v| v.is_finite()));
+        assert!(y_canonical.iter().all(|v| v.is_finite()));
+        assert!(x_canonical.iter().any(|&v| v.abs() > 1e-8));
+        assert!(y_canonical.iter().any(|&v| v.abs() > 1e-8));
     }
 
     #[test]

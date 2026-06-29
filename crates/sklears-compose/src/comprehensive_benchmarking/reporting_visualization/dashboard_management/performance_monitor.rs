@@ -1,6 +1,6 @@
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
 
 /// Dashboard performance monitoring system
 /// Tracks metrics, manages alerts, and optimizes dashboard performance
@@ -95,7 +95,7 @@ pub struct InteractionMetrics {
 }
 
 /// Navigation interaction metrics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NavigationMetrics {
     /// Page views
     pub page_views: usize,
@@ -110,7 +110,7 @@ pub struct NavigationMetrics {
 }
 
 /// Input interaction metrics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct InputMetrics {
     /// Form submissions
     pub form_submissions: usize,
@@ -125,7 +125,7 @@ pub struct InputMetrics {
 }
 
 /// Gesture interaction metrics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GestureMetrics {
     /// Swipe gestures
     pub swipe_count: usize,
@@ -340,7 +340,7 @@ pub enum AlertAction {
 }
 
 /// Performance alert notification settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AlertNotificationSettings {
     /// Email notifications
     pub email: EmailNotificationConfig,
@@ -736,33 +736,46 @@ impl DashboardPerformanceMonitor {
 
     /// Check if any alert thresholds are exceeded
     pub fn check_alert_thresholds(&mut self) {
-        let thresholds = &self.alerts.thresholds;
+        let load_time_threshold = self.alerts.thresholds.load_time_threshold;
+        let memory_threshold = self.alerts.thresholds.memory_threshold;
+        let error_rate_threshold = self.alerts.thresholds.error_rate_threshold;
+
+        let load_time = self.metrics.load_time;
+        let memory_usage = self.metrics.memory_usage;
+        let error_rate = self.metrics.error_metrics.error_rate;
 
         // Check load time threshold
-        if self.metrics.load_time > thresholds.load_time_threshold {
-            self.trigger_alert(AlertType::LoadTime, format!(
-                "Load time {} exceeds threshold {}",
-                format_duration(self.metrics.load_time),
-                format_duration(thresholds.load_time_threshold)
-            ));
+        if load_time > load_time_threshold {
+            self.trigger_alert(
+                AlertType::LoadTime,
+                format!(
+                    "Load time {} exceeds threshold {}",
+                    format_duration(load_time),
+                    format_duration(load_time_threshold)
+                ),
+            );
         }
 
         // Check memory threshold
-        if self.metrics.memory_usage > thresholds.memory_threshold {
-            self.trigger_alert(AlertType::Memory, format!(
-                "Memory usage {} bytes exceeds threshold {} bytes",
-                self.metrics.memory_usage,
-                thresholds.memory_threshold
-            ));
+        if memory_usage > memory_threshold {
+            self.trigger_alert(
+                AlertType::Memory,
+                format!(
+                    "Memory usage {} bytes exceeds threshold {} bytes",
+                    memory_usage, memory_threshold
+                ),
+            );
         }
 
         // Check error rate threshold
-        if self.metrics.error_metrics.error_rate > thresholds.error_rate_threshold {
-            self.trigger_alert(AlertType::ErrorRate, format!(
-                "Error rate {}% exceeds threshold {}%",
-                self.metrics.error_metrics.error_rate,
-                thresholds.error_rate_threshold
-            ));
+        if error_rate > error_rate_threshold {
+            self.trigger_alert(
+                AlertType::ErrorRate,
+                format!(
+                    "Error rate {}% exceeds threshold {}%",
+                    error_rate, error_rate_threshold
+                ),
+            );
         }
     }
 
@@ -792,30 +805,30 @@ impl DashboardPerformanceMonitor {
         match action {
             AlertAction::Log => {
                 eprintln!("PERFORMANCE ALERT: {}", alert.message);
-            },
+            }
             AlertAction::Notify => {
                 self.send_notifications(alert);
-            },
+            }
             AlertAction::Optimize => {
                 // Trigger automatic optimization
                 self.trigger_optimization();
-            },
+            }
             AlertAction::Scale => {
                 // Trigger resource scaling
                 eprintln!("Scaling resources due to alert: {}", alert.message);
-            },
+            }
             AlertAction::Restart => {
                 // Trigger component restart
                 eprintln!("Restarting component due to alert: {}", alert.message);
-            },
+            }
             AlertAction::Failover => {
                 // Trigger failover to backup
                 eprintln!("Failing over to backup due to alert: {}", alert.message);
-            },
+            }
             AlertAction::Custom(script) => {
                 // Execute custom action script
                 eprintln!("Executing custom action: {}", script);
-            },
+            }
         }
     }
 
@@ -841,25 +854,29 @@ impl DashboardPerformanceMonitor {
     }
 
     /// Send email notification
-    fn send_email_notification(&self, config: &EmailNotificationConfig, alert: &PerformanceAlert) {
+    fn send_email_notification(&self, _config: &EmailNotificationConfig, alert: &PerformanceAlert) {
         // Email sending implementation would go here
         eprintln!("Sending email notification for alert: {}", alert.alert_id);
     }
 
     /// Send SMS notification
-    fn send_sms_notification(&self, config: &SmsNotificationConfig, alert: &PerformanceAlert) {
+    fn send_sms_notification(&self, _config: &SmsNotificationConfig, alert: &PerformanceAlert) {
         // SMS sending implementation would go here
         eprintln!("Sending SMS notification for alert: {}", alert.alert_id);
     }
 
     /// Send webhook notification
-    fn send_webhook_notification(&self, config: &WebhookNotificationConfig, alert: &PerformanceAlert) {
+    fn send_webhook_notification(
+        &self,
+        _config: &WebhookNotificationConfig,
+        alert: &PerformanceAlert,
+    ) {
         // Webhook sending implementation would go here
         eprintln!("Sending webhook notification for alert: {}", alert.alert_id);
     }
 
     /// Send Slack notification
-    fn send_slack_notification(&self, config: &SlackNotificationConfig, alert: &PerformanceAlert) {
+    fn send_slack_notification(&self, _config: &SlackNotificationConfig, alert: &PerformanceAlert) {
         // Slack notification implementation would go here
         eprintln!("Sending Slack notification for alert: {}", alert.alert_id);
     }
@@ -868,23 +885,25 @@ impl DashboardPerformanceMonitor {
     fn determine_alert_severity(&self, alert_type: &AlertType) -> AlertSeverity {
         match alert_type {
             AlertType::LoadTime => {
-                if self.metrics.load_time > Duration::from_secs(10) {
+                if self.metrics.load_time > Duration::seconds(10) {
                     AlertSeverity::Critical
-                } else if self.metrics.load_time > Duration::from_secs(5) {
+                } else if self.metrics.load_time > Duration::seconds(5) {
                     AlertSeverity::High
                 } else {
                     AlertSeverity::Medium
                 }
-            },
+            }
             AlertType::Memory => {
-                if self.metrics.memory_usage > 1_000_000_000 { // 1GB
+                if self.metrics.memory_usage > 1_000_000_000 {
+                    // 1GB
                     AlertSeverity::Critical
-                } else if self.metrics.memory_usage > 500_000_000 { // 500MB
+                } else if self.metrics.memory_usage > 500_000_000 {
+                    // 500MB
                     AlertSeverity::High
                 } else {
                     AlertSeverity::Medium
                 }
-            },
+            }
             AlertType::ErrorRate => {
                 if self.metrics.error_metrics.error_rate > 10.0 {
                     AlertSeverity::Critical
@@ -893,7 +912,7 @@ impl DashboardPerformanceMonitor {
                 } else {
                     AlertSeverity::Medium
                 }
-            },
+            }
             _ => AlertSeverity::Medium,
         }
     }
@@ -921,9 +940,21 @@ impl DashboardPerformanceMonitor {
     /// Calculate overall health score
     fn calculate_overall_health(&self) -> f64 {
         // Simplified health calculation
-        let load_time_score = if self.metrics.load_time < Duration::from_secs(2) { 1.0 } else { 0.5 };
-        let memory_score = if self.metrics.memory_usage < 100_000_000 { 1.0 } else { 0.5 };
-        let error_score = if self.metrics.error_metrics.error_rate < 1.0 { 1.0 } else { 0.0 };
+        let load_time_score = if self.metrics.load_time < Duration::seconds(2) {
+            1.0
+        } else {
+            0.5
+        };
+        let memory_score = if self.metrics.memory_usage < 100_000_000 {
+            1.0
+        } else {
+            0.5
+        };
+        let error_score = if self.metrics.error_metrics.error_rate < 1.0 {
+            1.0
+        } else {
+            0.0
+        };
 
         (load_time_score + memory_score + error_score) / 3.0
     }
@@ -965,10 +996,10 @@ pub struct PerformanceSummary {
 
 /// Helper function to format duration
 fn format_duration(duration: Duration) -> String {
-    if duration < Duration::from_millis(1000) {
-        format!("{}ms", duration.as_millis())
+    if duration < Duration::milliseconds(1000) {
+        format!("{}ms", duration.num_milliseconds())
     } else {
-        format!("{:.2}s", duration.as_secs_f64())
+        format!("{:.2}s", duration.num_seconds() as f64)
     }
 }
 
@@ -983,8 +1014,8 @@ impl Default for DashboardPerformanceMonitor {
 impl Default for DashboardMetrics {
     fn default() -> Self {
         Self {
-            load_time: Duration::from_millis(0),
-            render_time: Duration::from_millis(0),
+            load_time: Duration::milliseconds(0),
+            render_time: Duration::milliseconds(0),
             memory_usage: 0,
             network_usage: NetworkMetrics::default(),
             interaction_metrics: InteractionMetrics::default(),
@@ -1002,7 +1033,7 @@ impl Default for NetworkMetrics {
             bytes_sent: 0,
             bytes_received: 0,
             request_count: 0,
-            connection_time: Duration::from_millis(0),
+            connection_time: Duration::milliseconds(0),
             latency_stats: LatencyStats::default(),
             bandwidth_utilization: 0.0,
             error_count: 0,
@@ -1014,11 +1045,11 @@ impl Default for NetworkMetrics {
 impl Default for LatencyStats {
     fn default() -> Self {
         Self {
-            min_latency: Duration::from_millis(0),
-            max_latency: Duration::from_millis(0),
-            avg_latency: Duration::from_millis(0),
-            p95_latency: Duration::from_millis(0),
-            p99_latency: Duration::from_millis(0),
+            min_latency: Duration::milliseconds(0),
+            max_latency: Duration::milliseconds(0),
+            avg_latency: Duration::milliseconds(0),
+            p95_latency: Duration::milliseconds(0),
+            p99_latency: Duration::milliseconds(0),
         }
     }
 }
@@ -1029,7 +1060,7 @@ impl Default for InteractionMetrics {
             click_count: 0,
             hover_count: 0,
             scroll_events: 0,
-            session_duration: Duration::from_millis(0),
+            session_duration: Duration::milliseconds(0),
             navigation_metrics: NavigationMetrics::default(),
             input_metrics: InputMetrics::default(),
             gesture_metrics: GestureMetrics::default(),
@@ -1037,46 +1068,10 @@ impl Default for InteractionMetrics {
     }
 }
 
-impl Default for NavigationMetrics {
-    fn default() -> Self {
-        Self {
-            page_views: 0,
-            dashboard_switches: 0,
-            widget_focus_changes: 0,
-            navigation_actions: 0,
-            search_queries: 0,
-        }
-    }
-}
-
-impl Default for InputMetrics {
-    fn default() -> Self {
-        Self {
-            form_submissions: 0,
-            filter_applications: 0,
-            config_changes: 0,
-            data_exports: 0,
-            keyboard_shortcuts: 0,
-        }
-    }
-}
-
-impl Default for GestureMetrics {
-    fn default() -> Self {
-        Self {
-            swipe_count: 0,
-            pinch_count: 0,
-            long_press_count: 0,
-            multi_touch_count: 0,
-            custom_gestures: HashMap::new(),
-        }
-    }
-}
-
 impl Default for DatabaseMetrics {
     fn default() -> Self {
         Self {
-            query_time: Duration::from_millis(0),
+            query_time: Duration::milliseconds(0),
             connection_pool: ConnectionPoolStats::default(),
             query_stats: QueryStats::default(),
             transaction_metrics: TransactionMetrics::default(),
@@ -1090,7 +1085,7 @@ impl Default for ConnectionPoolStats {
             active_connections: 0,
             idle_connections: 0,
             max_connections: 10,
-            connection_wait_time: Duration::from_millis(0),
+            connection_wait_time: Duration::milliseconds(0),
             connection_timeouts: 0,
         }
     }
@@ -1102,7 +1097,7 @@ impl Default for QueryStats {
             total_queries: 0,
             successful_queries: 0,
             failed_queries: 0,
-            avg_query_time: Duration::from_millis(0),
+            avg_query_time: Duration::milliseconds(0),
             slow_queries: 0,
             cache_hits: 0,
         }
@@ -1115,7 +1110,7 @@ impl Default for TransactionMetrics {
             total_transactions: 0,
             committed_transactions: 0,
             rolled_back_transactions: 0,
-            avg_transaction_time: Duration::from_millis(0),
+            avg_transaction_time: Duration::milliseconds(0),
             deadlock_count: 0,
         }
     }
@@ -1129,7 +1124,7 @@ impl Default for CacheMetrics {
             cache_size: 0,
             cache_entries: 0,
             eviction_count: 0,
-            operation_latency: Duration::from_millis(0),
+            operation_latency: Duration::milliseconds(0),
         }
     }
 }
@@ -1161,25 +1156,14 @@ impl Default for PerformanceAlerts {
 impl Default for AlertThresholds {
     fn default() -> Self {
         Self {
-            load_time_threshold: Duration::from_secs(5),
+            load_time_threshold: Duration::seconds(5),
             memory_threshold: 500_000_000, // 500MB
-            error_rate_threshold: 5.0, // 5%
-            latency_threshold: Duration::from_millis(1000),
+            error_rate_threshold: 5.0,     // 5%
+            latency_threshold: Duration::milliseconds(1000),
             cpu_threshold: 80.0, // 80%
-            db_query_threshold: Duration::from_millis(500),
+            db_query_threshold: Duration::milliseconds(500),
             cache_miss_threshold: 20.0, // 20%
-            widget_render_threshold: Duration::from_millis(100),
-        }
-    }
-}
-
-impl Default for AlertNotificationSettings {
-    fn default() -> Self {
-        Self {
-            email: EmailNotificationConfig::default(),
-            sms: SmsNotificationConfig::default(),
-            webhook: WebhookNotificationConfig::default(),
-            slack: SlackNotificationConfig::default(),
+            widget_render_threshold: Duration::milliseconds(100),
         }
     }
 }
@@ -1191,7 +1175,7 @@ impl Default for EmailNotificationConfig {
             recipients: Vec::new(),
             subject_template: "Performance Alert: {{alert_type}}".to_string(),
             body_template: "Alert: {{message}} at {{timestamp}}".to_string(),
-            frequency_limit: Duration::from_secs(300), // 5 minutes
+            frequency_limit: Duration::seconds(300), // 5 minutes
         }
     }
 }
@@ -1214,7 +1198,8 @@ impl Default for WebhookNotificationConfig {
             url: String::new(),
             method: "POST".to_string(),
             headers: HashMap::new(),
-            payload_template: r#"{"alert": "{{message}}", "timestamp": "{{timestamp}}"}"#.to_string(),
+            payload_template: r#"{"alert": "{{message}}", "timestamp": "{{timestamp}}"}"#
+                .to_string(),
             auth: None,
         }
     }
@@ -1252,8 +1237,8 @@ impl Default for OptimizationSchedule {
     fn default() -> Self {
         Self {
             enabled: false,
-            frequency: Duration::from_secs(3600), // 1 hour
-            time: "0 2 * * *".to_string(), // 2 AM daily
+            frequency: Duration::seconds(3600), // 1 hour
+            time: "0 2 * * *".to_string(),      // 2 AM daily
             conditions: Vec::new(),
             maintenance_windows: Vec::new(),
         }
@@ -1263,10 +1248,10 @@ impl Default for OptimizationSchedule {
 impl Default for OptimizationTargets {
     fn default() -> Self {
         Self {
-            target_load_time: Duration::from_secs(2),
+            target_load_time: Duration::seconds(2),
             target_memory_usage: 100_000_000, // 100MB
-            target_error_rate: 1.0, // 1%
-            target_response_time: Duration::from_millis(200),
+            target_error_rate: 1.0,           // 1%
+            target_response_time: Duration::milliseconds(200),
             target_throughput: 1000.0, // requests per second
             custom_targets: HashMap::new(),
         }
@@ -1277,7 +1262,7 @@ impl Default for RealTimeMonitoring {
     fn default() -> Self {
         Self {
             enabled: true,
-            interval: Duration::from_secs(30),
+            interval: Duration::seconds(30),
             endpoints: Vec::new(),
             health_checks: Vec::new(),
             dashboard: MonitoringDashboard::default(),
@@ -1291,7 +1276,7 @@ impl Default for MonitoringDashboard {
             enabled: false,
             port: 9090,
             auth_required: true,
-            metrics_retention: Duration::from_secs(7 * 24 * 3600), // 7 days
+            metrics_retention: Duration::seconds(7 * 24 * 3600), // 7 days
             export_config: MetricsExportConfig::default(),
         }
     }
@@ -1303,7 +1288,7 @@ impl Default for MetricsExportConfig {
             enabled: false,
             format: MetricsFormat::Prometheus,
             endpoint: "/metrics".to_string(),
-            interval: Duration::from_secs(60),
+            interval: Duration::seconds(60),
         }
     }
 }

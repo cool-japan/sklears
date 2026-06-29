@@ -247,19 +247,18 @@ proptest! {
         prop_assert!((chunked_mse - standard_mse).abs() < 1e-12);
     }
 
-    // TODO: Migrate to scirs2-sparse (uses sprs types)
-    // // Test sparse confusion matrix consistency
-    // #[test]
-    // fn test_sparse_confusion_matrix_consistency((y_true, y_pred) in binary_classification_data()) {
-    //     let mut sparse_matrix = SparseConfusionMatrix::new();
-    //     sparse_matrix.update(&y_true, &y_pred).expect("operation should succeed");
+    // Test sparse confusion matrix consistency
+    #[test]
+    fn test_sparse_confusion_matrix_consistency((y_true, y_pred) in binary_classification_data()) {
+        let mut sparse_matrix = SparseConfusionMatrix::new();
+        sparse_matrix.update(&y_true, &y_pred).expect("operation should succeed");
 
-    //     let sparse_accuracy = sparse_matrix.accuracy();
-    //     let standard_accuracy = accuracy_score(&y_true, &y_pred).expect("operation should succeed");
+        let sparse_accuracy = sparse_matrix.accuracy();
+        let standard_accuracy = accuracy_score(&y_true, &y_pred).expect("operation should succeed");
 
-    //     prop_assert!((sparse_accuracy - standard_accuracy).abs() < 1e-12);
-    //     prop_assert_eq!(sparse_matrix.n_samples(), y_true.len());
-    // }
+        prop_assert!((sparse_accuracy - standard_accuracy).abs() < 1e-12);
+        prop_assert_eq!(sparse_matrix.n_samples(), y_true.len());
+    }
 }
 
 #[allow(non_snake_case)]
@@ -619,28 +618,29 @@ mod stress_tests {
         assert_eq!(incremental.n_samples(), size);
     }
 
-    // TODO: Migrate to scirs2-sparse (uses sprs types)
-    // #[test]
-    // fn test_sparse_matrix_large_dataset() {
-    //     let size = 100_000;
-    //     let mut sparse_matrix = SparseConfusionMatrix::new();
+    #[test]
+    fn test_sparse_matrix_large_dataset() {
+        let size = 100_000;
+        let mut sparse_matrix = SparseConfusionMatrix::new();
 
-    //     // Create binary classification data
-    //     let y_true: Array1<i32> = Array1::from_iter((0..size).map(|i| (i % 2) as i32));
-    //     let y_pred: Array1<i32> = Array1::from_iter((0..size).map(|i| {
-    //         if i % 10 == 0 {
-    //             1 - (i % 2) as i32
-    //         } else {
-    //             (i % 2) as i32
-    //         }
-    //     }));
+        // Create binary classification data
+        let y_true: Array1<i32> = Array1::from_iter((0..size).map(|i| (i % 2) as i32));
+        let y_pred: Array1<i32> = Array1::from_iter((0..size).map(|i| {
+            if i % 10 == 0 {
+                1 - (i % 2) as i32
+            } else {
+                (i % 2) as i32
+            }
+        }));
 
-    //     sparse_matrix.update(&y_true, &y_pred).expect("operation should succeed");
+        sparse_matrix
+            .update(&y_true, &y_pred)
+            .expect("operation should succeed");
 
-    //     let accuracy = sparse_matrix.accuracy();
-    //     assert!(accuracy > 0.8); // Should be around 0.9 (90% correct)
-    //     assert_eq!(sparse_matrix.n_samples(), size);
-    // }
+        let accuracy = sparse_matrix.accuracy();
+        assert!(accuracy > 0.8); // Should be around 0.9 (90% correct)
+        assert_eq!(sparse_matrix.n_samples(), size);
+    }
 
     #[test]
     fn test_chunked_processing_large_dataset() {

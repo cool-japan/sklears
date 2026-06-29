@@ -167,9 +167,39 @@ impl GradientBasedCalibrator {
                 CalibrationConstraint::L2Regularization { strength } => {
                     penalty += strength * self.parameters.iter().map(|&p| p * p).sum::<Float>();
                 }
-                CalibrationConstraint::Custom { penalty_weight, .. } => {
-                    // Placeholder for custom constraints
-                    penalty += penalty_weight * 0.1; // Dummy penalty
+                CalibrationConstraint::Custom {
+                    name,
+                    penalty_weight,
+                } => {
+                    // Compute a real, data-driven penalty rather than a fixed
+                    // dummy value. We support the named "smoothness" constraint
+                    // explicitly; every other custom name falls back to the same
+                    // roughness measure so the penalty always reflects the actual
+                    // shape of the current calibration map.
+                    //
+                    // Roughness is the mean squared second difference of the
+                    // calibrated predictions ordered by their raw input: a smooth
+                    // (low-curvature) map yields a small penalty, a jagged map a
+                    // large one.
+                    let _ = name;
+                    let mut sorted: Vec<(Float, Float)> = probabilities
+                        .iter()
+                        .map(|&p| (p, self.sigmoid(p)))
+                        .collect();
+                    sorted.sort_by(|a, b| a.0.total_cmp(&b.0));
+
+                    let mut roughness = 0.0;
+                    let mut count = 0usize;
+                    for window in sorted.windows(3) {
+                        // Discrete second difference f(x-1) - 2 f(x) + f(x+1).
+                        let second_diff = window[0].1 - 2.0 * window[1].1 + window[2].1;
+                        roughness += second_diff * second_diff;
+                        count += 1;
+                    }
+                    if count > 0 {
+                        roughness /= count as Float;
+                    }
+                    penalty += penalty_weight * roughness;
                 }
             }
         }
@@ -376,10 +406,14 @@ pub struct MultiObjectiveCalibrator {
     config: OptimizationConfig,
     /// Individual calibrators for each objective
     objective_calibrators: HashMap<String, Box<dyn CalibrationEstimator>>,
-    /// Pareto frontier solutions
-    pareto_solutions: Vec<(Array1<Float>, HashMap<String, Float>)>,
-    /// Selected solution from Pareto frontier
-    selected_solution: Option<Array1<Float>>,
+    /// Pareto frontier solutions.
+    ///
+    /// Each entry stores the *fitted* calibrator that produced the solution
+    /// (so it can transform unseen inputs at predict time) together with its
+    /// objective values on the training data.
+    pareto_solutions: Vec<(GradientBasedCalibrator, HashMap<String, Float>)>,
+    /// Selected fitted calibrator from the Pareto frontier.
+    selected_solution: Option<GradientBasedCalibrator>,
     /// Whether the calibrator is fitted
     is_fitted: bool,
 }
@@ -542,7 +576,9 @@ impl MultiObjectiveCalibrator {
             let calibrated_probs = calibrator.predict_proba(probabilities)?;
             let objectives = self.evaluate_objectives(&calibrated_probs, targets)?;
 
-            self.pareto_solutions.push((calibrated_probs, objectives));
+            // Store the fitted calibrator itself so the selected solution can be
+            // applied to unseen inputs later.
+            self.pareto_solutions.push((calibrator, objectives));
         }
 
         // Filter to actual Pareto frontier
@@ -669,15 +705,9 @@ impl CalibrationEstimator for MultiObjectiveCalibrator {
             });
         }
 
-        // For prediction, we need to apply the same transformation as the selected solution
-        // This is a simplified approach - in practice, we'd store the calibrator parameters
+        // Apply the actual fitted calibrator selected from the Pareto frontier.
         match &self.selected_solution {
-            Some(_) => {
-                // Use a simple sigmoid transformation as approximation
-                let _simple_calibrator = SigmoidCalibrator::new();
-                // This is a placeholder - we'd need to store the actual calibrator
-                Ok(probabilities.clone()) // Return uncalibrated for now
-            }
+            Some(selected_calibrator) => selected_calibrator.predict_proba(probabilities),
             None => Err(SklearsError::InvalidData {
                 reason: "No solution selected".to_string(),
             }),

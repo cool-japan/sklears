@@ -1,7 +1,7 @@
 //! Linear Discriminant Analysis (LDA) implementation
 
-// use crate::numerical_stability::{NumericalConfig, NumericalStability}; // Temporarily disabled
 // ✅ Using SciRS2 dependencies following SciRS2 policy
+use crate::numerical_stability::NumericalStability;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, Axis};
 use sklears_core::{
     error::Result,
@@ -11,30 +11,40 @@ use sklears_core::{
 };
 use std::marker::PhantomData;
 
-// Temporary placeholder struct for NumericalStability
-#[derive(Debug, Clone)]
-struct NumericalStability;
+/// Result of an LDA solver: `(within_scatter, coefficients, intercept,
+/// scalings)`.
+///
+/// * `within_scatter` — the (regularized) pooled within-class scatter matrix,
+///   optionally retained on the trained model.
+/// * `coefficients` — Bayes-classifier coefficients, one row per class
+///   (shape `(n_classes, n_features)`), consumed by `predict`.
+/// * `intercept` — per-class intercepts (shape `(n_classes,)`).
+/// * `scalings` — discriminant directions from the generalized eigenproblem,
+///   one column per component (shape `(n_features, n_components)`), used by
+///   `transform`. `None` for solvers that do not compute them (e.g. SVD), in
+///   which case `transform` falls back to the classifier rows.
+type LdaSolution = (
+    Array2<Float>,
+    Array2<Float>,
+    Array1<Float>,
+    Option<Array2<Float>>,
+);
 
-impl NumericalStability {
-    fn new() -> Self {
-        Self
+/// Project a square matrix onto its symmetric part `(A + Aᵀ) / 2`.
+///
+/// The scatter matrices accumulated by the eigen solver are symmetric by
+/// construction, but explicit element-wise summation accumulates tiny
+/// asymmetries. The symmetric eigensolver enforces a strict symmetry check, so
+/// we remove that round-off here before handing the matrix off.
+fn symmetrize(matrix: &Array2<Float>) -> Array2<Float> {
+    let n = matrix.nrows();
+    let mut symmetric = Array2::zeros((n, n));
+    for i in 0..n {
+        for j in 0..n {
+            symmetric[[i, j]] = 0.5 * (matrix[[i, j]] + matrix[[j, i]]);
+        }
     }
-
-    #[allow(dead_code)] // placeholder; called in future numerical health checks
-    fn check_condition_number(&self, _matrix: &Array2<Float>) -> Result<()> {
-        // Placeholder implementation
-        Ok(())
-    }
-
-    fn stable_eigen_decomposition(
-        &self,
-        _matrix: &Array2<Float>,
-    ) -> Result<(Array1<Float>, Array2<Float>)> {
-        // Placeholder implementation - would need actual eigenvalue decomposition
-        Err(SklearsError::NotImplemented(
-            "Eigenvalue decomposition temporarily disabled".to_string(),
-        ))
-    }
+    symmetric
 }
 
 /// Configuration for Linear Discriminant Analysis
@@ -111,6 +121,12 @@ pub struct LinearDiscriminantAnalysis<State = Untrained> {
     intercept_: Option<Array1<Float>>,
     priors_: Option<Array1<Float>>,
     n_features_: Option<usize>,
+    /// Discriminant directions from the generalized eigenproblem
+    /// `S_b w = λ S_w w`, one column per component (shape
+    /// `(n_features, n_components)`). Present only for the `eigen` solver; the
+    /// `svd` solver leaves it `None` and `transform` falls back to the
+    /// classifier rows.
+    scalings_: Option<Array2<Float>>,
 }
 
 impl LinearDiscriminantAnalysis<Untrained> {
@@ -126,6 +142,7 @@ impl LinearDiscriminantAnalysis<Untrained> {
             intercept_: None,
             priors_: None,
             n_features_: None,
+            scalings_: None,
         }
     }
 
@@ -342,7 +359,7 @@ impl LinearDiscriminantAnalysis<Untrained> {
         classes: &[i32],
         n_classes: usize,
         n_features: usize,
-    ) -> Result<(Array2<Float>, Array2<Float>, Array1<Float>)> {
+    ) -> Result<LdaSolution> {
         let (_n_samples, _) = x.dim();
 
         // Calculate within-class scatter matrix
@@ -403,7 +420,10 @@ impl LinearDiscriminantAnalysis<Untrained> {
             intercept[i] = priors[i].ln() - 0.5 * mean_i.dot(&sw_inv.dot(&mean_i));
         }
 
-        Ok((sw, coefficients, intercept))
+        // The SVD path does not compute the generalized-eigenproblem
+        // discriminant directions; `scalings` is left unset and `transform`
+        // falls back to the classifier rows for this solver.
+        Ok((sw, coefficients, intercept, None))
     }
 
     /// Solve LDA using eigendecomposition method
@@ -417,7 +437,7 @@ impl LinearDiscriminantAnalysis<Untrained> {
         classes: &[i32],
         n_classes: usize,
         n_features: usize,
-    ) -> Result<(Array2<Float>, Array2<Float>, Array1<Float>)> {
+    ) -> Result<LdaSolution> {
         let (_n_samples, _) = x.dim();
 
         // Calculate overall mean
@@ -485,50 +505,103 @@ impl LinearDiscriminantAnalysis<Untrained> {
             }
         }
 
-        // Add small regularization for numerical stability
+        // Add small regularization for numerical stability. This also guarantees
+        // S_w is symmetric positive-definite, which the generalized symmetric-
+        // definite eigensolver below requires.
         for i in 0..n_features {
             sw[[i, i]] += self.config.tol;
         }
 
-        // Solve generalized eigenvalue problem: S_w^{-1} * S_b * v = λ * v
-        // This is equivalent to solving: S_b * v = λ * S_w * v
-        let sw_inv = self.pseudo_inverse(&sw)?;
-        let target_matrix = sb.dot(&sw_inv.t());
+        // Symmetrize S_b and S_w to cancel the round-off asymmetry that can
+        // accumulate in the explicit scatter accumulations above. Both matrices
+        // are symmetric by construction, but feeding a matrix that is only
+        // *almost* symmetric to the symmetric eigensolver can trip its symmetry
+        // check, so we project onto the symmetric part (A + Aᵀ)/2 explicitly.
+        let sb = symmetrize(&sb);
+        let sw = symmetrize(&sw);
 
-        // Use numerically stable eigenvalue decomposition
+        // Correct LDA formulation: the discriminant directions are the solutions
+        // of the *generalized symmetric-definite* eigenproblem
+        //
+        //     S_b w = λ S_w w ,
+        //
+        // with S_b (between-class scatter) and S_w (within-class scatter)
+        // both symmetric and S_w positive-definite. The eigenvectors `w`
+        // (sorted by descending Fisher ratio λ) are the discriminant
+        // directions / scalings used for dimensionality reduction; the
+        // eigenvalues are the class-separability ratios.
+        //
+        // NOTE on the previous (buggy) code: it formed the NON-symmetric
+        // product `S_b · S_w⁻¹` and fed it to a *symmetric* solver, which is
+        // mathematically invalid — that is why the eigen path was disabled and
+        // always fell back to power iteration. We now solve the correct
+        // generalized problem with the verified SciRS2-backed solver.
         let numerical_stability = NumericalStability::new();
-        let (eigenvalues, eigenvectors) =
-            match numerical_stability.stable_eigen_decomposition(&target_matrix) {
-                Ok((eigenvals, eigenvecs)) => (eigenvals, eigenvecs),
-                Err(_) => {
-                    // Fallback to power iteration if stable decomposition fails
-                    let (eigenvecs, eigenvals) =
-                        self.power_iteration_eigen(&target_matrix, n_classes - 1)?;
-                    (eigenvals, eigenvecs)
-                }
-            };
 
-        // Take only the first (n_classes - 1) components
-        let n_components = (n_classes - 1).min(eigenvalues.len());
-        let selected_eigenvectors = eigenvectors.slice(s![.., ..n_components]).to_owned();
+        // The Bayes-optimal LDA classifier is built from the pooled within-class
+        // covariance inverse. Working from the within-class *scatter* matrix S_w
+        // (covariance = S_w / (n - n_classes)) the discriminant functions are
+        //
+        //     δ_k(x) = xᵀ S_w⁻¹ μ_k − ½ μ_kᵀ S_w⁻¹ μ_k + ln π_k ,
+        //
+        // and the prediction is argmax_k δ_k(x). Using the *scatter* inverse
+        // (rather than the covariance inverse) only rescales every class score
+        // by the same positive constant (n - n_classes), so the argmax — and
+        // therefore the classification — is identical to the covariance-based
+        // Bayes rule, while the linear term and the quadratic offset stay
+        // mutually consistent. This is exactly the classifier produced by the
+        // SVD path (`solve_svd`), guaranteeing the two solvers agree.
+        let sw_inv = self.pseudo_inverse(&sw)?;
 
-        // Calculate coefficients using the selected eigenvectors
-        let mut coefficients = selected_eigenvectors.t().dot(&sw_inv);
+        // Solve the generalized symmetric-definite eigenproblem to obtain the
+        // discriminant directions. On success the eigenvectors `directions` are
+        // genuine LDA discriminant directions (columns, sorted by descending
+        // Fisher ratio) and S_w has been proven numerically SPD. If the
+        // symmetric-definite solver cannot run (e.g. S_w not numerically positive-
+        // definite), we fall back to the power-iteration eigensolver on
+        // S_w⁻¹·S_b — a documented, honest degraded path. Either way the
+        // discriminant directions span the dimensionality-reduction subspace,
+        // while the Bayes classifier below is computed from S_w⁻¹ directly and is
+        // therefore correct regardless of which eigensolver produced the
+        // directions.
+        let directions = match numerical_stability.stable_generalized_eigen(&sb, &sw) {
+            Ok((_eigenvalues, eigenvectors)) => eigenvectors,
+            Err(_) => {
+                let target_matrix = sb.dot(&sw_inv);
+                let (eigenvectors, _eigenvalues) =
+                    self.power_iteration_eigen(&target_matrix, n_classes - 1)?;
+                eigenvectors
+            }
+        };
+
+        // The usable discriminant rank is min(n_features, n_classes - 1); the
+        // eigensolver returns at most that many significant directions. Keep the
+        // leading ones as the canonical LDA scalings (one column per component),
+        // so dimensionality reduction reflects the actual generalized-eigenproblem
+        // solution. `scalings` has shape (n_features, n_components).
+        let n_components = (n_classes - 1).min(n_features).min(directions.ncols());
+        let scalings = directions.slice(s![.., ..n_components]).to_owned();
+
+        // Calculate coefficients: one row per class, `coef[k] = μ_k · S_w⁻¹`.
+        // Shape (n_classes, n_features) — matching the SVD path and the contract
+        // expected by `predict` (which indexes scores by class).
+        let mut coefficients = means.dot(&sw_inv.t());
 
         // Apply regularization if requested
         if self.config.l1_reg > 0.0 || self.config.l2_reg > 0.0 {
             coefficients = self.apply_elastic_net_regularization(&coefficients)?;
         }
 
-        // Calculate intercepts
+        // Calculate intercepts: `intercept_k = ln π_k − ½ μ_kᵀ S_w⁻¹ μ_k`.
+        // Reuse the already-computed `coef[k] = μ_k · S_w⁻¹` so the quadratic
+        // offset is consistent with the linear term.
         let mut intercept = Array1::zeros(n_classes);
         for i in 0..n_classes {
             let mean_i = means.row(i);
-            intercept[i] =
-                priors[i].ln() - 0.5 * mean_i.dot(&coefficients.row(i % coefficients.nrows()));
+            intercept[i] = priors[i].ln() - 0.5 * mean_i.dot(&coefficients.row(i));
         }
 
-        Ok((sw, coefficients, intercept))
+        Ok((sw, coefficients, intercept, Some(scalings)))
     }
 
     /// Simple power iteration for finding dominant eigenvectors
@@ -1038,7 +1111,7 @@ impl Fit<Array2<Float>, Array1<i32>> for LinearDiscriminantAnalysis<Untrained> {
         };
 
         // Calculate pooled within-class covariance matrix
-        let (covariance, coefficients, intercept) = if self.config.solver == "svd" {
+        let (covariance, coefficients, intercept, scalings) = if self.config.solver == "svd" {
             self.solve_svd(x, y, &means, &priors, &classes, n_classes, n_features)?
         } else {
             self.solve_eigen(x, y, &means, &priors, &classes, n_classes, n_features)?
@@ -1059,6 +1132,7 @@ impl Fit<Array2<Float>, Array1<i32>> for LinearDiscriminantAnalysis<Untrained> {
             intercept_: Some(intercept),
             priors_: Some(priors),
             n_features_: Some(n_features),
+            scalings_: scalings,
         })
     }
 }
@@ -1094,21 +1168,48 @@ impl LinearDiscriminantAnalysis<Trained> {
         self.coefficients_.as_ref().expect("Model is trained")
     }
 
-    /// Get the linear discriminant scalings (same as coefficients in this implementation)
+    /// Get the linear discriminant scalings.
+    ///
+    /// For the `eigen` solver these are the discriminant directions obtained
+    /// from the generalized eigenproblem `S_b w = λ S_w w` (columns, one per
+    /// component). For the `svd` solver — which does not compute them — this
+    /// falls back to the Bayes-classifier coefficients.
     pub fn scalings(&self) -> &Array2<Float> {
-        self.coefficients_.as_ref().expect("Model is trained")
+        self.scalings_
+            .as_ref()
+            .or(self.coefficients_.as_ref())
+            .expect("Model is trained")
     }
 
-    /// Transform data to LDA space for dimensionality reduction
+    /// Transform data to LDA space for dimensionality reduction.
+    ///
+    /// When the `eigen` solver produced discriminant directions, the data is
+    /// projected onto them: `x · W[:, ..n_components]` where `W` has shape
+    /// `(n_features, n_components)`. Otherwise (e.g. the `svd` solver) it falls
+    /// back to projecting onto the leading classifier rows, preserving the
+    /// previous behaviour.
     pub fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         use sklears_core::error::validate;
 
         let n_features = self.n_features_.expect("Model is trained");
         validate::check_n_features(x, n_features)?;
 
+        if let Some(scalings) = self.scalings_.as_ref() {
+            // Discriminant directions live in the columns of `scalings`.
+            let max_components = scalings.ncols();
+            let n_components = self
+                .config
+                .n_components
+                .map(|nc| nc.min(max_components))
+                .unwrap_or(max_components);
+            let transform_matrix = scalings.slice(s![.., ..n_components]);
+            return Ok(x.dot(&transform_matrix));
+        }
+
         let coefficients = self.coefficients_.as_ref().expect("Model is trained");
 
-        // If n_components is specified, use only the first n_components discriminants
+        // Fallback (SVD solver): use the leading classifier rows as a projection.
+        // If n_components is specified, use only the first n_components discriminants.
         let n_components = if let Some(nc) = &self.config.n_components {
             (*nc).min(coefficients.nrows())
         } else {

@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 
 /// Dashboard theme management system
 /// Handles theme creation, inheritance, customization, and application
@@ -479,7 +479,8 @@ impl DashboardThemeManager {
 
     /// Remove theme
     pub fn remove_theme(&mut self, theme_id: &str) -> Result<DashboardTheme, ThemeError> {
-        self.themes.remove(theme_id)
+        self.themes
+            .remove(theme_id)
             .ok_or_else(|| ThemeError::ThemeNotFound(theme_id.to_string()))
     }
 
@@ -490,7 +491,8 @@ impl DashboardThemeManager {
 
     /// Get theme with inheritance applied
     pub fn get_resolved_theme(&self, theme_id: &str) -> Result<DashboardTheme, ThemeError> {
-        let base_theme = self.get_theme(theme_id)
+        let base_theme = self
+            .get_theme(theme_id)
             .ok_or_else(|| ThemeError::ThemeNotFound(theme_id.to_string()))?;
 
         if !self.inheritance.enabled {
@@ -519,7 +521,9 @@ impl DashboardThemeManager {
     fn validate_theme(&self, theme: &DashboardTheme) -> Result<(), ThemeError> {
         // Validate theme ID
         if theme.theme_id.is_empty() {
-            return Err(ThemeError::InvalidTheme("Theme ID cannot be empty".to_string()));
+            return Err(ThemeError::InvalidTheme(
+                "Theme ID cannot be empty".to_string(),
+            ));
         }
 
         // Validate color formats
@@ -528,7 +532,9 @@ impl DashboardThemeManager {
 
         // Validate typography
         if theme.typography.font_family.is_empty() {
-            return Err(ThemeError::InvalidTheme("Font family cannot be empty".to_string()));
+            return Err(ThemeError::InvalidTheme(
+                "Font family cannot be empty".to_string(),
+            ));
         }
 
         Ok(())
@@ -537,7 +543,12 @@ impl DashboardThemeManager {
     /// Validate color scheme
     fn validate_color_scheme(&self, colors: &ColorScheme) -> Result<(), ThemeError> {
         // Simple color validation (could be more sophisticated)
-        let color_fields = vec![&colors.main, &colors.light, &colors.dark, &colors.contrast_text];
+        let color_fields = vec![
+            &colors.main,
+            &colors.light,
+            &colors.dark,
+            &colors.contrast_text,
+        ];
 
         for color in color_fields {
             if !self.is_valid_color(color) {
@@ -551,35 +562,41 @@ impl DashboardThemeManager {
     /// Basic color format validation
     fn is_valid_color(&self, color: &str) -> bool {
         // Simple validation for hex colors, rgb, rgba, hsl, hsla
-        color.starts_with('#') ||
-        color.starts_with("rgb") ||
-        color.starts_with("hsl") ||
-        color.starts_with("var(") ||
-        ["transparent", "inherit", "initial", "unset"].contains(&color)
+        color.starts_with('#')
+            || color.starts_with("rgb")
+            || color.starts_with("hsl")
+            || color.starts_with("var(")
+            || ["transparent", "inherit", "initial", "unset"].contains(&color)
     }
 
     /// Merge two themes according to merge strategy
-    fn merge_themes(&self, child: &DashboardTheme, parent: &DashboardTheme) -> Result<DashboardTheme, ThemeError> {
+    fn merge_themes(
+        &self,
+        child: &DashboardTheme,
+        parent: &DashboardTheme,
+    ) -> Result<DashboardTheme, ThemeError> {
         let mut merged = child.clone();
 
         match self.inheritance.merge_strategy {
             MergeStrategy::ChildOverrides => {
                 // Child properties take precedence, only fill missing values from parent
                 // Implementation would merge missing properties
-            },
+            }
             MergeStrategy::ParentOverrides => {
                 // Parent properties override child
                 merged = parent.clone();
                 merged.theme_id = child.theme_id.clone();
                 merged.theme_name = child.theme_name.clone();
-            },
+            }
             MergeStrategy::Merge => {
                 // Intelligent merging of properties
                 // Implementation would merge properties intelligently
-            },
+            }
             MergeStrategy::Custom(_) => {
                 // Custom merge logic
-                return Err(ThemeError::UnsupportedOperation("Custom merge strategy not implemented".to_string()));
+                return Err(ThemeError::UnsupportedOperation(
+                    "Custom merge strategy not implemented".to_string(),
+                ));
             }
         }
 
@@ -587,8 +604,12 @@ impl DashboardThemeManager {
     }
 
     /// Apply override rule to theme
-    fn apply_override_rule(&self, theme: &DashboardTheme, rule: &OverrideRule) -> Result<DashboardTheme, ThemeError> {
-        let mut modified_theme = theme.clone();
+    fn apply_override_rule(
+        &self,
+        theme: &DashboardTheme,
+        rule: &OverrideRule,
+    ) -> Result<DashboardTheme, ThemeError> {
+        let modified_theme = theme.clone();
 
         // Apply property overrides
         for (property, value) in &rule.properties {
@@ -610,12 +631,18 @@ impl DashboardThemeManager {
     }
 
     /// Customize theme with user preferences
-    pub fn customize_theme(&mut self, theme_id: &str, customizations: HashMap<String, String>) -> Result<(), ThemeError> {
+    pub fn customize_theme(
+        &mut self,
+        theme_id: &str,
+        customizations: HashMap<String, String>,
+    ) -> Result<(), ThemeError> {
         if !self.customization.enabled {
             return Err(ThemeError::CustomizationDisabled);
         }
 
-        let theme = self.themes.get_mut(theme_id)
+        let _theme = self
+            .themes
+            .get_mut(theme_id)
             .ok_or_else(|| ThemeError::ThemeNotFound(theme_id.to_string()))?;
 
         // Validate customizations
@@ -631,19 +658,27 @@ impl DashboardThemeManager {
     /// Validate customization against constraints
     fn validate_customization(&self, property: &str, value: &str) -> Result<(), ThemeError> {
         // Check if property is customizable
-        if !self.customization.customizable_properties.contains(&property.to_string()) {
+        if !self
+            .customization
+            .customizable_properties
+            .contains(&property.to_string())
+        {
             return Err(ThemeError::PropertyNotCustomizable(property.to_string()));
         }
 
         // Check constraints
         for constraint in &self.customization.constraints {
-            if constraint.property == property {
-                if !self.satisfies_constraint(value, &constraint.constraint_type, &constraint.value) {
-                    return Err(ThemeError::ConstraintViolation(
-                        constraint.error_message.clone()
-                            .unwrap_or_else(|| format!("Value '{}' violates constraint for property '{}'", value, property))
-                    ));
-                }
+            if constraint.property == property
+                && !self.satisfies_constraint(value, &constraint.constraint_type, &constraint.value)
+            {
+                return Err(ThemeError::ConstraintViolation(
+                    constraint.error_message.clone().unwrap_or_else(|| {
+                        format!(
+                            "Value '{}' violates constraint for property '{}'",
+                            value, property
+                        )
+                    }),
+                ));
             }
         }
 
@@ -651,19 +686,22 @@ impl DashboardThemeManager {
     }
 
     /// Check if value satisfies constraint
-    fn satisfies_constraint(&self, value: &str, constraint_type: &ConstraintType, constraint_value: &str) -> bool {
+    fn satisfies_constraint(
+        &self,
+        value: &str,
+        constraint_type: &ConstraintType,
+        constraint_value: &str,
+    ) -> bool {
         match constraint_type {
             ConstraintType::Pattern => {
                 // Regex pattern matching (would use proper regex)
                 true // Placeholder
-            },
-            ConstraintType::ColorFormat => {
-                self.is_valid_color(value)
-            },
+            }
+            ConstraintType::ColorFormat => self.is_valid_color(value),
             ConstraintType::AllowedValues => {
                 let allowed: Vec<&str> = constraint_value.split(',').collect();
                 allowed.contains(&value)
-            },
+            }
             _ => true, // Placeholder for other constraint types
         }
     }

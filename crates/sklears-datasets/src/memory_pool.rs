@@ -8,8 +8,14 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayViewMut1, ArrayViewMut2};
 use std::alloc::{alloc, dealloc, Layout};
 use std::collections::{HashMap, VecDeque};
 use std::ptr::NonNull;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc, Mutex, RwLock,
+};
 use thiserror::Error;
+
+/// Global monotonic counter used to assign unique pool IDs.
+static NEXT_POOL_ID: AtomicUsize = AtomicUsize::new(1);
 
 /// Memory pool errors
 #[derive(Error, Debug)]
@@ -277,9 +283,14 @@ impl MemoryPool {
             config,
             buckets: RwLock::new(HashMap::new()),
             stats: RwLock::new(MemoryPoolStats::default()),
-            pool_id: 0, // TODO: implement proper pool ID generation
+            pool_id: NEXT_POOL_ID.fetch_add(1, Ordering::Relaxed),
             next_cleanup: Mutex::new(std::time::Instant::now() + max_idle_time),
         }
+    }
+
+    /// Return this pool's unique identifier.
+    pub fn pool_id(&self) -> usize {
+        self.pool_id
     }
 
     /// Allocate a block of memory
@@ -781,6 +792,19 @@ mod tests {
         assert!(removed > 0);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_pool_ids_are_unique_and_nonzero() {
+        // Each new pool should receive a distinct, nonzero identifier.
+        let p1 = MemoryPool::new(MemoryPoolConfig::default());
+        let p2 = MemoryPool::new(MemoryPoolConfig::default());
+        let p3 = MemoryPool::new(MemoryPoolConfig::default());
+
+        assert_ne!(p1.pool_id(), 0, "pool_id must not be zero");
+        assert_ne!(p1.pool_id(), p2.pool_id(), "pool IDs must be unique");
+        assert_ne!(p2.pool_id(), p3.pool_id(), "pool IDs must be unique");
+        assert_ne!(p1.pool_id(), p3.pool_id(), "pool IDs must be unique");
     }
 
     #[test]

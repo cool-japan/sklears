@@ -7,7 +7,7 @@
 
 High-performance linear models for Rust with pure Rust implementation and ongoing performance optimization, featuring advanced solvers, numerical stability, and GPU acceleration.
 
-> **Latest release:** `0.1.1` (April 25, 2026). See the [workspace release notes](../../docs/releases/0.1.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -232,7 +232,7 @@ sklears-linear/
 
 ## Status
 
-**Stable** (`0.1.1`)
+**Stable** (`0.1.2`)
 
 - **Core Models**: 100% complete
 - **Advanced Solvers**: 100% complete

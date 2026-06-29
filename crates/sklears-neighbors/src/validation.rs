@@ -15,7 +15,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use sklears_neighbors::validation::{KFoldValidator, ValidationMetric};
+//! use sklears_neighbors::validation::KFoldValidator;
 //! use sklears_neighbors::KNeighborsClassifier;
 //! use scirs2_core::ndarray::Array2;
 //! # use scirs2_core::ndarray::Array1;

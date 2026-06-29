@@ -490,8 +490,10 @@ impl Transform<Array2<Float>, Array2<Float>> for PolynomialFeatures<Trained> {
 
         let mut output = Array2::zeros((n_samples, n_output_features));
 
-        // FIXME: SIMD implementation disabled for compilation
-        // Use CPU fallback for now
+        // Each output feature is a product of integer powers (`powi`) of the
+        // input features, with a different exponent pattern per output column.
+        // This data-dependent reduction has no clean fixed-width SIMD form, so we
+        // compute the exact polynomial expansion with the scalar kernel below.
         self.transform_cpu(x, powers, &mut output)?;
 
         Ok(output)

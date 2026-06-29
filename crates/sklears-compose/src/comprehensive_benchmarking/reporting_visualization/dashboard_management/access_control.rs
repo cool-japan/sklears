@@ -1,6 +1,6 @@
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
 
 /// Dashboard permission and access control system
 /// Manages user permissions, authentication, authorization, and security policies
@@ -783,7 +783,7 @@ pub enum ExportDestination {
 }
 
 /// Audit alert configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AuditAlertConfig {
     /// Alerts enabled
     pub enabled: bool,
@@ -853,7 +853,11 @@ impl DashboardAccessControl {
         self.validate_policy(&policy)?;
 
         // Check for duplicate policy ID
-        if self.policies.iter().any(|p| p.policy_id == policy.policy_id) {
+        if self
+            .policies
+            .iter()
+            .any(|p| p.policy_id == policy.policy_id)
+        {
             return Err(AccessControlError::DuplicatePolicy(policy.policy_id));
         }
 
@@ -863,22 +867,30 @@ impl DashboardAccessControl {
 
     /// Remove an access policy
     pub fn remove_policy(&mut self, policy_id: &str) -> Result<AccessPolicy, AccessControlError> {
-        let index = self.policies.iter().position(|p| p.policy_id == policy_id)
+        let index = self
+            .policies
+            .iter()
+            .position(|p| p.policy_id == policy_id)
             .ok_or_else(|| AccessControlError::PolicyNotFound(policy_id.to_string()))?;
 
         Ok(self.policies.remove(index))
     }
 
     /// Evaluate access request
-    pub fn evaluate_access(&self, request: &AccessRequest) -> Result<AccessDecision, AccessControlError> {
+    pub fn evaluate_access(
+        &self,
+        request: &AccessRequest,
+    ) -> Result<AccessDecision, AccessControlError> {
         // Collect applicable policies
-        let applicable_policies: Vec<&AccessPolicy> = self.policies.iter()
+        let applicable_policies: Vec<&AccessPolicy> = self
+            .policies
+            .iter()
             .filter(|p| p.enabled && self.policy_applies(p, request))
             .collect();
 
         // Sort by priority (highest first)
         let mut sorted_policies = applicable_policies;
-        sorted_policies.sort_by(|a, b| b.priority.cmp(&a.priority));
+        sorted_policies.sort_by_key(|b| std::cmp::Reverse(b.priority));
 
         // Evaluate policies
         let mut decisions = Vec::new();
@@ -912,7 +924,11 @@ impl DashboardAccessControl {
         self.validate_auth_provider(&provider)?;
 
         // Check for duplicate provider ID
-        if self.auth_providers.iter().any(|p| p.provider_id == provider.provider_id) {
+        if self
+            .auth_providers
+            .iter()
+            .any(|p| p.provider_id == provider.provider_id)
+        {
             return Err(AccessControlError::DuplicateProvider(provider.provider_id));
         }
 
@@ -923,16 +939,22 @@ impl DashboardAccessControl {
     /// Validate policy configuration
     fn validate_policy(&self, policy: &AccessPolicy) -> Result<(), AccessControlError> {
         if policy.policy_id.is_empty() {
-            return Err(AccessControlError::InvalidPolicy("Policy ID cannot be empty".to_string()));
+            return Err(AccessControlError::InvalidPolicy(
+                "Policy ID cannot be empty".to_string(),
+            ));
         }
 
         if policy.rules.is_empty() {
-            return Err(AccessControlError::InvalidPolicy("Policy must have at least one rule".to_string()));
+            return Err(AccessControlError::InvalidPolicy(
+                "Policy must have at least one rule".to_string(),
+            ));
         }
 
         for rule in &policy.rules {
             if rule.condition.is_empty() {
-                return Err(AccessControlError::InvalidPolicy("Rule condition cannot be empty".to_string()));
+                return Err(AccessControlError::InvalidPolicy(
+                    "Rule condition cannot be empty".to_string(),
+                ));
             }
         }
 
@@ -950,20 +972,27 @@ impl DashboardAccessControl {
             PolicyScope::Pattern(pattern) => {
                 // Simple pattern matching (would be more sophisticated in practice)
                 request.resource.contains(pattern)
-            },
+            }
             PolicyScope::Custom(_) => false, // Would need custom logic
         }
     }
 
     /// Evaluate rule condition
-    fn evaluate_rule_condition(&self, condition: &str, request: &AccessRequest) -> Result<bool, AccessControlError> {
+    fn evaluate_rule_condition(
+        &self,
+        _condition: &str,
+        _request: &AccessRequest,
+    ) -> Result<bool, AccessControlError> {
         // Simplified condition evaluation
         // In practice, this would be a proper expression evaluator
         Ok(true)
     }
 
     /// Resolve conflicting decisions
-    fn resolve_decision_conflicts(&self, decisions: Vec<RuleDecision>) -> Result<AccessDecision, AccessControlError> {
+    fn resolve_decision_conflicts(
+        &self,
+        decisions: Vec<RuleDecision>,
+    ) -> Result<AccessDecision, AccessControlError> {
         if decisions.is_empty() {
             return Ok(AccessDecision {
                 allowed: false,
@@ -976,23 +1005,35 @@ impl DashboardAccessControl {
         // Apply conflict resolution strategy
         match self.authorization.decision_engine.conflict_resolution {
             DecisionConflictResolution::DenyOnConflict => {
-                let has_deny = decisions.iter().any(|d| matches!(d.action, PolicyAction::Deny));
+                let has_deny = decisions
+                    .iter()
+                    .any(|d| matches!(d.action, PolicyAction::Deny));
                 Ok(AccessDecision {
                     allowed: !has_deny,
-                    reason: if has_deny { "Denied by policy".to_string() } else { "Allowed".to_string() },
+                    reason: if has_deny {
+                        "Denied by policy".to_string()
+                    } else {
+                        "Allowed".to_string()
+                    },
                     conditions: Vec::new(),
                     ttl: None,
                 })
-            },
+            }
             DecisionConflictResolution::AllowOnConflict => {
-                let has_allow = decisions.iter().any(|d| matches!(d.action, PolicyAction::Allow));
+                let has_allow = decisions
+                    .iter()
+                    .any(|d| matches!(d.action, PolicyAction::Allow));
                 Ok(AccessDecision {
                     allowed: has_allow,
-                    reason: if has_allow { "Allowed by policy".to_string() } else { "Denied".to_string() },
+                    reason: if has_allow {
+                        "Allowed by policy".to_string()
+                    } else {
+                        "Denied".to_string()
+                    },
                     conditions: Vec::new(),
                     ttl: None,
                 })
-            },
+            }
             _ => {
                 // Default to first decision
                 let first_decision = &decisions[0];
@@ -1007,18 +1048,22 @@ impl DashboardAccessControl {
     }
 
     /// Create audit entry
-    fn create_audit_entry(&self, request: &AccessRequest, decision: &AccessDecision) {
+    fn create_audit_entry(&self, _request: &AccessRequest, _decision: &AccessDecision) {
         // Would create audit entry in practice
     }
 
     /// Validate authentication provider
     fn validate_auth_provider(&self, provider: &AuthProvider) -> Result<(), AccessControlError> {
         if provider.provider_id.is_empty() {
-            return Err(AccessControlError::InvalidProvider("Provider ID cannot be empty".to_string()));
+            return Err(AccessControlError::InvalidProvider(
+                "Provider ID cannot be empty".to_string(),
+            ));
         }
 
         if provider.name.is_empty() {
-            return Err(AccessControlError::InvalidProvider("Provider name cannot be empty".to_string()));
+            return Err(AccessControlError::InvalidProvider(
+                "Provider name cannot be empty".to_string(),
+            ));
         }
 
         Ok(())
@@ -1105,7 +1150,7 @@ impl Default for PermissionCache {
     fn default() -> Self {
         Self {
             enabled: true,
-            ttl: Duration::from_secs(300), // 5 minutes
+            ttl: Duration::seconds(300), // 5 minutes
             max_size: 1000,
             invalidation: CacheInvalidation::TimeBased,
             cache_warming: false,
@@ -1118,7 +1163,7 @@ impl Default for DecisionEngine {
     fn default() -> Self {
         Self {
             engine_type: DecisionEngineType::Simple,
-            evaluation_timeout: Duration::from_secs(5),
+            evaluation_timeout: Duration::seconds(5),
             parallel_evaluation: false,
             decision_caching: true,
             conflict_resolution: DecisionConflictResolution::DenyOnConflict,
@@ -1140,7 +1185,7 @@ impl Default for AuthorizationAudit {
 impl Default for AuditConfiguration {
     fn default() -> Self {
         Self {
-            retention_period: Duration::from_secs(90 * 24 * 3600), // 90 days
+            retention_period: Duration::seconds(90 * 24 * 3600), // 90 days
             compression: true,
             encryption: true,
             export_config: AuditExportConfig::default(),
@@ -1155,17 +1200,12 @@ impl Default for AuditExportConfig {
             enabled: false,
             formats: vec![ExportFormat::JSON],
             schedule: None,
-            destination: ExportDestination::LocalFile(std::env::temp_dir().join("audit_logs").display().to_string()),
-        }
-    }
-}
-
-impl Default for AuditAlertConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            rules: Vec::new(),
-            channels: Vec::new(),
+            destination: ExportDestination::LocalFile(
+                std::env::temp_dir()
+                    .join("audit_logs")
+                    .display()
+                    .to_string(),
+            ),
         }
     }
 }

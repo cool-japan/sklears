@@ -5,6 +5,7 @@
 
 // Core algorithm tests
 pub mod basic_lda_qda_tests;
+pub mod lda_eigen_solver_tests;
 pub mod regularization_tests;
 // pub mod robust_methods_tests; // Temporarily disabled
 

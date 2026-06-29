@@ -26,7 +26,6 @@
 use std::collections::{HashMap, HashSet};
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
-use scirs2_core::rand_prelude::Distribution;
 // Normal distribution via scirs2_core::random::RandNormal
 use scirs2_core::random::{thread_rng, Random};
 use sklears_core::error::{Result, SklearsError};
@@ -1158,28 +1157,25 @@ impl SemiSupervisedSpectral {
         Ok(laplacian)
     }
 
-    /// Compute eigenvectors (placeholder implementation)
+    /// Compute the `n_eigenvectors` smallest-eigenvalue eigenvectors of `laplacian`.
     fn compute_eigenvectors(
         &self,
-        _laplacian: &Array2<f64>,
+        laplacian: &Array2<f64>,
         n_eigenvectors: usize,
     ) -> Result<Array2<f64>> {
-        let n = _laplacian.nrows();
+        let n = laplacian.nrows();
+        let k = n_eigenvectors.min(n);
 
-        // Placeholder: return random eigenvectors
-        // In practice, would use proper eigenvalue decomposition
-        let mut rng = thread_rng();
-        let mut eigenvectors = Array2::zeros((n, n_eigenvectors));
+        // eigh returns eigenvalues in ascending order (smallest first).
+        let (_eigenvalues, eigenvectors) =
+            scirs2_linalg::compat::eigh(laplacian, scirs2_linalg::compat::UPLO::Lower)
+                .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
-        let normal =
-            scirs2_core::random::RandNormal::new(0.0, 1.0).expect("operation should succeed");
-        for i in 0..n {
-            for j in 0..n_eigenvectors {
-                eigenvectors[[i, j]] = normal.sample(&mut rng);
-            }
-        }
-
-        Ok(eigenvectors)
+        // Take the k columns corresponding to the k smallest eigenvalues.
+        let selected = eigenvectors
+            .slice(scirs2_core::ndarray::s![.., ..k])
+            .to_owned();
+        Ok(selected)
     }
 
     /// Cluster eigenvectors using k-means

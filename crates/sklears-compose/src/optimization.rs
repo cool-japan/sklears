@@ -3,14 +3,14 @@
 //! Components for automated hyperparameter optimization, pipeline structure search,
 //! and validation.
 
-use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::{thread_rng, Rng, RngExt};
 use sklears_core::{error::Result as SklResult, prelude::SklearsError, types::Float};
 use std::collections::HashMap;
 use std::time::Instant;
 
-use crate::{Pipeline, PipelineStep};
-use sklears_core::traits::Untrained;
+use crate::{Pipeline, PipelineStep, PipelineTrained};
+use sklears_core::traits::{Fit, Untrained};
 
 /// Apply a parameter map to a pipeline using the sklearn double-underscore convention.
 ///
@@ -53,6 +53,91 @@ fn apply_params_to_pipeline(
         }
     }
     Ok(())
+}
+
+/// Partition `n` sample indices into `k` contiguous, near-equal folds.
+///
+/// This mirrors scikit-learn's `KFold` default behaviour: **no shuffling**, and
+/// the first `n % k` folds receive one extra sample so the fold sizes differ by
+/// at most one.  Each returned tuple is `(train_indices, validation_indices)`
+/// where `validation_indices` is fold `f` (a contiguous slice of `0..n`) and
+/// `train_indices` is its complement.
+///
+/// Callers must guarantee `2 <= k <= n`; the function does not re-validate.
+fn k_fold_indices(n: usize, k: usize) -> Vec<(Vec<usize>, Vec<usize>)> {
+    let base = n / k;
+    let remainder = n % k;
+
+    let mut folds = Vec::with_capacity(k);
+    let mut start = 0usize;
+    for fold in 0..k {
+        let size = base + usize::from(fold < remainder);
+        let end = start + size;
+
+        let validation: Vec<usize> = (start..end).collect();
+        let train: Vec<usize> = (0..start).chain(end..n).collect();
+        folds.push((train, validation));
+
+        start = end;
+    }
+
+    folds
+}
+
+/// Compute the macro-averaged F1 score over the distinct classes present in
+/// `y_true`.
+///
+/// Continuous predictions and targets are mapped to integer class labels by
+/// rounding to the nearest integer (so a regression-style estimator can still be
+/// scored as a classifier).  Per-class precision/recall use the one-vs-rest
+/// convention; the F1 of each class present in `y_true` is averaged with equal
+/// weight.  The result lies in `[0, 1]` and is higher-is-better.  Multiclass is
+/// handled directly; binary classification is simply the two-class case.
+fn macro_f1(y_pred: &ArrayView1<'_, f64>, y_true: &ArrayView1<'_, Float>) -> f64 {
+    let pred_labels: Vec<i64> = y_pred.iter().map(|&value| value.round() as i64).collect();
+    let true_labels: Vec<i64> = y_true.iter().map(|&value| value.round() as i64).collect();
+
+    let mut classes: Vec<i64> = true_labels.clone();
+    classes.sort_unstable();
+    classes.dedup();
+    if classes.is_empty() {
+        return 0.0;
+    }
+
+    let mut f1_sum = 0.0;
+    for &class in &classes {
+        let mut true_pos = 0usize;
+        let mut false_pos = 0usize;
+        let mut false_neg = 0usize;
+        for (&predicted, &actual) in pred_labels.iter().zip(true_labels.iter()) {
+            match (predicted == class, actual == class) {
+                (true, true) => true_pos += 1,
+                (true, false) => false_pos += 1,
+                (false, true) => false_neg += 1,
+                (false, false) => {}
+            }
+        }
+
+        let precision = if true_pos + false_pos == 0 {
+            0.0
+        } else {
+            true_pos as f64 / (true_pos + false_pos) as f64
+        };
+        let recall = if true_pos + false_neg == 0 {
+            0.0
+        } else {
+            true_pos as f64 / (true_pos + false_neg) as f64
+        };
+        let denominator = precision + recall;
+        let f1 = if denominator > 0.0 {
+            2.0 * precision * recall / denominator
+        } else {
+            0.0
+        };
+        f1_sum += f1;
+    }
+
+    f1_sum / classes.len() as f64
 }
 
 /// Parameter search strategy
@@ -1195,117 +1280,187 @@ impl PipelineOptimizer {
         Ok(params)
     }
 
-    /// Perform cross-validation on pipeline.
+    /// Perform real K-fold cross-validation on the candidate pipeline.
     ///
-    /// The pipeline has already had any candidate parameters applied by the
-    /// caller via `apply_params_to_pipeline`.  The pipeline itself is currently
-    /// unused inside the CV loop (which uses a statistical mock score) but is
-    /// accepted so that the full fit/predict cycle can be wired in when
-    /// concrete `PipelineStep` implementations are registered.
+    /// The candidate parameters have already been applied to `pipeline` by the
+    /// surrounding search routine (the sklearn `set_params(**params)` step), so
+    /// this method does **not** re-apply them.  It splits `(x, y)` into
+    /// `self.cv_folds` contiguous folds (scikit-learn `KFold` default: no
+    /// shuffle), and for every fold clones the pipeline, fits it on the training
+    /// split, predicts on the held-out split, and scores the predictions with
+    /// `self.scoring`.  The returned value is the **mean of the per-fold scores**.
+    ///
+    /// # Score direction (higher-is-better)
+    ///
+    /// The grid/random/Bayesian search keeps a candidate when its score exceeds
+    /// the incumbent (`best_score` starts at `f64::NEG_INFINITY`), so every metric
+    /// returned here is oriented so that larger is better:
+    ///
+    /// * [`ScoringMetric::MeanSquaredError`] → negative MSE.
+    /// * [`ScoringMetric::MeanAbsoluteError`] → negative MAE.
+    /// * [`ScoringMetric::Accuracy`] → fraction of nearest-integer-label matches.
+    /// * [`ScoringMetric::F1Score`] → macro-averaged F1 over the classes in `y`.
+    ///
+    /// # Honest errors
+    ///
+    /// * [`ScoringMetric::Custom`] returns `NotImplemented` — no scorer registry
+    ///   exists, so an arbitrary named metric cannot be evaluated.
+    /// * [`ScoringMetric::MultiObjective`] returns `InvalidInput` — a scalar CV
+    ///   score cannot represent several objectives; use
+    ///   [`PipelineOptimizer::multi_objective_optimize`] instead.
     fn cross_validate_pipeline(
         &self,
-        _pipeline: &Pipeline<Untrained>,
+        pipeline: &Pipeline<Untrained>,
         x: &ArrayView2<'_, Float>,
         y: &ArrayView1<'_, Float>,
     ) -> SklResult<f64> {
-        let n_samples = x.nrows();
-        let fold_size = n_samples / self.cv_folds;
-        let mut scores = Vec::new();
-
-        for fold in 0..self.cv_folds {
-            let start_idx = fold * fold_size;
-            let end_idx = if fold == self.cv_folds - 1 {
-                n_samples
-            } else {
-                (fold + 1) * fold_size
-            };
-
-            // Create train/test splits for this fold
-            let mut train_indices = Vec::new();
-            let mut test_indices = Vec::new();
-
-            for i in 0..n_samples {
-                if i >= start_idx && i < end_idx {
-                    test_indices.push(i);
-                } else {
-                    train_indices.push(i);
-                }
-            }
-
-            // For now, return a mock score based on data characteristics
-            // In a real implementation, this would train the pipeline on train set
-            // and evaluate on test set
-            let score = self.compute_mock_score(x, y, &train_indices, &test_indices)?;
-            scores.push(score);
-        }
-
-        // Return mean cross-validation score
-        Ok(scores.iter().sum::<f64>() / scores.len() as f64)
-    }
-
-    /// Compute a mock score for demonstration purposes
-    fn compute_mock_score(
-        &self,
-        _x: &ArrayView2<'_, Float>,
-        y: &ArrayView1<'_, Float>,
-        _train_indices: &[usize],
-        test_indices: &[usize],
-    ) -> SklResult<f64> {
-        // Simple mock scoring - in reality this would use the fitted pipeline
-        match self.scoring {
-            ScoringMetric::MeanSquaredError => {
-                // For regression, return a score based on target variance
-                let test_targets: Vec<f64> = test_indices.iter().map(|&i| y[i]).collect();
-
-                if test_targets.is_empty() {
-                    return Ok(0.0);
-                }
-
-                let mean = test_targets.iter().sum::<f64>() / test_targets.len() as f64;
-                let variance = test_targets
-                    .iter()
-                    .map(|&val| (val - mean).powi(2))
-                    .sum::<f64>()
-                    / test_targets.len() as f64;
-
-                // Return negative MSE (higher is better for optimization)
-                Ok(-variance.sqrt())
-            }
-            ScoringMetric::MeanAbsoluteError => {
-                // Similar to MSE but using absolute differences
-                let test_targets: Vec<f64> = test_indices.iter().map(|&i| y[i]).collect();
-
-                if test_targets.is_empty() {
-                    return Ok(0.0);
-                }
-
-                let mean = test_targets.iter().sum::<f64>() / test_targets.len() as f64;
-                let mae = test_targets
-                    .iter()
-                    .map(|&val| (val - mean).abs())
-                    .sum::<f64>()
-                    / test_targets.len() as f64;
-
-                Ok(-mae)
-            }
-            ScoringMetric::Accuracy | ScoringMetric::F1Score => {
-                // For classification, return a score based on class distribution
-                let unique_classes = y
-                    .iter()
-                    .map(|&val| val as i32)
-                    .collect::<std::collections::HashSet<_>>();
-
-                // Simple mock accuracy based on class balance
-                Ok(1.0 / unique_classes.len() as f64)
-            }
-            ScoringMetric::Custom { .. } => {
-                // Return a default score for custom metrics
-                Ok(0.8)
+        // Reject metrics that cannot be reduced to a single scalar before any
+        // work is done, with a message pointing at the right alternative.
+        match &self.scoring {
+            ScoringMetric::Custom { name } => {
+                return Err(SklearsError::NotImplemented(format!(
+                    "cross_validate_pipeline: custom scoring metric '{name}' cannot be \
+                     evaluated; sklears-compose has no scorer registry to resolve it"
+                )));
             }
             ScoringMetric::MultiObjective { .. } => {
-                // For multi-objective metrics in mock scoring, return average score
-                Ok(0.5)
+                return Err(SklearsError::InvalidInput(
+                    "cross_validate_pipeline: a scalar cross-validation score cannot represent \
+                     a MultiObjective metric; use PipelineOptimizer::multi_objective_optimize \
+                     for the multi-objective search path"
+                        .to_string(),
+                ));
             }
+            _ => {}
+        }
+
+        let n = x.nrows();
+        let k = self.cv_folds;
+        if n < 2 || k < 2 {
+            return Err(SklearsError::InvalidInput(format!(
+                "cross_validate_pipeline: K-fold cross-validation needs at least 2 samples and \
+                 2 folds, got n_samples={n}, cv_folds={k}"
+            )));
+        }
+        if y.len() != n {
+            return Err(SklearsError::InvalidInput(format!(
+                "cross_validate_pipeline: x has {n} rows but y has {} entries",
+                y.len()
+            )));
+        }
+
+        // Never request more folds than samples (sklearn clamps likewise).
+        let k = k.min(n);
+        let folds = k_fold_indices(n, k);
+
+        let mut fold_scores = Vec::with_capacity(folds.len());
+        let mut last_error: Option<SklearsError> = None;
+
+        for (train_indices, validation_indices) in &folds {
+            // Degenerate splits cannot be fitted/scored — skip them.
+            if train_indices.is_empty() || validation_indices.is_empty() {
+                continue;
+            }
+
+            let x_train = x.select(Axis(0), train_indices.as_slice());
+            let y_train = y.select(Axis(0), train_indices.as_slice());
+            let x_val = x.select(Axis(0), validation_indices.as_slice());
+            let y_val = y.select(Axis(0), validation_indices.as_slice());
+
+            let fitted = match pipeline
+                .clone()
+                .fit(&x_train.view(), &Some(&y_train.view()))
+            {
+                Ok(model) => model,
+                Err(error) => {
+                    last_error = Some(error);
+                    continue;
+                }
+            };
+
+            let predictions = match fitted.predict(&x_val.view()) {
+                Ok(predictions) => predictions,
+                Err(error) => {
+                    last_error = Some(error);
+                    continue;
+                }
+            };
+
+            let score = self.score_predictions(&predictions.view(), &y_val.view())?;
+            fold_scores.push(score);
+        }
+
+        if fold_scores.is_empty() {
+            // Every fold failed — propagate the underlying error rather than
+            // inventing a score.
+            return Err(last_error.unwrap_or_else(|| {
+                SklearsError::InvalidInput(
+                    "cross_validate_pipeline: no usable train/validation folds were produced"
+                        .to_string(),
+                )
+            }));
+        }
+
+        let mean_score = fold_scores.iter().sum::<f64>() / fold_scores.len() as f64;
+        Ok(mean_score)
+    }
+
+    /// Score predictions against ground truth using the configured metric.
+    ///
+    /// All returned values are higher-is-better (see
+    /// [`PipelineOptimizer::cross_validate_pipeline`]).  Regression error metrics
+    /// are negated; classification metrics are returned as-is in `[0, 1]`.
+    fn score_predictions(
+        &self,
+        y_pred: &ArrayView1<'_, f64>,
+        y_true: &ArrayView1<'_, Float>,
+    ) -> SklResult<f64> {
+        let n = y_pred.len();
+        if n == 0 || y_true.len() != n {
+            return Err(SklearsError::InvalidInput(
+                "score_predictions: predictions and targets must be non-empty and equal length"
+                    .to_string(),
+            ));
+        }
+
+        match &self.scoring {
+            ScoringMetric::MeanSquaredError => {
+                let mse = y_pred
+                    .iter()
+                    .zip(y_true.iter())
+                    .map(|(&pred, &actual)| {
+                        let diff = pred - actual;
+                        diff * diff
+                    })
+                    .sum::<f64>()
+                    / n as f64;
+                Ok(-mse)
+            }
+            ScoringMetric::MeanAbsoluteError => {
+                let mae = y_pred
+                    .iter()
+                    .zip(y_true.iter())
+                    .map(|(&pred, &actual)| (pred - actual).abs())
+                    .sum::<f64>()
+                    / n as f64;
+                Ok(-mae)
+            }
+            ScoringMetric::Accuracy => {
+                let correct = y_pred
+                    .iter()
+                    .zip(y_true.iter())
+                    .filter(|(&pred, &actual)| (pred - actual).abs() < 0.5)
+                    .count();
+                Ok(correct as f64 / n as f64)
+            }
+            ScoringMetric::F1Score => Ok(macro_f1(y_pred, y_true)),
+            ScoringMetric::Custom { name } => Err(SklearsError::NotImplemented(format!(
+                "score_predictions: custom scoring metric '{name}' has no registered scorer"
+            ))),
+            ScoringMetric::MultiObjective { .. } => Err(SklearsError::InvalidInput(
+                "score_predictions: a MultiObjective metric cannot be reduced to a scalar score"
+                    .to_string(),
+            )),
         }
     }
 }
@@ -1584,7 +1739,71 @@ impl RobustPipelineExecutor {
         self.apply_fallback_strategy(x, y)
     }
 
-    /// Try to execute pipeline once
+    /// Execute a **trained** pipeline with robust error handling.
+    ///
+    /// Unlike the generic `execute`, this overload works on `Pipeline<PipelineTrained>` and
+    /// delegates predictions through the real pipeline predict path (transform steps +
+    /// final estimator).
+    pub fn execute_trained(
+        &self,
+        pipeline: &Pipeline<PipelineTrained>,
+        x: &ArrayView2<'_, Float>,
+        y: Option<&ArrayView1<'_, Float>>,
+    ) -> SklResult<Array1<f64>> {
+        let mut attempt = 0;
+
+        while attempt <= self.max_retries {
+            match self.try_execute_trained(pipeline, x) {
+                Ok(result) => return Ok(result),
+                Err(error) => match self.error_handling {
+                    ErrorHandlingStrategy::FailFast => {
+                        return Err(error);
+                    }
+                    ErrorHandlingStrategy::ContinueWithWarnings => {
+                        eprintln!(
+                            "Warning: Pipeline execution failed (attempt {}): {:?}",
+                            attempt + 1,
+                            error
+                        );
+                        if attempt == self.max_retries {
+                            return self.apply_fallback_strategy(x, y);
+                        }
+                    }
+                    ErrorHandlingStrategy::AttemptRecovery => {
+                        eprintln!(
+                            "Attempting recovery from error (attempt {}): {:?}",
+                            attempt + 1,
+                            error
+                        );
+                        if attempt == self.max_retries {
+                            return self.apply_fallback_strategy(x, y);
+                        }
+                    }
+                },
+            }
+            attempt += 1;
+        }
+
+        self.apply_fallback_strategy(x, y)
+    }
+
+    /// Inner helper: run `pipeline.predict(x)` once.
+    fn try_execute_trained(
+        &self,
+        pipeline: &Pipeline<PipelineTrained>,
+        x: &ArrayView2<'_, Float>,
+    ) -> SklResult<Array1<f64>> {
+        if x.nrows() == 0 {
+            return Err(SklearsError::InvalidInput("Empty input data".to_string()));
+        }
+        pipeline.predict(x)
+    }
+
+    /// Try to execute pipeline once (generic state, uses row-mean approximation).
+    ///
+    /// This path is intentionally approximate: for pipelines in unknown or untrained
+    /// states there is no general way to call predict.  Use `execute_trained` /
+    /// `try_execute_trained` to get real predictions from a `Pipeline<PipelineTrained>`.
     fn try_execute<S>(
         &self,
         _pipeline: &mut Pipeline<S>,
@@ -1594,13 +1813,11 @@ impl RobustPipelineExecutor {
     where
         S: std::fmt::Debug,
     {
-        // TODO: Actually execute the pipeline when Pipeline has predict method
-        // For now, simulate a potential failure and success
         if x.nrows() == 0 {
             return Err(SklearsError::InvalidInput("Empty input data".to_string()));
         }
 
-        // Mock prediction - return mean of each row
+        // For non-trained pipelines fall back to row-mean approximation.
         let predictions: Vec<f64> = x
             .rows()
             .into_iter()
@@ -1661,3 +1878,6 @@ impl Default for RobustPipelineExecutor {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests;

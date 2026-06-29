@@ -9,7 +9,7 @@
 
 ## Source-level TODOs
 
-- [ ] src/parallel_eigen.rs:133 — Implement when SciRS2 parallel eigenvalue solver is available
+- [x] src/parallel_eigen.rs:133 — DONE (2026-06-21): wired to `scirs2_linalg::eigh` (accurate sequential kernel; upstream multi-worker kernel returns inf in 0.5.0, documented); parallelism retained across independent blocks.
 - [x] src/tests/canonical_tests.rs:5 — Extract from original tests.rs (7 tests moved from canonical_discriminant.rs inline tests)
 - [x] src/tests/bayesian_tests.rs:5 — Extract from original tests.rs (8 new smoke tests written — no inline tests in source)
 - [x] src/tests/mixture_tests.rs:5 — Extract from original tests.rs (7 new smoke tests written — no inline tests in source)

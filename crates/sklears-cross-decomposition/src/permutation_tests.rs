@@ -433,18 +433,32 @@ where
     T: Predict<Array2<Float>, Array2<Float>>,
 {
     fn explained_variance_ratio(&self) -> Result<Float> {
-        // Default implementation - would need to be specialized for each model type
-        Ok(0.5) // Placeholder
+        // A bare `Predict` implementor exposes no latent/decomposition state, so
+        // the explained-variance ratio genuinely cannot be computed here. Models
+        // that can compute it (e.g. PLS/CCA) must provide their own
+        // `ComputeStatistic` implementation. Returning an honest error rather
+        // than a fabricated constant keeps permutation tests meaningful.
+        Err(SklearsError::InvalidInput(
+            "explained_variance_ratio is not available for a generic Predict model; \
+             implement ComputeStatistic for this type or use TestStatistic::R2Score"
+                .into(),
+        ))
     }
 
     fn max_canonical_correlation(&self) -> Result<Float> {
-        // Default implementation
-        Ok(0.5) // Placeholder
+        Err(SklearsError::InvalidInput(
+            "max_canonical_correlation is not available for a generic Predict model; \
+             implement ComputeStatistic for this type or use TestStatistic::R2Score"
+                .into(),
+        ))
     }
 
     fn sum_canonical_correlations(&self) -> Result<Float> {
-        // Default implementation
-        Ok(0.5) // Placeholder
+        Err(SklearsError::InvalidInput(
+            "sum_canonical_correlations is not available for a generic Predict model; \
+             implement ComputeStatistic for this type or use TestStatistic::R2Score"
+                .into(),
+        ))
     }
 
     fn r2_score(&self, x: &Array2<Float>, y: &Array2<Float>) -> Result<Float> {
@@ -605,8 +619,10 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
         let y = array![[1.0], [2.0], [3.0], [4.0]];
 
-        // Test with actual PLS model that should give different results when permuted
-        let perm_test = PermutationTest::new(50, TestStatistic::ExplainedVarianceRatio)
+        // Use R2Score: the genuinely computable statistic for a Predict-only
+        // model (PLSRegression has no ComputeStatistic specialization, so the
+        // decomposition-based statistics now return an honest error).
+        let perm_test = PermutationTest::new(50, TestStatistic::R2Score)
             .alpha(0.05)
             .random_state(42);
 
@@ -618,6 +634,20 @@ mod tests {
         assert_eq!(result.n_permutations, 50);
         assert_eq!(result.null_distribution.len(), 50);
         assert!(result.p_value >= 0.0 && result.p_value <= 1.0);
-        assert!(result.observed_statistic >= 0.0);
+        assert!(result.observed_statistic.is_finite());
+    }
+
+    #[test]
+    fn test_generic_predict_decomposition_stats_error() {
+        // A bare Predict implementor must NOT fabricate decomposition statistics.
+        let model = PLSRegression::new(1);
+        let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
+        let y = array![[1.0], [2.0], [3.0], [4.0]];
+        let fitted = model.fit(&x, &y).expect("fit should succeed");
+        assert!(fitted.explained_variance_ratio().is_err());
+        assert!(fitted.max_canonical_correlation().is_err());
+        assert!(fitted.sum_canonical_correlations().is_err());
+        // R2 is computable from predictions and must still work.
+        assert!(fitted.r2_score(&x, &y).is_ok());
     }
 }

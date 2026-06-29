@@ -9,7 +9,7 @@ use crate::genomics::pathway_analysis::{
 };
 use crate::multiview_cca::{MultiViewCCA, MultipleViews, Trained as MVTrained};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
-use sklears_core::traits::Fit;
+use sklears_core::traits::{Fit, Transform};
 use sklears_core::types::Float;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -144,47 +144,49 @@ impl MultiOmicsIntegration {
         })
     }
 
+    /// Compute per-view integration scores from the fitted canonical projection.
+    ///
+    /// Each input view is projected onto the learned canonical space via the
+    /// fitted Multi-View CCA model. The integration score for canonical
+    /// component `c` of a view is the variance of that view's `c`-th canonical
+    /// variate: a measure of how much signal the shared canonical direction
+    /// captures in that view. This is derived from the actual fitted model, not
+    /// from raw per-column statistics.
     fn compute_integration_scores(
         &self,
         omics_data: &[ArrayView2<Float>],
-        _fitted_cca: &MultiViewCCA<MVTrained>,
+        fitted_cca: &MultiViewCCA<MVTrained>,
     ) -> Result<Vec<Array1<Float>>, GenomicsError> {
-        let mut scores = Vec::new();
+        let views: Vec<Array2<Float>> = omics_data.iter().map(|view| view.to_owned()).collect();
+        let canonical_variates = fitted_cca.transform(&views)?;
 
-        // For now, create placeholder scores since we don't have transform method available
-        for data in omics_data {
-            let score = self.compute_data_integration_score_from_raw(data)?;
-            scores.push(score);
-        }
+        let scores = canonical_variates
+            .iter()
+            .map(Self::variance_per_component)
+            .collect();
 
         Ok(scores)
     }
 
-    fn compute_data_integration_score_from_raw(
-        &self,
-        data: &ArrayView2<Float>,
-    ) -> Result<Array1<Float>, GenomicsError> {
-        let n_components = self.n_components.min(data.ncols());
-        let mut scores = Array1::zeros(n_components);
-
-        for (i, score) in scores.iter_mut().enumerate() {
-            if i < data.ncols() {
-                let column = data.column(i);
-                // Compute variance explained as integration score
-                let mean = column.mean().unwrap_or(0.0);
-                let variance = column
-                    .iter()
-                    .map(|&x| {
-                        let diff = x - mean;
-                        diff * diff
-                    })
-                    .fold(0.0, |acc, x| acc + x)
-                    / column.len() as Float;
-                *score = variance;
-            }
+    /// Variance of each canonical variate (column) of a projected view.
+    fn variance_per_component(variates: &Array2<Float>) -> Array1<Float> {
+        let n_samples = variates.nrows();
+        if n_samples == 0 {
+            return Array1::zeros(variates.ncols());
         }
-
-        Ok(scores)
+        let denom = n_samples as Float;
+        variates
+            .columns()
+            .into_iter()
+            .map(|column| {
+                let mean = column.sum() / denom;
+                column
+                    .iter()
+                    .map(|&x| (x - mean) * (x - mean))
+                    .sum::<Float>()
+                    / denom
+            })
+            .collect()
     }
 
     fn compute_pathway_enrichment(
@@ -214,23 +216,19 @@ pub struct FittedMultiOmicsIntegration {
 }
 
 impl FittedMultiOmicsIntegration {
-    /// Transform new omics data using the fitted model
+    /// Transform new omics data into the learned canonical space.
+    ///
+    /// Each input view is centered (and scaled, if the model was fitted with
+    /// scaling) using the statistics learned during fitting and projected onto
+    /// the canonical weight matrix for that view, yielding canonical variates of
+    /// shape `(n_samples, n_components)`.
     pub fn transform(
         &self,
         omics_data: &[ArrayView2<Float>],
     ) -> Result<Vec<Array2<Float>>, GenomicsError> {
-        // Since we don't have transform method available on MultiViewCCA yet,
-        // return placeholder transformed data
-        let mut transformed_data = Vec::new();
-
-        for data in omics_data {
-            // Create a placeholder transformation (would normally use fitted_cca.transform)
-            let n_samples = data.nrows();
-            let transformed = Array2::zeros((n_samples, self.n_components));
-            transformed_data.push(transformed);
-        }
-
-        Ok(transformed_data)
+        let views: Vec<Array2<Float>> = omics_data.iter().map(|view| view.to_owned()).collect();
+        let transformed = self.fitted_cca.transform(&views)?;
+        Ok(transformed)
     }
 
     /// Get the integration scores for each omics dataset
@@ -246,5 +244,102 @@ impl FittedMultiOmicsIntegration {
     /// Get the number of components
     pub fn n_components(&self) -> usize {
         self.n_components
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    fn sample_views() -> (Array2<Float>, Array2<Float>) {
+        // Two omics views over 6 shared samples, 3 features each, with genuine
+        // (non-zero) variance and cross-view structure so canonical variates are
+        // non-trivial.
+        let omics_a = array![
+            [1.0, 5.0, 2.0],
+            [2.0, 4.0, 1.0],
+            [3.0, 6.0, 4.0],
+            [4.0, 3.0, 2.0],
+            [5.0, 7.0, 5.0],
+            [6.0, 2.0, 3.0],
+        ];
+        let omics_b = array![
+            [2.0, 1.0, 9.0],
+            [3.0, 2.0, 7.0],
+            [4.0, 4.0, 8.0],
+            [5.0, 3.0, 6.0],
+            [6.0, 5.0, 9.0],
+            [7.0, 1.0, 5.0],
+        ];
+        (omics_a, omics_b)
+    }
+
+    #[test]
+    fn test_transform_projects_onto_canonical_space() {
+        let (omics_a, omics_b) = sample_views();
+        let n_components = 2;
+        let integration = MultiOmicsIntegration::new(n_components).random_state(7);
+        let views = [omics_a.view(), omics_b.view()];
+        let fitted = integration.fit(&views).expect("fit should succeed");
+
+        let transformed = fitted.transform(&views).expect("transform should succeed");
+
+        // One canonical-variate matrix per input view.
+        assert_eq!(transformed.len(), 2);
+        for (view, variates) in views.iter().zip(transformed.iter()) {
+            // Shape is (n_samples, n_components).
+            assert_eq!(variates.nrows(), view.nrows());
+            assert_eq!(variates.ncols(), n_components);
+            // Every value is finite (no NaN/Inf fabrications).
+            assert!(variates.iter().all(|v| v.is_finite()));
+        }
+
+        // The projection is a real computation, not a zeros placeholder: the
+        // total energy of the canonical variates is strictly positive.
+        let total_energy: Float = transformed
+            .iter()
+            .flat_map(|m| m.iter())
+            .map(|&v| v * v)
+            .sum();
+        assert!(
+            total_energy > 1e-8,
+            "canonical variates collapsed to (near) zero: {total_energy}"
+        );
+    }
+
+    #[test]
+    fn test_integration_scores_from_fitted_projection() {
+        let (omics_a, omics_b) = sample_views();
+        let n_components = 2;
+        let integration = MultiOmicsIntegration::new(n_components).random_state(13);
+        let views = [omics_a.view(), omics_b.view()];
+        let fitted = integration.fit(&views).expect("fit should succeed");
+
+        let scores = fitted.integration_scores();
+        assert_eq!(scores.len(), 2);
+        for score in scores {
+            // One score per canonical component, all finite and non-negative
+            // (they are variances of the canonical variates).
+            assert_eq!(score.len(), n_components);
+            assert!(score.iter().all(|v| v.is_finite() && *v >= 0.0));
+        }
+
+        // At least one canonical component carries non-zero variance, proving
+        // the scores come from a real projection rather than a zeros stub.
+        let max_score = scores
+            .iter()
+            .flat_map(|s| s.iter())
+            .fold(0.0, |acc: Float, &v| acc.max(v));
+        assert!(max_score > 1e-8, "all integration scores are (near) zero");
+    }
+
+    #[test]
+    fn test_fit_requires_multiple_views() {
+        let (omics_a, _) = sample_views();
+        let integration = MultiOmicsIntegration::new(1);
+        let views = [omics_a.view()];
+        let result = integration.fit(&views);
+        assert!(matches!(result, Err(GenomicsError::InsufficientData(_))));
     }
 }

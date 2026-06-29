@@ -607,13 +607,19 @@ impl AnomalyDetectionSystem {
     }
 
     fn calculate_false_positive_rate(&self) -> SklResult<f64> {
-        // Implementation would calculate actual false positive rate
-        Ok(0.05) // Placeholder
+        Err(SklearsError::NotImplemented(
+            "false_positive_rate: requires labeled ground-truth anomaly annotations \
+             to distinguish false positives from true negatives; store a ground-truth \
+             label feed alongside the anomaly detector state".to_string()
+        ))
     }
 
     fn calculate_model_accuracy(&self) -> SklResult<f64> {
-        // Implementation would calculate actual model accuracy
-        Ok(0.95) // Placeholder
+        Err(SklearsError::NotImplemented(
+            "model_accuracy: requires labeled ground-truth anomaly annotations \
+             to build a confusion matrix; store a ground-truth label feed \
+             alongside the anomaly detector state".to_string()
+        ))
     }
 }
 

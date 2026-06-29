@@ -3,9 +3,9 @@
 //! This module contains all the configuration structures, enums, and basic types
 //! used throughout the comprehensive benchmarking suite.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
-use serde::{Deserialize, Serialize};
 
 // ================================================================================================
 // MAIN CONFIGURATION STRUCTURES
@@ -77,7 +77,7 @@ pub struct ResourceConstraints {
 }
 
 /// Isolation requirements for resource management
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct IsolationRequirements {
     pub cpu_isolation: bool,
     pub memory_isolation: bool,
@@ -361,8 +361,9 @@ pub struct ExecutionError {
 // ================================================================================================
 
 /// Output formats for reports
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum OutputFormat {
+    #[default]
     JSON,
     HTML,
     PDF,
@@ -411,7 +412,7 @@ pub struct ResourceUsageInfo {
 }
 
 /// Network I/O statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NetworkIOStats {
     pub bytes_sent: u64,
     pub bytes_received: u64,
@@ -649,10 +650,10 @@ impl Default for BaselineConfig {
 impl Default for RegressionThresholds {
     fn default() -> Self {
         Self {
-            performance_degradation: 0.1, // 10% degradation
-            accuracy_degradation: 0.05,   // 5% degradation
-            memory_increase: 0.2,         // 20% increase
-            latency_increase: 0.15,       // 15% increase
+            performance_degradation: 0.1,   // 10% degradation
+            accuracy_degradation: 0.05,     // 5% degradation
+            memory_increase: 0.2,           // 20% increase
+            latency_increase: 0.15,         // 15% increase
             statistical_significance: 0.05, // p < 0.05
             consecutive_failures: 3,
         }
@@ -710,18 +711,6 @@ impl Default for ResourceConstraints {
     }
 }
 
-impl Default for IsolationRequirements {
-    fn default() -> Self {
-        Self {
-            cpu_isolation: false,
-            memory_isolation: false,
-            network_isolation: false,
-            filesystem_isolation: false,
-            container_isolation: false,
-        }
-    }
-}
-
 impl Default for ResourceRequirements {
     fn default() -> Self {
         Self {
@@ -744,18 +733,6 @@ impl Default for ResourceUsageInfo {
             network_io: NetworkIOStats::default(),
             disk_io: DiskIOStats::default(),
             execution_time: Duration::from_secs(0),
-        }
-    }
-}
-
-impl Default for NetworkIOStats {
-    fn default() -> Self {
-        Self {
-            bytes_sent: 0,
-            bytes_received: 0,
-            packets_sent: 0,
-            packets_received: 0,
-            connection_count: 0,
         }
     }
 }
@@ -872,6 +849,362 @@ pub fn create_historical_baseline(name: &str) -> BaselineConfig {
 }
 
 // ================================================================================================
+// ANALYSIS RESULT TYPES (used by performance_analysis, comparison_engine, etc.)
+// ================================================================================================
+
+/// Statistical summary of numeric data
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct StatisticalSummary {
+    pub descriptive_stats: DescriptiveStatistics,
+    pub distribution_info: DistributionInfo,
+    pub correlation_analysis: CorrelationAnalysis,
+    pub hypothesis_tests: Vec<HypothesisTest>,
+}
+
+/// Descriptive statistics (simple form)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DescriptiveStats {
+    pub mean: f64,
+    pub median: f64,
+    pub std_dev: f64,
+    pub variance: f64,
+    pub min: f64,
+    pub max: f64,
+    pub count: usize,
+    pub percentile_25: f64,
+    pub percentile_75: f64,
+    pub percentile_95: f64,
+    pub percentile_99: f64,
+    pub skewness: f64,
+    pub kurtosis: f64,
+    pub modes: Vec<f64>,
+    pub coefficient_of_variation: f64,
+}
+
+/// Descriptive statistics (detailed form matching performance_analysis usage)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DescriptiveStatistics {
+    pub count: usize,
+    pub mean: f64,
+    pub median: f64,
+    pub mode: Vec<f64>,
+    pub variance: f64,
+    pub standard_deviation: f64,
+    pub skewness: f64,
+    pub kurtosis: f64,
+    pub range: f64,
+    pub quartiles: [f64; 5],
+    pub percentiles: std::collections::HashMap<String, f64>,
+}
+
+/// Distribution type classification
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub enum DistributionType {
+    #[default]
+    Unknown,
+    Normal,
+    Uniform,
+    Exponential,
+    Poisson,
+    LogNormal,
+    Custom(String),
+}
+
+/// Goodness-of-fit test result
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GoodnessOfFit {
+    pub chi_squared: f64,
+    pub p_value: f64,
+    pub degrees_of_freedom: u32,
+    pub critical_value: f64,
+}
+
+/// Distribution information
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DistributionInfo {
+    pub distribution_type: DistributionType,
+    pub parameters: std::collections::HashMap<String, f64>,
+    pub goodness_of_fit: GoodnessOfFit,
+    pub normality_tests: Vec<String>,
+}
+
+/// Correlation analysis result
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CorrelationAnalysis {
+    pub correlation_matrix: Vec<Vec<f64>>,
+    pub correlation_coefficients: std::collections::HashMap<String, f64>,
+    pub significance_tests: Vec<SignificanceTest>,
+}
+
+/// Significance test result
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SignificanceTest {
+    pub test_name: String,
+    pub statistic: f64,
+    pub p_value: f64,
+    pub significant: bool,
+}
+
+/// Hypothesis test result
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct HypothesisTest {
+    pub test_type: String,
+    pub statistic: f64,
+    pub p_value: f64,
+    pub rejected: bool,
+    pub confidence_level: f64,
+}
+
+/// Direction of a performance trend
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum TrendDirection {
+    Increasing,
+    Decreasing,
+    Stable,
+    Volatile,
+    #[default]
+    Unknown,
+}
+
+/// Algorithm used for trend detection
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub enum TrendDetectionAlgorithm {
+    #[default]
+    LinearRegression,
+    MannKendall,
+    SpearmanCorrelation,
+    MovingAverage,
+    ExponentialSmoothing,
+    Custom(String),
+}
+
+/// Result from a single trend detection algorithm
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TrendDetectionResult {
+    pub algorithm: TrendDetectionAlgorithm,
+    pub trend_direction: TrendDirection,
+    pub trend_statistic: f64,
+    pub p_value: f64,
+    pub confidence: f64,
+}
+
+/// Trend result for a single metric
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MetricTrendResult {
+    pub trend_direction: TrendDirection,
+    pub trend_strength: f64,
+    pub trend_significance: f64,
+    pub algorithm_results: Vec<TrendDetectionResult>,
+    pub slope_estimate: f64,
+    pub confidence_level: f64,
+}
+
+/// Type classification for anomalies
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub enum AnomalyType {
+    #[default]
+    Statistical,
+    IsolationForest,
+    LocalOutlierFactor,
+    ContextualAnomaly,
+    CollectiveAnomaly,
+    Custom(String),
+}
+
+/// Algorithm used for anomaly detection
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub enum AnomalyDetectionAlgorithm {
+    #[default]
+    StatisticalOutliers,
+    IsolationForest,
+    LocalOutlierFactor,
+    DBSCAN,
+    OneClassSVM,
+    Custom(String),
+}
+
+/// Individual anomaly data point
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AnomalyPoint {
+    pub index: usize,
+    pub value: f64,
+    pub anomaly_score: f64,
+    pub anomaly_type: AnomalyType,
+}
+
+/// Result from a single anomaly detection algorithm
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AnomalyDetectionResult {
+    pub algorithm: AnomalyDetectionAlgorithm,
+    pub anomalous_points: Vec<AnomalyPoint>,
+    pub threshold_value: f64,
+    pub confidence: f64,
+}
+
+/// Anomaly result for a single metric
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MetricAnomalyResult {
+    pub anomalous_points: Vec<usize>,
+    pub anomaly_scores: Vec<f64>,
+    pub algorithm_results: Vec<AnomalyDetectionResult>,
+    pub threshold_values: Vec<f64>,
+    pub confidence_level: f64,
+}
+
+/// Type of optimization recommendation
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub enum RecommendationType {
+    #[default]
+    OptimizationOpportunity,
+    ResourceAllocation,
+    ProcessImprovement,
+    Configuration,
+    Caching,
+    Parallelization,
+    Custom(String),
+}
+
+/// Priority level for recommendations
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
+pub enum RecommendationPriority {
+    Critical,
+    High,
+    #[default]
+    Medium,
+    Low,
+    Informational,
+}
+
+/// Level of effort required to implement
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub enum ImplementationEffort {
+    Trivial,
+    Low,
+    #[default]
+    Medium,
+    High,
+    VeryHigh,
+}
+
+/// Cost impact category
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub enum CostImpact {
+    None,
+    #[default]
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+/// Risk level for changes
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub enum RiskLevel {
+    VeryLow,
+    #[default]
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+/// Severity of an alert
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
+pub enum AlertSeverity {
+    #[default]
+    Info,
+    Warning,
+    Error,
+    Critical,
+}
+
+/// Expected impact of applying a recommendation
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ExpectedImpact {
+    pub performance_improvement: f64,
+    pub cost_impact: CostImpact,
+    pub implementation_effort: ImplementationEffort,
+    pub risk_level: RiskLevel,
+    pub estimated_time_hours: f64,
+}
+
+/// Generic visualization data container
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct VisualizationData {
+    pub data_type: String,
+    pub labels: Vec<String>,
+    pub values: Vec<f64>,
+    pub series: Vec<Vec<f64>>,
+    pub metadata: std::collections::HashMap<String, String>,
+}
+
+// ================================================================================================
+// STORAGE TYPES (used by data_storage sub-modules)
+// ================================================================================================
+
+/// Type classification for stored data items
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub enum DataStorageType {
+    #[default]
+    BenchmarkResult,
+    PerformanceMetric,
+    Configuration,
+    Report,
+    VisualizationData,
+    Custom(String),
+}
+
+/// Generic data container for storage operations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StorageData {
+    pub data_id: String,
+    pub data_type: DataStorageType,
+    pub content: Vec<u8>,
+    pub metadata: std::collections::HashMap<String, String>,
+    pub creation_timestamp: chrono::DateTime<chrono::Utc>,
+    pub size: u64,
+}
+
+impl Default for StorageData {
+    fn default() -> Self {
+        Self {
+            data_id: String::new(),
+            data_type: DataStorageType::BenchmarkResult,
+            content: Vec::new(),
+            metadata: std::collections::HashMap::new(),
+            creation_timestamp: chrono::Utc::now(),
+            size: 0,
+        }
+    }
+}
+
+// ================================================================================================
+// HYPOTHESIS TEST TYPES
+// ================================================================================================
+
+/// Type of hypothesis test to perform
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub enum HypothesisTestType {
+    #[default]
+    TTest,
+    WilcoxonRankSum,
+    MannWhitneyU,
+    KruskalWallis,
+    ChiSquare,
+    Custom(String),
+}
+
+/// Complete trend analysis result
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TrendAnalysisResult {
+    pub metric_trends: std::collections::HashMap<String, MetricTrendResult>,
+    pub trend_summary: String,
+    pub changepoints: Vec<String>,
+    pub forecasts: std::collections::HashMap<String, Vec<f64>>,
+    pub confidence_intervals: std::collections::HashMap<String, (f64, f64)>,
+}
+
+// ================================================================================================
 // TESTS
 // ================================================================================================
 
@@ -890,11 +1223,7 @@ mod tests {
 
     #[test]
     fn test_performance_metric_creation() {
-        let metric = create_performance_metric(
-            "test_metric",
-            MetricType::ExecutionTime,
-            "ms"
-        );
+        let metric = create_performance_metric("test_metric", MetricType::ExecutionTime, "ms");
         assert_eq!(metric.metric_name, "test_metric");
         assert!(matches!(metric.metric_type, MetricType::ExecutionTime));
         assert_eq!(metric.unit, "ms");
@@ -923,7 +1252,7 @@ mod tests {
             "test_rule",
             ValidationRuleType::PreExecution,
             "value > 0",
-            "Value must be positive"
+            "Value must be positive",
         );
         assert_eq!(rule.rule_name, "test_rule");
         assert!(matches!(rule.rule_type, ValidationRuleType::PreExecution));
@@ -957,7 +1286,7 @@ mod tests {
 
     #[test]
     fn test_parameter_type_variants() {
-        let types = vec![
+        let types = [
             ParameterType::Integer,
             ParameterType::Float,
             ParameterType::String,
@@ -970,7 +1299,7 @@ mod tests {
 
     #[test]
     fn test_execution_status_variants() {
-        let statuses = vec![
+        let statuses = [
             ExecutionStatus::Queued,
             ExecutionStatus::Running,
             ExecutionStatus::Completed,

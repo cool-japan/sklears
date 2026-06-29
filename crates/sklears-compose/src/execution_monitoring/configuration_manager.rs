@@ -684,8 +684,12 @@ impl ConfigurationManager {
     }
 
     fn calculate_validation_success_rate(&self) -> SklResult<f64> {
-        // Implementation would calculate actual success rate
-        Ok(0.95) // 95% success rate placeholder
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let total = state.total_updates_applied;
+        if total == 0 {
+            return Ok(1.0);
+        }
+        Ok((1.0 - state.total_rollbacks as f64 / total as f64).clamp(0.0, 1.0))
     }
 
     fn calculate_health_score(&self) -> f64 {

@@ -281,8 +281,8 @@ impl TheoreticalCalibrationValidator {
     /// Prove sharpness preservation during calibration
     fn prove_sharpness_preservation<T: CalibrationEstimator + ?Sized>(
         &mut self,
-        _calibrator: &T,
-        method_name: &str,
+        calibrator: &T,
+        _method_name: &str,
     ) -> Result<ProofResult> {
         let mut proof_steps = Vec::new();
         let mut assumptions = Vec::new();
@@ -294,8 +294,8 @@ impl TheoreticalCalibrationValidator {
         assumptions.push("Monotonic calibration mapping".to_string());
         assumptions.push("Bounded prediction variance".to_string());
 
-        // Analyze sharpness preservation
-        let sharpness_preserved = self.analyze_sharpness_preservation(method_name)?;
+        // Analyze sharpness preservation from the actual calibration map.
+        let sharpness_preserved = self.analyze_sharpness_preservation(calibrator)?;
 
         proof_steps.push("Step 4: Apply Jensen's inequality for convex functions".to_string());
         proof_steps.push("Step 5: Show variance preservation under monotonic maps".to_string());
@@ -314,8 +314,8 @@ impl TheoreticalCalibrationValidator {
     /// Prove monotonicity property
     fn prove_monotonicity<T: CalibrationEstimator + ?Sized>(
         &mut self,
-        _calibrator: &T,
-        method_name: &str,
+        calibrator: &T,
+        _method_name: &str,
     ) -> Result<ProofResult> {
         let mut proof_steps = Vec::new();
         let mut assumptions = Vec::new();
@@ -326,8 +326,8 @@ impl TheoreticalCalibrationValidator {
         assumptions.push("Isotonic regression or sigmoid-based calibration".to_string());
         assumptions.push("Sufficient sample size for reliable estimation".to_string());
 
-        // Check monotonicity computationally
-        let is_monotonic = self.verify_monotonicity(method_name)?;
+        // Check monotonicity by probing the actual calibration map on a grid.
+        let is_monotonic = self.verify_monotonicity(calibrator)?;
 
         proof_steps.push("Step 3: Verify non-decreasing property on test grid".to_string());
         proof_steps.push("Step 4: Apply pool-adjacent-violators algorithm theory".to_string());
@@ -358,7 +358,17 @@ impl TheoreticalCalibrationValidator {
         assumptions.push("Finite population variance".to_string());
         assumptions.push("Unbiased estimation conditions".to_string());
 
-        let is_optimal = self.verify_bias_variance_optimality(method_name)?;
+        // Bias-variance optimality cannot be established from the calibration map
+        // alone; record an honest "not proven" result with the reason rather than
+        // fabricating a name-based verdict or aborting the whole report.
+        let is_optimal = match self.verify_bias_variance_optimality(method_name) {
+            Ok(value) => value,
+            Err(sklears_core::error::SklearsError::NotImplemented(reason)) => {
+                proof_steps.push(format!("Not proven: {}", reason));
+                false
+            }
+            Err(other) => return Err(other),
+        };
 
         proof_steps.push("Step 3: Apply Cramér-Rao lower bound theory".to_string());
         proof_steps.push("Step 4: Show estimator achieves theoretical minimum".to_string());
@@ -377,8 +387,8 @@ impl TheoreticalCalibrationValidator {
     /// Prove information preservation
     fn prove_information_preservation<T: CalibrationEstimator + ?Sized>(
         &mut self,
-        _calibrator: &T,
-        method_name: &str,
+        calibrator: &T,
+        _method_name: &str,
     ) -> Result<ProofResult> {
         let mut proof_steps = Vec::new();
         let mut assumptions = Vec::new();
@@ -389,7 +399,7 @@ impl TheoreticalCalibrationValidator {
         assumptions.push("Sufficient sample size for entropy estimation".to_string());
         assumptions.push("Continuous probability distributions".to_string());
 
-        let information_preserved = self.verify_information_preservation(method_name)?;
+        let information_preserved = self.verify_information_preservation(calibrator)?;
 
         proof_steps.push("Step 3: Apply data processing inequality".to_string());
         proof_steps.push("Step 4: Show information non-increase: I(f(P); Y) ≤ I(P; Y)".to_string());
@@ -420,7 +430,14 @@ impl TheoreticalCalibrationValidator {
         assumptions.push("Bounded distribution shift ||P' - P||_TV ≤ ε".to_string());
         assumptions.push("Lipschitz continuity of calibration mapping".to_string());
 
-        let is_robust = self.verify_distribution_robustness(method_name)?;
+        let is_robust = match self.verify_distribution_robustness(method_name) {
+            Ok(value) => value,
+            Err(sklears_core::error::SklearsError::NotImplemented(reason)) => {
+                proof_steps.push(format!("Not proven: {}", reason));
+                false
+            }
+            Err(other) => return Err(other),
+        };
 
         proof_steps.push("Step 3: Apply uniform convergence theory".to_string());
         proof_steps.push("Step 4: Bound calibration error under distribution shift".to_string());
@@ -429,7 +446,9 @@ impl TheoreticalCalibrationValidator {
             property: TheoreticalProperty::DistributionRobustness,
             is_valid: is_robust,
             confidence: self.config.confidence_level * 0.85,
-            theoretical_bound: Some(self.compute_robustness_bound()?),
+            // No shifted-ECE data is available, so no honest robustness bound can
+            // be computed here.
+            theoretical_bound: None,
             proof_steps,
             assumptions,
             asymptotic_complexity: Some("O(1/ε²)".to_string()),
@@ -451,7 +470,14 @@ impl TheoreticalCalibrationValidator {
         assumptions.push("Independent samples from fixed distribution".to_string());
         assumptions.push("Existence of population minimizer".to_string());
 
-        let is_consistent = self.verify_statistical_consistency(method_name)?;
+        let is_consistent = match self.verify_statistical_consistency(method_name) {
+            Ok(value) => value,
+            Err(sklears_core::error::SklearsError::NotImplemented(reason)) => {
+                proof_steps.push(format!("Not proven: {}", reason));
+                false
+            }
+            Err(other) => return Err(other),
+        };
 
         proof_steps.push("Step 3: Show uniform convergence of empirical process".to_string());
         proof_steps.push("Step 4: Apply Glivenko-Cantelli theorem".to_string());
@@ -483,7 +509,14 @@ impl TheoreticalCalibrationValidator {
         assumptions.push("Sub-Gaussian noise conditions".to_string());
         assumptions.push("Bounded calibration complexity".to_string());
 
-        let rate_optimal = self.verify_convergence_rate_bounds(method_name)?;
+        let rate_optimal = match self.verify_convergence_rate_bounds(method_name) {
+            Ok(value) => value,
+            Err(sklears_core::error::SklearsError::NotImplemented(reason)) => {
+                proof_steps.push(format!("Not proven: {}", reason));
+                false
+            }
+            Err(other) => return Err(other),
+        };
 
         proof_steps.push("Step 3: Use Rademacher complexity bounds".to_string());
         proof_steps.push("Step 4: Derive minimax optimal rate".to_string());
@@ -574,57 +607,219 @@ impl TheoreticalCalibrationValidator {
         Ok(x * x + noise)
     }
 
-    fn analyze_sharpness_preservation(&self, method_name: &str) -> Result<bool> {
-        // Theoretical analysis of sharpness preservation
-        // For most well-behaved calibration methods, sharpness is approximately preserved
-        Ok(method_name.contains("isotonic") || method_name.contains("sigmoid"))
+    /// Build a uniform probe grid over (0, 1) and obtain the calibration map's
+    /// outputs for those inputs. Returns `(input_probs, output_probs)`.
+    ///
+    /// This probes the actual fitted calibrator via its `predict_proba` map, so
+    /// downstream metrics are computed from real calibration behaviour rather
+    /// than from the method's name.
+    fn probe_calibration_map<T: CalibrationEstimator + ?Sized>(
+        &self,
+        calibrator: &T,
+    ) -> Result<(Vec<Float>, Vec<Float>)> {
+        let n_points = self.config.n_theoretical_tests.clamp(16, 1024);
+        let mut input_probs = Vec::with_capacity(n_points);
+        // Sample strictly inside (0, 1) to avoid boundary singularities.
+        for i in 0..n_points {
+            let t = (i as Float + 0.5) / n_points as Float;
+            input_probs.push(t);
+        }
+
+        let input_array = scirs2_core::ndarray::Array1::from(input_probs.clone());
+        let output_array = calibrator.predict_proba(&input_array)?;
+        let output_probs: Vec<Float> = output_array.to_vec();
+        Ok((input_probs, output_probs))
     }
 
-    fn verify_monotonicity(&self, method_name: &str) -> Result<bool> {
-        // Isotonic regression and sigmoid are monotonic by construction
-        Ok(method_name.contains("isotonic")
-            || method_name.contains("sigmoid")
-            || method_name.contains("temperature"))
+    /// Sharpness = variance of the predicted (calibrated) probabilities.
+    ///
+    /// Higher variance means the calibrator produces more decisive predictions
+    /// (further from the uninformative 0.5).
+    fn compute_sharpness(probabilities: &[Float]) -> Result<Float> {
+        if probabilities.is_empty() {
+            return Err(sklears_core::error::SklearsError::InvalidData {
+                reason: "compute_sharpness: empty probability slice".to_string(),
+            });
+        }
+        let n = probabilities.len() as Float;
+        let mean = probabilities.iter().sum::<Float>() / n;
+        let variance = probabilities
+            .iter()
+            .map(|&p| (p - mean).powi(2))
+            .sum::<Float>()
+            / n;
+        Ok(variance)
     }
 
-    fn verify_bias_variance_optimality(&self, method_name: &str) -> Result<bool> {
-        // Check if method achieves bias-variance optimality
-        Ok(method_name.contains("bayes") || method_name.contains("optimal"))
+    fn analyze_sharpness_preservation<T: CalibrationEstimator + ?Sized>(
+        &self,
+        calibrator: &T,
+    ) -> Result<bool> {
+        // Sharpness is "preserved" when the calibrated outputs retain non-trivial
+        // spread (variance) compared with the uniform input grid. A degenerate map
+        // collapsing all inputs to a constant destroys sharpness.
+        let (input_probs, output_probs) = self.probe_calibration_map(calibrator)?;
+        let input_sharpness = Self::compute_sharpness(&input_probs)?;
+        let output_sharpness = Self::compute_sharpness(&output_probs)?;
+        if input_sharpness <= Float::EPSILON {
+            return Ok(output_sharpness > Float::EPSILON);
+        }
+        // Require the calibrated map to retain at least half of the input spread.
+        Ok(output_sharpness >= 0.5 * input_sharpness)
+    }
+
+    /// Verify monotonicity of the calibration map by sorting on the input and
+    /// checking that the outputs are non-decreasing (within tolerance).
+    fn verify_monotonicity_of(input_probs: &[Float], output_probs: &[Float]) -> Result<bool> {
+        if input_probs.len() != output_probs.len() {
+            return Err(sklears_core::error::SklearsError::InvalidData {
+                reason: "verify_monotonicity: input/output length mismatch".to_string(),
+            });
+        }
+        let mut pairs: Vec<(Float, Float)> = input_probs
+            .iter()
+            .zip(output_probs.iter())
+            .map(|(&a, &b)| (a, b))
+            .collect();
+        pairs.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let monotone = pairs.windows(2).all(|w| w[1].1 >= w[0].1 - 1e-10);
+        Ok(monotone)
+    }
+
+    fn verify_monotonicity<T: CalibrationEstimator + ?Sized>(
+        &self,
+        calibrator: &T,
+    ) -> Result<bool> {
+        let (input_probs, output_probs) = self.probe_calibration_map(calibrator)?;
+        Self::verify_monotonicity_of(&input_probs, &output_probs)
+    }
+
+    fn verify_bias_variance_optimality(&self, _method_name: &str) -> Result<bool> {
+        // Bias-variance optimality requires the population minimiser and held-out
+        // labelled data across the variance-bias trade-off, none of which is
+        // available from the calibration map alone. Honest error instead of a
+        // name-based fabrication.
+        Err(sklears_core::error::SklearsError::NotImplemented(
+            "bias-variance optimality: requires labelled data and population \
+             minimiser, not derivable from the calibration map alone"
+                .to_string(),
+        ))
     }
 
     fn compute_cramer_rao_bound(&self) -> Result<Float> {
-        // Cramér-Rao lower bound for calibration estimation
-        Ok(1.0 / self.config.n_theoretical_tests as Float)
+        // Cramér-Rao lower bound for binary probability estimation: the
+        // asymptotic variance of an unbiased estimator of a Bernoulli rate is
+        // p(1-p)/n, maximised at p = 1/2 giving 1/(4n). We report this
+        // worst-case theoretical lower bound.
+        let n = self.config.n_theoretical_tests as Float;
+        if n <= 0.0 {
+            return Err(sklears_core::error::SklearsError::InvalidData {
+                reason: "compute_cramer_rao_bound: n_theoretical_tests must be > 0".to_string(),
+            });
+        }
+        Ok(1.0 / (4.0 * n))
     }
 
-    fn verify_information_preservation(&self, method_name: &str) -> Result<bool> {
-        // Information preservation analysis
-        Ok(!method_name.contains("histogram")) // Histogram binning loses information
+    /// Information preserved by the calibration map, measured as
+    /// `1 - KL(input || output)` over the probe grid (clamped at 0).
+    fn compute_information_preservation(
+        input_probs: &[Float],
+        output_probs: &[Float],
+    ) -> Result<Float> {
+        if input_probs.len() != output_probs.len() {
+            return Err(sklears_core::error::SklearsError::InvalidData {
+                reason: "compute_information_preservation: length mismatch".to_string(),
+            });
+        }
+        let kl: Float = input_probs
+            .iter()
+            .zip(output_probs.iter())
+            .filter(|&(&p, &q)| p > 1e-10 && q > 1e-10)
+            .map(|(&p, &q)| p * (p / q).ln())
+            .sum();
+        Ok((1.0 - kl).max(0.0))
     }
 
-    fn verify_distribution_robustness(&self, method_name: &str) -> Result<bool> {
-        // Robustness under distribution shift
-        Ok(method_name.contains("bayes") || method_name.contains("robust"))
+    fn verify_information_preservation<T: CalibrationEstimator + ?Sized>(
+        &self,
+        calibrator: &T,
+    ) -> Result<bool> {
+        let (input_probs, output_probs) = self.probe_calibration_map(calibrator)?;
+        let preserved = Self::compute_information_preservation(&input_probs, &output_probs)?;
+        // Treat the map as information-preserving when at least half of the
+        // (normalised) information is retained.
+        Ok(preserved >= 0.5)
     }
 
-    fn compute_robustness_bound(&self) -> Result<Float> {
-        // Theoretical robustness bound
-        Ok(0.1) // 10% degradation under moderate shift
+    fn verify_distribution_robustness(&self, _method_name: &str) -> Result<bool> {
+        // Robustness under distribution shift requires evaluating ECE across
+        // multiple shifted distributions with labels. That data is not available
+        // here, so we return an honest error rather than a name-based guess.
+        Err(sklears_core::error::SklearsError::NotImplemented(
+            "distribution robustness: requires ECE measured across multiple \
+             shifted, labelled distributions"
+                .to_string(),
+        ))
+    }
+
+    /// Robustness bound from observed ECE values across conditions: the
+    /// standard deviation of ECE quantifies how much calibration error varies
+    /// under perturbation.
+    #[allow(dead_code)] // public-facing computation; exercised once shifted-ECE data is wired in
+    fn compute_robustness_bound(ece_values: &[Float]) -> Result<Float> {
+        if ece_values.is_empty() {
+            return Err(sklears_core::error::SklearsError::InvalidData {
+                reason: "compute_robustness_bound: empty ECE slice".to_string(),
+            });
+        }
+        let n = ece_values.len() as Float;
+        let mean = ece_values.iter().sum::<Float>() / n;
+        let std = (ece_values
+            .iter()
+            .map(|&e| (e - mean).powi(2))
+            .sum::<Float>()
+            / n)
+            .sqrt();
+        Ok(std)
     }
 
     fn verify_statistical_consistency(&self, _method_name: &str) -> Result<bool> {
-        // Statistical consistency verification
-        Ok(true) // Most calibration methods are consistent
+        // Consistency (f_n -> f* as n grows, i.e. ECE decreasing with sample
+        // size) cannot be established from a single fitted map without ECE
+        // measurements at multiple sample sizes. Honest error.
+        Err(sklears_core::error::SklearsError::NotImplemented(
+            "statistical consistency: requires ECE measured at increasing \
+             sample sizes"
+                .to_string(),
+        ))
     }
 
-    fn verify_convergence_rate_bounds(&self, method_name: &str) -> Result<bool> {
-        // Convergence rate optimality
-        Ok(method_name.contains("optimal") || method_name.contains("minimax"))
+    /// Verify consistency: ECE should not increase as the sample size grows.
+    #[allow(dead_code)] // public-facing computation; exercised once multi-n ECE data is wired in
+    fn verify_consistency(ece_small: Float, ece_large: Float) -> Result<bool> {
+        Ok(ece_large <= ece_small + 1e-6)
+    }
+
+    fn verify_convergence_rate_bounds(&self, _method_name: &str) -> Result<bool> {
+        // Rate optimality requires comparing the empirical convergence rate with
+        // the minimax lower bound, which needs labelled samples at several sizes.
+        // Honest error instead of a name-based fabrication.
+        Err(sklears_core::error::SklearsError::NotImplemented(
+            "convergence rate optimality: requires empirical convergence \
+             measurements at multiple sample sizes"
+                .to_string(),
+        ))
     }
 
     fn compute_convergence_rate_bound(&self) -> Result<Float> {
-        // Standard convergence rate for calibration
+        // Textbook calibration convergence rate: O(sqrt(ln n / n)).
         let n = self.config.n_theoretical_tests as Float;
+        if n <= 1.0 {
+            return Err(sklears_core::error::SklearsError::InvalidData {
+                reason: "compute_convergence_rate_bound: n_theoretical_tests must be > 1"
+                    .to_string(),
+            });
+        }
         Ok((n.ln() / n).sqrt())
     }
 
@@ -993,19 +1188,112 @@ mod tests {
 
     #[test]
     fn test_monotonicity_verification() {
+        use crate::SigmoidCalibrator;
+        use scirs2_core::ndarray::Array1;
+
         let validator = TheoreticalCalibrationValidator::default();
 
-        // Sigmoid should be monotonic
+        // A fitted sigmoid calibrator with positive slope is monotone. The
+        // simplified Platt fit chooses slope a = +1 when the positive rate
+        // exceeds 0.5, giving an increasing map.
+        let probs = Array1::from(vec![0.1, 0.2, 0.4, 0.6, 0.8, 0.9]);
+        let targets = Array1::from(vec![0, 0, 1, 1, 1, 1]);
+        let mut sigmoid = SigmoidCalibrator::new();
+        // Use the trait's `fit(&mut self, ...)` (distinct from the inherent
+        // builder-style `fit(self, ...)`).
+        CalibrationEstimator::fit(&mut sigmoid, &probs, &targets).expect("fit should succeed");
+
         let sigmoid_monotonic = validator
-            .verify_monotonicity("sigmoid")
+            .verify_monotonicity(&sigmoid)
             .expect("operation should succeed");
         assert!(sigmoid_monotonic);
+    }
 
-        // Isotonic should be monotonic
-        let isotonic_monotonic = validator
-            .verify_monotonicity("isotonic")
+    /// A deliberately non-monotone calibration map must be detected as such,
+    /// proving the check inspects the actual map rather than the method name.
+    #[derive(Debug, Clone)]
+    struct InvertingCalibrator;
+
+    impl CalibrationEstimator for InvertingCalibrator {
+        fn fit(
+            &mut self,
+            _probabilities: &scirs2_core::ndarray::Array1<Float>,
+            _y_true: &scirs2_core::ndarray::Array1<i32>,
+        ) -> Result<()> {
+            Ok(())
+        }
+
+        fn predict_proba(
+            &self,
+            probabilities: &scirs2_core::ndarray::Array1<Float>,
+        ) -> Result<scirs2_core::ndarray::Array1<Float>> {
+            // Strictly decreasing map: f(p) = 1 - p.
+            Ok(probabilities.mapv(|p| 1.0 - p))
+        }
+
+        fn clone_box(&self) -> Box<dyn CalibrationEstimator> {
+            Box::new(self.clone())
+        }
+    }
+
+    #[test]
+    fn test_monotonicity_detects_non_monotone_map() {
+        let validator = TheoreticalCalibrationValidator::default();
+        let inverting = InvertingCalibrator;
+        let is_monotone = validator
+            .verify_monotonicity(&inverting)
             .expect("operation should succeed");
-        assert!(isotonic_monotonic);
+        assert!(!is_monotone, "decreasing map must be flagged non-monotone");
+    }
+
+    #[test]
+    fn test_sharpness_uniform_vs_extreme() {
+        // Uniform predictions (all equal) have zero variance => zero sharpness.
+        let uniform = vec![0.5; 100];
+        let sharp_uniform = TheoreticalCalibrationValidator::compute_sharpness(&uniform)
+            .expect("sharpness should compute");
+        assert!(sharp_uniform.abs() < 1e-12);
+
+        // Extreme predictions (mix of 0.0 and 1.0) have maximal variance (0.25).
+        let mut extreme = vec![0.0; 50];
+        extreme.extend(vec![1.0; 50]);
+        let sharp_extreme = TheoreticalCalibrationValidator::compute_sharpness(&extreme)
+            .expect("sharpness should compute");
+        assert!(sharp_extreme > sharp_uniform);
+        assert!((sharp_extreme - 0.25).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_cramer_rao_bound_formula() {
+        let config = TheoreticalValidationConfig {
+            n_theoretical_tests: 100,
+            ..TheoreticalValidationConfig::default()
+        };
+        let validator = TheoreticalCalibrationValidator::new(config);
+        let crb = validator
+            .compute_cramer_rao_bound()
+            .expect("crb should compute");
+        // 1 / (4 * 100) = 0.0025
+        assert!((crb - 0.0025).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_unprovable_properties_return_not_implemented() {
+        let validator = TheoreticalCalibrationValidator::default();
+        // These cannot be established from a fitted map alone and must return
+        // an honest NotImplemented error rather than a name-based fabrication.
+        assert!(matches!(
+            validator.verify_statistical_consistency("anything"),
+            Err(sklears_core::error::SklearsError::NotImplemented(_))
+        ));
+        assert!(matches!(
+            validator.verify_distribution_robustness("anything"),
+            Err(sklears_core::error::SklearsError::NotImplemented(_))
+        ));
+        assert!(matches!(
+            validator.verify_bias_variance_optimality("anything"),
+            Err(sklears_core::error::SklearsError::NotImplemented(_))
+        ));
     }
 
     #[test]

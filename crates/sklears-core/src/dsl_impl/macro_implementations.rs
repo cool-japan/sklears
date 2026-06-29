@@ -6,9 +6,14 @@
 
 use crate::dsl_impl::{
     code_generators::{
-        generate_feature_engineering_code, generate_hyperparameter_code, generate_pipeline_code,
+        generate_data_pipeline_code, generate_experiment_config_code,
+        generate_feature_engineering_code, generate_hyperparameter_code,
+        generate_model_evaluation_code, generate_pipeline_code,
     },
-    parsers::{parse_feature_engineering, parse_hyperparameter_config, parse_ml_pipeline},
+    parsers::{
+        parse_data_pipeline, parse_experiment_config, parse_feature_engineering,
+        parse_hyperparameter_config, parse_ml_pipeline, parse_model_evaluation,
+    },
 };
 use proc_macro2::TokenStream;
 
@@ -152,11 +157,10 @@ pub fn hyperparameter_config_impl(input: TokenStream) -> TokenStream {
 ///
 /// # Returns
 /// Generated TokenStream with the evaluation implementation
-pub fn model_evaluation_impl(_input: TokenStream) -> TokenStream {
-    // TODO: Implement model evaluation macro
-    // This is a placeholder for future enhancement
-    quote::quote! {
-        compile_error!("model_evaluation! macro not yet implemented");
+pub fn model_evaluation_impl(input: TokenStream) -> TokenStream {
+    match parse_model_evaluation(input) {
+        Ok(config) => generate_model_evaluation_code(config),
+        Err(err) => err.to_compile_error(),
     }
 }
 
@@ -170,11 +174,10 @@ pub fn model_evaluation_impl(_input: TokenStream) -> TokenStream {
 ///
 /// # Returns
 /// Generated TokenStream with the data pipeline implementation
-pub fn data_pipeline_impl(_input: TokenStream) -> TokenStream {
-    // TODO: Implement data pipeline macro
-    // This is a placeholder for future enhancement
-    quote::quote! {
-        compile_error!("data_pipeline! macro not yet implemented");
+pub fn data_pipeline_impl(input: TokenStream) -> TokenStream {
+    match parse_data_pipeline(input) {
+        Ok(config) => generate_data_pipeline_code(config),
+        Err(err) => err.to_compile_error(),
     }
 }
 
@@ -188,11 +191,10 @@ pub fn data_pipeline_impl(_input: TokenStream) -> TokenStream {
 ///
 /// # Returns
 /// Generated TokenStream with the experiment setup implementation
-pub fn experiment_config_impl(_input: TokenStream) -> TokenStream {
-    // TODO: Implement experiment config macro
-    // This is a placeholder for future enhancement
-    quote::quote! {
-        compile_error!("experiment_config! macro not yet implemented");
+pub fn experiment_config_impl(input: TokenStream) -> TokenStream {
+    match parse_experiment_config(input) {
+        Ok(config) => generate_experiment_config_code(config),
+        Err(err) => err.to_compile_error(),
     }
 }
 

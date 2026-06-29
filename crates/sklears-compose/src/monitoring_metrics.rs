@@ -630,9 +630,21 @@ impl MetricsStorage for InMemoryMetricsStorage {
             performance: StoragePerformance {
                 avg_write_latency: stats.avg_operation_time,
                 avg_read_latency: stats.avg_operation_time,
-                write_throughput: 1000.0, // Placeholder
-                read_throughput: 2000.0,  // Placeholder
-                error_rate: stats.failed_operations as f64 / stats.total_operations as f64,
+                write_throughput: if stats.avg_operation_time.is_zero() {
+                    0.0
+                } else {
+                    1.0 / stats.avg_operation_time.as_secs_f64()
+                },
+                read_throughput: if stats.avg_operation_time.is_zero() {
+                    0.0
+                } else {
+                    1.0 / stats.avg_operation_time.as_secs_f64()
+                },
+                error_rate: if stats.total_operations > 0 {
+                    stats.failed_operations as f64 / stats.total_operations as f64
+                } else {
+                    0.0
+                },
             },
         })
     }

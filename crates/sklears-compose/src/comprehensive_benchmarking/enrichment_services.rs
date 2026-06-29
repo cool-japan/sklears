@@ -1568,8 +1568,8 @@ impl Default for ConnectionPoolSettings {
         Self {
             max_connections: 10,
             min_connections: 1,
-            connection_timeout: Duration::from_secs(30),
-            idle_timeout: Duration::from_secs(300),
+            connection_timeout: Duration::seconds(30),
+            idle_timeout: Duration::seconds(300),
         }
     }
 }
@@ -1682,7 +1682,7 @@ impl Default for EnrichmentPerformanceStats {
     fn default() -> Self {
         Self {
             total_operations: 0,
-            average_duration: Duration::from_millis(0),
+            average_duration: Duration::milliseconds(0),
             total_records_processed: 0,
             total_records_enriched: 0,
             overall_enrichment_rate: 0.0,

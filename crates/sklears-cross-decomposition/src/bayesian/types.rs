@@ -41,6 +41,7 @@ use std::collections::HashMap;
 /// let result = vpls.fit(&x, &y)?;
 /// let loadings = result.x_loadings();
 /// let uncertainty = result.loading_standard_deviations();
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug, Clone)]
 pub struct VariationalPLS {
@@ -347,6 +348,7 @@ impl VariationalPLS {
 /// let result = bcca.fit(&x, &y)?;
 /// let correlations = result.canonical_correlations();
 /// let uncertainty = result.correlation_credible_intervals(0.95);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug, Clone)]
 pub struct BayesianCCA {
@@ -666,6 +668,7 @@ impl VariationalPLSResults {
 /// let result = hbcca.fit(&x, &y, &groups)?;
 /// let group_effects = result.group_effects();
 /// let population_effects = result.population_effects();
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug, Clone)]
 pub struct HierarchicalBayesianCCA {

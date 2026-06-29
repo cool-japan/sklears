@@ -1770,7 +1770,7 @@ impl Default for CleaningPerformanceStats {
     fn default() -> Self {
         Self {
             total_operations: 0,
-            average_duration: Duration::from_millis(0),
+            average_duration: Duration::milliseconds(0),
             total_records_processed: 0,
             total_records_cleaned: 0,
             overall_cleaning_rate: 0.0,

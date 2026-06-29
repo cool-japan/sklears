@@ -5,17 +5,11 @@
 //! GPU acceleration and compute shaders for high-performance kernel matrix computation.
 
 use crate::kernels::KernelType;
-use scirs2_core::ndarray::{s, Array2};
+use scirs2_core::ndarray::Array2;
 use thiserror::Error;
 
 #[cfg(feature = "gpu")]
-use std::collections::HashMap;
-#[cfg(feature = "gpu")]
-use wgpu::{
-    util::DeviceExt, Adapter, BufferDescriptor, BufferUsages, ComputePassDescriptor,
-    ComputePipeline, Device, DeviceDescriptor, Features, Instance, Limits, PowerPreference, Queue,
-    RequestAdapterOptions, ShaderModule, ShaderModuleDescriptor, ShaderSource,
-};
+use sklears_core::gpu::{GpuArray, GpuContext, GpuMatrixOps};
 
 /// Errors that can occur during GPU kernel computation
 #[derive(Error, Debug)]
@@ -39,471 +33,134 @@ pub enum GpuKernelError {
 /// Result type for GPU kernel operations
 pub type GpuKernelResult<T> = Result<T, GpuKernelError>;
 
-/// GPU-accelerated kernel matrix computation
+/// GPU-accelerated kernel matrix computer backed by `oxicuda-backend`.
+///
+/// The Linear kernel uses direct GEMM (`X·Y^T`).
+/// RBF, Polynomial, and Sigmoid kernels use GEMM for inner products, then
+/// apply the non-linear function on the CPU.
 #[cfg(feature = "gpu")]
 pub struct GpuKernelComputer {
-    device: Device,
-    queue: Queue,
-    adapter: Adapter,
-    pipelines: HashMap<String, ComputePipeline>,
-    shader_modules: HashMap<String, ShaderModule>,
+    context: GpuContext,
 }
 
 #[cfg(feature = "gpu")]
 impl GpuKernelComputer {
-    /// Create a new GPU kernel computer
     pub async fn new() -> GpuKernelResult<Self> {
-        let instance = Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
-            flags: wgpu::InstanceFlags::default(),
-            ..wgpu::InstanceDescriptor::new_without_display_handle()
-        });
-
-        let adapter = instance
-            .request_adapter(&RequestAdapterOptions {
-                power_preference: PowerPreference::HighPerformance,
-                compatible_surface: None,
-                force_fallback_adapter: false,
-            })
-            .await
-            .map_err(|_| GpuKernelError::DeviceNotAvailable)?;
-
-        let (device, queue) = adapter
-            .request_device(&DeviceDescriptor {
-                label: None,
-                required_features: Features::empty(),
-                required_limits: Limits::default(),
-                memory_hints: wgpu::MemoryHints::Performance,
-                experimental_features: Default::default(),
-                trace: Default::default(),
-            })
-            .await
-            .map_err(|e: wgpu::RequestDeviceError| {
-                GpuKernelError::ComputationFailed(e.to_string())
-            })?;
-
-        let mut computer = Self {
-            device,
-            queue,
-            adapter,
-            pipelines: HashMap::new(),
-            shader_modules: HashMap::new(),
-        };
-
-        // Initialize common shaders
-        computer.init_rbf_shader()?;
-        computer.init_polynomial_shader()?;
-        computer.init_linear_shader()?;
-        computer.init_sigmoid_shader()?;
-
-        Ok(computer)
+        let context =
+            GpuContext::new().map_err(|e| GpuKernelError::ComputationFailed(e.to_string()))?;
+        Ok(Self { context })
     }
 
-    /// Initialize RBF kernel shader
-    fn init_rbf_shader(&mut self) -> GpuKernelResult<()> {
-        let shader_source = r#"
-            @group(0) @binding(0) var<storage, read> X: array<f32>;
-            @group(0) @binding(1) var<storage, read> Y: array<f32>;
-            @group(0) @binding(2) var<storage, read_write> result: array<f32>;
-            @group(0) @binding(3) var<storage, read> params: array<f32>;
-
-            @compute @workgroup_size(16, 16)
-            fn rbf_kernel(@builtin(global_invocation_id) global_id: vec3<u32>) {
-                let n_x = u32(params[0]);
-                let n_y = u32(params[1]);
-                let n_features = u32(params[2]);
-                let gamma = params[3];
-
-                let i = global_id.x;
-                let j = global_id.y;
-
-                if (i >= n_x || j >= n_y) {
-                    return;
-                }
-
-                var sum_sq_diff = 0.0;
-                for (var k = 0u; k < n_features; k++) {
-                    let diff = X[i * n_features + k] - Y[j * n_features + k];
-                    sum_sq_diff += diff * diff;
-                }
-
-                result[i * n_y + j] = exp(-gamma * sum_sq_diff);
-            }
-        "#;
-
-        let shader = self.device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("RBF Kernel Shader"),
-            source: ShaderSource::Wgsl(shader_source.into()),
-        });
-
-        let pipeline = self
-            .device
-            .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("RBF Kernel Pipeline"),
-                layout: None,
-                module: &shader,
-                entry_point: Some("rbf_kernel"),
-                compilation_options: Default::default(),
-                cache: None,
-            });
-
-        self.shader_modules.insert("rbf".to_string(), shader);
-        self.pipelines.insert("rbf".to_string(), pipeline);
-
-        Ok(())
-    }
-
-    /// Initialize polynomial kernel shader
-    fn init_polynomial_shader(&mut self) -> GpuKernelResult<()> {
-        let shader_source = r#"
-            @group(0) @binding(0) var<storage, read> X: array<f32>;
-            @group(0) @binding(1) var<storage, read> Y: array<f32>;
-            @group(0) @binding(2) var<storage, read_write> result: array<f32>;
-            @group(0) @binding(3) var<storage, read> params: array<f32>;
-
-            @compute @workgroup_size(16, 16)
-            fn polynomial_kernel(@builtin(global_invocation_id) global_id: vec3<u32>) {
-                let n_x = u32(params[0]);
-                let n_y = u32(params[1]);
-                let n_features = u32(params[2]);
-                let gamma = params[3];
-                let coef0 = params[4];
-                let degree = params[5];
-
-                let i = global_id.x;
-                let j = global_id.y;
-
-                if (i >= n_x || j >= n_y) {
-                    return;
-                }
-
-                var dot_product = 0.0;
-                for (var k = 0u; k < n_features; k++) {
-                    dot_product += X[i * n_features + k] * Y[j * n_features + k];
-                }
-
-                result[i * n_y + j] = pow(gamma * dot_product + coef0, degree);
-            }
-        "#;
-
-        let shader = self.device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("Polynomial Kernel Shader"),
-            source: ShaderSource::Wgsl(shader_source.into()),
-        });
-
-        let pipeline = self
-            .device
-            .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("Polynomial Kernel Pipeline"),
-                layout: None,
-                module: &shader,
-                entry_point: Some("polynomial_kernel"),
-                compilation_options: Default::default(),
-                cache: None,
-            });
-
-        self.shader_modules.insert("polynomial".to_string(), shader);
-        self.pipelines.insert("polynomial".to_string(), pipeline);
-
-        Ok(())
-    }
-
-    /// Initialize linear kernel shader
-    fn init_linear_shader(&mut self) -> GpuKernelResult<()> {
-        let shader_source = r#"
-            @group(0) @binding(0) var<storage, read> X: array<f32>;
-            @group(0) @binding(1) var<storage, read> Y: array<f32>;
-            @group(0) @binding(2) var<storage, read_write> result: array<f32>;
-            @group(0) @binding(3) var<storage, read> params: array<f32>;
-
-            @compute @workgroup_size(16, 16)
-            fn linear_kernel(@builtin(global_invocation_id) global_id: vec3<u32>) {
-                let n_x = u32(params[0]);
-                let n_y = u32(params[1]);
-                let n_features = u32(params[2]);
-
-                let i = global_id.x;
-                let j = global_id.y;
-
-                if (i >= n_x || j >= n_y) {
-                    return;
-                }
-
-                var dot_product = 0.0;
-                for (var k = 0u; k < n_features; k++) {
-                    dot_product += X[i * n_features + k] * Y[j * n_features + k];
-                }
-
-                result[i * n_y + j] = dot_product;
-            }
-        "#;
-
-        let shader = self.device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("Linear Kernel Shader"),
-            source: ShaderSource::Wgsl(shader_source.into()),
-        });
-
-        let pipeline = self
-            .device
-            .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("Linear Kernel Pipeline"),
-                layout: None,
-                module: &shader,
-                entry_point: Some("linear_kernel"),
-                compilation_options: Default::default(),
-                cache: None,
-            });
-
-        self.shader_modules.insert("linear".to_string(), shader);
-        self.pipelines.insert("linear".to_string(), pipeline);
-
-        Ok(())
-    }
-
-    /// Initialize sigmoid kernel shader
-    fn init_sigmoid_shader(&mut self) -> GpuKernelResult<()> {
-        let shader_source = r#"
-            @group(0) @binding(0) var<storage, read> X: array<f32>;
-            @group(0) @binding(1) var<storage, read> Y: array<f32>;
-            @group(0) @binding(2) var<storage, read_write> result: array<f32>;
-            @group(0) @binding(3) var<storage, read> params: array<f32>;
-
-            @compute @workgroup_size(16, 16)
-            fn sigmoid_kernel(@builtin(global_invocation_id) global_id: vec3<u32>) {
-                let n_x = u32(params[0]);
-                let n_y = u32(params[1]);
-                let n_features = u32(params[2]);
-                let gamma = params[3];
-                let coef0 = params[4];
-
-                let i = global_id.x;
-                let j = global_id.y;
-
-                if (i >= n_x || j >= n_y) {
-                    return;
-                }
-
-                var dot_product = 0.0;
-                for (var k = 0u; k < n_features; k++) {
-                    dot_product += X[i * n_features + k] * Y[j * n_features + k];
-                }
-
-                result[i * n_y + j] = tanh(gamma * dot_product + coef0);
-            }
-        "#;
-
-        let shader = self.device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("Sigmoid Kernel Shader"),
-            source: ShaderSource::Wgsl(shader_source.into()),
-        });
-
-        let pipeline = self
-            .device
-            .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("Sigmoid Kernel Pipeline"),
-                layout: None,
-                module: &shader,
-                entry_point: Some("sigmoid_kernel"),
-                compilation_options: Default::default(),
-                cache: None,
-            });
-
-        self.shader_modules.insert("sigmoid".to_string(), shader);
-        self.pipelines.insert("sigmoid".to_string(), pipeline);
-
-        Ok(())
-    }
-
-    /// Compute kernel matrix on GPU
+    /// Compute the kernel matrix `K[i,j] = k(x_i, y_j)` on the GPU.
     pub async fn compute_kernel_matrix(
         &self,
-        x_mat: &Array2<f32>, // standard ML feature matrix notation
-        y_mat: &Array2<f32>, // standard ML feature matrix notation
+        x: &Array2<f32>,
+        y: &Array2<f32>,
         kernel_type: &KernelType,
     ) -> GpuKernelResult<Array2<f32>> {
-        let (n_x, n_features_x) = x_mat.dim();
-        let (n_y, n_features_y) = y_mat.dim();
-
-        if n_features_x != n_features_y {
+        if x.ncols() != y.ncols() {
             return Err(GpuKernelError::DimensionMismatch);
         }
 
-        let (pipeline_name, params) = match kernel_type {
-            KernelType::Rbf { gamma } => (
-                "rbf",
-                vec![n_x as f32, n_y as f32, n_features_x as f32, *gamma as f32],
-            ),
+        // GPU GEMM: inner = X · Y^T  [n_x × n_y]
+        let x_gpu = GpuArray::<f32>::from_array2(&self.context, x)
+            .map_err(|e| GpuKernelError::ComputationFailed(e.to_string()))?;
+        let yt_data: Vec<f32> = {
+            let (nr, nc) = y.dim();
+            let mut t = vec![0.0f32; nr * nc];
+            for r in 0..nr {
+                for c in 0..nc {
+                    t[c * nr + r] = y[[r, c]];
+                }
+            }
+            t
+        };
+        let yt = scirs2_core::ndarray::Array2::from_shape_vec((y.ncols(), y.nrows()), yt_data)
+            .map_err(|e| GpuKernelError::ComputationFailed(e.to_string()))?;
+        let yt_gpu = GpuArray::<f32>::from_array2(&self.context, &yt)
+            .map_err(|e| GpuKernelError::ComputationFailed(e.to_string()))?;
+        let inner_gpu = x_gpu
+            .matmul(&yt_gpu)
+            .map_err(|e| GpuKernelError::ComputationFailed(e.to_string()))?;
+        let inner = inner_gpu
+            .to_array2()
+            .map_err(|e| GpuKernelError::ComputationFailed(e.to_string()))?;
+
+        let (n_x, n_y) = inner.dim();
+        let mut out = Array2::<f32>::zeros((n_x, n_y));
+
+        match kernel_type {
+            KernelType::Linear => {
+                for i in 0..n_x {
+                    for j in 0..n_y {
+                        out[[i, j]] = inner[[i, j]];
+                    }
+                }
+            }
+            KernelType::Rbf { gamma } => {
+                let x_norms: Vec<f32> = x
+                    .rows()
+                    .into_iter()
+                    .map(|r| r.iter().map(|v| v * v).sum::<f32>())
+                    .collect();
+                let y_norms: Vec<f32> = y
+                    .rows()
+                    .into_iter()
+                    .map(|r| r.iter().map(|v| v * v).sum::<f32>())
+                    .collect();
+                let g = *gamma as f32;
+                for i in 0..n_x {
+                    for j in 0..n_y {
+                        let sq = (x_norms[i] + y_norms[j] - 2.0 * inner[[i, j]]).max(0.0);
+                        out[[i, j]] = (-g * sq).exp();
+                    }
+                }
+            }
             KernelType::Polynomial {
                 gamma,
                 coef0,
                 degree,
-            } => (
-                "polynomial",
-                vec![
-                    n_x as f32,
-                    n_y as f32,
-                    n_features_x as f32,
-                    *gamma as f32,
-                    *coef0 as f32,
-                    *degree as f32,
-                ],
-            ),
-            KernelType::Linear => ("linear", vec![n_x as f32, n_y as f32, n_features_x as f32]),
-            KernelType::Sigmoid { gamma, coef0 } => (
-                "sigmoid",
-                vec![
-                    n_x as f32,
-                    n_y as f32,
-                    n_features_x as f32,
-                    *gamma as f32,
-                    *coef0 as f32,
-                ],
-            ),
-            _ => {
-                return Err(GpuKernelError::FeatureNotSupported(
-                    "Kernel type not supported on GPU".to_string(),
-                ))
+            } => {
+                let (g, c, d) = (*gamma as f32, *coef0 as f32, *degree as f32);
+                for i in 0..n_x {
+                    for j in 0..n_y {
+                        out[[i, j]] = (g * inner[[i, j]] + c).powf(d);
+                    }
+                }
             }
-        };
-
-        let pipeline = self.pipelines.get(pipeline_name).ok_or_else(|| {
-            GpuKernelError::FeatureNotSupported(format!("Pipeline {pipeline_name} not found"))
-        })?;
-
-        // Create buffers
-        let x_buffer = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("X Buffer"),
-                contents: bytemuck::cast_slice(x_mat.as_slice().expect("non-contiguous array")),
-                usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-            });
-
-        let y_buffer = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Y Buffer"),
-                contents: bytemuck::cast_slice(y_mat.as_slice().expect("non-contiguous array")),
-                usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-            });
-
-        let result_buffer = self.device.create_buffer(&BufferDescriptor {
-            label: Some("Result Buffer"),
-            size: (n_x * n_y * std::mem::size_of::<f32>()) as u64,
-            usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
-
-        let params_buffer = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Params Buffer"),
-                contents: bytemuck::cast_slice(&params),
-                usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-            });
-
-        // Create bind group
-        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Kernel Bind Group"),
-            layout: &pipeline.get_bind_group_layout(0),
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: x_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: y_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: result_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: params_buffer.as_entire_binding(),
-                },
-            ],
-        });
-
-        // Execute compute pass
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Kernel Compute Encoder"),
-            });
-
-        {
-            let mut compute_pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("Kernel Compute Pass"),
-                timestamp_writes: None,
-            });
-
-            compute_pass.set_pipeline(pipeline);
-            compute_pass.set_bind_group(0, &bind_group, &[]);
-
-            let workgroup_size = 16;
-            let num_workgroups_x = n_x.div_ceil(workgroup_size);
-            let num_workgroups_y = n_y.div_ceil(workgroup_size);
-
-            compute_pass.dispatch_workgroups(num_workgroups_x as u32, num_workgroups_y as u32, 1);
+            KernelType::Sigmoid { gamma, coef0 } => {
+                let (g, c) = (*gamma as f32, *coef0 as f32);
+                for i in 0..n_x {
+                    for j in 0..n_y {
+                        out[[i, j]] = (g * inner[[i, j]] + c).tanh();
+                    }
+                }
+            }
+            _ => {
+                return Err(GpuKernelError::FeatureNotSupported(format!(
+                    "Kernel {:?} not supported on GPU",
+                    kernel_type
+                )))
+            }
         }
 
-        // Create staging buffer for reading results
-        let staging_buffer = self.device.create_buffer(&BufferDescriptor {
-            label: Some("Staging Buffer"),
-            size: (n_x * n_y * std::mem::size_of::<f32>()) as u64,
-            usage: BufferUsages::MAP_READ | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
-        encoder.copy_buffer_to_buffer(
-            &result_buffer,
-            0,
-            &staging_buffer,
-            0,
-            (n_x * n_y * std::mem::size_of::<f32>()) as u64,
-        );
-
-        self.queue.submit(Some(encoder.finish()));
-
-        // Read results
-        let buffer_slice = staging_buffer.slice(..);
-        let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
-        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
-            tx.send(result).expect("value should be present");
-        });
-
-        self.device
-            .poll(wgpu::PollType::wait_indefinitely())
-            .map_err(|e| GpuKernelError::ComputationFailed(format!("Poll error: {e}")))?;
-        rx.receive()
-            .await
-            .expect("value should be present")
-            .map_err(|e| GpuKernelError::ComputationFailed(e.to_string()))?;
-
-        let data = buffer_slice.get_mapped_range();
-        let result_data: &[f32] = bytemuck::cast_slice(&data);
-
-        let result_matrix = Array2::from_shape_vec((n_x, n_y), result_data.to_vec())
-            .map_err(|e| GpuKernelError::ComputationFailed(e.to_string()))?;
-
-        Ok(result_matrix)
+        Ok(out)
     }
 
-    /// Get device information
     pub fn device_info(&self) -> String {
-        format!("GPU: {}", self.adapter.get_info().name)
+        if let Ok(mem) = self.context.memory_info() {
+            format!(
+                "oxicuda-backend | total={} MB | free={} MB",
+                mem.total / 1024 / 1024,
+                mem.free / 1024 / 1024,
+            )
+        } else {
+            "oxicuda-backend (CPU fallback)".to_string()
+        }
     }
 
-    /// Check if GPU supports required features
     pub fn supports_compute(&self) -> bool {
-        self.adapter.features().contains(Features::empty())
-    }
-
-    /// Get GPU memory info
-    pub fn memory_info(&self) -> wgpu::AdapterInfo {
-        self.adapter.get_info()
+        true
     }
 }
 
@@ -731,21 +388,44 @@ pub mod gpu_utils {
 
         let mut result = Array2::zeros((n_x, n_y));
 
+        let n_feat = x.ncols();
         for i in (0..n_x).step_by(batch_size) {
             let end_i = (i + batch_size).min(n_x);
-            let x_batch = x.slice(s![i..end_i, ..]);
+            let n_xi = end_i - i;
+            let x_batch: Array2<f32> = Array2::from_shape_vec(
+                (n_xi, n_feat),
+                x.rows()
+                    .into_iter()
+                    .skip(i)
+                    .take(n_xi)
+                    .flat_map(|r| r.to_vec())
+                    .collect(),
+            )
+            .map_err(|e| GpuKernelError::ComputationFailed(e.to_string()))?;
 
             for j in (0..n_y).step_by(batch_size) {
                 let end_j = (j + batch_size).min(n_y);
-                let y_batch = y.slice(s![j..end_j, ..]);
+                let n_yj = end_j - j;
+                let y_batch: Array2<f32> = Array2::from_shape_vec(
+                    (n_yj, n_feat),
+                    y.rows()
+                        .into_iter()
+                        .skip(j)
+                        .take(n_yj)
+                        .flat_map(|r| r.to_vec())
+                        .collect(),
+                )
+                .map_err(|e| GpuKernelError::ComputationFailed(e.to_string()))?;
 
-                let batch_result = computer
-                    .compute_kernel_matrix(&x_batch.to_owned(), &y_batch.to_owned(), kernel_type)
+                let batch_result: Array2<f32> = computer
+                    .compute_kernel_matrix(&x_batch, &y_batch, kernel_type)
                     .await?;
 
-                result
-                    .slice_mut(s![i..end_i, j..end_j])
-                    .assign(&batch_result);
+                for bi in 0..n_xi {
+                    for bj in 0..n_yj {
+                        result[(i + bi, j + bj)] = batch_result[(bi, bj)];
+                    }
+                }
             }
         }
 

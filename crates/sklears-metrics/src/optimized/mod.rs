@@ -65,8 +65,7 @@ pub mod approximate_methods;
 pub mod chunked_processing;
 pub mod parallel_processing;
 pub mod simd_operations;
-// TODO: Migrate to scirs2-sparse (uses sprs types)
-// pub mod sparse_operations;
+pub mod sparse_operations;
 pub mod streaming_processing;
 
 // Re-export SIMD operations
@@ -96,12 +95,11 @@ pub use streaming_processing::{
 // Re-export chunked processing
 pub use chunked_processing::{ChunkedMetricProcessor, ChunkedRegressionMetrics};
 
-// Re-export sparse operations
-// TODO: Migrate to scirs2-sparse (uses sprs types)
-// pub use sparse_operations::{SparseClassificationMetrics, SparseConfusionMatrix};
+// Re-export sparse operations (migrated from sprs to scirs2-sparse)
+pub use sparse_operations::{SparseClassificationMetrics, SparseConfusionMatrix};
 
-// #[cfg(feature = "sparse")]
-// pub use sparse_operations::SparseMetrics;
+#[cfg(feature = "sparse")]
+pub use sparse_operations::SparseMetrics;
 
 // Re-export approximate methods
 pub use approximate_methods::{
@@ -144,13 +142,12 @@ impl OptimizedMetricsFactory {
         ChunkedMetricProcessor::new(self.config.clone())
     }
 
-    // TODO: Migrate to scirs2-sparse (uses sprs types)
-    // /// Create sparse confusion matrix
-    // pub fn sparse_confusion_matrix<T: PartialEq + Copy + Ord + Hash>(
-    //     &self,
-    // ) -> SparseConfusionMatrix<T> {
-    //     SparseConfusionMatrix::new()
-    // }
+    /// Create sparse confusion matrix
+    pub fn sparse_confusion_matrix<T: PartialEq + Copy + Ord + Hash>(
+        &self,
+    ) -> SparseConfusionMatrix<T> {
+        SparseConfusionMatrix::new()
+    }
 
     /// Create streaming confusion matrix
     pub fn streaming_confusion_matrix<T: PartialEq + Copy + Ord + Hash>(
@@ -327,7 +324,7 @@ mod tests {
         let streaming_metrics: StreamingMetrics<f64> = factory.streaming_metrics();
         let _incremental_metrics: IncrementalMetrics<f64> = factory.incremental_metrics();
         let _chunked_processor: ChunkedMetricProcessor<f64> = factory.chunked_processor();
-        // let _sparse_matrix: SparseConfusionMatrix<i32> = factory.sparse_confusion_matrix();
+        let _sparse_matrix: SparseConfusionMatrix<i32> = factory.sparse_confusion_matrix();
 
         assert_eq!(streaming_metrics.n_samples(), 0);
     }

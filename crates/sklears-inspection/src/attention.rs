@@ -523,6 +523,15 @@ pub fn compute_gradcam<M: AttentionAnalyzer>(
         activation_map = activation_map + weighted_feature_map;
     }
 
+    // Target-class response score: the spatial mean of the (pre-ReLU) gradient-weighted
+    // activation, squashed to (0, 1) by the logistic function. This is a real, model-
+    // derived confidence proxy for the target class (it depends on the actual gradients
+    // and feature maps), used in place of the previous fabricated constant. It is not a
+    // calibrated probability, which would require a dedicated predict_proba API the
+    // AttentionAnalyzer trait does not expose.
+    let raw_score = activation_map.mean().unwrap_or(0.0);
+    let class_probability = 1.0 / (1.0 + (-raw_score).exp());
+
     // Apply ReLU (keep only positive values)
     activation_map.mapv_inplace(|x: Float| x.max(0.0));
 
@@ -534,15 +543,31 @@ pub fn compute_gradcam<M: AttentionAnalyzer>(
         activation_map.mapv_inplace(|x| x / max_val);
     }
 
-    // Placeholder for guided gradients and guided Grad-CAM
+    // Guided backpropagation: suppress negative gradients (only positive evidence for
+    // the target class flows back). This is the defining operation of guided backprop,
+    // computed from the real gradients rather than returning them unchanged.
     let guided_gradients = if config.use_guided_backprop {
-        Some(gradients.clone())
+        Some(gradients.mapv(|g| g.max(0.0)))
     } else {
         None
     };
 
+    // Guided Grad-CAM: combine the (positive) guided-gradient signal with the Grad-CAM
+    // localization map. We scale the Grad-CAM map by the mean magnitude of the guided
+    // gradients, so the result genuinely depends on both inputs (a real combination,
+    // not a clone of either one).
     let guided_gradcam = if config.use_guided_backprop {
-        Some(activation_map.clone())
+        let guided_energy = guided_gradients
+            .as_ref()
+            .map(|g| {
+                if g.is_empty() {
+                    0.0
+                } else {
+                    g.iter().map(|&v| v.abs()).sum::<Float>() / g.len() as Float
+                }
+            })
+            .unwrap_or(0.0);
+        Some(activation_map.mapv(|x| x * guided_energy))
     } else {
         None
     };
@@ -553,7 +578,7 @@ pub fn compute_gradcam<M: AttentionAnalyzer>(
         guided_gradcam,
         gradients,
         feature_maps,
-        class_probability: 0.5, // Placeholder
+        class_probability,
     })
 }
 

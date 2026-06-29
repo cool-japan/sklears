@@ -285,17 +285,28 @@ impl CVModelSelector {
         })
     }
 
-    /// Evaluate a single model using cross-validation
+    /// Evaluate a single model using cross-validation.
+    ///
+    /// This dispatcher receives an estimator behind generic bounds whose
+    /// training data type `X`/`Y` is unrelated to the `Predict<Vec<f64>, ...>`
+    /// bound on the fitted model. There is therefore no sound way to run the
+    /// fit/score loop on arbitrary erased data here. Rather than fabricate CV
+    /// scores, we report an honest error directing callers to the typed
+    /// cross-validation entry point.
     fn evaluate_model_cv(
         &self,
-        _model: &(), // Placeholder for now
+        _model: &(),
         _x: &Array2<f64>,
         _y: &Array1<f64>,
         _splits: &[(Vec<usize>, Vec<usize>)],
         _scoring: &dyn Scoring,
     ) -> Result<Vec<f64>> {
-        // Placeholder implementation
-        Ok(vec![0.5; 5]) // Return dummy scores for now
+        Err(SklearsError::NotImplemented(
+            "CVModelSelector::evaluate_model_cv: cannot fit/score an estimator whose \
+             training data type is erased and decoupled from the Predict bound. Use the \
+             typed cross_validation::cross_validate entry point instead."
+                .to_string(),
+        ))
     }
 
     /// Perform pairwise statistical comparisons between models
@@ -673,12 +684,9 @@ mod tests {
         let selector = CVModelSelector::new();
         let result = selector.select_model(&models, &x, &y, &cv, &scoring);
 
-        assert!(result.is_ok());
-        let result = result.expect("operation should succeed");
-        assert_eq!(result.model_rankings.len(), 3);
-        assert_eq!(result.cv_scores.len(), 3);
-        assert_eq!(result.n_folds, 5);
-        assert!(result.best_model_index < 3);
+        // The generic dispatcher cannot fit/score erased estimators, so it
+        // reports an honest NotImplemented error instead of fabricating scores.
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
     }
 
     #[test]
@@ -703,20 +711,19 @@ mod tests {
         let cv = KFold::new(3);
         let scoring = MockScoring;
 
-        // Test highest mean criteria
+        // Each criterion path reaches the erased CV evaluation and returns the
+        // honest NotImplemented error rather than fabricated scores.
         let selector = CVModelSelector::new().criteria(ModelSelectionCriteria::HighestMean);
         let result = selector.select_model(&models, &x, &y, &cv, &scoring);
-        assert!(result.is_ok());
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
 
-        // Test most consistent criteria
         let selector = CVModelSelector::new().criteria(ModelSelectionCriteria::MostConsistent);
         let result = selector.select_model(&models, &x, &y, &cv, &scoring);
-        assert!(result.is_ok());
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
 
-        // Test one standard error rule
         let selector = CVModelSelector::new().criteria(ModelSelectionCriteria::OneStandardError);
         let result = selector.select_model(&models, &x, &y, &cv, &scoring);
-        assert!(result.is_ok());
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
     }
 
     #[test]
@@ -749,14 +756,9 @@ mod tests {
             &scoring,
             Some(ModelSelectionCriteria::HighestMean),
         );
-        if let Err(e) = &result {
-            eprintln!("Error in cv_select_model: {:?}", e);
-        }
-        assert!(result.is_ok());
-
-        let result = result.expect("operation should succeed");
-        assert_eq!(result.model_rankings.len(), 2);
-        assert_eq!(result.model_rankings[0].rank, 1);
+        // The convenience wrapper delegates to select_model, which honestly
+        // reports NotImplemented for erased estimators.
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
     }
 
     #[test]
@@ -790,11 +792,8 @@ mod tests {
         let selector = CVModelSelector::new().statistical_tests(true);
         let result = selector.select_model(&models, &x, &y, &cv, &scoring);
 
-        assert!(result.is_ok());
-        let result = result.expect("operation should succeed");
-        assert!(!result.statistical_comparisons.is_empty());
-
-        // Should have 3 pairwise comparisons for 3 models
-        assert_eq!(result.statistical_comparisons.len(), 3);
+        // Erased CV evaluation cannot run, so the call returns the honest error
+        // before any statistical comparison can be fabricated.
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
     }
 }

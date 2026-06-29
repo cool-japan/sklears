@@ -211,74 +211,81 @@ impl GpuContext {
     }
 
     /// Detect CUDA device
-    fn detect_cuda_device(device_id: usize) -> Result<GpuDeviceInfo> {
-        // In a real implementation, this would use CUDA APIs
-        // For now, return a mock device info
-        Ok(GpuDeviceInfo {
-            name: format!("CUDA Device {}", device_id),
-            total_memory_mb: 8192,
-            available_memory_mb: 7168,
-            compute_units: 80,
-            max_work_group_size: 1024,
-            supports_mixed_precision: true,
-            supports_tensor_cores: true,
-        })
+    fn detect_cuda_device(_device_id: usize) -> Result<GpuDeviceInfo> {
+        Err(SklearsError::NotImplemented(
+            "CUDA runtime not linked; no CUDA devices available".to_string(),
+        ))
     }
 
     /// Detect OpenCL device
-    fn detect_opencl_device(device_id: usize) -> Result<GpuDeviceInfo> {
-        // In a real implementation, this would use OpenCL APIs
-        Ok(GpuDeviceInfo {
-            name: format!("OpenCL Device {}", device_id),
-            total_memory_mb: 4096,
-            available_memory_mb: 3584,
-            compute_units: 64,
-            max_work_group_size: 256,
-            supports_mixed_precision: false,
-            supports_tensor_cores: false,
-        })
+    fn detect_opencl_device(_device_id: usize) -> Result<GpuDeviceInfo> {
+        Err(SklearsError::NotImplemented(
+            "OpenCL runtime not linked; no OpenCL devices available".to_string(),
+        ))
     }
 
     /// Detect Metal device
-    fn detect_metal_device(device_id: usize) -> Result<GpuDeviceInfo> {
-        // In a real implementation, this would use Metal APIs
-        Ok(GpuDeviceInfo {
-            name: format!("Metal Device {}", device_id),
-            total_memory_mb: 16384, // Unified memory on Apple Silicon
-            available_memory_mb: 14336,
-            compute_units: 32,
-            max_work_group_size: 1024,
-            supports_mixed_precision: true,
-            supports_tensor_cores: false,
-        })
+    fn detect_metal_device(_device_id: usize) -> Result<GpuDeviceInfo> {
+        Err(SklearsError::NotImplemented(
+            "Metal framework not linked; no Metal devices available".to_string(),
+        ))
     }
 
     /// Detect Vulkan device
-    fn detect_vulkan_device(device_id: usize) -> Result<GpuDeviceInfo> {
-        // In a real implementation, this would use Vulkan APIs
-        Ok(GpuDeviceInfo {
-            name: format!("Vulkan Device {}", device_id),
-            total_memory_mb: 6144,
-            available_memory_mb: 5376,
-            compute_units: 56,
-            max_work_group_size: 512,
-            supports_mixed_precision: true,
-            supports_tensor_cores: false,
-        })
+    fn detect_vulkan_device(_device_id: usize) -> Result<GpuDeviceInfo> {
+        Err(SklearsError::NotImplemented(
+            "Vulkan runtime not linked; no Vulkan devices available".to_string(),
+        ))
     }
 
-    /// Create CPU fallback device info
+    /// Create CPU fallback device info (reports real system RAM where available)
     fn create_cpu_fallback_info() -> GpuDeviceInfo {
+        let (total_mb, available_mb) = Self::read_system_ram_mb();
         GpuDeviceInfo {
-            name: "CPU Fallback".to_string(),
-            total_memory_mb: 8192, // Assume 8GB system RAM
-            available_memory_mb: 6144,
+            name: "CPU Fallback (no GPU runtime)".to_string(),
+            total_memory_mb: total_mb,
+            available_memory_mb: available_mb,
             compute_units: std::thread::available_parallelism()
                 .map(|n| n.get())
-                .unwrap_or(4),
+                .unwrap_or(1),
             max_work_group_size: 1,
             supports_mixed_precision: false,
             supports_tensor_cores: false,
+        }
+    }
+
+    /// Read system RAM in MB. Returns (0, 0) if the OS API fails (honest unknown).
+    fn read_system_ram_mb() -> (usize, usize) {
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(content) = std::fs::read_to_string("/proc/meminfo") {
+                let mut total_kb: Option<u64> = None;
+                let mut avail_kb: Option<u64> = None;
+                for line in content.lines() {
+                    if let Some(rest) = line.strip_prefix("MemTotal:") {
+                        total_kb = rest
+                            .split_whitespace()
+                            .next()
+                            .and_then(|s| s.parse::<u64>().ok());
+                    } else if let Some(rest) = line.strip_prefix("MemAvailable:") {
+                        avail_kb = rest
+                            .split_whitespace()
+                            .next()
+                            .and_then(|s| s.parse::<u64>().ok());
+                    }
+                    if total_kb.is_some() && avail_kb.is_some() {
+                        break;
+                    }
+                }
+                if let (Some(t), Some(a)) = (total_kb, avail_kb) {
+                    return ((t / 1024) as usize, (a / 1024) as usize);
+                }
+            }
+            (0, 0)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            (0, 0)
         }
     }
 
@@ -447,12 +454,10 @@ pub struct ProfilingResults {
 
 impl GpuKernel for HistogramKernel {
     fn execute(&self, _context: &GpuContext) -> Result<()> {
-        // In a real implementation, this would execute GPU kernel code
-        // For now, simulate execution
-        std::thread::sleep(std::time::Duration::from_millis(
-            (self.n_features * self.n_bins / 1000) as u64,
-        ));
-        Ok(())
+        // CPU path: no GPU kernel available; histogram must be computed on CPU.
+        Err(SklearsError::NotImplemented(
+            "histogram GPU kernel not implemented; use CPU gradient boosting".to_string(),
+        ))
     }
 
     fn estimated_time_ms(&self) -> f64 {
@@ -466,11 +471,9 @@ impl GpuKernel for HistogramKernel {
 
 impl GpuKernel for SplitFindingKernel {
     fn execute(&self, _context: &GpuContext) -> Result<()> {
-        // Simulate split finding computation
-        std::thread::sleep(std::time::Duration::from_millis(
-            (self.n_features * self.n_bins / 100) as u64,
-        ));
-        Ok(())
+        Err(SklearsError::NotImplemented(
+            "split-finding GPU kernel not implemented; use CPU gradient boosting".to_string(),
+        ))
     }
 
     fn estimated_time_ms(&self) -> f64 {
@@ -484,9 +487,9 @@ impl GpuKernel for SplitFindingKernel {
 
 impl GpuKernel for TreeUpdateKernel {
     fn execute(&self, _context: &GpuContext) -> Result<()> {
-        // Simulate tree update computation
-        std::thread::sleep(std::time::Duration::from_millis(1));
-        Ok(())
+        Err(SklearsError::NotImplemented(
+            "tree-update GPU kernel not implemented; use CPU gradient boosting".to_string(),
+        ))
     }
 
     fn estimated_time_ms(&self) -> f64 {
@@ -500,9 +503,9 @@ impl GpuKernel for TreeUpdateKernel {
 
 impl GpuKernel for PredictionKernel {
     fn execute(&self, _context: &GpuContext) -> Result<()> {
-        // Simulate prediction computation
-        std::thread::sleep(std::time::Duration::from_millis((self.n_trees / 10) as u64));
-        Ok(())
+        Err(SklearsError::NotImplemented(
+            "prediction GPU kernel not implemented; use CPU inference".to_string(),
+        ))
     }
 
     fn estimated_time_ms(&self) -> f64 {
@@ -810,6 +813,9 @@ mod tests {
         let trainer = GpuEnsembleTrainer::new(config).expect("operation should succeed");
 
         assert!(!trainer.is_gpu_available()); // Should be CPU fallback
-        assert_eq!(trainer.context().device_info().name, "CPU Fallback");
+        assert_eq!(
+            trainer.context().device_info().name,
+            "CPU Fallback (no GPU runtime)"
+        );
     }
 }

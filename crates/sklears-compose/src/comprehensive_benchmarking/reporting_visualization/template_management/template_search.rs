@@ -4,9 +4,9 @@
 //! full-text search, faceted search, analytics, query optimization, and result ranking.
 //! Provides advanced search features with customizable engines and intelligent query processing.
 
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
 
 use crate::comprehensive_benchmarking::reporting_visualization::template_management::template_core::TemplateError;
 use crate::comprehensive_benchmarking::reporting_visualization::template_management::template_repository::TemplateEntry;
@@ -143,7 +143,7 @@ pub enum CleanupConditionType {
 ///
 /// Advanced query processing with parsing, optimization, and result ranking
 /// for intelligent search result delivery and performance optimization.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct QueryProcessor {
     /// Query parser
     pub parser: QueryParser,
@@ -202,7 +202,7 @@ pub enum QueryOperator {
 ///
 /// Intelligent query optimization including rewriting, synonym expansion,
 /// and performance tuning for optimal search results.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct QueryOptimizer {
     /// Optimization rules
     pub rules: Vec<OptimizationRule>,
@@ -439,7 +439,7 @@ pub struct FacetConfiguration {
 ///
 /// Comprehensive analytics system tracking query performance,
 /// result relevance, and user engagement patterns.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SearchAnalytics {
     /// Query analytics
     pub query_analytics: QueryAnalytics,
@@ -450,7 +450,7 @@ pub struct SearchAnalytics {
 }
 
 /// Query performance and usage analytics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct QueryAnalytics {
     /// Popular queries
     pub popular_queries: Vec<PopularQuery>,
@@ -524,7 +524,7 @@ pub struct ResultAnalytics {
 ///
 /// Comprehensive user analytics including search patterns,
 /// engagement metrics, and preference tracking.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UserAnalytics {
     /// Search patterns
     pub search_patterns: HashMap<String, SearchPattern>,
@@ -797,7 +797,7 @@ pub struct ResourceUtilization {
 }
 
 /// Network usage statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NetworkUsage {
     /// Bytes sent
     pub bytes_sent: usize,
@@ -868,6 +868,12 @@ pub struct QueryCorrection {
     pub confidence: f64,
 }
 
+impl Default for TemplateSearchIndex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TemplateSearchIndex {
     /// Create a new search index
     pub fn new() -> Self {
@@ -891,22 +897,25 @@ impl TemplateSearchIndex {
         // Calculate statistics
         let execution_time = start_time.elapsed();
         let statistics = SearchStatistics {
-            execution_time: Duration::from_secs(execution_time.as_secs()),
+            execution_time: Duration::seconds(execution_time.as_secs() as i64),
             index_hits: templates.len(),
             cache_hit_rate: 0.0, // Would be calculated
-            memory_usage: 0, // Would be calculated
+            memory_usage: 0,     // Would be calculated
             resource_utilization: ResourceUtilization::default(),
         };
 
         // Build result
         let result = SearchResult {
-            templates: templates.into_iter().map(|t| TemplateSearchResult {
-                template: t,
-                score: 1.0, // Would be calculated
-                highlights: None,
-                snippets: None,
-                explanation: None,
-            }).collect(),
+            templates: templates
+                .into_iter()
+                .map(|t| TemplateSearchResult {
+                    template: t,
+                    score: 1.0, // Would be calculated
+                    highlights: None,
+                    snippets: None,
+                    explanation: None,
+                })
+                .collect(),
             total_count: 0, // Would be calculated
             statistics,
             facets: None, // Would be calculated if requested
@@ -923,21 +932,21 @@ impl TemplateSearchIndex {
     }
 
     /// Index a template for searching
-    pub fn index_template(&mut self, template: &TemplateEntry) -> Result<(), TemplateError> {
+    pub fn index_template(&mut self, _template: &TemplateEntry) -> Result<(), TemplateError> {
         // Implementation would add template to search index
         // This is a placeholder for the actual indexing logic
         Ok(())
     }
 
     /// Remove template from index
-    pub fn remove_template(&mut self, template_id: &str) -> Result<(), TemplateError> {
+    pub fn remove_template(&mut self, _template_id: &str) -> Result<(), TemplateError> {
         // Implementation would remove template from search index
         // This is a placeholder for the actual removal logic
         Ok(())
     }
 
     /// Update indexed template
-    pub fn update_template(&mut self, template: &TemplateEntry) -> Result<(), TemplateError> {
+    pub fn update_template(&mut self, _template: &TemplateEntry) -> Result<(), TemplateError> {
         // Implementation would update template in search index
         // This is a placeholder for the actual update logic
         Ok(())
@@ -1038,18 +1047,8 @@ impl Default for CleanupSchedule {
     fn default() -> Self {
         Self {
             enabled: true,
-            frequency: Duration::from_secs(86400), // 24 hours
+            frequency: Duration::seconds(86400), // 24 hours
             conditions: vec![],
-        }
-    }
-}
-
-impl Default for QueryProcessor {
-    fn default() -> Self {
-        Self {
-            parser: QueryParser::default(),
-            optimizer: QueryOptimizer::default(),
-            ranker: ResultRanker::default(),
         }
     }
 }
@@ -1060,16 +1059,6 @@ impl Default for QueryParser {
             parser_type: ParserType::Advanced,
             operators: vec![QueryOperator::And, QueryOperator::Or, QueryOperator::Not],
             field_mappings: HashMap::new(),
-        }
-    }
-}
-
-impl Default for QueryOptimizer {
-    fn default() -> Self {
-        Self {
-            rules: vec![],
-            rewriting: QueryRewriting::default(),
-            performance_tuning: PerformanceTuning::default(),
         }
     }
 }
@@ -1099,7 +1088,7 @@ impl Default for ResultLimits {
     fn default() -> Self {
         Self {
             max_results: 1000,
-            timeout: Duration::from_secs(30),
+            timeout: Duration::seconds(30),
             memory_limit: 50 * 1024 * 1024, // 50MB
         }
     }
@@ -1129,7 +1118,11 @@ impl Default for ResultRanker {
 impl Default for SearchConfiguration {
     fn default() -> Self {
         Self {
-            default_fields: vec!["name".to_string(), "description".to_string(), "tags".to_string()],
+            default_fields: vec![
+                "name".to_string(),
+                "description".to_string(),
+                "tags".to_string(),
+            ],
             search_modes: vec![SearchMode::Fuzzy, SearchMode::Partial],
             result_formatting: ResultFormatting::default(),
         }
@@ -1190,30 +1183,10 @@ impl Default for FacetConfiguration {
     }
 }
 
-impl Default for SearchAnalytics {
-    fn default() -> Self {
-        Self {
-            query_analytics: QueryAnalytics::default(),
-            result_analytics: ResultAnalytics::default(),
-            user_analytics: UserAnalytics::default(),
-        }
-    }
-}
-
-impl Default for QueryAnalytics {
-    fn default() -> Self {
-        Self {
-            popular_queries: vec![],
-            performance: QueryPerformance::default(),
-            trends: HashMap::new(),
-        }
-    }
-}
-
 impl Default for QueryPerformance {
     fn default() -> Self {
         Self {
-            avg_response_time: Duration::from_millis(100),
+            avg_response_time: Duration::milliseconds(100),
             throughput: 0.0,
             success_rate: 1.0,
         }
@@ -1226,16 +1199,6 @@ impl Default for ResultAnalytics {
             click_through_rate: 0.0,
             relevance_scores: HashMap::new(),
             zero_result_queries: vec![],
-        }
-    }
-}
-
-impl Default for UserAnalytics {
-    fn default() -> Self {
-        Self {
-            search_patterns: HashMap::new(),
-            engagement: UserEngagement::default(),
-            preferences: HashMap::new(),
         }
     }
 }
@@ -1257,16 +1220,6 @@ impl Default for ResourceUtilization {
             memory_usage: 0.0,
             io_operations: 0,
             network_usage: NetworkUsage::default(),
-        }
-    }
-}
-
-impl Default for NetworkUsage {
-    fn default() -> Self {
-        Self {
-            bytes_sent: 0,
-            bytes_received: 0,
-            request_count: 0,
         }
     }
 }

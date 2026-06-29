@@ -5,10 +5,75 @@
 //! and compression optimization for notification channel performance.
 
 use std::collections::HashMap;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 use serde::{Deserialize, Serialize};
 
 use super::performance_core::CompressionAlgorithm;
+
+/// Process-level resource profiling helpers backed by the operating system.
+///
+/// On Linux these read the real, live counters exposed by the kernel via the
+/// `/proc` filesystem. They never fabricate values: when a counter is genuinely
+/// unavailable (non-Linux platform, or the file cannot be read/parsed) the
+/// functions return `None` so callers can surface an honest "unavailable"
+/// rather than a fake number.
+mod proc_profiling {
+    /// Number of clock ticks per second used by the kernel for process CPU
+    /// accounting in `/proc/<pid>/stat`.
+    ///
+    /// Per `man 5 proc`, the `utime`/`stime` fields are expressed in clock
+    /// ticks and must be divided by `sysconf(_SC_CLK_TCK)` to obtain seconds.
+    /// On Linux `USER_HZ` (the userspace-visible value returned by that call) is
+    /// fixed at 100 by the kernel ABI for all mainstream configurations,
+    /// independent of the internal scheduler `CONFIG_HZ`. We use that documented
+    /// constant rather than fabricating a rate.
+    #[cfg(target_os = "linux")]
+    const USER_HZ: f64 = 100.0;
+
+    /// Read the current resident set size (physical memory) of this process in
+    /// bytes from `/proc/self/status` (`VmRSS`). Returns `None` if unavailable.
+    #[cfg(target_os = "linux")]
+    pub fn current_rss_bytes() -> Option<usize> {
+        let status = std::fs::read_to_string("/proc/self/status").ok()?;
+        for line in status.lines() {
+            if let Some(rest) = line.strip_prefix("VmRSS:") {
+                // Format: "VmRSS:\t  1234 kB"
+                let kb: usize = rest.split_whitespace().next()?.parse().ok()?;
+                return Some(kb * 1024);
+            }
+        }
+        None
+    }
+
+    /// Read the cumulative CPU time (user + system) consumed by this process so
+    /// far, in seconds, from `/proc/self/stat`. Returns `None` if unavailable.
+    ///
+    /// Fields 14 (`utime`) and 15 (`stime`) are read. The comm field (2) may
+    /// contain spaces inside parentheses, so parsing resumes after the final
+    /// `')'` to keep field indexing correct.
+    #[cfg(target_os = "linux")]
+    pub fn process_cpu_seconds() -> Option<f64> {
+        let stat = std::fs::read_to_string("/proc/self/stat").ok()?;
+        // Skip past "pid (comm) " — comm can contain spaces and ')'.
+        let after_comm = &stat[stat.rfind(')')? + 1..];
+        let fields: Vec<&str> = after_comm.split_whitespace().collect();
+        // After the ')' the next token is field 3 (state), so field 14 (utime)
+        // is index 11 and field 15 (stime) is index 12 in this zero-based slice.
+        let utime: u64 = fields.get(11)?.parse().ok()?;
+        let stime: u64 = fields.get(12)?.parse().ok()?;
+        Some((utime + stime) as f64 / USER_HZ)
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub fn current_rss_bytes() -> Option<usize> {
+        None
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub fn process_cpu_seconds() -> Option<f64> {
+        None
+    }
+}
 
 /// Compression manager for data optimization
 #[derive(Debug, Clone)]
@@ -285,12 +350,24 @@ impl CompressionManager {
             return Ok(data.to_vec());
         }
 
-        let engine = self.engines.get_mut(&algorithm)
-            .ok_or_else(|| format!("Compression engine for {:?} not found", algorithm))?;
+        // Ensure the engine exists before doing work; the immutable
+        // `perform_compression` borrow must not overlap the later mutable
+        // statistics update, so clone the engine snapshot it needs and release
+        // the immutable borrow before re-borrowing mutably.
+        let engine_snapshot = self
+            .engines
+            .get(&algorithm)
+            .ok_or_else(|| format!("Compression engine for {algorithm:?} not found"))?
+            .clone();
 
         let start_time = SystemTime::now();
-        let result = self.perform_compression(data, engine);
+        let result = self.perform_compression(data, &engine_snapshot);
         let compression_time = start_time.elapsed().unwrap_or(Duration::from_millis(0));
+
+        let engine = self
+            .engines
+            .get_mut(&algorithm)
+            .ok_or_else(|| format!("Compression engine for {algorithm:?} not found"))?;
 
         // Update statistics
         engine.statistics.total_compressions += 1;
@@ -313,12 +390,20 @@ impl CompressionManager {
 
     /// Decompress data
     pub fn decompress(&mut self, data: &[u8], algorithm: CompressionAlgorithm) -> Result<Vec<u8>, String> {
-        let engine = self.engines.get_mut(&algorithm)
-            .ok_or_else(|| format!("Compression engine for {:?} not found", algorithm))?;
+        let engine_snapshot = self
+            .engines
+            .get(&algorithm)
+            .ok_or_else(|| format!("Compression engine for {algorithm:?} not found"))?
+            .clone();
 
         let start_time = SystemTime::now();
-        let result = self.perform_decompression(data, engine);
+        let result = self.perform_decompression(data, &engine_snapshot);
         let decompression_time = start_time.elapsed().unwrap_or(Duration::from_millis(0));
+
+        let engine = self
+            .engines
+            .get_mut(&algorithm)
+            .ok_or_else(|| format!("Compression engine for {algorithm:?} not found"))?;
 
         // Update statistics
         engine.statistics.total_decompressions += 1;
@@ -351,7 +436,8 @@ impl CompressionManager {
         let compressed_data = self.compress(data, best_algorithm.clone())?;
         let compression_time = start_time.elapsed().unwrap_or(Duration::from_millis(0));
 
-        let compression_ratio = data.len() as f64 / compressed_data.len() as f64;
+        let compressed_size = compressed_data.len();
+        let compression_ratio = data.len() as f64 / compressed_size as f64;
         let request_id = format!("auto_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos());
 
         Ok(CompressionResult {
@@ -361,7 +447,7 @@ impl CompressionManager {
             compression_ratio,
             compression_time,
             original_size: data.len(),
-            compressed_size: compressed_data.len(),
+            compressed_size,
             metadata: CompressionMetadata::new(compression_time),
         })
     }
@@ -380,7 +466,8 @@ impl CompressionManager {
         let compressed_data = self.compress(&request.data, algorithm.clone())?;
         let compression_time = start_time.elapsed().unwrap_or(Duration::from_millis(0));
 
-        let compression_ratio = request.data.len() as f64 / compressed_data.len() as f64;
+        let compressed_size = compressed_data.len();
+        let compression_ratio = request.data.len() as f64 / compressed_size as f64;
 
         Ok(CompressionResult {
             request_id: request.request_id,
@@ -389,7 +476,7 @@ impl CompressionManager {
             compression_ratio,
             compression_time,
             original_size: request.data.len(),
-            compressed_size: compressed_data.len(),
+            compressed_size,
             metadata: CompressionMetadata::new(compression_time),
         })
     }
@@ -434,9 +521,23 @@ impl CompressionManager {
     /// Benchmark specific algorithm
     pub fn benchmark_algorithm(&mut self, algorithm: &CompressionAlgorithm, test_data: &[u8]) -> Result<BenchmarkResult, String> {
         let iterations = self.benchmarks.config.iterations;
+        if iterations == 0 {
+            return Err("Benchmark iterations must be greater than zero".to_string());
+        }
+        let profile_memory = self.benchmarks.config.memory_profiling;
+        let profile_cpu = self.benchmarks.config.cpu_profiling;
+
         let mut total_compression_time = Duration::from_millis(0);
         let mut total_decompression_time = Duration::from_millis(0);
         let mut total_compressed_size = 0;
+
+        // --- Begin resource profiling window (real OS counters) ---
+        // Sample baselines before the work loop. RSS is sampled before and
+        // after so we report the peak observed across the benchmark; CPU time
+        // and wall time bracket the loop so CPU% reflects actual core usage.
+        let rss_before = proc_profiling::current_rss_bytes();
+        let cpu_seconds_before = proc_profiling::process_cpu_seconds();
+        let wall_start = Instant::now();
 
         for _ in 0..iterations {
             // Compression benchmark
@@ -450,6 +551,55 @@ impl CompressionManager {
             let _ = self.decompress(&compressed, algorithm.clone())?;
             total_decompression_time += start.elapsed().unwrap_or(Duration::from_millis(0));
         }
+
+        let wall_elapsed = wall_start.elapsed();
+        let rss_after = proc_profiling::current_rss_bytes();
+        let cpu_seconds_after = proc_profiling::process_cpu_seconds();
+        // --- End resource profiling window ---
+
+        // Memory usage: peak resident set size observed during the benchmark.
+        // If profiling was requested but the platform has no real source,
+        // surface an honest error rather than reporting a fabricated 0.
+        let memory_usage = if profile_memory {
+            match (rss_before, rss_after) {
+                (Some(before), Some(after)) => before.max(after),
+                (Some(value), None) | (None, Some(value)) => value,
+                (None, None) => {
+                    return Err(
+                        "Memory profiling requested but resident set size is unavailable on this platform"
+                            .to_string(),
+                    )
+                }
+            }
+        } else {
+            // Not requested: report 0 to mean "not profiled" (honest absence).
+            0
+        };
+
+        // CPU usage: percentage of a single core consumed over the benchmark
+        // window = (CPU seconds delta / wall seconds) * 100. Values above 100
+        // are possible and meaningful if internal parallelism is ever added.
+        let cpu_usage = if profile_cpu {
+            match (cpu_seconds_before, cpu_seconds_after) {
+                (Some(before), Some(after)) => {
+                    let wall_secs = wall_elapsed.as_secs_f64();
+                    if wall_secs > 0.0 {
+                        ((after - before) / wall_secs * 100.0).max(0.0)
+                    } else {
+                        0.0
+                    }
+                }
+                _ => {
+                    return Err(
+                        "CPU profiling requested but process CPU time is unavailable on this platform"
+                            .to_string(),
+                    )
+                }
+            }
+        } else {
+            // Not requested: report 0.0 to mean "not profiled" (honest absence).
+            0.0
+        };
 
         let avg_compression_time = total_compression_time / iterations;
         let avg_decompression_time = total_decompression_time / iterations;
@@ -469,8 +619,8 @@ impl CompressionManager {
             compression_ratio,
             compression_speed,
             decompression_speed,
-            memory_usage: 0, // TODO: Implement memory profiling
-            cpu_usage: 0.0,  // TODO: Implement CPU profiling
+            memory_usage,
+            cpu_usage,
             score,
         })
     }
@@ -582,12 +732,15 @@ impl CompressionEngine {
 }
 
 impl CompressionMetadata {
-    /// Create new compression metadata
+    /// Create new compression metadata, recording the measured compression time
+    /// in the embedded performance metrics.
     pub fn new(compression_time: Duration) -> Self {
+        let mut performance_metrics = CompressionPerformance::default();
+        performance_metrics.avg_compression_time = compression_time;
         Self {
             compressed_at: SystemTime::now(),
             parameters: HashMap::new(),
-            performance_metrics: CompressionPerformance::default(),
+            performance_metrics,
             quality_metrics: CompressionQualityMetrics::default(),
         }
     }
@@ -697,5 +850,67 @@ impl Default for CompressionQualityMetrics {
             memory_score: 0.0,
             overall_score: 0.0,
         }
+    }
+}
+
+#[cfg(test)]
+mod profiling_tests {
+    use super::*;
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn proc_profiling_reports_real_counters_on_linux() {
+        let rss = proc_profiling::current_rss_bytes();
+        assert!(rss.is_some(), "VmRSS should be readable on Linux");
+        assert!(rss.unwrap() > 0, "resident set size should be positive");
+
+        let cpu = proc_profiling::process_cpu_seconds();
+        assert!(cpu.is_some(), "process CPU time should be readable on Linux");
+        assert!(cpu.unwrap() >= 0.0);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn benchmark_records_real_memory_when_profiling_enabled() {
+        let mut manager = CompressionManager::new();
+        manager.benchmarks.config.iterations = 3;
+        manager.benchmarks.config.memory_profiling = true;
+        manager.benchmarks.config.cpu_profiling = true;
+
+        let test_data = vec![7u8; 4096];
+        let result = manager
+            .benchmark_algorithm(&CompressionAlgorithm::LZ4, &test_data)
+            .expect("benchmark succeeds");
+
+        // Memory is the measured RSS, which is necessarily non-zero for a
+        // running process.
+        assert!(
+            result.memory_usage > 0,
+            "profiled memory usage must be a real positive RSS value"
+        );
+        assert!(result.cpu_usage >= 0.0);
+    }
+
+    #[test]
+    fn benchmark_zero_iterations_errors() {
+        let mut manager = CompressionManager::new();
+        manager.benchmarks.config.iterations = 0;
+        let test_data = vec![1u8; 64];
+        assert!(manager
+            .benchmark_algorithm(&CompressionAlgorithm::Gzip, &test_data)
+            .is_err());
+    }
+
+    #[test]
+    fn benchmark_without_profiling_reports_unprofiled_zero() {
+        let mut manager = CompressionManager::new();
+        manager.benchmarks.config.iterations = 2;
+        // Profiling flags default to false.
+        let test_data = vec![3u8; 256];
+        let result = manager
+            .benchmark_algorithm(&CompressionAlgorithm::Zstd, &test_data)
+            .expect("benchmark succeeds");
+        assert_eq!(result.memory_usage, 0);
+        assert_eq!(result.cpu_usage, 0.0);
     }
 }

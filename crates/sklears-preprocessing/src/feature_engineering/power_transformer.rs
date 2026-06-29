@@ -225,17 +225,21 @@ impl PowerTransformer<Trained> {
         self.stds_.as_ref()
     }
 
-    /// Apply Box-Cox transformation
+    /// Apply Box-Cox transformation.
+    ///
+    /// The transform is dominated by `powf`/`ln`, which have no exact `std::arch`
+    /// SIMD intrinsic; vectorising them would require a polynomial approximation
+    /// that degrades numerical accuracy. We therefore evaluate the precise scalar
+    /// transcendental form, which is the correct, full-accuracy result.
     fn box_cox_transform_fitted(&self, x: &Array1<Float>, lambda: Float) -> Array1<Float> {
-        // FIXME: SIMD implementation disabled for compilation
-        // Use CPU fallback for now
         self.box_cox_transform_cpu(x, lambda)
     }
 
-    /// Apply Yeo-Johnson transformation
+    /// Apply Yeo-Johnson transformation.
+    ///
+    /// As with Box-Cox, the per-element math relies on `powf`/`ln`; the precise
+    /// scalar evaluation below is the full-accuracy result.
     fn yeo_johnson_transform_fitted(&self, x: &Array1<Float>, lambda: Float) -> Array1<Float> {
-        // FIXME: SIMD implementation disabled for compilation
-        // Use CPU fallback for now
         self.yeo_johnson_transform_cpu(x, lambda)
     }
 

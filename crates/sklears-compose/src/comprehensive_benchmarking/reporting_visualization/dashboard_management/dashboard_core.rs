@@ -1,20 +1,20 @@
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
 use thiserror::Error;
 
 // Re-export types from other modules that dashboard_core depends on
-use super::layout_engine::{DashboardLayout};
-use super::widget_system::{DashboardWidget};
-use super::access_control::{DashboardPermissions};
-use super::real_time_updates::{RefreshSettings};
-use super::theme_styling::{DashboardThemeManager};
-use super::performance_monitor::{DashboardPerformanceMonitor};
+use super::access_control::DashboardPermissions;
+use super::layout_engine::DashboardLayout;
+use super::performance_monitor::DashboardPerformanceMonitor;
+use super::real_time_updates::RefreshSettings;
+use super::theme_styling::DashboardThemeManager;
+use super::widget_system::DashboardWidget;
 
 /// Main dashboard management system orchestrator
 /// Coordinates all dashboard subsystems and provides core CRUD operations
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct DashboardManagementSystem {
     /// Dashboard registry and storage
     pub dashboards: Arc<RwLock<HashMap<String, Dashboard>>>,
@@ -344,10 +344,14 @@ impl DashboardManagementSystem {
         Self {
             dashboards: Arc::new(RwLock::new(HashMap::new())),
             dashboard_templates: Arc::new(RwLock::new(HashMap::new())),
-            real_time_updates: Arc::new(RwLock::new(super::real_time_updates::RealTimeUpdates::default())),
+            real_time_updates: Arc::new(RwLock::new(
+                super::real_time_updates::RealTimeUpdates::default(),
+            )),
             widget_manager: Arc::new(RwLock::new(super::widget_system::WidgetManager::new())),
             layout_engine: Arc::new(RwLock::new(super::layout_engine::LayoutEngine::new())),
-            access_control: Arc::new(RwLock::new(super::access_control::DashboardAccessControl::new())),
+            access_control: Arc::new(RwLock::new(
+                super::access_control::DashboardAccessControl::new(),
+            )),
             performance_monitor: Arc::new(RwLock::new(DashboardPerformanceMonitor::new())),
             theme_manager: Arc::new(RwLock::new(DashboardThemeManager::new())),
         }
@@ -362,9 +366,10 @@ impl DashboardManagementSystem {
 
         // Check for duplicate dashboard ID
         if dashboards.contains_key(&dashboard.dashboard_id) {
-            return Err(DashboardError::ConfigurationError(
-                format!("Dashboard with ID '{}' already exists", dashboard.dashboard_id)
-            ));
+            return Err(DashboardError::ConfigurationError(format!(
+                "Dashboard with ID '{}' already exists",
+                dashboard.dashboard_id
+            )));
         }
 
         dashboards.insert(dashboard.dashboard_id.clone(), dashboard);
@@ -374,7 +379,8 @@ impl DashboardManagementSystem {
     /// Get dashboard by ID
     pub fn get_dashboard(&self, dashboard_id: &str) -> Result<Dashboard, DashboardError> {
         let dashboards = self.dashboards.read().unwrap_or_else(|e| e.into_inner());
-        dashboards.get(dashboard_id)
+        dashboards
+            .get(dashboard_id)
             .cloned()
             .ok_or_else(|| DashboardError::DashboardNotFound(dashboard_id.to_string()))
     }
@@ -388,7 +394,9 @@ impl DashboardManagementSystem {
 
         // Check if dashboard exists
         if !dashboards.contains_key(&dashboard.dashboard_id) {
-            return Err(DashboardError::DashboardNotFound(dashboard.dashboard_id.clone()));
+            return Err(DashboardError::DashboardNotFound(
+                dashboard.dashboard_id.clone(),
+            ));
         }
 
         dashboards.insert(dashboard.dashboard_id.clone(), dashboard);
@@ -398,7 +406,8 @@ impl DashboardManagementSystem {
     /// Delete dashboard
     pub fn delete_dashboard(&self, dashboard_id: &str) -> Result<(), DashboardError> {
         let mut dashboards = self.dashboards.write().unwrap_or_else(|e| e.into_inner());
-        dashboards.remove(dashboard_id)
+        dashboards
+            .remove(dashboard_id)
             .ok_or_else(|| DashboardError::DashboardNotFound(dashboard_id.to_string()))?;
         Ok(())
     }
@@ -417,13 +426,17 @@ impl DashboardManagementSystem {
 
     /// Create dashboard template
     pub fn create_template(&self, template: DashboardTemplate) -> Result<(), DashboardError> {
-        let mut templates = self.dashboard_templates.write().unwrap_or_else(|e| e.into_inner());
+        let mut templates = self
+            .dashboard_templates
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
 
         // Check for duplicate template ID
         if templates.contains_key(&template.template_id) {
-            return Err(DashboardError::ConfigurationError(
-                format!("Template with ID '{}' already exists", template.template_id)
-            ));
+            return Err(DashboardError::ConfigurationError(format!(
+                "Template with ID '{}' already exists",
+                template.template_id
+            )));
         }
 
         templates.insert(template.template_id.clone(), template);
@@ -432,14 +445,23 @@ impl DashboardManagementSystem {
 
     /// Get dashboard template
     pub fn get_template(&self, template_id: &str) -> Result<DashboardTemplate, DashboardError> {
-        let templates = self.dashboard_templates.read().unwrap_or_else(|e| e.into_inner());
-        templates.get(template_id)
+        let templates = self
+            .dashboard_templates
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
+        templates
+            .get(template_id)
             .cloned()
             .ok_or_else(|| DashboardError::TemplateNotFound(template_id.to_string()))
     }
 
     /// Create dashboard from template
-    pub fn create_dashboard_from_template(&self, template_id: &str, dashboard_id: String, dashboard_name: String) -> Result<Dashboard, DashboardError> {
+    pub fn create_dashboard_from_template(
+        &self,
+        template_id: &str,
+        dashboard_id: String,
+        dashboard_name: String,
+    ) -> Result<Dashboard, DashboardError> {
         let template = self.get_template(template_id)?;
 
         let mut dashboard = template.dashboard.clone();
@@ -466,18 +488,24 @@ impl DashboardManagementSystem {
     fn validate_dashboard(&self, dashboard: &Dashboard) -> Result<(), DashboardError> {
         // Validate dashboard ID
         if dashboard.dashboard_id.is_empty() {
-            return Err(DashboardError::ConfigurationError("Dashboard ID cannot be empty".to_string()));
+            return Err(DashboardError::ConfigurationError(
+                "Dashboard ID cannot be empty".to_string(),
+            ));
         }
 
         // Validate dashboard name
         if dashboard.dashboard_name.is_empty() {
-            return Err(DashboardError::ConfigurationError("Dashboard name cannot be empty".to_string()));
+            return Err(DashboardError::ConfigurationError(
+                "Dashboard name cannot be empty".to_string(),
+            ));
         }
 
         // Validate widgets
         for widget in &dashboard.widgets {
             if widget.widget_id.is_empty() {
-                return Err(DashboardError::ConfigurationError("Widget ID cannot be empty".to_string()));
+                return Err(DashboardError::ConfigurationError(
+                    "Widget ID cannot be empty".to_string(),
+                ));
             }
         }
 
@@ -485,7 +513,12 @@ impl DashboardManagementSystem {
     }
 
     /// Update dashboard state
-    pub fn update_dashboard_state(&self, dashboard_id: &str, new_state: DashboardStateType, triggered_by: String) -> Result<(), DashboardError> {
+    pub fn update_dashboard_state(
+        &self,
+        dashboard_id: &str,
+        new_state: DashboardStateType,
+        triggered_by: String,
+    ) -> Result<(), DashboardError> {
         let mut dashboards = self.dashboards.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(dashboard) = dashboards.get_mut(dashboard_id) {
@@ -510,10 +543,16 @@ impl DashboardManagementSystem {
     }
 
     /// Get dashboard by status
-    pub fn get_dashboards_by_status(&self, status: DashboardStatus) -> Result<Vec<Dashboard>, DashboardError> {
+    pub fn get_dashboards_by_status(
+        &self,
+        status: DashboardStatus,
+    ) -> Result<Vec<Dashboard>, DashboardError> {
         let dashboards = self.dashboards.read().unwrap_or_else(|e| e.into_inner());
-        Ok(dashboards.values()
-            .filter(|d| std::mem::discriminant(&d.metadata.status) == std::mem::discriminant(&status))
+        Ok(dashboards
+            .values()
+            .filter(|d| {
+                std::mem::discriminant(&d.metadata.status) == std::mem::discriminant(&status)
+            })
             .cloned()
             .collect())
     }

@@ -6,7 +6,10 @@
 use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_core::random::RngExt;
 use serde::{Deserialize, Serialize};
-use sklears_core::{error::Result as SklResult, traits::Transform};
+use sklears_core::{
+    error::{Result as SklResult, SklearsError},
+    traits::Transform,
+};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as FmtWrite;
 use std::time::{Duration, Instant};
@@ -506,66 +509,25 @@ impl BenchmarkSuite {
         Ok(result)
     }
 
-    /// Benchmark pipeline composition strategies
+    /// Benchmark pipeline composition strategies.
+    ///
+    /// A genuine implementation must build a real pipeline for each composition
+    /// strategy (sequential, parallel feature union, DAG, zero-cost) over the
+    /// configured sample/feature sizes and time their execution with
+    /// `Instant::now()`, the same way [`Self::benchmark_transformer`] does.
+    ///
+    /// The previous implementation fabricated timings by inventing a `base_time`
+    /// and multiplying it by hardcoded per-strategy speedup factors (0.4-1.0),
+    /// reporting these invented numbers as if they were measured. That made
+    /// "zero_cost_composition is 2.5x faster" a fiction. Until the strategy
+    /// pipelines are registered and runnable here we refuse to record fabricated
+    /// results.
     pub fn benchmark_composition_strategies(&mut self) -> SklResult<()> {
-        // This would benchmark different composition approaches
-        // For now, we'll simulate some benchmark results
-
-        let strategies = vec![
-            "sequential_pipeline",
-            "parallel_feature_union",
-            "dag_pipeline",
-            "zero_cost_composition",
-        ];
-
-        for strategy in strategies {
-            let mut strategy_results = Vec::new();
-
-            for &n_samples in &self.config.sample_sizes {
-                for &n_features in &self.config.feature_counts {
-                    // Simulate benchmark results for different strategies
-                    let base_time =
-                        Duration::from_micros(100 + (n_samples * n_features / 1000) as u64);
-                    let strategy_multiplier = match strategy {
-                        "sequential_pipeline" => 1.0,
-                        "parallel_feature_union" => 0.6, // Faster due to parallelization
-                        "dag_pipeline" => 0.8,           // Moderate speedup
-                        "zero_cost_composition" => 0.4,  // Fastest due to zero-cost abstractions
-                        _ => 1.0,
-                    };
-
-                    let adjusted_time = Duration::from_nanos(
-                        (base_time.as_nanos() as f64 * strategy_multiplier) as u64,
-                    );
-
-                    let times = vec![adjusted_time; self.config.iterations];
-                    let mut result = BenchmarkResult::new(
-                        format!(
-                            "{}_{}_{}_{}",
-                            strategy, "composition", n_samples, n_features
-                        ),
-                        times,
-                        (n_samples, n_features),
-                    );
-
-                    if self.config.measure_throughput {
-                        let throughput = n_samples as f64 / adjusted_time.as_secs_f64();
-                        result = result.with_throughput(throughput);
-                    }
-
-                    if self.config.measure_memory {
-                        let memory_usage = self.estimate_memory_usage((n_samples, n_features));
-                        result = result.with_memory_usage(memory_usage);
-                    }
-
-                    strategy_results.push(result);
-                }
-            }
-
-            self.results.insert(strategy.to_string(), strategy_results);
-        }
-
-        Ok(())
+        Err(SklearsError::NotImplemented(
+            "benchmark_composition_strategies: requires runnable composition-strategy pipelines \
+             to time; fabricating per-strategy timings is disallowed"
+                .to_string(),
+        ))
     }
 
     /// Generate test data
@@ -1208,10 +1170,19 @@ pub mod advanced_benchmarking {
                 Some(ComparativeBenchmarkAnalysis {
                     baseline_component: baseline.to_string(),
                     comparison_components: comparisons.iter().map(|s| (*s).to_string()).collect(),
-                    metrics: vec![], // Would be populated with detailed metrics
-                    statistical_significance: 0.95, // Placeholder
+                    metrics: vec![],
+                    statistical_significance: self.calculate_statistical_significance(
+                        baseline_results,
+                        comparisons
+                            .iter()
+                            .filter_map(|c| self.results_database.get(*c))
+                            .flatten()
+                            .cloned()
+                            .collect::<Vec<_>>()
+                            .as_slice(),
+                    ),
                     effect_sizes,
-                    confidence_intervals: HashMap::new(), // Would calculate actual CIs
+                    confidence_intervals: HashMap::new(),
                 })
             } else {
                 None
@@ -1282,6 +1253,54 @@ pub mod advanced_benchmarking {
             // Simplified effect size calculation
             let pooled_std = 1.0; // Would calculate actual pooled standard deviation
             (comparison_mean - baseline_mean) / pooled_std
+        }
+
+        /// Welch's t-test: 1 - p_value (confidence that samples differ in mean latency).
+        /// Returns 0.0 when either sample has fewer than 2 results.
+        fn calculate_statistical_significance(
+            &self,
+            baseline: &[BenchmarkResult],
+            comparison: &[BenchmarkResult],
+        ) -> f64 {
+            let n1 = baseline.len();
+            let n2 = comparison.len();
+            if n1 < 2 || n2 < 2 {
+                return 0.0;
+            }
+            let to_ms = |r: &BenchmarkResult| r.mean_time.as_secs_f64() * 1000.0;
+            let m1 = baseline.iter().map(to_ms).sum::<f64>() / n1 as f64;
+            let m2 = comparison.iter().map(to_ms).sum::<f64>() / n2 as f64;
+            let v1 = baseline
+                .iter()
+                .map(|r| (to_ms(r) - m1).powi(2))
+                .sum::<f64>()
+                / (n1 - 1) as f64;
+            let v2 = comparison
+                .iter()
+                .map(|r| (to_ms(r) - m2).powi(2))
+                .sum::<f64>()
+                / (n2 - 1) as f64;
+            let se = (v1 / n1 as f64 + v2 / n2 as f64).sqrt();
+            if se < f64::EPSILON {
+                return if (m1 - m2).abs() < f64::EPSILON {
+                    0.0
+                } else {
+                    1.0
+                };
+            }
+            let t = (m1 - m2).abs() / se;
+            // Normal approximation to t-distribution p-value (2-tailed → 1-tailed confidence).
+            // erf approximation (Abramowitz & Stegun 7.1.26).
+            let x = t / f64::sqrt(2.0);
+            let a1 = 0.254829592_f64;
+            let a2 = -0.284496736_f64;
+            let a3 = 1.421413741_f64;
+            let a4 = -1.453152027_f64;
+            let a5 = 1.061405429_f64;
+            let p_as = 1.0 / (1.0 + 0.3275911 * x);
+            let poly = ((((a5 * p_as + a4) * p_as + a3) * p_as + a2) * p_as + a1) * p_as;
+            let erf_approx = 1.0 - poly * (-x * x).exp();
+            ((1.0 + erf_approx) / 2.0).min(1.0)
         }
 
         fn calculate_efficiency_scores(

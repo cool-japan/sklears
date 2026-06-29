@@ -690,10 +690,63 @@ impl Estimator for CorrelationThreshold {
 
 impl<'a> Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>> for CorrelationThreshold {
     type Fitted = CorrelationThresholdTrained;
-    fn fit(self, _X: &ArrayView2<'a, f64>, _y: &ArrayView1<'a, f64>) -> Result<Self::Fitted> {
-        Err(SklearsError::NotImplemented(
-            "CorrelationThreshold selector not yet implemented".to_string(),
-        ))
+
+    /// Select features whose absolute Pearson correlation with the target exceeds
+    /// `self.threshold`.
+    ///
+    /// A feature `j` is **kept** when |corr(X[:, j], y)| >= threshold.
+    /// If no features exceed the threshold, all features are kept to avoid an empty
+    /// output.
+    fn fit(self, x: &ArrayView2<'a, f64>, y: &ArrayView1<'a, f64>) -> Result<Self::Fitted> {
+        let n_samples = x.nrows();
+        let n_features = x.ncols();
+
+        if n_samples == 0 {
+            return Err(FilterError::EmptyFeatureMatrix.into());
+        }
+        if self.threshold < 0.0 || self.threshold > 1.0 {
+            return Err(FilterError::InvalidPercentile(self.threshold).into());
+        }
+
+        // Mean and std of y
+        let y_mean: f64 = y.iter().sum::<f64>() / n_samples as f64;
+        let y_var: f64 = y.iter().map(|&v| (v - y_mean).powi(2)).sum::<f64>() / n_samples as f64;
+        let y_std = y_var.sqrt();
+
+        let mut selected_features = Vec::new();
+
+        for j in 0..n_features {
+            let col = x.column(j);
+            let x_mean: f64 = col.iter().sum::<f64>() / n_samples as f64;
+            let x_var: f64 =
+                col.iter().map(|&v| (v - x_mean).powi(2)).sum::<f64>() / n_samples as f64;
+            let x_std = x_var.sqrt();
+
+            // If either std is zero (constant feature/target), correlation is undefined;
+            // treat it as 0.0 (no correlation).
+            let corr = if x_std < f64::EPSILON || y_std < f64::EPSILON {
+                0.0
+            } else {
+                let cov: f64 = col
+                    .iter()
+                    .zip(y.iter())
+                    .map(|(&xi, &yi)| (xi - x_mean) * (yi - y_mean))
+                    .sum::<f64>()
+                    / n_samples as f64;
+                cov / (x_std * y_std)
+            };
+
+            if corr.abs() >= self.threshold {
+                selected_features.push(j);
+            }
+        }
+
+        // Fall back to all features if none passed the threshold.
+        if selected_features.is_empty() {
+            selected_features = (0..n_features).collect();
+        }
+
+        Ok(CorrelationThresholdTrained { selected_features })
     }
 }
 
@@ -840,4 +893,80 @@ pub enum ImbalancedStrategy {
     SMOTEEnhanced,
     /// WeightedSelection
     WeightedSelection,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    #[test]
+    fn test_correlation_threshold_selects_correlated_features() {
+        // Feature 0: highly correlated with y (r ≈ 1.0)
+        // Feature 1: uncorrelated noise (constant 0.5)
+        // Feature 2: negatively correlated (r ≈ -1.0)
+        let x = array![
+            [1.0, 0.5, 5.0],
+            [2.0, 0.5, 4.0],
+            [3.0, 0.5, 3.0],
+            [4.0, 0.5, 2.0],
+            [5.0, 0.5, 1.0],
+        ];
+        let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
+
+        let selector = CorrelationThreshold::new(0.9);
+        let fitted = selector
+            .fit(&x.view(), &y.view())
+            .expect("CorrelationThreshold fit should succeed");
+
+        // Features 0 and 2 should be selected (|r| ≈ 1.0 >= 0.9)
+        // Feature 1 (constant) should NOT be selected
+        assert!(
+            fitted.selected_features.contains(&0),
+            "Feature 0 (r≈1) should be selected"
+        );
+        assert!(
+            fitted.selected_features.contains(&2),
+            "Feature 2 (r≈-1) should be selected"
+        );
+        assert!(
+            !fitted.selected_features.contains(&1),
+            "Feature 1 (constant) should NOT be selected"
+        );
+    }
+
+    #[test]
+    fn test_correlation_threshold_transform_shape() {
+        let x = array![[1.0, 0.5, 5.0], [2.0, 0.5, 4.0], [3.0, 0.5, 3.0],];
+        let y = array![1.0, 2.0, 3.0];
+
+        let selector = CorrelationThreshold::new(0.9);
+        let fitted = selector
+            .fit(&x.view(), &y.view())
+            .expect("fit should succeed");
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("transform should succeed");
+
+        // Transformed should have fewer (or equal) columns than original
+        assert!(transformed.ncols() <= 3);
+        assert_eq!(transformed.nrows(), 3);
+    }
+
+    #[test]
+    fn test_correlation_threshold_fallback_all_features() {
+        // Very high threshold → no feature passes → should fall back to all features.
+        let x = array![[1.0, 2.0], [2.0, 1.0], [3.0, 0.0]];
+        let y = array![0.1, 0.5, 0.9];
+
+        // With threshold 0.999 only a perfect correlation would pass.
+        // The correlations here won't be that perfect, so all features are kept.
+        let selector = CorrelationThreshold::new(0.999);
+        let fitted = selector
+            .fit(&x.view(), &y.view())
+            .expect("fit should succeed");
+
+        // Must not be empty
+        assert!(!fitted.selected_features.is_empty());
+    }
 }

@@ -45,7 +45,7 @@ type MixtureComponentsResult = SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f
 ///
 /// let model = StudentTMixture::new()
 ///     .n_components(2)
-///     .degrees_of_freedom(vec![3.0, 3.0])  // Heavy tails for robustness
+///     .degrees_of_freedom(vec![3.0, 3.0]).expect("valid degrees of freedom")
 ///     .covariance_type(CovarianceType::Diagonal)
 ///     .max_iter(100);
 /// let fitted = model.fit(&X.view(), &()).expect("Student-t mixture fitting should succeed with valid data");

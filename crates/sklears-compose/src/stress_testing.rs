@@ -1124,7 +1124,7 @@ mod tests {
         let config = StressTestConfig::default();
         let mut tester = StressTester::new(config);
 
-        // Add some mock results
+        // Test fixture: a single successful result to exercise report aggregation.
         tester.results.push(StressTestResult {
             scenario: StressTestScenario::HighVolumeData {
                 scale_factor: 1.0,

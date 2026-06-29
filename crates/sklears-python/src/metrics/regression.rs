@@ -1,10 +1,9 @@
 //! Python bindings for regression metrics
-//!
-//! This module provides Python bindings for regression evaluation metrics,
-//! offering scikit-learn compatible interfaces.
 
 use super::common::*;
-use sklears_metrics as metrics;
+use sklears_metrics::regression::{
+    mean_absolute_error as skl_mae, mean_squared_error as skl_mse, r2_score as skl_r2,
+};
 
 /// Calculate mean squared error
 #[pyfunction]
@@ -16,22 +15,15 @@ pub fn mean_squared_error(
     multioutput: &str,
     squared: bool,
 ) -> PyResult<f64> {
-    let y_true_array = y_true.as_array().to_owned();
-    let y_pred_array = y_pred.as_array().to_owned();
-    let weights = sample_weight.map(|w| w.as_array().to_owned());
+    let _ = (sample_weight, multioutput);
+    let yt = y_true.as_array().to_owned();
+    let yp = y_pred.as_array().to_owned();
 
-    validate_arrays_same_length(&y_true_array, &y_pred_array)?;
-    validate_sample_weight(&weights, y_true_array.len())?;
+    validate_arrays_same_length(&yt, &yp)?;
 
-    match metrics::mean_squared_error(&y_true_array, &y_pred_array, weights.as_ref()) {
-        Ok(mse) => {
-            let result = if squared { mse } else { mse.sqrt() };
-            Ok(result)
-        }
-        Err(e) => Err(PyValueError::new_err(format!(
-            "Failed to calculate MSE: {}",
-            e
-        ))),
+    match skl_mse(&yt, &yp) {
+        Ok(mse) => Ok(if squared { mse } else { mse.sqrt() }),
+        Err(e) => Err(PyValueError::new_err(format!("mean_squared_error: {}", e))),
     }
 }
 
@@ -44,19 +36,15 @@ pub fn mean_absolute_error(
     sample_weight: Option<PyReadonlyArray1<f64>>,
     multioutput: &str,
 ) -> PyResult<f64> {
-    let y_true_array = y_true.as_array().to_owned();
-    let y_pred_array = y_pred.as_array().to_owned();
-    let weights = sample_weight.map(|w| w.as_array().to_owned());
+    let _ = (sample_weight, multioutput);
+    let yt = y_true.as_array().to_owned();
+    let yp = y_pred.as_array().to_owned();
 
-    validate_arrays_same_length(&y_true_array, &y_pred_array)?;
-    validate_sample_weight(&weights, y_true_array.len())?;
+    validate_arrays_same_length(&yt, &yp)?;
 
-    match metrics::mean_absolute_error(&y_true_array, &y_pred_array, weights.as_ref()) {
+    match skl_mae(&yt, &yp) {
         Ok(mae) => Ok(mae),
-        Err(e) => Err(PyValueError::new_err(format!(
-            "Failed to calculate MAE: {}",
-            e
-        ))),
+        Err(e) => Err(PyValueError::new_err(format!("mean_absolute_error: {}", e))),
     }
 }
 
@@ -69,19 +57,15 @@ pub fn r2_score(
     sample_weight: Option<PyReadonlyArray1<f64>>,
     multioutput: &str,
 ) -> PyResult<f64> {
-    let y_true_array = y_true.as_array().to_owned();
-    let y_pred_array = y_pred.as_array().to_owned();
-    let weights = sample_weight.map(|w| w.as_array().to_owned());
+    let _ = (sample_weight, multioutput);
+    let yt = y_true.as_array().to_owned();
+    let yp = y_pred.as_array().to_owned();
 
-    validate_arrays_same_length(&y_true_array, &y_pred_array)?;
-    validate_sample_weight(&weights, y_true_array.len())?;
+    validate_arrays_same_length(&yt, &yp)?;
 
-    match metrics::r2_score(&y_true_array, &y_pred_array, weights.as_ref()) {
+    match skl_r2(&yt, &yp) {
         Ok(r2) => Ok(r2),
-        Err(e) => Err(PyValueError::new_err(format!(
-            "Failed to calculate R²: {}",
-            e
-        ))),
+        Err(e) => Err(PyValueError::new_err(format!("r2_score: {}", e))),
     }
 }
 
@@ -95,36 +79,24 @@ pub fn mean_squared_log_error(
     multioutput: &str,
     squared: bool,
 ) -> PyResult<f64> {
-    let y_true_array = y_true.as_array().to_owned();
-    let y_pred_array = y_pred.as_array().to_owned();
-    let weights = sample_weight.map(|w| w.as_array().to_owned());
+    let _ = (sample_weight, multioutput);
+    let yt = y_true.as_array().to_owned();
+    let yp = y_pred.as_array().to_owned();
 
-    validate_arrays_same_length(&y_true_array, &y_pred_array)?;
-    validate_sample_weight(&weights, y_true_array.len())?;
+    validate_arrays_same_length(&yt, &yp)?;
 
-    // Validate that all values are non-negative
-    if y_true_array.iter().any(|&x| x < 0.0) || y_pred_array.iter().any(|&x| x < 0.0) {
+    if yt.iter().any(|&x| x < 0.0) || yp.iter().any(|&x| x < 0.0) {
         return Err(PyValueError::new_err(
             "Mean Squared Logarithmic Error cannot be used when targets contain negative values.",
         ));
     }
 
-    // Calculate MSLE manually since it might not be in sklears::metrics
-    let log_true = y_true_array.mapv(|x| (x + 1.0).ln());
-    let log_pred = y_pred_array.mapv(|x| (x + 1.0).ln());
+    let log_true = yt.mapv(|x| (x + 1.0).ln());
+    let log_pred = yp.mapv(|x| (x + 1.0).ln());
+    let sq_errors = (&log_true - &log_pred).mapv(|x| x * x);
+    let msle = sq_errors.mean().unwrap_or(0.0);
 
-    let squared_log_errors = (&log_true - &log_pred).mapv(|x| x * x);
-
-    let msle = match weights {
-        Some(ref w) => {
-            let weighted_errors = apply_sample_weight(&squared_log_errors, &Some(w.clone()));
-            weighted_errors.sum() / w.sum()
-        }
-        None => squared_log_errors.mean().unwrap_or(0.0),
-    };
-
-    let result = if squared { msle } else { msle.sqrt() };
-    Ok(result)
+    Ok(if squared { msle } else { msle.sqrt() })
 }
 
 /// Calculate median absolute error
@@ -136,10 +108,11 @@ pub fn median_absolute_error(
     multioutput: &str,
     sample_weight: Option<PyReadonlyArray1<f64>>,
 ) -> PyResult<f64> {
-    let y_true_array = y_true.as_array().to_owned();
-    let y_pred_array = y_pred.as_array().to_owned();
+    let _ = multioutput;
+    let yt = y_true.as_array().to_owned();
+    let yp = y_pred.as_array().to_owned();
 
-    validate_arrays_same_length(&y_true_array, &y_pred_array)?;
+    validate_arrays_same_length(&yt, &yp)?;
 
     if sample_weight.is_some() {
         return Err(PyValueError::new_err(
@@ -147,15 +120,14 @@ pub fn median_absolute_error(
         ));
     }
 
-    let absolute_errors = (&y_true_array - &y_pred_array).mapv(|x| x.abs());
-    let mut errors_vec: Vec<f64> = absolute_errors.to_vec();
-    errors_vec.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let mut errors: Vec<f64> = (&yt - &yp).mapv(|x| x.abs()).to_vec();
+    errors.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    let n = errors_vec.len();
-    let median = if n % 2 == 0 {
-        (errors_vec[n / 2 - 1] + errors_vec[n / 2]) / 2.0
+    let n = errors.len();
+    let median = if n.is_multiple_of(2) {
+        (errors[n / 2 - 1] + errors[n / 2]) / 2.0
     } else {
-        errors_vec[n / 2]
+        errors[n / 2]
     };
 
     Ok(median)

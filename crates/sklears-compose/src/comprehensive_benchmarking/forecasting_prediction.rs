@@ -1,11 +1,11 @@
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, Mutex};
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
+use std::sync::{Arc, Mutex, RwLock};
 
 use super::config_types::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ForecastingEngine {
     forecasting_models: HashMap<String, Arc<RwLock<ForecastingModel>>>,
     prediction_algorithms: HashMap<String, Arc<Mutex<PredictionAlgorithm>>>,
@@ -1150,6 +1150,12 @@ pub struct FailoverConfig {
     recovery_time: Duration,
 }
 
+impl Default for ForecastingEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ForecastingEngine {
     pub fn new() -> Self {
         Self {
@@ -1161,21 +1167,28 @@ impl ForecastingEngine {
         }
     }
 
-    pub fn register_forecasting_model(&mut self, model: ForecastingModel) -> Result<(), ForecastingError> {
+    pub fn register_forecasting_model(
+        &mut self,
+        model: ForecastingModel,
+    ) -> Result<(), ForecastingError> {
         if self.forecasting_models.contains_key(&model.model_id) {
             return Err(ForecastingError::ModelAlreadyExists(model.model_id.clone()));
         }
 
-        self.forecasting_models.insert(
-            model.model_id.clone(),
-            Arc::new(RwLock::new(model))
-        );
+        self.forecasting_models
+            .insert(model.model_id.clone(), Arc::new(RwLock::new(model)));
 
         Ok(())
     }
 
-    pub fn train_model(&mut self, model_id: &str, training_data: Vec<TimeSeriesPoint>) -> Result<(), ForecastingError> {
-        let model = self.forecasting_models.get(model_id)
+    pub fn train_model(
+        &mut self,
+        model_id: &str,
+        training_data: Vec<TimeSeriesPoint>,
+    ) -> Result<(), ForecastingError> {
+        let model = self
+            .forecasting_models
+            .get(model_id)
             .ok_or_else(|| ForecastingError::ModelNotFound(model_id.to_string()))?;
 
         let mut model_lock = model.write().unwrap_or_else(|e| e.into_inner());
@@ -1190,38 +1203,28 @@ impl ForecastingEngine {
 
     fn execute_model_training(&self, model: &mut ForecastingModel) -> Result<(), ForecastingError> {
         match model.model_type {
-            ForecastingModelType::LinearRegression => {
-                self.train_linear_regression(model)
-            }
-            ForecastingModelType::ExponentialSmoothing => {
-                self.train_exponential_smoothing(model)
-            }
-            ForecastingModelType::ARIMA => {
-                self.train_arima(model)
-            }
-            ForecastingModelType::SeasonalDecomposition => {
-                self.train_seasonal_decomposition(model)
-            }
-            ForecastingModelType::Prophet => {
-                self.train_prophet(model)
-            }
-            ForecastingModelType::NeuralNetwork => {
-                self.train_neural_network(model)
-            }
-            ForecastingModelType::EnsembleModel => {
-                self.train_ensemble_model(model)
-            }
-            ForecastingModelType::CustomModel(_) => {
-                self.train_custom_model(model)
-            }
+            ForecastingModelType::LinearRegression => self.train_linear_regression(model),
+            ForecastingModelType::ExponentialSmoothing => self.train_exponential_smoothing(model),
+            ForecastingModelType::ARIMA => self.train_arima(model),
+            ForecastingModelType::SeasonalDecomposition => self.train_seasonal_decomposition(model),
+            ForecastingModelType::Prophet => self.train_prophet(model),
+            ForecastingModelType::NeuralNetwork => self.train_neural_network(model),
+            ForecastingModelType::EnsembleModel => self.train_ensemble_model(model),
+            ForecastingModelType::CustomModel(_) => self.train_custom_model(model),
         }
     }
 
-    fn train_linear_regression(&self, _model: &mut ForecastingModel) -> Result<(), ForecastingError> {
+    fn train_linear_regression(
+        &self,
+        _model: &mut ForecastingModel,
+    ) -> Result<(), ForecastingError> {
         Ok(())
     }
 
-    fn train_exponential_smoothing(&self, _model: &mut ForecastingModel) -> Result<(), ForecastingError> {
+    fn train_exponential_smoothing(
+        &self,
+        _model: &mut ForecastingModel,
+    ) -> Result<(), ForecastingError> {
         Ok(())
     }
 
@@ -1229,7 +1232,10 @@ impl ForecastingEngine {
         Ok(())
     }
 
-    fn train_seasonal_decomposition(&self, _model: &mut ForecastingModel) -> Result<(), ForecastingError> {
+    fn train_seasonal_decomposition(
+        &self,
+        _model: &mut ForecastingModel,
+    ) -> Result<(), ForecastingError> {
         Ok(())
     }
 
@@ -1249,18 +1255,29 @@ impl ForecastingEngine {
         Ok(())
     }
 
-    pub fn generate_forecast(&self, model_id: &str, forecast_horizon: Duration) -> Result<ForecastResult, ForecastingError> {
-        let model = self.forecasting_models.get(model_id)
+    pub fn generate_forecast(
+        &self,
+        model_id: &str,
+        forecast_horizon: Duration,
+    ) -> Result<ForecastResult, ForecastingError> {
+        let model = self
+            .forecasting_models
+            .get(model_id)
             .ok_or_else(|| ForecastingError::ModelNotFound(model_id.to_string()))?;
 
         let model_lock = model.read().unwrap_or_else(|e| e.into_inner());
 
-        if !matches!(model_lock.model_state, ForecastingModelState::Trained | ForecastingModelState::Validated) {
+        if !matches!(
+            model_lock.model_state,
+            ForecastingModelState::Trained | ForecastingModelState::Validated
+        ) {
             return Err(ForecastingError::ModelNotTrained(model_id.to_string()));
         }
 
         let forecast_points = self.execute_forecast(&model_lock, forecast_horizon)?;
         let uncertainty_estimates = self.calculate_uncertainty(&model_lock, &forecast_points)?;
+        let confidence_intervals =
+            self.calculate_confidence_intervals(&model_lock, &forecast_points)?;
 
         Ok(ForecastResult {
             forecast_id: self.generate_forecast_id(),
@@ -1269,20 +1286,32 @@ impl ForecastingEngine {
             forecast_horizon,
             forecast_points,
             uncertainty_estimates,
-            confidence_intervals: self.calculate_confidence_intervals(&model_lock, &forecast_points)?,
+            confidence_intervals,
             metadata: HashMap::new(),
         })
     }
 
-    fn execute_forecast(&self, _model: &ForecastingModel, _horizon: Duration) -> Result<Vec<TimeSeriesPoint>, ForecastingError> {
+    fn execute_forecast(
+        &self,
+        _model: &ForecastingModel,
+        _horizon: Duration,
+    ) -> Result<Vec<TimeSeriesPoint>, ForecastingError> {
         Ok(vec![])
     }
 
-    fn calculate_uncertainty(&self, _model: &ForecastingModel, _points: &[TimeSeriesPoint]) -> Result<Vec<UncertaintyEstimate>, ForecastingError> {
+    fn calculate_uncertainty(
+        &self,
+        _model: &ForecastingModel,
+        _points: &[TimeSeriesPoint],
+    ) -> Result<Vec<UncertaintyEstimate>, ForecastingError> {
         Ok(vec![])
     }
 
-    fn calculate_confidence_intervals(&self, _model: &ForecastingModel, _points: &[TimeSeriesPoint]) -> Result<Vec<PredictionInterval>, ForecastingError> {
+    fn calculate_confidence_intervals(
+        &self,
+        _model: &ForecastingModel,
+        _points: &[TimeSeriesPoint],
+    ) -> Result<Vec<PredictionInterval>, ForecastingError> {
         Ok(vec![])
     }
 
@@ -1290,8 +1319,14 @@ impl ForecastingEngine {
         format!("forecast_{}", Utc::now().timestamp())
     }
 
-    pub fn analyze_trends(&self, data: &[TimeSeriesPoint], analyzer_id: &str) -> Result<TrendAnalysisResult, ForecastingError> {
-        let analyzer = self.trend_analyzers.get(analyzer_id)
+    pub fn analyze_trends(
+        &self,
+        data: &[TimeSeriesPoint],
+        analyzer_id: &str,
+    ) -> Result<TrendAnalysisResult, ForecastingError> {
+        let analyzer = self
+            .trend_analyzers
+            .get(analyzer_id)
             .ok_or_else(|| ForecastingError::AnalyzerNotFound(analyzer_id.to_string()))?;
 
         let analyzer_lock = analyzer.read().unwrap_or_else(|e| e.into_inner());
@@ -1313,23 +1348,42 @@ impl ForecastingEngine {
         })
     }
 
-    fn detect_trends(&self, _analyzer: &TrendAnalyzer, _data: &[TimeSeriesPoint]) -> Result<Vec<TrendResult>, ForecastingError> {
+    fn detect_trends(
+        &self,
+        _analyzer: &TrendAnalyzer,
+        _data: &[TimeSeriesPoint],
+    ) -> Result<Vec<TrendResult>, ForecastingError> {
         Ok(vec![])
     }
 
-    fn analyze_seasonality(&self, _analyzer: &TrendAnalyzer, _data: &[TimeSeriesPoint]) -> Result<Vec<SeasonalityResult>, ForecastingError> {
+    fn analyze_seasonality(
+        &self,
+        _analyzer: &TrendAnalyzer,
+        _data: &[TimeSeriesPoint],
+    ) -> Result<Vec<SeasonalityResult>, ForecastingError> {
         Ok(vec![])
     }
 
-    fn detect_changepoints(&self, _analyzer: &TrendAnalyzer, _data: &[TimeSeriesPoint]) -> Result<Vec<ChangepointResult>, ForecastingError> {
+    fn detect_changepoints(
+        &self,
+        _analyzer: &TrendAnalyzer,
+        _data: &[TimeSeriesPoint],
+    ) -> Result<Vec<ChangepointResult>, ForecastingError> {
         Ok(vec![])
     }
 
-    fn recognize_patterns(&self, _analyzer: &TrendAnalyzer, _data: &[TimeSeriesPoint]) -> Result<Vec<PatternResult>, ForecastingError> {
+    fn recognize_patterns(
+        &self,
+        _analyzer: &TrendAnalyzer,
+        _data: &[TimeSeriesPoint],
+    ) -> Result<Vec<PatternResult>, ForecastingError> {
         Ok(vec![])
     }
 
-    fn assess_data_quality(&self, _data: &[TimeSeriesPoint]) -> Result<DataQualityAssessment, ForecastingError> {
+    fn assess_data_quality(
+        &self,
+        _data: &[TimeSeriesPoint],
+    ) -> Result<DataQualityAssessment, ForecastingError> {
         Ok(DataQualityAssessment {
             completeness_score: 0.95,
             accuracy_score: 0.98,
@@ -1342,6 +1396,12 @@ impl ForecastingEngine {
 
     fn generate_analysis_id(&self) -> String {
         format!("analysis_{}", Utc::now().timestamp())
+    }
+}
+
+impl Default for ModelValidator {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1363,6 +1423,12 @@ impl ModelValidator {
     }
 }
 
+impl Default for ForecastCoordinator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ForecastCoordinator {
     pub fn new() -> Self {
         Self {
@@ -1372,6 +1438,12 @@ impl ForecastCoordinator {
             uncertainty_quantifier: UncertaintyQuantifier::new(),
             forecast_validator: ForecastValidator::new(),
         }
+    }
+}
+
+impl Default for ForecastScheduler {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1386,13 +1458,19 @@ impl ForecastScheduler {
                     max_concurrent_forecasts: 10,
                     memory_limit: 1024 * 1024 * 1024,
                     cpu_limit: 0.8,
-                    time_limit: Duration::from_secs(3600),
+                    time_limit: Duration::seconds(3600),
                 },
                 optimization_objective: OptimizationObjective::BalancedOptimization,
                 conflict_resolution: ConflictResolution::PriorityBased,
             },
             resource_allocation: ResourceAllocation::new(),
         }
+    }
+}
+
+impl Default for ResourceAllocation {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1405,7 +1483,7 @@ impl ResourceAllocation {
                 scaling_enabled: true,
                 scaling_triggers: vec![],
                 scaling_policies: vec![],
-                cooldown_period: Duration::from_secs(300),
+                cooldown_period: Duration::seconds(300),
             },
             load_balancing: LoadBalancing {
                 balancing_algorithm: LoadBalancingAlgorithm::ResourceBased,
@@ -1414,7 +1492,7 @@ impl ResourceAllocation {
                     failover_enabled: true,
                     backup_resources: vec![],
                     failover_threshold: 3,
-                    recovery_time: Duration::from_secs(60),
+                    recovery_time: Duration::seconds(60),
                 },
             },
         }
@@ -1463,6 +1541,12 @@ pub struct BiasVarianceDecomposition {
     variance: f64,
     noise: f64,
     total_error: f64,
+}
+
+impl Default for ModelEnsemble {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ModelEnsemble {
@@ -1535,6 +1619,12 @@ pub enum OutlierAction {
     Adjust,
     Ignore,
     Custom(String),
+}
+
+impl Default for ForecastAggregator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ForecastAggregator {
@@ -1622,6 +1712,12 @@ pub enum MitigationStrategyType {
     Custom(String),
 }
 
+impl Default for UncertaintyQuantifier {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UncertaintyQuantifier {
     pub fn new() -> Self {
         Self {
@@ -1693,6 +1789,12 @@ pub enum ValidationStatus {
     Failed,
     Warning,
     PendingReview,
+}
+
+impl Default for ForecastValidator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ForecastValidator {

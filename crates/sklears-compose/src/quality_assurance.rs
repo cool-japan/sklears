@@ -835,10 +835,15 @@ impl AutomatedQualityAssurance {
                 environment: self.config.test_environment.name.clone(),
                 test_duration: start_time.elapsed(),
                 resource_usage: ResourceUsage {
-                    peak_memory_mb: 512, // Mock values
+                    // Real resident-set size of this process. `0` means the
+                    // measurement was unavailable on this platform, not that
+                    // 0 MB was actually used.
+                    peak_memory_mb: Self::current_rss_mb(),
                     cpu_time_seconds: start_time.elapsed().as_secs_f64(),
-                    disk_io_mb: 100,
-                    network_io_mb: 10,
+                    // Disk/network I/O accounting is not instrumented; report 0
+                    // (unknown) rather than the previously fabricated 100/10.
+                    disk_io_mb: 0,
+                    network_io_mb: 0,
                 },
                 configuration: self.config.clone(),
             },
@@ -853,6 +858,28 @@ impl AutomatedQualityAssurance {
         }
 
         Ok(assessment)
+    }
+
+    /// Current resident-set size of this process, in megabytes.
+    ///
+    /// Reads field 2 (resident pages) of `/proc/self/statm` on Linux and
+    /// converts pages to MB using the standard 4 KiB page size. Returns `0`
+    /// when the measurement is unavailable; `0` means "could not measure",
+    /// not "0 MB was used".
+    fn current_rss_mb() -> u64 {
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(statm) = std::fs::read_to_string("/proc/self/statm") {
+                if let Some(rss_pages) = statm
+                    .split_whitespace()
+                    .nth(1)
+                    .and_then(|p| p.parse::<u64>().ok())
+                {
+                    return rss_pages.saturating_mul(4096) / (1024 * 1024);
+                }
+            }
+        }
+        0
     }
 
     /// Generate synthetic test data

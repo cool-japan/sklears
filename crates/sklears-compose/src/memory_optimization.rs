@@ -250,17 +250,66 @@ impl MemoryMonitor {
         }
     }
 
-    /// Get system memory information (simplified implementation)
+    /// Get memory information as `(allocated_bytes, alloc_count, dealloc_count)`.
+    ///
+    /// `allocated_bytes` is the amount of physical memory currently in use
+    /// system-wide (`MemTotal - MemAvailable` from `/proc/meminfo` on Linux).
+    /// Allocation/deallocation *counts* require an instrumented allocator that
+    /// this crate does not install, so they are reported as `0` (honest
+    /// "unknown") rather than the previously fabricated `(100MB, 1000, 900)`.
     fn get_system_memory_info() -> (u64, u64, u64) {
-        // In a real implementation, this would use platform-specific APIs
-        // For now, return dummy values
-        (1024 * 1024 * 100, 1000, 900) // 100MB allocated, 1000 allocs, 900 deallocs
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(content) = std::fs::read_to_string("/proc/meminfo") {
+                let mut total = 0u64;
+                let mut avail = 0u64;
+                for line in content.lines() {
+                    if let Some(rest) = line.strip_prefix("MemTotal:") {
+                        total = Self::parse_meminfo_kib(rest);
+                    } else if let Some(rest) = line.strip_prefix("MemAvailable:") {
+                        avail = Self::parse_meminfo_kib(rest);
+                    }
+                }
+                if total > 0 {
+                    // Allocation counts are genuinely unavailable without an
+                    // instrumented allocator.
+                    return (total.saturating_sub(avail), 0, 0);
+                }
+            }
+        }
+        // Could not determine usage: report zeroes (unknown), never invented values.
+        (0, 0, 0)
     }
 
-    /// Get total system memory (simplified implementation)
+    /// Parse a `/proc/meminfo` value line (e.g. " 16384000 kB") into bytes.
+    #[cfg(target_os = "linux")]
+    fn parse_meminfo_kib(rest: &str) -> u64 {
+        rest.split_whitespace()
+            .next()
+            .and_then(|s| s.parse::<u64>().ok())
+            .map(|kib| kib.saturating_mul(1024))
+            .unwrap_or(0)
+    }
+
+    /// Get total system memory in bytes.
+    ///
+    /// Reads `MemTotal` from `/proc/meminfo` on Linux. Returns `0` when the
+    /// total cannot be determined, rather than the previously fabricated 8 GiB.
     fn get_total_system_memory() -> u64 {
-        // In a real implementation, this would query system memory
-        1024 * 1024 * 1024 * 8 // 8GB
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(content) = std::fs::read_to_string("/proc/meminfo") {
+                for line in content.lines() {
+                    if let Some(rest) = line.strip_prefix("MemTotal:") {
+                        let total = Self::parse_meminfo_kib(rest);
+                        if total > 0 {
+                            return total;
+                        }
+                    }
+                }
+            }
+        }
+        0
     }
 
     /// Trigger garbage collection

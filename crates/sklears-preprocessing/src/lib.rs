@@ -20,17 +20,14 @@ pub mod feature_engineering;
 pub mod feature_union;
 pub mod functional;
 pub mod geospatial;
-// TODO: Depends on scirs2_core::memory::BufferPool which doesn't exist yet
-// pub mod gpu_acceleration;
+pub mod gpu_acceleration;
 pub mod image_preprocessing;
 pub mod imputation;
 pub mod information_theory;
 pub mod kernel_centerer;
 pub mod label_binarization;
-// TODO: Depends on scirs2_core::memory::BufferPool which doesn't exist yet
-// pub mod lazy_evaluation;
-// TODO: Depends on scirs2_core::memory::BufferPool which doesn't exist yet
-// pub mod memory_management;
+pub mod lazy_evaluation;
+pub mod memory_management;
 pub mod monitoring;
 pub mod outlier_detection;
 pub mod outlier_transformation;
@@ -99,11 +96,10 @@ pub use geospatial::{
     SpatialClusteringFitted, SpatialClusteringMethod, SpatialDistanceFeatures,
     SpatialDistanceFeaturesConfig, SpatialDistanceFeaturesFitted, SpatialDistanceMetric,
 };
-// TODO: Depends on scirs2_core::memory::BufferPool which doesn't exist yet
-// pub use gpu_acceleration::{
-//     GpuBackend, GpuConfig, GpuContextManager, GpuMinMaxScaler, GpuMinMaxScalerFitted,
-//     GpuPerformanceStats, GpuStandardScaler, GpuStandardScalerFitted,
-// };
+pub use gpu_acceleration::{
+    GpuBackend, GpuConfig, GpuContextManager, GpuMinMaxScaler, GpuMinMaxScalerFitted,
+    GpuPerformanceStats, GpuStandardScaler, GpuStandardScalerFitted,
+};
 pub use image_preprocessing::{
     ColorSpace, ColorSpaceTransformer, EdgeDetectionMethod, EdgeDetector, ImageAugmenter,
     ImageAugmenterConfig, ImageFeatureExtractor, ImageNormalizationStrategy, ImageNormalizer,
@@ -127,14 +123,12 @@ pub use kernel_centerer::KernelCenterer;
 pub use label_binarization::{
     LabelBinarizer, LabelBinarizerConfig, MultiLabelBinarizer, MultiLabelBinarizerConfig,
 };
-// TODO: Depends on scirs2_core::memory::BufferPool which doesn't exist yet
-// pub use lazy_evaluation::{LazyConfig, LazyGraph, LazyNode, LazyOp, LazyPreprocessor};
-// TODO: Depends on scirs2_core::memory::BufferPool which doesn't exist yet
-// pub use memory_management::{
-//     AdvancedMemoryConfig, AdvancedMemoryPool, AdvancedMemoryStats, CacheAlignedAllocator,
-//     CompressedData, CopyOnWriteArray, MemoryCompressor, MemoryMappedDataset, MemoryPool,
-//     MemoryPoolConfig, MemoryStats, PrefetchPattern, StreamingMemoryTransformer,
-// };
+pub use lazy_evaluation::{LazyConfig, LazyGraph, LazyNode, LazyOp, LazyPreprocessor};
+pub use memory_management::{
+    AdvancedMemoryConfig, AdvancedMemoryPool, AdvancedMemoryStats, CacheAlignedAllocator,
+    CompressedData, CopyOnWriteArray, MemoryCompressor, MemoryMappedDataset, MemoryPool,
+    MemoryPoolConfig, MemoryStats, PrefetchPattern, StreamingMemoryTransformer,
+};
 pub use monitoring::{
     LogLevel, MonitoringConfig, MonitoringSession, MonitoringSummary, TransformationMetrics,
 };
@@ -272,11 +266,10 @@ pub mod prelude {
         SpatialClusteringFitted, SpatialClusteringMethod, SpatialDistanceFeatures,
         SpatialDistanceFeaturesConfig, SpatialDistanceFeaturesFitted, SpatialDistanceMetric,
     };
-    // TODO: Depends on scirs2_core::memory::BufferPool which doesn't exist yet
-    // pub use crate::gpu_acceleration::{
-    //     GpuBackend, GpuConfig, GpuContextManager, GpuMinMaxScaler, GpuMinMaxScalerFitted,
-    //     GpuPerformanceStats, GpuStandardScaler, GpuStandardScalerFitted,
-    // };
+    pub use crate::gpu_acceleration::{
+        GpuBackend, GpuConfig, GpuContextManager, GpuMinMaxScaler, GpuMinMaxScalerFitted,
+        GpuPerformanceStats, GpuStandardScaler, GpuStandardScalerFitted,
+    };
     pub use crate::image_preprocessing::{
         ColorSpace, ColorSpaceTransformer, EdgeDetectionMethod, EdgeDetector, ImageAugmenter,
         ImageAugmenterConfig, ImageFeatureExtractor, ImageNormalizationStrategy, ImageNormalizer,
@@ -300,14 +293,12 @@ pub mod prelude {
     pub use crate::label_binarization::{
         LabelBinarizer, LabelBinarizerConfig, MultiLabelBinarizer, MultiLabelBinarizerConfig,
     };
-    // TODO: Depends on scirs2_core::memory::BufferPool which doesn't exist yet
-    // pub use crate::lazy_evaluation::{LazyConfig, LazyGraph, LazyNode, LazyOp, LazyPreprocessor};
-    // TODO: Depends on scirs2_core::memory::BufferPool which doesn't exist yet
-    // pub use crate::memory_management::{
-    //     AdvancedMemoryConfig, AdvancedMemoryPool, AdvancedMemoryStats, CacheAlignedAllocator,
-    //     CompressedData, CopyOnWriteArray, MemoryCompressor, MemoryMappedDataset, MemoryPool,
-    //     MemoryPoolConfig, MemoryStats, PrefetchPattern, StreamingMemoryTransformer,
-    // };
+    pub use crate::lazy_evaluation::{LazyConfig, LazyGraph, LazyNode, LazyOp, LazyPreprocessor};
+    pub use crate::memory_management::{
+        AdvancedMemoryConfig, AdvancedMemoryPool, AdvancedMemoryStats, CacheAlignedAllocator,
+        CompressedData, CopyOnWriteArray, MemoryCompressor, MemoryMappedDataset, MemoryPool,
+        MemoryPoolConfig, MemoryStats, PrefetchPattern, StreamingMemoryTransformer,
+    };
     pub use crate::monitoring::{
         LogLevel, MonitoringConfig, MonitoringSession, MonitoringSummary, TransformationMetrics,
     };

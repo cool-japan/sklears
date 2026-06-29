@@ -3,13 +3,13 @@
 //! Comprehensive export management system for handling export queues, performance tracking,
 //! format conversion, delivery coordination, and quality assurance across all export operations.
 
-use std::collections::{HashMap, VecDeque, BTreeMap, HashSet};
-use std::sync::{Arc, RwLock, Mutex};
-use std::time::{Duration, Instant, SystemTime};
+use crate::error::{BenchmarkError, Result};
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::fmt;
-use serde::{Serialize, Deserialize};
-use crate::error::{Result, BenchmarkError};
-use crate::utils::{generate_id, validate_config, MetricsCollector, SecurityManager};
+use std::sync::Arc;
+use std::time::{Duration, Instant, SystemTime};
+use tokio::sync::RwLock;
 
 /// Main export management system coordinating all export operations
 #[derive(Debug, Clone)]
@@ -230,7 +230,7 @@ pub struct ExportRequest {
 }
 
 /// Export priority levels for queue management
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum ExportPriority {
     Critical = 0,
     High = 1,
@@ -509,6 +509,12 @@ pub struct ExportLoadBalancer {
     pub performance_optimizer: LoadBalancerOptimizer,
 }
 
+impl Default for ExportManagementSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExportManagementSystem {
     /// Create new export management system
     pub fn new() -> Self {
@@ -535,13 +541,13 @@ impl ExportManagementSystem {
         // Add to queue with appropriate priority
         let request_id = request.id.clone();
         {
-            let mut queue_manager = self.queue_manager.write().unwrap_or_else(|e| e.into_inner());
+            let mut queue_manager = self.queue_manager.write().await;
             queue_manager.add_request(request).await?;
         }
 
         // Update metrics
         {
-            let mut metrics = self.metrics_collector.write().unwrap_or_else(|e| e.into_inner());
+            let mut metrics = self.metrics_collector.write().await;
             metrics.record_request_submission(&request_id).await?;
         }
 
@@ -552,7 +558,7 @@ impl ExportManagementSystem {
     pub async fn process_next_export(&self) -> Result<Option<ExportResult>> {
         // Get next request from queue
         let request = {
-            let mut queue_manager = self.queue_manager.write().unwrap_or_else(|e| e.into_inner());
+            let mut queue_manager = self.queue_manager.write().await;
             queue_manager.get_next_request().await?
         };
 
@@ -568,33 +574,42 @@ impl ExportManagementSystem {
         let start_time = Instant::now();
 
         // Update progress to started
-        self.update_export_progress(&request.id, ExportStage::DataExtraction, 0.0).await?;
+        self.update_export_progress(&request.id, ExportStage::DataExtraction, 0.0)
+            .await?;
 
         // Extract data from source
         let extracted_data = self.extract_data(&request).await?;
-        self.update_export_progress(&request.id, ExportStage::DataTransformation, 25.0).await?;
+        self.update_export_progress(&request.id, ExportStage::DataTransformation, 25.0)
+            .await?;
 
         // Apply transformations
         let transformed_data = self.transform_data(extracted_data, &request).await?;
-        self.update_export_progress(&request.id, ExportStage::FormatConversion, 50.0).await?;
+        self.update_export_progress(&request.id, ExportStage::FormatConversion, 50.0)
+            .await?;
 
         // Convert to target format
         let formatted_data = self.convert_format(transformed_data, &request).await?;
-        self.update_export_progress(&request.id, ExportStage::QualityAssurance, 75.0).await?;
+        self.update_export_progress(&request.id, ExportStage::QualityAssurance, 75.0)
+            .await?;
 
         // Validate quality
-        self.validate_export_quality(&formatted_data, &request).await?;
-        self.update_export_progress(&request.id, ExportStage::Delivery, 90.0).await?;
+        self.validate_export_quality(&formatted_data, &request)
+            .await?;
+        self.update_export_progress(&request.id, ExportStage::Delivery, 90.0)
+            .await?;
 
         // Deliver export
         let delivery_result = self.deliver_export(formatted_data, &request).await?;
-        self.update_export_progress(&request.id, ExportStage::Completed, 100.0).await?;
+        self.update_export_progress(&request.id, ExportStage::Completed, 100.0)
+            .await?;
 
         // Record performance metrics
         let processing_time = start_time.elapsed();
         {
-            let mut tracker = self.performance_tracker.write().unwrap_or_else(|e| e.into_inner());
-            tracker.record_export_completion(&request.id, processing_time).await?;
+            let mut tracker = self.performance_tracker.write().await;
+            tracker
+                .record_export_completion(&request.id, processing_time)
+                .await?;
         }
 
         Ok(ExportResult {
@@ -608,71 +623,98 @@ impl ExportManagementSystem {
 
     /// Validate export request
     async fn validate_export_request(&self, request: &ExportRequest) -> Result<()> {
-        let validation_system = self.validation_system.read().unwrap_or_else(|e| e.into_inner());
+        let validation_system = self.validation_system.read().await;
         validation_system.validate_request(request).await
     }
 
     /// Apply security checks to export request
     async fn apply_security_checks(&self, request: &ExportRequest) -> Result<()> {
-        let security_manager = self.security_manager.read().unwrap_or_else(|e| e.into_inner());
-        security_manager.validate_security_requirements(request).await
+        let security_manager = self.security_manager.read().await;
+        security_manager
+            .validate_security_requirements(request)
+            .await
     }
 
     /// Extract data from source
-    async fn extract_data(&self, request: &ExportRequest) -> Result<ExtractedData> {
+    async fn extract_data(&self, _request: &ExportRequest) -> Result<ExtractedData> {
         // Implementation for data extraction
         Ok(ExtractedData::new())
     }
 
     /// Transform extracted data
-    async fn transform_data(&self, data: ExtractedData, request: &ExportRequest) -> Result<TransformedData> {
+    async fn transform_data(
+        &self,
+        _data: ExtractedData,
+        _request: &ExportRequest,
+    ) -> Result<TransformedData> {
         // Implementation for data transformation
         Ok(TransformedData::new())
     }
 
     /// Convert data to target format
-    async fn convert_format(&self, data: TransformedData, request: &ExportRequest) -> Result<FormattedData> {
-        let format_engines = self.format_engines.read().unwrap_or_else(|e| e.into_inner());
+    async fn convert_format(
+        &self,
+        data: TransformedData,
+        request: &ExportRequest,
+    ) -> Result<FormattedData> {
+        let format_engines = self.format_engines.read().await;
         if let Some(engine) = format_engines.get(&request.format.to_string()) {
             engine.convert_data(data, &request.config).await
         } else {
-            Err(BenchmarkError::UnsupportedFormat(request.format.to_string()))
+            Err(BenchmarkError::UnsupportedFormat(request.format.to_string()).into())
         }
     }
 
     /// Validate export quality
-    async fn validate_export_quality(&self, data: &FormattedData, request: &ExportRequest) -> Result<()> {
-        let validation_system = self.validation_system.read().unwrap_or_else(|e| e.into_inner());
-        validation_system.validate_quality(data, &request.quality_requirements).await
+    async fn validate_export_quality(
+        &self,
+        data: &FormattedData,
+        request: &ExportRequest,
+    ) -> Result<()> {
+        let validation_system = self.validation_system.read().await;
+        validation_system
+            .validate_quality(data, &request.quality_requirements)
+            .await
     }
 
     /// Deliver export to specified channels
-    async fn deliver_export(&self, data: FormattedData, request: &ExportRequest) -> Result<DeliveryResult> {
-        let delivery_coordinator = self.delivery_coordinator.read().unwrap_or_else(|e| e.into_inner());
-        delivery_coordinator.deliver(data, &request.delivery_spec).await
+    async fn deliver_export(
+        &self,
+        data: FormattedData,
+        request: &ExportRequest,
+    ) -> Result<DeliveryResult> {
+        let delivery_coordinator = self.delivery_coordinator.read().await;
+        delivery_coordinator
+            .deliver(data, &request.delivery_spec)
+            .await
     }
 
     /// Update export progress
-    async fn update_export_progress(&self, request_id: &str, stage: ExportStage, percentage: f64) -> Result<()> {
+    async fn update_export_progress(
+        &self,
+        _request_id: &str,
+        _stage: ExportStage,
+        _percentage: f64,
+    ) -> Result<()> {
         // Implementation for progress tracking
         Ok(())
     }
 
     /// Get export status
     pub async fn get_export_status(&self, request_id: &str) -> Result<ExportStatus> {
-        let queue_manager = self.queue_manager.read().unwrap_or_else(|e| e.into_inner());
+        let queue_manager = self.queue_manager.read().await;
         queue_manager.get_request_status(request_id).await
     }
 
     /// Cancel export request
     pub async fn cancel_export(&self, request_id: &str) -> Result<()> {
-        let mut queue_manager = self.queue_manager.write().unwrap_or_else(|e| e.into_inner());
+        let mut queue_manager = self.queue_manager.write().await;
         queue_manager.cancel_request(request_id).await
     }
 
     /// Get export metrics
     pub async fn get_export_metrics(&self) -> Result<ExportSystemMetrics> {
-        let metrics_collector = self.metrics_collector.read().unwrap_or_else(|e| e.into_inner());
+        let metrics_collector = self.metrics_collector.read().await;
         metrics_collector.get_system_metrics().await
     }
 
@@ -680,16 +722,22 @@ impl ExportManagementSystem {
     pub async fn configure_system(&self, config: ExportSystemConfig) -> Result<()> {
         // Apply configuration to all subsystems
         {
-            let mut queue_manager = self.queue_manager.write().unwrap_or_else(|e| e.into_inner());
+            let mut queue_manager = self.queue_manager.write().await;
             queue_manager.update_config(config.queue_config).await?;
         }
 
         {
-            let mut scheduler = self.scheduler.write().unwrap_or_else(|e| e.into_inner());
+            let mut scheduler = self.scheduler.write().await;
             scheduler.update_config(config.scheduler_config).await?;
         }
 
         Ok(())
+    }
+}
+
+impl Default for ExportQueueManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -717,12 +765,13 @@ impl ExportQueueManager {
         self.capacity_manager.check_capacity(priority).await?;
 
         // Add to registry
-        self.request_registry.insert(request_id.clone(), request.clone());
+        self.request_registry
+            .insert(request_id.clone(), request.clone());
 
         // Add to priority queue
         self.priority_queues
             .entry(priority)
-            .or_insert_with(VecDeque::new)
+            .or_default()
             .push_back(request);
 
         // Update statistics
@@ -753,7 +802,7 @@ impl ExportQueueManager {
                 estimated_completion: request.progress.estimated_completion,
             })
         } else {
-            Err(BenchmarkError::RequestNotFound(request_id.to_string()))
+            Err(BenchmarkError::RequestNotFound(request_id.to_string()).into())
         }
     }
 
@@ -777,6 +826,12 @@ impl ExportQueueManager {
     }
 }
 
+impl Default for ExportFormatEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExportFormatEngine {
     /// Create new format engine
     pub fn new() -> Self {
@@ -793,14 +848,24 @@ impl ExportFormatEngine {
     }
 
     /// Convert data to specified format
-    pub async fn convert_data(&self, data: TransformedData, config: &ExportConfiguration) -> Result<FormattedData> {
+    pub async fn convert_data(
+        &self,
+        _data: TransformedData,
+        _config: &ExportConfiguration,
+    ) -> Result<FormattedData> {
         // Implementation for format conversion
         Ok(FormattedData::new())
     }
 
     /// Validate format compatibility
-    pub async fn validate_compatibility(&self, source_format: ExportFormat, target_format: ExportFormat) -> Result<bool> {
-        Ok(self.compatibility_matrix.is_compatible(source_format, target_format))
+    pub async fn validate_compatibility(
+        &self,
+        source_format: ExportFormat,
+        target_format: ExportFormat,
+    ) -> Result<bool> {
+        Ok(self
+            .compatibility_matrix
+            .is_compatible(source_format, target_format))
     }
 }
 
@@ -834,6 +899,12 @@ pub struct ExtractedData {
     // Implementation details
 }
 
+impl Default for ExtractedData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExtractedData {
     pub fn new() -> Self {
         Self {
@@ -845,6 +916,12 @@ impl ExtractedData {
 #[derive(Debug, Clone)]
 pub struct TransformedData {
     // Implementation details
+}
+
+impl Default for TransformedData {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TransformedData {
@@ -860,6 +937,12 @@ pub struct FormattedData {
     // Implementation details
 }
 
+impl Default for FormattedData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FormattedData {
     pub fn new() -> Self {
         Self {
@@ -868,18 +951,25 @@ impl FormattedData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportResult {
     pub request_id: String,
+    #[serde(skip)]
     pub processing_time: Duration,
     pub delivery_result: DeliveryResult,
     pub quality_metrics: HashMap<String, f64>,
     pub metadata: ExportResultMetadata,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportResultMetadata {
     // Implementation details
+}
+
+impl Default for ExportResultMetadata {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ExportResultMetadata {
@@ -916,178 +1006,182 @@ pub struct SchedulerConfig {
     // Implementation details
 }
 
-#[derive(Debug, Clone)]
-pub struct DeliveryResult {
-    // Implementation details
-}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeliveryResult;
 
 // Additional stub implementations for compilation
 // These would be fully implemented in a production system
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataSourceType;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataSelectionCriteria;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataTransformation;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QualityFilter;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataAccessCredentials;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataCachingConfig;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataLineageTracking;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompressionConfig;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncodingConfig;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PartitioningConfig;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SizeLimits;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceOptions;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemorySettings;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParallelProcessingConfig;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QualityGate;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceRequirements;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceRequirement;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeliveryTiming;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotificationPreferences;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RetryPolicy;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccessPermissions;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptionRequirements;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContentDisposition;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptionLevel;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccessControlRequirements;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditRequirements;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataClassification;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RetentionPolicy;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrivacyRequirements;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityScanningRequirements;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessingStatistics;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportError;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportWarning;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportFailureReason;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FailureAnalysis;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecoveryRecommendation;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscalationStatus;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueueTimeoutSettings;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueueOverflowHandling;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueuePersistenceConfig;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueueMonitoringConfig;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueueOptimizationParams;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueueHealthCheckConfig;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ThroughputMetrics;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ResourceUtilizationStats;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PerformanceTrends;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct LoadBalancingStrategy;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct WorkerPool;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct LoadDistributionMetrics;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AutoScalingConfig;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct WorkerHealthMonitoring;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct LoadPredictor;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct FailoverMechanisms;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct LoadBalancerOptimizer;
 
 #[derive(Debug, Clone)]
 pub struct QueueCapacityManager;
+
+impl Default for QueueCapacityManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl QueueCapacityManager {
     pub fn new() -> Self {
@@ -1102,18 +1196,37 @@ impl QueueCapacityManager {
 #[derive(Debug, Clone)]
 pub struct QueueHealthMonitor;
 
+impl Default for QueueHealthMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl QueueHealthMonitor {
     pub fn new() -> Self {
         Self
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ExportLoadBalancer;
+impl Default for ExportLoadBalancer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ExportLoadBalancer {
+    /// Create a new `ExportLoadBalancer` with default settings.
     pub fn new() -> Self {
-        Self
+        Self {
+            strategy: LoadBalancingStrategy,
+            worker_pools: HashMap::new(),
+            distribution_metrics: LoadDistributionMetrics,
+            auto_scaling: AutoScalingConfig,
+            health_monitoring: WorkerHealthMonitoring,
+            load_predictor: LoadPredictor,
+            failover_mechanisms: FailoverMechanisms,
+            performance_optimizer: LoadBalancerOptimizer,
+        }
     }
 }
 
@@ -1143,6 +1256,12 @@ pub struct FormatProcessor;
 #[derive(Debug, Clone)]
 pub struct FormatConversionPipeline;
 
+impl Default for FormatConversionPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FormatConversionPipeline {
     pub fn new() -> Self {
         Self
@@ -1157,6 +1276,12 @@ pub struct FormatOptimization;
 
 #[derive(Debug, Clone)]
 pub struct FormatCompatibilityMatrix;
+
+impl Default for FormatCompatibilityMatrix {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl FormatCompatibilityMatrix {
     pub fn new() -> Self {
@@ -1317,6 +1442,12 @@ pub struct SecurityIncidentResponse;
 
 // Implementations for the main subsystem structs
 
+impl Default for ExportScheduler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExportScheduler {
     pub fn new() -> Self {
         Self {
@@ -1336,6 +1467,12 @@ impl ExportScheduler {
     }
 }
 
+impl Default for ExportPerformanceTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExportPerformanceTracker {
     pub fn new() -> Self {
         Self {
@@ -1350,8 +1487,18 @@ impl ExportPerformanceTracker {
         }
     }
 
-    pub async fn record_export_completion(&mut self, _request_id: &str, _duration: Duration) -> Result<()> {
+    pub async fn record_export_completion(
+        &mut self,
+        _request_id: &str,
+        _duration: Duration,
+    ) -> Result<()> {
         Ok(())
+    }
+}
+
+impl Default for ExportValidationSystem {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1373,8 +1520,18 @@ impl ExportValidationSystem {
         Ok(())
     }
 
-    pub async fn validate_quality(&self, _data: &FormattedData, _requirements: &QualityRequirements) -> Result<()> {
+    pub async fn validate_quality(
+        &self,
+        _data: &FormattedData,
+        _requirements: &QualityRequirements,
+    ) -> Result<()> {
         Ok(())
+    }
+}
+
+impl Default for ExportDeliveryCoordinator {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1392,8 +1549,18 @@ impl ExportDeliveryCoordinator {
         }
     }
 
-    pub async fn deliver(&self, _data: FormattedData, _spec: &DeliverySpecification) -> Result<DeliveryResult> {
+    pub async fn deliver(
+        &self,
+        _data: FormattedData,
+        _spec: &DeliverySpecification,
+    ) -> Result<DeliveryResult> {
         Ok(DeliveryResult)
+    }
+}
+
+impl Default for ExportMetricsCollector {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1416,7 +1583,13 @@ impl ExportMetricsCollector {
     }
 
     pub async fn get_system_metrics(&self) -> Result<ExportSystemMetrics> {
-        Ok(ExportSystemMetrics)
+        Ok(ExportSystemMetrics {})
+    }
+}
+
+impl Default for ExportSecurityManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

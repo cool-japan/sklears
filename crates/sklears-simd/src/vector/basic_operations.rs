@@ -552,15 +552,15 @@ unsafe fn cross_product_sse2(a: &[f32], b: &[f32]) -> Vec<f32> {
     let b_vec = _mm_set_ps(0.0, b[2], b[1], b[0]);
 
     // Create shuffled versions for cross product computation
-    // a_yzx = [a1, a2, a0, 0]
-    let a_yzx = _mm_shuffle_ps(a_vec, a_vec, 0b00_01_10_01);
-    // b_zxy = [b2, b0, b1, 0]
-    let b_zxy = _mm_shuffle_ps(b_vec, b_vec, 0b00_10_00_10);
+    // a_yzx = [a1, a2, a0, *]: bits[1:0]=01 bits[3:2]=10 bits[5:4]=00 bits[7:6]=11 = 0xC9
+    let a_yzx = _mm_shuffle_ps(a_vec, a_vec, 0xC9);
+    // b_zxy = [b2, b0, b1, *]: bits[1:0]=10 bits[3:2]=00 bits[5:4]=01 bits[7:6]=11 = 0xD2
+    let b_zxy = _mm_shuffle_ps(b_vec, b_vec, 0xD2);
 
-    // a_zxy = [a2, a0, a1, 0]
-    let a_zxy = _mm_shuffle_ps(a_vec, a_vec, 0b00_10_00_10);
-    // b_yzx = [b1, b2, b0, 0]
-    let b_yzx = _mm_shuffle_ps(b_vec, b_vec, 0b00_01_10_01);
+    // a_zxy = [a2, a0, a1, *]: bits[1:0]=10 bits[3:2]=00 bits[5:4]=01 bits[7:6]=11 = 0xD2
+    let a_zxy = _mm_shuffle_ps(a_vec, a_vec, 0xD2);
+    // b_yzx = [b1, b2, b0, *]: bits[1:0]=01 bits[3:2]=10 bits[5:4]=00 bits[7:6]=11 = 0xC9
+    let b_yzx = _mm_shuffle_ps(b_vec, b_vec, 0xC9);
 
     // Compute cross product: a_yzx * b_zxy - a_zxy * b_yzx
     let prod1 = _mm_mul_ps(a_yzx, b_zxy);

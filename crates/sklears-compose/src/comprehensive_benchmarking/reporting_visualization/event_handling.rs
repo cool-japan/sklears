@@ -1371,7 +1371,7 @@ impl Default for QueuePerformanceMonitoring {
     fn default() -> Self {
         Self {
             enabled: true,
-            interval: Duration::from_secs(60),
+            interval: Duration::seconds(60),
             thresholds: HashMap::new(),
             alert_config: QueueAlertConfig::default(),
         }
@@ -1402,7 +1402,7 @@ impl Default for OverflowRecovery {
     fn default() -> Self {
         Self {
             strategy: RecoveryStrategy::Automatic,
-            timeout: Duration::from_secs(300),
+            timeout: Duration::seconds(300),
             conditions: vec![],
         }
     }
@@ -1435,7 +1435,7 @@ impl Default for ProcessingMetrics {
             events_per_second: 0.0,
             total_events: 0,
             success_rate: 100.0,
-            average_processing_time: Duration::from_millis(1),
+            average_processing_time: Duration::milliseconds(1),
         }
     }
 }
@@ -1454,11 +1454,11 @@ impl Default for ThroughputMetrics {
 impl Default for LatencyMetrics {
     fn default() -> Self {
         Self {
-            average_latency: Duration::from_millis(1),
-            median_latency: Duration::from_millis(1),
-            p95_latency: Duration::from_millis(5),
-            p99_latency: Duration::from_millis(10),
-            max_latency: Duration::from_millis(50),
+            average_latency: Duration::milliseconds(1),
+            median_latency: Duration::milliseconds(1),
+            p95_latency: Duration::milliseconds(5),
+            p99_latency: Duration::milliseconds(10),
+            max_latency: Duration::milliseconds(50),
         }
     }
 }
@@ -1480,7 +1480,7 @@ impl Default for EventTrackingConfig {
             enabled: true,
             sampling_rate: 1.0,
             tracked_types: vec![],
-            collection_interval: Duration::from_secs(60),
+            collection_interval: Duration::seconds(60),
         }
     }
 }

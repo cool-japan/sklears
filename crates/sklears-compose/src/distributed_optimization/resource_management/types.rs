@@ -713,7 +713,10 @@ impl ResourceScheduler {
         Ok(balanced_score.max(0.0).min(1.0))
     }
     fn calculate_cost_efficiency(&self) -> Result<f64, ResourceManagementError> {
-        Ok(0.75)
+        Err(ResourceManagementError::CostCalculationError(
+            "cost efficiency requires a configured cost model with real pricing; \
+             implement CostModel::unit_price_per_core and CostModel::unit_price_per_gb".to_string(),
+        ))
     }
     fn analyze_utilization_trend(
         &self,

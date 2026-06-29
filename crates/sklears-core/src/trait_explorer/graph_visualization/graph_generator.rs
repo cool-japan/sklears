@@ -15,7 +15,7 @@ use crate::error::{Result, SklearsError};
 // SciRS2 Core imports for full compliance
 use scirs2_core::ndarray::{Array, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::{Random, rng};
-use scirs2_core::gpu::{GpuBuffer, GpuContext, GpuKernel};
+use scirs2_core::gpu::{GpuBackend, GpuBuffer, GpuContext, GpuKernel};
 use scirs2_core::profiling::{profiling_memory_tracker, Profiler};
 use scirs2_core::validation::{check_finite, check_in_bounds};
 
@@ -91,11 +91,31 @@ impl TraitGraphGenerator {
         let rng = Arc::new(Mutex::new(Random::seed(42)));
         let profiler = Arc::new(Mutex::new(Profiler::new()));
 
-        // Initialize GPU context if enabled
+        // Initialize GPU context if enabled.
+        //
+        // We use the SciRS2-Core GPU abstraction to select the best available
+        // backend. `GpuBackend::preferred()` performs runtime device detection
+        // and transparently yields `GpuBackend::Cpu` when no accelerator is
+        // present, so the resulting context honestly reflects the hardware that
+        // is actually in use rather than claiming a GPU that does not exist.
         let gpu_context = if config.enable_gpu {
-            // TODO: Implement proper GPU context initialization
-            eprintln!("Warning: GPU acceleration not yet implemented, falling back to CPU");
-            None
+            let preferred = GpuBackend::preferred();
+            match GpuContext::new(preferred) {
+                Ok(context) => Some(context),
+                Err(err) => {
+                    // The preferred backend could not be initialized (for
+                    // example, a detected device became unavailable). Fall back
+                    // to a real CPU context so downstream code still has a valid
+                    // execution context, and surface the reason via the profiler
+                    // rather than fabricating GPU availability.
+                    if let Ok(mut profiler) = profiler.lock() {
+                        profiler.start_section("gpu_init_fallback_cpu");
+                        profiler.end_section("gpu_init_fallback_cpu");
+                    }
+                    let _ = err;
+                    GpuContext::new(GpuBackend::Cpu).ok()
+                }
+            }
         } else {
             None
         };
@@ -277,7 +297,7 @@ impl TraitGraphGenerator {
             memory_usage: self.estimate_memory_usage(&nodes, &edges),
             layout_iterations: 0,
             cpu_utilization: 0.0,
-            gpu_accelerated: self.gpu_context.is_some(),
+            gpu_accelerated: self.is_gpu_accelerated(),
             simd_optimized: self.config.enable_simd,
         };
 
@@ -411,7 +431,7 @@ impl TraitGraphGenerator {
             memory_usage: self.estimate_memory_usage(&nodes, &edges),
             layout_iterations: 0,
             cpu_utilization: 0.0,
-            gpu_accelerated: self.gpu_context.is_some(),
+            gpu_accelerated: self.is_gpu_accelerated(),
             simd_optimized: self.config.enable_simd,
         };
 
@@ -446,7 +466,7 @@ impl TraitGraphGenerator {
             modified_at: None,
             trait_name: Some(trait_info.name.clone()),
             generic_parameters: trait_info.generics.clone(),
-            where_clauses: Vec::new(), // TODO: Extract from trait_info
+            where_clauses: self.extract_where_clauses(trait_info),
             deprecation_note: None,
             feature_flags: trait_info.feature_flags.clone(),
             module_path: trait_info.module_path.clone(),
@@ -468,6 +488,74 @@ impl TraitGraphGenerator {
             visible: true,
             metadata,
         })
+    }
+
+    /// Extract the `where`-clause predicates declared by a trait.
+    ///
+    /// The [`TraitInfo`] representation stores generic parameters and associated
+    /// types as bound-carrying strings rather than a structured `where` clause,
+    /// so the predicates are reconstructed from the bounds that are actually
+    /// recorded:
+    ///
+    /// * A generic parameter written with inline bounds (for example
+    ///   `"T: Clone + Send"`) contributes the predicate `T: Clone + Send`.
+    /// * An associated type with bounds (for example `Output: Debug`) contributes
+    ///   the predicate `Self::Output: Debug`.
+    ///
+    /// Bounds are normalized (surrounding whitespace trimmed, internal spacing
+    /// collapsed) and duplicate predicates are removed while preserving the order
+    /// in which they were discovered. Parameters and associated types without
+    /// bounds yield no predicate, so an unconstrained trait correctly produces an
+    /// empty clause list.
+    fn extract_where_clauses(&self, trait_info: &TraitInfo) -> Vec<String> {
+        let mut clauses = Vec::new();
+        let mut seen = HashSet::new();
+
+        // Predicates carried inline on generic parameters.
+        for generic in &trait_info.generics {
+            if let Some((param, bounds)) = generic.split_once(':') {
+                let param = param.trim();
+                let bounds = Self::normalize_bound_list(bounds);
+                if param.is_empty() || bounds.is_empty() {
+                    continue;
+                }
+                let predicate = format!("{}: {}", param, bounds);
+                if seen.insert(predicate.clone()) {
+                    clauses.push(predicate);
+                }
+            }
+        }
+
+        // Predicates carried by associated types.
+        for associated_type in &trait_info.associated_types {
+            if associated_type.bounds.is_empty() {
+                continue;
+            }
+            let bounds = Self::normalize_bound_list(&associated_type.bounds.join(" + "));
+            if bounds.is_empty() {
+                continue;
+            }
+            let predicate = format!("Self::{}: {}", associated_type.name.trim(), bounds);
+            if seen.insert(predicate.clone()) {
+                clauses.push(predicate);
+            }
+        }
+
+        clauses
+    }
+
+    /// Normalize a `+`-separated list of trait bounds.
+    ///
+    /// Splits on `+`, trims each bound, discards empty fragments, and rejoins the
+    /// remaining bounds with `" + "` so the resulting predicate uses canonical
+    /// spacing regardless of how the source bounds were formatted.
+    fn normalize_bound_list(bounds: &str) -> String {
+        bounds
+            .split('+')
+            .map(|bound| bound.trim())
+            .filter(|bound| !bound.is_empty())
+            .collect::<Vec<_>>()
+            .join(" + ")
     }
 
     /// Create a supertrait node
@@ -821,8 +909,24 @@ impl TraitGraphGenerator {
     }
 
     /// Check if GPU acceleration is available
+    ///
+    /// Returns `true` only when a context backed by a real accelerator is
+    /// active. A CPU fallback context (used when GPU acceleration was requested
+    /// but no device is present) reports `false` so callers are never misled
+    /// into believing the GPU is in use.
     pub fn has_gpu_acceleration(&self) -> bool {
-        self.gpu_context.is_some()
+        self.is_gpu_accelerated()
+    }
+
+    /// Determine whether the active GPU context targets a real accelerator.
+    ///
+    /// This inspects the backend selected for the context and treats only
+    /// non-CPU backends as genuinely GPU-accelerated.
+    fn is_gpu_accelerated(&self) -> bool {
+        self.gpu_context
+            .as_ref()
+            .map(|context| context.backend() != GpuBackend::Cpu)
+            .unwrap_or(false)
     }
 
     /// Get layout algorithm names
@@ -1365,6 +1469,71 @@ mod tests {
         assert_eq!(node.id, "TestTrait");
         assert_eq!(node.node_type, TraitNodeType::Trait);
         assert!(node.visible);
+    }
+
+    #[test]
+    fn test_extract_where_clauses_from_associated_type() {
+        let config = GraphConfig::default();
+        let generator = TraitGraphGenerator::new(config).expect("expected valid value");
+        let trait_info = create_test_trait_info();
+
+        // The test trait has an unbounded generic `T` and an associated type
+        // `Output: Clone`, so only the associated-type predicate is produced.
+        let clauses = generator.extract_where_clauses(&trait_info);
+        assert_eq!(clauses, vec!["Self::Output: Clone".to_string()]);
+    }
+
+    #[test]
+    fn test_extract_where_clauses_from_bounded_generics() {
+        let config = GraphConfig::default();
+        let generator = TraitGraphGenerator::new(config).expect("expected valid value");
+
+        let mut trait_info = create_test_trait_info();
+        trait_info.generics = vec![
+            "T: Clone + Send".to_string(),
+            "U".to_string(),
+            "  V :  Debug  ".to_string(),
+        ];
+        trait_info.associated_types = vec![AssociatedType {
+            name: "Item".to_string(),
+            bounds: vec!["Eq".to_string(), "Hash".to_string()],
+            default: None,
+        }];
+
+        let clauses = generator.extract_where_clauses(&trait_info);
+        assert_eq!(
+            clauses,
+            vec![
+                "T: Clone + Send".to_string(),
+                "V: Debug".to_string(),
+                "Self::Item: Eq + Hash".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_extract_where_clauses_empty_when_unconstrained() {
+        let config = GraphConfig::default();
+        let generator = TraitGraphGenerator::new(config).expect("expected valid value");
+
+        let mut trait_info = create_test_trait_info();
+        trait_info.generics = vec!["T".to_string(), "U".to_string()];
+        trait_info.associated_types = vec![AssociatedType {
+            name: "Output".to_string(),
+            bounds: vec![],
+            default: None,
+        }];
+
+        assert!(generator.extract_where_clauses(&trait_info).is_empty());
+    }
+
+    #[test]
+    fn test_gpu_acceleration_reporting_without_gpu() {
+        // With GPU disabled there is no context, so acceleration is false.
+        let mut config = GraphConfig::default();
+        config.enable_gpu = false;
+        let generator = TraitGraphGenerator::new(config).expect("expected valid value");
+        assert!(!generator.has_gpu_acceleration());
     }
 
     #[test]

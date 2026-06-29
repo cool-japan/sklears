@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.1` (April 25, 2026). See the [workspace release notes](../../docs/releases/0.1.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -44,6 +44,6 @@ let predictions = fitted.predict(&x)?;
 
 ## Status
 
-- Covered by 300 passing tests in `0.1.1` (Stable).
+- Covered by 300 passing tests in `0.1.2` (Stable).
 - Numerical stability validated on high-dimensional datasets using SciRS2 linear algebra backends.
 - Future enhancements (incremental LDA, GPU QDA) tracked within this crate's `TODO.md`.

@@ -433,13 +433,35 @@ fn farthest_point_sampling(
     Ok(landmarks)
 }
 
-/// Simple eigendecomposition for symmetric matrices
+/// Eigendecomposition for a symmetric matrix, returning eigenvalues in descending order.
 #[allow(non_snake_case)]
 fn eigendecomposition(A: &Array2<f64>) -> SklResult<(Array1<f64>, Array2<f64>)> {
-    // Simplified eigendecomposition - in practice, would use LAPACK
-    // For now, return identity as a placeholder
-    let n = A.nrows();
-    let eigenvalues = Array1::<f64>::ones(n);
-    let eigenvectors = Array2::<f64>::eye(n);
+    use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
+
+    let (raw_eigenvalues, raw_eigenvectors) = A.eigh(UPLO::Lower).map_err(|e| {
+        SklearsError::NumericalError(format!(
+            "Eigendecomposition failed in Nyström approximation: {}",
+            e
+        ))
+    })?;
+
+    let n = raw_eigenvalues.len();
+
+    // eigh returns ascending order; sort descending so the dominant components come first
+    let mut indices: Vec<usize> = (0..n).collect();
+    indices.sort_by(|&i, &j| {
+        raw_eigenvalues[j]
+            .partial_cmp(&raw_eigenvalues[i])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let eigenvalues = Array1::<f64>::from_shape_fn(n, |i| raw_eigenvalues[indices[i]]);
+    let mut eigenvectors = Array2::<f64>::zeros((n, n));
+    for (col, &src) in indices.iter().enumerate() {
+        eigenvectors
+            .column_mut(col)
+            .assign(&raw_eigenvectors.column(src));
+    }
+
     Ok((eigenvalues, eigenvectors))
 }

@@ -13,6 +13,36 @@ use std::time::{Duration, Instant};
 #[cfg(feature = "serde")]
 use chrono::{DateTime, Utc};
 
+/// Read this process's current resident set size (RSS) in bytes.
+///
+/// On Linux this parses `VmRSS:` from `/proc/self/status` (kB) and converts to
+/// bytes. On platforms where RSS cannot be measured without external dependencies
+/// this returns `0` so memory statistics honestly report "not measured" rather than
+/// a fabricated constant.
+fn process_rss_bytes() -> usize {
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
+            for line in status.lines() {
+                if let Some(rest) = line.strip_prefix("VmRSS:") {
+                    if let Some(kb) = rest
+                        .split_whitespace()
+                        .next()
+                        .and_then(|value| value.parse::<usize>().ok())
+                    {
+                        return kb.saturating_mul(1024);
+                    }
+                }
+            }
+        }
+        0
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        0
+    }
+}
+
 /// Configuration for benchmarking
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -144,6 +174,26 @@ pub struct QualityMetrics {
     pub interpretability: Float,
     /// Overall quality score
     pub overall_score: Float,
+}
+
+impl QualityMetrics {
+    /// Construct a "not assessed" set of quality metrics (all fields `0.0`).
+    ///
+    /// Explanation quality (fidelity, stability, consistency, completeness,
+    /// interpretability) can only be computed from actual explanation outputs and a
+    /// reference, which the timing/memory benchmark harness does not have. Returning
+    /// zeros here is the honest signal that quality was *not measured*, as opposed to
+    /// fabricating plausible per-method scores.
+    pub fn not_assessed() -> Self {
+        Self {
+            fidelity: 0.0,
+            stability: 0.0,
+            consistency: 0.0,
+            completeness: 0.0,
+            interpretability: 0.0,
+            overall_score: 0.0,
+        }
+    }
 }
 
 /// Comparison with reference implementation
@@ -411,18 +461,109 @@ impl BenchmarkingSuite {
     }
 
     fn benchmark_local_explanations(&mut self) -> SklResult<Vec<BenchmarkResult>> {
-        // Placeholder implementation
-        Ok(Vec::new())
+        let mut results = Vec::new();
+        for config in Self::default_test_configurations() {
+            let cfg_for_lime = config.clone();
+            let lime = self.benchmark_method(
+                "LIME".to_string(),
+                BenchmarkCategory::LocalExplanations,
+                move || Self::simulate_local_explanation_static(&cfg_for_lime),
+                config.clone(),
+            )?;
+            results.push(lime);
+            let cfg_for_anchor = config.clone();
+            let anchor = self.benchmark_method(
+                "Anchors".to_string(),
+                BenchmarkCategory::LocalExplanations,
+                move || Self::simulate_local_explanation_static(&cfg_for_anchor),
+                config,
+            )?;
+            results.push(anchor);
+        }
+        Ok(results)
     }
 
     fn benchmark_global_explanations(&mut self) -> SklResult<Vec<BenchmarkResult>> {
-        // Placeholder implementation
-        Ok(Vec::new())
+        let mut results = Vec::new();
+        for config in Self::default_test_configurations() {
+            let cfg_clone = config.clone();
+            let pdp = self.benchmark_method(
+                "PartialDependence".to_string(),
+                BenchmarkCategory::GlobalExplanations,
+                move || Self::simulate_global_explanation_static(&cfg_clone),
+                config.clone(),
+            )?;
+            results.push(pdp);
+            let cfg_clone = config.clone();
+            let surrogate = self.benchmark_method(
+                "GlobalSurrogate".to_string(),
+                BenchmarkCategory::GlobalExplanations,
+                move || Self::simulate_global_explanation_static(&cfg_clone),
+                config,
+            )?;
+            results.push(surrogate);
+        }
+        Ok(results)
     }
 
     fn benchmark_visualization(&mut self) -> SklResult<Vec<BenchmarkResult>> {
-        // Placeholder implementation
-        Ok(Vec::new())
+        let mut results = Vec::new();
+        for config in Self::default_test_configurations() {
+            let cfg_clone = config.clone();
+            let summary = self.benchmark_method(
+                "SummaryPlot".to_string(),
+                BenchmarkCategory::Visualization,
+                move || Self::simulate_visualization_static(&cfg_clone),
+                config,
+            )?;
+            results.push(summary);
+        }
+        Ok(results)
+    }
+
+    /// Standard benchmarking configurations shared by the explanation
+    /// benchmarking helpers; mirrors the configurations used by
+    /// [`Self::benchmark_feature_importance`].
+    fn default_test_configurations() -> Vec<TestConfiguration> {
+        vec![
+            TestConfiguration {
+                dataset_size: 1000,
+                num_features: 10,
+                model_type: "RandomForest".to_string(),
+                problem_type: ProblemType::BinaryClassification,
+                parameters: HashMap::new(),
+            },
+            TestConfiguration {
+                dataset_size: 5000,
+                num_features: 50,
+                model_type: "RandomForest".to_string(),
+                problem_type: ProblemType::MultiClassification,
+                parameters: HashMap::new(),
+            },
+        ]
+    }
+
+    fn simulate_local_explanation_static(config: &TestConfiguration) -> SklResult<String> {
+        // Local explanations scale with feature count more than dataset size.
+        let computation_time = Duration::from_millis((config.num_features as u64) * 4 + 8);
+        std::thread::sleep(computation_time);
+        Ok("Local explanation computed".to_string())
+    }
+
+    fn simulate_global_explanation_static(config: &TestConfiguration) -> SklResult<String> {
+        // Global explanations require sweeping the dataset to estimate
+        // feature effects, so we model their cost from both axes.
+        let computation_time =
+            Duration::from_millis((config.dataset_size * config.num_features / 80) as u64);
+        std::thread::sleep(computation_time);
+        Ok("Global explanation computed".to_string())
+    }
+
+    fn simulate_visualization_static(config: &TestConfiguration) -> SklResult<String> {
+        // Visualization rendering is dominated by the number of features.
+        let computation_time = Duration::from_millis((config.num_features as u64) * 2 + 5);
+        std::thread::sleep(computation_time);
+        Ok("Visualization generated".to_string())
     }
 
     fn calculate_timing_statistics(&self, times: &[Duration]) -> TimingStatistics {
@@ -492,38 +633,36 @@ impl BenchmarkingSuite {
 
         let avg_memory = snapshots.iter().map(|(_, after)| *after).sum::<usize>() / snapshots.len();
 
-        // Simplified memory statistics
+        // Efficiency score: how close average usage stays to peak usage, in [0, 1].
+        // A value near 1 means memory use is stable (avg ~= peak); a low value means
+        // usage spikes well above its average. This is a real ratio of the observed
+        // snapshots rather than a hardcoded constant.
+        let efficiency_score = if peak_memory > 0 {
+            avg_memory as Float / peak_memory as Float
+        } else {
+            0.0
+        };
+
         MemoryStatistics {
             peak_memory,
             avg_memory,
             allocations: snapshots.len(),
             deallocations: snapshots.len(),
-            efficiency_score: 0.8, // Placeholder
+            efficiency_score,
         }
     }
 
     fn calculate_quality_metrics(
         &self,
-        method_name: &str,
+        _method_name: &str,
         _config: &TestConfiguration,
     ) -> SklResult<QualityMetrics> {
-        // Placeholder implementation - in practice, these would be calculated
-        // based on actual explanation quality assessments
-        let base_score = match method_name {
-            "PermutationImportance" => 0.85,
-            "SHAP" => 0.90,
-            "LIME" => 0.80,
-            _ => 0.75,
-        };
-
-        Ok(QualityMetrics {
-            fidelity: base_score + 0.05,
-            stability: base_score - 0.02,
-            consistency: base_score + 0.03,
-            completeness: base_score - 0.05,
-            interpretability: base_score + 0.02,
-            overall_score: base_score,
-        })
+        // The benchmark harness only measures wall-clock time and memory of an opaque
+        // `method_fn`; it never sees the produced explanations or any ground-truth
+        // reference. Real fidelity/stability/consistency/completeness/interpretability
+        // therefore cannot be computed here. We honestly report "not assessed" (all
+        // zeros) instead of fabricating per-method quality scores.
+        Ok(QualityMetrics::not_assessed())
     }
 
     fn compare_with_reference(
@@ -676,10 +815,9 @@ impl BenchmarkingSuite {
     }
 
     fn get_memory_usage(&self) -> usize {
-        // Placeholder implementation - would use actual memory profiling
-
-        // This is a simplified placeholder
-        1024 * 1024 // 1MB placeholder
+        // Real resident-set-size sample (bytes) for the current process. Returns 0 on
+        // platforms where RSS is unmeasurable, meaning "not measured".
+        process_rss_bytes()
     }
 
     fn simulate_permutation_importance_static(config: &TestConfiguration) -> SklResult<String> {
@@ -926,11 +1064,14 @@ mod tests {
             parameters: HashMap::new(),
         };
 
+        // Quality cannot be measured by the timing harness; it must honestly report
+        // "not assessed" (zeros) rather than fabricating a per-method score.
         let metrics = suite
             .calculate_quality_metrics("SHAP", &test_config)
             .expect("operation should succeed");
-        assert!(metrics.overall_score > 0.0);
-        assert!(metrics.fidelity > 0.0);
+        assert_eq!(metrics.overall_score, 0.0);
+        assert_eq!(metrics.fidelity, 0.0);
+        assert_eq!(metrics.stability, 0.0);
     }
 
     #[test]
@@ -943,6 +1084,18 @@ mod tests {
 
         assert_eq!(stats.peak_memory, 1800);
         assert!(stats.avg_memory > 0);
+        // efficiency_score is a real ratio avg/peak in (0, 1], not a constant 0.8.
+        let expected = stats.avg_memory as Float / stats.peak_memory as Float;
+        assert!((stats.efficiency_score - expected).abs() < 1e-9);
+        assert!(stats.efficiency_score > 0.0 && stats.efficiency_score <= 1.0);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_real_memory_usage_is_positive() {
+        let suite = BenchmarkingSuite::new(BenchmarkConfig::default());
+        // On Linux, a running process always has positive RSS.
+        assert!(suite.get_memory_usage() > 0);
     }
 
     #[test]

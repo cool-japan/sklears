@@ -22,10 +22,9 @@ use std::ptr::NonNull;
 use std::slice;
 
 #[cfg(feature = "gpu")]
-use candle_core::{DType, Device, Tensor};
-// cudarc is only available on non-macOS platforms (no CUDA on macOS)
-#[cfg(all(feature = "gpu", not(target_os = "macos")))]
-use cudarc::driver::safe::CudaContext;
+use scirs2_linalg::{eigh as linalg_eigh, svd as linalg_svd};
+#[cfg(feature = "gpu")]
+use sklears_core::gpu::{GpuArray, GpuContext, GpuMatrixOps};
 
 /// Configuration for hardware acceleration features
 #[derive(Debug, Clone)]
@@ -864,35 +863,24 @@ impl Drop for AlignedBuffer {
     }
 }
 
-/// GPU acceleration for matrix operations using CUDA
+/// GPU acceleration for matrix operations via oxicuda-backend.
+///
+/// Uses `sklears_core::gpu::{GpuContext, GpuArray, GpuMatrixOps}` for GEMM-based operations
+/// and `scirs2_linalg` for SVD / eigendecomposition.
 #[cfg(feature = "gpu")]
 pub struct GpuAcceleration {
-    /// Configuration controlling GPU kernel launch parameters, memory pool limits, and
-    /// thread counts.  The config is consulted when logging the requested setup and when
-    /// choosing parallelism for CPU fallback paths.
     config: AccelerationConfig,
-    device: Device,
-    #[cfg(not(target_os = "macos"))]
-    cuda_device: Option<std::sync::Arc<CudaContext>>,
+    context: Option<GpuContext>,
 }
 
 #[cfg(feature = "gpu")]
 impl GpuAcceleration {
-    /// Create a new GPU acceleration instance
     pub fn new() -> Result<Self> {
         Self::with_config(AccelerationConfig::default())
     }
 
-    /// Create GPU acceleration with specific configuration.
-    ///
-    /// The config is stored and used to:
-    /// - Gate GPU initialisation (`enable_gpu`).
-    /// - Select the CUDA device (`gpu_device_id`).
-    /// - Bound memory allocations (`gpu_memory_limit`).
-    /// - Set parallel thread count for CPU fallback paths (`num_threads`).
     pub fn with_config(config: AccelerationConfig) -> Result<Self> {
         if !config.enable_gpu {
-            // Log the configuration that was requested but not used
             eprintln!(
                 "[GpuAcceleration] GPU disabled by config (enable_gpu=false). \
                  Running on CPU. num_threads={:?}, alignment={} bytes.",
@@ -900,9 +888,7 @@ impl GpuAcceleration {
             );
             return Ok(Self {
                 config,
-                device: Device::Cpu,
-                #[cfg(not(target_os = "macos"))]
-                cuda_device: None,
+                context: None,
             });
         }
 
@@ -911,116 +897,37 @@ impl GpuAcceleration {
             config.gpu_device_id, config.gpu_memory_limit
         );
 
-        // Initialize CUDA device (only on non-macOS platforms)
-        #[cfg(not(target_os = "macos"))]
-        let cuda_device = match CudaContext::new(config.gpu_device_id as usize) {
-            Ok(device) => Some(device),
+        let context = match GpuContext::with_device_id(config.gpu_device_id as usize) {
+            Ok(ctx) => Some(ctx),
             Err(_) => {
                 return Err(SklearsError::InvalidInput(format!(
-                    "Failed to initialize CUDA device {}",
+                    "Failed to initialize GPU device {}",
                     config.gpu_device_id
                 )));
             }
         };
 
-        // Initialize Candle device
-        let device = match Device::new_cuda(config.gpu_device_id as usize) {
-            Ok(dev) => dev,
-            Err(_) => Device::Cpu, // Fallback to CPU
-        };
-
-        Ok(Self {
-            config,
-            device,
-            #[cfg(not(target_os = "macos"))]
-            cuda_device,
-        })
+        Ok(Self { config, context })
     }
 
-    /// Return the active acceleration configuration.
     pub fn config(&self) -> &AccelerationConfig {
         &self.config
     }
 
-    /// Check if GPU is available and properly initialized
     pub fn is_gpu_available(&self) -> bool {
-        if !self.config.enable_gpu {
-            return false;
-        }
-        #[cfg(not(target_os = "macos"))]
-        return self.cuda_device.is_some() && matches!(self.device, Device::Cuda(_));
-
-        #[cfg(target_os = "macos")]
-        return matches!(self.device, Device::Cuda(_));
+        self.config.enable_gpu && self.context.is_some()
     }
 
-    /// Get GPU memory information, constrained by `config.gpu_memory_limit` when set.
     pub fn gpu_memory_info(&self) -> Result<(usize, usize)> {
-        #[cfg(not(target_os = "macos"))]
-        {
-            if let Some(ref _cuda_device) = self.cuda_device {
-                // CudaContext in cudarc 0.17 uses attribute() for device queries
-                // For now, return default values (actual implementation would query CUDA)
-                let total = self
-                    .config
-                    .gpu_memory_limit
-                    .unwrap_or(8 * 1024 * 1024 * 1024); // Default 8 GB
-                let free = total / 2; // Conservative estimate
-                Ok((free, total))
-            } else {
-                Err(SklearsError::InvalidInput("GPU not available".to_string()))
-            }
-        }
-
-        #[cfg(target_os = "macos")]
-        Err(SklearsError::InvalidInput(
-            "CUDA not available on macOS".to_string(),
-        ))
-    }
-
-    /// Convert ndarray to GPU tensor
-    pub fn array_to_tensor(&self, array: &Array2<Float>) -> Result<Tensor> {
-        let shape = array.shape();
-        let data: Vec<f32> = if std::mem::size_of::<Float>() == 8 {
-            array.iter().map(|&x| x as f32).collect()
+        if let Some(ref ctx) = self.context {
+            let info = ctx.memory_info()?;
+            let effective_total = self.config.gpu_memory_limit.unwrap_or(info.total);
+            Ok((info.free.min(effective_total), effective_total))
         } else {
-            array.iter().map(|&x| x as f32).collect()
-        };
-
-        match Tensor::from_vec(data, (shape[0], shape[1]), &self.device) {
-            Ok(tensor) => Ok(tensor),
-            Err(_) => Err(SklearsError::InvalidInput(
-                "Failed to create GPU tensor".to_string(),
-            )),
+            Err(SklearsError::InvalidInput("GPU not available".to_string()))
         }
     }
 
-    /// Convert GPU tensor back to ndarray
-    pub fn tensor_to_array(&self, tensor: &Tensor) -> Result<Array2<Float>> {
-        let shape = tensor.shape();
-        let dims = shape.dims();
-        if dims.len() != 2 {
-            return Err(SklearsError::InvalidInput("Tensor must be 2D".to_string()));
-        }
-
-        match tensor.to_vec2::<f32>() {
-            Ok(data) => {
-                let flat_data: Vec<Float> = data.into_iter().flatten().map(|x| x as f64).collect();
-
-                match Array2::from_shape_vec((dims[0], dims[1]), flat_data) {
-                    Ok(array) => Ok(array),
-                    Err(_) => Err(SklearsError::InvalidInput(
-                        "Failed to create array from tensor".to_string(),
-                    )),
-                }
-            }
-            Err(_) => Err(SklearsError::InvalidInput(
-                "Failed to convert tensor to array".to_string(),
-            )),
-        }
-    }
-
-    /// GPU-accelerated matrix multiplication
     pub fn gpu_matrix_multiply(
         &self,
         a: &Array2<Float>,
@@ -1030,6 +937,7 @@ impl GpuAcceleration {
             return Err(SklearsError::InvalidInput("GPU not available".to_string()));
         }
 
+        let ctx = self.context.as_ref().expect("checked above");
         let (_m, k1) = a.dim();
         let (k2, _n) = b.dim();
 
@@ -1039,25 +947,17 @@ impl GpuAcceleration {
             ));
         }
 
-        // Convert to GPU tensors
-        let tensor_a = self.array_to_tensor(a)?;
-        let tensor_b = self.array_to_tensor(b)?;
-
-        // Perform GPU matrix multiplication
-        let result_tensor = match tensor_a.matmul(&tensor_b) {
-            Ok(tensor) => tensor,
-            Err(_) => {
-                return Err(SklearsError::InvalidInput(
-                    "GPU matrix multiplication failed".to_string(),
-                ))
-            }
-        };
-
-        // Convert back to array
-        self.tensor_to_array(&result_tensor)
+        let a_gpu = GpuArray::<Float>::from_array2(ctx, a)?;
+        let b_gpu = GpuArray::<Float>::from_array2(ctx, b)?;
+        let c_gpu = a_gpu.matmul(&b_gpu)?;
+        c_gpu.to_array2()
     }
 
-    /// GPU-accelerated SVD decomposition
+    /// GPU-accelerated SVD decomposition.
+    ///
+    /// Dispatches matrix to `GpuContext` for data management; SVD computation uses
+    /// `scirs2_linalg::svd` (the full oxicuda-solver pipeline requires a standalone
+    /// `SolverHandle` + `DeviceBuffer` setup that is out of scope here).
     pub fn gpu_svd(
         &self,
         matrix: &Array2<Float>,
@@ -1066,61 +966,12 @@ impl GpuAcceleration {
             return Err(SklearsError::InvalidInput("GPU not available".to_string()));
         }
 
-        let _tensor = self.array_to_tensor(matrix)?;
-
-        // For now, use a simplified GPU-based SVD implementation
-        // In practice, this would use cuSOLVER or similar libraries
-        let (m, n) = matrix.dim();
-        let min_dim = m.min(n);
-
-        // This is a placeholder - real implementation would use cuSOLVER
-        let u_tensor = match Tensor::eye(m, DType::F32, &self.device) {
-            Ok(t) => t,
-            Err(_) => {
-                return Err(SklearsError::InvalidInput(
-                    "Failed to create identity matrix".to_string(),
-                ))
-            }
-        };
-
-        let s_data = vec![1.0f32; min_dim];
-        let s_tensor = match Tensor::from_vec(s_data, min_dim, &self.device) {
-            Ok(t) => t,
-            Err(_) => {
-                return Err(SklearsError::InvalidInput(
-                    "Failed to create singular values".to_string(),
-                ))
-            }
-        };
-
-        let vt_tensor = match Tensor::eye(n, DType::F32, &self.device) {
-            Ok(t) => t,
-            Err(_) => {
-                return Err(SklearsError::InvalidInput(
-                    "Failed to create identity matrix".to_string(),
-                ))
-            }
-        };
-
-        // Convert tensors back to arrays
-        let u = self.tensor_to_array(&u_tensor)?;
-        let vt = self.tensor_to_array(&vt_tensor)?;
-
-        // Convert singular values
-        let s_vec = match s_tensor.to_vec1::<f32>() {
-            Ok(vec) => vec.into_iter().map(|x| x as Float).collect(),
-            Err(_) => {
-                return Err(SklearsError::InvalidInput(
-                    "Failed to convert singular values".to_string(),
-                ))
-            }
-        };
-        let s = Array1::from_vec(s_vec);
-
+        let (u, s, vt) = linalg_svd(&matrix.view(), false, None)
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
         Ok((u, s, vt))
     }
 
-    /// GPU-accelerated eigendecomposition
+    /// GPU-accelerated eigendecomposition of a symmetric matrix.
     pub fn gpu_eigendecomposition(
         &self,
         matrix: &Array2<Float>,
@@ -1136,90 +987,38 @@ impl GpuAcceleration {
             ));
         }
 
-        let _tensor = self.array_to_tensor(matrix)?;
-
-        // Simplified GPU eigendecomposition - real implementation would use cuSOLVER
-        let eigenvals_data = vec![1.0f32; n];
-        let eigenvals_tensor = match Tensor::from_vec(eigenvals_data, n, &self.device) {
-            Ok(t) => t,
-            Err(_) => {
-                return Err(SklearsError::InvalidInput(
-                    "Failed to create eigenvalues".to_string(),
-                ))
-            }
-        };
-
-        let eigenvecs_tensor = match Tensor::eye(n, DType::F32, &self.device) {
-            Ok(t) => t,
-            Err(_) => {
-                return Err(SklearsError::InvalidInput(
-                    "Failed to create eigenvectors".to_string(),
-                ))
-            }
-        };
-
-        // Convert back to arrays
-        let eigenvecs = self.tensor_to_array(&eigenvecs_tensor)?;
-        let eigenvals_vec = match eigenvals_tensor.to_vec1::<f32>() {
-            Ok(vec) => vec.into_iter().map(|x| x as Float).collect(),
-            Err(_) => {
-                return Err(SklearsError::InvalidInput(
-                    "Failed to convert eigenvalues".to_string(),
-                ))
-            }
-        };
-        let eigenvals = Array1::from_vec(eigenvals_vec);
-
+        let (eigenvals, eigenvecs) = linalg_eigh(&matrix.view(), None)
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
         Ok((eigenvals, eigenvecs))
     }
 
-    /// Batch GPU operations for multiple matrices
     pub fn batch_gpu_multiply(&self, matrices: &[Array2<Float>]) -> Result<Vec<Array2<Float>>> {
         if !self.is_gpu_available() {
             return Err(SklearsError::InvalidInput("GPU not available".to_string()));
         }
 
         let mut results = Vec::with_capacity(matrices.len() / 2);
-
         for chunk in matrices.chunks_exact(2) {
             let result = self.gpu_matrix_multiply(&chunk[0], &chunk[1])?;
             results.push(result);
         }
-
         Ok(results)
     }
 
-    /// GPU memory management
     pub fn free_gpu_memory(&self) -> Result<()> {
-        #[cfg(not(target_os = "macos"))]
-        {
-            if let Some(ref cuda_device) = self.cuda_device {
-                match cuda_device.synchronize() {
-                    Ok(()) => Ok(()),
-                    Err(_) => Err(SklearsError::InvalidInput(
-                        "Failed to synchronize GPU device".to_string(),
-                    )),
-                }
-            } else {
-                Ok(())
-            }
+        if let Some(ref ctx) = self.context {
+            ctx.synchronize()?;
         }
-
-        #[cfg(target_os = "macos")]
         Ok(())
     }
 
-    /// Profile GPU operation performance
     pub fn profile_gpu_operation<F, T>(&self, operation: F) -> Result<(T, std::time::Duration)>
     where
         F: FnOnce() -> Result<T>,
     {
         let start = std::time::Instant::now();
         let result = operation()?;
-
-        // Synchronize GPU to ensure timing accuracy
         self.free_gpu_memory()?;
-
         let duration = start.elapsed();
         Ok((result, duration))
     }
@@ -1229,16 +1028,13 @@ impl GpuAcceleration {
 impl Default for GpuAcceleration {
     fn default() -> Self {
         Self::new().unwrap_or_else(|_| {
-            // Fallback to CPU-only configuration
             let config = AccelerationConfig {
                 enable_gpu: false,
                 ..AccelerationConfig::default()
             };
             Self {
                 config,
-                device: Device::Cpu,
-                #[cfg(not(target_os = "macos"))]
-                cuda_device: None,
+                context: None,
             }
         })
     }
@@ -1523,21 +1319,24 @@ mod tests {
 
     #[cfg(feature = "gpu")]
     #[test]
-    fn test_gpu_array_conversion() {
+    fn test_gpu_matrix_multiply_identity() {
         let config = AccelerationConfig {
-            enable_gpu: false, // Disable GPU for testing
+            enable_gpu: true,
             ..AccelerationConfig::default()
         };
 
         if let Ok(gpu_acc) = GpuAcceleration::with_config(config) {
-            let array = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
-                .expect("shape and data length should match");
+            if gpu_acc.is_gpu_available() {
+                let identity = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0])
+                    .expect("shape and data length should match");
+                let b = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+                    .expect("shape and data length should match");
 
-            // Test array to tensor conversion (will use CPU tensor)
-            if let Ok(tensor) = gpu_acc.array_to_tensor(&array) {
-                // Test tensor back to array conversion
-                if let Ok(result_array) = gpu_acc.tensor_to_array(&tensor) {
-                    assert_eq!(result_array.shape(), array.shape());
+                if let Ok(result) = gpu_acc.gpu_matrix_multiply(&identity, &b) {
+                    assert_eq!(result.shape(), b.shape());
+                    for (r, e) in result.iter().zip(b.iter()) {
+                        assert!((r - e).abs() < 1e-10);
+                    }
                 }
             }
         }

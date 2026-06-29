@@ -3,10 +3,10 @@
 //! This module handles report job scheduling, execution management,
 //! thread pool coordination, and performance monitoring for automated reports.
 
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 
 /// Report scheduler system
 ///
@@ -55,7 +55,7 @@ pub enum JobStatus {
 ///
 /// Manages thread pools, job queues, and execution monitoring
 /// for parallel report generation processing.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct JobExecutionEngine {
     /// Thread pool configuration
     pub thread_pool_config: ThreadPoolConfig,
@@ -97,7 +97,7 @@ pub struct JobQueue {
 ///
 /// Tracks job execution history and performance metrics
 /// for system optimization and troubleshooting.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ExecutionMonitor {
     /// Job execution history
     pub execution_history: Vec<JobExecution>,
@@ -191,6 +191,12 @@ pub enum BackoffStrategy {
     Custom(String),
 }
 
+impl Default for ReportScheduler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReportScheduler {
     /// Create a new report scheduler
     pub fn new() -> Self {
@@ -231,7 +237,11 @@ impl ReportScheduler {
 
     /// Update job status
     pub fn update_job_status(&mut self, job_id: &str, status: JobStatus) -> Result<(), String> {
-        if let Some(job) = self.scheduled_jobs.iter_mut().find(|job| job.job_id == job_id) {
+        if let Some(job) = self
+            .scheduled_jobs
+            .iter_mut()
+            .find(|job| job.job_id == job_id)
+        {
             job.status = status;
             Ok(())
         } else {
@@ -286,16 +296,22 @@ impl JobExecutionEngine {
     }
 
     /// Complete a job execution
-    pub fn complete_job(&mut self, job_id: &str, execution_id: &str, success: bool) -> Result<(), String> {
+    pub fn complete_job(
+        &mut self,
+        job_id: &str,
+        execution_id: &str,
+        success: bool,
+    ) -> Result<(), String> {
         // Remove from running jobs
         self.job_queue.running_jobs.retain(|id| id != job_id);
 
         // Update execution record
-        if let Some(execution) = self.execution_monitor
+        if let Some(execution) = self
+            .execution_monitor
             .execution_history
             .iter_mut()
-            .find(|exec| exec.execution_id == execution_id) {
-
+            .find(|exec| exec.execution_id == execution_id)
+        {
             execution.end_time = Some(Utc::now());
             execution.status = if success {
                 ExecutionStatus::Completed
@@ -310,10 +326,16 @@ impl JobExecutionEngine {
 
     /// Update performance metrics
     fn update_metrics(&mut self) {
-        let completed_executions: Vec<_> = self.execution_monitor
+        let completed_executions: Vec<_> = self
+            .execution_monitor
             .execution_history
             .iter()
-            .filter(|exec| matches!(exec.status, ExecutionStatus::Completed | ExecutionStatus::Failed(_)))
+            .filter(|exec| {
+                matches!(
+                    exec.status,
+                    ExecutionStatus::Completed | ExecutionStatus::Failed(_)
+                )
+            })
             .collect();
 
         if !completed_executions.is_empty() {
@@ -332,14 +354,17 @@ impl JobExecutionEngine {
                 .iter()
                 .filter_map(|exec| {
                     exec.end_time.map(|end| {
-                        end.signed_duration_since(exec.start_time).to_std().unwrap_or_default()
+                        end.signed_duration_since(exec.start_time)
+                            .to_std()
+                            .unwrap_or_default()
                     })
                 })
                 .sum();
 
             if total_executions > 0 {
-                self.execution_monitor.performance_metrics.average_execution_time =
-                    total_duration / total_executions as u32;
+                self.execution_monitor
+                    .performance_metrics
+                    .average_execution_time = total_duration / total_executions as u32;
             }
 
             // Calculate throughput (jobs per hour)
@@ -363,16 +388,6 @@ impl JobExecutionEngine {
     }
 }
 
-impl Default for JobExecutionEngine {
-    fn default() -> Self {
-        Self {
-            thread_pool_config: ThreadPoolConfig::default(),
-            job_queue: JobQueue::default(),
-            execution_monitor: ExecutionMonitor::default(),
-        }
-    }
-}
-
 impl Default for ThreadPoolConfig {
     fn default() -> Self {
         Self {
@@ -389,15 +404,6 @@ impl Default for JobQueue {
             pending_jobs: vec![],
             running_jobs: vec![],
             capacity: 1000,
-        }
-    }
-}
-
-impl Default for ExecutionMonitor {
-    fn default() -> Self {
-        Self {
-            execution_history: vec![],
-            performance_metrics: ExecutionMetrics::default(),
         }
     }
 }

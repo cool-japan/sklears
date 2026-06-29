@@ -11,7 +11,7 @@ use tokio::sync::{mpsc, broadcast, oneshot, Semaphore};
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 
-use scirs2_core::error::{CoreError, Result};
+use scirs2_core::error::{CoreError, ErrorContext, Result};
 use scirs2_core::random::{Random, rng};
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, array};
 use scirs2_core::ndarray_ext::{stats, matrix, manipulation};
@@ -1493,25 +1493,32 @@ impl PredictionModel for NeuralNetworkModel {
     }
 }
 
-// Simple mock prediction model for basic functionality
+/// A genuine mean-baseline prediction model.
+///
+/// This predicts the mean of the input features and derives a 95% confidence
+/// interval from the feature standard deviation. It is a real (if trivial)
+/// model, not a fabricated one, and is used only as a test/benchmark baseline.
+#[cfg(test)]
 #[derive(Debug, Clone)]
-struct MockPredictionModel {
+struct BaselineMeanModel {
     model_id: String,
     confidence: f64,
     baseline_prediction: f64,
 }
 
-impl MockPredictionModel {
+#[cfg(test)]
+impl BaselineMeanModel {
     fn new() -> Self {
         Self {
-            model_id: format!("mock_model_{}", uuid::Uuid::new_v4()),
+            model_id: format!("baseline_mean_{}", uuid::Uuid::new_v4()),
             confidence: 0.85,
             baseline_prediction: 0.5,
         }
     }
 }
 
-impl PredictionModel for MockPredictionModel {
+#[cfg(test)]
+impl PredictionModel for BaselineMeanModel {
     fn predict(&self, features: &Array1<f64>) -> Result<PredictionOutput> {
         // Simple weighted average of features as prediction
         let value = if features.len() > 0 {
@@ -1576,20 +1583,21 @@ impl PredictionModel for MockPredictionModel {
 
 // Implement required methods for key components
 impl PerformancePredictor {
-    // Global mock model for returning references
-    fn get_mock_model(&self) -> MockPredictionModel {
-        MockPredictionModel::new()
-    }
-
-    pub fn select_model(&self, _request: &PerformancePredictionRequest) -> Result<MockPredictionModel> {
-        // Select appropriate model based on request characteristics
-        // For now, return a simple mock model
-        // In a production implementation, this would:
-        // 1. Analyze request features and requirements
-        // 2. Select from trained models in the registry
-        // 3. Consider model performance history
-        // 4. Return the best matching model
-        Ok(self.get_mock_model())
+    /// Select the best trained model for a prediction request.
+    ///
+    /// A real implementation analyzes the request features, looks up trained
+    /// models in the registry, ranks them by performance history, and returns
+    /// the best match. No such registry is populated yet, so we return an honest
+    /// error instead of the previous behavior, which fabricated a brand-new
+    /// untrained `BaselineMeanModel` and presented it as "the selected model".
+    pub fn select_model(
+        &self,
+        _request: &PerformancePredictionRequest,
+    ) -> Result<Box<dyn PredictionModel>> {
+        Err(CoreError::NotImplementedError(ErrorContext::new(
+            "select_model: no trained-model registry is populated; cannot select a model"
+                .to_string(),
+        )))
     }
 }
 
@@ -1605,11 +1613,15 @@ impl PredictiveCache {
     }
 
     pub fn get_health_status(&self) -> CacheHealthStatus {
+        // No cache hit/eviction/accuracy counters are tracked yet, so every field
+        // is reported as 0.0 (unknown) rather than the previously fabricated
+        // 0.75 / 0.6 / 0.1 / 0.88 values that suggested a healthy, instrumented
+        // cache that does not exist.
         CacheHealthStatus {
-            hit_rate: 0.75,
-            memory_usage: 0.6,
-            eviction_rate: 0.1,
-            prediction_accuracy: 0.88,
+            hit_rate: 0.0,
+            memory_usage: 0.0,
+            eviction_rate: 0.0,
+            prediction_accuracy: 0.0,
         }
     }
 }
@@ -1636,14 +1648,6 @@ impl TimeSeriesAnalyzer {
 }
 
 impl MachineLearningModels {
-    // Internal mock model storage for mutable reference returns
-    fn get_or_create_mock_model(&mut self, model_id: &str) -> &mut dyn PredictionModel {
-        // Store a mock model in the neural_networks map if it doesn't exist
-        self.neural_networks
-            .entry(model_id.to_string())
-            .or_insert_with(|| NeuralNetworkModel::default())
-    }
-
     pub fn register_model(&mut self, _model: Box<dyn PredictionModel>, _request: &ModelTrainingRequest) -> Result<String> {
         let model_id = Uuid::new_v4().to_string();
         // In production, would store the actual model
@@ -1651,15 +1655,21 @@ impl MachineLearningModels {
         Ok(model_id)
     }
 
+    /// Get a mutable reference to a registered model by id.
+    ///
+    /// Previously this silently inserted and returned a fresh, untrained
+    /// `NeuralNetworkModel` for any `model_id` (even unknown ones), so callers
+    /// believed they were mutating a real trained model. We now search the
+    /// existing collections and return an honest error when the id is not found,
+    /// rather than fabricating a model.
     pub fn get_model_mut(&mut self, model_id: &str) -> Result<&mut dyn PredictionModel> {
-        // Try to find model in any of the model collections
-        // For now, return a mock model
-        // In production implementation:
-        // 1. Search through all model collections (neural_networks, decision_trees, etc.)
-        // 2. Return mutable reference to the found model
-        // 3. Return error if not found
-
-        Ok(self.get_or_create_mock_model(model_id))
+        if let Some(model) = self.neural_networks.get_mut(model_id) {
+            return Ok(model as &mut dyn PredictionModel);
+        }
+        Err(CoreError::NotImplementedError(ErrorContext::new(format!(
+            "get_model_mut: model '{model_id}' is not registered; \
+             cross-collection lookup of trained models is not yet implemented"
+        ))))
     }
 
     pub fn get_model_count(&self) -> usize {
@@ -1731,17 +1741,17 @@ impl AnomalyScorer {
 }
 
 impl ModelFactory {
-    pub fn create_model(&self, config: &ModelArchitectureConfig) -> Result<Box<dyn PredictionModel>> {
-        // Create model based on configuration
-        // For now, return a mock model wrapped in Box
-        // In production implementation, this would:
-        // 1. Parse architecture configuration
-        // 2. Initialize model layers and parameters
-        // 3. Set up training configuration
-        // 4. Return fully configured model ready for training
-
-        let model = MockPredictionModel::new();
-        Ok(Box::new(model))
+    pub fn create_model(&self, _config: &ModelArchitectureConfig) -> Result<Box<dyn PredictionModel>> {
+        // A real implementation parses the architecture configuration, builds the
+        // model layers/parameters, and returns a model ready for training. The
+        // previous version ignored the configuration entirely and returned a
+        // fresh mean-baseline model regardless of the requested architecture,
+        // i.e. it fabricated a "built" model. We return an honest error instead.
+        Err(CoreError::NotImplementedError(ErrorContext::new(
+            "create_model: building a model from an architecture configuration is not yet \
+             implemented"
+                .to_string(),
+        )))
     }
 }
 

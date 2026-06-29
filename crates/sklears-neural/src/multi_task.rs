@@ -845,7 +845,7 @@ mod tests {
 
     #[test]
     fn test_multi_task_serialization() {
-        let config = MultiTaskConfig::<f64>::new(2, 10, vec![3, 1])
+        let _config = MultiTaskConfig::<f64>::new(2, 10, vec![3, 1])
             .expect("valid parameter")
             .with_task_names(vec!["classification".to_string(), "regression".to_string()])
             .expect("valid parameter")
@@ -857,11 +857,11 @@ mod tests {
         // Test that the config can be serialized if serde feature is enabled
         #[cfg(feature = "serde")]
         {
-            let json = serde_json::to_string(&config).expect("operation should succeed");
+            let json = serde_json::to_string(&_config).expect("operation should succeed");
             let deserialized: MultiTaskConfig<f64> =
                 serde_json::from_str(&json).expect("operation should succeed");
-            assert_eq!(deserialized.num_tasks, config.num_tasks);
-            assert_eq!(deserialized.task_names, config.task_names);
+            assert_eq!(deserialized.num_tasks, _config.num_tasks);
+            assert_eq!(deserialized.task_names, _config.task_names);
         }
     }
 

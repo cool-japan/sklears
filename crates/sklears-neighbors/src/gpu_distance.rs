@@ -11,6 +11,9 @@ use sklears_core::types::Float;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+#[cfg(feature = "gpu")]
+use sklears_core::gpu::{GpuArray, GpuContext, GpuMatrixOps};
+
 /// GPU backend type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GpuBackend {
@@ -308,46 +311,125 @@ impl GpuDistanceCalculator {
         })
     }
 
-    /// Compute distances using CUDA backend
+    /// Compute distances using CUDA backend.
+    ///
+    /// For `Distance::Euclidean` uses the GEMM trick via `oxicuda-backend`
+    /// when the `gpu` feature is enabled; falls back to parallel CPU otherwise.
     fn compute_cuda_distances<'a>(
         &self,
         x_data: &ArrayView2<'a, Float>,
         y_data: &ArrayView2<'a, Float>,
         distance: Distance,
     ) -> NeighborsResult<(Array2<Float>, usize)> {
-        // In a real implementation, this would use CUDA kernels
-        // For now, we'll use optimized CPU computation with parallelization
-        let distances = self.compute_parallel_distances(x_data, y_data, distance)?;
+        let distances = self.dispatch_gpu_distances(x_data, y_data, distance)?;
         let memory_usage = distances.len() * std::mem::size_of::<Float>();
         Ok((distances, memory_usage))
     }
 
-    /// Compute distances using OpenCL backend
+    /// Compute distances using OpenCL backend.
     fn compute_opencl_distances<'a>(
         &self,
         x_data: &ArrayView2<'a, Float>,
         y_data: &ArrayView2<'a, Float>,
         distance: Distance,
     ) -> NeighborsResult<(Array2<Float>, usize)> {
-        // In a real implementation, this would use OpenCL kernels
-        // For now, we'll use optimized CPU computation with parallelization
-        let distances = self.compute_parallel_distances(x_data, y_data, distance)?;
+        let distances = self.dispatch_gpu_distances(x_data, y_data, distance)?;
         let memory_usage = distances.len() * std::mem::size_of::<Float>();
         Ok((distances, memory_usage))
     }
 
-    /// Compute distances using Metal backend
+    /// Compute distances using Metal backend.
     fn compute_metal_distances<'a>(
         &self,
         x_data: &ArrayView2<'a, Float>,
         y_data: &ArrayView2<'a, Float>,
         distance: Distance,
     ) -> NeighborsResult<(Array2<Float>, usize)> {
-        // In a real implementation, this would use Metal compute shaders
-        // For now, we'll use optimized CPU computation with parallelization
-        let distances = self.compute_parallel_distances(x_data, y_data, distance)?;
+        let distances = self.dispatch_gpu_distances(x_data, y_data, distance)?;
         let memory_usage = distances.len() * std::mem::size_of::<Float>();
         Ok((distances, memory_usage))
+    }
+
+    /// Shared GPU dispatch: GEMM trick for Euclidean, CPU fallback for others.
+    fn dispatch_gpu_distances<'a>(
+        &self,
+        x_data: &ArrayView2<'a, Float>,
+        y_data: &ArrayView2<'a, Float>,
+        distance: Distance,
+    ) -> NeighborsResult<Array2<Float>> {
+        match distance {
+            Distance::Euclidean => {
+                #[cfg(feature = "gpu")]
+                {
+                    let (m, d) = x_data.dim();
+                    let (n, _) = y_data.dim();
+                    if m * n * d >= 512 {
+                        return Self::compute_gemm_euclidean_distances(x_data, y_data);
+                    }
+                }
+                self.compute_parallel_distances(x_data, y_data, distance)
+            }
+            other => self.compute_parallel_distances(x_data, y_data, other),
+        }
+    }
+
+    /// Pairwise Euclidean distances via the GEMM identity:
+    /// `D[i,j] = sqrt(||x_i||² + ||y_j||² - 2 · x_i·y_j)`.
+    ///
+    /// The inner-product matrix `X × Y^T` is computed through
+    /// `oxicuda-backend`'s `ComputeBackend::gemm()`.
+    #[cfg(feature = "gpu")]
+    fn compute_gemm_euclidean_distances<'a>(
+        x_data: &ArrayView2<'a, Float>,
+        y_data: &ArrayView2<'a, Float>,
+    ) -> NeighborsResult<Array2<Float>> {
+        let (m, _d) = x_data.dim();
+        let (n, _) = y_data.dim();
+
+        let ctx = GpuContext::new()
+            .map_err(|e| NeighborsError::InvalidInput(format!("GPU context error: {e}")))?;
+
+        let x_owned = x_data.to_owned();
+        let y_owned = y_data.to_owned();
+
+        let x_gpu = GpuArray::<Float>::from_array2(&ctx, &x_owned)
+            .map_err(|e| NeighborsError::InvalidInput(format!("GPU upload X: {e}")))?;
+        let y_gpu = GpuArray::<Float>::from_array2(&ctx, &y_owned)
+            .map_err(|e| NeighborsError::InvalidInput(format!("GPU upload Y: {e}")))?;
+
+        // Y^T[d×n] so that X[m×d] × Y^T[d×n] = D_inner[m×n]
+        let y_t_gpu = y_gpu
+            .transpose()
+            .map_err(|e| NeighborsError::InvalidInput(format!("GPU transpose Y: {e}")))?;
+        let d_inner_gpu = x_gpu
+            .matmul(&y_t_gpu)
+            .map_err(|e| NeighborsError::InvalidInput(format!("GPU matmul: {e}")))?;
+        let d_inner = d_inner_gpu
+            .to_array2()
+            .map_err(|e| NeighborsError::InvalidInput(format!("GPU download: {e}")))?;
+
+        // Squared row norms (cheap CPU computation)
+        let x_norms: Vec<Float> = x_data
+            .rows()
+            .into_iter()
+            .map(|row| row.iter().map(|v| v * v).sum::<Float>())
+            .collect();
+        let y_norms: Vec<Float> = y_data
+            .rows()
+            .into_iter()
+            .map(|row| row.iter().map(|v| v * v).sum::<Float>())
+            .collect();
+
+        // D[i,j] = sqrt(max(0, ||x_i||² + ||y_j||² - 2 * D_inner[i,j]))
+        let mut distances = Array2::<Float>::zeros((m, n));
+        for i in 0..m {
+            for j in 0..n {
+                let sq_dist = x_norms[i] + y_norms[j] - 2.0 * d_inner[[i, j]];
+                distances[[i, j]] = sq_dist.max(0.0).sqrt();
+            }
+        }
+
+        Ok(distances)
     }
 
     /// Compute distances using CPU fallback

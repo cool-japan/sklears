@@ -2,7 +2,10 @@
 
 use crate::{
     activation::{softmax, Activation},
-    solvers::{AdamSolver, LambSolver, LarsSolver, LearningRateSchedule, SgdSolver, Solver},
+    solvers::{
+        AdamSolver, AdamWSolver, LambSolver, LarsSolver, LbfgsSolver, LearningRateSchedule,
+        NadamSolver, RMSpropSolver, SgdSolver, Solver,
+    },
     utils::{
         create_batches, initialize_biases, initialize_weights, one_hot_decode, one_hot_encode,
         EarlyStopping, WeightInit,
@@ -314,26 +317,31 @@ impl Fit<Array2<f64>, Vec<usize>> for MLPClassifier<sklears_core::traits::Untrai
                 self.beta_2,
                 self.epsilon,
             )),
-            Solver::AdamW => {
-                return Err(SklearsError::NotImplemented(
-                    "AdamW solver not yet integrated with MLP".to_string(),
-                ));
-            }
-            Solver::RMSprop => {
-                return Err(SklearsError::NotImplemented(
-                    "RMSprop solver not yet integrated with MLP".to_string(),
-                ));
-            }
-            Solver::Nadam => {
-                return Err(SklearsError::NotImplemented(
-                    "Nadam solver not yet integrated with MLP".to_string(),
-                ));
-            }
-            Solver::Lbfgs => {
-                return Err(SklearsError::NotImplemented(
-                    "L-BFGS solver not yet implemented".to_string(),
-                ));
-            }
+            Solver::AdamW => SolverType::AdamW(AdamWSolver::new(
+                self.learning_rate_init,
+                self.beta_1,
+                self.beta_2,
+                self.epsilon,
+                self.alpha, // L2 penalty applied as decoupled weight decay
+            )),
+            Solver::RMSprop => SolverType::RMSprop(RMSpropSolver::new(
+                self.learning_rate_init,
+                0.99, // squared-gradient smoothing constant
+                self.epsilon,
+                self.momentum,
+                false, // uncentered variant
+            )),
+            Solver::Nadam => SolverType::Nadam(NadamSolver::new(
+                self.learning_rate_init,
+                self.beta_1,
+                self.beta_2,
+                self.epsilon,
+            )),
+            Solver::Lbfgs => SolverType::Lbfgs(LbfgsSolver::new(
+                self.learning_rate_init,
+                10,    // number of retained (s, y) correction pairs
+                1e-10, // curvature acceptance threshold
+            )),
             Solver::Lars => SolverType::Lars(LarsSolver::new(
                 self.learning_rate_init,
                 self.momentum,
@@ -356,6 +364,10 @@ impl Fit<Array2<f64>, Vec<usize>> for MLPClassifier<sklears_core::traits::Untrai
         match &mut solver {
             SolverType::Sgd(sgd) => sgd.initialize(&weights, &biases),
             SolverType::Adam(adam) => adam.initialize(&weights, &biases),
+            SolverType::AdamW(adamw) => adamw.initialize(&weights, &biases),
+            SolverType::RMSprop(rmsprop) => rmsprop.initialize(&weights, &biases),
+            SolverType::Nadam(nadam) => nadam.initialize(&weights, &biases),
+            SolverType::Lbfgs(lbfgs) => lbfgs.initialize(&weights, &biases),
             SolverType::Lars(lars) => lars.initialize(&weights, &biases),
             SolverType::Lamb(lamb) => lamb.initialize(&weights, &biases),
         }
@@ -393,6 +405,38 @@ impl Fit<Array2<f64>, Vec<usize>> for MLPClassifier<sklears_core::traits::Untrai
                     }
                     SolverType::Adam(adam) => {
                         adam.update_params(&mut weights, &mut biases, &weight_grads, &bias_grads)?;
+                    }
+                    SolverType::AdamW(adamw) => {
+                        adamw.update_params(
+                            &mut weights,
+                            &mut biases,
+                            &weight_grads,
+                            &bias_grads,
+                        )?;
+                    }
+                    SolverType::RMSprop(rmsprop) => {
+                        rmsprop.update_params(
+                            &mut weights,
+                            &mut biases,
+                            &weight_grads,
+                            &bias_grads,
+                        )?;
+                    }
+                    SolverType::Nadam(nadam) => {
+                        nadam.update_params(
+                            &mut weights,
+                            &mut biases,
+                            &weight_grads,
+                            &bias_grads,
+                        )?;
+                    }
+                    SolverType::Lbfgs(lbfgs) => {
+                        lbfgs.update_params(
+                            &mut weights,
+                            &mut biases,
+                            &weight_grads,
+                            &bias_grads,
+                        )?;
                     }
                     SolverType::Lars(lars) => {
                         lars.update_params(&mut weights, &mut biases, &weight_grads, &bias_grads)?;
@@ -728,6 +772,10 @@ impl Default for MLPClassifier<sklears_core::traits::Untrained> {
 enum SolverType {
     Sgd(SgdSolver),
     Adam(AdamSolver),
+    AdamW(AdamWSolver),
+    RMSprop(RMSpropSolver),
+    Nadam(NadamSolver),
+    Lbfgs(LbfgsSolver),
     Lars(LarsSolver),
     Lamb(LambSolver),
 }
@@ -849,5 +897,62 @@ mod tests {
         let result = mlp.fit(&x, &y);
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_mlp_classifier_all_solvers_fit() {
+        let x = array![
+            [0.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 0.0],
+            [1.0, 1.0],
+            [2.0, 2.0],
+            [2.0, 3.0],
+            [3.0, 2.0],
+            [3.0, 3.0],
+        ];
+        let y = vec![0, 0, 0, 0, 1, 1, 1, 1];
+
+        // Every solver — including the newly wired AdamW/RMSprop/Nadam/L-BFGS —
+        // must fit and emit valid, finite probabilities that sum to one.
+        for solver in [
+            Solver::Sgd,
+            Solver::Adam,
+            Solver::AdamW,
+            Solver::RMSprop,
+            Solver::Nadam,
+            Solver::Lbfgs,
+            Solver::Lars,
+            Solver::Lamb,
+        ] {
+            let mlp = MLPClassifier::new()
+                .hidden_layer_sizes(&[8])
+                .solver(solver)
+                .max_iter(50)
+                .learning_rate_init(0.01)
+                .random_state(7);
+
+            let trained = mlp
+                .fit(&x, &y)
+                .unwrap_or_else(|e| panic!("solver {solver:?} failed to fit: {e}"));
+            let proba = trained
+                .predict_proba(&x)
+                .expect("probability prediction should succeed");
+
+            assert_eq!(proba.dim(), (8, 2));
+            for i in 0..proba.nrows() {
+                let row_sum: f64 = proba.row(i).sum();
+                assert!(
+                    (row_sum - 1.0).abs() < 1e-6,
+                    "probabilities must sum to 1 for {solver:?}"
+                );
+                for &p in proba.row(i).iter() {
+                    assert!(
+                        p.is_finite() && (0.0..=1.0).contains(&p),
+                        "invalid probability {p} for {solver:?}"
+                    );
+                }
+            }
+        }
     }
 }

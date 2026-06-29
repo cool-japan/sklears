@@ -11,18 +11,14 @@
 //! - Co-Training SVM: Uses two different views of the data to train complementary
 //!   classifiers that teach each other
 
-// TODO: Replace with scirs2-linalg
-// use nalgebra::{DMatrix, DVector};
 #[cfg(feature = "parallel")]
 #[allow(unused_imports)]
 use rayon::prelude::*;
-use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, SeedableRng};
+use scirs2_core::ndarray::{s, Array1, Array2, Axis};
+use scirs2_core::random::{essentials::Uniform, seeded_rng};
 
 use crate::kernels::{Kernel, KernelType};
 use crate::svc::{SvcKernel, SVC};
-use scirs2_core::Rng;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::{Fit, Predict, Trained};
 
@@ -66,9 +62,9 @@ impl Default for SemiSupervisedConfig {
 #[derive(Debug, Clone)]
 pub struct SemiSupervisedResult {
     /// Final support vectors
-    pub support_vectors: DMatrix<f64>,
+    pub support_vectors: Array2<f64>,
     /// Dual coefficients
-    pub dual_coef: DVector<f64>,
+    pub dual_coef: Array1<f64>,
     /// Intercept term
     pub intercept: f64,
     /// Indices of support vectors
@@ -81,6 +77,65 @@ pub struct SemiSupervisedResult {
     pub n_iterations: usize,
     /// Final objective value
     pub objective_value: f64,
+}
+
+/// Translate a [`KernelType`] into the matching [`SvcKernel`] builder variant.
+fn svc_kernel_for(kernel: &KernelType) -> SvcKernel {
+    match kernel {
+        KernelType::Linear => SvcKernel::Linear,
+        KernelType::Rbf { gamma } => SvcKernel::Rbf {
+            gamma: Some(*gamma),
+        },
+        KernelType::Polynomial {
+            gamma,
+            degree,
+            coef0,
+        } => SvcKernel::Poly {
+            degree: *degree as usize,
+            gamma: Some(*gamma),
+            coef0: *coef0,
+        },
+        KernelType::Sigmoid { gamma, coef0 } => SvcKernel::Sigmoid {
+            gamma: Some(*gamma),
+            coef0: *coef0,
+        },
+        other => SvcKernel::Custom(other.clone()),
+    }
+}
+
+/// Vertically stack two row-major matrices with the same number of columns.
+fn vstack(top: &Array2<f64>, bottom: &Array2<f64>) -> Array2<f64> {
+    let n_cols = top.ncols().max(bottom.ncols());
+    let mut out = Array2::zeros((top.nrows() + bottom.nrows(), n_cols));
+    if top.nrows() > 0 {
+        out.slice_mut(s![..top.nrows(), ..]).assign(top);
+    }
+    if bottom.nrows() > 0 {
+        out.slice_mut(s![top.nrows().., ..]).assign(bottom);
+    }
+    out
+}
+
+/// Concatenate two vectors.
+fn vconcat(head: &Array1<f64>, tail: &Array1<f64>) -> Array1<f64> {
+    let mut out = Array1::zeros(head.len() + tail.len());
+    if !head.is_empty() {
+        out.slice_mut(s![..head.len()]).assign(head);
+    }
+    if !tail.is_empty() {
+        out.slice_mut(s![head.len()..]).assign(tail);
+    }
+    out
+}
+
+/// Return a copy of `matrix` with the rows in `to_remove` deleted.
+///
+/// `to_remove` does not need to be sorted or unique.
+fn remove_rows(matrix: &Array2<f64>, to_remove: &[usize]) -> Array2<f64> {
+    let keep: Vec<usize> = (0..matrix.nrows())
+        .filter(|i| !to_remove.contains(i))
+        .collect();
+    matrix.select(Axis(0), &keep)
 }
 
 /// Transductive Support Vector Machine (TSVM)
@@ -111,17 +166,12 @@ impl TransductiveSVM {
         }
     }
 
-    /// Create a new TransductiveSVM with default configuration
-    pub fn default() -> Self {
-        Self::new(SemiSupervisedConfig::default())
-    }
-
     /// Fit the TSVM model using labeled and unlabeled data
     pub fn fit(
         &mut self,
-        x_labeled: &DMatrix<f64>,
-        y_labeled: &DVector<f64>,
-        x_unlabeled: &DMatrix<f64>,
+        x_labeled: &Array2<f64>,
+        y_labeled: &Array1<f64>,
+        x_unlabeled: &Array2<f64>,
     ) -> Result<SemiSupervisedResult> {
         // Validate inputs
         if x_labeled.nrows() != y_labeled.len() {
@@ -137,29 +187,32 @@ impl TransductiveSVM {
         }
 
         // Initialize kernel
-        let kernel = self.config.kernel.clone();
-        self.kernel = Some(kernel);
+        self.kernel = Some(self.config.kernel.clone());
 
         // Combine labeled and unlabeled data
         let n_labeled = x_labeled.nrows();
         let n_unlabeled = x_unlabeled.nrows();
         let n_total = n_labeled + n_unlabeled;
 
-        let mut x_combined = DMatrix::zeros(n_total, x_labeled.ncols());
-        x_combined.rows_mut(0, n_labeled).copy_from(x_labeled);
-        x_combined
-            .rows_mut(n_labeled, n_unlabeled)
-            .copy_from(x_unlabeled);
+        let x_combined = vstack(x_labeled, x_unlabeled);
 
-        // Initialize pseudo-labels for unlabeled data
-        let mut rng = StdRng::from_rng(&mut thread_rng());
+        // Initialize pseudo-labels for unlabeled data. Use a deterministic seed
+        // when configured so that fits are reproducible, otherwise draw a fresh
+        // seed from the global RNG.
+        let seed = self
+            .config
+            .random_state
+            .unwrap_or_else(scirs2_core::random::random::<u64>);
+        let mut rng = seeded_rng(seed);
+        let unit = Uniform::new(0.0, 1.0)
+            .map_err(|e| SklearsError::InvalidInput(format!("invalid distribution: {e}")))?;
 
-        let mut y_pseudo = DVector::zeros(n_total);
-        y_pseudo.rows_mut(0, n_labeled).copy_from(y_labeled);
+        let mut y_pseudo = Array1::zeros(n_total);
+        y_pseudo.slice_mut(s![..n_labeled]).assign(y_labeled);
 
         // Random initialization of pseudo-labels
         for i in n_labeled..n_total {
-            y_pseudo[i] = if rng.gen() > 0.5 { 1.0 } else { -1.0 };
+            y_pseudo[i] = if rng.sample(unit) > 0.5 { 1.0 } else { -1.0 };
         }
 
         let mut best_objective = f64::INFINITY;
@@ -168,48 +221,24 @@ impl TransductiveSVM {
         // TSVM alternating optimization
         for iteration in 0..self.config.n_iterations {
             // Step 1: Solve SVM with current pseudo-labels
-            let kernel = match &self.config.kernel {
-                KernelType::Linear => SvcKernel::Linear,
-                KernelType::Rbf { gamma } => SvcKernel::Rbf {
-                    gamma: Some(*gamma),
-                },
-                KernelType::Polynomial {
-                    gamma,
-                    degree,
-                    coef0,
-                } => SvcKernel::Poly {
-                    degree: *degree as usize,
-                    gamma: Some(*gamma), // Default gamma for polynomial kernel
-                    coef0: *coef0,
-                },
-                _ => SvcKernel::Linear, // Default fallback
-            };
-
             let svm = SVC::new()
                 .c(self.config.c_supervised)
                 .tol(self.config.tol)
-                .max_iter(self.config.max_iter);
+                .max_iter(self.config.max_iter)
+                .svc_kernel(svc_kernel_for(&self.config.kernel));
 
-            // Convert nalgebra to ndarray for SVM
-            let x_combined_ndarray = Array2::from_shape_vec(
-                (x_combined.nrows(), x_combined.ncols()),
-                x_combined.iter().cloned().collect(),
-            )
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-            let y_pseudo_ndarray = Array1::from_vec(y_pseudo.iter().cloned().collect());
-
-            let svm_result = svm.fit(&x_combined_ndarray, &y_pseudo_ndarray)?;
+            let svm_result = svm.fit(&x_combined, &y_pseudo)?;
 
             // Step 2: Update pseudo-labels for unlabeled data
-            let decision_values = svm_result.decision_function(&x_combined_ndarray)?;
+            let decision_values = svm_result.decision_function(&x_combined)?;
 
             // Calculate objective value
             let objective = self.calculate_objective(
-                &x_combined,
+                x_combined.nrows(),
                 &y_pseudo,
-                decision_values.as_slice().expect("non-contiguous array"),
+                decision_values.as_slice().ok_or_else(|| {
+                    SklearsError::InvalidInput("non-contiguous decision array".to_string())
+                })?,
                 n_labeled,
             )?;
 
@@ -234,25 +263,13 @@ impl TransductiveSVM {
                     .map(|&val| val.abs())
                     .collect();
 
-                // Convert ndarray back to nalgebra for SemiSupervisedResult
-                let support_vectors_ndarray = svm_result.support_vectors();
-                let dual_coef_ndarray = svm_result.dual_coef();
-
-                let support_vectors_nalgebra = DMatrix::from_vec(
-                    support_vectors_ndarray.nrows(),
-                    support_vectors_ndarray.ncols(),
-                    support_vectors_ndarray.iter().cloned().collect(),
-                );
-                let dual_coef_nalgebra =
-                    DVector::from_vec(dual_coef_ndarray.iter().cloned().collect());
-
                 best_result = Some(SemiSupervisedResult {
-                    support_vectors: support_vectors_nalgebra,
-                    dual_coef: dual_coef_nalgebra,
+                    support_vectors: svm_result.support_vectors().clone(),
+                    dual_coef: svm_result.dual_coef().clone(),
                     intercept: svm_result.intercept(),
                     support_indices: svm_result.support_indices().to_vec(),
                     unlabeled_predictions: y_pseudo
-                        .rows(n_labeled, n_unlabeled)
+                        .slice(s![n_labeled..])
                         .iter()
                         .cloned()
                         .collect(),
@@ -275,7 +292,7 @@ impl TransductiveSVM {
     }
 
     /// Predict labels for new data
-    pub fn predict(&self, x: &DMatrix<f64>, result: &SemiSupervisedResult) -> Result<DVector<f64>> {
+    pub fn predict(&self, x: &Array2<f64>, result: &SemiSupervisedResult) -> Result<Array1<f64>> {
         if !self.is_fitted {
             return Err(SklearsError::NotFitted {
                 operation: "prediction".to_string(),
@@ -283,41 +300,37 @@ impl TransductiveSVM {
         }
 
         let decision_values = self.decision_function(x, result)?;
-        Ok(DVector::from_vec(
-            decision_values
-                .iter()
-                .map(|&val| if val > 0.0 { 1.0 } else { -1.0 })
-                .collect(),
-        ))
+        Ok(decision_values.mapv(|val| if val > 0.0 { 1.0 } else { -1.0 }))
     }
 
     /// Calculate decision function values
     fn decision_function(
         &self,
-        x: &DMatrix<f64>,
+        x: &Array2<f64>,
         result: &SemiSupervisedResult,
-    ) -> Result<Vec<f64>> {
-        let kernel = self.kernel.as_ref().expect("kernel not available - model not fitted");
-        let mut decision_values = Vec::with_capacity(x.nrows());
+    ) -> Result<Array1<f64>> {
+        let kernel = self
+            .kernel
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "decision_function".to_string(),
+            })?;
+        let concrete_kernel = crate::kernels::create_kernel(kernel.clone())?;
+
+        // `support_vectors` is already compacted to one row per support vector,
+        // and `dual_coef` is aligned with those rows. We therefore index both by
+        // the same enumerate position rather than by the original-sample index
+        // stored in `support_indices`.
+        let n_support = result.support_vectors.nrows();
+        let mut decision_values = Array1::zeros(x.nrows());
 
         for i in 0..x.nrows() {
             let mut sum = 0.0;
-            for (j, &support_idx) in result.support_indices.iter().enumerate() {
-                // Convert nalgebra rows to ndarray for kernel computation
-                let x_row_vec: Vec<f64> = x.row(i).iter().cloned().collect();
-                let support_row_vec: Vec<f64> = result
-                    .support_vectors
-                    .row(support_idx)
-                    .iter()
-                    .cloned()
-                    .collect();
-                let x_row_ndarray = Array1::from_vec(x_row_vec);
-                let support_row_ndarray = Array1::from_vec(support_row_vec);
-
-                let kernel_val = kernel.compute(x_row_ndarray.view(), support_row_ndarray.view());
+            for j in 0..n_support {
+                let kernel_val = concrete_kernel.compute(x.row(i), result.support_vectors.row(j));
                 sum += result.dual_coef[j] * kernel_val;
             }
-            decision_values.push(sum + result.intercept);
+            decision_values[i] = sum + result.intercept;
         }
 
         Ok(decision_values)
@@ -326,8 +339,8 @@ impl TransductiveSVM {
     /// Calculate the TSVM objective function
     fn calculate_objective(
         &self,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
+        n_samples: usize,
+        y: &Array1<f64>,
         decision_values: &[f64],
         n_labeled: usize,
     ) -> Result<f64> {
@@ -342,7 +355,7 @@ impl TransductiveSVM {
         }
 
         // Unsupervised loss (encourage low-density separation)
-        for i in n_labeled..x.nrows() {
+        for i in n_labeled..n_samples {
             let margin = y[i] * decision_values[i];
             if margin < 1.0 {
                 objective += self.config.c_unsupervised * (1.0 - margin);
@@ -350,6 +363,12 @@ impl TransductiveSVM {
         }
 
         Ok(objective)
+    }
+}
+
+impl Default for TransductiveSVM {
+    fn default() -> Self {
+        Self::new(SemiSupervisedConfig::default())
     }
 }
 
@@ -375,17 +394,21 @@ impl SelfTrainingSVM {
         }
     }
 
-    /// Create a new SelfTrainingSVM with default configuration
-    pub fn default() -> Self {
-        Self::new(SemiSupervisedConfig::default())
+    fn train_svm(&self, x: &Array2<f64>, y: &Array1<f64>) -> Result<SVC<Trained>> {
+        SVC::new()
+            .c(self.config.c_supervised)
+            .tol(self.config.tol)
+            .max_iter(self.config.max_iter)
+            .svc_kernel(svc_kernel_for(&self.config.kernel))
+            .fit(x, y)
     }
 
     /// Fit the Self-Training SVM model
     pub fn fit(
         &mut self,
-        x_labeled: &DMatrix<f64>,
-        y_labeled: &DVector<f64>,
-        x_unlabeled: &DMatrix<f64>,
+        x_labeled: &Array2<f64>,
+        y_labeled: &Array1<f64>,
+        x_unlabeled: &Array2<f64>,
     ) -> Result<SemiSupervisedResult> {
         // Validate inputs
         if x_labeled.nrows() != y_labeled.len() {
@@ -404,185 +427,74 @@ impl SelfTrainingSVM {
         let mut x_train = x_labeled.clone();
         let mut y_train = y_labeled.clone();
         let mut x_unlabeled_remaining = x_unlabeled.clone();
-        let mut unlabeled_indices: Vec<usize> = (0..x_unlabeled.nrows()).collect();
 
         let mut iteration = 0;
 
         while iteration < self.config.n_iterations && !x_unlabeled_remaining.is_empty() {
-            // Train SVM on current labeled data
-            let kernel = match &self.config.kernel {
-                KernelType::Linear => SvcKernel::Linear,
-                KernelType::Rbf { gamma } => SvcKernel::Rbf {
-                    gamma: Some(*gamma),
-                },
-                KernelType::Polynomial {
-                    gamma,
-                    degree,
-                    coef0,
-                } => SvcKernel::Poly {
-                    degree: *degree as usize,
-                    gamma: Some(*gamma),
-                    coef0: *coef0,
-                },
-                _ => SvcKernel::Linear,
-            };
+            // Train SVM on the current labeled data.
+            let svm_result = self.train_svm(&x_train, &y_train)?;
 
-            let svm = SVC::new()
-                .c(self.config.c_supervised)
-                .tol(self.config.tol)
-                .max_iter(self.config.max_iter);
+            // Predict on the remaining unlabeled data.
+            let predictions = svm_result.predict(&x_unlabeled_remaining)?;
+            let decision_values = svm_result.decision_function(&x_unlabeled_remaining)?;
 
-            // Convert nalgebra to ndarray for SVM
-            let x_train_ndarray = Array2::from_shape_vec(
-                (x_train.nrows(), x_train.ncols()),
-                x_train.iter().cloned().collect(),
-            )
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-            let y_train_ndarray = Array1::from_vec(y_train.iter().cloned().collect());
-
-            let svm_result = svm.fit(&x_train_ndarray, &y_train_ndarray)?;
-
-            // Predict on unlabeled data
-            let x_unlabeled_ndarray = Array2::from_shape_vec(
-                (x_unlabeled_remaining.nrows(), x_unlabeled_remaining.ncols()),
-                x_unlabeled_remaining.iter().cloned().collect(),
-            )
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-
-            let predictions = svm_result.predict(&x_unlabeled_ndarray)?;
-            let decision_values = svm_result.decision_function(&x_unlabeled_ndarray)?;
-
-            // Calculate confidence scores
+            // Calculate confidence scores.
             let confidence_scores: Vec<f64> =
                 decision_values.iter().map(|&val| val.abs()).collect();
 
-            // Find most confident predictions
-            let mut confident_indices = Vec::new();
-            for (i, &confidence) in confidence_scores.iter().enumerate() {
-                if confidence > self.config.confidence_threshold {
-                    confident_indices.push(i);
-                }
-            }
+            // Find the most confident predictions.
+            let confident_indices: Vec<usize> = confidence_scores
+                .iter()
+                .enumerate()
+                .filter(|(_, &confidence)| confidence > self.config.confidence_threshold)
+                .map(|(i, _)| i)
+                .collect();
 
             if confident_indices.is_empty() {
                 break; // No confident predictions
             }
 
-            // Add confident predictions to training set
-            if !confident_indices.is_empty() {
-                // Collect the confident samples
-                let mut confident_x = DMatrix::zeros(confident_indices.len(), x_train.ncols());
-                let mut confident_y = DVector::zeros(confident_indices.len());
-
-                for (i, &idx) in confident_indices.iter().enumerate() {
-                    confident_x
-                        .row_mut(i)
-                        .copy_from(&x_unlabeled_remaining.row(idx));
-                    confident_y[i] = predictions[idx];
-                }
-
-                // Concatenate with existing training data
-                let mut new_x_train =
-                    DMatrix::zeros(x_train.nrows() + confident_indices.len(), x_train.ncols());
-                new_x_train.rows_mut(0, x_train.nrows()).copy_from(&x_train);
-                new_x_train
-                    .rows_mut(x_train.nrows(), confident_indices.len())
-                    .copy_from(&confident_x);
-
-                let mut new_y_train = DVector::zeros(y_train.len() + confident_indices.len());
-                new_y_train.rows_mut(0, y_train.len()).copy_from(&y_train);
-                new_y_train
-                    .rows_mut(y_train.len(), confident_indices.len())
-                    .copy_from(&confident_y);
-
-                x_train = new_x_train;
-                y_train = new_y_train;
+            // Collect the confident samples.
+            let mut confident_x = Array2::zeros((confident_indices.len(), x_train.ncols()));
+            let mut confident_y = Array1::zeros(confident_indices.len());
+            for (i, &idx) in confident_indices.iter().enumerate() {
+                confident_x
+                    .row_mut(i)
+                    .assign(&x_unlabeled_remaining.row(idx));
+                confident_y[i] = predictions[idx];
             }
 
-            // Remove confident samples from unlabeled set
-            confident_indices.sort_by(|a, b| b.cmp(a)); // Sort in descending order
-            for &idx in &confident_indices {
-                x_unlabeled_remaining = x_unlabeled_remaining.remove_row(idx);
-                unlabeled_indices.remove(idx);
-            }
+            // Add the confident predictions to the training set.
+            x_train = vstack(&x_train, &confident_x);
+            y_train = vconcat(&y_train, &confident_y);
+
+            // Remove the confident samples from the unlabeled set.
+            x_unlabeled_remaining = remove_rows(&x_unlabeled_remaining, &confident_indices);
 
             iteration += 1;
         }
 
-        // Final training on all labeled data
-        let kernel = match &self.config.kernel {
-            KernelType::Linear => SvcKernel::Linear,
-            KernelType::Rbf { gamma } => SvcKernel::Rbf {
-                gamma: Some(*gamma),
-            },
-            KernelType::Polynomial {
-                gamma,
-                degree,
-                coef0,
-            } => SvcKernel::Poly {
-                degree: *degree as usize,
-                gamma: Some(*gamma),
-                coef0: *coef0,
-            },
-            _ => SvcKernel::Linear,
-        };
-
-        let final_svm = SVC::new()
-            .c(self.config.c_supervised)
-            .tol(self.config.tol)
-            .max_iter(self.config.max_iter);
-
-        // Convert nalgebra to ndarray for final SVM training
-        let x_train_final_ndarray = Array2::from_shape_vec(
-            (x_train.nrows(), x_train.ncols()),
-            x_train.iter().cloned().collect(),
-        )
-        .map_err(|e| SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}")))?;
-        let y_train_final_ndarray = Array1::from_vec(y_train.iter().cloned().collect());
-
-        let final_result = final_svm.fit(&x_train_final_ndarray, &y_train_final_ndarray)?;
+        // Final training on all accumulated labeled data.
+        let final_result = self.train_svm(&x_train, &y_train)?;
         self.base_classifier = Some(final_result);
         self.is_fitted = true;
 
-        // Predict on all unlabeled data
-        let x_unlabeled_ndarray = Array2::from_shape_vec(
-            (x_unlabeled.nrows(), x_unlabeled.ncols()),
-            x_unlabeled.iter().cloned().collect(),
-        )
-        .map_err(|e| SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}")))?;
+        // Predict on all original unlabeled data.
+        let classifier = self
+            .base_classifier
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "self-training final prediction".to_string(),
+            })?;
 
-        let final_predictions = self
-            .base_classifier
-            .as_ref()
-            .expect("value should be present")
-            .predict(&x_unlabeled_ndarray)?;
-        let final_decision_values = self
-            .base_classifier
-            .as_ref()
-            .expect("value should be present")
-            .decision_function(&x_unlabeled_ndarray)?;
+        let final_predictions = classifier.predict(x_unlabeled)?;
+        let final_decision_values = classifier.decision_function(x_unlabeled)?;
         let final_confidence_scores: Vec<f64> =
             final_decision_values.iter().map(|&val| val.abs()).collect();
 
-        // Convert ndarray back to nalgebra for result
-        let classifier = self.base_classifier.as_ref().expect("base_classifier not available - model not fitted");
-        let support_vectors_ndarray = classifier.support_vectors();
-        let dual_coef_ndarray = classifier.dual_coef();
-
-        let support_vectors_nalgebra = DMatrix::from_vec(
-            support_vectors_ndarray.nrows(),
-            support_vectors_ndarray.ncols(),
-            support_vectors_ndarray.iter().cloned().collect(),
-        );
-        let dual_coef_nalgebra = DVector::from_vec(dual_coef_ndarray.iter().cloned().collect());
-
         Ok(SemiSupervisedResult {
-            support_vectors: support_vectors_nalgebra,
-            dual_coef: dual_coef_nalgebra,
+            support_vectors: classifier.support_vectors().clone(),
+            dual_coef: classifier.dual_coef().clone(),
             intercept: classifier.intercept(),
             support_indices: classifier.support_indices().to_vec(),
             unlabeled_predictions: final_predictions.iter().cloned().collect(),
@@ -593,52 +505,31 @@ impl SelfTrainingSVM {
     }
 
     /// Predict labels for new data
-    pub fn predict(&self, x: &DMatrix<f64>) -> Result<DVector<f64>> {
-        if !self.is_fitted {
-            return Err(SklearsError::NotFitted {
+    pub fn predict(&self, x: &Array2<f64>) -> Result<Array1<f64>> {
+        let classifier = self
+            .base_classifier
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
                 operation: "prediction".to_string(),
-            });
-        }
-
-        // Convert nalgebra to ndarray for prediction
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
             })?;
-
-        let predictions_ndarray = self.base_classifier.as_ref().expect("base_classifier not available - model not fitted").predict(&x_ndarray)?;
-
-        // Convert ndarray back to nalgebra
-        let predictions_nalgebra = DVector::from_vec(predictions_ndarray.iter().cloned().collect());
-
-        Ok(predictions_nalgebra)
+        classifier.predict(x)
     }
 
     /// Calculate decision function values
-    pub fn decision_function(&self, x: &DMatrix<f64>) -> Result<DVector<f64>> {
-        if !self.is_fitted {
-            return Err(SklearsError::NotFitted {
-                operation: "prediction".to_string(),
-            });
-        }
-
-        // Convert nalgebra to ndarray for decision function
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-
-        let decision_values_ndarray = self
+    pub fn decision_function(&self, x: &Array2<f64>) -> Result<Array1<f64>> {
+        let classifier = self
             .base_classifier
             .as_ref()
-            .expect("value should be present")
-            .decision_function(&x_ndarray)?;
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "decision_function".to_string(),
+            })?;
+        classifier.decision_function(x)
+    }
+}
 
-        // Convert ndarray back to nalgebra
-        let decision_values_nalgebra =
-            DVector::from_vec(decision_values_ndarray.iter().cloned().collect());
-
-        Ok(decision_values_nalgebra)
+impl Default for SelfTrainingSVM {
+    fn default() -> Self {
+        Self::new(SemiSupervisedConfig::default())
     }
 }
 
@@ -667,12 +558,25 @@ impl CoTrainingSVM {
         }
     }
 
+    fn train_svm(&self, x: &Array2<f64>, y: &Array1<f64>) -> Result<SVC<Trained>> {
+        SVC::new()
+            .c(self.config.c_supervised)
+            .tol(self.config.tol)
+            .max_iter(self.config.max_iter)
+            .svc_kernel(svc_kernel_for(&self.config.kernel))
+            .fit(x, y)
+    }
+
+    fn slice_columns(x: &Array2<f64>, start: usize, len: usize) -> Array2<f64> {
+        x.slice(s![.., start..start + len]).to_owned()
+    }
+
     /// Fit the Co-Training SVM model
     pub fn fit(
         &mut self,
-        x_labeled: &DMatrix<f64>,
-        y_labeled: &DVector<f64>,
-        x_unlabeled: &DMatrix<f64>,
+        x_labeled: &Array2<f64>,
+        y_labeled: &Array1<f64>,
+        x_unlabeled: &Array2<f64>,
     ) -> Result<SemiSupervisedResult> {
         // Validate inputs
         if x_labeled.nrows() != y_labeled.len() {
@@ -687,303 +591,118 @@ impl CoTrainingSVM {
             ));
         }
 
-        if self.feature_split >= x_labeled.ncols() {
+        if self.feature_split == 0 || self.feature_split >= x_labeled.ncols() {
             return Err(SklearsError::InvalidInput(
-                "Feature split must be less than number of features".to_string(),
+                "Feature split must be in (0, n_features)".to_string(),
             ));
         }
 
-        // Split features into two views
-        let x_labeled_view1 = x_labeled.columns(0, self.feature_split).into_owned();
-        let x_labeled_view2 = x_labeled
-            .columns(self.feature_split, x_labeled.ncols() - self.feature_split)
-            .into_owned();
+        let split = self.feature_split;
 
-        let x_unlabeled_view1 = x_unlabeled.columns(0, self.feature_split).into_owned();
-        let x_unlabeled_view2 = x_unlabeled
-            .columns(self.feature_split, x_unlabeled.ncols() - self.feature_split)
-            .into_owned();
+        // Maintain a single shared labeled pool of full-feature rows. Both views
+        // are derived from this pool every iteration, which keeps the two
+        // classifiers' training sets perfectly row-aligned even as different
+        // samples are added on behalf of each view. This is the mathematically
+        // correct co-training formulation: a sample confidently labelled by one
+        // view contributes its complete feature vector (both views) and the
+        // pseudo-label to the shared pool used by the other view.
+        let mut x_pool = x_labeled.clone();
+        let mut y_pool = y_labeled.clone();
 
-        // Initialize training data
-        let mut x_train1 = x_labeled_view1.clone();
-        let mut y_train1 = y_labeled.clone();
-        let mut x_train2 = x_labeled_view2.clone();
-        let mut y_train2 = y_labeled.clone();
-
-        let mut x_unlabeled_remaining1 = x_unlabeled_view1.clone();
-        let mut x_unlabeled_remaining2 = x_unlabeled_view2.clone();
+        // Remaining unlabeled data, kept as full-feature rows.
+        let mut x_unlabeled_remaining = x_unlabeled.clone();
 
         let mut iteration = 0;
 
-        while iteration < self.config.n_iterations && !x_unlabeled_remaining1.is_empty() {
-            // Train both classifiers
-            let kernel = match &self.config.kernel {
-                KernelType::Linear => SvcKernel::Linear,
-                KernelType::Rbf { gamma } => SvcKernel::Rbf {
-                    gamma: Some(*gamma),
-                },
-                KernelType::Polynomial {
-                    gamma,
-                    degree,
-                    coef0,
-                } => SvcKernel::Poly {
-                    degree: *degree as usize,
-                    gamma: Some(*gamma),
-                    coef0: *coef0,
-                },
-                _ => SvcKernel::Linear,
-            };
+        while iteration < self.config.n_iterations && !x_unlabeled_remaining.is_empty() {
+            // Build the two column-views of the shared labeled pool.
+            let x_train1 = Self::slice_columns(&x_pool, 0, split);
+            let x_train2 = Self::slice_columns(&x_pool, split, x_pool.ncols() - split);
 
-            let svm1 = SVC::new()
-                .c(self.config.c_supervised)
-                .tol(self.config.tol)
-                .max_iter(self.config.max_iter);
+            // Build the two column-views of the remaining unlabeled data.
+            let x_unlabeled_view1 = Self::slice_columns(&x_unlabeled_remaining, 0, split);
+            let x_unlabeled_view2 = Self::slice_columns(
+                &x_unlabeled_remaining,
+                split,
+                x_unlabeled_remaining.ncols() - split,
+            );
 
-            let svm2 = SVC::new()
-                .c(self.config.c_supervised)
-                .tol(self.config.tol)
-                .max_iter(self.config.max_iter);
+            // Train both classifiers on their respective views.
+            let svm1_result = self.train_svm(&x_train1, &y_pool)?;
+            let svm2_result = self.train_svm(&x_train2, &y_pool)?;
+            self.classifier1 = Some(svm1_result.clone());
+            self.classifier2 = Some(svm2_result.clone());
 
-            // Convert nalgebra to ndarray for SVM training
-            let x_train1_ndarray = Array2::from_shape_vec(
-                (x_train1.nrows(), x_train1.ncols()),
-                x_train1.iter().cloned().collect(),
-            )
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-            let y_train1_ndarray = Array1::from_vec(y_train1.iter().cloned().collect());
+            // Get predictions from both classifiers.
+            let predictions1 = svm1_result.predict(&x_unlabeled_view1)?;
+            let predictions2 = svm2_result.predict(&x_unlabeled_view2)?;
 
-            let x_train2_ndarray = Array2::from_shape_vec(
-                (x_train2.nrows(), x_train2.ncols()),
-                x_train2.iter().cloned().collect(),
-            )
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-            let y_train2_ndarray = Array1::from_vec(y_train2.iter().cloned().collect());
+            let decision_values1 = svm1_result.decision_function(&x_unlabeled_view1)?;
+            let decision_values2 = svm2_result.decision_function(&x_unlabeled_view2)?;
 
-            let svm1_result = svm1.fit(&x_train1_ndarray, &y_train1_ndarray)?;
-            let svm2_result = svm2.fit(&x_train2_ndarray, &y_train2_ndarray)?;
-
-            // Get predictions from both classifiers
-            let x_unlabeled1_ndarray = Array2::from_shape_vec(
-                (
-                    x_unlabeled_remaining1.nrows(),
-                    x_unlabeled_remaining1.ncols(),
-                ),
-                x_unlabeled_remaining1.iter().cloned().collect(),
-            )
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-            let x_unlabeled2_ndarray = Array2::from_shape_vec(
-                (
-                    x_unlabeled_remaining2.nrows(),
-                    x_unlabeled_remaining2.ncols(),
-                ),
-                x_unlabeled_remaining2.iter().cloned().collect(),
-            )
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-
-            let predictions1 = svm1_result.predict(&x_unlabeled1_ndarray)?;
-            let predictions2 = svm2_result.predict(&x_unlabeled2_ndarray)?;
-
-            let decision_values1 = svm1_result.decision_function(&x_unlabeled1_ndarray)?;
-            let decision_values2 = svm2_result.decision_function(&x_unlabeled2_ndarray)?;
-
-            // Calculate confidence scores
-            let confidence_scores1: Vec<f64> =
-                decision_values1.iter().map(|&val| val.abs()).collect();
-            let confidence_scores2: Vec<f64> =
-                decision_values2.iter().map(|&val| val.abs()).collect();
-
-            // Find confident predictions from both classifiers
-            let mut confident_indices1 = Vec::new();
-            let mut confident_indices2 = Vec::new();
-
-            for (i, &confidence) in confidence_scores1.iter().enumerate() {
-                if confidence > self.config.confidence_threshold {
-                    confident_indices1.push(i);
+            // Collect (sample_index, pseudo_label) pairs for confident samples
+            // from each view. Classifier 1's confident samples teach classifier 2
+            // and vice versa; both contribute to the shared pool.
+            let mut newly_labeled: Vec<(usize, f64)> = Vec::new();
+            for (i, &val) in decision_values1.iter().enumerate() {
+                if val.abs() > self.config.confidence_threshold {
+                    newly_labeled.push((i, predictions1[i]));
+                }
+            }
+            for (i, &val) in decision_values2.iter().enumerate() {
+                if val.abs() > self.config.confidence_threshold {
+                    newly_labeled.push((i, predictions2[i]));
                 }
             }
 
-            for (i, &confidence) in confidence_scores2.iter().enumerate() {
-                if confidence > self.config.confidence_threshold {
-                    confident_indices2.push(i);
-                }
-            }
-
-            if confident_indices1.is_empty() && confident_indices2.is_empty() {
+            if newly_labeled.is_empty() {
                 break; // No confident predictions
             }
 
-            // Add confident predictions from classifier 1 to training set of classifier 2
-            if !confident_indices1.is_empty() {
-                let mut confident_x2 = DMatrix::zeros(confident_indices1.len(), x_train2.ncols());
-                let mut confident_y2 = DVector::zeros(confident_indices1.len());
+            // De-duplicate by sample index (a sample confident in both views is
+            // added once, using the first view's label).
+            newly_labeled.sort_by_key(|(idx, _)| *idx);
+            newly_labeled.dedup_by_key(|(idx, _)| *idx);
 
-                for (i, &idx) in confident_indices1.iter().enumerate() {
-                    confident_x2
-                        .row_mut(i)
-                        .copy_from(&x_unlabeled_remaining2.row(idx));
-                    confident_y2[i] = predictions1[idx];
-                }
-
-                let mut new_x_train2 = DMatrix::zeros(
-                    x_train2.nrows() + confident_indices1.len(),
-                    x_train2.ncols(),
-                );
-                new_x_train2
-                    .rows_mut(0, x_train2.nrows())
-                    .copy_from(&x_train2);
-                new_x_train2
-                    .rows_mut(x_train2.nrows(), confident_indices1.len())
-                    .copy_from(&confident_x2);
-
-                let mut new_y_train2 = DVector::zeros(y_train2.len() + confident_indices1.len());
-                new_y_train2
-                    .rows_mut(0, y_train2.len())
-                    .copy_from(&y_train2);
-                new_y_train2
-                    .rows_mut(y_train2.len(), confident_indices1.len())
-                    .copy_from(&confident_y2);
-
-                x_train2 = new_x_train2;
-                y_train2 = new_y_train2;
+            // Append the confidently labelled full-feature rows to the pool.
+            let n_new = newly_labeled.len();
+            let mut new_x = Array2::zeros((n_new, x_pool.ncols()));
+            let mut new_y = Array1::zeros(n_new);
+            for (row, (idx, label)) in newly_labeled.iter().enumerate() {
+                new_x.row_mut(row).assign(&x_unlabeled_remaining.row(*idx));
+                new_y[row] = *label;
             }
+            x_pool = vstack(&x_pool, &new_x);
+            y_pool = vconcat(&y_pool, &new_y);
 
-            // Add confident predictions from classifier 2 to training set of classifier 1
-            if !confident_indices2.is_empty() {
-                let mut confident_x1 = DMatrix::zeros(confident_indices2.len(), x_train1.ncols());
-                let mut confident_y1 = DVector::zeros(confident_indices2.len());
-
-                for (i, &idx) in confident_indices2.iter().enumerate() {
-                    confident_x1
-                        .row_mut(i)
-                        .copy_from(&x_unlabeled_remaining1.row(idx));
-                    confident_y1[i] = predictions2[idx];
-                }
-
-                let mut new_x_train1 = DMatrix::zeros(
-                    x_train1.nrows() + confident_indices2.len(),
-                    x_train1.ncols(),
-                );
-                new_x_train1
-                    .rows_mut(0, x_train1.nrows())
-                    .copy_from(&x_train1);
-                new_x_train1
-                    .rows_mut(x_train1.nrows(), confident_indices2.len())
-                    .copy_from(&confident_x1);
-
-                let mut new_y_train1 = DVector::zeros(y_train1.len() + confident_indices2.len());
-                new_y_train1
-                    .rows_mut(0, y_train1.len())
-                    .copy_from(&y_train1);
-                new_y_train1
-                    .rows_mut(y_train1.len(), confident_indices2.len())
-                    .copy_from(&confident_y1);
-
-                x_train1 = new_x_train1;
-                y_train1 = new_y_train1;
-            }
-
-            // Remove confident samples from unlabeled set
-            let mut all_confident_indices = confident_indices1;
-            all_confident_indices.extend(confident_indices2);
-            all_confident_indices.sort_by(|a, b| b.cmp(a)); // Sort in descending order
-            all_confident_indices.dedup();
-
-            for &idx in &all_confident_indices {
-                if idx < x_unlabeled_remaining1.nrows() {
-                    x_unlabeled_remaining1 = x_unlabeled_remaining1.remove_row(idx);
-                    x_unlabeled_remaining2 = x_unlabeled_remaining2.remove_row(idx);
-                }
-            }
+            // Remove the newly labelled samples from the unlabeled set.
+            let removed: Vec<usize> = newly_labeled.iter().map(|(idx, _)| *idx).collect();
+            x_unlabeled_remaining = remove_rows(&x_unlabeled_remaining, &removed);
 
             iteration += 1;
         }
 
-        // Final training on combined views
-        let mut x_train_combined = DMatrix::zeros(x_train1.nrows(), x_labeled.ncols());
-        x_train_combined
-            .columns_mut(0, self.feature_split)
-            .copy_from(&x_train1);
-        x_train_combined
-            .columns_mut(self.feature_split, x_labeled.ncols() - self.feature_split)
-            .copy_from(&x_train2);
-
-        let kernel = match &self.config.kernel {
-            KernelType::Linear => SvcKernel::Linear,
-            KernelType::Rbf { gamma } => SvcKernel::Rbf {
-                gamma: Some(*gamma),
-            },
-            KernelType::Polynomial {
-                gamma,
-                degree,
-                coef0,
-            } => SvcKernel::Poly {
-                degree: *degree as usize,
-                gamma: Some(*gamma),
-                coef0: *coef0,
-            },
-            _ => SvcKernel::Linear,
-        };
-
-        let final_svm = SVC::new()
-            .c(self.config.c_supervised)
-            .tol(self.config.tol)
-            .max_iter(self.config.max_iter);
-
-        // Convert nalgebra to ndarray for final SVM training
-        let x_train_combined_ndarray = Array2::from_shape_vec(
-            (x_train_combined.nrows(), x_train_combined.ncols()),
-            x_train_combined.iter().cloned().collect(),
-        )
-        .map_err(|e| SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}")))?;
-        let y_train1_ndarray = Array1::from_vec(y_train1.iter().cloned().collect());
-
-        let final_result = final_svm.fit(&x_train_combined_ndarray, &y_train1_ndarray)?;
+        // Final training on the combined views of the full shared pool.
+        let final_result = self.train_svm(&x_pool, &y_pool)?;
         self.classifier1 = Some(final_result);
         self.is_fitted = true;
 
-        // Predict on all unlabeled data
-        let x_unlabeled_ndarray = Array2::from_shape_vec(
-            (x_unlabeled.nrows(), x_unlabeled.ncols()),
-            x_unlabeled.iter().cloned().collect(),
-        )
-        .map_err(|e| SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}")))?;
+        // Predict on all original unlabeled data.
+        let classifier = self
+            .classifier1
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "co-training final prediction".to_string(),
+            })?;
 
-        let final_predictions = self
-            .classifier1
-            .as_ref()
-            .expect("value should be present")
-            .predict(&x_unlabeled_ndarray)?;
-        let final_decision_values = self
-            .classifier1
-            .as_ref()
-            .expect("value should be present")
-            .decision_function(&x_unlabeled_ndarray)?;
+        let final_predictions = classifier.predict(x_unlabeled)?;
+        let final_decision_values = classifier.decision_function(x_unlabeled)?;
         let final_confidence_scores: Vec<f64> =
             final_decision_values.iter().map(|&val| val.abs()).collect();
 
-        // Convert ndarray back to nalgebra for result
-        let classifier = self.classifier1.as_ref().expect("classifier1 not available - model not fitted");
-        let support_vectors_ndarray = classifier.support_vectors();
-        let dual_coef_ndarray = classifier.dual_coef();
-
-        let support_vectors_nalgebra = DMatrix::from_vec(
-            support_vectors_ndarray.nrows(),
-            support_vectors_ndarray.ncols(),
-            support_vectors_ndarray.iter().cloned().collect(),
-        );
-        let dual_coef_nalgebra = DVector::from_vec(dual_coef_ndarray.iter().cloned().collect());
-
         Ok(SemiSupervisedResult {
-            support_vectors: support_vectors_nalgebra,
-            dual_coef: dual_coef_nalgebra,
+            support_vectors: classifier.support_vectors().clone(),
+            dual_coef: classifier.dual_coef().clone(),
             intercept: classifier.intercept(),
             support_indices: classifier.support_indices().to_vec(),
             unlabeled_predictions: final_predictions.iter().cloned().collect(),
@@ -994,65 +713,48 @@ impl CoTrainingSVM {
     }
 
     /// Predict labels for new data
-    pub fn predict(&self, x: &DMatrix<f64>) -> Result<DVector<f64>> {
-        if !self.is_fitted {
-            return Err(SklearsError::NotFitted {
+    pub fn predict(&self, x: &Array2<f64>) -> Result<Array1<f64>> {
+        let classifier = self
+            .classifier1
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
                 operation: "prediction".to_string(),
-            });
-        }
-
-        // Convert nalgebra to ndarray for prediction
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
             })?;
-
-        let predictions_ndarray = self.classifier1.as_ref().expect("classifier1 not available - model not fitted").predict(&x_ndarray)?;
-
-        // Convert ndarray back to nalgebra
-        let predictions_nalgebra = DVector::from_vec(predictions_ndarray.iter().cloned().collect());
-
-        Ok(predictions_nalgebra)
+        classifier.predict(x)
     }
 
     /// Calculate decision function values
-    pub fn decision_function(&self, x: &DMatrix<f64>) -> Result<DVector<f64>> {
-        if !self.is_fitted {
-            return Err(SklearsError::NotFitted {
-                operation: "prediction".to_string(),
-            });
-        }
-
-        // Convert nalgebra to ndarray for decision function
-        let x_ndarray = Array2::from_shape_vec((x.nrows(), x.ncols()), x.iter().cloned().collect())
-            .map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
-            })?;
-
-        let decision_values_ndarray = self
+    pub fn decision_function(&self, x: &Array2<f64>) -> Result<Array1<f64>> {
+        let classifier = self
             .classifier1
             .as_ref()
-            .expect("value should be present")
-            .decision_function(&x_ndarray)?;
-
-        // Convert ndarray back to nalgebra
-        let decision_values_nalgebra =
-            DVector::from_vec(decision_values_ndarray.iter().cloned().collect());
-
-        Ok(decision_values_nalgebra)
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "decision_function".to_string(),
+            })?;
+        classifier.decision_function(x)
     }
+
+    /// Whether the second co-training classifier is available for inspection.
+    pub fn has_second_view(&self) -> bool {
+        self.classifier2.is_some()
+    }
+}
+
+/// Build an `Array2<f64>` from a row-major slice (mirrors the old test helper).
+#[cfg(test)]
+fn matrix_from_rows(rows: usize, cols: usize, data: &[f64]) -> Array2<f64> {
+    Array2::from_shape_vec((rows, cols), data.to_vec()).expect("array shape mismatch")
 }
 
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nalgebra::{DMatrix, DVector};
 
-    fn create_test_data() -> (DMatrix<f64>, DVector<f64>, DMatrix<f64>) {
-        let x_labeled = DMatrix::from_row_slice(4, 2, &[1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0]);
-        let y_labeled = DVector::from_vec(vec![1.0, 1.0, -1.0, -1.0]);
-        let x_unlabeled = DMatrix::from_row_slice(4, 2, &[1.5, 2.5, 2.5, 3.5, 3.5, 2.5, 4.5, 3.5]);
+    fn create_test_data() -> (Array2<f64>, Array1<f64>, Array2<f64>) {
+        let x_labeled = matrix_from_rows(4, 2, &[1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0]);
+        let y_labeled = Array1::from_vec(vec![1.0, 1.0, -1.0, -1.0]);
+        let x_unlabeled = matrix_from_rows(4, 2, &[1.5, 2.5, 2.5, 3.5, 3.5, 2.5, 4.5, 3.5]);
         (x_labeled, y_labeled, x_unlabeled)
     }
 
@@ -1096,7 +798,9 @@ mod tests {
     fn test_tsvm_prediction() {
         let (x_labeled, y_labeled, x_unlabeled) = create_test_data();
         let mut tsvm = TransductiveSVM::default();
-        let result = tsvm.fit(&x_labeled, &y_labeled, &x_unlabeled).expect("model fitting should succeed");
+        let result = tsvm
+            .fit(&x_labeled, &y_labeled, &x_unlabeled)
+            .expect("model fitting should succeed");
 
         let predictions = tsvm.predict(&x_unlabeled, &result);
         assert!(predictions.is_ok());
@@ -1104,6 +808,16 @@ mod tests {
         let predictions = predictions.expect("operation should succeed");
         assert_eq!(predictions.len(), x_unlabeled.nrows());
         assert!(predictions.iter().all(|&p| p == 1.0 || p == -1.0));
+    }
+
+    #[test]
+    fn test_predict_before_fit_errors() {
+        let stsvm = SelfTrainingSVM::default();
+        let x = matrix_from_rows(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+        assert!(matches!(
+            stsvm.predict(&x),
+            Err(SklearsError::NotFitted { .. })
+        ));
     }
 
     #[test]
@@ -1119,7 +833,7 @@ mod tests {
             random_state: Some(123),
         };
 
-        let mut tsvm = TransductiveSVM::new(config.clone());
+        let tsvm = TransductiveSVM::new(config.clone());
         assert_eq!(tsvm.config.c_supervised, 0.5);
         assert_eq!(tsvm.config.c_unsupervised, 0.05);
         assert_eq!(tsvm.config.confidence_threshold, 0.95);

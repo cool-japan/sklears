@@ -9,7 +9,6 @@
 //! - Working set selection algorithms
 
 use crate::kernels::Kernel;
-use crate::smo::{SmoConfig, SmoSolver};
 #[cfg(feature = "parallel")]
 #[allow(unused_imports)]
 use rayon::prelude::*;
@@ -140,8 +139,9 @@ impl DecompositionSolver {
                     ws_alpha[j] = alpha[idx];
                 }
 
-                // For now, use a simplified approach - this would need integration with actual SMO solver
-                let new_alpha = ws_alpha.clone(); // Placeholder
+                // Solve the working-set sub-problem with the analytic SMO update
+                // (2-variable SVC dual) over the extracted block.
+                let new_alpha = self.optimize_working_set(&ws_x, &ws_y, &ws_alpha, c);
 
                 // Compute change in alpha
                 let change = (&new_alpha - &ws_alpha).mapv(|x| x.abs()).sum();
@@ -169,6 +169,146 @@ impl DecompositionSolver {
         let bias = self.compute_bias(&alpha, x, y, c)?;
 
         Ok((alpha, bias))
+    }
+
+    /// Optimize a single working-set sub-problem with Sequential Minimal
+    /// Optimization (the analytic 2-variable SVC dual update).
+    ///
+    /// The SVC dual restricted to the working set is:
+    /// ```text
+    /// maximize:  Σ α_i - ½ Σ_i Σ_j α_i α_j y_i y_j K(x_i, x_j)
+    /// subject to: Σ α_i y_i = 0,   0 ≤ α_i ≤ C
+    /// ```
+    /// On each inner iteration we pick the maximal-violating pair `(i, j)` from
+    /// the gradient and apply the closed-form two-variable update that respects
+    /// both the box constraints and the equality constraint `Σ α y = 0`.
+    ///
+    /// Returns the updated alpha vector for the working set (other coordinates
+    /// of the global problem are held fixed by the caller).
+    fn optimize_working_set(
+        &self,
+        ws_x: &Array2<Float>,
+        ws_y: &Array1<Float>,
+        ws_alpha: &Array1<Float>,
+        c: Float,
+    ) -> Array1<Float> {
+        let n = ws_alpha.len();
+        if n < 2 {
+            return ws_alpha.clone();
+        }
+
+        // Precompute the working-set kernel matrix.
+        let mut k = Array2::<Float>::zeros((n, n));
+        for i in 0..n {
+            for j in i..n {
+                let val = self
+                    .kernel
+                    .compute(ws_x.row(i).to_owned().view(), ws_x.row(j).to_owned().view());
+                k[[i, j]] = val;
+                k[[j, i]] = val;
+            }
+        }
+
+        let mut alpha = ws_alpha.clone();
+        let tol = self.config.tolerance;
+
+        // Gradient of the dual objective w.r.t. alpha:
+        // g_i = 1 - y_i Σ_j α_j y_j K(i,j). For the maximal-violating-pair
+        // selection we use the "f" values f_i = -y_i + Σ_j α_j y_j K(i,j) as in
+        // libsvm; we maintain it incrementally.
+        let mut f = Array1::<Float>::zeros(n);
+        for i in 0..n {
+            let mut acc = -ws_y[i];
+            for j in 0..n {
+                if alpha[j] != 0.0 {
+                    acc += alpha[j] * ws_y[j] * k[[i, j]];
+                }
+            }
+            f[i] = acc;
+        }
+
+        let max_inner = self.config.max_iterations_per_step.max(1);
+
+        for _iter in 0..max_inner {
+            // Maximal violating pair selection (libsvm WSS1):
+            //   i_up  = argmax_{i in I_up}  -y_i f_i
+            //   j_low = argmin_{j in I_low} -y_j f_j
+            // where I_up = {i: (y_i=+1, α_i<C) or (y_i=-1, α_i>0)} and
+            //       I_low = {i: (y_i=+1, α_i>0) or (y_i=-1, α_i<C)}.
+            let mut i_up = None;
+            let mut g_max = Float::NEG_INFINITY;
+            let mut j_low = None;
+            let mut g_min = Float::INFINITY;
+
+            for t in 0..n {
+                let yt = ws_y[t];
+                let in_up = (yt > 0.0 && alpha[t] < c - tol) || (yt < 0.0 && alpha[t] > tol);
+                let in_low = (yt > 0.0 && alpha[t] > tol) || (yt < 0.0 && alpha[t] < c - tol);
+                let grad = -yt * f[t];
+                if in_up && grad > g_max {
+                    g_max = grad;
+                    i_up = Some(t);
+                }
+                if in_low && grad < g_min {
+                    g_min = grad;
+                    j_low = Some(t);
+                }
+            }
+
+            if g_max - g_min < tol {
+                break;
+            }
+
+            let (i, j) = match (i_up, j_low) {
+                (Some(i), Some(j)) if i != j => (i, j),
+                _ => break,
+            };
+
+            let yi = ws_y[i];
+            let yj = ws_y[j];
+            let ai_old = alpha[i];
+            let aj_old = alpha[j];
+
+            // Curvature of the 2-variable subproblem.
+            let eta = k[[i, i]] + k[[j, j]] - 2.0 * k[[i, j]];
+            if eta <= 1e-12 {
+                break;
+            }
+
+            // Unconstrained update of alpha_j along the equality constraint.
+            // f_i - f_j is the gradient difference in the chosen direction.
+            let aj_unc = aj_old + yj * (f[i] - f[j]) / eta;
+
+            // Box bounds for alpha_j depend on whether labels agree.
+            let (low, high) = if yi != yj {
+                let diff = aj_old - ai_old;
+                (diff.max(0.0), c + (aj_old - ai_old).min(0.0))
+            } else {
+                let sum = ai_old + aj_old;
+                ((sum - c).max(0.0), sum.min(c))
+            };
+
+            let aj_new = aj_unc.clamp(low, high);
+            // Equality constraint y_i Δα_i + y_j Δα_j = 0 fixes Δα_i.
+            let ai_new = ai_old + yi * yj * (aj_old - aj_new);
+
+            let d_ai = ai_new - ai_old;
+            let d_aj = aj_new - aj_old;
+
+            if d_ai.abs() < 1e-12 && d_aj.abs() < 1e-12 {
+                break;
+            }
+
+            alpha[i] = ai_new;
+            alpha[j] = aj_new;
+
+            // Incrementally update f for all working-set coordinates.
+            for t in 0..n {
+                f[t] += yi * d_ai * k[[t, i]] + yj * d_aj * k[[t, j]];
+            }
+        }
+
+        alpha
     }
 
     /// Create initial decomposition into working sets
@@ -259,24 +399,9 @@ impl DecompositionSolver {
             ws_alpha[i] = alpha[idx];
         }
 
-        // Create kernel matrix for working set
-        let _kernel_matrix = self.compute_cached_kernel_matrix(&ws_x, &working_set.indices);
-
-        // Solve sub-problem using SMO
-        let smo_config = SmoConfig {
-            max_iter: self.config.max_iterations_per_step,
-            tol: self.config.tolerance,
-            c,
-            ..Default::default()
-        };
-
-        // Create a dummy linear kernel for SMO (we'll use the pre-computed matrix)
-        use crate::kernels::LinearKernel;
-        let dummy_kernel = LinearKernel;
-        let _smo_solver = SmoSolver::new(smo_config, dummy_kernel);
-
-        // For now, use a simplified approach - this would need integration with the actual SMO solver
-        let new_alpha = ws_alpha.clone(); // Placeholder
+        // Solve the working-set sub-problem with the analytic SMO update over
+        // the extracted block, using the solver's kernel.
+        let new_alpha = self.optimize_working_set(&ws_x, &ws_y, &ws_alpha, c);
 
         // Compute change in alpha
         let change = (&new_alpha - &ws_alpha).mapv(|x| x.abs()).sum();

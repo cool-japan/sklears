@@ -361,23 +361,39 @@ where
             let step_name = format!("Step_{}", i);
             let start_time = std::time::Instant::now();
 
-            let result = match step {
-                PipelineStep::Shap(_config) => {
-                    // Placeholder SHAP implementation
-                    Ok::<Array1<Float>, crate::SklearsError>(Array1::zeros(10)) // Mock result
-                }
-                PipelineStep::Lime(_config) => {
-                    // Placeholder LIME implementation
-                    Ok::<Array1<Float>, crate::SklearsError>(Array1::zeros(10)) // Mock result
-                }
-                PipelineStep::Permutation(_config) => {
-                    // Placeholder permutation implementation
-                    Ok::<Array1<Float>, crate::SklearsError>(Array1::zeros(10)) // Mock result
-                }
-                PipelineStep::Counterfactual(_config) => {
-                    // Placeholder counterfactual implementation
-                    Ok::<Array1<Float>, crate::SklearsError>(Array1::zeros(10)) // Mock result
-                }
+            // The pipeline executor only stores step *configurations* and an opaque,
+            // unconstrained `Input` type. It captures neither a model's prediction
+            // function nor the feature matrix / background data that SHAP, LIME,
+            // permutation importance, counterfactual search, and arbitrary custom
+            // explainers all require. There is therefore no honest way to *compute*
+            // these explanations here. Rather than fabricate a plausible-but-fake
+            // result (e.g. `Array1::zeros(10)`), we surface an explicit error that
+            // tells the caller exactly what infrastructure is missing.
+            let result: Result<Array1<Float>, crate::SklearsError> = match step {
+                PipelineStep::Shap(_config) => Err(crate::SklearsError::NotImplemented(
+                    "SHAP pipeline step requires a model prediction function and background \
+                     dataset, which ExplanationPipelineExecutor does not capture. Use the \
+                     `shapley` module APIs directly with a fitted model."
+                        .to_string(),
+                )),
+                PipelineStep::Lime(_config) => Err(crate::SklearsError::NotImplemented(
+                    "LIME pipeline step requires a model prediction function and a target \
+                     instance, which ExplanationPipelineExecutor does not capture. Use the \
+                     `local_explanations` module APIs directly with a fitted model."
+                        .to_string(),
+                )),
+                PipelineStep::Permutation(_config) => Err(crate::SklearsError::NotImplemented(
+                    "Permutation importance pipeline step requires a model, feature matrix, \
+                     and labels, which ExplanationPipelineExecutor does not capture. Use the \
+                     `permutation` module APIs directly with a fitted model."
+                        .to_string(),
+                )),
+                PipelineStep::Counterfactual(_config) => Err(crate::SklearsError::NotImplemented(
+                    "Counterfactual pipeline step requires a model prediction function and \
+                         a query instance, which ExplanationPipelineExecutor does not capture. \
+                         Use the `counterfactual` module APIs directly with a fitted model."
+                        .to_string(),
+                )),
                 PipelineStep::Validation => {
                     // Validation step doesn't produce explanations
                     continue;
@@ -392,10 +408,11 @@ where
                     }
                     continue;
                 }
-                PipelineStep::Custom { name: _ } => {
-                    // Placeholder custom implementation
-                    Ok::<Array1<Float>, crate::SklearsError>(Array1::zeros(10)) // Mock result
-                }
+                PipelineStep::Custom { name } => Err(crate::SklearsError::NotImplemented(format!(
+                    "Custom pipeline step '{name}' has no registered executor. \
+                     ExplanationPipelineExecutor cannot run user-defined explainers without a \
+                     bound implementation."
+                ))),
             };
 
             let execution_time = start_time.elapsed();
@@ -515,26 +532,24 @@ pub struct ComparisonStudy {
 }
 
 impl ComparisonStudy {
-    /// Execute the comparison study
+    /// Execute the comparison study.
+    ///
+    /// A comparison study scores each (method, dataset, metric) triple. The builder,
+    /// however, only records the *names* of methods, datasets, and metrics as strings;
+    /// it binds neither runnable explainer implementations, loaded datasets, nor metric
+    /// evaluators. Computing a real score would require all three. Returning a random
+    /// or otherwise fabricated score would silently masquerade as a genuine measurement,
+    /// so this method instead reports the missing infrastructure honestly.
     pub fn execute(&self) -> SklResult<ComparisonResults> {
-        let mut results = Vec::new();
-
-        for method in &self.methods {
-            for dataset in &self.datasets {
-                for metric in &self.metrics {
-                    // Placeholder comparison implementation
-                    let score = scirs2_core::random::thread_rng().random::<Float>(); // Mock score
-                    results.push(ComparisonResult {
-                        method: method.clone(),
-                        dataset: dataset.clone(),
-                        metric: metric.clone(),
-                        score,
-                    });
-                }
-            }
-        }
-
-        Ok(ComparisonResults { results })
+        Err(crate::SklearsError::NotImplemented(format!(
+            "ComparisonStudy::execute cannot score {} method(s) x {} dataset(s) x {} metric(s): \
+             the study only holds names, not bound explainer implementations, loaded datasets, \
+             or metric evaluators. Run each explainer/metric directly against real data to \
+             obtain genuine comparison scores.",
+            self.methods.len(),
+            self.datasets.len(),
+            self.metrics.len()
+        )))
     }
 }
 
@@ -645,21 +660,54 @@ mod tests {
     }
 
     #[test]
-    fn test_comparison_study_execution() {
+    fn test_comparison_study_execution_reports_missing_infrastructure() {
         let study = ComparisonStudyBuilder::new()
             .add_method("SHAP")
             .add_dataset("iris")
             .add_metric("fidelity")
             .build();
 
+        // The study only holds names, so it must NOT fabricate a score. It must report
+        // honestly that it cannot compute a real comparison.
         let results = study.execute();
-        assert!(results.is_ok());
+        assert!(matches!(
+            results,
+            Err(crate::SklearsError::NotImplemented(_))
+        ));
+    }
 
-        let comparison_results = results.expect("operation should succeed");
-        assert_eq!(comparison_results.results.len(), 1);
-        assert_eq!(comparison_results.results[0].method, "SHAP");
-        assert_eq!(comparison_results.results[0].dataset, "iris");
-        assert_eq!(comparison_results.results[0].metric, "fidelity");
+    #[test]
+    fn test_pipeline_steps_do_not_fabricate_results() {
+        // SHAP/LIME/permutation/counterfactual/custom steps have no model or data
+        // bound, so executing them must yield an honest error rather than a fake
+        // all-zeros explanation.
+        let shap_config = ExplanationBuilder::<ArrayView1<Float>>::new().build_shap_config();
+        let pipeline = PipelineBuilder::<ArrayView1<Float>>::new()
+            .add_shap(shap_config)
+            .build();
+
+        let input = scirs2_core::ndarray::array![1.0, 2.0, 3.0];
+        let outcome = pipeline.execute(&input.view());
+        assert!(matches!(
+            outcome,
+            Err(crate::SklearsError::NotImplemented(_))
+        ));
+    }
+
+    #[test]
+    fn test_pipeline_normalization_only_is_empty() {
+        // A pipeline consisting solely of structural steps (validation/normalization)
+        // produces no explanations and must succeed without fabricating any.
+        let pipeline = PipelineBuilder::<ArrayView1<Float>>::new()
+            .add_validation()
+            .add_normalization()
+            .build();
+
+        let input = scirs2_core::ndarray::array![1.0, 2.0, 3.0];
+        let result = pipeline
+            .execute(&input.view())
+            .expect("structural-only pipeline should succeed");
+        assert!(result.explanations.is_empty());
     }
 
     #[test]

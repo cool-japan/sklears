@@ -1006,8 +1006,8 @@ impl Default for MonitoringConfiguration {
     fn default() -> Self {
         Self {
             enable_monitoring: true,
-            metrics_collection_interval: Duration::from_secs(30),
-            alert_evaluation_interval: Duration::from_secs(60),
+            metrics_collection_interval: Duration::seconds(30),
+            alert_evaluation_interval: Duration::seconds(60),
             performance_analysis_enabled: true,
         }
     }
@@ -1128,7 +1128,7 @@ impl Default for RetryConfiguration {
     fn default() -> Self {
         Self {
             max_retries: 3,
-            retry_delay: Duration::from_secs(1),
+            retry_delay: Duration::seconds(1),
             backoff_factor: 2.0,
             retry_on_errors: vec!["TimeoutError".to_string(), "NetworkError".to_string()],
         }

@@ -37,6 +37,10 @@
 //!     ..Default::default()
 //! };
 //!
+//! let epsilon = match &config.privacy_mechanism {
+//!     PrivacyMechanism::DifferentialPrivacy { epsilon } => *epsilon,
+//!     _ => 0.0,
+//! };
 //! let explainer = FederatedExplainer::new(config)?;
 //!
 //! // Generate explanations from multiple clients
@@ -49,7 +53,7 @@
 //! // Securely aggregate explanations
 //! let global_explanation = explainer.aggregate_explanations(&local_explanations)?;
 //!
-//! println!("Federated explanation computed with ε={} privacy", config.privacy_mechanism.epsilon());
+//! println!("Federated explanation computed with ε={} privacy", epsilon);
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
@@ -284,20 +288,26 @@ impl FederatedExplainer {
         Ok(aggregated)
     }
 
-    /// Secure aggregation without adding noise
-    fn secure_aggregation(&self, local_explanations: &[Array2<Float>]) -> SklResult<Array1<Float>> {
-        let n_features = local_explanations[0].ncols();
-        let mut aggregated = Array1::zeros(n_features);
-
-        // In real implementation, this would use secure multi-party computation
-        // For now, we simulate secure averaging
-        for exp in local_explanations {
-            let mean_exp = exp.mean_axis(Axis(0)).expect("operation should succeed");
-            aggregated += &mean_exp;
-        }
-        aggregated /= local_explanations.len() as Float;
-
-        Ok(aggregated)
+    /// Secure aggregation via secure multi-party computation.
+    ///
+    /// A genuine secure aggregation requires a secure multi-party computation (SMPC)
+    /// protocol (e.g. additive secret sharing with pairwise masking) so that the
+    /// coordinator never observes any individual client's explanation. No such
+    /// cryptographic backend is wired up here. Returning a plaintext average while
+    /// advertising "secure aggregation" would be a false security guarantee, so this
+    /// reports honestly that the secure backend is unavailable. Use
+    /// `PrivacyMechanism::DifferentialPrivacy` (which adds real Laplace noise) or
+    /// `PrivacyMechanism::None` for plaintext aggregation.
+    fn secure_aggregation(
+        &self,
+        _local_explanations: &[Array2<Float>],
+    ) -> SklResult<Array1<Float>> {
+        Err(SklearsError::NotImplemented(
+            "SecureAggregation requires a secure multi-party computation backend (e.g. masked \
+             secret sharing), which is not available. No plaintext result is returned because \
+             that would misrepresent the privacy guarantee. Use DifferentialPrivacy or None."
+                .to_string(),
+        ))
     }
 
     /// Local differential privacy aggregation
@@ -336,24 +346,24 @@ impl FederatedExplainer {
         Ok(aggregated)
     }
 
-    /// Homomorphic encryption based aggregation
+    /// Homomorphic-encryption based aggregation.
+    ///
+    /// A genuine homomorphic aggregation requires an HE cryptosystem (e.g. CKKS/Paillier)
+    /// so that client explanations are summed under encryption and only the aggregate is
+    /// decrypted. No HE backend is available here. Returning a plaintext average while
+    /// advertising "homomorphic encryption" would be a false security guarantee, so this
+    /// reports honestly that the HE backend is unavailable. Use
+    /// `PrivacyMechanism::DifferentialPrivacy` or `PrivacyMechanism::None` instead.
     fn homomorphic_aggregation(
         &self,
-        local_explanations: &[Array2<Float>],
+        _local_explanations: &[Array2<Float>],
     ) -> SklResult<Array1<Float>> {
-        // In real implementation, this would use actual homomorphic encryption
-        // For now, we simulate encrypted aggregation
-        let n_features = local_explanations[0].ncols();
-        let mut aggregated = Array1::zeros(n_features);
-
-        // Simulate: "encrypt", aggregate, "decrypt"
-        for exp in local_explanations {
-            let mean_exp = exp.mean_axis(Axis(0)).expect("operation should succeed");
-            aggregated += &mean_exp;
-        }
-        aggregated /= local_explanations.len() as Float;
-
-        Ok(aggregated)
+        Err(SklearsError::NotImplemented(
+            "HomomorphicEncryption aggregation requires a homomorphic-encryption backend (e.g. \
+             CKKS or Paillier), which is not available. No plaintext result is returned because \
+             that would misrepresent the privacy guarantee. Use DifferentialPrivacy or None."
+                .to_string(),
+        ))
     }
 
     /// Simple aggregation without privacy
@@ -581,7 +591,12 @@ mod tests {
 
     #[test]
     fn test_federated_shap() {
-        let config = FederatedConfig::default();
+        // Use plaintext aggregation (None): the secure/homomorphic mechanisms honestly
+        // error because no cryptographic backend exists (see dedicated tests below).
+        let config = FederatedConfig {
+            privacy_mechanism: PrivacyMechanism::None,
+            ..Default::default()
+        };
         let explainer = FederatedExplainer::new(config).expect("operation should succeed");
 
         let shap1 =
@@ -600,6 +615,38 @@ mod tests {
 
         let explanation = result.expect("operation should succeed");
         assert_eq!(explanation.num_clients_contributed, 5);
+    }
+
+    #[test]
+    fn test_secure_aggregation_is_honest_error() {
+        // SecureAggregation must not silently return a plaintext average; it must report
+        // that the SMPC backend is unavailable.
+        let config = FederatedConfig {
+            privacy_mechanism: PrivacyMechanism::SecureAggregation,
+            ..Default::default()
+        };
+        let explainer = FederatedExplainer::new(config).expect("operation should succeed");
+        let exps: Vec<Array2<Float>> = (0..5)
+            .map(|_| Array2::from_shape_vec((4, 5), vec![0.2; 20]).expect("shape"))
+            .collect();
+        let result = explainer.federated_shap(&exps);
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
+    }
+
+    #[test]
+    fn test_homomorphic_aggregation_is_honest_error() {
+        let config = FederatedConfig {
+            privacy_mechanism: PrivacyMechanism::HomomorphicEncryption {
+                security_parameter: 128,
+            },
+            ..Default::default()
+        };
+        let explainer = FederatedExplainer::new(config).expect("operation should succeed");
+        let exps: Vec<Array2<Float>> = (0..5)
+            .map(|_| Array2::from_shape_vec((4, 5), vec![0.2; 20]).expect("shape"))
+            .collect();
+        let result = explainer.federated_shap(&exps);
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
     }
 
     #[test]

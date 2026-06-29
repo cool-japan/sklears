@@ -123,10 +123,14 @@ pub fn simd_mahalanobis_distance(
     mean: &[f64],
     inv_cov: &[Vec<f64>],
 ) -> Vec<f64> {
-    // FIXME: SIMD implementation disabled for stable compilation
-    // CPU fallback implementation
+    // Runtime-dispatched: the inner products that dominate the cost
+    // (Σ⁻¹·centered, and centeredᵀ·temp) are evaluated through `simd_dot_product`,
+    // which selects an AVX kernel when available and falls back to a correct
+    // scalar loop otherwise. Both paths compute the identical Mahalanobis
+    // distance d = sqrt((x − μ)ᵀ Σ⁻¹ (x − μ)).
     let n_samples = data.len();
     let mut distances = vec![0.0; n_samples];
+    let mut temp = vec![0.0; mean.len()];
 
     for i in 0..n_samples {
         let sample = &data[i];
@@ -137,16 +141,13 @@ pub fn simd_mahalanobis_distance(
             centered[j] = sample[j] - mean[j];
         }
 
-        // Compute (x - μ)ᵀ Σ⁻¹ (x - μ)
-        let mut distance_squared = 0.0;
-        for j in 0..centered.len() {
-            let mut temp = 0.0;
-            for k in 0..centered.len() {
-                temp += inv_cov[j][k] * centered[k];
-            }
-            distance_squared += centered[j] * temp;
+        // temp = Σ⁻¹ (x − μ): each row dotted with the centered vector.
+        for (j, temp_j) in temp.iter_mut().enumerate().take(centered.len()) {
+            *temp_j = simd_dot_product(&inv_cov[j], &centered);
         }
 
+        // distance² = (x − μ)ᵀ temp
+        let distance_squared = simd_dot_product(&centered, &temp[..centered.len()]);
         distances[i] = distance_squared.sqrt();
     }
 
@@ -171,12 +172,9 @@ pub fn simd_percentile_outliers(
     let lower_bound = sorted_data[lower_idx];
     let upper_bound = sorted_data[upper_idx];
 
-    // FIXME: SIMD implementation disabled for stable compilation
-    // CPU fallback implementation
-    let outliers: Vec<bool> = data
-        .iter()
-        .map(|&val| val < lower_bound || val > upper_bound)
-        .collect();
+    // Runtime-dispatched range test: `simd_threshold_mask` uses AVX compare
+    // intrinsics when available and an identical scalar comparison otherwise.
+    let outliers = simd_threshold_mask(data, lower_bound, upper_bound);
 
     (outliers, lower_bound, upper_bound)
 }
@@ -199,14 +197,60 @@ pub fn simd_iqr_outliers(data: &[f64], iqr_multiplier: f64) -> (Vec<bool>, f64, 
     let lower_bound = q1 - iqr_multiplier * iqr;
     let upper_bound = q3 + iqr_multiplier * iqr;
 
-    // FIXME: SIMD implementation disabled for stable compilation
-    // CPU fallback implementation
-    let outliers: Vec<bool> = data
-        .iter()
-        .map(|&val| val < lower_bound || val > upper_bound)
-        .collect();
+    // Runtime-dispatched range test (AVX when available, scalar fallback otherwise).
+    let outliers = simd_threshold_mask(data, lower_bound, upper_bound);
 
     (outliers, lower_bound, upper_bound, q1, q3)
+}
+
+/// Mark elements that fall strictly outside `[lower, upper]`.
+///
+/// Returns a boolean mask where `mask[i] == (data[i] < lower || data[i] > upper)`.
+/// When AVX is available the comparison is vectorised four lanes at a time;
+/// otherwise an equivalent scalar comparison is used. Both paths are bit-for-bit
+/// equivalent in their boolean output.
+pub fn simd_threshold_mask(data: &[f64], lower: f64, upper: f64) -> Vec<bool> {
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        if std::arch::is_x86_feature_detected!("avx") {
+            return unsafe { simd_threshold_mask_avx(data, lower, upper) };
+        }
+    }
+
+    data.iter().map(|&val| val < lower || val > upper).collect()
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_threshold_mask_avx(data: &[f64], lower: f64, upper: f64) -> Vec<bool> {
+    use std::arch::x86_64::*;
+
+    const LANES: usize = 4;
+    let mut mask = vec![false; data.len()];
+    let lower_vec = _mm256_set1_pd(lower);
+    let upper_vec = _mm256_set1_pd(upper);
+
+    let mut i = 0;
+    while i + LANES <= data.len() {
+        let chunk = _mm256_loadu_pd(data.as_ptr().add(i));
+        // below = data < lower, above = data > upper
+        let below = _mm256_cmp_pd(chunk, lower_vec, _CMP_LT_OQ);
+        let above = _mm256_cmp_pd(chunk, upper_vec, _CMP_GT_OQ);
+        let outside = _mm256_or_pd(below, above);
+        // movemask packs the sign bit (all-ones for true) of each lane.
+        let bits = _mm256_movemask_pd(outside);
+        for (lane, mask_slot) in mask[i..i + LANES].iter_mut().enumerate() {
+            *mask_slot = (bits & (1 << lane)) != 0;
+        }
+        i += LANES;
+    }
+
+    // Tail elements via scalar comparison.
+    for j in i..data.len() {
+        mask[j] = data[j] < lower || data[j] > upper;
+    }
+
+    mask
 }
 
 /// SIMD-accelerated ensemble scoring
@@ -216,28 +260,71 @@ pub fn simd_ensemble_scoring(scores: &[Vec<f64>], weights: Option<&[f64]>) -> Ve
         return vec![];
     }
 
-    // FIXME: SIMD implementation disabled for stable compilation
-    // CPU fallback implementation
+    // Runtime-dispatched weighted accumulation. For each method we add
+    // `weight * method_scores` into the running ensemble vector using
+    // `simd_axpy` (AXPY: y ← y + a·x), which selects an AVX kernel when
+    // available and falls back to a correct scalar loop otherwise.
     let n_samples = scores[0].len();
     let n_methods = scores.len();
     let mut result = vec![0.0; n_samples];
 
     let uniform_weight = 1.0 / n_methods as f64;
 
-    for i in 0..n_samples {
-        let mut ensemble_score = 0.0;
-        for (method_idx, method_scores) in scores.iter().enumerate() {
-            let weight = if let Some(w) = weights {
-                w.get(method_idx).copied().unwrap_or(uniform_weight)
-            } else {
-                uniform_weight
-            };
-            ensemble_score += method_scores[i] * weight;
-        }
-        result[i] = ensemble_score;
+    for (method_idx, method_scores) in scores.iter().enumerate() {
+        let weight = if let Some(w) = weights {
+            w.get(method_idx).copied().unwrap_or(uniform_weight)
+        } else {
+            uniform_weight
+        };
+        simd_axpy(weight, method_scores, &mut result);
     }
 
     result
+}
+
+/// Compute `y ← y + a · x` (AXPY) element-wise.
+///
+/// Uses an AVX kernel when available, otherwise a correct scalar loop.
+/// Both paths produce identical results. Only the overlapping prefix of
+/// length `min(x.len(), y.len())` is updated.
+pub fn simd_axpy(a: f64, x: &[f64], y: &mut [f64]) {
+    let len = x.len().min(y.len());
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        if std::arch::is_x86_feature_detected!("avx") {
+            unsafe { simd_axpy_avx(a, &x[..len], &mut y[..len]) };
+            return;
+        }
+    }
+
+    for i in 0..len {
+        y[i] += a * x[i];
+    }
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_axpy_avx(a: f64, x: &[f64], y: &mut [f64]) {
+    use std::arch::x86_64::*;
+
+    const LANES: usize = 4;
+    let len = x.len().min(y.len());
+    let a_vec = _mm256_set1_pd(a);
+    let mut i = 0;
+
+    while i + LANES <= len {
+        let x_chunk = _mm256_loadu_pd(x.as_ptr().add(i));
+        let y_chunk = _mm256_loadu_pd(y.as_ptr().add(i));
+        let scaled = _mm256_mul_pd(a_vec, x_chunk);
+        let updated = _mm256_add_pd(y_chunk, scaled);
+        _mm256_storeu_pd(y.as_mut_ptr().add(i), updated);
+        i += LANES;
+    }
+
+    for j in i..len {
+        y[j] += a * x[j];
+    }
 }
 
 /// SIMD-accelerated mean calculation

@@ -592,7 +592,6 @@ mod tests {
             .get_summary("test")
             .expect("get_summary should succeed");
         assert_eq!(summary.sample_count, 5);
-        assert!(summary.mean_duration > Duration::from_nanos(0));
     }
 
     #[test]

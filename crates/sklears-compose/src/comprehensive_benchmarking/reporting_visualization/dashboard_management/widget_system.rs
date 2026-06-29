@@ -1,6 +1,6 @@
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
 
 // Re-export types that widget system depends on
 use super::theme_styling::WidgetAnimations;
@@ -77,7 +77,7 @@ pub enum WidgetType {
 }
 
 /// Widget position configuration in dashboard grid
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct WidgetPosition {
     /// X coordinate in grid units
     pub x: usize,
@@ -126,7 +126,7 @@ pub struct WidgetSize {
 }
 
 /// Auto-resize configuration for widgets
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AutoResizeConfig {
     /// Enable auto-resize
     pub enabled: bool,
@@ -1387,7 +1387,7 @@ pub struct PropertyConstraint {
 }
 
 /// Widget factory for creating widget instances
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct WidgetFactory {
     /// Factory configuration
     pub config: FactoryConfig,
@@ -1452,7 +1452,7 @@ pub struct FactoryMetrics {
 }
 
 /// Widget lifecycle manager
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct WidgetLifecycleManager {
     /// Lifecycle hooks
     pub hooks: HashMap<String, LifecycleHook>,
@@ -1567,10 +1567,16 @@ impl WidgetManager {
     }
 
     /// Create a new widget instance
-    pub fn create_widget(&self, widget_type: WidgetType, config: WidgetConfiguration) -> Result<DashboardWidget, WidgetError> {
+    pub fn create_widget(
+        &self,
+        widget_type: WidgetType,
+        config: WidgetConfiguration,
+    ) -> Result<DashboardWidget, WidgetError> {
         let widget_type_key = format!("{:?}", widget_type);
-        let definition = self.widget_registry.get(&widget_type_key)
-            .ok_or_else(|| WidgetError::WidgetTypeNotFound(widget_type_key))?;
+        let _definition = self
+            .widget_registry
+            .get(&widget_type_key)
+            .ok_or(WidgetError::WidgetTypeNotFound(widget_type_key))?;
 
         // Create widget with default values
         Ok(DashboardWidget {
@@ -1594,7 +1600,8 @@ impl WidgetManager {
 
     /// List all registered widget types
     pub fn list_widget_types(&self) -> Vec<WidgetType> {
-        self.widget_registry.values()
+        self.widget_registry
+            .values()
             .map(|def| def.widget_type.clone())
             .collect()
     }
@@ -1627,17 +1634,6 @@ impl Default for WidgetManager {
     }
 }
 
-impl Default for WidgetPosition {
-    fn default() -> Self {
-        Self {
-            x: 0,
-            y: 0,
-            z_index: None,
-            constraints: PositionConstraints::default(),
-        }
-    }
-}
-
 impl Default for PositionConstraints {
     fn default() -> Self {
         Self {
@@ -1665,23 +1661,13 @@ impl Default for WidgetSize {
     }
 }
 
-impl Default for AutoResizeConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            triggers: Vec::new(),
-            constraints: ResizeConstraints::default(),
-        }
-    }
-}
-
 impl Default for ResizeConstraints {
     fn default() -> Self {
         Self {
             preserve_aspect_ratio: false,
             min_aspect_ratio: None,
             max_aspect_ratio: None,
-            animation_duration: Duration::from_millis(200),
+            animation_duration: Duration::milliseconds(200),
         }
     }
 }
@@ -1701,10 +1687,10 @@ impl Default for WidgetState {
 impl Default for WidgetPerformance {
     fn default() -> Self {
         Self {
-            load_time: Duration::from_millis(0),
-            render_time: Duration::from_millis(0),
+            load_time: Duration::milliseconds(0),
+            render_time: Duration::milliseconds(0),
             memory_usage: 0,
-            data_fetch_time: Duration::from_millis(0),
+            data_fetch_time: Duration::milliseconds(0),
             update_frequency: 0.0,
             error_rate: 0.0,
             cache_hit_rate: 0.0,
@@ -1717,19 +1703,9 @@ impl Default for InteractionMetrics {
     fn default() -> Self {
         Self {
             total_interactions: 0,
-            avg_interaction_duration: Duration::from_millis(0),
+            avg_interaction_duration: Duration::milliseconds(0),
             most_frequent_interaction: None,
             last_interaction: None,
-        }
-    }
-}
-
-impl Default for WidgetFactory {
-    fn default() -> Self {
-        Self {
-            config: FactoryConfig::default(),
-            builders: HashMap::new(),
-            metrics: FactoryMetrics::default(),
         }
     }
 }
@@ -1741,7 +1717,7 @@ impl Default for FactoryConfig {
             caching_enabled: true,
             validation_enabled: true,
             max_concurrent_builds: 10,
-            build_timeout: Duration::from_secs(30),
+            build_timeout: Duration::seconds(30),
         }
     }
 }
@@ -1750,19 +1726,9 @@ impl Default for FactoryMetrics {
     fn default() -> Self {
         Self {
             total_created: 0,
-            avg_creation_time: Duration::from_millis(0),
+            avg_creation_time: Duration::milliseconds(0),
             success_rate: 0.0,
             cache_hit_rate: 0.0,
-        }
-    }
-}
-
-impl Default for WidgetLifecycleManager {
-    fn default() -> Self {
-        Self {
-            hooks: HashMap::new(),
-            state_transitions: Vec::new(),
-            policies: Vec::new(),
         }
     }
 }

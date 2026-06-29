@@ -8,29 +8,79 @@ use sklears_core::error::{Result as SklResult, SklearsError};
 use std::f64::consts::PI;
 use std::hash::Hash;
 
-/// Robust Cholesky decomposition with automatic jitter addition
+/// Robust Cholesky decomposition with adaptive, trace-proportional jitter.
+///
+/// Kriging and Gaussian-process covariance matrices are symmetric and (in exact
+/// arithmetic) positive semi-definite, but in finite precision they are often
+/// numerically indefinite: clustered sample locations, compactly supported
+/// covariance models (e.g. the spherical model, which is only conditionally
+/// positive definite beyond its range) and zero nugget all push the smallest
+/// eigenvalue below zero. A bare Cholesky factorization then fails.
+///
+/// The standard remedy is *nugget regularization*: add `jitter * I` to the
+/// diagonal, scaling the jitter by the mean diagonal (which sets the natural
+/// magnitude of the matrix) so that the regularization is dimensionally
+/// consistent across problems of different variance. The jitter is increased
+/// geometrically until the factorization succeeds or a sensible cap is reached.
+/// If the matrix is *genuinely* indefinite even after meaningful regularization,
+/// an honest error is returned rather than fabricated output.
 pub fn robust_cholesky(K: &Array2<f64>) -> SklResult<Array2<f64>> {
     let n = K.nrows();
-    let mut K_jittered = K.clone();
-    let mut jitter = 1e-12;
-    let max_jitter = 1e-3;
+    if n == 0 {
+        return Ok(Array2::zeros((0, 0)));
+    }
+    if n != K.ncols() {
+        return Err(SklearsError::InvalidInput(
+            "Matrix must be square for Cholesky decomposition".to_string(),
+        ));
+    }
 
-    while jitter <= max_jitter {
-        // Try Cholesky decomposition
-        match cholesky_decomposition(&K_jittered) {
-            Ok(L) => return Ok(L),
-            Err(_) => {
-                // Add jitter to diagonal
-                for i in 0..n {
-                    K_jittered[[i, i]] = K[[i, i]] + jitter;
-                }
-                jitter *= 10.0;
-            }
+    // First attempt: factor the matrix as-is. For a well-conditioned SPD
+    // matrix no regularization is needed and we return the exact factor.
+    if let Ok(L) = cholesky_decomposition(K) {
+        return Ok(L);
+    }
+
+    // Characteristic scale of the matrix: the mean of the (positive) diagonal.
+    // Using the mean diagonal makes the jitter invariant to the overall scale
+    // of the covariance (sill), so the same relative regularization applies
+    // whether variances are O(1) or O(1e6).
+    let mut mean_diag = 0.0;
+    for i in 0..n {
+        mean_diag += K[[i, i]];
+    }
+    mean_diag /= n as f64;
+    // Guard against non-positive / degenerate diagonals.
+    let scale = if mean_diag.is_finite() && mean_diag > 0.0 {
+        mean_diag
+    } else {
+        1.0
+    };
+
+    // Start at ~1e-10 of the matrix scale and grow geometrically. The cap at
+    // 1e-2 of the scale corresponds to a 1% nugget, beyond which the result
+    // would no longer faithfully represent the original covariance structure.
+    let mut rel_jitter = 1e-10_f64;
+    let max_rel_jitter = 1e-2_f64;
+
+    while rel_jitter <= max_rel_jitter {
+        let jitter = rel_jitter * scale;
+        let mut K_jittered = K.clone();
+        for i in 0..n {
+            K_jittered[[i, i]] += jitter;
         }
+
+        if let Ok(L) = cholesky_decomposition(&K_jittered) {
+            return Ok(L);
+        }
+
+        rel_jitter *= 10.0;
     }
 
     Err(SklearsError::NumericalError(
-        "Cholesky decomposition failed even with maximum jitter".to_string(),
+        "Cholesky decomposition failed: matrix is not positive definite even \
+         after trace-proportional nugget regularization up to 1% of the mean diagonal"
+            .to_string(),
     ))
 }
 

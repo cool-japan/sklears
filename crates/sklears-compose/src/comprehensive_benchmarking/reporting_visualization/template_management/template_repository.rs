@@ -4,10 +4,9 @@
 //! functionality. It provides the core repository infrastructure for template
 //! storage, metadata management, asset handling, and access control.
 
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
 
 use crate::comprehensive_benchmarking::reporting_visualization::template_management::template_core::TemplateError;
 
@@ -1241,7 +1240,7 @@ pub struct TagIndex {
 }
 
 /// Tag hierarchical structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TagHierarchy {
     /// Root tags
     pub root_tags: Vec<String>,
@@ -1252,7 +1251,7 @@ pub struct TagHierarchy {
 }
 
 /// Tag usage and popularity statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TagStatistics {
     /// Tag usage count
     pub usage_count: HashMap<String, usize>,
@@ -1287,7 +1286,7 @@ pub enum TrendDirection {
 }
 
 /// Tag relationship management
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TagRelationships {
     /// Related tags
     pub related_tags: HashMap<String, Vec<String>>,
@@ -1331,7 +1330,7 @@ pub struct CategoryMetadata {
 }
 
 /// Category usage statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CategoryStatistics {
     /// Template count per category
     pub template_count: HashMap<String, usize>,
@@ -1394,7 +1393,7 @@ pub enum ReputationLevel {
 }
 
 /// Author performance statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AuthorStatistics {
     /// Top authors
     pub top_authors: Vec<String>,
@@ -1484,7 +1483,7 @@ pub enum ConflictResolution {
 ///
 /// Comprehensive analytics including template usage patterns,
 /// performance metrics, and user engagement data.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RepositoryStatistics {
     /// Total templates
     pub total_templates: usize,
@@ -1499,7 +1498,7 @@ pub struct RepositoryStatistics {
 }
 
 /// Detailed usage analytics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UsageStatistics {
     /// Download count
     pub download_count: HashMap<String, usize>,
@@ -1518,6 +1517,12 @@ pub struct Rating {
     pub count: usize,
     /// Rating distribution
     pub distribution: HashMap<u8, usize>,
+}
+
+impl Default for TemplateRepository {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TemplateRepository {
@@ -1541,7 +1546,8 @@ impl TemplateRepository {
         self.update_indices(&template)?;
 
         // Store template
-        self.templates.insert(template.template_id.clone(), template);
+        self.templates
+            .insert(template.template_id.clone(), template);
 
         // Update statistics
         self.update_statistics();
@@ -1551,7 +1557,8 @@ impl TemplateRepository {
 
     /// Get template by ID
     pub fn get_template(&self, template_id: &str) -> Result<TemplateEntry, TemplateError> {
-        self.templates.get(template_id)
+        self.templates
+            .get(template_id)
             .cloned()
             .ok_or_else(|| TemplateError::TemplateNotFound(template_id.to_string()))
     }
@@ -1564,7 +1571,9 @@ impl TemplateRepository {
 
     /// Remove template from repository
     pub fn remove_template(&mut self, template_id: &str) -> Result<TemplateEntry, TemplateError> {
-        let template = self.templates.remove(template_id)
+        let template = self
+            .templates
+            .remove(template_id)
             .ok_or_else(|| TemplateError::TemplateNotFound(template_id.to_string()))?;
 
         // Update indices and statistics
@@ -1618,11 +1627,15 @@ impl TemplateRepository {
     fn validate_template(&self, template: &TemplateEntry) -> Result<(), TemplateError> {
         // Basic validation checks
         if template.template_id.is_empty() {
-            return Err(TemplateError::ValidationError("Template ID cannot be empty".to_string()));
+            return Err(TemplateError::ValidationError(
+                "Template ID cannot be empty".to_string(),
+            ));
         }
 
         if template.metadata.name.is_empty() {
-            return Err(TemplateError::ValidationError("Template name cannot be empty".to_string()));
+            return Err(TemplateError::ValidationError(
+                "Template name cannot be empty".to_string(),
+            ));
         }
 
         // Additional validation logic would go here
@@ -1651,14 +1664,22 @@ impl TemplateRepository {
         self.statistics.templates_by_type.clear();
         for template in self.templates.values() {
             let template_type = format!("{:?}", template.metadata.template_type);
-            *self.statistics.templates_by_type.entry(template_type).or_insert(0) += 1;
+            *self
+                .statistics
+                .templates_by_type
+                .entry(template_type)
+                .or_insert(0) += 1;
         }
 
         // Update templates by status
         self.statistics.templates_by_status.clear();
         for template in self.templates.values() {
             let status = format!("{:?}", template.status);
-            *self.statistics.templates_by_status.entry(status).or_insert(0) += 1;
+            *self
+                .statistics
+                .templates_by_status
+                .entry(status)
+                .or_insert(0) += 1;
         }
     }
 }
@@ -1682,7 +1703,9 @@ impl TemplateFilter {
     /// Check if template matches filter criteria
     pub fn matches(&self, template: &TemplateEntry) -> bool {
         if let Some(ref filter_type) = self.template_type {
-            if std::mem::discriminant(&template.metadata.template_type) != std::mem::discriminant(filter_type) {
+            if std::mem::discriminant(&template.metadata.template_type)
+                != std::mem::discriminant(filter_type)
+            {
                 return false;
             }
         }
@@ -1700,7 +1723,10 @@ impl TemplateFilter {
         }
 
         if let Some(ref filter_tags) = self.tags {
-            if !filter_tags.iter().all(|tag| template.metadata.tags.contains(tag)) {
+            if !filter_tags
+                .iter()
+                .all(|tag| template.metadata.tags.contains(tag))
+            {
                 return false;
             }
         }
@@ -1712,6 +1738,12 @@ impl TemplateFilter {
         }
 
         true
+    }
+}
+
+impl Default for TemplateMetadataIndex {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1727,6 +1759,12 @@ impl TemplateMetadataIndex {
     }
 }
 
+impl Default for TagIndex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TagIndex {
     /// Create a new tag index
     pub fn new() -> Self {
@@ -1738,6 +1776,12 @@ impl TagIndex {
     }
 }
 
+impl Default for CategoryIndex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CategoryIndex {
     /// Create a new category index
     pub fn new() -> Self {
@@ -1745,6 +1789,12 @@ impl CategoryIndex {
             tree: CategoryTree::default(),
             statistics: CategoryStatistics::default(),
         }
+    }
+}
+
+impl Default for AuthorIndex {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1761,9 +1811,7 @@ impl AuthorIndex {
 impl TemplateSearchIndex {
     /// Create a new search index placeholder
     pub fn new() -> Self {
-        Self {
-            _placeholder: None,
-        }
+        Self { _placeholder: None }
     }
 }
 
@@ -1783,8 +1831,8 @@ impl Default for BackupConfiguration {
     fn default() -> Self {
         Self {
             enabled: true,
-            frequency: Duration::from_secs(3600), // 1 hour
-            retention: Duration::from_secs(86400 * 30), // 30 days
+            frequency: Duration::seconds(3600),       // 1 hour
+            retention: Duration::seconds(86400 * 30), // 30 days
             destination: "./backups".to_string(),
         }
     }
@@ -1794,60 +1842,8 @@ impl Default for SynchronizationSettings {
     fn default() -> Self {
         Self {
             auto_sync: true,
-            sync_frequency: Duration::from_secs(300), // 5 minutes
+            sync_frequency: Duration::seconds(300), // 5 minutes
             conflict_resolution: ConflictResolution::ServerWins,
-        }
-    }
-}
-
-impl Default for RepositoryStatistics {
-    fn default() -> Self {
-        Self {
-            total_templates: 0,
-            templates_by_type: HashMap::new(),
-            templates_by_status: HashMap::new(),
-            repository_size: 0,
-            usage_statistics: UsageStatistics::default(),
-        }
-    }
-}
-
-impl Default for UsageStatistics {
-    fn default() -> Self {
-        Self {
-            download_count: HashMap::new(),
-            usage_frequency: HashMap::new(),
-            user_ratings: HashMap::new(),
-        }
-    }
-}
-
-impl Default for TagHierarchy {
-    fn default() -> Self {
-        Self {
-            root_tags: vec![],
-            children: HashMap::new(),
-            parents: HashMap::new(),
-        }
-    }
-}
-
-impl Default for TagStatistics {
-    fn default() -> Self {
-        Self {
-            usage_count: HashMap::new(),
-            popularity: HashMap::new(),
-            trends: HashMap::new(),
-        }
-    }
-}
-
-impl Default for TagRelationships {
-    fn default() -> Self {
-        Self {
-            related_tags: HashMap::new(),
-            synonyms: HashMap::new(),
-            antonyms: HashMap::new(),
         }
     }
 }
@@ -1858,26 +1854,6 @@ impl Default for CategoryTree {
             root: vec!["templates".to_string()],
             children: HashMap::new(),
             metadata: HashMap::new(),
-        }
-    }
-}
-
-impl Default for CategoryStatistics {
-    fn default() -> Self {
-        Self {
-            template_count: HashMap::new(),
-            popular_categories: vec![],
-            usage_trends: HashMap::new(),
-        }
-    }
-}
-
-impl Default for AuthorStatistics {
-    fn default() -> Self {
-        Self {
-            top_authors: vec![],
-            productive_authors: vec![],
-            activity_trends: HashMap::new(),
         }
     }
 }

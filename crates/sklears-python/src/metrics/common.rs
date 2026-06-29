@@ -4,10 +4,10 @@
 //! across all metric implementations.
 
 // Re-export commonly used types and traits
-pub use scirs2_core::ndarray::Array1;
-pub use numpy::{PyReadonlyArray1, PyReadonlyArray2};
+pub use numpy::PyReadonlyArray1;
 pub use pyo3::exceptions::PyValueError;
 pub use pyo3::prelude::*;
+pub use scirs2_core::ndarray::Array1;
 
 /// Common error type for metric operations
 pub type MetricResult<T> = Result<T, PyValueError>;

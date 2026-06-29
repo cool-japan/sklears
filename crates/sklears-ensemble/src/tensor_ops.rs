@@ -145,10 +145,27 @@ pub enum ReductionType {
 /// Ensemble aggregation types
 #[derive(Debug, Clone, Copy)]
 pub enum AggregationType {
+    /// Element-wise arithmetic mean across the base predictions.
     Average,
+    /// Element-wise weighted arithmetic mean using per-model weights.
     WeightedAverage,
+    /// Hard majority vote over rounded (binary) base predictions.
     Majority,
+    /// Element-wise median across the base predictions.
+    Median,
+    /// Element-wise maximum across the base predictions.
+    Max,
+    /// Element-wise minimum across the base predictions.
+    Min,
+    /// Element-wise geometric mean across the base predictions.
+    ///
+    /// Requires strictly positive predictions; non-positive values yield an error.
+    GeometricMean,
+    /// Element-wise sum across the base predictions.
+    Sum,
+    /// Stacked generalization meta-learning (requires a trained meta-learner).
     Stacking,
+    /// Holdout-blended meta-learning (requires a trained blender).
     Blending,
 }
 
@@ -486,10 +503,19 @@ impl TensorOpsContext {
                 }
             }
             AggregationType::Majority => self.ensemble_majority_vote(predictions),
-            _ => Err(SklearsError::InvalidInput(format!(
-                "Aggregation type {:?} not yet implemented",
-                aggregation
-            ))),
+            AggregationType::Median => self.ensemble_median(predictions),
+            AggregationType::Max => self.ensemble_max(predictions),
+            AggregationType::Min => self.ensemble_min(predictions),
+            AggregationType::GeometricMean => self.ensemble_geometric_mean(predictions),
+            AggregationType::Sum => self.ensemble_sum(predictions),
+            AggregationType::Stacking | AggregationType::Blending => {
+                Err(SklearsError::InvalidInput(format!(
+                    "Aggregation type {:?} is a meta-learning ensemble that requires a trained \
+                     meta-learner and cannot be computed as a pointwise aggregation of base \
+                     predictions; use the dedicated stacking/blending estimators instead",
+                    aggregation
+                )))
+            }
         }
     }
 
@@ -659,6 +685,104 @@ impl TensorOpsContext {
         // Majority decision
         let n_models = predictions.len() as Float;
         Ok(votes.mapv(|x| if x > n_models / 2.0 { 1.0 } else { 0.0 }))
+    }
+
+    /// Validate that the prediction set is non-empty and every tensor shares the
+    /// same shape, returning that common shape on success.
+    fn validate_uniform_predictions(&self, predictions: &[&Tensor]) -> Result<Vec<usize>> {
+        let first = predictions
+            .first()
+            .ok_or_else(|| SklearsError::InvalidInput("No predictions to aggregate".to_string()))?;
+
+        let shape = first.shape().to_vec();
+        for pred in predictions.iter().skip(1) {
+            if pred.shape() != shape.as_slice() {
+                return Err(SklearsError::InvalidInput(format!(
+                    "Prediction shape mismatch: expected {:?}, got {:?}",
+                    shape,
+                    pred.shape()
+                )));
+            }
+        }
+
+        Ok(shape)
+    }
+
+    /// Aggregate predictions element-wise by applying `reducer` to the vector of
+    /// per-model values at each tensor position.
+    fn ensemble_pointwise_reduce<F>(&self, predictions: &[&Tensor], reducer: F) -> Result<Tensor>
+    where
+        F: Fn(&[Float]) -> Result<Float>,
+    {
+        let shape = self.validate_uniform_predictions(predictions)?;
+        let n_elements: usize = shape.iter().product();
+        let n_models = predictions.len();
+
+        let mut iterators: Vec<_> = predictions.iter().map(|pred| pred.iter()).collect();
+        let mut column = vec![0.0 as Float; n_models];
+        let mut data = Vec::with_capacity(n_elements);
+
+        for _ in 0..n_elements {
+            for (model_idx, iterator) in iterators.iter_mut().enumerate() {
+                let value = iterator.next().ok_or_else(|| {
+                    SklearsError::InvalidInput(
+                        "Prediction tensor exhausted before all elements were aggregated"
+                            .to_string(),
+                    )
+                })?;
+                column[model_idx] = *value;
+            }
+            data.push(reducer(&column)?);
+        }
+
+        Tensor::from_shape_vec(IxDyn(&shape), data)
+            .map_err(|e| SklearsError::InvalidInput(format!("Aggregation shape error: {}", e)))
+    }
+
+    fn ensemble_median(&self, predictions: &[&Tensor]) -> Result<Tensor> {
+        self.ensemble_pointwise_reduce(predictions, |values| {
+            let mut sorted = values.to_vec();
+            sorted.sort_by(|a, b| a.total_cmp(b));
+            let mid = sorted.len() / 2;
+            let median = if sorted.len() % 2 == 0 {
+                (sorted[mid - 1] + sorted[mid]) / 2.0
+            } else {
+                sorted[mid]
+            };
+            Ok(median)
+        })
+    }
+
+    fn ensemble_max(&self, predictions: &[&Tensor]) -> Result<Tensor> {
+        self.ensemble_pointwise_reduce(predictions, |values| {
+            Ok(values.iter().copied().fold(Float::NEG_INFINITY, Float::max))
+        })
+    }
+
+    fn ensemble_min(&self, predictions: &[&Tensor]) -> Result<Tensor> {
+        self.ensemble_pointwise_reduce(predictions, |values| {
+            Ok(values.iter().copied().fold(Float::INFINITY, Float::min))
+        })
+    }
+
+    fn ensemble_geometric_mean(&self, predictions: &[&Tensor]) -> Result<Tensor> {
+        self.ensemble_pointwise_reduce(predictions, |values| {
+            let mut log_sum = 0.0 as Float;
+            for &value in values {
+                if value <= 0.0 {
+                    return Err(SklearsError::InvalidInput(
+                        "GeometricMean aggregation requires strictly positive predictions"
+                            .to_string(),
+                    ));
+                }
+                log_sum += value.ln();
+            }
+            Ok((log_sum / values.len() as Float).exp())
+        })
+    }
+
+    fn ensemble_sum(&self, predictions: &[&Tensor]) -> Result<Tensor> {
+        self.ensemble_pointwise_reduce(predictions, |values| Ok(values.iter().sum()))
     }
 
     fn add_leaf_node(&mut self, name: String, shape: TensorShape) {
@@ -982,6 +1106,194 @@ mod tests {
                 .expect("slice operation should succeed")[1],
             3.0
         );
+    }
+
+    #[test]
+    fn test_ensemble_median() {
+        let config = TensorConfig::default();
+        let mut ctx = TensorOpsContext::new(config);
+
+        let p1 = ctx
+            .from_array(&array![[1.0, 4.0]])
+            .expect("from_array should succeed");
+        let p2 = ctx
+            .from_array(&array![[2.0, 5.0]])
+            .expect("from_array should succeed");
+        let p3 = ctx
+            .from_array(&array![[3.0, 6.0]])
+            .expect("from_array should succeed");
+        let predictions = vec![&p1, &p2, &p3];
+
+        let result = ctx
+            .ensemble_aggregate(&predictions, None, AggregationType::Median)
+            .expect("median aggregation should succeed");
+
+        let slice = result.as_slice().expect("slice should succeed");
+        // median(1,2,3)=2 ; median(4,5,6)=5
+        assert_eq!(slice[0], 2.0);
+        assert_eq!(slice[1], 5.0);
+    }
+
+    #[test]
+    fn test_ensemble_median_even_count() {
+        let config = TensorConfig::default();
+        let mut ctx = TensorOpsContext::new(config);
+
+        let p1 = ctx.from_array(&array![1.0]).expect("from_array");
+        let p2 = ctx.from_array(&array![2.0]).expect("from_array");
+        let p3 = ctx.from_array(&array![3.0]).expect("from_array");
+        let p4 = ctx.from_array(&array![4.0]).expect("from_array");
+        let predictions = vec![&p1, &p2, &p3, &p4];
+
+        let result = ctx
+            .ensemble_aggregate(&predictions, None, AggregationType::Median)
+            .expect("median aggregation should succeed");
+
+        // even count -> mean of the two central values: (2+3)/2 = 2.5
+        assert_eq!(result.as_slice().expect("slice should succeed")[0], 2.5);
+    }
+
+    #[test]
+    fn test_ensemble_max_and_min() {
+        let config = TensorConfig::default();
+        let mut ctx = TensorOpsContext::new(config);
+
+        let p1 = ctx
+            .from_array(&array![[1.0, 4.0]])
+            .expect("from_array should succeed");
+        let p2 = ctx
+            .from_array(&array![[2.0, 5.0]])
+            .expect("from_array should succeed");
+        let p3 = ctx
+            .from_array(&array![[3.0, 6.0]])
+            .expect("from_array should succeed");
+        let predictions = vec![&p1, &p2, &p3];
+
+        let max_result = ctx
+            .ensemble_aggregate(&predictions, None, AggregationType::Max)
+            .expect("max aggregation should succeed");
+        let min_result = ctx
+            .ensemble_aggregate(&predictions, None, AggregationType::Min)
+            .expect("min aggregation should succeed");
+
+        let max_slice = max_result.as_slice().expect("slice should succeed");
+        let min_slice = min_result.as_slice().expect("slice should succeed");
+        assert_eq!(max_slice[0], 3.0);
+        assert_eq!(max_slice[1], 6.0);
+        assert_eq!(min_slice[0], 1.0);
+        assert_eq!(min_slice[1], 4.0);
+    }
+
+    #[test]
+    fn test_ensemble_sum() {
+        let config = TensorConfig::default();
+        let mut ctx = TensorOpsContext::new(config);
+
+        let p1 = ctx
+            .from_array(&array![[1.0, 4.0]])
+            .expect("from_array should succeed");
+        let p2 = ctx
+            .from_array(&array![[2.0, 5.0]])
+            .expect("from_array should succeed");
+        let p3 = ctx
+            .from_array(&array![[3.0, 6.0]])
+            .expect("from_array should succeed");
+        let predictions = vec![&p1, &p2, &p3];
+
+        let result = ctx
+            .ensemble_aggregate(&predictions, None, AggregationType::Sum)
+            .expect("sum aggregation should succeed");
+
+        let slice = result.as_slice().expect("slice should succeed");
+        assert_eq!(slice[0], 6.0);
+        assert_eq!(slice[1], 15.0);
+    }
+
+    #[test]
+    fn test_ensemble_geometric_mean() {
+        let config = TensorConfig::default();
+        let mut ctx = TensorOpsContext::new(config);
+
+        let p1 = ctx
+            .from_array(&array![[1.0, 4.0]])
+            .expect("from_array should succeed");
+        let p2 = ctx
+            .from_array(&array![[2.0, 5.0]])
+            .expect("from_array should succeed");
+        let p3 = ctx
+            .from_array(&array![[3.0, 6.0]])
+            .expect("from_array should succeed");
+        let predictions = vec![&p1, &p2, &p3];
+
+        let result = ctx
+            .ensemble_aggregate(&predictions, None, AggregationType::GeometricMean)
+            .expect("geometric mean aggregation should succeed");
+
+        let slice = result.as_slice().expect("slice should succeed");
+        // (1*2*3)^(1/3) and (4*5*6)^(1/3)
+        assert!((slice[0] - 6.0_f64.powf(1.0 / 3.0)).abs() < 1e-10);
+        assert!((slice[1] - 120.0_f64.powf(1.0 / 3.0)).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_ensemble_geometric_mean_nonpositive_error() {
+        let config = TensorConfig::default();
+        let mut ctx = TensorOpsContext::new(config);
+
+        let p1 = ctx.from_array(&array![1.0]).expect("from_array");
+        let p2 = ctx.from_array(&array![-2.0]).expect("from_array");
+        let predictions = vec![&p1, &p2];
+
+        let result = ctx.ensemble_aggregate(&predictions, None, AggregationType::GeometricMean);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_ensemble_shape_mismatch_error() {
+        let config = TensorConfig::default();
+        let mut ctx = TensorOpsContext::new(config);
+
+        let p1 = ctx
+            .from_array(&array![[1.0, 2.0]])
+            .expect("from_array should succeed");
+        let p2 = ctx
+            .from_array(&array![[1.0, 2.0, 3.0]])
+            .expect("from_array should succeed");
+        let predictions = vec![&p1, &p2];
+
+        let result = ctx.ensemble_aggregate(&predictions, None, AggregationType::Median);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_ensemble_empty_error() {
+        let config = TensorConfig::default();
+        let mut ctx = TensorOpsContext::new(config);
+
+        let predictions: Vec<&Tensor> = Vec::new();
+        let result = ctx.ensemble_aggregate(&predictions, None, AggregationType::Sum);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_ensemble_stacking_blending_honest_error() {
+        let config = TensorConfig::default();
+        let mut ctx = TensorOpsContext::new(config);
+
+        let p1 = ctx
+            .from_array(&array![[1.0, 2.0]])
+            .expect("from_array should succeed");
+        let p2 = ctx
+            .from_array(&array![[3.0, 4.0]])
+            .expect("from_array should succeed");
+        let predictions = vec![&p1, &p2];
+
+        assert!(ctx
+            .ensemble_aggregate(&predictions, None, AggregationType::Stacking)
+            .is_err());
+        assert!(ctx
+            .ensemble_aggregate(&predictions, None, AggregationType::Blending)
+            .is_err());
     }
 
     #[test]

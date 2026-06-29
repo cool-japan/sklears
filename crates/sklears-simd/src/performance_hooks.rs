@@ -239,7 +239,7 @@ impl HookManager {
     }
 
     #[cfg(feature = "no-std")]
-    fn lock_event_buffer(&self) -> spin::MutexGuard<'_, Vec<PerformanceEvent>> {
+    fn lock_event_buffer(&self) -> spin::MutexGuard<'_, Vec<PerformanceEvent>, spin::Spin> {
         self.event_buffer.lock()
     }
 

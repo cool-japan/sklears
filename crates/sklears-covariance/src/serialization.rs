@@ -1,673 +1,418 @@
-//! Serialization Support for Covariance Models
+//! Serialization support for covariance estimation models.
 //!
-//! This module provides comprehensive serialization and deserialization support for all
-//! covariance estimation models in the crate. It supports multiple formats including
-//! JSON, MessagePack, and custom binary formats for efficient storage and transmission.
+//! This module provides infrastructure to convert fitted covariance estimators
+//! into a format-agnostic [`SerializableModel`] and to persist that model to and
+//! from JSON, a Rust-native binary format (oxicode) and MessagePack.
 //!
-//! # Key Features
+//! The design mirrors the approach used by `sklears-manifold`: covariance and
+//! precision matrices are stored as nested `Vec<Vec<f64>>` (and `Vec<f64>` for
+//! the location vector) so that no dependency on the `ndarray` `serde` feature is
+//! required. The binary and in-memory representations round-trip bit-for-bit; the
+//! JSON text format is written exactly but, because `serde_json` is built here
+//! without its `float_roundtrip` feature, parsing may differ from the original
+//! `f64` by up to one ULP.
 //!
-//! - **ModelRegistry**: Central registry for managing serializable models
-//! - **SerializationFormat**: Support for multiple serialization formats
-//! - **ModelMetadata**: Comprehensive metadata storage with versioning
-//! - **CompressionMethod**: Optional compression for reduced storage size
-//! - **ModelValidator**: Validation of deserialized models
-//!
-//! # Supported Formats
-//!
-//! - JSON: Human-readable format suitable for configuration and debugging
-//! - MessagePack: Efficient binary format for production use
-//! - Bincode: Rust-native binary format for maximum performance
-//! - Custom: Extensible custom format with versioning support
+//! Per-estimator [`Serializable`] implementations live in
+//! `serialization_impl`.
 
 use scirs2_core::ndarray::{Array1, Array2};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use sklears_core::error::{Result, SklearsError};
-use std::fmt::Debug;
-use std::io::{Read};
+use sklears_core::error::{Result as SklResult, SklearsError};
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::{Read, Write};
+use std::path::Path;
 
-/// Serialization formats supported
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SerializationFormat {
-    /// JSON format (human-readable)
-    Json,
-    /// MessagePack format (efficient binary)
-    MessagePack,
-    /// Bincode format (Rust-native binary)
-    Bincode,
-    /// Custom format with versioning
-    Custom,
-}
-
-/// Compression methods for serialized data
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CompressionMethod {
-    /// No compression
-    None,
-    /// Gzip compression
-    Gzip,
-    /// LZ4 compression (fast)
-    Lz4,
-    /// Zstd compression (balanced)
-    Zstd,
-}
-
-/// Model metadata for serialization
+/// Serializable, format-agnostic representation of a fitted covariance model.
 #[derive(Debug, Clone)]
-pub struct ModelMetadata {
-    /// Model type identifier
-    pub model_type: String,
-    /// Model version
-    pub version: String,
-    /// Timestamp of serialization
-    pub timestamp: u64,
-    /// Optional description
-    pub description: Option<String>,
-    /// Model configuration parameters
-    pub config: HashMap<String, ModelConfigValue>,
-    /// Training metadata
-    pub training_metadata: Option<TrainingMetadata>,
-    /// Additional tags
-    pub tags: HashMap<String, String>,
-}
-
-/// Configuration value types for serialization
-#[derive(Debug, Clone)]
-pub enum ModelConfigValue {
-    Bool(bool),
-    Integer(i64),
-    Float(f64),
-    String(String),
-    Array(Vec<f64>),
-    Object(HashMap<String, ModelConfigValue>),
-}
-
-/// Training metadata
-#[derive(Debug, Clone)]
-pub struct TrainingMetadata {
-    /// Number of samples used for training
-    pub n_samples: usize,
-    /// Number of features
-    pub n_features: usize,
-    /// Training time in seconds
-    pub training_time: f64,
-    /// Convergence information
-    pub converged: bool,
-    /// Number of iterations
-    pub iterations: usize,
-    /// Final objective value
-    pub final_objective: Option<f64>,
-    /// Training algorithm used
-    pub algorithm: String,
-}
-
-/// Serializable covariance model container
-#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SerializableModel {
-    /// Model metadata
+    /// Estimator identifier (e.g. `"EmpiricalCovariance"`, `"LedoitWolf"`).
+    pub algorithm: String,
+    /// Estimator hyperparameters.
+    pub parameters: HashMap<String, SerializableParam>,
+    /// Fitted model state (matrices and vectors).
+    pub state: ModelState,
+    /// Metadata describing the serialized artifact.
     pub metadata: ModelMetadata,
-    /// Covariance matrix
-    pub covariance: Array2<f64>,
-    /// Optional precision matrix
-    pub precision: Option<Array2<f64>>,
-    /// Model-specific data
-    pub model_data: ModelData,
 }
 
-/// Model-specific data container
+/// Serializable parameter value.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum SerializableParam {
+    /// Integer parameter.
+    Int(i64),
+    /// Floating-point parameter.
+    Float(f64),
+    /// String parameter.
+    String(String),
+    /// Boolean parameter.
+    Bool(bool),
+    /// Array of floating-point values.
+    FloatArray(Vec<f64>),
+    /// Array of integer values.
+    IntArray(Vec<i64>),
+}
+
+/// Fitted covariance model state.
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ModelState {
+    /// Estimated covariance matrix.
+    pub covariance: Option<Vec<Vec<f64>>>,
+    /// Estimated precision (inverse covariance) matrix, if stored.
+    pub precision: Option<Vec<Vec<f64>>>,
+    /// Location (mean) vector.
+    pub location: Option<Vec<f64>>,
+    /// Support mask for robust estimators (e.g. MinCovDet).
+    pub support: Option<Vec<bool>>,
+    /// Per-sample distances for robust estimators (e.g. MinCovDet).
+    pub distances: Option<Vec<f64>>,
+    /// Additional estimator-specific state.
+    pub custom_data: HashMap<String, SerializableParam>,
+}
+
+/// Metadata describing a serialized covariance model.
 #[derive(Debug, Clone)]
-pub enum ModelData {
-    /// Empirical covariance data
-    Empirical {
-        mean: Array1<f64>,
-        n_samples: usize,
-    },
-    /// Shrinkage-based models
-    Shrinkage {
-        shrinkage_parameter: f64,
-        target: Array2<f64>,
-        empirical_covariance: Array2<f64>,
-    },
-    /// Robust estimator data
-    Robust {
-        support: Array1<bool>,
-        location: Array1<f64>,
-        raw_location: Array1<f64>,
-        raw_covariance: Array2<f64>,
-    },
-    /// Sparse model data
-    Sparse {
-        sparsity_pattern: Array2<bool>,
-        regularization_parameter: f64,
-        objective_value: f64,
-    },
-    /// Factor model data
-    FactorModel {
-        factors: Array2<f64>,
-        loadings: Array2<f64>,
-        noise_variance: Array1<f64>,
-        explained_variance_ratio: Array1<f64>,
-    },
-    /// Bayesian model data
-    Bayesian {
-        posterior_mean: Array2<f64>,
-        posterior_covariance: Option<Array2<f64>>,
-        prior_parameters: HashMap<String, f64>,
-        mcmc_samples: Option<Vec<Array2<f64>>>,
-    },
-    /// Meta-learning model data
-    MetaLearning {
-        selected_method: String,
-        meta_features: HashMap<String, f64>,
-        ensemble_weights: Option<Array1<f64>>,
-        confidence: f64,
-    },
-    /// Generic model data for extensibility
-    Generic {
-        data: HashMap<String, ModelConfigValue>,
-    },
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ModelMetadata {
+    /// Unix timestamp (seconds) at which the artifact was created.
+    pub timestamp: u64,
+    /// Number of features the estimator was fitted on.
+    pub n_features: usize,
+    /// Number of samples used during fitting, if known.
+    pub n_samples: Option<usize>,
+    /// Version of the crate that produced the artifact.
+    pub version: String,
 }
 
-/// Model registry for managing serializable models
-#[derive(Debug)]
-pub struct ModelRegistry {
-    /// Registered model serializers
-    serializers: HashMap<String, Box<dyn ModelSerializer>>,
-    /// Default serialization format
-    default_format: SerializationFormat,
-    /// Default compression method
-    default_compression: CompressionMethod,
+impl Default for ModelMetadata {
+    fn default() -> Self {
+        Self {
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_secs())
+                .unwrap_or(0),
+            n_features: 0,
+            n_samples: None,
+            version: env!("CARGO_PKG_VERSION").to_string(),
+        }
+    }
 }
 
-/// Trait for model serialization
-pub trait ModelSerializer: Debug + Send + Sync {
-    /// Serialize a model to a serializable container
-    fn serialize(&self, model: &dyn SerializableModelTrait) -> Result<SerializableModel>;
-    
-    /// Deserialize a model from a serializable container
-    fn deserialize(&self, data: &SerializableModel) -> Result<Box<dyn SerializableModelTrait>>;
-    
-    /// Get the model type identifier
-    fn model_type(&self) -> &'static str;
-    
-    /// Get the current version
-    fn version(&self) -> &'static str;
-}
+/// Trait implemented by fitted estimators that support serialization.
+pub trait Serializable {
+    /// Convert the fitted model into a [`SerializableModel`].
+    fn to_serializable(&self) -> SklResult<SerializableModel>;
 
-/// Trait for models that can be serialized
-pub trait SerializableModelTrait: Debug + Send + Sync {
-    /// Get model metadata
-    fn get_metadata(&self) -> ModelMetadata;
-    
-    /// Get covariance matrix
-    fn get_covariance(&self) -> &Array2<f64>;
-    
-    /// Get precision matrix if available
-    fn get_precision(&self) -> Option<&Array2<f64>>;
-    
-    /// Get model-specific data
-    fn get_model_data(&self) -> ModelData;
-    
-    /// Restore model from data
-    fn from_serializable(data: &SerializableModel) -> Result<Self>
+    /// Reconstruct a fitted model from a [`SerializableModel`].
+    fn from_serializable(serializable: &SerializableModel) -> SklResult<Self>
     where
         Self: Sized;
 }
 
-/// Model validation results
-#[derive(Debug, Clone)]
-pub struct ValidationResult {
-    /// Whether validation passed
-    pub is_valid: bool,
-    /// Validation warnings
-    pub warnings: Vec<String>,
-    /// Validation errors
-    pub errors: Vec<String>,
-    /// Model integrity check result
-    pub integrity_score: f64,
+/// Supported on-disk serialization formats.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SerializationFormat {
+    /// Human-readable JSON.
+    Json,
+    /// Compact Rust-native binary (oxicode).
+    Binary,
+    /// MessagePack binary.
+    MessagePack,
 }
 
-impl ModelRegistry {
-    /// Create a new model registry
-    pub fn new() -> Self {
-        let mut registry = Self {
-            serializers: HashMap::new(),
-            default_format: SerializationFormat::Bincode,
-            default_compression: CompressionMethod::None,
-        };
-        
-        // Register default serializers
-        registry.register_default_serializers();
-        registry
+/// Conversions between `ndarray` containers and serializable representations.
+pub struct ArrayConverter;
+
+impl ArrayConverter {
+    /// Convert an [`Array2<f64>`] into a row-major nested vector.
+    pub fn array2_to_vec(matrix: &Array2<f64>) -> Vec<Vec<f64>> {
+        matrix.rows().into_iter().map(|row| row.to_vec()).collect()
     }
-    
-    /// Register a model serializer
-    pub fn register(&mut self, serializer: Box<dyn ModelSerializer>) {
-        let model_type = serializer.model_type().to_string();
-        self.serializers.insert(model_type, serializer);
+
+    /// Convert a nested vector back into an [`Array2<f64>`].
+    pub fn vec_to_array2(rows: &[Vec<f64>]) -> SklResult<Array2<f64>> {
+        if rows.is_empty() {
+            return Ok(Array2::zeros((0, 0)));
+        }
+
+        let n_rows = rows.len();
+        let n_cols = rows[0].len();
+
+        for (index, row) in rows.iter().enumerate() {
+            if row.len() != n_cols {
+                return Err(SklearsError::InvalidInput(format!(
+                    "Row {} has {} columns, expected {}",
+                    index,
+                    row.len(),
+                    n_cols
+                )));
+            }
+        }
+
+        let flat: Vec<f64> = rows.iter().flatten().copied().collect();
+        Array2::from_shape_vec((n_rows, n_cols), flat).map_err(|error| {
+            SklearsError::InvalidInput(format!("Failed to rebuild matrix: {}", error))
+        })
     }
-    
-    /// Get a serializer by model type
-    pub fn get_serializer(&self, model_type: &str) -> Option<&dyn ModelSerializer> {
-        self.serializers.get(model_type).map(|s| s.as_ref())
+
+    /// Convert an [`Array1<f64>`] into a vector.
+    pub fn array1_to_vec(vector: &Array1<f64>) -> Vec<f64> {
+        vector.to_vec()
     }
-    
-    /// List available model types
-    pub fn available_models(&self) -> Vec<String> {
-        self.serializers.keys().cloned().collect()
+
+    /// Convert a slice back into an [`Array1<f64>`].
+    pub fn vec_to_array1(values: &[f64]) -> Array1<f64> {
+        Array1::from_vec(values.to_vec())
     }
-    
-    /// Set default serialization format
-    pub fn set_default_format(&mut self, format: SerializationFormat) {
-        self.default_format = format;
+
+    /// Convert an [`Array1<bool>`] into a vector.
+    pub fn array1_bool_to_vec(vector: &Array1<bool>) -> Vec<bool> {
+        vector.to_vec()
     }
-    
-    /// Set default compression method
-    pub fn set_default_compression(&mut self, compression: CompressionMethod) {
-        self.default_compression = compression;
+
+    /// Convert a slice of booleans back into an [`Array1<bool>`].
+    pub fn vec_to_array1_bool(values: &[bool]) -> Array1<bool> {
+        Array1::from_vec(values.to_vec())
     }
-    
-    /// Serialize a model to bytes
-    pub fn serialize_to_bytes(
-        &self,
-        model: &dyn SerializableModelTrait,
-        format: Option<SerializationFormat>,
-        compression: Option<CompressionMethod>,
-    ) -> Result<Vec<u8>> {
-        let metadata = model.get_metadata();
-        let serializer = self.get_serializer(&metadata.model_type)
-            .ok_or_else(|| SklearsError::InvalidInput(
-                format!("No serializer found for model type: {}", metadata.model_type)
-            ))?;
-        
-        let serializable = serializer.serialize(model)?;
-        let format = format.unwrap_or_else(|| self.default_format.clone());
-        let compression = compression.unwrap_or_else(|| self.default_compression.clone());
-        
-        let mut bytes = match format {
-            SerializationFormat::Json => {
-                serde_json::to_vec(&serializable)
-                    .map_err(|e| SklearsError::InvalidInput(format!("JSON serialization failed: {}", e)))?
-            }
-            SerializationFormat::MessagePack => {
-                rmp_serde::to_vec(&serializable)
-                    .map_err(|e| SklearsError::InvalidInput(format!("MessagePack serialization failed: {}", e)))?
-            }
-            SerializationFormat::Bincode => {
-                oxicode::serde::encode_to_vec(&serializable, oxicode::config::standard())
-                    .map_err(|e| SklearsError::InvalidInput(format!("Bincode serialization failed: {}", e)))?
-            }
-            SerializationFormat::Custom => {
-                self.serialize_custom_format(&serializable)?
-            }
-        };
-        
-        // Apply compression
-        bytes = self.apply_compression(bytes, compression)?;
-        
-        Ok(bytes)
+}
+
+/// Builder for assembling a [`SerializableModel`].
+pub struct SerializableModelBuilder {
+    algorithm: String,
+    parameters: HashMap<String, SerializableParam>,
+    state: ModelState,
+    metadata: ModelMetadata,
+}
+
+impl SerializableModelBuilder {
+    /// Create a new builder for the given estimator identifier.
+    pub fn new(algorithm: &str) -> Self {
+        Self {
+            algorithm: algorithm.to_string(),
+            parameters: HashMap::new(),
+            state: ModelState::default(),
+            metadata: ModelMetadata::default(),
+        }
     }
-    
-    /// Deserialize a model from bytes
-    pub fn deserialize_from_bytes(
-        &self,
-        bytes: &[u8],
-        format: Option<SerializationFormat>,
-        compression: Option<CompressionMethod>,
-    ) -> Result<Box<dyn SerializableModelTrait>> {
-        let format = format.unwrap_or_else(|| self.default_format.clone());
-        let compression = compression.unwrap_or_else(|| self.default_compression.clone());
-        
-        // Decompress data
-        let decompressed_bytes = self.decompress_data(bytes, compression)?;
-        
-        // Deserialize based on format
-        let serializable: SerializableModel = match format {
-            SerializationFormat::Json => {
-                serde_json::from_slice(&decompressed_bytes)
-                    .map_err(|e| SklearsError::InvalidInput(format!("JSON deserialization failed: {}", e)))?
-            }
-            SerializationFormat::MessagePack => {
-                rmp_serde::from_slice(&decompressed_bytes)
-                    .map_err(|e| SklearsError::InvalidInput(format!("MessagePack deserialization failed: {}", e)))?
-            }
-            SerializationFormat::Bincode => {
-                oxicode::serde::decode_from_slice(&decompressed_bytes, oxicode::config::standard())
-                    .map_err(|e| SklearsError::InvalidInput(format!("Bincode deserialization failed: {}", e)))?
-            }
-            SerializationFormat::Custom => {
-                self.deserialize_custom_format(&decompressed_bytes)?
-            }
-        };
-        
-        // Get appropriate deserializer
-        let serializer = self.get_serializer(&serializable.metadata.model_type)
-            .ok_or_else(|| SklearsError::InvalidInput(
-                format!("No serializer found for model type: {}", serializable.metadata.model_type)
-            ))?;
-        
-        serializer.deserialize(&serializable)
+
+    /// Record a hyperparameter.
+    pub fn parameter(mut self, name: &str, value: SerializableParam) -> Self {
+        self.parameters.insert(name.to_string(), value);
+        self
     }
-    
-    /// Save model to file
+
+    /// Store the covariance matrix.
+    pub fn covariance(mut self, matrix: &Array2<f64>) -> Self {
+        self.metadata.n_features = matrix.nrows();
+        self.state.covariance = Some(ArrayConverter::array2_to_vec(matrix));
+        self
+    }
+
+    /// Store the precision matrix.
+    pub fn precision(mut self, matrix: &Array2<f64>) -> Self {
+        self.state.precision = Some(ArrayConverter::array2_to_vec(matrix));
+        self
+    }
+
+    /// Store the location (mean) vector.
+    pub fn location(mut self, vector: &Array1<f64>) -> Self {
+        self.state.location = Some(ArrayConverter::array1_to_vec(vector));
+        self
+    }
+
+    /// Store the support mask.
+    pub fn support(mut self, mask: &Array1<bool>) -> Self {
+        self.state.support = Some(ArrayConverter::array1_bool_to_vec(mask));
+        self
+    }
+
+    /// Store per-sample distances.
+    pub fn distances(mut self, distances: &Array1<f64>) -> Self {
+        self.state.distances = Some(ArrayConverter::array1_to_vec(distances));
+        self
+    }
+
+    /// Record the number of samples used during fitting.
+    pub fn n_samples(mut self, n_samples: usize) -> Self {
+        self.metadata.n_samples = Some(n_samples);
+        self
+    }
+
+    /// Build the [`SerializableModel`].
+    pub fn build(self) -> SerializableModel {
+        SerializableModel {
+            algorithm: self.algorithm,
+            parameters: self.parameters,
+            state: self.state,
+            metadata: self.metadata,
+        }
+    }
+}
+
+/// File and byte-level serialization helpers.
+pub struct ModelSerializer;
+
+impl ModelSerializer {
+    /// Serialize a model to bytes in the requested format.
+    pub fn to_bytes(model: &SerializableModel, format: SerializationFormat) -> SklResult<Vec<u8>> {
+        match format {
+            SerializationFormat::Json => serde_json::to_vec_pretty(model).map_err(|error| {
+                SklearsError::InvalidInput(format!("JSON serialization failed: {}", error))
+            }),
+            SerializationFormat::Binary => Self::to_binary(model),
+            SerializationFormat::MessagePack => rmp_serde::to_vec(model).map_err(|error| {
+                SklearsError::InvalidInput(format!("MessagePack serialization failed: {}", error))
+            }),
+        }
+    }
+
+    /// Deserialize a model from bytes in the given format.
+    pub fn from_bytes(bytes: &[u8], format: SerializationFormat) -> SklResult<SerializableModel> {
+        match format {
+            SerializationFormat::Json => serde_json::from_slice(bytes).map_err(|error| {
+                SklearsError::InvalidInput(format!("JSON deserialization failed: {}", error))
+            }),
+            SerializationFormat::Binary => Self::from_binary(bytes),
+            SerializationFormat::MessagePack => rmp_serde::from_slice(bytes).map_err(|error| {
+                SklearsError::InvalidInput(format!("MessagePack deserialization failed: {}", error))
+            }),
+        }
+    }
+
+    /// Serialize a model to the compact Rust-native binary format.
+    pub fn to_binary(model: &SerializableModel) -> SklResult<Vec<u8>> {
+        oxicode::serde::encode_to_vec(model, oxicode::config::standard()).map_err(|error| {
+            SklearsError::InvalidInput(format!("Binary serialization failed: {}", error))
+        })
+    }
+
+    /// Deserialize a model from the compact Rust-native binary format.
+    pub fn from_binary(bytes: &[u8]) -> SklResult<SerializableModel> {
+        let (model, _read) = oxicode::serde::decode_from_slice(bytes, oxicode::config::standard())
+            .map_err(|error| {
+                SklearsError::InvalidInput(format!("Binary deserialization failed: {}", error))
+            })?;
+        Ok(model)
+    }
+
+    /// Serialize a model to a JSON string.
+    pub fn to_json_string(model: &SerializableModel) -> SklResult<String> {
+        serde_json::to_string_pretty(model).map_err(|error| {
+            SklearsError::InvalidInput(format!("JSON serialization failed: {}", error))
+        })
+    }
+
+    /// Deserialize a model from a JSON string.
+    pub fn from_json_string(json: &str) -> SklResult<SerializableModel> {
+        serde_json::from_str(json).map_err(|error| {
+            SklearsError::InvalidInput(format!("JSON deserialization failed: {}", error))
+        })
+    }
+
+    /// Persist a model to a file using the requested format.
     pub fn save_to_file<P: AsRef<Path>>(
-        &self,
-        model: &dyn SerializableModelTrait,
+        model: &SerializableModel,
         path: P,
-        format: Option<SerializationFormat>,
-        compression: Option<CompressionMethod>,
-    ) -> Result<()> {
-        let bytes = self.serialize_to_bytes(model, format, compression)?;
-        std::fs::write(path, bytes)
-            .map_err(|e| SklearsError::InvalidInput(format!("Failed to write file: {}", e)))?;
+        format: SerializationFormat,
+    ) -> SklResult<()> {
+        let bytes = Self::to_bytes(model, format)?;
+        let mut file = File::create(path).map_err(|error| {
+            SklearsError::InvalidInput(format!("Failed to create file: {}", error))
+        })?;
+        file.write_all(&bytes).map_err(|error| {
+            SklearsError::InvalidInput(format!("Failed to write file: {}", error))
+        })?;
         Ok(())
     }
-    
-    /// Load model from file
+
+    /// Load a model from a file using the given format.
     pub fn load_from_file<P: AsRef<Path>>(
-        &self,
         path: P,
-        format: Option<SerializationFormat>,
-        compression: Option<CompressionMethod>,
-    ) -> Result<Box<dyn SerializableModelTrait>> {
-        let bytes = std::fs::read(path)
-            .map_err(|e| SklearsError::InvalidInput(format!("Failed to read file: {}", e)))?;
-        self.deserialize_from_bytes(&bytes, format, compression)
-    }
-    
-    /// Validate a deserialized model
-    pub fn validate_model(&self, model: &dyn SerializableModelTrait) -> ValidationResult {
-        let mut warnings = Vec::new();
-        let mut errors = Vec::new();
-        let mut integrity_score = 1.0;
-        
-        // Check covariance matrix properties
-        let covariance = model.get_covariance();
-        
-        // Check if matrix is square
-        if covariance.nrows() != covariance.ncols() {
-            errors.push("Covariance matrix is not square".to_string());
-            integrity_score *= 0.5;
-        }
-        
-        // Check if matrix is symmetric
-        let (n, m) = covariance.dim();
-        if n == m {
-            for i in 0..n {
-                for j in 0..n {
-                    if (covariance[[i, j]] - covariance[[j, i]]).abs() > 1e-10 {
-                        warnings.push("Covariance matrix is not perfectly symmetric".to_string());
-                        integrity_score *= 0.9;
-                        break;
-                    }
-                }
-            }
-        }
-        
-        // Check diagonal elements are positive
-        for i in 0..n {
-            if covariance[[i, i]] <= 0.0 {
-                warnings.push(format!("Diagonal element {} is not positive", i));
-                integrity_score *= 0.8;
-            }
-        }
-        
-        // Check precision matrix if available
-        if let Some(precision) = model.get_precision() {
-            if precision.dim() != covariance.dim() {
-                errors.push("Precision matrix dimension mismatch".to_string());
-                integrity_score *= 0.6;
-            }
-        }
-        
-        // Check metadata
-        let metadata = model.get_metadata();
-        if metadata.model_type.is_empty() {
-            warnings.push("Model type is empty".to_string());
-            integrity_score *= 0.9;
-        }
-        
-        if metadata.version.is_empty() {
-            warnings.push("Model version is empty".to_string());
-            integrity_score *= 0.95;
-        }
-        
-        ValidationResult {
-            is_valid: errors.is_empty(),
-            warnings,
-            errors,
-            integrity_score,
-        }
-    }
-    
-    /// Register default serializers
-    fn register_default_serializers(&mut self) {
-        // This would register serializers for all supported model types
-        // For now, we'll create a generic serializer
-        self.register(Box::new(GenericModelSerializer));
-    }
-    
-    /// Apply compression to data
-    fn apply_compression(&self, data: Vec<u8>, compression: CompressionMethod) -> Result<Vec<u8>> {
-        match compression {
-            CompressionMethod::None => Ok(data),
-            CompressionMethod::Gzip => {
-                oxiarc_deflate::gzip_compress(&data, 6)
-                    .map_err(|e| SklearsError::InvalidInput(format!("Gzip compression failed: {}", e)))
-            }
-            _ => {
-                // For now, fall back to no compression for unsupported methods
-                Ok(data)
-            }
-        }
-    }
-    
-    /// Decompress data
-    fn decompress_data(&self, data: &[u8], compression: CompressionMethod) -> Result<Vec<u8>> {
-        match compression {
-            CompressionMethod::None => Ok(data.to_vec()),
-            CompressionMethod::Gzip => {
-                oxiarc_deflate::gzip_decompress(data)
-                    .map_err(|e| SklearsError::InvalidInput(format!("Gzip decompression failed: {}", e)))
-            }
-            _ => {
-                // For now, fall back to no compression for unsupported methods
-                Ok(data.to_vec())
-            }
-        }
-    }
-    
-    /// Serialize using custom format
-    fn serialize_custom_format(&self, model: &SerializableModel) -> Result<Vec<u8>> {
-        // Custom format with magic number and version
-        let mut bytes = Vec::new();
-        
-        // Magic number for format identification
-        bytes.extend_from_slice(b"SKLEARS_COV");
-        
-        // Version
-        bytes.push(1); // Format version
-        
-        // Use bincode for the actual data
-        let data = oxicode::serde::encode_to_vec(model, oxicode::config::standard())
-            .map_err(|e| SklearsError::InvalidInput(format!("Custom format serialization failed: {}", e)))?;
-        
-        // Data length
-        bytes.extend_from_slice(&(data.len() as u64).to_le_bytes());
-        
-        // Data
-        bytes.extend_from_slice(&data);
-        
-        Ok(bytes)
-    }
-    
-    /// Deserialize using custom format
-    fn deserialize_custom_format(&self, bytes: &[u8]) -> Result<SerializableModel> {
-        if bytes.len() < 20 {
-            return Err(SklearsError::InvalidInput("Invalid custom format: too short".to_string()));
-        }
-        
-        // Check magic number
-        if &bytes[0..11] != b"SKLEARS_COV" {
-            return Err(SklearsError::InvalidInput("Invalid custom format: wrong magic number".to_string()));
-        }
-        
-        // Check version
-        let version = bytes[11];
-        if version != 1 {
-            return Err(SklearsError::InvalidInput(format!("Unsupported format version: {}", version)));
-        }
-        
-        // Read data length
-        let data_length = u64::from_le_bytes([
-            bytes[12], bytes[13], bytes[14], bytes[15],
-            bytes[16], bytes[17], bytes[18], bytes[19],
-        ]) as usize;
-        
-        if bytes.len() < 20 + data_length {
-            return Err(SklearsError::InvalidInput("Invalid custom format: data truncated".to_string()));
-        }
-        
-        // Deserialize data
-        let data = &bytes[20..20 + data_length];
-        oxicode::serde::decode_from_slice(data, oxicode::config::standard())
-            .map_err(|e| SklearsError::InvalidInput(format!("Custom format deserialization failed: {}", e)))
+        format: SerializationFormat,
+    ) -> SklResult<SerializableModel> {
+        let mut file = File::open(path).map_err(|error| {
+            SklearsError::InvalidInput(format!("Failed to open file: {}", error))
+        })?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).map_err(|error| {
+            SklearsError::InvalidInput(format!("Failed to read file: {}", error))
+        })?;
+        Self::from_bytes(&buffer, format)
     }
 }
 
-impl Default for ModelRegistry {
-    fn default() -> Self {
-        Self::new()
+/// Read an [`Array2<f64>`] from a [`ModelState`] covariance slot.
+pub(crate) fn require_covariance(state: &ModelState) -> SklResult<Array2<f64>> {
+    let rows = state.covariance.as_ref().ok_or_else(|| {
+        SklearsError::InvalidInput("Serialized model is missing the covariance matrix".to_string())
+    })?;
+    ArrayConverter::vec_to_array2(rows)
+}
+
+/// Read an optional precision matrix from a [`ModelState`].
+pub(crate) fn optional_precision(state: &ModelState) -> SklResult<Option<Array2<f64>>> {
+    match state.precision.as_ref() {
+        Some(rows) => Ok(Some(ArrayConverter::vec_to_array2(rows)?)),
+        None => Ok(None),
     }
 }
 
-/// Generic model serializer for basic functionality
-#[derive(Debug)]
-struct GenericModelSerializer;
+/// Read the location vector from a [`ModelState`].
+pub(crate) fn require_location(state: &ModelState) -> SklResult<Array1<f64>> {
+    let values = state.location.as_ref().ok_or_else(|| {
+        SklearsError::InvalidInput("Serialized model is missing the location vector".to_string())
+    })?;
+    Ok(ArrayConverter::vec_to_array1(values))
+}
 
-impl ModelSerializer for GenericModelSerializer {
-    fn serialize(&self, model: &dyn SerializableModelTrait) -> Result<SerializableModel> {
-        Ok(SerializableModel {
-            metadata: model.get_metadata(),
-            covariance: model.get_covariance().clone(),
-            precision: model.get_precision().cloned(),
-            model_data: model.get_model_data(),
-        })
-    }
-    
-    fn deserialize(&self, data: &SerializableModel) -> Result<Box<dyn SerializableModelTrait>> {
-        // For the generic serializer, we create a generic model container
-        Ok(Box::new(GenericSerializableModel {
-            metadata: data.metadata.clone(),
-            covariance: data.covariance.clone(),
-            precision: data.precision.clone(),
-            model_data: data.model_data.clone(),
-        }))
-    }
-    
-    fn model_type(&self) -> &'static str {
-        "generic"
-    }
-    
-    fn version(&self) -> &'static str {
-        "1.0.0"
+/// Read an `f64` parameter from a serialized model.
+pub(crate) fn float_param(model: &SerializableModel, name: &str) -> SklResult<f64> {
+    match model.parameters.get(name) {
+        Some(SerializableParam::Float(value)) => Ok(*value),
+        Some(SerializableParam::Int(value)) => Ok(*value as f64),
+        Some(_) => Err(SklearsError::InvalidInput(format!(
+            "Parameter '{}' must be a floating-point value",
+            name
+        ))),
+        None => Err(SklearsError::InvalidInput(format!(
+            "Serialized model is missing parameter '{}'",
+            name
+        ))),
     }
 }
 
-/// Generic serializable model implementation
-#[derive(Debug, Clone)]
-struct GenericSerializableModel {
-    metadata: ModelMetadata,
-    covariance: Array2<f64>,
-    precision: Option<Array2<f64>>,
-    model_data: ModelData,
-}
-
-impl SerializableModelTrait for GenericSerializableModel {
-    fn get_metadata(&self) -> ModelMetadata {
-        self.metadata.clone()
-    }
-    
-    fn get_covariance(&self) -> &Array2<f64> {
-        &self.covariance
-    }
-    
-    fn get_precision(&self) -> Option<&Array2<f64>> {
-        self.precision.as_ref()
-    }
-    
-    fn get_model_data(&self) -> ModelData {
-        self.model_data.clone()
-    }
-    
-    fn from_serializable(data: &SerializableModel) -> Result<Self> {
-        Ok(Self {
-            metadata: data.metadata.clone(),
-            covariance: data.covariance.clone(),
-            precision: data.precision.clone(),
-            model_data: data.model_data.clone(),
-        })
+/// Read an `i64`-backed `usize` parameter from a serialized model.
+pub(crate) fn usize_param(model: &SerializableModel, name: &str) -> SklResult<usize> {
+    match model.parameters.get(name) {
+        Some(SerializableParam::Int(value)) if *value >= 0 => Ok(*value as usize),
+        Some(SerializableParam::Int(_)) => Err(SklearsError::InvalidInput(format!(
+            "Parameter '{}' must be a non-negative integer",
+            name
+        ))),
+        Some(_) => Err(SklearsError::InvalidInput(format!(
+            "Parameter '{}' must be an integer",
+            name
+        ))),
+        None => Err(SklearsError::InvalidInput(format!(
+            "Serialized model is missing parameter '{}'",
+            name
+        ))),
     }
 }
 
-/// Builder for model metadata
-#[derive(Debug, Clone)]
-pub struct ModelMetadataBuilder {
-    metadata: ModelMetadata,
-}
-
-impl ModelMetadataBuilder {
-    /// Create a new metadata builder
-    pub fn new(model_type: String) -> Self {
-        Self {
-            metadata: ModelMetadata {
-                model_type,
-                version: "1.0.0".to_string(),
-                timestamp: std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs(),
-                description: None,
-                config: HashMap::new(),
-                training_metadata: None,
-                tags: HashMap::new(),
-            },
-        }
+/// Verify that a serialized model carries the expected algorithm tag.
+pub(crate) fn check_algorithm(model: &SerializableModel, expected: &str) -> SklResult<()> {
+    if model.algorithm != expected {
+        return Err(SklearsError::InvalidInput(format!(
+            "Expected algorithm '{}' but found '{}'",
+            expected, model.algorithm
+        )));
     }
-    
-    /// Set version
-    pub fn version(mut self, version: String) -> Self {
-        self.metadata.version = version;
-        self
-    }
-    
-    /// Set description
-    pub fn description(mut self, description: String) -> Self {
-        self.metadata.description = Some(description);
-        self
-    }
-    
-    /// Add configuration parameter
-    pub fn config(mut self, key: String, value: ModelConfigValue) -> Self {
-        self.metadata.config.insert(key, value);
-        self
-    }
-    
-    /// Set training metadata
-    pub fn training_metadata(mut self, training_metadata: TrainingMetadata) -> Self {
-        self.metadata.training_metadata = Some(training_metadata);
-        self
-    }
-    
-    /// Add tag
-    pub fn tag(mut self, key: String, value: String) -> Self {
-        self.metadata.tags.insert(key, value);
-        self
-    }
-    
-    /// Build the metadata
-    pub fn build(self) -> ModelMetadata {
-        self.metadata
-    }
+    Ok(())
 }
 
 #[allow(non_snake_case)]
@@ -677,134 +422,61 @@ mod tests {
     use scirs2_core::ndarray::array;
 
     #[test]
-    fn test_model_registry_creation() {
-        let registry = ModelRegistry::new();
-        assert!(!registry.available_models().is_empty());
-        assert!(registry.get_serializer("generic").is_some());
+    fn test_array2_round_trip() {
+        let matrix = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
+        let encoded = ArrayConverter::array2_to_vec(&matrix);
+        let decoded = ArrayConverter::vec_to_array2(&encoded).expect("matrix should rebuild");
+        assert_eq!(matrix, decoded);
     }
 
     #[test]
-    fn test_model_metadata_builder() {
-        let metadata = ModelMetadataBuilder::new("test_model".to_string())
-            .version("2.0.0".to_string())
-            .description("Test model for unit tests".to_string())
-            .config("param1".to_string(), ModelConfigValue::Float(0.5))
-            .tag("environment".to_string(), "test".to_string())
+    fn test_vec_to_array2_rejects_ragged_rows() {
+        let ragged = vec![vec![1.0, 2.0], vec![3.0]];
+        assert!(ArrayConverter::vec_to_array2(&ragged).is_err());
+    }
+
+    #[test]
+    fn test_builder_records_state() {
+        let covariance = array![[2.0, 0.5], [0.5, 1.5]];
+        let location = array![0.1, -0.2];
+        let model = SerializableModelBuilder::new("EmpiricalCovariance")
+            .parameter("store_precision", SerializableParam::Bool(true))
+            .covariance(&covariance)
+            .location(&location)
+            .n_samples(42)
             .build();
 
-        assert_eq!(metadata.model_type, "test_model");
-        assert_eq!(metadata.version, "2.0.0");
-        assert!(metadata.description.is_some());
-        assert!(!metadata.config.is_empty());
-        assert!(!metadata.tags.is_empty());
+        assert_eq!(model.algorithm, "EmpiricalCovariance");
+        assert!(model.state.covariance.is_some());
+        assert_eq!(model.metadata.n_features, 2);
+        assert_eq!(model.metadata.n_samples, Some(42));
+        assert_eq!(
+            model.parameters.get("store_precision"),
+            Some(&SerializableParam::Bool(true))
+        );
     }
 
     #[test]
-    fn test_generic_model_serialization() {
-        let metadata = ModelMetadataBuilder::new("generic".to_string()).build();
-        let covariance = array![[1.0, 0.5], [0.5, 1.0]];
-        let model_data = ModelData::Empirical {
-            mean: array![0.0, 0.0],
-            n_samples: 100,
-        };
+    fn test_serializer_byte_round_trips() {
+        let covariance = array![[1.0, 0.25], [0.25, 1.0]];
+        let location = array![0.0, 0.0];
+        let model = SerializableModelBuilder::new("EmpiricalCovariance")
+            .covariance(&covariance)
+            .location(&location)
+            .build();
 
-        let model = GenericSerializableModel {
-            metadata,
-            covariance,
-            precision: None,
-            model_data,
-        };
-
-        let registry = ModelRegistry::new();
-        
-        // Test serialization to bytes
-        let bytes = registry.serialize_to_bytes(&model, None, None).expect("serialization should succeed");
-        assert!(!bytes.is_empty());
-
-        // Test deserialization from bytes
-        let deserialized = registry.deserialize_from_bytes(&bytes, None, None).expect("serialization should succeed");
-        assert_eq!(deserialized.get_covariance().dim(), (2, 2));
-    }
-
-    #[test]
-    fn test_model_validation() {
-        let metadata = ModelMetadataBuilder::new("test".to_string()).build();
-        let covariance = array![[1.0, 0.5], [0.5, 1.0]];
-        let model_data = ModelData::Empirical {
-            mean: array![0.0, 0.0],
-            n_samples: 100,
-        };
-
-        let model = GenericSerializableModel {
-            metadata,
-            covariance,
-            precision: None,
-            model_data,
-        };
-
-        let registry = ModelRegistry::new();
-        let validation = registry.validate_model(&model);
-
-        assert!(validation.is_valid);
-        assert!(validation.integrity_score > 0.8);
-    }
-
-    #[test]
-    fn test_serialization_formats() {
-        let metadata = ModelMetadataBuilder::new("generic".to_string()).build();
-        let covariance = array![[1.0, 0.1], [0.1, 1.0]];
-        let model_data = ModelData::Empirical {
-            mean: array![0.0, 0.0],
-            n_samples: 50,
-        };
-
-        let model = GenericSerializableModel {
-            metadata,
-            covariance,
-            precision: None,
-            model_data,
-        };
-
-        let registry = ModelRegistry::new();
-
-        // Test different formats
-        for format in [SerializationFormat::Json, SerializationFormat::Bincode, SerializationFormat::Custom] {
-            let bytes = registry.serialize_to_bytes(&model, Some(format.clone()), None).expect("serialization should succeed");
+        for format in [
+            SerializationFormat::Json,
+            SerializationFormat::Binary,
+            SerializationFormat::MessagePack,
+        ] {
+            let bytes =
+                ModelSerializer::to_bytes(&model, format).expect("serialization should succeed");
             assert!(!bytes.is_empty());
-
-            let deserialized = registry.deserialize_from_bytes(&bytes, Some(format), None).expect("serialization should succeed");
-            assert_eq!(deserialized.get_covariance().dim(), (2, 2));
+            let restored = ModelSerializer::from_bytes(&bytes, format)
+                .expect("deserialization should succeed");
+            assert_eq!(restored.algorithm, model.algorithm);
+            assert_eq!(restored.metadata.n_features, model.metadata.n_features);
         }
-    }
-
-    #[test]
-    fn test_compression() {
-        let metadata = ModelMetadataBuilder::new("generic".to_string()).build();
-        let covariance = array![[1.0, 0.1], [0.1, 1.0]];
-        let model_data = ModelData::Empirical {
-            mean: array![0.0, 0.0],
-            n_samples: 50,
-        };
-
-        let model = GenericSerializableModel {
-            metadata,
-            covariance,
-            precision: None,
-            model_data,
-        };
-
-        let registry = ModelRegistry::new();
-
-        // Test with compression
-        let bytes_uncompressed = registry.serialize_to_bytes(&model, None, Some(CompressionMethod::None)).expect("serialization should succeed");
-        let bytes_compressed = registry.serialize_to_bytes(&model, None, Some(CompressionMethod::Gzip)).expect("serialization should succeed");
-
-        // Compressed should generally be smaller for larger data
-        // For small test data, it might actually be larger due to overhead
-        assert!(!bytes_compressed.is_empty());
-
-        // Test decompression
-        let deserialized = registry.deserialize_from_bytes(&bytes_compressed, None, Some(CompressionMethod::Gzip)).expect("serialization should succeed");
-        assert_eq!(deserialized.get_covariance().dim(), (2, 2));
     }
 }

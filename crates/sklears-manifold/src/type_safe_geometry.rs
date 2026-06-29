@@ -428,9 +428,69 @@ impl GeometricOps {
             ));
         }
 
-        // Simplified local structure preservation metric
-        // In a real implementation, this would compute neighborhood preservation
-        Ok(0.95) // Placeholder value
+        let n = embedding.input_manifold().len();
+
+        if n <= 1 {
+            return Ok(1.0);
+        }
+
+        let input_pts = embedding.input_manifold().points();
+        let output_pts = embedding.output_points();
+
+        // Compute pairwise distances in both spaces (n×n, symmetric)
+        let mut input_dists = vec![0.0f64; n * n];
+        let mut output_dists = vec![0.0f64; n * n];
+        for i in 0..n {
+            for j in (i + 1)..n {
+                let d_in = Point::<T, INPUT_DIM>::distance(&input_pts[i], &input_pts[j]);
+                let d_out =
+                    Point::<Euclidean, OUTPUT_DIM>::distance(&output_pts[i], &output_pts[j]);
+                input_dists[i * n + j] = d_in;
+                input_dists[j * n + i] = d_in;
+                output_dists[i * n + j] = d_out;
+                output_dists[j * n + i] = d_out;
+            }
+        }
+
+        // Trustworthiness (Venna & Kaski 2001):
+        // T(k) = 1 − (2 / (n · k · (2n − 3k − 1))) · Σ_i Σ_{j ∈ U_k(i)} (r(i,j) − k)
+        // where U_k(i) = points in k-NN(output) of i that are NOT in k-NN(input) of i
+        //       r(i,j) = rank of j in the FULL output ordering from i (1-indexed)
+        let mut penalty = 0.0f64;
+        for i in 0..n {
+            // Indices sorted by input distance from i (ascending, self excluded)
+            let mut in_order: Vec<usize> = (0..n).filter(|&j| j != i).collect();
+            in_order.sort_by(|&a, &b| input_dists[i * n + a].total_cmp(&input_dists[i * n + b]));
+            let k_in: std::collections::HashSet<usize> = in_order[..k].iter().copied().collect();
+
+            // Indices sorted by output distance from i (ascending, self excluded)
+            let mut out_order: Vec<usize> = (0..n).filter(|&j| j != i).collect();
+            out_order.sort_by(|&a, &b| output_dists[i * n + a].total_cmp(&output_dists[i * n + b]));
+
+            // U_k(i): top-k output neighbours not in top-k input neighbours
+            for rank_0 in 0..k {
+                let j = out_order[rank_0];
+                if !k_in.contains(&j) {
+                    // r(i,j): rank of j in the full output ordering (1-indexed among all n-1 others)
+                    let full_rank = out_order
+                        .iter()
+                        .position(|&x| x == j)
+                        .unwrap_or(k) // guaranteed to find; unwrap_or is a safety net
+                        + 1; // 1-indexed
+                    penalty += (full_rank as f64) - (k as f64);
+                }
+            }
+        }
+
+        let nf = n as f64;
+        let kf = k as f64;
+        let denom = 2.0 * nf * kf * (2.0 * nf - 3.0 * kf - 1.0);
+        if denom <= 0.0 {
+            // Degenerate case: n too small relative to k
+            return Ok(1.0);
+        }
+        let trustworthiness = 1.0 - (2.0 / denom) * penalty;
+        Ok(trustworthiness.clamp(0.0, 1.0))
     }
 }
 

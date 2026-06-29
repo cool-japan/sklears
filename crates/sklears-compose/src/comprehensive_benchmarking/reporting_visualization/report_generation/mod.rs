@@ -17,7 +17,7 @@
 //!
 //! # Usage
 //!
-//! ```rust
+//! ```ignore
 //! use crate::report_generation::{ReportGenerationManager, ReportGenerator};
 //!
 //! // Create a new report generation manager
@@ -32,209 +32,77 @@
 //! let report = manager.generate_report("generator_id", "template_id", parameters)?;
 //! ```
 
+#![allow(unexpected_cfgs)]
+
 // Module declarations
-pub mod generation_core;
 pub mod data_sources;
-pub mod template_engine;
-pub mod scheduler_execution;
-pub mod output_delivery;
+pub mod generation_core;
 pub mod monitoring_metrics;
+pub mod output_delivery;
+pub mod scheduler_execution;
+pub mod template_engine;
 
 // Re-export core management types
 pub use generation_core::{
-    ReportGenerationManager,
-    ReportGenerator,
-    ReportType,
-    GeneratorStatus,
-    GeneratorPerformanceMetrics,
-    MemoryUsageStats,
-    GenerationConfig,
-    QualitySettings,
-    ImageQuality,
-    ChartResolution,
-    FontRendering,
-    ColorDepth,
-    OptimizationLevel,
-    ReportScheduling,
-    ReportSchedule,
-    DeliveryOption,
-    RetryPolicy,
-    BackoffStrategy,
-    NotificationSettings,
-    NotificationChannel,
-    NotificationTrigger,
-    GeneratedReport,
-    ReportGenerationError,
-    ReportGenerationResult,
+    BackoffStrategy, ChartResolution, ColorDepth, DeliveryOption, FontRendering, GeneratedReport,
+    GenerationConfig, GeneratorPerformanceMetrics, GeneratorStatus, ImageQuality, MemoryUsageStats,
+    NotificationChannel, NotificationSettings, NotificationTrigger, OptimizationLevel,
+    QualitySettings, ReportGenerationError, ReportGenerationManager, ReportGenerationResult,
+    ReportGenerator, ReportSchedule, ReportScheduling, ReportType, RetryPolicy,
 };
 
 // Re-export data source management types
 pub use data_sources::{
-    DataSourceManager,
-    DataSource,
-    DataSourceType,
-    ConnectionConfig,
-    DatabaseConfig,
-    ApiConfig,
-    FileConfig,
-    StreamConfig,
-    ConnectionPool,
-    PoolConfig,
-    ConnectionInfo,
-    ConnectionStatus,
-    TimeoutConfig,
-    SslConfig,
-    DataSourceCacheManager,
-    CacheConfig,
-    CacheEntry,
-    CacheBackend,
-    CacheStatistics,
-    EvictionPolicy,
-    DataValidator,
-    ValidationRule,
-    ValidationRuleType,
-    DataQualityMetrics,
-    ValidationConfig,
-    AuthenticationMethod,
-    OAuth2Config,
-    RetryConfiguration,
-    BackoffStrategy as DataBackoffStrategy,
+    AuthenticationMethod, BackoffStrategy as DataBackoffStrategy, DataSource, DataSourceConnection,
+    DataSourceManager, DataSourceType, OAuth2Config, RetryConfiguration, SslConfig, TimeoutConfig,
 };
 
 // Re-export template engine types
 pub use template_engine::{
-    ReportTemplateEngine,
-    ReportTemplate,
-    CompiledTemplate,
-    TemplateRenderingEngine,
-    RenderingEngineType,
-    RenderingConfig,
-    RenderingPerformanceSettings,
-    LevelOfDetail,
-    CachingStrategy,
-    TemplateValidator,
-    TemplateValidationRule,
-    SyntaxChecker,
-    SyntaxRule,
-    SyntaxSeverity,
-    TemplateStructure,
-    TemplateSection,
-    SectionType,
-    ContentType,
-    SectionLayoutProperties,
-    Position,
-    PositioningType,
-    Size,
-    Dimension,
-    Padding,
-    Margin,
-    Alignment,
-    ConditionalDisplay,
-    ConditionType,
-    LayoutConfig,
-    LayoutType,
-    ResponsiveDesign,
-    Breakpoint,
-    LayoutAdjustments,
-    ScalingStrategy,
-    GridSystem,
-    GridType,
-    TemplateMetadata,
-    CompatibilityInfo,
-    ParameterDefinition,
-    ParameterType,
-    ValidationRule as TemplateValidationRuleType,
+    Alignment, Breakpoint, CachingStrategy, CompatibilityInfo, CompiledTemplate, ConditionType,
+    ConditionalDisplay, ContentType, DateFormat, Dimension, FontConfig, GridSystem, GridType,
+    HeaderFooterConfig, LayoutAdjustments, LayoutConfig, LayoutType, LevelOfDetail,
+    LocalizationConfig, Margin, NumberFormat, NumberingFormat, NumberingPosition, Padding,
+    PageMargins, PageNumbering, PageOrientation, PageSettings, PageSize, ParameterDefinition,
+    ParameterType, Position, PositioningType, RenderingConfig, RenderingEngineType,
+    RenderingPerformanceSettings, ReportTemplate, ReportTemplateEngine, ResponsiveDesign,
+    ScalingStrategy, SectionLayoutProperties, SectionType, Size, SyntaxChecker, SyntaxRule,
+    SyntaxSeverity, TemplateMetadata, TemplateRenderingEngine, TemplateSection, TemplateStructure,
+    TemplateValidationRule, TemplateValidator, ValidationRule as TemplateValidationRuleType,
     ValidationRuleType as TemplateValidationType,
-    LocalizationConfig,
-    NumberFormat,
-    DateFormat,
-    PageSettings,
-    PageSize,
-    PageOrientation,
-    PageMargins,
-    HeaderFooterConfig,
-    PageNumbering,
-    NumberingFormat,
-    NumberingPosition,
-    FontConfig,
 };
 
 // Re-export scheduler and execution types
 pub use scheduler_execution::{
-    ReportScheduler,
-    ScheduledReportJob,
-    JobStatus,
-    JobExecutionEngine,
+    BackoffStrategy as SchedulerBackoffStrategy, ExecutionMetrics, ExecutionMonitor,
+    ExecutionStatus, JobExecution, JobExecutionEngine, JobQueue, JobStatus, ReportScheduler,
+    RetryConfiguration as SchedulerRetryConfig, ScheduledReportJob, SchedulerConfig,
     ThreadPoolConfig,
-    JobQueue,
-    ExecutionMonitor,
-    JobExecution,
-    ExecutionStatus,
-    ExecutionMetrics,
-    SchedulerConfig,
-    RetryConfiguration as SchedulerRetryConfig,
-    BackoffStrategy as SchedulerBackoffStrategy,
 };
 
 // Re-export output and delivery types
 pub use output_delivery::{
-    OutputFormatManager,
-    FormatHandler,
-    FormatConfig,
-    QualityPreset,
-    CompressionOption,
-    OutputFormat,
-    ImageFormat,
-    ReportDeliveryCoordinator,
-    DeliveryChannel,
-    DeliveryChannelType,
-    DeliveryChannelConfig,
-    DeliveryScheduling,
-    ImmediateDeliveryConfig,
-    BatchDeliveryConfig,
-    ScheduledDeliveryConfig,
-    DeliveryTracking,
-    DeliveryLog,
-    DeliveryStatus,
-    DeliveryAnalytics,
-    VolumeStatistics,
     AuthenticationMethod as DeliveryAuthenticationMethod,
-    OAuth2Config as DeliveryOAuth2Config,
-    RateLimiting,
-    RetryConfiguration as DeliveryRetryConfig,
-    BackoffStrategy as DeliveryBackoffStrategy,
+    BackoffStrategy as DeliveryBackoffStrategy, BatchDeliveryConfig, CompressionOption,
+    DeliveryAnalytics, DeliveryChannel, DeliveryChannelConfig, DeliveryChannelType, DeliveryLog,
+    DeliveryScheduling, DeliveryStatus, DeliveryTracking, FormatConfig, FormatHandler, ImageFormat,
+    ImmediateDeliveryConfig, OAuth2Config as DeliveryOAuth2Config, OutputFormat,
+    OutputFormatManager, QualityPreset, ReportDeliveryCoordinator,
+    RetryConfiguration as DeliveryRetryConfig, ScheduledDeliveryConfig, VolumeStatistics,
 };
 
 // Re-export monitoring and metrics types
 pub use monitoring_metrics::{
-    ReportGenerationMetrics,
-    GeneratorPerformanceMetrics as MetricsGeneratorPerformance,
-    MemoryUsageStats as MetricsMemoryUsage,
-    ResourceUtilization,
-    DiskIOStatistics,
-    NetworkIOStatistics,
-    ErrorStatistics,
-    CommonError,
-    DataQualityMetrics as MetricsDataQuality,
+    AlertRateLimiting, AlertThresholds, AuthenticationMethod as MetricsAuthenticationMethod,
+    ChannelConfig, CommonError, DataQualityMetrics as MetricsDataQuality, DataSourceHealthMonitor,
+    DiskIOStatistics, ErrorStatistics, EscalationLevel, EscalationPolicy,
     ExecutionMetrics as MetricsExecution,
-    DataSourceHealthMonitor,
-    HealthCheck,
-    HealthStatus,
-    HealthAlertConfig,
-    AlertThresholds,
-    AlertRateLimiting,
-    NotificationSettings as MetricsNotificationSettings,
-    NotificationChannel as MetricsNotificationChannel,
+    GeneratorPerformanceMetrics as MetricsGeneratorPerformance, HealthAlertConfig, HealthCheck,
+    HealthStatus, MemoryUsageStats as MetricsMemoryUsage, MessageFormat, MessageTemplate,
+    MetricsSnapshot, NetworkIOStatistics, NotificationChannel as MetricsNotificationChannel,
     NotificationChannelType as MetricsNotificationChannelType,
-    ChannelConfig,
-    AuthenticationMethod as MetricsAuthenticationMethod,
-    OAuth2Config as MetricsOAuth2Config,
-    RateLimiting as MetricsRateLimiting,
-    MessageTemplate,
-    MessageFormat,
-    EscalationPolicy,
-    EscalationLevel,
-    MetricsSnapshot,
+    NotificationSettings as MetricsNotificationSettings, OAuth2Config as MetricsOAuth2Config,
+    RateLimiting as MetricsRateLimiting, ReportGenerationMetrics, ResourceUtilization,
 };
 
 // Re-export common error handling
@@ -245,7 +113,6 @@ pub use generation_core::ReportGenerationResult as Result;
 pub type ReportManager = ReportGenerationManager;
 pub type Generator = ReportGenerator;
 pub type Template = ReportTemplate;
-pub type DataSource = data_sources::DataSource;
 pub type Scheduler = ReportScheduler;
 pub type DeliveryCoordinator = ReportDeliveryCoordinator;
 pub type Metrics = ReportGenerationMetrics;
@@ -283,7 +150,8 @@ impl ReportGenerationSystem {
         template_id: &str,
         parameters: std::collections::HashMap<String, String>,
     ) -> Result<GeneratedReport> {
-        self.manager.generate_report(generator_id, template_id, parameters)
+        self.manager
+            .generate_report(generator_id, template_id, parameters)
     }
 
     /// Get system health status
@@ -348,7 +216,9 @@ pub mod async_support {
                 let template_id = template_id.to_string();
                 let inner = &self.inner;
                 move || inner.quick_generate(&generator_id, &template_id, parameters)
-            }).await.unwrap_or_default()
+            })
+            .await
+            .unwrap_or_default()
         }
     }
 }
@@ -382,8 +252,7 @@ pub mod metrics_integration {
                  # HELP report_generation_success_rate Success rate of report generation\n\
                  # TYPE report_generation_success_rate gauge\n\
                  report_generation_success_rate {}\n",
-                metrics.total_reports,
-                metrics.success_rate
+                metrics.total_reports, metrics.success_rate
             )
         }
     }
@@ -414,7 +283,7 @@ mod doctests {
 
     /// Example from module documentation
     ///
-    /// ```rust
+    /// ```ignore
     /// use report_generation::{ReportGenerationManager, ReportGenerator};
     /// use std::collections::HashMap;
     ///

@@ -1,46 +1,22 @@
+use chrono::Duration;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
 
-use super::errors::*;
-use super::config_types::*;
-
-    evaluation_frequency: Duration,
-    action: MaintenanceAction,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum MaintenanceTriggerType {
-    IndexFragmentation,
-    StatisticsOutdated,
-    QueryPerformance,
-    StorageSpace,
-    Custom(String),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum MaintenanceAction {
-    Schedule,
-    Execute,
-    Alert,
-    Custom(String),
-}
+use super::compression::{ComplianceManager, PerformanceMetrics};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MaintenanceResourceLimits {
-    max_cpu_usage: f64,
-    max_memory_usage: usize,
-    max_disk_io: f64,
-    max_duration: Duration,
+    pub max_cpu_usage: f64,
+    pub max_memory_usage: usize,
+    pub max_disk_io: f64,
+    pub max_duration: Duration,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotificationConfig {
-    notification_channels: Vec<NotificationChannel>,
-    notification_rules: Vec<NotificationRule>,
-    escalation_policy: EscalationPolicy,
+    pub notification_channels: Vec<NotificationChannel>,
+    pub notification_rules: Vec<NotificationRule>,
+    pub escalation_policy: EscalationPolicy,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -96,9 +72,9 @@ pub enum SeverityLevel {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscalationPolicy {
-    escalation_levels: Vec<EscalationLevel>,
-    escalation_timeout: Duration,
-    max_escalations: usize,
+    pub escalation_levels: Vec<EscalationLevel>,
+    pub escalation_timeout: Duration,
+    pub max_escalations: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -419,4 +395,41 @@ pub struct StageMetrics {
     access_count: usize,
     cost: f64,
     performance_metrics: PerformanceMetrics,
+}
+
+impl Default for RetentionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RetentionManager {
+    pub fn new() -> Self {
+        Self {
+            retention_policies: vec![],
+            cleanup_scheduler: CleanupScheduler {
+                cleanup_tasks: vec![],
+                cleanup_schedule: CleanupSchedule {
+                    schedule_type: ScheduleType::Fixed,
+                    frequency: Duration::hours(24),
+                    maintenance_windows: vec![],
+                    dependencies: vec![],
+                },
+                cleanup_metrics: CleanupMetrics {
+                    total_operations: 0,
+                    successful_operations: 0,
+                    failed_operations: 0,
+                    data_removed: 0,
+                    storage_reclaimed: 0,
+                    execution_time: Duration::seconds(0),
+                },
+            },
+            data_lifecycle: DataLifecycle {
+                lifecycle_stages: vec![],
+                transition_rules: vec![],
+                stage_metrics: std::collections::HashMap::new(),
+            },
+            compliance_manager: ComplianceManager::new(),
+        }
+    }
 }

@@ -89,6 +89,7 @@ pub type GpuResult<T> = Result<T, GpuMetricsError>;
 /// GPU metrics computation context
 #[derive(Debug)]
 pub struct GpuMetricsContext {
+    #[allow(dead_code)] // stored for future use when a real GPU runtime is linked
     device_id: i32,
     stream: Option<CudaStream>,
     memory_pool: GpuMemoryPool,
@@ -291,17 +292,8 @@ impl GpuMetricsContext {
 
     /// Get GPU device properties
     pub fn get_device_properties(&self) -> GpuResult<GpuDeviceProperties> {
-        Ok(GpuDeviceProperties {
-            device_id: self.device_id,
-            name: "Mock GPU Device".to_string(),
-            compute_capability: (7, 5),
-            memory_total: 8 * 1024 * 1024 * 1024, // 8GB
-            memory_free: 6 * 1024 * 1024 * 1024,  // 6GB
-            multiprocessor_count: 72,
-            max_threads_per_block: 1024,
-            max_blocks_per_grid: 65535,
-            warp_size: 32,
-        })
+        // No GPU runtime is linked — cannot report real GPU device properties.
+        Err(GpuMetricsError::GpuNotAvailable)
     }
 
     /// Compute a metric on GPU
@@ -503,19 +495,15 @@ impl GpuMetricsContext {
         _gpu_y_true: &GpuBuffer,
         _gpu_y_pred: &GpuBuffer,
     ) -> GpuResult<f64> {
-        // Placeholder: Launch CUDA kernel for accuracy computation
-        // Real implementation would use __global__ kernels
-        Ok(0.85) // Mock result
+        Err(GpuMetricsError::GpuNotAvailable)
     }
 
     fn compute_mse_gpu(&self, _gpu_y_true: &GpuBuffer, _gpu_y_pred: &GpuBuffer) -> GpuResult<f64> {
-        // Placeholder: Launch CUDA kernel for MSE computation
-        Ok(0.12) // Mock result
+        Err(GpuMetricsError::GpuNotAvailable)
     }
 
     fn compute_mae_gpu(&self, _gpu_y_true: &GpuBuffer, _gpu_y_pred: &GpuBuffer) -> GpuResult<f64> {
-        // Placeholder: Launch CUDA kernel for MAE computation
-        Ok(0.08) // Mock result
+        Err(GpuMetricsError::GpuNotAvailable)
     }
 
     fn compute_euclidean_distance_gpu(
@@ -523,8 +511,7 @@ impl GpuMetricsContext {
         _gpu_a: &GpuBuffer,
         _gpu_b: &GpuBuffer,
     ) -> GpuResult<f64> {
-        // Placeholder: Launch CUDA kernel for Euclidean distance
-        Ok(1.41) // Mock result
+        Err(GpuMetricsError::GpuNotAvailable)
     }
 
     fn compute_cosine_distance_gpu(
@@ -532,8 +519,7 @@ impl GpuMetricsContext {
         _gpu_a: &GpuBuffer,
         _gpu_b: &GpuBuffer,
     ) -> GpuResult<f64> {
-        // Placeholder: Launch CUDA kernel for Cosine distance
-        Ok(0.25) // Mock result
+        Err(GpuMetricsError::GpuNotAvailable)
     }
 
     fn launch_euclidean_distance_matrix_kernel(
@@ -542,8 +528,7 @@ impl GpuMetricsContext {
         _gpu_output: &GpuBuffer,
         _n_samples: usize,
     ) -> GpuResult<()> {
-        // Placeholder: Launch 2D distance matrix kernel
-        Ok(())
+        Err(GpuMetricsError::GpuNotAvailable)
     }
 
     fn launch_cosine_distance_matrix_kernel(
@@ -552,8 +537,7 @@ impl GpuMetricsContext {
         _gpu_output: &GpuBuffer,
         _n_samples: usize,
     ) -> GpuResult<()> {
-        // Placeholder: Launch cosine distance matrix kernel
-        Ok(())
+        Err(GpuMetricsError::GpuNotAvailable)
     }
 
     fn launch_sum_reduction_kernel(
@@ -562,8 +546,7 @@ impl GpuMetricsContext {
         _gpu_result: &GpuBuffer,
         _size: usize,
     ) -> GpuResult<()> {
-        // Placeholder: Launch parallel sum reduction kernel
-        Ok(())
+        Err(GpuMetricsError::GpuNotAvailable)
     }
 
     fn launch_mean_reduction_kernel(
@@ -572,8 +555,7 @@ impl GpuMetricsContext {
         _gpu_result: &GpuBuffer,
         _size: usize,
     ) -> GpuResult<()> {
-        // Placeholder: Launch parallel mean reduction kernel
-        Ok(())
+        Err(GpuMetricsError::GpuNotAvailable)
     }
 
     fn launch_max_reduction_kernel(
@@ -582,8 +564,7 @@ impl GpuMetricsContext {
         _gpu_result: &GpuBuffer,
         _size: usize,
     ) -> GpuResult<()> {
-        // Placeholder: Launch parallel max reduction kernel
-        Ok(())
+        Err(GpuMetricsError::GpuNotAvailable)
     }
 
     fn launch_min_reduction_kernel(
@@ -592,33 +573,48 @@ impl GpuMetricsContext {
         _gpu_result: &GpuBuffer,
         _size: usize,
     ) -> GpuResult<()> {
-        // Placeholder: Launch parallel min reduction kernel
-        Ok(())
+        Err(GpuMetricsError::GpuNotAvailable)
     }
 
     fn copy_matrix_from_gpu(
         &self,
         _gpu_buffer: &GpuBuffer,
-        rows: usize,
-        cols: usize,
+        _rows: usize,
+        _cols: usize,
     ) -> GpuResult<Array2<f64>> {
-        // Placeholder: Copy 2D array from GPU to CPU
-        Ok(Array2::zeros((rows, cols)))
+        Err(GpuMetricsError::GpuNotAvailable)
     }
 
     fn copy_scalar_from_gpu(&self, _gpu_buffer: &GpuBuffer) -> GpuResult<f64> {
-        // Placeholder: Copy single value from GPU to CPU
-        Ok(42.0) // Mock result
+        Err(GpuMetricsError::GpuNotAvailable)
     }
 
     fn supports_mixed_precision(&self) -> bool {
-        // Check if GPU supports Tensor Cores or other mixed precision features
-        true // Mock support
+        false // No GPU hardware present
     }
 
     fn get_available_memory(&self) -> usize {
-        // Query GPU for available memory
-        1024 * 1024 * 1024 // Mock 1GB available
+        // No GPU — report system RAM availability. Return 0 if OS query fails (honest).
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(content) = std::fs::read_to_string("/proc/meminfo") {
+                for line in content.lines() {
+                    if let Some(rest) = line.strip_prefix("MemAvailable:") {
+                        if let Some(kb_str) = rest.split_whitespace().next() {
+                            if let Ok(kb) = kb_str.parse::<u64>() {
+                                return (kb * 1024) as usize;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+            0
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            0
+        }
     }
 
     fn generate_cache_key(
@@ -638,7 +634,8 @@ impl GpuMetricsContext {
     }
 }
 
-/// GPU device properties
+/// GPU device properties (unused until a real GPU runtime is linked)
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct GpuDeviceProperties {
     pub device_id: i32,

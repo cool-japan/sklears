@@ -13,13 +13,16 @@
 //! - **Efficient Iteration**: Specialized algorithms that skip zero entries
 
 use crate::{MetricsError, MetricsResult};
-use scirs2_core::numeric::{Float as FloatTrait, FromPrimitive, Zero};
 use scirs2_core::ndarray::{Array1, Array2};
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 use std::hash::Hash;
 
 #[cfg(feature = "sparse")]
-use sprs::{CsMat, CsVec};
+use scirs2_core::numeric::{Float as FloatTrait, FromPrimitive, SparseElement, Zero};
+#[cfg(feature = "sparse")]
+use scirs2_sparse::CsrMatrix;
+#[cfg(feature = "sparse")]
+use std::collections::HashSet;
 
 /// Memory-efficient confusion matrix using sparse storage
 pub struct SparseConfusionMatrix<T> {
@@ -245,114 +248,142 @@ impl<T: PartialEq + Copy + Ord + Hash> Default for SparseConfusionMatrix<T> {
 #[cfg(feature = "sparse")]
 pub struct SparseMetrics;
 
+/// Iterate the `(column_index, value)` non-zero entries of a single-row CSR vector.
+///
+/// A sparse vector of length `n` is represented as a `1 x n` [`CsrMatrix`]; the
+/// only stored row (`row 0`) holds every non-zero entry. Returns an empty
+/// iterator when the matrix has no rows.
+#[cfg(feature = "sparse")]
+fn csr_row_nonzeros<F>(vector: &CsrMatrix<F>) -> impl Iterator<Item = (usize, F)> + '_
+where
+    F: Clone + Copy + Zero + PartialEq + SparseElement,
+{
+    let (start, end) = if vector.rows() == 0 {
+        (0, 0)
+    } else {
+        (vector.indptr[0], vector.indptr[1])
+    };
+    (start..end).map(move |j| (vector.indices[j], vector.data[j]))
+}
+
 #[cfg(feature = "sparse")]
 impl SparseMetrics {
-    /// Compute mean absolute error for sparse matrices
-    pub fn mean_absolute_error_sparse<F: FloatTrait + FromPrimitive + Copy>(
-        y_true: &CsVec<F>,
-        y_pred: &CsVec<F>,
+    /// Compute mean absolute error for sparse vectors.
+    ///
+    /// Each input is a sparse row vector represented as a `1 x n` [`CsrMatrix`].
+    /// The error is averaged over the full dimension `n` (including implicit
+    /// zeros), matching the dense definition of MAE.
+    pub fn mean_absolute_error_sparse<F: FloatTrait + FromPrimitive + Copy + SparseElement>(
+        y_true: &CsrMatrix<F>,
+        y_pred: &CsrMatrix<F>,
     ) -> MetricsResult<F> {
-        if y_true.dim() != y_pred.dim() {
+        if y_true.cols() != y_pred.cols() {
             return Err(MetricsError::ShapeMismatch {
-                expected: vec![y_true.dim()],
-                actual: vec![y_pred.dim()],
+                expected: vec![y_true.cols()],
+                actual: vec![y_pred.cols()],
             });
         }
 
-        if y_true.dim() == 0 {
+        if y_true.cols() == 0 {
             return Err(MetricsError::EmptyInput);
         }
 
-        let mut sum = F::zero();
+        let mut sum = <F as Zero>::zero();
         let mut processed = HashSet::new();
 
         // Process non-zero elements in y_true
-        for (idx, &true_val) in y_true.iter() {
-            let pred_val = *y_pred.get(idx).unwrap_or(&F::zero());
+        for (idx, true_val) in csr_row_nonzeros(y_true) {
+            let pred_val = y_pred.get(0, idx);
             sum = sum + (true_val - pred_val).abs();
             processed.insert(idx);
         }
 
         // Process remaining non-zero elements in y_pred
-        for (idx, &pred_val) in y_pred.iter() {
+        for (idx, pred_val) in csr_row_nonzeros(y_pred) {
             if !processed.contains(&idx) {
-                let true_val = F::zero(); // y_true[idx] is implicitly zero
+                let true_val = <F as Zero>::zero(); // y_true[idx] is implicitly zero
                 sum = sum + (true_val - pred_val).abs();
             }
         }
 
-        Ok(sum / F::from(y_true.dim()).expect("operation should succeed"))
+        Ok(sum / F::from(y_true.cols()).expect("operation should succeed"))
     }
 
-    /// Compute mean squared error for sparse matrices
-    pub fn mean_squared_error_sparse<F: FloatTrait + FromPrimitive + Copy>(
-        y_true: &CsVec<F>,
-        y_pred: &CsVec<F>,
+    /// Compute mean squared error for sparse vectors.
+    ///
+    /// Each input is a sparse row vector represented as a `1 x n` [`CsrMatrix`].
+    /// The error is averaged over the full dimension `n` (including implicit
+    /// zeros), matching the dense definition of MSE.
+    pub fn mean_squared_error_sparse<F: FloatTrait + FromPrimitive + Copy + SparseElement>(
+        y_true: &CsrMatrix<F>,
+        y_pred: &CsrMatrix<F>,
     ) -> MetricsResult<F> {
-        if y_true.dim() != y_pred.dim() {
+        if y_true.cols() != y_pred.cols() {
             return Err(MetricsError::ShapeMismatch {
-                expected: vec![y_true.dim()],
-                actual: vec![y_pred.dim()],
+                expected: vec![y_true.cols()],
+                actual: vec![y_pred.cols()],
             });
         }
 
-        if y_true.dim() == 0 {
+        if y_true.cols() == 0 {
             return Err(MetricsError::EmptyInput);
         }
 
-        let mut sum = F::zero();
+        let mut sum = <F as Zero>::zero();
         let mut processed = HashSet::new();
 
         // Process non-zero elements in y_true
-        for (idx, &true_val) in y_true.iter() {
-            let pred_val = *y_pred.get(idx).unwrap_or(&F::zero());
+        for (idx, true_val) in csr_row_nonzeros(y_true) {
+            let pred_val = y_pred.get(0, idx);
             let diff = true_val - pred_val;
             sum = sum + diff * diff;
             processed.insert(idx);
         }
 
         // Process remaining non-zero elements in y_pred
-        for (idx, &pred_val) in y_pred.iter() {
+        for (idx, pred_val) in csr_row_nonzeros(y_pred) {
             if !processed.contains(&idx) {
-                let true_val = F::zero(); // y_true[idx] is implicitly zero
+                let true_val = <F as Zero>::zero(); // y_true[idx] is implicitly zero
                 let diff = true_val - pred_val;
                 sum = sum + diff * diff;
             }
         }
 
-        Ok(sum / F::from(y_true.dim()).expect("operation should succeed"))
+        Ok(sum / F::from(y_true.cols()).expect("operation should succeed"))
     }
 
-    /// Compute cosine similarity for sparse vectors
-    pub fn cosine_similarity_sparse<F: FloatTrait + FromPrimitive + Copy>(
-        a: &CsVec<F>,
-        b: &CsVec<F>,
+    /// Compute cosine similarity for sparse vectors.
+    ///
+    /// Each input is a sparse row vector represented as a `1 x n` [`CsrMatrix`].
+    pub fn cosine_similarity_sparse<F: FloatTrait + FromPrimitive + Copy + SparseElement>(
+        a: &CsrMatrix<F>,
+        b: &CsrMatrix<F>,
     ) -> MetricsResult<F> {
-        if a.dim() != b.dim() {
+        if a.cols() != b.cols() {
             return Err(MetricsError::ShapeMismatch {
-                expected: vec![a.dim()],
-                actual: vec![b.dim()],
+                expected: vec![a.cols()],
+                actual: vec![b.cols()],
             });
         }
 
-        let mut dot_product = F::zero();
-        let mut norm_a_sq = F::zero();
-        let mut norm_b_sq = F::zero();
+        let mut dot_product = <F as Zero>::zero();
+        let mut norm_a_sq = <F as Zero>::zero();
+        let mut norm_b_sq = <F as Zero>::zero();
         let mut processed = HashSet::new();
 
         // Process non-zero elements in vector a
-        for (idx, &val_a) in a.iter() {
-            let val_b = *b.get(idx).unwrap_or(&F::zero());
+        for (idx, val_a) in csr_row_nonzeros(a) {
+            let val_b = b.get(0, idx);
             dot_product = dot_product + val_a * val_b;
             norm_a_sq = norm_a_sq + val_a * val_a;
-            if val_b != F::zero() {
+            if val_b != <F as Zero>::zero() {
                 norm_b_sq = norm_b_sq + val_b * val_b;
             }
             processed.insert(idx);
         }
 
         // Process remaining non-zero elements in vector b
-        for (idx, &val_b) in b.iter() {
+        for (idx, val_b) in csr_row_nonzeros(b) {
             if !processed.contains(&idx) {
                 norm_b_sq = norm_b_sq + val_b * val_b;
             }
@@ -361,22 +392,24 @@ impl SparseMetrics {
         let norm_a = norm_a_sq.sqrt();
         let norm_b = norm_b_sq.sqrt();
 
-        if norm_a == F::zero() || norm_b == F::zero() {
+        if norm_a == <F as Zero>::zero() || norm_b == <F as Zero>::zero() {
             return Err(MetricsError::DivisionByZero);
         }
 
         Ok(dot_product / (norm_a * norm_b))
     }
 
-    /// Compute Jaccard similarity for sparse binary vectors
-    pub fn jaccard_similarity_sparse<F: FloatTrait + FromPrimitive + Copy>(
-        a: &CsVec<F>,
-        b: &CsVec<F>,
+    /// Compute Jaccard similarity for sparse binary vectors.
+    ///
+    /// Each input is a sparse row vector represented as a `1 x n` [`CsrMatrix`].
+    pub fn jaccard_similarity_sparse<F: FloatTrait + FromPrimitive + Copy + SparseElement>(
+        a: &CsrMatrix<F>,
+        b: &CsrMatrix<F>,
     ) -> MetricsResult<F> {
-        if a.dim() != b.dim() {
+        if a.cols() != b.cols() {
             return Err(MetricsError::ShapeMismatch {
-                expected: vec![a.dim()],
-                actual: vec![b.dim()],
+                expected: vec![a.cols()],
+                actual: vec![b.cols()],
             });
         }
 
@@ -384,8 +417,8 @@ impl SparseMetrics {
         let mut processed = HashSet::new();
 
         // Count intersection (both vectors have non-zero values)
-        for (idx, &val_a) in a.iter() {
-            if val_a != F::zero() && b.get(idx).unwrap_or(&F::zero()) != &F::zero() {
+        for (idx, val_a) in csr_row_nonzeros(a) {
+            if val_a != <F as Zero>::zero() && b.get(0, idx) != <F as Zero>::zero() {
                 intersection += 1;
             }
             processed.insert(idx);
@@ -393,17 +426,18 @@ impl SparseMetrics {
 
         // Union is the total number of positions where either vector has non-zero values
         let mut union = a.nnz();
-        for (idx, &val_b) in b.iter() {
-            if !processed.contains(&idx) && val_b != F::zero() {
+        for (idx, val_b) in csr_row_nonzeros(b) {
+            if !processed.contains(&idx) && val_b != <F as Zero>::zero() {
                 union += 1;
             }
         }
 
         if union == 0 {
-            return Ok(F::zero());
+            return Ok(<F as Zero>::zero());
         }
 
-        Ok(F::from(intersection).expect("operation should succeed") / F::from(union).expect("operation should succeed"))
+        Ok(F::from(intersection).expect("operation should succeed")
+            / F::from(union).expect("operation should succeed"))
     }
 }
 
@@ -441,7 +475,9 @@ mod tests {
         let y_true = array![0, 1, 2, 0, 1, 2];
         let y_pred = array![0, 2, 1, 0, 0, 1];
 
-        matrix.update(&y_true, &y_pred).expect("operation should succeed");
+        matrix
+            .update(&y_true, &y_pred)
+            .expect("operation should succeed");
 
         assert_eq!(matrix.get(0, 0), 2); // True 0, Pred 0
         assert_eq!(matrix.get(1, 0), 1); // True 1, Pred 0
@@ -464,12 +500,26 @@ mod tests {
         let y_true = array![0, 0, 1, 1, 2, 2];
         let y_pred = array![0, 0, 1, 2, 2, 1];
 
-        matrix.update(&y_true, &y_pred).expect("operation should succeed");
+        matrix
+            .update(&y_true, &y_pred)
+            .expect("operation should succeed");
 
         // Label 0: perfect precision and recall
-        assert_relative_eq!(matrix.precision(0).expect("operation should succeed"), 1.0, epsilon = 1e-10);
-        assert_relative_eq!(matrix.recall(0).expect("operation should succeed"), 1.0, epsilon = 1e-10);
-        assert_relative_eq!(matrix.f1_score(0).expect("operation should succeed"), 1.0, epsilon = 1e-10);
+        assert_relative_eq!(
+            matrix.precision(0).expect("operation should succeed"),
+            1.0,
+            epsilon = 1e-10
+        );
+        assert_relative_eq!(
+            matrix.recall(0).expect("operation should succeed"),
+            1.0,
+            epsilon = 1e-10
+        );
+        assert_relative_eq!(
+            matrix.f1_score(0).expect("operation should succeed"),
+            1.0,
+            epsilon = 1e-10
+        );
 
         assert_eq!(matrix.support(0), 2);
         assert!(matrix.macro_precision() > 0.0);
@@ -477,16 +527,24 @@ mod tests {
         assert!(matrix.macro_f1() > 0.0);
     }
 
+    /// Build a sparse row vector of length `dim` as a `1 x dim` CSR matrix from
+    /// `(index, value)` pairs, mirroring the old `sprs::CsVec::new` constructor.
+    #[cfg(feature = "sparse")]
+    fn sparse_vector(dim: usize, indices: &[usize], values: &[f64]) -> CsrMatrix<f64> {
+        let row_indices = vec![0usize; indices.len()];
+        CsrMatrix::new(values.to_vec(), row_indices, indices.to_vec(), (1, dim))
+            .expect("valid sparse row vector")
+    }
+
     #[cfg(feature = "sparse")]
     #[test]
     fn test_sparse_mae() {
-        use sprs::CsVec;
-
         // Create sparse vectors: y_true = [1, 0, 3, 0], y_pred = [0, 0, 2, 1]
-        let y_true = CsVec::new(4, vec![0, 2], vec![1.0, 3.0]);
-        let y_pred = CsVec::new(4, vec![2, 3], vec![2.0, 1.0]);
+        let y_true = sparse_vector(4, &[0, 2], &[1.0, 3.0]);
+        let y_pred = sparse_vector(4, &[2, 3], &[2.0, 1.0]);
 
-        let mae = SparseMetrics::mean_absolute_error_sparse(&y_true, &y_pred).expect("operation should succeed");
+        let mae = SparseMetrics::mean_absolute_error_sparse(&y_true, &y_pred)
+            .expect("operation should succeed");
 
         // MAE = (|1-0| + |0-0| + |3-2| + |0-1|) / 4 = (1 + 0 + 1 + 1) / 4 = 0.75
         assert_relative_eq!(mae, 0.75, epsilon = 1e-10);
@@ -494,18 +552,56 @@ mod tests {
 
     #[cfg(feature = "sparse")]
     #[test]
+    fn test_sparse_mse() {
+        // Create sparse vectors: y_true = [1, 0, 3, 0], y_pred = [0, 0, 2, 1]
+        let y_true = sparse_vector(4, &[0, 2], &[1.0, 3.0]);
+        let y_pred = sparse_vector(4, &[2, 3], &[2.0, 1.0]);
+
+        let mse = SparseMetrics::mean_squared_error_sparse(&y_true, &y_pred)
+            .expect("operation should succeed");
+
+        // MSE = (1^2 + 0^2 + 1^2 + 1^2) / 4 = 3 / 4 = 0.75
+        assert_relative_eq!(mse, 0.75, epsilon = 1e-10);
+    }
+
+    #[cfg(feature = "sparse")]
+    #[test]
     fn test_sparse_cosine_similarity() {
-        use sprs::CsVec;
-
         // Create sparse vectors: a = [1, 0, 2, 0], b = [0, 0, 4, 0]
-        let a = CsVec::new(4, vec![0, 2], vec![1.0, 2.0]);
-        let b = CsVec::new(4, vec![2], vec![4.0]);
+        let a = sparse_vector(4, &[0, 2], &[1.0, 2.0]);
+        let b = sparse_vector(4, &[2], &[4.0]);
 
-        let similarity = SparseMetrics::cosine_similarity_sparse(&a, &b).expect("operation should succeed");
+        let similarity =
+            SparseMetrics::cosine_similarity_sparse(&a, &b).expect("operation should succeed");
 
         // cos = (1*0 + 0*0 + 2*4 + 0*0) / (sqrt(1²+2²) * sqrt(4²))
         //     = 8 / (sqrt(5) * 4) = 8 / (4*sqrt(5)) = 2/sqrt(5)
         let expected = 2.0 / 5.0_f64.sqrt();
         assert_relative_eq!(similarity, expected, epsilon = 1e-10);
+    }
+
+    #[cfg(feature = "sparse")]
+    #[test]
+    fn test_sparse_jaccard_similarity() {
+        // a = [1, 0, 2, 0], b = [3, 0, 0, 5]
+        // shared non-zero positions: {0} -> intersection = 1
+        // union of non-zero positions: {0, 2, 3} -> union = 3
+        let a = sparse_vector(4, &[0, 2], &[1.0, 2.0]);
+        let b = sparse_vector(4, &[0, 3], &[3.0, 5.0]);
+
+        let jaccard =
+            SparseMetrics::jaccard_similarity_sparse(&a, &b).expect("operation should succeed");
+
+        assert_relative_eq!(jaccard, 1.0 / 3.0, epsilon = 1e-10);
+    }
+
+    #[cfg(feature = "sparse")]
+    #[test]
+    fn test_sparse_mae_dimension_mismatch() {
+        let y_true = sparse_vector(4, &[0], &[1.0]);
+        let y_pred = sparse_vector(5, &[0], &[1.0]);
+
+        let result = SparseMetrics::mean_absolute_error_sparse(&y_true, &y_pred);
+        assert!(matches!(result, Err(MetricsError::ShapeMismatch { .. })));
     }
 }

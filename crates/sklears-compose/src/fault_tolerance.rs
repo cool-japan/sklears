@@ -442,12 +442,24 @@ impl ComprehensiveFaultToleranceManager {
         })
     }
 
-    fn calculate_overall_health(&self, _session_id: &str) -> SklResult<f64> {
-        Ok(0.95) // Placeholder - would aggregate health from all subsystems
+    fn calculate_overall_health(&self, session_id: &str) -> SklResult<f64> {
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
+        let session = sessions.get(session_id)
+            .ok_or_else(|| SklearsError::InvalidState(format!("session {} not found", session_id)))?;
+        // Health decays exponentially with each accumulated fault (e^{-0.05} per fault)
+        Ok((-0.05_f64 * session.metadata.total_faults as f64).exp())
     }
 
-    fn calculate_system_resilience_score(&self, _session_id: &str) -> SklResult<f64> {
-        Ok(0.98) // Placeholder - would calculate comprehensive resilience score
+    fn calculate_system_resilience_score(&self, session_id: &str) -> SklResult<f64> {
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
+        let session = sessions.get(session_id)
+            .ok_or_else(|| SklearsError::InvalidState(format!("session {} not found", session_id)))?;
+        let total = session.metadata.total_faults;
+        let recovered = session.metadata.successful_recoveries;
+        if total == 0 {
+            return Ok(1.0);
+        }
+        Ok((recovered as f64 / total as f64).clamp(0.0, 1.0))
     }
 }
 

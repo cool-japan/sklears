@@ -762,24 +762,38 @@ impl ReportGenerator {
         vec!["Model shows consistent behavior across similar instances".to_string()]
     }
 
+    /// Read a 0-100 score from the supplied report data, accepting either a value
+    /// already on the 0-100 scale or a 0-1 fraction (which is rescaled). Returns
+    /// `0.0` when the caller supplied no value for this aspect, meaning "not
+    /// assessed" rather than a fabricated constant.
+    fn read_score_from_data(&self, key: &str) -> Float {
+        match self.data.get(key).and_then(|v| v.as_f64()) {
+            Some(value) => {
+                let value = value as Float;
+                if (0.0..=1.0).contains(&value) {
+                    value * 100.0
+                } else {
+                    value.clamp(0.0, 100.0)
+                }
+            }
+            None => 0.0,
+        }
+    }
+
     fn calculate_transparency_score(&self) -> Float {
-        // Calculate based on available explanations
-        75.0 // Placeholder
+        self.read_score_from_data("transparency_score")
     }
 
     fn calculate_explainability_score(&self) -> Float {
-        // Calculate based on explanation quality
-        80.0 // Placeholder
+        self.read_score_from_data("explainability_score")
     }
 
     fn calculate_fairness_score(&self) -> Float {
-        // Calculate based on fairness metrics
-        85.0 // Placeholder
+        self.read_score_from_data("fairness_score")
     }
 
     fn calculate_robustness_score(&self) -> Float {
-        // Calculate based on robustness analysis
-        70.0 // Placeholder
+        self.read_score_from_data("robustness_score")
     }
 
     fn generate_improvement_recommendations(&self, scores: &HashMap<String, Float>) -> Vec<String> {
@@ -1021,25 +1035,49 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_scorecard() {
+    fn test_generate_scorecard_uses_provided_data() {
         let config = ReportConfig::default();
-        let generator = ReportGenerator::new(config);
+        let mut generator = ReportGenerator::new(config);
+        // Supply real aspect scores; the scorecard must reflect them, not constants.
+        generator.add_data("transparency_score", serde_json::json!(0.8)); // -> 80
+        generator.add_data("explainability_score", serde_json::json!(60.0)); // -> 60
+        generator.add_data("fairness_score", serde_json::json!(0.9)); // -> 90
+        generator.add_data("robustness_score", serde_json::json!(50.0)); // -> 50
 
         let scorecard = generator
             .generate_scorecard()
             .expect("operation should succeed");
-        assert!(scorecard.overall_score > 0.0);
-        assert!(scorecard.overall_score <= 100.0);
-        assert!(scorecard.scores.contains_key("transparency"));
-        assert!(scorecard.scores.contains_key("explainability"));
-        assert!(scorecard.scores.contains_key("fairness"));
-        assert!(scorecard.scores.contains_key("robustness"));
+        assert!((scorecard.scores["transparency"] - 80.0).abs() < 1e-6);
+        assert!((scorecard.scores["explainability"] - 60.0).abs() < 1e-6);
+        assert!((scorecard.scores["fairness"] - 90.0).abs() < 1e-6);
+        assert!((scorecard.scores["robustness"] - 50.0).abs() < 1e-6);
+        // overall = mean of the four provided scores.
+        assert!((scorecard.overall_score - 70.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_scorecard_without_data_is_zero_not_fabricated() {
+        // With no aspect scores supplied, the honest result is 0.0 ("not assessed"),
+        // never the old fabricated 75/80/85/70 constants.
+        let generator = ReportGenerator::new(ReportConfig::default());
+        let scorecard = generator
+            .generate_scorecard()
+            .expect("operation should succeed");
+        assert_eq!(scorecard.scores["transparency"], 0.0);
+        assert_eq!(scorecard.scores["explainability"], 0.0);
+        assert_eq!(scorecard.scores["fairness"], 0.0);
+        assert_eq!(scorecard.scores["robustness"], 0.0);
+        assert_eq!(scorecard.overall_score, 0.0);
     }
 
     #[test]
     fn test_generate_complete_report() {
         let config = ReportConfig::default();
-        let generator = ReportGenerator::new(config);
+        let mut generator = ReportGenerator::new(config);
+        generator.add_data("transparency_score", serde_json::json!(0.8));
+        generator.add_data("explainability_score", serde_json::json!(0.5)); // below 70 -> recommendation
+        generator.add_data("fairness_score", serde_json::json!(0.9));
+        generator.add_data("robustness_score", serde_json::json!(0.85));
 
         let report = generator
             .generate_report()
@@ -1101,7 +1139,9 @@ mod tests {
 
         assert_eq!(report.metadata.config.model_name, "Test Model");
         assert_eq!(report.metadata.config.dataset_name, "Test Dataset");
-        assert!(report.scorecard.overall_score > 0.0);
+        // Quick report supplies no aspect scores, so the honest overall score is 0.0
+        // ("not assessed"), not a fabricated positive constant.
+        assert!(report.scorecard.overall_score >= 0.0);
     }
 
     #[test]

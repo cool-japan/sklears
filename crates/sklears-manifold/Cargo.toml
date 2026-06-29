@@ -34,7 +34,7 @@ oxicode = { workspace = true, optional = true }
 rmp-serde = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 once_cell = { workspace = true }
-wgpu = { workspace = true, optional = true }
+oxicuda-manifold = { workspace = true, optional = true }
 
 [dev-dependencies]
 approx = { workspace = true }
@@ -46,5 +46,5 @@ tempfile = { workspace = true }
 default = []
 serde = ["dep:serde", "sklears-core/serde"]
 serialization = ["serde", "dep:serde_json", "dep:oxicode", "dep:rmp-serde", "dep:chrono"]
-gpu = ["dep:wgpu"]
+gpu = ["dep:oxicuda-manifold", "sklears-core/gpu_support"]
 

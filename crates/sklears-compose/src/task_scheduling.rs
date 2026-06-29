@@ -1209,11 +1209,71 @@ impl DefaultTaskScheduler {
         }
     }
 
-    /// Detect and resolve dependency cycles
+    /// Detect dependency cycles using iterative depth-first search with
+    /// WHITE / GRAY / BLACK coloring.
+    ///
+    /// For every unvisited node we walk its dependency edges; encountering a
+    /// GRAY (currently on the DFS stack) node indicates a back edge and the
+    /// span of the stack from that node forms one detected cycle. Cycles are
+    /// canonicalized (rotated so the lexicographically smallest node leads)
+    /// and de-duplicated before being returned.
     fn detect_dependency_cycles(&self) -> SklResult<Vec<Vec<String>>> {
-        // Simplified cycle detection using DFS
-        // In a real implementation, would use more sophisticated algorithms
-        Ok(Vec::new())
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum Color {
+            White,
+            Gray,
+            Black,
+        }
+        let nodes: Vec<&String> = self.dependency_graph.keys().collect();
+        let mut color: HashMap<&String, Color> = nodes.iter().map(|n| (*n, Color::White)).collect();
+        let mut cycles: Vec<Vec<String>> = Vec::new();
+        let mut seen: std::collections::HashSet<Vec<String>> = std::collections::HashSet::new();
+        for start in &nodes {
+            if color.get(*start).copied() != Some(Color::White) {
+                continue;
+            }
+            let mut stack: Vec<(&String, usize)> = vec![(start, 0)];
+            let mut path: Vec<&String> = vec![start];
+            color.insert(*start, Color::Gray);
+            while let Some((current, idx)) = stack.last().copied() {
+                let neighbors = self.dependency_graph.get(current);
+                let next = neighbors.and_then(|deps| deps.get(idx));
+                match next {
+                    Some(dep) => {
+                        if let Some((_, top_idx)) = stack.last_mut() {
+                            *top_idx += 1;
+                        }
+                        match color.get(dep).copied().unwrap_or(Color::White) {
+                            Color::White => {
+                                if let Some(key) = self.dependency_graph.keys().find(|k| *k == dep)
+                                {
+                                    color.insert(key, Color::Gray);
+                                    path.push(key);
+                                    stack.push((key, 0));
+                                }
+                            }
+                            Color::Gray => {
+                                if let Some(start_idx) = path.iter().rposition(|n| *n == dep) {
+                                    let cycle: Vec<String> =
+                                        path[start_idx..].iter().map(|s| (*s).clone()).collect();
+                                    let canonical = canonicalize_cycle(&cycle);
+                                    if seen.insert(canonical.clone()) {
+                                        cycles.push(canonical);
+                                    }
+                                }
+                            }
+                            Color::Black => {}
+                        }
+                    }
+                    None => {
+                        color.insert(current, Color::Black);
+                        path.pop();
+                        stack.pop();
+                    }
+                }
+            }
+        }
+        Ok(cycles)
     }
 
     /// Optimize task execution order
@@ -1222,6 +1282,25 @@ impl DefaultTaskScheduler {
         // Placeholder for execution order optimization
         Ok(())
     }
+}
+
+/// Rotate `cycle` so its lexicographically smallest element comes first.
+///
+/// Used to deduplicate cycles discovered from different DFS entry points.
+fn canonicalize_cycle(cycle: &[String]) -> Vec<String> {
+    if cycle.is_empty() {
+        return Vec::new();
+    }
+    let mut min_idx = 0usize;
+    for (i, node) in cycle.iter().enumerate().skip(1) {
+        if node < &cycle[min_idx] {
+            min_idx = i;
+        }
+    }
+    let mut rotated = Vec::with_capacity(cycle.len());
+    rotated.extend(cycle[min_idx..].iter().cloned());
+    rotated.extend(cycle[..min_idx].iter().cloned());
+    rotated
 }
 
 impl TaskScheduler for DefaultTaskScheduler {
@@ -1328,17 +1407,13 @@ impl TaskScheduler for DefaultTaskScheduler {
             .queues
             .iter()
             .map(|(priority, queue)| {
-                let avg_wait_time = Duration::from_secs(60); // Placeholder
-                let oldest_task_age = Duration::from_secs(300); // Placeholder
-
                 (
                     priority.clone(),
-                    // QueueStatistics
                     QueueStatistics {
                         task_count: queue.len(),
-                        avg_wait_time,
-                        oldest_task_age,
-                        growth_rate: 0.1, // Placeholder
+                        avg_wait_time: Duration::ZERO,
+                        oldest_task_age: Duration::ZERO,
+                        growth_rate: 0.0,
                     },
                 )
             })
@@ -1352,16 +1427,42 @@ impl TaskScheduler for DefaultTaskScheduler {
             failed_tasks: self.stats.total_failed,
             cancelled_tasks: self.stats.total_cancelled,
             health,
-            performance: SchedulerPerformanceMetrics {
-                avg_scheduling_time: Duration::from_millis(5),
-                avg_wait_time: Duration::from_secs(30),
-                throughput: 10.0, // Tasks per second
-                efficiency: 0.85,
-                queue_utilization: 0.6,
-                dependency_resolution_efficiency: 0.9,
+            performance: {
+                let elapsed_secs = self
+                    .stats
+                    .scheduling_start_time
+                    .elapsed()
+                    .unwrap_or(Duration::ZERO)
+                    .as_secs_f64();
+                let completed = self.stats.total_completed as f64;
+                let total_handled = (self.stats.total_completed + self.stats.total_failed) as f64;
+                let throughput = if elapsed_secs > 0.0 {
+                    completed / elapsed_secs
+                } else {
+                    0.0
+                };
+                let efficiency = if total_handled > 0.0 {
+                    completed / total_handled
+                } else {
+                    0.0
+                };
+                let max_queue = self.config.queue_management.max_queue_size as f64;
+                let queue_utilization = if max_queue > 0.0 {
+                    (queued_tasks as f64 / max_queue).min(1.0)
+                } else {
+                    0.0
+                };
+                SchedulerPerformanceMetrics {
+                    avg_scheduling_time: Duration::ZERO,
+                    avg_wait_time: Duration::ZERO,
+                    throughput,
+                    efficiency,
+                    queue_utilization,
+                    dependency_resolution_efficiency: 0.0,
+                }
             },
             queue_stats,
-            resource_utilization: 0.7,
+            resource_utilization: 0.0,
         }
     }
 

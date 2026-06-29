@@ -8,9 +8,11 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 
 use crate::dsl_impl::dsl_types::{
-    FeatureDefinition, FeatureEngineeringConfig, HyperparameterConfig, OptimizationStrategy,
-    ParameterDef, ParameterDistribution, PerformanceConfig, PipelineConfig, PipelineStage,
-    StageType,
+    DataOperation, DataPipelineConfig, DataPipelineMode, DataStep, ExperimentConfig,
+    ExperimentParameter, FeatureDefinition, FeatureEngineeringConfig, HyperparameterConfig,
+    ModelEvaluationConfig, OptimizationMetric, OptimizationStrategy, ParameterDef,
+    ParameterDistribution, PerformanceConfig, PipelineConfig, PipelineStage, StageType,
+    StatisticalTest,
 };
 
 /// Generate pipeline code from configuration
@@ -609,6 +611,389 @@ fn generate_optimization_setup(
     }
 }
 
+/// Generate model evaluation code from configuration.
+///
+/// Produces a self-contained block expression that evaluates the configured
+/// model against the supplied feature/target data, computing each requested
+/// metric and, when requested, performing cross-validation and a statistical
+/// significance test. The block evaluates to an `EvaluationReport` value.
+///
+/// # Arguments
+/// * `config` - Parsed model evaluation configuration
+///
+/// # Returns
+/// Generated TokenStream containing the evaluation implementation
+pub fn generate_model_evaluation_code(config: ModelEvaluationConfig) -> TokenStream {
+    let model_expr = &config.model;
+    let features_expr = &config.features;
+    let targets_expr = &config.targets;
+
+    let metric_computations = generate_metric_computations(&config.metrics);
+
+    let cross_validation_code = match &config.cross_validation {
+        Some(cv) => {
+            let n_folds = cv.n_folds;
+            let stratified = cv.stratified;
+            let seed_code = match cv.random_seed {
+                Some(seed) => quote! { Some(#seed) },
+                None => quote! { None },
+            };
+            let cv_metric_computations = generate_cv_metric_computations(&config.metrics);
+            quote! {
+                {
+                    let cv_config = crate::model_selection::CrossValidationConfig {
+                        n_folds: #n_folds,
+                        stratified: #stratified,
+                        random_seed: #seed_code,
+                    };
+                    let folds = crate::model_selection::make_folds(
+                        &__eval_targets,
+                        &cv_config,
+                    )?;
+                    let mut cv_scores: std::collections::HashMap<String, Vec<f64>> =
+                        std::collections::HashMap::new();
+                    for (train_idx, test_idx) in folds.iter() {
+                        let mut __fold_model = #model_expr;
+                        let __train_x = crate::model_selection::take_rows(&__eval_features, train_idx)?;
+                        let __train_y = crate::model_selection::take_rows(&__eval_targets, train_idx)?;
+                        crate::traits::Estimator::fit(&mut __fold_model, &__train_x, &__train_y)?;
+                        let __test_x = crate::model_selection::take_rows(&__eval_features, test_idx)?;
+                        let __test_y = crate::model_selection::take_rows(&__eval_targets, test_idx)?;
+                        let __fold_pred = crate::traits::Predict::predict(&__fold_model, &__test_x)?;
+                        #cv_metric_computations
+                    }
+                    Some(cv_scores)
+                }
+            }
+        }
+        None => quote! { None },
+    };
+
+    let statistical_test_code = match &config.statistical_test {
+        Some(test) => {
+            let test_call = match test {
+                StatisticalTest::PairedTTest => quote! {
+                    crate::stats::paired_t_test(baseline, candidate)?
+                },
+                StatisticalTest::Wilcoxon => quote! {
+                    crate::stats::wilcoxon_signed_rank(baseline, candidate)?
+                },
+                StatisticalTest::McNemar => quote! {
+                    crate::stats::mcnemar_test(baseline, candidate)?
+                },
+                StatisticalTest::Custom(name) => {
+                    let func = syn::Ident::new(name, Span::call_site());
+                    quote! { crate::stats::#func(baseline, candidate)? }
+                }
+            };
+            quote! {
+                Some(|baseline: &[f64], candidate: &[f64]|
+                    -> crate::error::Result<crate::stats::StatisticalTestResult> {
+                    Ok(#test_call)
+                })
+            }
+        }
+        None => quote! { None },
+    };
+
+    quote! {
+        {
+            use crate::traits::{Estimator, Predict};
+
+            let __eval_features = #features_expr;
+            let __eval_targets = #targets_expr;
+            let mut __eval_model = #model_expr;
+
+            // Fit on the full dataset to obtain holdout predictions.
+            Estimator::fit(&mut __eval_model, &__eval_features, &__eval_targets)?;
+            let __eval_pred = Predict::predict(&__eval_model, &__eval_features)?;
+
+            let mut metrics: std::collections::HashMap<String, f64> =
+                std::collections::HashMap::new();
+            #metric_computations
+
+            let cross_validation_scores = #cross_validation_code;
+
+            #[allow(clippy::type_complexity)]
+            let statistical_test: Option<fn(&[f64], &[f64])
+                -> crate::error::Result<crate::stats::StatisticalTestResult>> =
+                #statistical_test_code;
+
+            crate::model_selection::EvaluationReport {
+                metrics,
+                cross_validation_scores,
+                statistical_test,
+            }
+        }
+    }
+}
+
+/// Generate per-metric computations for the holdout evaluation.
+fn generate_metric_computations(metrics: &[OptimizationMetric]) -> TokenStream {
+    let computations = metrics.iter().map(|metric| {
+        let (key, call) = metric_call(metric);
+        quote! {
+            metrics.insert(
+                #key.to_string(),
+                #call(&__eval_targets, &__eval_pred)?,
+            );
+        }
+    });
+
+    quote! {
+        #(#computations)*
+    }
+}
+
+/// Generate per-metric computations accumulated across cross-validation folds.
+fn generate_cv_metric_computations(metrics: &[OptimizationMetric]) -> TokenStream {
+    let computations = metrics.iter().map(|metric| {
+        let (key, call) = metric_call(metric);
+        quote! {
+            cv_scores
+                .entry(#key.to_string())
+                .or_default()
+                .push(#call(&__test_y, &__fold_pred)?);
+        }
+    });
+
+    quote! {
+        #(#computations)*
+    }
+}
+
+/// Resolve a metric to its string key and the metrics function used to compute it.
+fn metric_call(metric: &OptimizationMetric) -> (String, TokenStream) {
+    match metric {
+        OptimizationMetric::Accuracy => (
+            "accuracy".to_string(),
+            quote! { crate::metrics::accuracy_score },
+        ),
+        OptimizationMetric::Precision => (
+            "precision".to_string(),
+            quote! { crate::metrics::precision_score },
+        ),
+        OptimizationMetric::Recall => (
+            "recall".to_string(),
+            quote! { crate::metrics::recall_score },
+        ),
+        OptimizationMetric::F1Score => ("f1".to_string(), quote! { crate::metrics::f1_score }),
+        OptimizationMetric::AucRoc => (
+            "auc_roc".to_string(),
+            quote! { crate::metrics::roc_auc_score },
+        ),
+        OptimizationMetric::MeanSquaredError => (
+            "mean_squared_error".to_string(),
+            quote! { crate::metrics::mean_squared_error },
+        ),
+        OptimizationMetric::MeanAbsoluteError => (
+            "mean_absolute_error".to_string(),
+            quote! { crate::metrics::mean_absolute_error },
+        ),
+        OptimizationMetric::RSquared => {
+            ("r_squared".to_string(), quote! { crate::metrics::r2_score })
+        }
+        OptimizationMetric::Custom(name) => {
+            let func = syn::Ident::new(name, Span::call_site());
+            (name.clone(), quote! { crate::metrics::#func })
+        }
+    }
+}
+
+/// Generate data pipeline code from configuration.
+///
+/// Produces a generated struct implementing the configured data pipeline. The
+/// struct exposes a `run` method that threads the input data source through the
+/// ordered steps. The execution mode selects between full-batch processing and
+/// chunked streaming/real-time processing using the configured batch size.
+///
+/// # Arguments
+/// * `config` - Parsed data pipeline configuration
+///
+/// # Returns
+/// Generated TokenStream containing the data pipeline implementation
+pub fn generate_data_pipeline_code(config: DataPipelineConfig) -> TokenStream {
+    let pipeline_name = generate_data_pipeline_name(&config.name);
+    let source_expr = &config.source;
+    let parallel = config.parallel;
+
+    let step_applications = generate_data_step_applications(&config.steps);
+
+    let batch_size = config.batch_size.unwrap_or(1024);
+    let execution_body = match config.mode {
+        DataPipelineMode::Batch => quote! {
+            // Process the whole dataset in a single pass.
+            let mut data = #source_expr;
+            #step_applications
+            Ok(data)
+        },
+        DataPipelineMode::Streaming | DataPipelineMode::RealTime => quote! {
+            // Process the dataset incrementally in fixed-size chunks.
+            const CHUNK_SIZE: usize = #batch_size;
+            let source = #source_expr;
+            let mut output = crate::data::DataChunkBuilder::new();
+            for chunk in crate::data::chunks(source, CHUNK_SIZE) {
+                let mut data = chunk?;
+                #step_applications
+                output.extend(data)?;
+            }
+            output.finish()
+        },
+    };
+
+    let parallel_setup = if parallel {
+        quote! {
+            // Allow independent record transformations to run in parallel.
+            use scirs2_core::parallel_ops::*;
+        }
+    } else {
+        quote! {}
+    };
+
+    quote! {
+        /// Generated Data Pipeline
+        ///
+        /// This data pipeline was automatically generated from DSL configuration.
+        #[derive(Debug, Default, Clone)]
+        pub struct #pipeline_name;
+
+        impl #pipeline_name {
+            /// Create a new data pipeline instance.
+            pub fn new() -> Self {
+                Self
+            }
+
+            /// Execute the data pipeline, returning the transformed data.
+            pub fn run(&self) -> crate::error::Result<crate::data::DataFrame> {
+                #parallel_setup
+                #execution_body
+            }
+        }
+    }
+}
+
+/// Generate the application of each ordered data processing step.
+fn generate_data_step_applications(steps: &[DataStep]) -> TokenStream {
+    let applications = steps.iter().map(|step| {
+        let step_name = &step.name;
+        let transform = &step.transform;
+        let op_call = match &step.operation {
+            DataOperation::Load => quote! { crate::data::ops::load },
+            DataOperation::Filter => quote! { crate::data::ops::filter },
+            DataOperation::Map => quote! { crate::data::ops::map },
+            DataOperation::Aggregate => quote! { crate::data::ops::aggregate },
+            DataOperation::Join => quote! { crate::data::ops::join },
+            DataOperation::Sink => quote! { crate::data::ops::sink },
+            DataOperation::Custom(name) => {
+                let func = syn::Ident::new(name, Span::call_site());
+                quote! { crate::data::ops::#func }
+            }
+        };
+
+        quote! {
+            // Step: #step_name
+            data = #op_call(data, #transform)
+                .map_err(|err| crate::error::SklearsError::InvalidInput(
+                    format!("data_pipeline step '{}' failed: {}", #step_name, err)
+                ))?;
+        }
+    });
+
+    quote! {
+        #(#applications)*
+    }
+}
+
+/// Generate a valid Rust identifier for the data pipeline name.
+fn generate_data_pipeline_name(name: &str) -> Ident {
+    let clean_name = name
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '_')
+        .collect::<String>()
+        .replace('_', "")
+        .chars()
+        .enumerate()
+        .map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c })
+        .collect::<String>();
+
+    let pipeline_name = if clean_name.is_empty() {
+        "GeneratedDataPipeline".to_string()
+    } else {
+        format!("{}DataPipeline", clean_name)
+    };
+
+    Ident::new(&pipeline_name, Span::call_site())
+}
+
+/// Generate experiment configuration code from configuration.
+///
+/// Produces a block expression that constructs an `ExperimentTracker` with the
+/// configured identity, recorded hyperparameters, tracked metric names, seed,
+/// and tags. The block evaluates to the initialized tracker, ready to receive
+/// logged metric values during the experiment.
+///
+/// # Arguments
+/// * `config` - Parsed experiment configuration
+///
+/// # Returns
+/// Generated TokenStream containing the experiment setup implementation
+pub fn generate_experiment_config_code(config: ExperimentConfig) -> TokenStream {
+    let name = &config.name;
+
+    let description_code = match &config.description {
+        Some(desc) => quote! { Some(#desc.to_string()) },
+        None => quote! { None },
+    };
+
+    let seed_code = match config.seed {
+        Some(seed) => quote! { Some(#seed) },
+        None => quote! { None },
+    };
+
+    let parameter_insertions = generate_experiment_parameters(&config.parameters);
+
+    let tracked_metrics = &config.tracked_metrics;
+    let tags = &config.tags;
+
+    quote! {
+        {
+            let mut __experiment = crate::experiment::ExperimentTracker::new(#name.to_string());
+            __experiment.set_description(#description_code);
+            __experiment.set_seed(#seed_code);
+
+            #parameter_insertions
+
+            #(
+                __experiment.track_metric(#tracked_metrics.to_string());
+            )*
+
+            #(
+                __experiment.add_tag(#tags.to_string());
+            )*
+
+            __experiment
+        }
+    }
+}
+
+/// Generate the hyperparameter recordings for an experiment.
+fn generate_experiment_parameters(parameters: &[ExperimentParameter]) -> TokenStream {
+    let insertions = parameters.iter().map(|param| {
+        let name = &param.name;
+        let value = &param.value;
+        quote! {
+            __experiment.log_parameter(
+                #name.to_string(),
+                crate::experiment::ParameterValue::from(#value),
+            );
+        }
+    });
+
+    quote! {
+        #(#insertions)*
+    }
+}
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -652,5 +1037,85 @@ mod tests {
 
         let result = generate_feature_engineering_code(config);
         assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn test_generate_model_evaluation() {
+        let config = ModelEvaluationConfig {
+            model: syn::parse_str("model").expect("expected valid value"),
+            features: syn::parse_str("x").expect("expected valid value"),
+            targets: syn::parse_str("y").expect("expected valid value"),
+            metrics: vec![OptimizationMetric::Accuracy, OptimizationMetric::F1Score],
+            cross_validation: Some(CrossValidationConfig {
+                n_folds: 5,
+                stratified: true,
+                random_seed: Some(1),
+            }),
+            statistical_test: Some(StatisticalTest::PairedTTest),
+        };
+
+        let result = generate_model_evaluation_code(config);
+        let rendered = result.to_string();
+        assert!(!result.is_empty());
+        // The generated code must compute the requested metrics and run CV/testing.
+        assert!(rendered.contains("accuracy_score"));
+        assert!(rendered.contains("f1_score"));
+        assert!(rendered.contains("EvaluationReport"));
+        assert!(rendered.contains("paired_t_test"));
+    }
+
+    #[test]
+    fn test_generate_data_pipeline() {
+        let config = DataPipelineConfig {
+            name: "etl".to_string(),
+            source: syn::parse_str("read_csv(\"data.csv\")").expect("expected valid value"),
+            steps: vec![
+                DataStep {
+                    name: "clean".to_string(),
+                    operation: DataOperation::Filter,
+                    transform: syn::parse_str("valid_predicate").expect("expected valid value"),
+                },
+                DataStep {
+                    name: "scale".to_string(),
+                    operation: DataOperation::Map,
+                    transform: syn::parse_str("scale_fn").expect("expected valid value"),
+                },
+            ],
+            mode: DataPipelineMode::Streaming,
+            batch_size: Some(128),
+            parallel: true,
+        };
+
+        let result = generate_data_pipeline_code(config);
+        let rendered = result.to_string();
+        assert!(!result.is_empty());
+        assert!(rendered.contains("EtlDataPipeline"));
+        assert!(rendered.contains("ops :: filter"));
+        assert!(rendered.contains("ops :: map"));
+        // Streaming mode must chunk the source.
+        assert!(rendered.contains("CHUNK_SIZE"));
+    }
+
+    #[test]
+    fn test_generate_experiment_config() {
+        let config = ExperimentConfig {
+            name: "exp".to_string(),
+            description: Some("desc".to_string()),
+            parameters: vec![ExperimentParameter {
+                name: "lr".to_string(),
+                value: syn::parse_str("0.01").expect("expected valid value"),
+            }],
+            tracked_metrics: vec!["accuracy".to_string()],
+            seed: Some(42),
+            tags: vec!["baseline".to_string()],
+        };
+
+        let result = generate_experiment_config_code(config);
+        let rendered = result.to_string();
+        assert!(!result.is_empty());
+        assert!(rendered.contains("ExperimentTracker"));
+        assert!(rendered.contains("log_parameter"));
+        assert!(rendered.contains("track_metric"));
+        assert!(rendered.contains("add_tag"));
     }
 }

@@ -321,40 +321,41 @@ mod mathematical_properties_tests {
         assert_relative_eq!(r2_translated, r2_original, epsilon = 1e-12);
     }
 
-    // TODO: Migrate to scirs2-sparse (uses sprs types)
-    // #[test]
-    // fn test_confusion_matrix_properties() {
-    //     let y_true = array![0, 1, 0, 1, 0, 1];
-    //     let y_pred = array![0, 1, 1, 0, 0, 1];
+    #[test]
+    fn test_confusion_matrix_properties() {
+        let y_true = array![0, 1, 0, 1, 0, 1];
+        let y_pred = array![0, 1, 1, 0, 0, 1];
 
-    //     let mut matrix = SparseConfusionMatrix::new();
-    //     matrix.update(&y_true, &y_pred).expect("operation should succeed");
+        let mut matrix = SparseConfusionMatrix::new();
+        matrix
+            .update(&y_true, &y_pred)
+            .expect("operation should succeed");
 
-    //     // Sum of all entries should equal total samples
-    //     let total_from_matrix = matrix
-    //         .labels()
-    //         .iter()
-    //         .map(|&true_label| {
-    //             matrix
-    //                 .labels()
-    //                 .iter()
-    //                 .map(|&pred_label| matrix.get(true_label, pred_label))
-    //                 .sum::<usize>()
-    //         })
-    //         .sum::<usize>();
+        // Sum of all entries should equal total samples
+        let total_from_matrix = matrix
+            .labels()
+            .iter()
+            .map(|&true_label| {
+                matrix
+                    .labels()
+                    .iter()
+                    .map(|&pred_label| matrix.get(true_label, pred_label))
+                    .sum::<usize>()
+            })
+            .sum::<usize>();
 
-    //     assert_eq!(total_from_matrix, matrix.n_samples());
+        assert_eq!(total_from_matrix, matrix.n_samples());
 
-    //     // Accuracy should be sum of diagonal divided by total
-    //     let diagonal_sum: usize = matrix
-    //         .labels()
-    //         .iter()
-    //         .map(|&label| matrix.get(label, label))
-    //         .sum();
+        // Accuracy should be sum of diagonal divided by total
+        let diagonal_sum: usize = matrix
+            .labels()
+            .iter()
+            .map(|&label| matrix.get(label, label))
+            .sum();
 
-    //     let expected_accuracy = diagonal_sum as f64 / matrix.n_samples() as f64;
-    //     assert_relative_eq!(matrix.accuracy(), expected_accuracy, epsilon = 1e-15);
-    // }
+        let expected_accuracy = diagonal_sum as f64 / matrix.n_samples() as f64;
+        assert_relative_eq!(matrix.accuracy(), expected_accuracy, epsilon = 1e-15);
+    }
 }
 
 #[allow(non_snake_case)]

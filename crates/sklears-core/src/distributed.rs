@@ -1064,6 +1064,107 @@ impl DistributedNumericalDataset {
             assignment: HashMap::new(),
         }
     }
+
+    /// Build one partition per node from pre-bucketed rows.
+    ///
+    /// Empty buckets are skipped, and partition identifiers are assigned
+    /// sequentially so that each identifier always matches the partition's
+    /// position in [`Self::partitions`] (required by [`Self::get_partition`]).
+    /// The node-to-partition assignment map is updated for every partition that
+    /// is created.
+    fn flush_buckets_into_partitions(&mut self, nodes: &[NodeId], buckets: Vec<Vec<Vec<f64>>>) {
+        for (node_id, partition_data) in nodes.iter().zip(buckets) {
+            if partition_data.is_empty() {
+                continue;
+            }
+
+            let partition_id = self.partitions.len() as u32;
+            self.partitions.push(build_numerical_partition(
+                partition_id,
+                node_id,
+                partition_data,
+            ));
+            self.assignment
+                .entry(node_id.clone())
+                .or_default()
+                .push(partition_id);
+        }
+    }
+}
+
+/// Mix a byte slice into a running 64-bit FNV-1a hash state.
+#[inline]
+fn fnv1a_mix(hash: &mut u64, bytes: &[u8]) {
+    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+    for &byte in bytes {
+        *hash ^= u64::from(byte);
+        *hash = hash.wrapping_mul(FNV_PRIME);
+    }
+}
+
+/// Compute a deterministic, content-derived checksum for a set of numerical
+/// partition rows using the 64-bit FNV-1a hash over the IEEE-754 bit patterns.
+///
+/// The checksum is reproducible for identical data and changes whenever any
+/// value, row length, or row count changes. The row count and per-row length
+/// are mixed in so that different groupings of the same values yield different
+/// checksums. Negative zero is normalized to positive zero so that
+/// numerically-equal data produces an identical checksum.
+fn numerical_partition_checksum(rows: &[Vec<f64>]) -> String {
+    const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+
+    let mut hash = FNV_OFFSET_BASIS;
+    fnv1a_mix(&mut hash, &(rows.len() as u64).to_le_bytes());
+    for row in rows {
+        fnv1a_mix(&mut hash, &(row.len() as u64).to_le_bytes());
+        for &value in row {
+            let normalized = if value == 0.0 { 0.0_f64 } else { value };
+            fnv1a_mix(&mut hash, &normalized.to_bits().to_le_bytes());
+        }
+    }
+    format!("{hash:016x}")
+}
+
+/// Deterministically hash a single numerical row, perturbed by `seed`, for
+/// hash-based partitioning. Equal rows with equal seeds always hash equally,
+/// so the resulting node assignment is reproducible.
+fn hash_numerical_row(row: &[f64], seed: u32) -> u64 {
+    const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+
+    let mut hash = FNV_OFFSET_BASIS;
+    fnv1a_mix(&mut hash, &u64::from(seed).to_le_bytes());
+    for &value in row {
+        let normalized = if value == 0.0 { 0.0_f64 } else { value };
+        fnv1a_mix(&mut hash, &normalized.to_bits().to_le_bytes());
+    }
+    hash
+}
+
+/// Construct a [`DistributedPartition`] from numerical rows, attaching a real,
+/// content-derived checksum and accurate item/size metadata.
+fn build_numerical_partition(
+    partition_id: u32,
+    node_id: &NodeId,
+    partition_data: Vec<Vec<f64>>,
+) -> DistributedPartition<Vec<f64>> {
+    let item_count = partition_data.len() as u64;
+    let size_bytes = item_count * std::mem::size_of::<f64>() as u64;
+    let checksum = numerical_partition_checksum(&partition_data);
+    let now = SystemTime::now();
+
+    DistributedPartition {
+        partition_id,
+        node_id: node_id.clone(),
+        metadata: PartitionMetadata {
+            item_count,
+            size_bytes,
+            schema: Some("numerical_array".to_string()),
+            created_at: now,
+            modified_at: now,
+            checksum,
+        },
+        data: partition_data,
+    }
 }
 
 impl DistributedDataset for DistributedNumericalDataset {
@@ -1098,6 +1199,8 @@ impl DistributedDataset for DistributedNumericalDataset {
 
             match strategy {
                 PartitioningStrategy::EvenSplit => {
+                    // Contiguous, equal-sized blocks assigned by item position:
+                    // node `i` receives the `i`-th block of the input order.
                     let chunk_size = self.data.len().div_ceil(num_nodes);
 
                     for (i, node_id) in nodes.iter().enumerate() {
@@ -1106,22 +1209,11 @@ impl DistributedDataset for DistributedNumericalDataset {
 
                         if start < self.data.len() {
                             let partition_data = self.data[start..end].to_vec();
-                            let partition = DistributedPartition {
-                                partition_id: i as u32,
-                                node_id: node_id.clone(),
-                                data: partition_data.clone(),
-                                metadata: PartitionMetadata {
-                                    item_count: partition_data.len() as u64,
-                                    size_bytes: partition_data.len() as u64
-                                        * std::mem::size_of::<f64>() as u64,
-                                    schema: Some("numerical_array".to_string()),
-                                    created_at: SystemTime::now(),
-                                    modified_at: SystemTime::now(),
-                                    checksum: format!("checksum_{}", i),
-                                },
-                            };
-
-                            self.partitions.push(partition);
+                            self.partitions.push(build_numerical_partition(
+                                i as u32,
+                                node_id,
+                                partition_data,
+                            ));
                             self.assignment
                                 .entry(node_id.clone())
                                 .or_default()
@@ -1129,12 +1221,110 @@ impl DistributedDataset for DistributedNumericalDataset {
                         }
                     }
                 }
-                _ => {
-                    // Other partitioning strategies would be implemented here
-                    return Err(SklearsError::InvalidOperation(
-                        "Partitioning strategy not yet implemented".to_string(),
-                    ));
+                PartitioningStrategy::RangeBased => {
+                    // Order items by a representative key (the leading feature,
+                    // or 0.0 for empty rows) using a total order so the result
+                    // is deterministic even with NaN values, then give each node
+                    // a contiguous slice of the value-ordered data. Partitions
+                    // therefore correspond to disjoint value ranges rather than
+                    // raw input positions.
+                    let mut order: Vec<usize> = (0..self.data.len()).collect();
+                    order.sort_by(|&a, &b| {
+                        let key_a = self.data[a].first().copied().unwrap_or(0.0);
+                        let key_b = self.data[b].first().copied().unwrap_or(0.0);
+                        key_a.total_cmp(&key_b).then_with(|| a.cmp(&b))
+                    });
+
+                    let chunk_size = order.len().div_ceil(num_nodes);
+                    for (i, node_id) in nodes.iter().enumerate() {
+                        let start = i * chunk_size;
+                        let end = std::cmp::min(start + chunk_size, order.len());
+
+                        if start < order.len() {
+                            let partition_data: Vec<Vec<f64>> = order[start..end]
+                                .iter()
+                                .map(|&idx| self.data[idx].clone())
+                                .collect();
+                            self.partitions.push(build_numerical_partition(
+                                i as u32,
+                                node_id,
+                                partition_data,
+                            ));
+                            self.assignment
+                                .entry(node_id.clone())
+                                .or_default()
+                                .push(i as u32);
+                        }
+                    }
                 }
+                PartitioningStrategy::HashBased(seed) => {
+                    // Deterministically assign each item to node
+                    // `hash(item, seed) % num_nodes`. Identical data and seed
+                    // always produce the same assignment.
+                    let mut buckets: Vec<Vec<Vec<f64>>> = vec![Vec::new(); num_nodes];
+                    for row in &self.data {
+                        let node_index =
+                            (hash_numerical_row(row, seed) % num_nodes as u64) as usize;
+                        buckets[node_index].push(row.clone());
+                    }
+                    self.flush_buckets_into_partitions(&nodes, buckets);
+                }
+                PartitioningStrategy::Random => {
+                    // The cluster configuration carries no seed, so this
+                    // assignment is non-deterministic across runs. Every item is
+                    // still assigned to exactly one node, so the union of all
+                    // partitions always reproduces the full dataset.
+                    use scirs2_core::random::thread_rng;
+
+                    let mut rng = thread_rng();
+                    let mut buckets: Vec<Vec<Vec<f64>>> = vec![Vec::new(); num_nodes];
+                    for row in &self.data {
+                        let node_index = rng.gen_range(0..num_nodes);
+                        buckets[node_index].push(row.clone());
+                    }
+                    self.flush_buckets_into_partitions(&nodes, buckets);
+                }
+                PartitioningStrategy::Stratified => {
+                    // Group rows by their class label (the trailing feature) and
+                    // spread each stratum round-robin across the nodes, so every
+                    // partition keeps a proportional share of every class. Strata
+                    // are visited in a deterministic key order, and the
+                    // round-robin cursor carries across strata to keep overall
+                    // load balanced.
+                    use std::collections::BTreeMap;
+
+                    let mut strata: BTreeMap<u64, Vec<usize>> = BTreeMap::new();
+                    for (idx, row) in self.data.iter().enumerate() {
+                        let label = row.last().copied().unwrap_or(0.0);
+                        let normalized = if label == 0.0 { 0.0_f64 } else { label };
+                        strata.entry(normalized.to_bits()).or_default().push(idx);
+                    }
+
+                    let mut buckets: Vec<Vec<Vec<f64>>> = vec![Vec::new(); num_nodes];
+                    let mut cursor = 0_usize;
+                    for indices in strata.values() {
+                        for &idx in indices {
+                            buckets[cursor % num_nodes].push(self.data[idx].clone());
+                            cursor += 1;
+                        }
+                    }
+                    self.flush_buckets_into_partitions(&nodes, buckets);
+                }
+                PartitioningStrategy::Custom(name) => match name.as_str() {
+                    "round_robin" | "roundrobin" | "round-robin" => {
+                        // Round-robin: assign item `i` to node `i % num_nodes`.
+                        let mut buckets: Vec<Vec<Vec<f64>>> = vec![Vec::new(); num_nodes];
+                        for (idx, row) in self.data.iter().enumerate() {
+                            buckets[idx % num_nodes].push(row.clone());
+                        }
+                        self.flush_buckets_into_partitions(&nodes, buckets);
+                    }
+                    other => {
+                        return Err(SklearsError::InvalidOperation(format!(
+                            "Custom partitioning strategy '{other}' is not registered"
+                        )));
+                    }
+                },
             }
 
             Ok(self.partitions.clone())
@@ -1284,5 +1474,389 @@ mod tests {
             .await
             .expect("expected valid value");
         assert_eq!(health.overall_health, 1.0);
+    }
+
+    #[test]
+    fn test_numerical_partition_checksum_is_deterministic() {
+        let data = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
+        let first = numerical_partition_checksum(&data);
+        let second = numerical_partition_checksum(&data);
+        assert_eq!(
+            first, second,
+            "identical data must produce identical checksums"
+        );
+    }
+
+    #[test]
+    fn test_numerical_partition_checksum_changes_with_data() {
+        let data_a = vec![vec![1.0, 2.0, 3.0]];
+        let data_b = vec![vec![1.0, 2.0, 4.0]];
+        assert_ne!(
+            numerical_partition_checksum(&data_a),
+            numerical_partition_checksum(&data_b),
+            "different data must produce different checksums"
+        );
+    }
+
+    #[test]
+    fn test_numerical_partition_checksum_respects_row_structure() {
+        // The same values grouped into different rows must hash differently.
+        let grouped_a = vec![vec![1.0, 2.0], vec![3.0]];
+        let grouped_b = vec![vec![1.0], vec![2.0, 3.0]];
+        assert_ne!(
+            numerical_partition_checksum(&grouped_a),
+            numerical_partition_checksum(&grouped_b)
+        );
+    }
+
+    #[test]
+    fn test_numerical_partition_checksum_is_not_index_placeholder() {
+        // Guard against regressing to the fabricated `checksum_{index}` form.
+        let checksum = numerical_partition_checksum(&[vec![1.0, 2.0]]);
+        assert!(!checksum.starts_with("checksum_"));
+        assert_eq!(checksum.len(), 16);
+    }
+
+    #[test]
+    fn test_hash_numerical_row_determinism_and_seed_sensitivity() {
+        let row = vec![1.5, -2.25, 3.0];
+        assert_eq!(hash_numerical_row(&row, 7), hash_numerical_row(&row, 7));
+        assert_ne!(hash_numerical_row(&row, 7), hash_numerical_row(&row, 8));
+    }
+
+    #[cfg(feature = "async_support")]
+    struct TestCluster {
+        coordinator: NodeId,
+        configuration: ClusterConfiguration,
+        nodes: Vec<NodeId>,
+    }
+
+    #[cfg(feature = "async_support")]
+    impl TestCluster {
+        fn with_nodes(count: usize) -> Self {
+            let nodes = (0..count)
+                .map(|i| NodeId::new(format!("node-{i}")))
+                .collect();
+            Self {
+                coordinator: NodeId::new("coordinator"),
+                configuration: ClusterConfiguration::default(),
+                nodes,
+            }
+        }
+    }
+
+    #[cfg(feature = "async_support")]
+    impl DistributedCluster for TestCluster {
+        fn active_nodes(&self) -> BoxFuture<'_, Result<Vec<NodeId>>> {
+            let nodes = self.nodes.clone();
+            Box::pin(async move { Ok(nodes) })
+        }
+
+        fn coordinator(&self) -> &NodeId {
+            &self.coordinator
+        }
+
+        fn configuration(&self) -> &ClusterConfiguration {
+            &self.configuration
+        }
+
+        fn add_node(&mut self, node: NodeId) -> BoxFuture<'_, Result<()>> {
+            self.nodes.push(node);
+            Box::pin(async move { Ok(()) })
+        }
+
+        fn remove_node(&mut self, node: NodeId) -> BoxFuture<'_, Result<()>> {
+            self.nodes.retain(|existing| existing != &node);
+            Box::pin(async move { Ok(()) })
+        }
+
+        fn rebalance_load(&mut self) -> BoxFuture<'_, Result<()>> {
+            Box::pin(async move { Ok(()) })
+        }
+
+        fn cluster_health(&self) -> BoxFuture<'_, Result<ClusterHealth>> {
+            Box::pin(async move {
+                Err(SklearsError::InvalidOperation(
+                    "cluster_health is unused in partition tests".to_string(),
+                ))
+            })
+        }
+
+        fn create_checkpoint(&self) -> BoxFuture<'_, Result<ClusterCheckpoint>> {
+            Box::pin(async move {
+                Err(SklearsError::InvalidOperation(
+                    "create_checkpoint is unused in partition tests".to_string(),
+                ))
+            })
+        }
+
+        fn restore_checkpoint(
+            &mut self,
+            _checkpoint: ClusterCheckpoint,
+        ) -> BoxFuture<'_, Result<()>> {
+            Box::pin(async move { Ok(()) })
+        }
+    }
+
+    #[cfg(feature = "async_support")]
+    fn parse_node_index(node_id: &NodeId) -> usize {
+        node_id
+            .as_str()
+            .strip_prefix("node-")
+            .and_then(|suffix| suffix.parse().ok())
+            .expect("test node ids follow the node-<index> convention")
+    }
+
+    #[cfg(feature = "async_support")]
+    #[tokio::test]
+    async fn test_partition_without_nodes_errors() {
+        let mut dataset = DistributedNumericalDataset::new(vec![vec![1.0]]);
+        let cluster = TestCluster::with_nodes(0);
+        let result = dataset
+            .partition(&cluster, PartitioningStrategy::EvenSplit)
+            .await;
+        assert!(result.is_err(), "partitioning with no nodes must error");
+    }
+
+    #[cfg(feature = "async_support")]
+    #[tokio::test]
+    async fn test_even_split_covers_all_items() {
+        let data: Vec<Vec<f64>> = (0..10).map(|i| vec![i as f64, (i * 2) as f64]).collect();
+        let mut dataset = DistributedNumericalDataset::new(data.clone());
+        let cluster = TestCluster::with_nodes(3);
+
+        let partitions = dataset
+            .partition(&cluster, PartitioningStrategy::EvenSplit)
+            .await
+            .expect("even split must succeed");
+
+        let mut collected: Vec<Vec<f64>> = partitions.iter().flat_map(|p| p.data.clone()).collect();
+        collected.sort_by(|a, b| a[0].total_cmp(&b[0]));
+        assert_eq!(collected, data, "union of partitions must cover all items");
+    }
+
+    #[cfg(feature = "async_support")]
+    #[tokio::test]
+    async fn test_round_robin_custom_strategy_assignment() {
+        let data: Vec<Vec<f64>> = (0..9).map(|i| vec![i as f64]).collect();
+        let mut dataset = DistributedNumericalDataset::new(data);
+        let cluster = TestCluster::with_nodes(3);
+
+        let partitions = dataset
+            .partition(
+                &cluster,
+                PartitioningStrategy::Custom("round_robin".to_string()),
+            )
+            .await
+            .expect("round-robin custom strategy must succeed");
+
+        assert_eq!(partitions.len(), 3);
+        // Item `i` must land on node `i % num_nodes`: every value in a node's
+        // partition shares the same `value % num_nodes` class.
+        for partition in &partitions {
+            let node_index = parse_node_index(&partition.node_id);
+            for row in &partition.data {
+                assert_eq!((row[0] as usize) % 3, node_index);
+            }
+            assert_eq!(partition.data.len(), 3);
+        }
+    }
+
+    #[cfg(feature = "async_support")]
+    #[tokio::test]
+    async fn test_hash_based_partitioning_is_deterministic() {
+        let data: Vec<Vec<f64>> = (0..20).map(|i| vec![i as f64, (i % 4) as f64]).collect();
+        let cluster = TestCluster::with_nodes(4);
+
+        let mut first_dataset = DistributedNumericalDataset::new(data.clone());
+        let mut second_dataset = DistributedNumericalDataset::new(data.clone());
+
+        let first = first_dataset
+            .partition(&cluster, PartitioningStrategy::HashBased(13))
+            .await
+            .expect("hash partitioning must succeed");
+        let second = second_dataset
+            .partition(&cluster, PartitioningStrategy::HashBased(13))
+            .await
+            .expect("hash partitioning must succeed");
+
+        let summarize = |partitions: &[DistributedPartition<Vec<f64>>]| {
+            partitions
+                .iter()
+                .map(|p| (p.partition_id, p.data.clone()))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            summarize(&first),
+            summarize(&second),
+            "hash partitioning must be deterministic for identical data and seed"
+        );
+
+        // Every item must reside on node `hash(item, seed) % num_nodes`.
+        for partition in &first {
+            let node_index = parse_node_index(&partition.node_id);
+            for row in &partition.data {
+                assert_eq!((hash_numerical_row(row, 13) % 4) as usize, node_index);
+            }
+        }
+
+        // Union of partitions reproduces the entire dataset.
+        let mut all: Vec<Vec<f64>> = first.iter().flat_map(|p| p.data.clone()).collect();
+        all.sort_by(|a, b| a[0].total_cmp(&b[0]));
+        assert_eq!(all, data);
+    }
+
+    #[cfg(feature = "async_support")]
+    #[tokio::test]
+    async fn test_range_based_partitioning_orders_by_value() {
+        let data: Vec<Vec<f64>> = vec![
+            vec![9.0],
+            vec![1.0],
+            vec![7.0],
+            vec![3.0],
+            vec![5.0],
+            vec![2.0],
+        ];
+        let mut dataset = DistributedNumericalDataset::new(data.clone());
+        let cluster = TestCluster::with_nodes(3);
+
+        let partitions = dataset
+            .partition(&cluster, PartitioningStrategy::RangeBased)
+            .await
+            .expect("range partitioning must succeed");
+
+        // Flattening in partition order must yield globally value-ordered keys.
+        let ordered_keys: Vec<f64> = partitions
+            .iter()
+            .flat_map(|p| p.data.iter().map(|row| row[0]))
+            .collect();
+        let mut expected: Vec<f64> = data.iter().map(|row| row[0]).collect();
+        expected.sort_by(|a, b| a.total_cmp(b));
+        assert_eq!(
+            ordered_keys, expected,
+            "range partitions must be value-ordered"
+        );
+
+        // 6 items across 3 nodes => 2 contiguous items each.
+        assert_eq!(partitions.len(), 3);
+        for partition in &partitions {
+            assert_eq!(partition.data.len(), 2);
+        }
+    }
+
+    #[cfg(feature = "async_support")]
+    #[tokio::test]
+    async fn test_stratified_partitioning_balances_classes() {
+        // The trailing column is the class label; 3 classes with 6 items each.
+        let mut data: Vec<Vec<f64>> = Vec::new();
+        for class in 0..3 {
+            for k in 0..6 {
+                data.push(vec![k as f64, class as f64]);
+            }
+        }
+        let mut dataset = DistributedNumericalDataset::new(data.clone());
+        let cluster = TestCluster::with_nodes(3);
+
+        let partitions = dataset
+            .partition(&cluster, PartitioningStrategy::Stratified)
+            .await
+            .expect("stratified partitioning must succeed");
+
+        let total: usize = partitions.iter().map(|p| p.data.len()).sum();
+        assert_eq!(total, data.len(), "stratified must not drop items");
+
+        // 18 items / 3 nodes => 6 per node; 3 classes => 2 of each class per node.
+        for partition in &partitions {
+            let mut class_counts: HashMap<i64, usize> = HashMap::new();
+            for row in &partition.data {
+                *class_counts.entry(row[1] as i64).or_insert(0) += 1;
+            }
+            assert_eq!(
+                class_counts.len(),
+                3,
+                "each partition must hold all classes"
+            );
+            for count in class_counts.values() {
+                assert_eq!(*count, 2, "each class must be evenly represented");
+            }
+        }
+    }
+
+    #[cfg(feature = "async_support")]
+    #[tokio::test]
+    async fn test_random_partitioning_covers_all_items() {
+        let data: Vec<Vec<f64>> = (0..30).map(|i| vec![i as f64]).collect();
+        let mut dataset = DistributedNumericalDataset::new(data);
+        let cluster = TestCluster::with_nodes(4);
+
+        let partitions = dataset
+            .partition(&cluster, PartitioningStrategy::Random)
+            .await
+            .expect("random partitioning must succeed");
+
+        let mut all: Vec<f64> = partitions
+            .iter()
+            .flat_map(|p| p.data.iter().map(|row| row[0]))
+            .collect();
+        all.sort_by(|a, b| a.total_cmp(b));
+        let expected: Vec<f64> = (0..30).map(|i| i as f64).collect();
+        assert_eq!(
+            all, expected,
+            "random partitioning must not lose or duplicate items"
+        );
+    }
+
+    #[cfg(feature = "async_support")]
+    #[tokio::test]
+    async fn test_unknown_custom_strategy_errors() {
+        let mut dataset = DistributedNumericalDataset::new(vec![vec![1.0], vec![2.0]]);
+        let cluster = TestCluster::with_nodes(2);
+
+        let result = dataset
+            .partition(
+                &cluster,
+                PartitioningStrategy::Custom("totally_unknown".to_string()),
+            )
+            .await;
+        assert!(
+            result.is_err(),
+            "unknown custom strategy must return an honest error"
+        );
+    }
+
+    #[cfg(feature = "async_support")]
+    #[tokio::test]
+    async fn test_partition_checksums_reflect_content() {
+        let cluster = TestCluster::with_nodes(1);
+
+        let mut dataset_a = DistributedNumericalDataset::new(vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+        let mut dataset_b = DistributedNumericalDataset::new(vec![vec![1.0, 2.0], vec![3.0, 5.0]]);
+        let mut dataset_a_again =
+            DistributedNumericalDataset::new(vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+
+        let partitions_a = dataset_a
+            .partition(&cluster, PartitioningStrategy::EvenSplit)
+            .await
+            .expect("partition a");
+        let partitions_b = dataset_b
+            .partition(&cluster, PartitioningStrategy::EvenSplit)
+            .await
+            .expect("partition b");
+        let partitions_a_again = dataset_a_again
+            .partition(&cluster, PartitioningStrategy::EvenSplit)
+            .await
+            .expect("partition a again");
+
+        assert_eq!(partitions_a.len(), 1);
+        assert_eq!(partitions_b.len(), 1);
+        assert_ne!(
+            partitions_a[0].metadata.checksum, partitions_b[0].metadata.checksum,
+            "different data must yield different checksums"
+        );
+        assert_eq!(
+            partitions_a[0].metadata.checksum, partitions_a_again[0].metadata.checksum,
+            "identical data must yield identical checksums"
+        );
+        assert!(!partitions_a[0].metadata.checksum.starts_with("checksum_"));
     }
 }

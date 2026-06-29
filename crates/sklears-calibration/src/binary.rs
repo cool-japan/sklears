@@ -78,6 +78,12 @@ impl SigmoidCalibrator {
         Self { a: 1.0, b: 0.0 }
     }
 
+    /// Return the fitted Platt-scaling parameters `[a, b]`
+    /// where calibrated probability = 1 / (1 + exp(a * f(x) + b)).
+    pub fn params(&self) -> [Float; 2] {
+        [self.a, self.b]
+    }
+
     /// Fit the sigmoid calibrator to training data
     ///
     /// # Arguments

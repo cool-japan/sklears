@@ -156,6 +156,16 @@ impl SVC<Untrained> {
         self
     }
 
+    /// Set the kernel directly from an [`SvcKernel`] specification.
+    ///
+    /// This preserves deferred parameters (such as a `None` gamma, which is
+    /// resolved to `1 / n_features` at fit time) instead of forcing a concrete
+    /// value up front.
+    pub fn svc_kernel(mut self, kernel: SvcKernel) -> Self {
+        self.config.kernel = kernel;
+        self
+    }
+
     /// Set the tolerance for stopping criterion
     pub fn tol(mut self, tol: Float) -> Self {
         self.config.tol = tol;

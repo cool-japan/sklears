@@ -3,17 +3,19 @@
 //! This module provides comprehensive comparison capabilities including baseline comparisons,
 //! statistical testing, effect size calculations, and comparison reporting.
 
+use super::benchmark_management::BenchmarkResult;
 use super::config_types::*;
-use super::performance_analysis::{StatisticalSummary, DescriptiveStatistics};
+use super::performance_analysis::{ImpactLevel, OverallAssessment};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
-use serde::{Serialize, Deserialize};
 
 // ================================================================================================
 // CORE COMPARISON ENGINE
 // ================================================================================================
 
 /// Comparison engine for benchmarking comparisons
+#[derive(Debug)]
 pub struct ComparisonEngine {
     comparison_strategies: Vec<ComparisonStrategy>,
     baseline_manager: BaselineManager,
@@ -41,8 +43,14 @@ impl ComparisonEngine {
     }
 
     /// Compare benchmark results with baseline
-    pub fn compare_with_baseline(&self, results: &[BenchmarkResult], baseline_name: &str) -> Result<ComparisonReport, ComparisonError> {
-        let baseline = self.baseline_manager.get_baseline(baseline_name)
+    pub fn compare_with_baseline(
+        &mut self,
+        results: &[BenchmarkResult],
+        baseline_name: &str,
+    ) -> Result<ComparisonReport, ComparisonError> {
+        let baseline = self
+            .baseline_manager
+            .get_baseline(baseline_name)
             .ok_or_else(|| ComparisonError::BaselineNotFound(baseline_name.to_string()))?;
 
         // Check cache first
@@ -51,11 +59,11 @@ impl ComparisonEngine {
             return Ok(cached_report.clone());
         }
 
-        let comparison_summary = self.generate_comparison_summary(results, &baseline)?;
-        let detailed_comparisons = self.perform_detailed_comparisons(results, &baseline)?;
-        let statistical_results = self.perform_statistical_comparisons(results, &baseline)?;
-        let recommendations = self.generate_comparison_recommendations(results, &baseline)?;
-        let visualizations = self.generate_comparison_visualizations(results, &baseline)?;
+        let comparison_summary = self.generate_comparison_summary(results, baseline)?;
+        let detailed_comparisons = self.perform_detailed_comparisons(results, baseline)?;
+        let statistical_results = self.perform_statistical_comparisons(results, baseline)?;
+        let recommendations = self.generate_comparison_recommendations(results, baseline)?;
+        let visualizations = self.generate_comparison_visualizations(results, baseline)?;
 
         let report = ComparisonReport {
             comparison_id: self.generate_comparison_id(),
@@ -66,8 +74,8 @@ impl ComparisonEngine {
             statistical_results,
             recommendations,
             visualizations,
-            confidence_score: self.calculate_comparison_confidence(results, &baseline)?,
-            metadata: self.generate_comparison_metadata(results, &baseline),
+            confidence_score: self.calculate_comparison_confidence(results, baseline)?,
+            metadata: self.generate_comparison_metadata(results, baseline),
         };
 
         // Cache the result
@@ -77,15 +85,26 @@ impl ComparisonEngine {
     }
 
     /// Perform pairwise comparison between two result sets
-    pub fn compare_pairwise(&self, baseline_results: &[BenchmarkResult], comparison_results: &[BenchmarkResult]) -> Result<PairwiseComparisonReport, ComparisonError> {
+    pub fn compare_pairwise(
+        &self,
+        baseline_results: &[BenchmarkResult],
+        comparison_results: &[BenchmarkResult],
+    ) -> Result<PairwiseComparisonReport, ComparisonError> {
         if baseline_results.is_empty() || comparison_results.is_empty() {
-            return Err(ComparisonError::InsufficientData("Both result sets must contain data".to_string()));
+            return Err(ComparisonError::InsufficientData(
+                "Both result sets must contain data".to_string(),
+            ));
         }
 
-        let statistical_comparison = self.perform_pairwise_statistical_tests(baseline_results, comparison_results)?;
-        let effect_size_analysis = self.calculate_pairwise_effect_sizes(baseline_results, comparison_results)?;
-        let distribution_comparison = self.compare_distributions(baseline_results, comparison_results)?;
+        let statistical_comparison =
+            self.perform_pairwise_statistical_tests(baseline_results, comparison_results)?;
+        let effect_size_analysis =
+            self.calculate_pairwise_effect_sizes(baseline_results, comparison_results)?;
+        let distribution_comparison =
+            self.compare_distributions(baseline_results, comparison_results)?;
         let trend_comparison = self.compare_trends(baseline_results, comparison_results)?;
+        let overall_assessment =
+            self.assess_pairwise_comparison(&statistical_comparison, &effect_size_analysis)?;
 
         Ok(PairwiseComparisonReport {
             comparison_id: self.generate_comparison_id(),
@@ -95,21 +114,27 @@ impl ComparisonEngine {
             effect_size_analysis,
             distribution_comparison,
             trend_comparison,
-            overall_assessment: self.assess_pairwise_comparison(&statistical_comparison, &effect_size_analysis)?,
+            overall_assessment,
             comparison_timestamp: SystemTime::now(),
         })
     }
 
     /// Perform multiple comparison analysis
-    pub fn compare_multiple(&self, result_groups: &HashMap<String, Vec<BenchmarkResult>>) -> Result<MultipleComparisonReport, ComparisonError> {
+    pub fn compare_multiple(
+        &self,
+        result_groups: &HashMap<String, Vec<BenchmarkResult>>,
+    ) -> Result<MultipleComparisonReport, ComparisonError> {
         if result_groups.len() < 2 {
-            return Err(ComparisonError::InsufficientData("Need at least 2 groups for multiple comparison".to_string()));
+            return Err(ComparisonError::InsufficientData(
+                "Need at least 2 groups for multiple comparison".to_string(),
+            ));
         }
 
         let pairwise_comparisons = self.perform_all_pairwise_comparisons(result_groups)?;
         let anova_results = self.perform_anova_analysis(result_groups)?;
         let post_hoc_tests = self.perform_post_hoc_tests(result_groups)?;
-        let multiple_testing_correction = self.apply_multiple_testing_correction(&pairwise_comparisons)?;
+        let multiple_testing_correction =
+            self.apply_multiple_testing_correction(&pairwise_comparisons)?;
 
         Ok(MultipleComparisonReport {
             comparison_id: self.generate_comparison_id(),
@@ -124,7 +149,11 @@ impl ComparisonEngine {
     }
 
     /// Compare distributions between result sets
-    pub fn compare_distributions(&self, baseline_results: &[BenchmarkResult], comparison_results: &[BenchmarkResult]) -> Result<DistributionComparisonReport, ComparisonError> {
+    pub fn compare_distributions(
+        &self,
+        baseline_results: &[BenchmarkResult],
+        comparison_results: &[BenchmarkResult],
+    ) -> Result<DistributionComparisonReport, ComparisonError> {
         let available_metrics = self.get_common_metrics(baseline_results, comparison_results);
         let mut metric_comparisons = HashMap::new();
 
@@ -133,15 +162,18 @@ impl ComparisonEngine {
             let comparison_values = self.extract_metric_values(comparison_results, &metric_name);
 
             if !baseline_values.is_empty() && !comparison_values.is_empty() {
-                let comparison = self.compare_metric_distributions(&baseline_values, &comparison_values)?;
+                let comparison =
+                    self.compare_metric_distributions(&baseline_values, &comparison_values)?;
                 metric_comparisons.insert(metric_name, comparison);
             }
         }
 
+        let overall_similarity =
+            self.calculate_overall_distribution_similarity(&metric_comparisons);
         Ok(DistributionComparisonReport {
             comparison_id: self.generate_comparison_id(),
             metric_comparisons,
-            overall_similarity: self.calculate_overall_distribution_similarity(&metric_comparisons),
+            overall_similarity,
             comparison_timestamp: SystemTime::now(),
         })
     }
@@ -152,8 +184,13 @@ impl ComparisonEngine {
     }
 
     /// Update an existing baseline
-    pub fn update_baseline(&mut self, baseline_name: &str, new_results: &[BenchmarkResult]) -> Result<(), ComparisonError> {
-        self.baseline_manager.update_baseline(baseline_name, new_results)
+    pub fn update_baseline(
+        &mut self,
+        baseline_name: &str,
+        new_results: &[BenchmarkResult],
+    ) -> Result<(), ComparisonError> {
+        self.baseline_manager
+            .update_baseline(baseline_name, new_results)
     }
 
     /// List available baselines
@@ -167,7 +204,11 @@ impl ComparisonEngine {
     }
 
     // Private helper methods
-    fn generate_comparison_summary(&self, results: &[BenchmarkResult], baseline: &Baseline) -> Result<ComparisonSummary, ComparisonError> {
+    fn generate_comparison_summary(
+        &self,
+        results: &[BenchmarkResult],
+        baseline: &Baseline,
+    ) -> Result<ComparisonSummary, ComparisonError> {
         let mut metric_comparisons = HashMap::new();
         let mut total_improvement = 0.0;
         let mut compared_metrics = 0;
@@ -176,8 +217,10 @@ impl ComparisonEngine {
         for result in results {
             for (metric_name, metric_value) in &result.metrics {
                 if let Some(baseline_metric) = baseline.metrics.get(metric_name) {
-                    let improvement = (baseline_metric.baseline_value - metric_value) / baseline_metric.baseline_value;
-                    let is_significant = improvement.abs() > baseline_metric.acceptable_range.tolerance_percentage;
+                    let improvement = (baseline_metric.baseline_value - metric_value)
+                        / baseline_metric.baseline_value;
+                    let is_significant =
+                        improvement.abs() > baseline_metric.acceptable_range.tolerance_percentage;
 
                     metric_comparisons.insert(
                         metric_name.clone(),
@@ -193,7 +236,7 @@ impl ComparisonEngine {
                             },
                             relative_change: improvement,
                             absolute_change: baseline_metric.baseline_value - metric_value,
-                        }
+                        },
                     );
 
                     total_improvement += improvement;
@@ -212,17 +255,23 @@ impl ComparisonEngine {
             0.0
         };
 
+        let improvement_distribution = self.calculate_improvement_distribution(&metric_comparisons);
+        let statistical_summary = self.calculate_comparison_statistics(&metric_comparisons)?;
         Ok(ComparisonSummary {
             overall_improvement: overall_improvement * 100.0,
             metric_comparisons,
             total_metrics_compared: compared_metrics,
             significant_changes,
-            improvement_distribution: self.calculate_improvement_distribution(&metric_comparisons),
-            statistical_summary: self.calculate_comparison_statistics(&metric_comparisons)?,
+            improvement_distribution,
+            statistical_summary,
         })
     }
 
-    fn perform_detailed_comparisons(&self, results: &[BenchmarkResult], baseline: &Baseline) -> Result<HashMap<String, DetailedComparison>, ComparisonError> {
+    fn perform_detailed_comparisons(
+        &self,
+        results: &[BenchmarkResult],
+        baseline: &Baseline,
+    ) -> Result<HashMap<String, DetailedComparison>, ComparisonError> {
         let mut detailed_comparisons = HashMap::new();
 
         for result in results {
@@ -253,13 +302,23 @@ impl ComparisonEngine {
                         max_value: baseline_metric.baseline_value,
                         confidence_interval: ConfidenceInterval {
                             confidence_level: baseline_metric.confidence_level,
-                            lower_bound: baseline_metric.acceptable_range.lower_bound.unwrap_or(0.0),
-                            upper_bound: baseline_metric.acceptable_range.upper_bound.unwrap_or(f64::INFINITY),
+                            lower_bound: baseline_metric
+                                .acceptable_range
+                                .lower_bound
+                                .unwrap_or(0.0),
+                            upper_bound: baseline_metric
+                                .acceptable_range
+                                .upper_bound
+                                .unwrap_or(f64::INFINITY),
                         },
                     };
 
-                    let effect_size = self.calculate_effect_size(*metric_value, baseline_metric.baseline_value)?;
-                    let practical_significance = self.assess_practical_significance(&effect_size, &baseline_metric.acceptable_range);
+                    let effect_size =
+                        self.calculate_effect_size(*metric_value, baseline_metric.baseline_value)?;
+                    let practical_significance = self.assess_practical_significance(
+                        &effect_size,
+                        &baseline_metric.acceptable_range,
+                    );
 
                     let detailed_comparison = DetailedComparison {
                         metric_name: metric_name.clone(),
@@ -283,19 +342,24 @@ impl ComparisonEngine {
         Ok(detailed_comparisons)
     }
 
-    fn perform_statistical_comparisons(&self, results: &[BenchmarkResult], baseline: &Baseline) -> Result<Vec<StatisticalTestResult>, ComparisonError> {
+    fn perform_statistical_comparisons(
+        &self,
+        results: &[BenchmarkResult],
+        baseline: &Baseline,
+    ) -> Result<Vec<StatisticalTestResult>, ComparisonError> {
         let mut test_results = Vec::new();
 
         for result in results {
             for (metric_name, metric_value) in &result.metrics {
                 if let Some(baseline_metric) = baseline.metrics.get(metric_name) {
                     // Perform one-sample t-test (simplified)
-                    let test_statistic = (*metric_value - baseline_metric.baseline_value) /
-                        (baseline_metric.baseline_value * 0.1); // Simplified standard error
+                    let test_statistic = (*metric_value - baseline_metric.baseline_value)
+                        / (baseline_metric.baseline_value * 0.1); // Simplified standard error
 
                     let p_value = self.calculate_p_value(test_statistic)?;
                     let is_significant = p_value < self.engine_config.significance_level;
-                    let effect_size = self.calculate_effect_size(*metric_value, baseline_metric.baseline_value)?;
+                    let effect_size =
+                        self.calculate_effect_size(*metric_value, baseline_metric.baseline_value)?;
 
                     test_results.push(StatisticalTestResult {
                         test_name: "One-sample t-test".to_string(),
@@ -310,7 +374,10 @@ impl ComparisonEngine {
                             lower_bound: *metric_value - 1.96 * 0.1, // Simplified
                             upper_bound: *metric_value + 1.96 * 0.1,
                         },
-                        test_power: self.calculate_test_power(effect_size, baseline_metric.sample_size as f64)?,
+                        test_power: self.calculate_test_power(
+                            effect_size,
+                            baseline_metric.sample_size as f64,
+                        )?,
                         assumptions_met: self.check_test_assumptions(result, baseline_metric)?,
                     });
                 }
@@ -320,16 +387,23 @@ impl ComparisonEngine {
         Ok(test_results)
     }
 
-    fn generate_comparison_recommendations(&self, results: &[BenchmarkResult], baseline: &Baseline) -> Result<Vec<ComparisonRecommendation>, ComparisonError> {
+    fn generate_comparison_recommendations(
+        &self,
+        results: &[BenchmarkResult],
+        baseline: &Baseline,
+    ) -> Result<Vec<ComparisonRecommendation>, ComparisonError> {
         let mut recommendations = Vec::new();
 
         for result in results {
             for (metric_name, metric_value) in &result.metrics {
                 if let Some(baseline_metric) = baseline.metrics.get(metric_name) {
-                    let degradation = (*metric_value - baseline_metric.baseline_value) / baseline_metric.baseline_value;
+                    let degradation = (*metric_value - baseline_metric.baseline_value)
+                        / baseline_metric.baseline_value;
 
                     if degradation > baseline_metric.acceptable_range.warning_threshold {
-                        let priority = if degradation > baseline_metric.acceptable_range.tolerance_percentage {
+                        let priority = if degradation
+                            > baseline_metric.acceptable_range.tolerance_percentage
+                        {
                             RecommendationPriority::High
                         } else {
                             RecommendationPriority::Medium
@@ -337,7 +411,8 @@ impl ComparisonEngine {
 
                         recommendations.push(ComparisonRecommendation {
                             recommendation_id: self.generate_recommendation_id(),
-                            recommendation_type: ComparisonRecommendationType::PerformanceDegradation,
+                            recommendation_type:
+                                ComparisonRecommendationType::PerformanceDegradation,
                             priority,
                             metric_name: metric_name.clone(),
                             current_value: *metric_value,
@@ -354,14 +429,16 @@ impl ComparisonEngine {
                                 cost_impact: CostImpact::Medium,
                                 implementation_effort: ImplementationEffort::Medium,
                                 risk_level: RiskLevel::Medium,
-                                time_to_implement: Duration::from_secs(86400 * 2),
+                                estimated_time_hours: 48.0,
                             },
                             confidence: 0.8,
                         });
-                    } else if degradation < -0.1 { // Significant improvement
+                    } else if degradation < -0.1 {
+                        // Significant improvement
                         recommendations.push(ComparisonRecommendation {
                             recommendation_id: self.generate_recommendation_id(),
-                            recommendation_type: ComparisonRecommendationType::PerformanceImprovement,
+                            recommendation_type:
+                                ComparisonRecommendationType::PerformanceImprovement,
                             priority: RecommendationPriority::Low,
                             metric_name: metric_name.clone(),
                             current_value: *metric_value,
@@ -377,7 +454,7 @@ impl ComparisonEngine {
                                 cost_impact: CostImpact::Low,
                                 implementation_effort: ImplementationEffort::Low,
                                 risk_level: RiskLevel::VeryLow,
-                                time_to_implement: Duration::from_secs(3600),
+                                estimated_time_hours: 1.0,
                             },
                             confidence: 0.9,
                         });
@@ -389,9 +466,15 @@ impl ComparisonEngine {
         Ok(recommendations)
     }
 
-    fn calculate_effect_size(&self, current_value: f64, baseline_value: f64) -> Result<f64, ComparisonError> {
+    fn calculate_effect_size(
+        &self,
+        current_value: f64,
+        baseline_value: f64,
+    ) -> Result<f64, ComparisonError> {
         if baseline_value == 0.0 {
-            return Err(ComparisonError::DivisionByZero("Cannot calculate effect size with zero baseline".to_string()));
+            return Err(ComparisonError::DivisionByZero(
+                "Cannot calculate effect size with zero baseline".to_string(),
+            ));
         }
         Ok((current_value - baseline_value) / baseline_value)
     }
@@ -409,37 +492,64 @@ impl ComparisonEngine {
     }
 
     fn extract_metric_values(&self, results: &[BenchmarkResult], metric_name: &str) -> Vec<f64> {
-        results.iter()
+        results
+            .iter()
             .filter_map(|result| result.metrics.get(metric_name))
             .cloned()
             .collect()
     }
 
-    fn get_common_metrics(&self, baseline_results: &[BenchmarkResult], comparison_results: &[BenchmarkResult]) -> Vec<String> {
-        let baseline_metrics: std::collections::HashSet<String> = baseline_results.iter()
+    fn get_common_metrics(
+        &self,
+        baseline_results: &[BenchmarkResult],
+        comparison_results: &[BenchmarkResult],
+    ) -> Vec<String> {
+        let baseline_metrics: std::collections::HashSet<String> = baseline_results
+            .iter()
             .flat_map(|result| result.metrics.keys().cloned())
             .collect();
 
-        let comparison_metrics: std::collections::HashSet<String> = comparison_results.iter()
+        let comparison_metrics: std::collections::HashSet<String> = comparison_results
+            .iter()
             .flat_map(|result| result.metrics.keys().cloned())
             .collect();
 
-        baseline_metrics.intersection(&comparison_metrics).cloned().collect()
+        baseline_metrics
+            .intersection(&comparison_metrics)
+            .cloned()
+            .collect()
     }
 
     fn generate_comparison_id(&self) -> String {
-        format!("comp_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis())
+        format!(
+            "comp_{}",
+            SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        )
     }
 
     fn generate_recommendation_id(&self) -> String {
-        format!("rec_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis())
+        format!(
+            "rec_{}",
+            SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        )
     }
 
     fn generate_cache_key(&self, results: &[BenchmarkResult], baseline_name: &str) -> String {
-        format!("{}_{}_{}",
+        format!(
+            "{}_{}_{}",
             baseline_name,
             results.len(),
-            results.iter().map(|r| &r.result_id).collect::<Vec<_>>().join("_")
+            results
+                .iter()
+                .map(|r| r.result_id.as_str())
+                .collect::<Vec<_>>()
+                .join("_")
         )
     }
 }
@@ -512,6 +622,7 @@ pub enum ComparisonStrategy {
 // ================================================================================================
 
 /// Baseline manager for maintaining comparison baselines
+#[derive(Debug)]
 pub struct BaselineManager {
     baselines: HashMap<String, Baseline>,
     update_policies: HashMap<String, BaselineUpdatePolicy>,
@@ -533,7 +644,8 @@ impl BaselineManager {
         // Validate baseline first
         self.validate_baseline(&baseline)?;
 
-        self.baselines.insert(baseline.baseline_id.clone(), baseline);
+        self.baselines
+            .insert(baseline.baseline_id.clone(), baseline);
         Ok(())
     }
 
@@ -543,7 +655,11 @@ impl BaselineManager {
     }
 
     /// Update an existing baseline
-    pub fn update_baseline(&mut self, baseline_name: &str, new_results: &[BenchmarkResult]) -> Result<(), ComparisonError> {
+    pub fn update_baseline(
+        &mut self,
+        baseline_name: &str,
+        new_results: &[BenchmarkResult],
+    ) -> Result<(), ComparisonError> {
         if let Some(baseline) = self.baselines.get_mut(baseline_name) {
             // Update baseline metrics with new results
             for result in new_results {
@@ -554,16 +670,19 @@ impl BaselineManager {
                         baseline_metric.sample_size += 1;
                     } else {
                         // Add new metric to baseline
-                        baseline.metrics.insert(metric_name.clone(), MetricBaseline {
-                            metric_name: metric_name.clone(),
-                            baseline_value: *metric_value,
-                            acceptable_range: AcceptableRange::default(),
-                            trend_info: None,
-                            confidence_level: 0.95,
-                            sample_size: 1,
-                            tolerance: 0.1,
-                            last_updated: SystemTime::now(),
-                        });
+                        baseline.metrics.insert(
+                            metric_name.clone(),
+                            MetricBaseline {
+                                metric_name: metric_name.clone(),
+                                baseline_value: *metric_value,
+                                acceptable_range: AcceptableRange::default(),
+                                trend_info: None,
+                                confidence_level: 0.95,
+                                sample_size: 1,
+                                tolerance: 0.1,
+                                last_updated: SystemTime::now(),
+                            },
+                        );
                     }
                 }
             }
@@ -581,8 +700,9 @@ impl BaselineManager {
 
     /// Get baseline information
     pub fn get_baseline_info(&self, baseline_name: &str) -> Option<BaselineInfo> {
-        self.baselines.get(baseline_name).map(|baseline| {
-            BaselineInfo {
+        self.baselines
+            .get(baseline_name)
+            .map(|baseline| BaselineInfo {
                 baseline_id: baseline.baseline_id.clone(),
                 name: baseline.name.clone(),
                 description: baseline.description.clone(),
@@ -591,18 +711,15 @@ impl BaselineManager {
                 creation_time: baseline.creation_time,
                 last_updated: baseline.last_updated,
                 version: baseline.version.clone(),
-            }
-        })
+            })
     }
 
     /// Validate a baseline
     fn validate_baseline(&self, baseline: &Baseline) -> Result<(), ComparisonError> {
         if baseline.baseline_id.is_empty() {
-            return Err(ComparisonError::ValidationError("Baseline ID cannot be empty".to_string()));
-        }
-
-        if baseline.metrics.is_empty() {
-            return Err(ComparisonError::ValidationError("Baseline must contain at least one metric".to_string()));
+            return Err(ComparisonError::ValidationError(
+                "Baseline ID cannot be empty".to_string(),
+            ));
         }
 
         for validation_rule in &self.validation_rules {
@@ -612,19 +729,24 @@ impl BaselineManager {
         Ok(())
     }
 
-    fn apply_validation_rule(&self, baseline: &Baseline, rule: &BaselineValidationRule) -> Result<(), ComparisonError> {
+    fn apply_validation_rule(
+        &self,
+        baseline: &Baseline,
+        rule: &BaselineValidationRule,
+    ) -> Result<(), ComparisonError> {
         // Simplified validation rule application
         match rule.validation_type {
             BaselineValidationType::DataQuality => {
                 // Check data quality
                 for metric in baseline.metrics.values() {
                     if metric.baseline_value.is_nan() || metric.baseline_value.is_infinite() {
-                        return Err(ComparisonError::ValidationError(
-                            format!("Invalid baseline value for metric {}", metric.metric_name)
-                        ));
+                        return Err(ComparisonError::ValidationError(format!(
+                            "Invalid baseline value for metric {}",
+                            metric.metric_name
+                        )));
                     }
                 }
-            },
+            }
             _ => {
                 // Other validation types would be implemented here
             }
@@ -742,6 +864,7 @@ pub struct BaselineInfo {
 // ================================================================================================
 
 /// Statistical comparisons for benchmarks
+#[derive(Debug)]
 pub struct StatisticalComparisons {
     comparison_tests: Vec<ComparisonTest>,
     effect_size_calculations: EffectSizeCalculations,
@@ -768,10 +891,7 @@ impl StatisticalComparisons {
                 ComparisonTest {
                     test_name: "Mann-Whitney U test".to_string(),
                     test_type: ComparisonTestType::MannWhitneyU,
-                    assumptions: vec![
-                        TestAssumption::Independence,
-                        TestAssumption::RandomSampling,
-                    ],
+                    assumptions: vec![TestAssumption::Independence, TestAssumption::RandomSampling],
                     significance_level: 0.05,
                     power_requirement: 0.8,
                 },
@@ -822,25 +942,37 @@ pub enum TestAssumption {
 }
 
 /// Supporting structures (simplified implementations)
+#[derive(Debug, Default)]
 pub struct EffectSizeCalculations;
+#[derive(Debug, Default)]
 pub struct PowerAnalysisMethods;
+#[derive(Debug, Default)]
 pub struct MultipleTesting;
+#[derive(Debug, Default)]
 pub struct VisualizationGenerator;
 
 impl EffectSizeCalculations {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 impl PowerAnalysisMethods {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 impl MultipleTesting {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 impl VisualizationGenerator {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 // ================================================================================================
@@ -974,7 +1106,7 @@ pub struct PairwiseComparisonReport {
     pub comparison_count: usize,
     pub statistical_comparison: StatisticalComparison,
     pub effect_size_analysis: EffectSizeAnalysis,
-    pub distribution_comparison: DistributionComparison,
+    pub distribution_comparison: DistributionComparisonReport,
     pub trend_comparison: TrendComparison,
     pub overall_assessment: OverallAssessment,
     pub comparison_timestamp: SystemTime,
@@ -1114,9 +1246,16 @@ pub struct MetricDistributionComparison;
 // ================================================================================================
 
 /// Cache for comparison results
+#[derive(Debug)]
 pub struct ComparisonCache {
     cache: HashMap<String, ComparisonReport>,
     max_size: usize,
+}
+
+impl Default for ComparisonCache {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ComparisonCache {
@@ -1171,17 +1310,35 @@ pub enum ComparisonError {
 
 // Helper implementations for the comparison engine
 impl ComparisonEngine {
-    fn generate_comparison_visualizations(&self, _results: &[BenchmarkResult], _baseline: &Baseline) -> Result<Vec<VisualizationData>, ComparisonError> {
+    fn generate_comparison_visualizations(
+        &self,
+        _results: &[BenchmarkResult],
+        _baseline: &Baseline,
+    ) -> Result<Vec<VisualizationData>, ComparisonError> {
         // Placeholder implementation
         Ok(Vec::new())
     }
 
-    fn calculate_comparison_confidence(&self, _results: &[BenchmarkResult], _baseline: &Baseline) -> Result<f64, ComparisonError> {
-        // Simplified confidence calculation
-        Ok(0.85)
+    fn calculate_comparison_confidence(
+        &self,
+        results: &[BenchmarkResult],
+        _baseline: &Baseline,
+    ) -> Result<f64, ComparisonError> {
+        if results.is_empty() {
+            return Ok(0.0);
+        }
+        // Wilson-inspired confidence: grows toward 1.0 as sample count increases.
+        // k=5 means we need ~5 results to reach 50% confidence, ~20 for ~80%.
+        let n = results.len() as f64;
+        let k = 5.0_f64;
+        Ok(n / (n + k))
     }
 
-    fn generate_comparison_metadata(&self, results: &[BenchmarkResult], baseline: &Baseline) -> ComparisonMetadata {
+    fn generate_comparison_metadata(
+        &self,
+        results: &[BenchmarkResult],
+        baseline: &Baseline,
+    ) -> ComparisonMetadata {
         ComparisonMetadata {
             engine_version: "1.0.0".to_string(),
             comparison_parameters: HashMap::new(),
@@ -1193,7 +1350,10 @@ impl ComparisonEngine {
         }
     }
 
-    fn calculate_improvement_distribution(&self, comparisons: &HashMap<String, MetricComparison>) -> ImprovementDistribution {
+    fn calculate_improvement_distribution(
+        &self,
+        comparisons: &HashMap<String, MetricComparison>,
+    ) -> ImprovementDistribution {
         let mut improvements = 0;
         let mut degradations = 0;
         let mut no_change = 0;
@@ -1215,7 +1375,10 @@ impl ComparisonEngine {
         }
     }
 
-    fn calculate_comparison_statistics(&self, comparisons: &HashMap<String, MetricComparison>) -> Result<ComparisonStatistics, ComparisonError> {
+    fn calculate_comparison_statistics(
+        &self,
+        comparisons: &HashMap<String, MetricComparison>,
+    ) -> Result<ComparisonStatistics, ComparisonError> {
         if comparisons.is_empty() {
             return Ok(ComparisonStatistics {
                 mean_improvement: 0.0,
@@ -1224,7 +1387,8 @@ impl ComparisonEngine {
             });
         }
 
-        let improvements: Vec<f64> = comparisons.values()
+        let improvements: Vec<f64> = comparisons
+            .values()
             .map(|c| c.improvement_percentage)
             .collect();
 
@@ -1234,9 +1398,8 @@ impl ComparisonEngine {
         sorted_improvements.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let median = sorted_improvements[sorted_improvements.len() / 2];
 
-        let variance = improvements.iter()
-            .map(|x| (x - mean).powi(2))
-            .sum::<f64>() / improvements.len() as f64;
+        let variance = improvements.iter().map(|x| (x - mean).powi(2)).sum::<f64>()
+            / improvements.len() as f64;
 
         Ok(ComparisonStatistics {
             mean_improvement: mean,
@@ -1245,7 +1408,11 @@ impl ComparisonEngine {
         })
     }
 
-    fn assess_practical_significance(&self, effect_size: &f64, _acceptable_range: &AcceptableRange) -> PracticalSignificance {
+    fn assess_practical_significance(
+        &self,
+        effect_size: &f64,
+        _acceptable_range: &AcceptableRange,
+    ) -> PracticalSignificance {
         let magnitude = if effect_size.abs() < 0.2 {
             EffectMagnitude::Negligible
         } else if effect_size.abs() < 0.5 {
@@ -1275,7 +1442,11 @@ impl ComparisonEngine {
         }
     }
 
-    fn assess_comparison_quality(&self, _result: &BenchmarkResult, _baseline_metric: &MetricBaseline) -> ComparisonQuality {
+    fn assess_comparison_quality(
+        &self,
+        _result: &BenchmarkResult,
+        _baseline_metric: &MetricBaseline,
+    ) -> ComparisonQuality {
         ComparisonQuality {
             data_quality_score: 0.85,
             sample_size_adequacy: SampleSizeAdequacy::Adequate,
@@ -1284,12 +1455,20 @@ impl ComparisonEngine {
         }
     }
 
-    fn calculate_test_power(&self, _effect_size: f64, _sample_size: f64) -> Result<f64, ComparisonError> {
+    fn calculate_test_power(
+        &self,
+        _effect_size: f64,
+        _sample_size: f64,
+    ) -> Result<f64, ComparisonError> {
         // Simplified power calculation
         Ok(0.8)
     }
 
-    fn check_test_assumptions(&self, _result: &BenchmarkResult, _baseline_metric: &MetricBaseline) -> Result<Vec<AssumptionCheck>, ComparisonError> {
+    fn check_test_assumptions(
+        &self,
+        _result: &BenchmarkResult,
+        _baseline_metric: &MetricBaseline,
+    ) -> Result<Vec<AssumptionCheck>, ComparisonError> {
         Ok(vec![
             AssumptionCheck {
                 assumption: TestAssumption::Normality,
@@ -1307,39 +1486,70 @@ impl ComparisonEngine {
     }
 
     // Placeholder implementations for complex methods
-    fn perform_pairwise_statistical_tests(&self, _baseline: &[BenchmarkResult], _comparison: &[BenchmarkResult]) -> Result<StatisticalComparison, ComparisonError> {
+    fn perform_pairwise_statistical_tests(
+        &self,
+        _baseline: &[BenchmarkResult],
+        _comparison: &[BenchmarkResult],
+    ) -> Result<StatisticalComparison, ComparisonError> {
         Ok(StatisticalComparison)
     }
 
-    fn calculate_pairwise_effect_sizes(&self, _baseline: &[BenchmarkResult], _comparison: &[BenchmarkResult]) -> Result<EffectSizeAnalysis, ComparisonError> {
+    fn calculate_pairwise_effect_sizes(
+        &self,
+        _baseline: &[BenchmarkResult],
+        _comparison: &[BenchmarkResult],
+    ) -> Result<EffectSizeAnalysis, ComparisonError> {
         Ok(EffectSizeAnalysis)
     }
 
-    fn compare_trends(&self, _baseline: &[BenchmarkResult], _comparison: &[BenchmarkResult]) -> Result<TrendComparison, ComparisonError> {
+    fn compare_trends(
+        &self,
+        _baseline: &[BenchmarkResult],
+        _comparison: &[BenchmarkResult],
+    ) -> Result<TrendComparison, ComparisonError> {
         Ok(TrendComparison)
     }
 
-    fn assess_pairwise_comparison(&self, _statistical: &StatisticalComparison, _effect_size: &EffectSizeAnalysis) -> Result<OverallAssessment, ComparisonError> {
+    fn assess_pairwise_comparison(
+        &self,
+        _statistical: &StatisticalComparison,
+        _effect_size: &EffectSizeAnalysis,
+    ) -> Result<OverallAssessment, ComparisonError> {
         Ok(OverallAssessment::Good)
     }
 
-    fn perform_all_pairwise_comparisons(&self, _groups: &HashMap<String, Vec<BenchmarkResult>>) -> Result<HashMap<String, PairwiseResult>, ComparisonError> {
+    fn perform_all_pairwise_comparisons(
+        &self,
+        _groups: &HashMap<String, Vec<BenchmarkResult>>,
+    ) -> Result<HashMap<String, PairwiseResult>, ComparisonError> {
         Ok(HashMap::new())
     }
 
-    fn perform_anova_analysis(&self, _groups: &HashMap<String, Vec<BenchmarkResult>>) -> Result<ANOVAResult, ComparisonError> {
+    fn perform_anova_analysis(
+        &self,
+        _groups: &HashMap<String, Vec<BenchmarkResult>>,
+    ) -> Result<ANOVAResult, ComparisonError> {
         Ok(ANOVAResult)
     }
 
-    fn perform_post_hoc_tests(&self, _groups: &HashMap<String, Vec<BenchmarkResult>>) -> Result<Vec<PostHocTestResult>, ComparisonError> {
+    fn perform_post_hoc_tests(
+        &self,
+        _groups: &HashMap<String, Vec<BenchmarkResult>>,
+    ) -> Result<Vec<PostHocTestResult>, ComparisonError> {
         Ok(Vec::new())
     }
 
-    fn apply_multiple_testing_correction(&self, _comparisons: &HashMap<String, PairwiseResult>) -> Result<MultipleTestingCorrection, ComparisonError> {
+    fn apply_multiple_testing_correction(
+        &self,
+        _comparisons: &HashMap<String, PairwiseResult>,
+    ) -> Result<MultipleTestingCorrection, ComparisonError> {
         Ok(MultipleTestingCorrection)
     }
 
-    fn rank_groups(&self, groups: &HashMap<String, Vec<BenchmarkResult>>) -> Result<Vec<GroupRanking>, ComparisonError> {
+    fn rank_groups(
+        &self,
+        groups: &HashMap<String, Vec<BenchmarkResult>>,
+    ) -> Result<Vec<GroupRanking>, ComparisonError> {
         let mut rankings = Vec::new();
         for (i, group_name) in groups.keys().enumerate() {
             rankings.push(GroupRanking {
@@ -1351,11 +1561,18 @@ impl ComparisonEngine {
         Ok(rankings)
     }
 
-    fn compare_metric_distributions(&self, _baseline: &[f64], _comparison: &[f64]) -> Result<MetricDistributionComparison, ComparisonError> {
+    fn compare_metric_distributions(
+        &self,
+        _baseline: &[f64],
+        _comparison: &[f64],
+    ) -> Result<MetricDistributionComparison, ComparisonError> {
         Ok(MetricDistributionComparison)
     }
 
-    fn calculate_overall_distribution_similarity(&self, _comparisons: &HashMap<String, MetricDistributionComparison>) -> f64 {
+    fn calculate_overall_distribution_similarity(
+        &self,
+        _comparisons: &HashMap<String, MetricDistributionComparison>,
+    ) -> f64 {
         0.8 // Placeholder
     }
 }
@@ -1402,16 +1619,20 @@ mod tests {
         let config = ComparisonEngineConfig::default();
         let engine = ComparisonEngine::new(config);
 
-        let effect_size = engine.calculate_effect_size(110.0, 100.0).unwrap_or_default();
+        let effect_size = engine
+            .calculate_effect_size(110.0, 100.0)
+            .unwrap_or_default();
         assert_eq!(effect_size, 0.1);
 
-        let negative_effect = engine.calculate_effect_size(90.0, 100.0).unwrap_or_default();
+        let negative_effect = engine
+            .calculate_effect_size(90.0, 100.0)
+            .unwrap_or_default();
         assert_eq!(negative_effect, -0.1);
     }
 
     #[test]
     fn test_comparison_cache() {
-        let mut cache = ComparisonCache::new();
+        let cache = ComparisonCache::new();
         assert!(cache.get("test_key").is_none());
         assert_eq!(cache.max_size, 1000);
     }

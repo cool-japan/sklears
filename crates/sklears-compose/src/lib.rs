@@ -177,6 +177,7 @@ pub mod quality_assurance;
 pub mod quantum;
 pub mod resource_management;
 // pub mod retry; // Temporarily disabled - needs missing type imports and context fixes
+pub mod comprehensive_benchmarking;
 pub mod enhanced_wasm_integration;
 pub mod scheduling;
 pub mod simd_optimizations;
@@ -188,6 +189,7 @@ pub mod task_scheduling;
 pub mod time_series_pipelines;
 pub mod transfer_learning;
 pub mod type_safety;
+pub mod utils;
 pub mod validation;
 pub mod wasm_integration;
 #[cfg(feature = "workflow")]
@@ -546,6 +548,24 @@ pub use quantum::{
 //     PolicyEvaluator, RetryPolicyEngine, ConfigurationManager, GlobalRetryConfig,
 //     AlertingSystem, RetryMetricsCollector, ModelPerformanceMetrics, SystemStatistics,
 // };
+pub use enhanced_wasm_integration::{
+    BrowserFeature, BrowserFeatureDetection, BrowserInfo,
+    BrowserIntegration as EnhancedBrowserIntegration, CompilationTarget, CompiledWasmModule,
+    CpuIntensity, ExecutionContext as WasmExecutionContext, ExecutionProfile,
+    FeatureDetectionStrategy, FunctionHandle, FunctionSignature, GeneratedBinding, IoProfile,
+    JsBindingsGenerator, JsType, LoadedWasmModule, MemoryConstraints,
+    MemoryLayout as WasmMemoryLayout, MemoryPermissions, MemoryProfile, MemoryRegion, ModuleLoader,
+    ModuleSource, OptimizationPass, OptimizationResult,
+    OptimizationStrategy as WasmOptimizationStrategy, PerformanceHints,
+    PerformanceProfile as WasmPerformanceProfile, PerformanceRequirements, ProfilingSession,
+    ScalingProfile, TaskData, TaskPriority as WasmTaskPriority, TaskType as WasmTaskType,
+    TypedArrayType, WasmArchitecture, WasmCompiler as EnhancedWasmCompiler, WasmExport,
+    WasmExportValue, WasmImport, WasmInstance, WasmIntegrationConfig, WasmIntegrationManager,
+    WasmMemoryView, WasmModuleManager, WasmModuleMetadata, WasmPerformanceOptimizer, WasmProfiler,
+    WasmType, WasmValue as EnhancedWasmValue, WebApiIntegration,
+    WorkerStatistics as WasmWorkerStatistics, WorkerStatus, WorkerTask, WorkerThread,
+    WorkerThreadManager,
+};
 pub use scheduling::{
     ResourcePool, RetryConfig, ScheduledTask, SchedulerStatistics, SchedulingStrategy,
     TaskScheduler as SchedulingTaskScheduler, TaskState, Workflow, WorkflowManager,
@@ -564,31 +584,9 @@ pub use stress_testing::{
     StressTestConfig, StressTestIssue, StressTestReport, StressTestResult, StressTestScenario,
     StressTester,
 };
-// TODO: Enable once time_series_pipelines modules are implemented
-// pub use time_series_pipelines::{
-//     AnomalyDetector, AnomalyType as TimeSeriesAnomalyType, DataStream, EdgeNode, FeatureEngineer,
-//     IoTConfig, IoTDataPipeline, IoTDevice, MessageBroker, PostProcessor as TSPostProcessor,
-//     QualityControlConfig, RealTimeConfig, SamplingFrequency, SeasonalPattern,
-//     TimeSeriesCharacteristics, TimeSeriesConfig as TSConfig, TimeSeriesMetrics, TimeSeriesModel,
-//     TimeSeriesPipeline, TimeSeriesTransform, TrendType,
-// };
-pub use enhanced_wasm_integration::{
-    BrowserFeature, BrowserFeatureDetection, BrowserInfo,
-    BrowserIntegration as EnhancedBrowserIntegration, CompilationTarget, CompiledWasmModule,
-    CpuIntensity, ExecutionContext as WasmExecutionContext, ExecutionProfile,
-    FeatureDetectionStrategy, FunctionHandle, FunctionSignature, GeneratedBinding, IoProfile,
-    JsBindingsGenerator, JsType, LoadedWasmModule, MemoryConstraints,
-    MemoryLayout as WasmMemoryLayout, MemoryPermissions, MemoryProfile, MemoryRegion, ModuleLoader,
-    ModuleSource, OptimizationPass, OptimizationResult,
-    OptimizationStrategy as WasmOptimizationStrategy, PerformanceHints,
-    PerformanceProfile as WasmPerformanceProfile, PerformanceRequirements, ProfilingSession,
-    ScalingProfile, TaskData, TaskPriority as WasmTaskPriority, TaskType as WasmTaskType,
-    TypedArrayType, WasmArchitecture, WasmCompiler as EnhancedWasmCompiler, WasmExport,
-    WasmExportValue, WasmImport, WasmInstance, WasmIntegrationConfig, WasmIntegrationManager,
-    WasmMemoryView, WasmModuleManager, WasmModuleMetadata, WasmPerformanceOptimizer, WasmProfiler,
-    WasmType, WasmValue as EnhancedWasmValue, WebApiIntegration,
-    WorkerStatistics as WasmWorkerStatistics, WorkerStatus, WorkerTask, WorkerThread,
-    WorkerThreadManager,
+pub use time_series_pipelines::{
+    Differencing, LagFeatures, RollingAggregation, RollingWindow, TemporalSplit,
+    TemporalTrainTestSplit, TimeSeriesTransformConfig,
 };
 pub use transfer_learning::{
     domain_adaptation::{

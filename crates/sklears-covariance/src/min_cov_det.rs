@@ -207,6 +207,49 @@ impl Fit<ArrayView2<'_, Float>, ()> for MinCovDet<Untrained> {
 }
 
 impl MinCovDet<MinCovDetTrained> {
+    /// Reconstruct a fitted estimator from previously computed parameters.
+    ///
+    /// Used by the serialization layer to rebuild a fitted model from its
+    /// stored state. `store_precision` is set to `true` exactly when a precision
+    /// matrix is supplied and `assume_centered` is inferred from a zero location.
+    /// `support_fraction`, `random_state`, `n_trials` and `use_fast_mcd` are
+    /// restored from the supplied values.
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_fitted(
+        covariance: Array2<f64>,
+        precision: Option<Array2<f64>>,
+        location: Array1<f64>,
+        support: Array1<bool>,
+        dist: Array1<f64>,
+        support_fraction: Option<f64>,
+        random_state: Option<u64>,
+        n_trials: usize,
+        use_fast_mcd: bool,
+    ) -> Self {
+        let store_precision = precision.is_some();
+        let assume_centered = location.iter().all(|&value| value == 0.0);
+        Self {
+            state: MinCovDetTrained {
+                covariance,
+                precision,
+                location,
+                support,
+                dist,
+            },
+            support_fraction,
+            random_state,
+            store_precision,
+            assume_centered,
+            n_trials,
+            use_fast_mcd,
+        }
+    }
+
+    /// Get the Mahalanobis distances stored at fit time
+    pub fn get_dist(&self) -> &Array1<f64> {
+        &self.state.dist
+    }
+
     /// Get the covariance matrix
     pub fn get_covariance(&self) -> &Array2<f64> {
         &self.state.covariance

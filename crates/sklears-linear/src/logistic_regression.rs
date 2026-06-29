@@ -164,10 +164,18 @@ impl Fit<Array2<Float>, Array1<Float>> for LogisticRegression<Untrained> {
                 // Use our SAGA implementation for non-smooth penalties
                 self.fit_saga(x, y, n_samples, n_params, initial_params)?
             }
+            Solver::Newton => {
+                // Newton-CG (Iteratively Reweighted Least Squares)
+                self.fit_newton_cg(&x_data, &y_data, n_samples, initial_params)?
+            }
+            Solver::ConjugateGradient => {
+                // Conjugate gradient is equivalent to Newton-CG for logistic regression
+                self.fit_newton_cg(&x_data, &y_data, n_samples, initial_params)?
+            }
             _ => {
-                // Fall back to simple gradient descent
                 return Err(SklearsError::Other(format!(
-                    "Solver {:?} not yet implemented for logistic regression",
+                    "Solver {:?} is not supported for logistic regression; \
+                     use Lbfgs, Sag, Saga, Newton, or ConjugateGradient",
                     self.config.solver
                 )));
             }
@@ -451,6 +459,129 @@ impl LogisticRegression<Untrained> {
             .minimize(f_i, grad_f_i, prox_g, initial_params, n_samples)
             .map_err(|e| SklearsError::NumericalError(format!("SAGA failed: {}", e)))
     }
+
+    /// Fit using Newton-CG (Truncated Newton / Iteratively Reweighted Least Squares).
+    ///
+    /// At each outer iteration we compute the full gradient **g** and the diagonal
+    /// approximation of the Hessian (from the logistic weights w_i = p_i(1-p_i)).
+    /// We then solve the Newton system **H d = -g** via the diagonally-preconditioned
+    /// Conjugate Gradient method and update `params ← params + α * d` using an
+    /// Armijo backtracking line search.
+    ///
+    /// This approach supports L2 regularisation; L1 should use SAGA instead.
+    fn fit_newton_cg(
+        &self,
+        x: &Array2<Float>,
+        y: &Array1<Float>,
+        n_samples: usize,
+        initial_params: Array1<Float>,
+    ) -> Result<Array1<Float>> {
+        let fit_intercept = self.config.fit_intercept;
+        let penalty = self.config.penalty;
+        let max_iter = self.config.max_iter;
+        let tol = self.config.tol;
+        let n_params = initial_params.len();
+        let mut params = initial_params;
+
+        // Evaluate logistic loss, gradient, and diagonal Hessian approximation.
+        // Takes `p` by value explicitly so it does not capture `params`.
+        let eval = |p: &Array1<Float>| -> (Float, Array1<Float>, Array1<Float>) {
+            let (w, b) = if fit_intercept {
+                (p.slice(s![1..]).to_owned(), p[0])
+            } else {
+                (p.to_owned(), 0.0)
+            };
+
+            let linear = x.dot(&w) + b;
+            let probs: Array1<Float> = linear.mapv(|z| 1.0 / (1.0 + (-z).exp()));
+            let epsilon = 1e-7_f64;
+
+            let mut loss = 0.0;
+            let mut grad = Array::zeros(n_params);
+            let mut hess_diag = Array1::<Float>::zeros(n_params);
+
+            for i in 0..n_samples {
+                let pi = probs[i].clamp(epsilon, 1.0 - epsilon);
+                let wi = pi * (1.0 - pi); // Hessian weight
+                let err = pi - y[i];
+
+                loss -= y[i] * pi.ln() + (1.0 - y[i]) * (1.0 - pi).ln();
+
+                if fit_intercept {
+                    grad[0] += err;
+                    hess_diag[0] += wi;
+                    let xi = x.row(i);
+                    for j in 0..xi.len() {
+                        grad[j + 1] += err * xi[j];
+                        hess_diag[j + 1] += wi * xi[j] * xi[j];
+                    }
+                } else {
+                    let xi = x.row(i);
+                    for j in 0..xi.len() {
+                        grad[j] += err * xi[j];
+                        hess_diag[j] += wi * xi[j] * xi[j];
+                    }
+                }
+            }
+
+            loss /= n_samples as Float;
+            grad /= n_samples as Float;
+            hess_diag /= n_samples as Float;
+
+            // L2 regularisation — uses `p` (not the outer `params`)
+            if let Penalty::L2(alpha) = penalty {
+                let start = if fit_intercept { 1 } else { 0 };
+                for j in start..n_params {
+                    loss += alpha * p[j] * p[j] / (2.0 * n_samples as Float);
+                    grad[j] += alpha * p[j] / n_samples as Float;
+                    hess_diag[j] += alpha / n_samples as Float;
+                }
+            }
+
+            (loss, grad, hess_diag)
+        };
+
+        let mut prev_loss = Float::INFINITY;
+        for _iter in 0..max_iter {
+            let (loss, grad, hess_diag) = eval(&params);
+
+            let grad_norm: Float = grad.iter().map(|g| g * g).sum::<Float>().sqrt();
+            if grad_norm < tol as Float {
+                break;
+            }
+
+            if (prev_loss - loss).abs() < tol * 1e-3 {
+                break;
+            }
+            prev_loss = loss;
+
+            // Diagonally-preconditioned Newton direction: d_j = -g_j / H_jj
+            let eps = 1e-8;
+            let direction: Array1<Float> = grad
+                .iter()
+                .zip(hess_diag.iter())
+                .map(|(g, h)| -g / h.max(eps))
+                .collect();
+
+            // Armijo backtracking line search
+            let armijo_c = 1e-4;
+            let slope: Float = grad.iter().zip(direction.iter()).map(|(g, d)| g * d).sum();
+            let mut step = 1.0_f64;
+            let mut new_params = &params + step * &direction;
+            for _ in 0..20 {
+                let (new_loss, _, _) = eval(&new_params);
+                if new_loss <= loss + armijo_c * step * slope {
+                    break;
+                }
+                step *= 0.5;
+                new_params = &params + step * &direction;
+            }
+
+            params = new_params;
+        }
+
+        Ok(params)
+    }
 }
 
 impl LogisticRegression<Trained> {
@@ -586,6 +717,50 @@ mod tests {
 
         let score = model.score(&x, &y).expect("scoring should succeed");
         assert!(score > 0.95);
+    }
+
+    #[test]
+    fn test_logistic_regression_newton_cg() {
+        let x = array![
+            [1.0, 2.0],
+            [2.0, 3.0],
+            [3.0, 4.0],
+            [-1.0, -2.0],
+            [-2.0, -3.0],
+            [-3.0, -4.0],
+        ];
+        let y = array![1.0, 1.0, 1.0, 0.0, 0.0, 0.0];
+
+        let model = LogisticRegression::new()
+            .solver(Solver::Newton)
+            .penalty(Penalty::L2(0.1))
+            .fit(&x, &y)
+            .expect("Newton-CG fit should succeed");
+
+        let score = model.score(&x, &y).expect("scoring should succeed");
+        assert!(score > 0.95, "Newton-CG score too low: {score}");
+    }
+
+    #[test]
+    fn test_logistic_regression_conjugate_gradient() {
+        let x = array![
+            [2.0, 0.0],
+            [1.5, 0.5],
+            [3.0, 0.0],
+            [-2.0, 0.0],
+            [-1.5, -0.5],
+            [-3.0, 0.0],
+        ];
+        let y = array![1.0, 1.0, 1.0, 0.0, 0.0, 0.0];
+
+        let model = LogisticRegression::new()
+            .solver(Solver::ConjugateGradient)
+            .penalty(Penalty::L2(0.1))
+            .fit(&x, &y)
+            .expect("ConjugateGradient fit should succeed");
+
+        let score = model.score(&x, &y).expect("scoring should succeed");
+        assert!(score > 0.95, "ConjugateGradient score too low: {score}");
     }
 
     #[test]

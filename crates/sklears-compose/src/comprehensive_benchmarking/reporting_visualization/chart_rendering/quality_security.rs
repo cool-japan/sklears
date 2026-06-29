@@ -553,7 +553,7 @@ impl Default for QualityMonitoringConfig {
             enabled: true,
             metrics_collection: true,
             quality_alerts: true,
-            monitoring_interval: Duration::from_secs(60),
+            monitoring_interval: Duration::seconds(60),
         }
     }
 }
@@ -579,7 +579,7 @@ impl Default for SandboxingConfig {
                 AllowedOperation::MemoryAllocation,
             ],
             resource_restrictions: vec![
-                ResourceRestriction::CpuTimeLimit(Duration::from_secs(30)),
+                ResourceRestriction::CpuTimeLimit(Duration::seconds(30)),
                 ResourceRestriction::MemoryLimit(1073741824), // 1GB
             ],
         }
@@ -608,7 +608,7 @@ impl Default for ResourceLimitsConfig {
         Self {
             cpu_limit: 80.0, // 80% CPU usage limit
             memory_limit: 1073741824, // 1GB memory limit
-            execution_time_limit: Duration::from_secs(30),
+            execution_time_limit: Duration::seconds(30),
             network_limit: 104857600, // 100MB network limit
         }
     }
@@ -630,7 +630,7 @@ impl Default for RateLimitingConfig {
         Self {
             enabled: true,
             requests_per_window: 1000,
-            time_window: Duration::from_secs(60),
+            time_window: Duration::seconds(60),
             burst_allowance: 100,
         }
     }

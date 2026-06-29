@@ -19,7 +19,7 @@
 //! - Centralized template management with orchestration
 //! - Comprehensive error handling and validation framework
 //! - Performance metrics and system integrity monitoring
-//! - Thread-safe operations with Arc<RwLock<T>> patterns
+//! - Thread-safe operations with `Arc<RwLock<T>>` patterns
 //!
 //! ## Repository Management
 //! - Template storage with metadata indexing
@@ -46,7 +46,7 @@
 //!
 //! ## Basic Template Management
 //!
-//! ```rust
+//! ```ignore
 //! use sklears_compose::comprehensive_benchmarking::reporting_visualization::template_management::{
 //!     TemplateManagementSystem, TemplateEntry, TemplateMetadata, TemplateType
 //! };
@@ -72,7 +72,7 @@
 //!
 //! ## Advanced Search
 //!
-//! ```rust
+//! ```ignore
 //! use sklears_compose::comprehensive_benchmarking::reporting_visualization::template_management::{
 //!     TemplateSearchIndex, SearchQuery, SearchFilter, FilterOperation, FilterValue
 //! };
@@ -96,7 +96,7 @@
 //!
 //! ## Version Management
 //!
-//! ```rust
+//! ```ignore
 //! use sklears_compose::comprehensive_benchmarking::reporting_visualization::template_management::{
 //!     TemplateVersioningSystem
 //! };
@@ -116,7 +116,7 @@
 //!
 //! # Performance Considerations
 //!
-//! - All repository operations are thread-safe using Arc<RwLock<T>>
+//! - All repository operations are thread-safe using `Arc<RwLock<T>>`
 //! - Search indexing supports multiple backends for scalability
 //! - Validation engine supports parallel rule execution
 //! - Performance monitoring tracks resource utilization
@@ -132,340 +132,328 @@
 
 // Re-export core template management system
 pub use template_core::{
-    TemplateManagementSystem,
-    TemplateError,
-    TemplateResult,
-    PerformanceMetrics,
-    PerformanceTrends,
-    ExecutionTimeStats,
-    MemoryUsageStats,
-    ResourceUtilizationStats,
-    SystemIntegrityReport,
-    SystemHealthStatus,
-    RepositoryStatus,
+    ExecutionTimeStats, MemoryUsageStats, PerformanceIssue, PerformanceTrends, RepositoryStatus,
+    ResourceUtilizationStats, SecurityIssue, SystemHealthStatus, SystemIntegrityReport,
+    SystemRecommendation, TemplateError, TemplateManagementSystem, TemplatePerformanceMetrics,
     TemplateValidationError,
-    SecurityIssue,
-    PerformanceIssue,
-    SystemRecommendation,
 };
 
 // Re-export repository management components
 pub use template_repository::{
-    // Core repository structures
-    TemplateRepository,
-    TemplateEntry,
-    TemplateMetadata,
-    TemplateContent,
-    TemplateAssets,
-    TemplateConfiguration,
-    TemplateStatus,
-    TemplateAccessControl,
-
-    // Template metadata and content types
-    TemplateType,
-    TemplateLicense,
-    LicenseType,
-    TemplateCompatibility,
-    Platform,
-    BrowserCompatibility,
-    BrowserVersion,
-    TemplateFormat,
-    TemplateStructure,
-    TemplateSection,
-    SectionType,
-    SectionMetadata,
-    TemplateHierarchy,
-    InheritanceConfig,
-    OverrideRule,
-    OverrideType,
-
-    // Template variables and functions
-    TemplateVariable,
-    VariableType,
-    VariableConstraints,
-    VariableScope,
-    TemplateFunction,
-    FunctionParameter,
-    FunctionScope,
-    TemplateInclude,
-    IncludeType,
-
-    // Asset management
-    StaticAsset,
-    DynamicAsset,
-    AssetType,
-    AssetMetadata,
-    AssetCacheSettings,
-    CacheInvalidation,
-    AssetDependencies,
-    DependencyResolution,
-    AssetOptimization,
-    OptimizationTechnique,
-    OptimizationConfiguration,
-    OptimizationLevel,
-    QualitySettings,
-
-    // Template configuration
-    TemplateParameter,
-    ParameterValidation,
-    ValidationRule,
-    ValidationRuleType,
-    ValidationErrorHandling,
-    TemplateBehavior,
-    RenderMode,
-    UpdateBehavior,
-    ErrorHandling,
-    ErrorRecovery,
-    FallbackBehavior,
-    PerformanceSettings,
-    ResourceLimits,
-
-    // Security configuration
-    TemplateSecurityConfig,
-    SecurityPolicy,
-    SecurityRule,
-    SecurityRuleType,
-    SecurityAction,
-    PolicyEnforcement,
-    ContentSecurity,
-    ContentFiltering,
-    FilterRule,
-    FilterAction,
-    ContentValidation,
-    ContentSanitization,
-    AccessRestrictions,
-    TimeRestriction,
-
-    // Access control
-    TemplatePermissions,
     AccessAudit,
-    AuditEntry,
+    AccessRestrictions,
     AccessResult,
+    AssetCacheSettings,
+    AssetDependencies,
+    AssetMetadata,
+    AssetOptimization,
+    AssetType,
     AuditConfiguration,
 
-    // Indexing and metadata
-    TemplateMetadataIndex,
-    SearchIndex,
-    IndexType,
-    IndexEntry,
-    IndexConfiguration,
-    TagIndex,
-    TagHierarchy,
-    TagStatistics,
-    TrendData,
-    TrendDirection,
-    TagRelationships,
-    CategoryIndex,
-    CategoryTree,
-    CategoryMetadata,
-    CategoryStatistics,
+    AuditEntry,
     AuthorIndex,
     AuthorProfile,
     AuthorReputation,
-    ReputationLevel,
     AuthorStatistics,
 
-    // Repository configuration
-    RepositoryConfiguration,
-    StorageBackend,
     BackupConfiguration,
-    SynchronizationSettings,
+    BrowserCompatibility,
+    BrowserVersion,
+    CacheInvalidation,
+    CategoryIndex,
+    CategoryMetadata,
+    CategoryStatistics,
+    CategoryTree,
     ConflictResolution,
-    RepositoryStatistics,
-    UsageStatistics,
+    ContentFiltering,
+    ContentSanitization,
+    ContentSecurity,
+    ContentValidation,
+    DependencyResolution,
+    DynamicAsset,
+    ErrorHandling,
+    ErrorRecovery,
+    FallbackBehavior,
+    FilterAction,
+    FilterRule,
+    FunctionParameter,
+    FunctionScope,
+    IncludeType,
+
+    IndexConfiguration,
+    IndexEntry,
+    IndexType,
+    InheritanceConfig,
+    LicenseType,
+    OptimizationConfiguration,
+    OptimizationLevel,
+    OptimizationTechnique,
+    OverrideRule,
+    OverrideType,
+
+    ParameterValidation,
+    PerformanceSettings,
+    Platform,
+    PolicyEnforcement,
+    QualitySettings,
+
     Rating,
 
+    RenderMode,
+    // Repository configuration
+    RepositoryConfiguration,
+    RepositoryStatistics,
+    ReputationLevel,
+    ResourceLimits,
+
+    SearchIndex,
+    SectionMetadata,
+    SectionType,
+    SecurityAction,
+    SecurityPolicy,
+    SecurityRule,
+    SecurityRuleType,
+    // Asset management
+    StaticAsset,
+    StorageBackend,
+    SynchronizationSettings,
+    TagHierarchy,
+    TagIndex,
+    TagRelationships,
+    TagStatistics,
+    TemplateAccessControl,
+
+    TemplateAssets,
+    TemplateBehavior,
+    TemplateCompatibility,
+    TemplateConfiguration,
+    TemplateContent,
+    TemplateEntry,
     // Template filtering
     TemplateFilter,
+    TemplateFormat,
+    TemplateFunction,
+    TemplateHierarchy,
+    TemplateInclude,
+    TemplateLicense,
+    TemplateMetadata,
+    // Indexing and metadata
+    TemplateMetadataIndex,
+    // Template configuration
+    TemplateParameter,
+    // Access control
+    TemplatePermissions,
+    // Core repository structures
+    TemplateRepository,
+    TemplateSection,
+    // Security configuration
+    TemplateSecurityConfig,
+    TemplateStatus,
+    TemplateStructure,
+    // Template metadata and content types
+    TemplateType,
+    // Template variables and functions
+    TemplateVariable,
+    TimeRestriction,
+
+    TrendData,
+    TrendDirection,
+    UpdateBehavior,
+    UsageStatistics,
+    ValidationErrorHandling,
+    ValidationRule,
+    ValidationRuleType,
+    VariableConstraints,
+    VariableScope,
+    VariableType,
 };
 
 // Re-export specialized subsystems
 pub use template_subsystems::{
-    // Versioning system
-    TemplateVersioningSystem,
-    TemplateVersion,
-    TemplateBranch,
-    BranchStatus,
-    TemplateTag,
-    TagType,
-    MergeRecord,
-    MergeStrategy,
-    MergeResult,
-    MergeConflict,
-    ConflictType,
-    ConflictResolution as VersionConflictResolution,
-    ChangeStatistics,
-    VersioningConfiguration,
-    VersionFormat,
-    RetentionPolicy,
-    CleanupStrategy,
-    MergePolicies,
+    AccessRecord,
+    AppliedFix,
+    AutoFixConfiguration,
     AutoMergeConditions,
-    ConflictResolutionPreferences,
     AutoResolutionRule,
 
+    BranchStatus,
+    CachingConfiguration,
+    Category,
+    CategoryConfiguration,
+
+    CategoryMetadata as SubsystemCategoryMetadata,
+    CategoryPermissions,
+    CategoryStatistics as SubsystemCategoryStatistics,
+    CategoryTreeStructure,
+    CategoryUsageStats,
+    ChangeStatistics,
+    CharacterRange,
+    CleanupStrategy,
     // Collaboration system
     CollaborationTracking,
     Collaborator,
     CollaboratorRole,
-    Permission,
-    AccessRecord,
-    ReviewSystem,
-    ReviewRequest,
-    ReviewType,
-    ReviewRecord,
-    ReviewResult,
-    ReviewComment,
-    CommentType,
     CommentSeverity,
-    ReviewConfiguration,
-    EscalationRule,
-    EscalationCondition,
-    EscalationAction,
-    NotificationSettings,
-    NotificationPreference,
-    NotificationMethod,
-    DigestSettings,
-    DigestFrequency,
+    CommentType,
+    ConflictResolution as VersionConflictResolution,
+    ConflictResolutionPreferences,
+    ConflictType,
     DigestFormat,
 
-    // Category management
-    TemplateCategoryManager,
-    Category,
-    CategoryMetadata as SubsystemCategoryMetadata,
-    CategoryPermissions,
-    PermissionInheritance,
-    CategoryUsageStats,
-    CategoryTreeStructure,
-    TreeValidationRules,
-    TreeOperation,
-    TreeOperationType,
-    CategoryStatistics as SubsystemCategoryStatistics,
-    UsageTrend,
-    TrendDataPoint,
-    CategoryConfiguration,
-
-    // Validation engine
-    TemplateValidationEngine,
-    ValidationRule as SubsystemValidationRule,
-    ValidationCategory,
-    ValidationSeverity,
-    RuleImplementation,
-    ImplementationType,
-    RuleConfiguration,
-    ValidationProfile,
-    ProfileConfiguration,
-    ReportFormat,
-    ValidationRecord,
-    ValidationResults,
-    ValidationStatus,
-    RuleResult,
-    RuleStatus,
-    ValidationIssue,
-    IssueLocation,
-    CharacterRange,
-    SuggestedFix,
-    FixType,
-    FixImpact,
-    AppliedFix,
-    FixResult,
-    ValidationSummary,
-    ValidationContext,
-    ValidationTrigger,
-    ValidationEngineConfiguration,
-    CachingConfiguration,
-    AutoFixConfiguration,
+    DigestFrequency,
+    DigestSettings,
+    EscalationAction,
+    EscalationCondition,
+    EscalationRule,
     FixCategory,
 
+    FixImpact,
+    FixResult,
+    FixType,
+    ImplementationType,
+    IssueLocation,
+    MergeConflict,
+    MergePolicies,
+    MergeRecord,
+    MergeResult,
+    MergeStrategy,
+    NotificationMethod,
+    NotificationPreference,
+    NotificationSettings,
+    Permission,
+    PermissionInheritance,
+    ProfileConfiguration,
+    ReportFormat,
+    RetentionPolicy,
+    ReviewComment,
+    ReviewConfiguration,
+    ReviewRecord,
+    ReviewRequest,
+    ReviewResult,
+    ReviewSystem,
+    ReviewType,
+    RuleConfiguration,
+    RuleImplementation,
+    RuleResult,
+    RuleStatus,
+    SuggestedFix,
+    TagType,
+    TemplateBranch,
+    // Category management
+    TemplateCategoryManager,
     // Additional subsystem stubs
     TemplateCompilationSystem,
     TemplateDependencyManager,
-    TemplateSecurityScanner,
     TemplatePerformanceAnalyzer,
+    TemplateSecurityScanner,
+    TemplateTag,
+    // Validation engine
+    TemplateValidationEngine,
+    TemplateVersion,
+    // Versioning system
+    TemplateVersioningSystem,
+    TreeOperation,
+    TreeOperationType,
+    TreeValidationRules,
+    TrendDataPoint,
+    UsageTrend,
+    ValidationCategory,
+    ValidationContext,
+    ValidationEngineConfiguration,
+    ValidationIssue,
+    ValidationProfile,
+    ValidationRecord,
+    ValidationResults,
+    ValidationRule as SubsystemValidationRule,
+    ValidationSeverity,
+    ValidationStatus,
+    ValidationSummary,
+    ValidationTrigger,
+    VersionFormat,
+    VersioningConfiguration,
 };
 
 // Re-export search and indexing components
 pub use template_search::{
-    // Main search system
-    TemplateSearchIndex,
-    SearchEngine,
-    SearchEngineType,
-    IndexStorage,
-    StorageType,
-    StorageConfiguration as SearchStorageConfiguration,
-    StorageOptimization,
-    CleanupSchedule as SearchCleanupSchedule,
     CleanupCondition as SearchCleanupCondition,
     CleanupConditionType,
 
-    // Query processing
-    QueryProcessor,
-    QueryParser,
+    CleanupSchedule as SearchCleanupSchedule,
+    FacetConfiguration,
+
+    FacetOptions,
+    FacetResult,
+    FacetStatistics,
+    FacetType,
+    FacetValue,
+    FacetedSearch,
+    FactorType,
+
+    FilterOperation,
+    FilterValue,
+    IndexStorage,
+    MatchDetail,
+    MatchExplanation,
+    MatchType,
+    NetworkUsage,
+    OptimizationRule,
     ParserType,
+    PerformanceTuning,
+    PopularQuery,
+    QueryAnalytics,
+    QueryCorrection,
+    QueryInfo,
     QueryOperator,
     QueryOptimizer,
-    OptimizationRule,
+    QueryParser,
+    QueryPerformance,
+    // Query processing
+    QueryProcessor,
     QueryRewriting,
-    PerformanceTuning,
+    RankingAlgorithm,
+    RankingFactor,
+    ResourceUtilization,
+    ResultAnalytics,
+    ResultFormatting,
     ResultLimits,
 
     // Result ranking
     ResultRanker,
-    RankingAlgorithm,
-    RankingFactor,
-    FactorType,
-
-    // Search configuration
-    SearchConfiguration,
-    SearchMode,
-    ResultFormatting,
-    FacetedSearch,
-    SearchFacet,
-    FacetType,
-    FacetOptions,
-    SortOrder,
-    FacetConfiguration,
-
     // Search analytics
     SearchAnalytics,
-    QueryAnalytics,
-    PopularQuery,
-    QueryPerformance,
-    ResultAnalytics,
-    UserAnalytics,
+    // Search configuration
+    SearchConfiguration,
+    SearchContext,
+    SearchEngine,
+    SearchEngineType,
+    SearchFacet,
+    SearchFilter,
+    SearchMode,
     SearchPattern,
-    UserEngagement,
-    UserPreference,
-
     // Search queries and results
     SearchQuery,
-    SearchFilter,
-    FilterOperation,
-    FilterValue,
-    SortOption,
-    SortDirection,
-    SearchResultOptions,
-    SearchContext,
     SearchResult,
-    TemplateSearchResult,
-    MatchExplanation,
-    MatchDetail,
-    MatchType,
+    SearchResultOptions,
     SearchStatistics,
-    ResourceUtilization,
-    NetworkUsage,
-    FacetResult,
-    FacetValue,
-    FacetStatistics,
-    QueryInfo,
-    QueryCorrection,
+    SortDirection,
+    SortOption,
+    SortOrder,
+    StorageConfiguration as SearchStorageConfiguration,
+    StorageOptimization,
+    StorageType,
+    // Main search system
+    TemplateSearchIndex,
+    TemplateSearchResult,
+    UserAnalytics,
+    UserEngagement,
+    UserPreference,
 };
 
 // Internal module declarations
 mod template_core;
 mod template_repository;
-mod template_subsystems;
 mod template_search;
+mod template_subsystems;
 
 // Re-export commonly used result type
 pub type Result<T> = std::result::Result<T, TemplateError>;
@@ -759,8 +747,8 @@ pub mod utils {
                         prefetching: false,
                         resource_limits: ResourceLimits {
                             memory_limit: 10 * 1024 * 1024, // 10MB
-                            time_limit: chrono::Duration::from_secs(30),
-                            network_timeout: chrono::Duration::from_secs(10),
+                            time_limit: chrono::Duration::seconds(30),
+                            network_timeout: chrono::Duration::seconds(10),
                         },
                     },
                 },
@@ -807,7 +795,7 @@ pub mod utils {
                     enabled: false,
                     log: Vec::new(),
                     configuration: AuditConfiguration {
-                        retention_period: chrono::Duration::from_secs(86400 * 30), // 30 days
+                        retention_period: chrono::Duration::seconds(86400 * 30), // 30 days
                         detailed_logging: false,
                         real_time_alerts: false,
                     },
@@ -820,15 +808,21 @@ pub mod utils {
     pub fn validate_template_consistency(template: &TemplateEntry) -> Result<()> {
         // Basic validation checks
         if template.template_id.is_empty() {
-            return Err(TemplateError::ValidationError("Template ID cannot be empty".to_string()));
+            return Err(TemplateError::ValidationError(
+                "Template ID cannot be empty".to_string(),
+            ));
         }
 
         if template.metadata.name.is_empty() {
-            return Err(TemplateError::ValidationError("Template name cannot be empty".to_string()));
+            return Err(TemplateError::ValidationError(
+                "Template name cannot be empty".to_string(),
+            ));
         }
 
         if template.content.source.is_empty() {
-            return Err(TemplateError::ValidationError("Template content cannot be empty".to_string()));
+            return Err(TemplateError::ValidationError(
+                "Template content cannot be empty".to_string(),
+            ));
         }
 
         // Additional validation logic would go here
@@ -844,7 +838,8 @@ pub mod utils {
             include_count: template.content.includes.len(),
             section_count: template.content.structure.sections.len(),
             asset_count: template.assets.static_assets.len() + template.assets.dynamic_assets.len(),
-            dependency_count: template.assets.dependencies.direct.len() + template.assets.dependencies.indirect.len(),
+            dependency_count: template.assets.dependencies.direct.len()
+                + template.assets.dependencies.indirect.len(),
         }
     }
 }
@@ -868,11 +863,31 @@ pub struct TemplateStatistics {
     pub dependency_count: usize,
 }
 
+/// Request to create or manage a template
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TemplateRequest {
+    pub id: String,
+    pub specification:
+        crate::comprehensive_benchmarking::reporting_visualization::TemplateSpecification,
+    pub metadata: crate::comprehensive_benchmarking::reporting_visualization::TemplateMetadata,
+    pub validation_spec:
+        crate::comprehensive_benchmarking::reporting_visualization::TemplateValidationSpec,
+}
+
+/// Response from a template operation
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TemplateResponse {
+    pub id: String,
+    pub version_info:
+        crate::comprehensive_benchmarking::reporting_visualization::TemplateVersionInfo,
+    pub success: bool,
+}
+
 /// Re-export serde for serialization support
 pub use serde::{Deserialize, Serialize};
 
 /// Re-export chrono for date/time handling
-pub use chrono::{DateTime, Utc, Duration};
+pub use chrono::{DateTime, Duration, Utc};
 
 /// Re-export standard library components
 pub use std::{

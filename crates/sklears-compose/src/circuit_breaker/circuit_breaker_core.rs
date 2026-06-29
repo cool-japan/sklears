@@ -607,6 +607,32 @@ impl CircuitBreakerBuilder {
     }
 }
 
+impl Default for AdvancedCircuitBreaker {
+    fn default() -> Self {
+        let config = CircuitBreakerConfig::default();
+        let id = format!("cb-default-{}", Uuid::new_v4());
+        let stats = Arc::new(CircuitBreakerStatsTracker::new());
+        let failure_detector = Arc::new(CircuitBreakerFailureDetector::new(
+            config.failure_detection.clone(),
+        ));
+        let recovery_manager = Arc::new(CircuitBreakerRecoveryManager::new());
+        let event_recorder = Arc::new(CircuitBreakerEventRecorder::new());
+        let analytics = Arc::new(CircuitBreakerAnalytics::new());
+
+        Self {
+            id,
+            name: "default".to_string(),
+            state: Arc::new(RwLock::new(CircuitBreakerState::Closed)),
+            config,
+            stats,
+            failure_detector,
+            recovery_manager,
+            event_recorder,
+            analytics,
+        }
+    }
+}
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {

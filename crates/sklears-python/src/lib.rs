@@ -36,7 +36,7 @@ mod clustering;
 mod datasets;
 mod ensemble;
 mod linear;
-// mod metrics; // TODO: Needs refactoring to use sklears-metrics directly
+mod metrics;
 mod model_selection;
 mod naive_bayes;
 mod neural_network;
@@ -48,7 +48,7 @@ mod utils;
 pub use clustering::*;
 pub use ensemble::*;
 pub use linear::*;
-// pub use metrics::*; // TODO: Needs refactoring
+pub use metrics::*;
 pub use model_selection::*;
 pub use naive_bayes::*;
 pub use neural_network::*;
@@ -107,21 +107,20 @@ fn _sklears(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // m.add_class::<preprocessing::PyMinMaxScaler>()?;
     // m.add_class::<preprocessing::PyLabelEncoder>()?;
 
-    // TODO: Re-enable metrics after refactoring to use sklears-metrics directly
     // Metrics - Regression
-    // m.add_function(wrap_pyfunction!(metrics::mean_squared_error, m)?)?;
-    // m.add_function(wrap_pyfunction!(metrics::mean_absolute_error, m)?)?;
-    // m.add_function(wrap_pyfunction!(metrics::r2_score, m)?)?;
-    // m.add_function(wrap_pyfunction!(metrics::mean_squared_log_error, m)?)?;
-    // m.add_function(wrap_pyfunction!(metrics::median_absolute_error, m)?)?;
+    m.add_function(wrap_pyfunction!(metrics::mean_squared_error, m)?)?;
+    m.add_function(wrap_pyfunction!(metrics::mean_absolute_error, m)?)?;
+    m.add_function(wrap_pyfunction!(metrics::r2_score, m)?)?;
+    m.add_function(wrap_pyfunction!(metrics::mean_squared_log_error, m)?)?;
+    m.add_function(wrap_pyfunction!(metrics::median_absolute_error, m)?)?;
 
     // Metrics - Classification
-    // m.add_function(wrap_pyfunction!(metrics::accuracy_score, m)?)?;
-    // m.add_function(wrap_pyfunction!(metrics::precision_score, m)?)?;
-    // m.add_function(wrap_pyfunction!(metrics::recall_score, m)?)?;
-    // m.add_function(wrap_pyfunction!(metrics::f1_score, m)?)?;
-    // m.add_function(wrap_pyfunction!(metrics::confusion_matrix, m)?)?;
-    // m.add_function(wrap_pyfunction!(metrics::classification_report, m)?)?;
+    m.add_function(wrap_pyfunction!(metrics::accuracy_score, m)?)?;
+    m.add_function(wrap_pyfunction!(metrics::precision_score, m)?)?;
+    m.add_function(wrap_pyfunction!(metrics::recall_score, m)?)?;
+    m.add_function(wrap_pyfunction!(metrics::f1_score, m)?)?;
+    m.add_function(wrap_pyfunction!(metrics::confusion_matrix, m)?)?;
+    m.add_function(wrap_pyfunction!(metrics::classification_report, m)?)?;
 
     // Model selection
     m.add_function(wrap_pyfunction!(model_selection::train_test_split, m)?)?;

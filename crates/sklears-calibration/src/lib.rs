@@ -105,6 +105,10 @@ pub mod ultra_precision;
 /// Theoretical calibration validation framework with mathematical proofs and bounds
 pub mod theoretical_validation;
 
+/// Fairness-aware calibration methods enforcing demographic parity, equalized
+/// odds, equal opportunity, individual fairness, and calibration parity.
+pub mod fairness_aware;
+
 /// Fluent API for calibration configuration
 pub mod fluent_api;
 

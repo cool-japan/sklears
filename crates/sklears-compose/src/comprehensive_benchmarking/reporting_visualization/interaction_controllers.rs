@@ -1756,11 +1756,11 @@ impl Default for ControllerPerformanceMetrics {
 impl Default for ResponseTimeMetrics {
     fn default() -> Self {
         Self {
-            average: Duration::from_millis(1),
-            median: Duration::from_millis(1),
-            p95: Duration::from_millis(5),
-            p99: Duration::from_millis(10),
-            max: Duration::from_millis(50),
+            average: Duration::milliseconds(1),
+            median: Duration::milliseconds(1),
+            p95: Duration::milliseconds(5),
+            p99: Duration::milliseconds(10),
+            max: Duration::milliseconds(50),
         }
     }
 }
@@ -1782,7 +1782,7 @@ impl Default for ControllerErrorMetrics {
             error_rate: 0.0,
             error_count: 0,
             error_types: HashMap::new(),
-            recovery_time: Duration::from_millis(100),
+            recovery_time: Duration::milliseconds(100),
         }
     }
 }

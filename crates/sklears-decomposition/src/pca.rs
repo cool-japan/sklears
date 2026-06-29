@@ -1,11 +1,10 @@
 //! Principal Component Analysis and dimensionality reduction utilities
 //!
-//! This module provides comprehensive PCA implementations. For now, we provide
-//! basic functionality with placeholder types for compatibility.
-//! TODO: Implement advanced PCA variants and modular architecture.
+//! This module provides comprehensive PCA implementations using truncated SVD
+//! for exact principal components computation.
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::thread_rng;
+use scirs2_linalg::svd;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -93,6 +92,12 @@ impl Fit<Array2<Float>, ()> for PCA<Untrained> {
     fn fit(self, x: &Array2<Float>, _y: &()) -> Result<Self::Fitted> {
         let (n_samples, n_features) = x.dim();
 
+        if n_samples == 0 || n_features == 0 {
+            return Err(SklearsError::InvalidInput(
+                "Input array must be non-empty".to_string(),
+            ));
+        }
+
         // Determine number of components
         let n_components = self
             .config
@@ -110,32 +115,40 @@ impl Fit<Array2<Float>, ()> for PCA<Untrained> {
             .mean_axis(Axis(0))
             .expect("array should have elements for mean computation");
 
-        // Center data
-        let _x_centered = x - &mean.clone().insert_axis(Axis(0));
+        // Center data: X_c = X - mean
+        let x_centered = x - &mean.clone().insert_axis(Axis(0));
 
-        // Basic SVD (placeholder implementation)
-        let mut rng = thread_rng();
-        let mut components = Array2::zeros((n_components, n_features));
+        // Full SVD of the centered data matrix: X_c = U S Vt
+        // Principal components are rows of Vt (right singular vectors).
+        // Singular values s relate to explained variance: var_i = s_i^2 / (n_samples - 1).
+        let (_u, singular_values, vt) = svd(&x_centered.view(), false, None)
+            .map_err(|e| SklearsError::NumericalError(format!("SVD failed in PCA.fit: {}", e)))?;
 
-        // Initialize components randomly (placeholder)
-        for i in 0..n_components {
-            for j in 0..n_features {
-                components[[i, j]] = rng.random::<Float>() - 0.5;
-            }
-        }
+        // Take the top n_components principal components (rows of Vt)
+        let components = vt
+            .slice(scirs2_core::ndarray::s![..n_components, ..])
+            .to_owned();
 
-        // Normalize components
-        for mut row in components.rows_mut() {
-            let norm = row.mapv(|x| x * x).sum().sqrt();
-            if norm > 0.0 {
-                row.mapv_inplace(|x| x / norm);
-            }
-        }
+        // Explained variance: s_i^2 / (n - 1), where s_i are singular values
+        let denom = if n_samples > 1 {
+            (n_samples - 1) as Float
+        } else {
+            1.0
+        };
+        let explained_variance: Array1<Float> = singular_values
+            .iter()
+            .take(n_components)
+            .map(|&s| s * s / denom)
+            .collect();
 
-        // Compute explained variance (placeholder)
-        let explained_variance = Array1::ones(n_components);
-        let total_variance = explained_variance.sum();
-        let explained_variance_ratio = explained_variance.mapv(|v| v / total_variance);
+        // Total variance = sum of all squared singular values / (n - 1)
+        let total_variance: Float = singular_values.iter().map(|&s| s * s / denom).sum();
+
+        let explained_variance_ratio = if total_variance > Float::EPSILON {
+            explained_variance.mapv(|v| v / total_variance)
+        } else {
+            Array1::zeros(n_components)
+        };
 
         Ok(PcaTrained {
             config: self.config,
@@ -230,3 +243,132 @@ pub type RobustPcaConfig = PcaConfig;
 pub type SparsePcaConfig = PcaConfig;
 pub type ProbabilisticPcaConfig = PcaConfig;
 pub type IncrementalPcaConfig = PcaConfig;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::{array, Array2};
+
+    /// Build a simple 2D dataset with clear principal directions.
+    fn two_feature_data() -> Array2<Float> {
+        array![
+            [1.0, 0.5],
+            [2.0, 1.0],
+            [3.0, 1.5],
+            [4.0, 2.0],
+            [5.0, 2.5],
+            [6.0, 3.0],
+        ]
+    }
+
+    #[test]
+    fn test_pca_output_shape() {
+        let x = two_feature_data();
+        let config = PcaConfig {
+            n_components: Some(1),
+            ..Default::default()
+        };
+        let trained = PCA::new(config).fit(&x, &()).expect("fit should succeed");
+        let transformed = trained.transform(&x).expect("transform should succeed");
+        assert_eq!(transformed.shape(), &[6, 1]);
+    }
+
+    #[test]
+    fn test_pca_components_shape() {
+        let x = two_feature_data();
+        let config = PcaConfig {
+            n_components: Some(2),
+            ..Default::default()
+        };
+        let trained = PCA::new(config).fit(&x, &()).expect("fit should succeed");
+        assert_eq!(trained.components.shape(), &[2, 2]);
+    }
+
+    #[test]
+    fn test_pca_explained_variance_ratio_sums_to_one() {
+        let x = two_feature_data();
+        let config = PcaConfig {
+            n_components: Some(2),
+            ..Default::default()
+        };
+        let trained = PCA::new(config).fit(&x, &()).expect("fit should succeed");
+        let ratio_sum: Float = trained.explained_variance_ratio.sum();
+        assert!((ratio_sum - 1.0).abs() < 1e-10, "ratio sum = {}", ratio_sum);
+    }
+
+    #[test]
+    fn test_pca_explained_variance_ratio_non_negative() {
+        let x = two_feature_data();
+        let config = PcaConfig {
+            n_components: Some(2),
+            ..Default::default()
+        };
+        let trained = PCA::new(config).fit(&x, &()).expect("fit should succeed");
+        for &r in trained.explained_variance_ratio.iter() {
+            assert!(r >= 0.0, "negative ratio {}", r);
+        }
+    }
+
+    #[test]
+    fn test_pca_explained_variance_descending() {
+        // For a dataset with clear variance, PC1 should explain more than PC2.
+        let x = two_feature_data();
+        let config = PcaConfig {
+            n_components: Some(2),
+            ..Default::default()
+        };
+        let trained = PCA::new(config).fit(&x, &()).expect("fit should succeed");
+        assert!(
+            trained.explained_variance[0] >= trained.explained_variance[1],
+            "PC1 variance {} < PC2 variance {}",
+            trained.explained_variance[0],
+            trained.explained_variance[1]
+        );
+    }
+
+    #[test]
+    fn test_pca_transform_finiteness() {
+        let x = two_feature_data();
+        let config = PcaConfig {
+            n_components: Some(1),
+            ..Default::default()
+        };
+        let trained = PCA::new(config).fit(&x, &()).expect("fit should succeed");
+        let t = trained.transform(&x).expect("transform should succeed");
+        for &v in t.iter() {
+            assert!(v.is_finite(), "non-finite value {}", v);
+        }
+    }
+
+    #[test]
+    fn test_pca_n_components_validation() {
+        let x = two_feature_data();
+        // n_components > min(n_samples, n_features)
+        let config = PcaConfig {
+            n_components: Some(100),
+            ..Default::default()
+        };
+        assert!(PCA::new(config).fit(&x, &()).is_err());
+    }
+
+    #[test]
+    fn test_pca_empty_input() {
+        let x: Array2<Float> = Array2::zeros((0, 3));
+        let config = PcaConfig::default();
+        assert!(PCA::new(config).fit(&x, &()).is_err());
+    }
+
+    #[test]
+    fn test_pca_first_component_captures_most_variance() {
+        // The dataset has a strong first principal component (y ≈ 0.5x)
+        let x = two_feature_data();
+        let config = PcaConfig {
+            n_components: Some(1),
+            ..Default::default()
+        };
+        let trained = PCA::new(config).fit(&x, &()).expect("fit should succeed");
+        // With 1 component, variance ratio must be close to 1 (data is nearly 1-D)
+        let ratio = trained.explained_variance_ratio[0];
+        assert!(ratio > 0.99, "1-PC ratio = {}", ratio);
+    }
+}

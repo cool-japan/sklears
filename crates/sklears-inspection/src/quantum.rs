@@ -33,7 +33,7 @@
 //! let mut circuit = QuantumCircuit::new(3); // 3 qubits
 //! circuit.add_gate(QuantumGate::Hadamard, 0, vec![])?;
 //! circuit.add_gate(QuantumGate::CNOT, 0, vec![1])?;
-//! circuit.add_gate(QuantumGate::RY, 1, vec![0.5])?;
+//! circuit.add_parametric_gate(QuantumGate::RY, 1, 0.5)?;
 //!
 //! // Create quantum explainer
 //! let explainer = QuantumExplainer::new()?;

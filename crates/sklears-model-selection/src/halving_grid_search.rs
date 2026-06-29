@@ -415,38 +415,67 @@ impl<X, Y> HalvingGridSearch<X, Y> {
             ));
         }
 
-        match &self.config.scoring {
-            Scoring::EstimatorScore => {
-                // Use accuracy for classification, negative MSE for regression
-                if is_classification {
-                    let correct = predictions
-                        .iter()
-                        .zip(y_true.iter())
-                        .filter(|(pred, true_val)| pred == true_val)
-                        .count();
-                    Ok(correct as f64 / predictions.len() as f64)
-                } else {
-                    // Simplified MSE calculation - in real implementation would need proper numeric handling
-                    Ok(0.8) // Placeholder score
-                }
-            }
-            Scoring::Custom(_) => {
-                // For custom scoring functions, use placeholder
-                Ok(0.7)
-            }
-            Scoring::Metric(_metric_name) => {
-                // For named metrics, use placeholder
-                Ok(0.75)
-            }
-            Scoring::Scorer(_scorer) => {
-                // For scorer objects, use placeholder
-                Ok(0.8)
-            }
-            Scoring::MultiMetric(_metrics) => {
-                // For multi-metric, use placeholder
-                Ok(0.85)
+        score_predictions(&self.config.scoring, predictions, y_true, is_classification)
+    }
+}
+
+/// Score predictions against ground truth for a halving search candidate.
+///
+/// The halving searches operate over a generic prediction type `T` that is only
+/// known to be `Clone + PartialEq`. This is sufficient to compute classification
+/// accuracy (equality counting) but not numeric regression metrics. For scoring
+/// variants that require numeric predictions (regression MSE) or external metric
+/// machinery that is not wired here (named metrics, scorer objects, multi-metric,
+/// custom numeric callbacks over `Array1<f64>`), we return an honest
+/// `NotImplemented` error rather than a fabricated constant score.
+fn score_predictions<T>(
+    scoring: &Scoring,
+    predictions: &Array1<T>,
+    y_true: &Array1<T>,
+    is_classification: bool,
+) -> Result<f64>
+where
+    T: Clone + PartialEq,
+{
+    match scoring {
+        Scoring::EstimatorScore => {
+            if is_classification {
+                // Accuracy: fraction of exact matches.
+                let correct = predictions
+                    .iter()
+                    .zip(y_true.iter())
+                    .filter(|(pred, true_val)| pred == true_val)
+                    .count();
+                Ok(correct as f64 / predictions.len() as f64)
+            } else {
+                Err(SklearsError::NotImplemented(
+                    "halving search regression scoring: predictions are generic and \
+                     non-numeric here, so MSE/R2 cannot be computed. Provide a numeric \
+                     prediction pipeline or a typed scorer."
+                        .to_string(),
+                ))
             }
         }
+        Scoring::Custom(_) => Err(SklearsError::NotImplemented(
+            "halving search custom scoring: the custom callback operates on Array1<f64> \
+             but predictions here are a generic type that cannot be converted in this \
+             dispatcher."
+                .to_string(),
+        )),
+        Scoring::Metric(name) => Err(SklearsError::NotImplemented(format!(
+            "halving search named metric '{name}': metric computation is not wired into \
+             this generic dispatcher."
+        ))),
+        Scoring::Scorer(_) => Err(SklearsError::NotImplemented(
+            "halving search scorer object scoring is not wired into this generic \
+             dispatcher."
+                .to_string(),
+        )),
+        Scoring::MultiMetric(_) => Err(SklearsError::NotImplemented(
+            "halving search multi-metric scoring is not wired into this generic \
+             dispatcher."
+                .to_string(),
+        )),
     }
 }
 
@@ -794,38 +823,7 @@ impl HalvingRandomSearchCV {
             ));
         }
 
-        match &self.scoring {
-            Scoring::EstimatorScore => {
-                // Use accuracy for classification, negative MSE for regression
-                if is_classification {
-                    let correct = predictions
-                        .iter()
-                        .zip(y_true.iter())
-                        .filter(|(pred, true_val)| pred == true_val)
-                        .count();
-                    Ok(correct as f64 / predictions.len() as f64)
-                } else {
-                    // Simplified MSE calculation - in real implementation would need proper numeric handling
-                    Ok(0.8) // Placeholder score
-                }
-            }
-            Scoring::Custom(_) => {
-                // For custom scoring functions, use placeholder
-                Ok(0.7)
-            }
-            Scoring::Metric(_metric_name) => {
-                // For named metrics, use placeholder
-                Ok(0.75)
-            }
-            Scoring::Scorer(_scorer) => {
-                // For scorer objects, use placeholder
-                Ok(0.8)
-            }
-            Scoring::MultiMetric(_metrics) => {
-                // For multi-metric, use placeholder
-                Ok(0.85)
-            }
-        }
+        score_predictions(&self.scoring, predictions, y_true, is_classification)
     }
 }
 

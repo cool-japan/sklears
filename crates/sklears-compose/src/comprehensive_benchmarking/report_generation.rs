@@ -1444,7 +1444,7 @@ impl Default for GenerationConfig {
             parallel_generation: true,
             max_concurrent_reports: 5,
             memory_limit: 1024 * 1024 * 1024, // 1GB
-            timeout: Duration::from_secs(300), // 5 minutes
+            timeout: Duration::seconds(300), // 5 minutes
             quality_settings: QualitySettings::default(),
             optimization_level: OptimizationLevel::Standard,
         }
@@ -1488,7 +1488,7 @@ impl Default for EscalationPolicy {
     fn default() -> Self {
         Self {
             escalation_levels: Vec::new(),
-            escalation_timeout: Duration::from_hours(1),
+            escalation_timeout: Duration::hours(1),
             max_escalations: 3,
         }
     }

@@ -453,13 +453,20 @@ impl DecisionTreeClassifier<Trained> {
         self.max_depth_
     }
 
-    /// Get feature importances
+    /// Get feature importances (impurity-based, normalised to sum to 1.0).
+    ///
+    /// Importances are computed via SmartCore's `compute_feature_importances` which
+    /// aggregates the impurity decrease weighted by the number of samples at each
+    /// internal node and then normalises to unit sum.
     pub fn feature_importances(&self) -> Result<Array1<f64>> {
-        // SmartCore doesn't expose feature importances directly
-        // This would need to be computed from the tree structure
-        Err(SklearsError::InvalidInput(
-            "Feature importances not yet implemented".to_string(),
-        ))
+        let model = self
+            .model_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "feature_importances".to_string(),
+            })?;
+        let importances = model.compute_feature_importances(true);
+        Ok(Array1::from_vec(importances))
     }
 }
 
@@ -750,4 +757,42 @@ pub fn calculate_partial_dependence(
         min_value,
         max_value,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    /// Verify that feature importances sum to 1 and are non-negative.
+    #[test]
+    fn test_feature_importances_sum_to_one() {
+        // XOR-like problem with two informative features and one noise feature.
+        let x = array![
+            [1.0, 0.0, 0.5],
+            [0.0, 1.0, 0.5],
+            [1.0, 1.0, 0.5],
+            [0.0, 0.0, 0.5],
+            [1.0, 0.0, 0.3],
+            [0.0, 1.0, 0.7],
+        ];
+        let y = array![1, 1, 0, 0, 1, 1];
+
+        let model = DecisionTreeClassifier::new()
+            .max_depth(3)
+            .fit(&x, &y)
+            .expect("fit should succeed");
+
+        let importances = model.feature_importances().expect("importances should compute");
+
+        assert_eq!(importances.len(), 3, "one importance per feature");
+        for &imp in importances.iter() {
+            assert!(imp >= 0.0, "importance must be non-negative, got {imp}");
+        }
+        let total: f64 = importances.iter().sum();
+        assert!(
+            (total - 1.0).abs() < 1e-9,
+            "importances must sum to 1.0, got {total}"
+        );
+    }
 }

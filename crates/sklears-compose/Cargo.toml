@@ -21,6 +21,8 @@ sklears-core = { workspace = true }
 # sklears-simd = { workspace = true }  # Temporarily disabled due to missing implementations
 scirs2-core = { workspace = true }
 scirs2-optimize = { workspace = true }
+scirs2-sparse = { workspace = true }
+scirs2-series = { workspace = true }
 # ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
 # ❌ scirs2-autograd - use scirs2_core::ndarray instead
 # ❌ ndarray - use scirs2_core::ndarray instead

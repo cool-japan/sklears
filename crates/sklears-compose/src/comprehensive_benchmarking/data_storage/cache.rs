@@ -1,12 +1,8 @@
+use chrono::Duration;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
 
-use super::errors::*;
-use super::config_types::*;
-
+use super::indexing::CachePolicy;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CacheManager {
@@ -140,4 +136,41 @@ pub enum CacheOptimizationType {
     Prefetching,
     Partitioning,
     Custom(String),
+}
+
+impl Default for CacheManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CacheManager {
+    pub fn new() -> Self {
+        Self {
+            cache_levels: vec![],
+            cache_policies: HashMap::new(),
+            cache_coordination: CacheCoordination {
+                coordination_strategy: CoordinationStrategy::Centralized,
+                invalidation_method: InvalidationMethod::TimeBase,
+                consistency_model: ConsistencyModel::Eventual,
+            },
+            cache_analytics: CacheAnalytics {
+                performance_metrics: CachePerformanceMetrics {
+                    hit_rate: 0.0,
+                    miss_rate: 0.0,
+                    eviction_rate: 0.0,
+                    average_response_time: Duration::milliseconds(10),
+                    throughput: 0.0,
+                    memory_efficiency: 0.0,
+                },
+                usage_patterns: CacheUsagePatterns {
+                    access_frequency_distribution: HashMap::new(),
+                    temporal_access_patterns: vec![],
+                    spatial_locality: 0.0,
+                    temporal_locality: 0.0,
+                },
+                optimization_recommendations: vec![],
+            },
+        }
+    }
 }
