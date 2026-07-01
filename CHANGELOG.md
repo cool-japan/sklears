@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- All oxicuda workspace dependencies updated 0.3 → 0.4.0: `oxicuda-backend`, `oxicuda-memory`, `oxicuda-blas`, `oxicuda-solver`, `oxicuda-manifold`, `oxicuda-dnn`, `oxicuda-driver`, `oxicuda-ptx`, `oxicuda-primitives`
+- All SciRS2 workspace dependencies updated 0.5.1 → 0.6.0: `scirs2-core`, `scirs2-autograd`, `scirs2-optimize`, `scirs2-linalg`, `scirs2-stats`, `scirs2-cluster`, `scirs2-metrics`, `scirs2-datasets`, `scirs2-sparse`, `scirs2-neural`, `scirs2-special`, `scirs2-spatial`, `scirs2-signal`, `scirs2-series`, `scirs2-text`, `scirs2-fft`, `scirs2-graph`
 
 ### Fixed
 

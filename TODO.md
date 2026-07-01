@@ -141,9 +141,9 @@ All major scikit-learn modules are implemented with production-ready quality:
 
 ---
 
-*Version: 0.2.0*
-*Release Date: 2026-06-30*
-*Next Milestone: 0.2.0*
+*Version: 0.2.0 (in development)*
+*Last Release: v0.1.2 — 2026-06-30*
+*Next Milestone: TBD*
 
 ## ✅ Stub-check backlog — COMPLETED (2026-06-21, v0.1.2)
 
@@ -214,7 +214,7 @@ oxicuda-backend / oxicuda-blas / oxicuda-solver 等に一本化する。
 ---
 
 ### Phase 1: Workspace Foundation
-- [ ] workspace Cargo.toml: `oxicuda-backend`, `oxicuda-memory`, `oxicuda-blas`, `oxicuda-solver`, `oxicuda-manifold`, `oxicuda-dnn` を `version = "0.3"` で追加
+- [x] workspace Cargo.toml: `oxicuda-backend`, `oxicuda-memory`, `oxicuda-blas`, `oxicuda-solver`, `oxicuda-manifold`, `oxicuda-dnn` を `version = "0.3"` で追加
 - [ ] workspace Cargo.toml: `cudarc`, `wgpu`, `candle-core` 依存を削除
 - [ ] sklears-core/Cargo.toml: feature `gpu_support` → `oxicuda-backend` + `oxicuda-memory` + `oxicuda-blas` に変更
 - [ ] sklears-linear/Cargo.toml: feature `gpu` → `oxicuda-blas` に変更
