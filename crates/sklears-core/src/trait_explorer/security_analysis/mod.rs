@@ -22,7 +22,7 @@
 //! use crate::trait_explorer::security_analysis::{
 //!     TraitSecurityAnalyzer, SecurityAnalysisConfig, create_comprehensive_security_analyzer
 //! };
-//! use crate::trait_explorer::TraitContext;
+//! use crate::trait_explorer::TraitUsageContext;
 //!
 //! // Create a comprehensive security analyzer
 //! let mut analyzer = create_comprehensive_security_analyzer();
@@ -32,7 +32,7 @@
 //! analyzer.configure_analysis(config);
 //!
 //! // Perform security analysis
-//! let context = TraitContext::new(/* ... */);
+//! let context = TraitUsageContext::new(/* ... */);
 //! let analysis_result = analyzer.analyze_trait_security(&context)?;
 //!
 //! // Access specific analysis results
@@ -146,145 +146,81 @@
 //! - Privacy-preserving analysis techniques
 
 // Module declarations
-pub mod core_analyzer;
-pub mod vulnerability_database;
-pub mod risk_assessment;
-pub mod threat_modeling;
-pub mod crypto_analysis;
 pub mod compliance_framework;
+pub mod core_analyzer;
+pub mod crypto_analysis;
+pub mod risk_assessment;
 pub mod security_metrics;
 pub mod security_types;
+pub mod threat_modeling;
+pub mod vulnerability_database;
 
 // Re-export core types and functionality
 pub use security_types::*;
 
 // Core analyzer exports
 pub use core_analyzer::{
-    TraitSecurityAnalyzer,
-    SecurityAnalysisResult as CoreSecurityAnalysisResult,
-    SecurityAnalysisError,
-    RiskRecommendation,
-    // SecurityAnalysis,           // TODO: Add when implemented
-    // SecurityVulnerability,      // TODO: Add when implemented
-    // SecurityRisk,              // TODO: Add when implemented
-    // SecurityRecommendation,    // TODO: Add when implemented
-    // SecurityAnalysisMetadata,  // TODO: Add when implemented
-    // create_trait_security_analyzer,  // TODO: Add when implemented
-    // perform_comprehensive_security_analysis,  // TODO: Add when implemented
+    create_trait_security_analyzer, perform_comprehensive_security_analysis, RiskRecommendation,
+    SecurityAnalysis, SecurityAnalysisError, SecurityAnalysisMetadata,
+    SecurityAnalysisResult as CoreSecurityAnalysisResult, SecurityRecommendation, SecurityRisk,
+    SecurityVulnerability, TraitSecurityAnalyzer,
 };
 
 // Vulnerability database exports
 pub use vulnerability_database::{
-    VulnerabilityDatabase,
-    CveEntry,
+    assess_known_vulnerabilities, create_vulnerability_database, create_vulnerability_details,
+    CveEntry, VulnerabilityAssessmentResult, VulnerabilityDatabase, VulnerabilityDatabaseError,
     VulnerabilityRule,
-    create_vulnerability_details,
-    // VulnerabilityAssessmentResult,  // TODO: Add when implemented
-    // VulnerabilityDatabaseError,     // TODO: Add when implemented
-    // create_vulnerability_database,  // TODO: Add when implemented
-    // assess_known_vulnerabilities,   // TODO: Add when implemented
 };
 
 // Risk assessment exports
 pub use risk_assessment::{
-    SecurityRiskAssessor,
-    RiskAssessmentModel,
-    BayesianRiskParameters,
-    MonteCarloConfig,
-    // RiskAssessmentResult,        // TODO: Add when implemented
-    // RiskFactor,                  // TODO: Add when implemented (available in trait_explorer)
-    // RiskAnalysis,                // TODO: Add when implemented
-    // RiskAssessmentError,         // TODO: Add when implemented
-    // create_security_risk_assessor,  // TODO: Add when implemented
-    // assess_comprehensive_risk,   // TODO: Add when implemented
+    assess_comprehensive_risk, create_security_risk_assessor, BayesianRiskParameters,
+    ConfidenceIntervals, MonteCarloConfig, RiskAnalysis, RiskAssessmentError, RiskAssessmentModel,
+    RiskAssessmentResult, RiskFactor, SecurityRiskAssessor,
 };
 
 // Threat modeling exports
 pub use threat_modeling::{
-    ThreatModelingEngine,
-    StrideAnalyzer,
-    AttackTreeGenerator,
-    ThreatScenario,
-    ThreatIntelligenceManager,
-    AttackVector,
-    ThreatLandscapeAssessment,
-    ThreatModelingResult,
-    StrideAnalysisResult,
-    AttackTree,
-    ThreatModelingError,
-    create_threat_modeling_engine,
-    create_comprehensive_threat_model,
+    create_comprehensive_threat_model, create_threat_modeling_engine, AttackTree,
+    AttackTreeGenerator, AttackVector, IdentifiedThreat, StrideAnalysisResult, StrideAnalyzer,
+    ThreatAnalysisResult, ThreatIntelligenceManager, ThreatLandscapeAssessment,
+    ThreatModelingEngine, ThreatModelingError, ThreatModelingResult, ThreatScenario,
 };
 
 // Cryptographic analysis exports
 pub use crypto_analysis::{
-    CryptographicAnalyzer,
-    CryptographicAlgorithmAnalyzer,
-    KeyManagementAnalyzer,
-    SideChannelAttackDetector,
-    CryptographicProtocolAnalyzer,
-    RandomNumberGeneratorAnalyzer,
-    HashFunctionAnalyzer,
-    DigitalSignatureAnalyzer,
-    EncryptionAnalyzer,
-    QuantumResistanceAnalyzer,
-    CryptographicImplementationAnalyzer,
-    CryptographicAnalysisResult,
-    CryptographicAnalysisError,
-    create_cryptographic_analyzer,
-    analyze_cryptographic_security,
+    analyze_cryptographic_security, create_cryptographic_analyzer, ConstantTimeViolation,
+    CryptographicAlgorithmAnalyzer, CryptographicAnalysisError, CryptographicAnalysisResult,
+    CryptographicAnalyzer, CryptographicImplementationAnalyzer, CryptographicIssue,
+    CryptographicProtocolAnalyzer, CryptographicStrengthAssessment, DigitalSignatureAnalyzer,
+    EncryptionAnalyzer, HashFunctionAnalyzer, KeyManagementAnalyzer, QuantumResistanceAnalyzer,
+    RandomNumberGeneratorAnalyzer, SideChannelAttackDetector, SideChannelRisk, TimingVulnerability,
 };
 
 // Compliance framework exports
 pub use compliance_framework::{
-    ComplianceFrameworkManager,
-    ComplianceEngine,
-    RegulatoryFramework,
-    SecurityStandard,
-    AuditManager,
-    PolicyEngine,
-    ControlsAssessor,
-    GapAnalyzer,
-    CertificationManager,
-    ComplianceMonitor,
-    ComplianceReportingEngine,
-    DocumentationManager,
-    ComplianceAssessmentResult,
-    FrameworkAssessmentResult,
-    ComplianceStatus,
-    ComplianceLevel,
-    ComplianceError,
-    create_compliance_framework_manager,
-    assess_comprehensive_compliance,
+    assess_comprehensive_compliance, create_compliance_framework_manager, AuditManager,
+    CertificationManager, ComplianceAssessmentResult, ComplianceEngine, ComplianceError,
+    ComplianceFrameworkManager, ComplianceLevel, ComplianceMonitor, ComplianceReportingEngine,
+    ComplianceStatus, ComplianceViolation, ComplianceViolationDetail, ControlsAssessor,
+    DocumentationManager, FrameworkAssessmentResult, GapAnalyzer, PolicyEngine,
+    RegulatoryFramework, SecurityStandard,
 };
 
 // Security metrics exports
 pub use security_metrics::{
-    SecurityMetricsCollector,
-    MetricCollector,
-    KpiAnalyzer,
-    KriMonitor,
-    DashboardManager,
-    TrendAnalyzer,
-    AnomalyDetector,
-    BenchmarkingEngine,
-    RealTimeMonitor,
-    ScorecardGenerator,
-    CorrelationAnalyzer,
-    PerformanceMeasurer,
-    ComplianceTracker,
-    SecurityMetricsResult,
-    MetricCollection,
-    SecurityMetricsError,
-    create_security_metrics_collector,
-    collect_comprehensive_security_metrics,
+    collect_comprehensive_security_metrics, create_security_metrics_collector, AnomalyDetector,
+    BenchmarkingEngine, ComplianceTracker, CorrelationAnalyzer, DashboardManager, KpiAnalyzer,
+    KriMonitor, MetricCollection, MetricCollector, PerformanceMeasurer, RealTimeMonitor,
+    ScorecardGenerator, SecurityMetricsCollector, SecurityMetricsError, SecurityMetricsResult,
+    SecurityTrend, TrendAnalyzer,
 };
 
 // Common imports for convenience
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
-use serde::{Serialize, Deserialize};
-use crate::trait_explorer::TraitContext;
 
 /// Comprehensive security analysis result that combines all analysis domains
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -407,6 +343,19 @@ pub struct ResourceRequirements {
     pub consulting_requirements: Vec<String>,
 }
 
+/// Bundles references to each per-domain analysis result together, so the aggregation
+/// helper methods on [`ComprehensiveSecurityAnalyzer`] can take a single argument instead
+/// of one parameter per domain (keeping them under `clippy::too_many_arguments`'s limit).
+struct AnalysisDomainResults<'a> {
+    core_analysis: &'a SecurityAnalysis,
+    vulnerability_assessment: &'a VulnerabilityAssessmentResult,
+    risk_assessment: &'a RiskAssessmentResult,
+    threat_modeling: &'a ThreatModelingResult,
+    cryptographic_analysis: &'a CryptographicAnalysisResult,
+    compliance_assessment: &'a ComplianceAssessmentResult,
+    security_metrics: &'a SecurityMetricsResult,
+}
+
 /// Comprehensive security analyzer that orchestrates all analysis components
 #[derive(Debug)]
 pub struct ComprehensiveSecurityAnalyzer {
@@ -443,46 +392,87 @@ impl ComprehensiveSecurityAnalyzer {
     /// Perform comprehensive security analysis across all domains
     pub fn analyze_comprehensive_security(
         &mut self,
-        context: &TraitContext,
+        context: &TraitUsageContext,
     ) -> Result<ComprehensiveSecurityAnalysisResult, SecurityAnalysisError> {
         let analysis_id = self.generate_analysis_id();
         let analysis_timestamp = SystemTime::now();
 
         // Perform analysis across all domains
-        let core_analysis = self.core_analyzer.analyze_trait_security(context)
-            .map_err(|e| SecurityAnalysisError::AnalysisError(format!("Core analysis failed: {}", e)))?;
+        let core_analysis = self
+            .core_analyzer
+            .analyze_trait_security(context)
+            .map_err(|e| {
+                SecurityAnalysisError::AnalysisError(format!("Core analysis failed: {}", e))
+            })?;
 
-        let vulnerability_assessment = self.vulnerability_database.get_vulnerabilities(context)
-            .map_err(|e| SecurityAnalysisError::AnalysisError(format!("Vulnerability assessment failed: {}", e)))?;
+        let vulnerability_assessment = vulnerability_database::assess_known_vulnerabilities(
+            &self.vulnerability_database,
+            context,
+        )
+        .map_err(|e| {
+            SecurityAnalysisError::AnalysisError(format!("Vulnerability assessment failed: {}", e))
+        })?;
 
-        let risk_assessment = self.risk_assessor.assess_comprehensive_risk(context)
-            .map_err(|e| SecurityAnalysisError::AnalysisError(format!("Risk assessment failed: {}", e)))?;
+        let risk_assessment = self
+            .risk_assessor
+            .assess_comprehensive_risk(context)
+            .map_err(|e| {
+                SecurityAnalysisError::AnalysisError(format!("Risk assessment failed: {}", e))
+            })?;
 
-        let threat_modeling = self.threat_modeling_engine.analyze_threats(context)
-            .map_err(|e| SecurityAnalysisError::AnalysisError(format!("Threat modeling failed: {}", e)))?;
+        let threat_modeling = self
+            .threat_modeling_engine
+            .analyze_threats(context)
+            .map_err(|e| {
+                SecurityAnalysisError::AnalysisError(format!("Threat modeling failed: {}", e))
+            })?;
 
-        let cryptographic_analysis = self.cryptographic_analyzer.analyze_cryptographic_security(context)
-            .map_err(|e| SecurityAnalysisError::AnalysisError(format!("Cryptographic analysis failed: {}", e)))?;
+        let cryptographic_analysis = self
+            .cryptographic_analyzer
+            .analyze_cryptographic_security(context)
+            .map_err(|e| {
+                SecurityAnalysisError::AnalysisError(format!(
+                    "Cryptographic analysis failed: {}",
+                    e
+                ))
+            })?;
 
-        let compliance_assessment = self.compliance_manager.assess_compliance(context)
-            .map_err(|e| SecurityAnalysisError::AnalysisError(format!("Compliance assessment failed: {}", e)))?;
+        let compliance_assessment =
+            self.compliance_manager
+                .assess_compliance(context)
+                .map_err(|e| {
+                    SecurityAnalysisError::AnalysisError(format!(
+                        "Compliance assessment failed: {}",
+                        e
+                    ))
+                })?;
 
-        let security_metrics = self.metrics_collector.collect_security_metrics(context)
-            .map_err(|e| SecurityAnalysisError::AnalysisError(format!("Security metrics collection failed: {}", e)))?;
+        let security_metrics = self
+            .metrics_collector
+            .collect_security_metrics(context)
+            .map_err(|e| {
+                SecurityAnalysisError::AnalysisError(format!(
+                    "Security metrics collection failed: {}",
+                    e
+                ))
+            })?;
 
         // Calculate overall scores and status
-        let overall_security_score = self.calculate_overall_security_score(
-            &core_analysis,
-            &vulnerability_assessment,
-            &risk_assessment,
-            &threat_modeling,
-            &cryptographic_analysis,
-            &compliance_assessment,
-            &security_metrics,
-        )?;
+        let domain_results = AnalysisDomainResults {
+            core_analysis: &core_analysis,
+            vulnerability_assessment: &vulnerability_assessment,
+            risk_assessment: &risk_assessment,
+            threat_modeling: &threat_modeling,
+            cryptographic_analysis: &cryptographic_analysis,
+            compliance_assessment: &compliance_assessment,
+            security_metrics: &security_metrics,
+        };
+        let overall_security_score = self.calculate_overall_security_score(&domain_results)?;
 
-        let overall_risk_level = self.determine_overall_risk_level(&risk_assessment, &threat_modeling)?;
-        let overall_compliance_status = self.determine_overall_compliance_status(&compliance_assessment)?;
+        let overall_risk_level =
+            self.determine_overall_risk_level(&risk_assessment, &threat_modeling)?;
+        let overall_compliance_status =
+            self.determine_overall_compliance_status(&compliance_assessment)?;
 
         // Generate consolidated recommendations
         let consolidated_recommendations = self.generate_consolidated_recommendations(
@@ -503,15 +493,7 @@ impl ComprehensiveSecurityAnalyzer {
         )?;
 
         // Calculate analysis confidence
-        let analysis_confidence = self.calculate_analysis_confidence(
-            &core_analysis,
-            &vulnerability_assessment,
-            &risk_assessment,
-            &threat_modeling,
-            &cryptographic_analysis,
-            &compliance_assessment,
-            &security_metrics,
-        )?;
+        let analysis_confidence = self.calculate_analysis_confidence(&domain_results)?;
 
         // Generate metadata
         let analysis_metadata = self.generate_analysis_metadata(context);
@@ -537,38 +519,62 @@ impl ComprehensiveSecurityAnalyzer {
     }
 
     fn generate_analysis_id(&self) -> String {
-        format!("comprehensive_analysis_{}",
-            SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("duration_since should succeed").as_secs())
+        format!(
+            "comprehensive_analysis_{}",
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("duration_since should succeed")
+                .as_secs()
+        )
     }
 
     fn calculate_overall_security_score(
         &self,
-        core_analysis: &SecurityAnalysis,
-        vulnerability_assessment: &VulnerabilityAssessmentResult,
-        risk_assessment: &RiskAssessmentResult,
-        threat_modeling: &ThreatModelingResult,
-        cryptographic_analysis: &CryptographicAnalysisResult,
-        compliance_assessment: &ComplianceAssessmentResult,
-        security_metrics: &SecurityMetricsResult,
+        results: &AnalysisDomainResults<'_>,
     ) -> Result<f64, SecurityAnalysisError> {
         // Weighted average of all analysis domain scores
         let weights = [0.2, 0.15, 0.2, 0.15, 0.1, 0.1, 0.1]; // Core, Vuln, Risk, Threat, Crypto, Compliance, Metrics
         let scores = [
-            core_analysis.overall_security_score,
-            vulnerability_assessment.overall_vulnerability_score,
-            risk_assessment.overall_risk_score,
-            threat_modeling.model_confidence * 10.0, // Convert confidence to score
-            cryptographic_analysis.overall_cryptographic_score,
-            compliance_assessment.compliance_score,
-            security_metrics.overall_security_score,
+            Self::core_security_score(results.core_analysis),
+            results.vulnerability_assessment.overall_vulnerability_score,
+            results.risk_assessment.overall_risk_score,
+            results.threat_modeling.model_confidence * 10.0, // Convert confidence to score
+            results.cryptographic_analysis.overall_cryptographic_score,
+            results.compliance_assessment.compliance_score,
+            results.security_metrics.overall_security_score,
         ];
 
-        let weighted_score = weights.iter()
+        let weighted_score = weights
+            .iter()
             .zip(scores.iter())
             .map(|(weight, score)| weight * score)
             .sum::<f64>();
 
-        Ok(weighted_score.min(10.0).max(0.0))
+        Ok(weighted_score.clamp(0.0, 10.0))
+    }
+
+    /// Derive a 0.0-10.0 "security score" from the core analyzer's coarse
+    /// [`RiskLevel`], since [`SecurityAnalysis`] itself does not track a numeric score
+    /// directly (only the discrete risk level produced from its vulnerabilities/risks).
+    fn core_security_score(core_analysis: &SecurityAnalysis) -> f64 {
+        match core_analysis.overall_risk_level {
+            RiskLevel::Minimal => 9.0,
+            RiskLevel::Low => 7.5,
+            RiskLevel::Medium => 5.5,
+            RiskLevel::High => 3.0,
+            RiskLevel::Critical => 1.0,
+        }
+    }
+
+    /// Derive a 0.0-1.0 confidence score for the core analysis: analyses that found
+    /// concrete evidence (vulnerabilities or risk factors) are more confident than ones
+    /// that found nothing to report.
+    fn core_confidence(core_analysis: &SecurityAnalysis) -> f64 {
+        if core_analysis.vulnerabilities.is_empty() && core_analysis.risk_factors.is_empty() {
+            0.5
+        } else {
+            0.85
+        }
     }
 
     fn determine_overall_risk_level(
@@ -577,9 +583,10 @@ impl ComprehensiveSecurityAnalyzer {
         threat_modeling: &ThreatModelingResult,
     ) -> Result<RiskLevel, SecurityAnalysisError> {
         // Use the higher of risk assessment and threat modeling risk levels
-        let risk_level = if risk_assessment.overall_risk_level.to_numeric_value() >
-                            RiskLevel::from_score(threat_modeling.model_confidence * 10.0).to_numeric_value() {
-            risk_assessment.overall_risk_level.clone()
+        let risk_level = if risk_assessment.risk_level.to_numeric_value()
+            > RiskLevel::from_score(threat_modeling.model_confidence * 10.0).to_numeric_value()
+        {
+            risk_assessment.risk_level.clone()
         } else {
             RiskLevel::from_score(threat_modeling.model_confidence * 10.0)
         };
@@ -591,7 +598,9 @@ impl ComprehensiveSecurityAnalyzer {
         &self,
         compliance_assessment: &ComplianceAssessmentResult,
     ) -> Result<ComplianceStatus, SecurityAnalysisError> {
-        Ok(compliance_assessment.framework_assessments.values()
+        Ok(compliance_assessment
+            .framework_assessments
+            .values()
             .map(|assessment| &assessment.compliance_status)
             .min()
             .unwrap_or(&ComplianceStatus::NotAssessed)
@@ -614,24 +623,197 @@ impl ComprehensiveSecurityAnalyzer {
         // sophisticated recommendation correlation and prioritization
 
         for (i, recommendation) in core_analysis.recommendations.iter().enumerate() {
+            let priority = Self::risk_severity_to_priority(&recommendation.priority);
+            let expected_risk_reduction = match priority {
+                AnalysisPriority::Critical => 0.8,
+                AnalysisPriority::High => 0.6,
+                AnalysisPriority::Medium => 0.4,
+                AnalysisPriority::Low => 0.2,
+                AnalysisPriority::Informational => 0.05,
+            };
+
             recommendations.push(ConsolidatedRecommendation {
                 recommendation_id: format!("core_{}", i),
                 title: recommendation.title.clone(),
                 description: recommendation.description.clone(),
-                priority: recommendation.priority.clone(),
+                priority,
                 analysis_domains: vec!["core_analysis".to_string()],
                 related_vulnerabilities: Vec::new(),
                 related_risks: Vec::new(),
                 related_compliance_issues: Vec::new(),
-                implementation_guidance: recommendation.implementation_guidance.clone(),
-                expected_risk_reduction: recommendation.expected_risk_reduction,
-                implementation_cost: recommendation.cost_estimate,
-                implementation_timeline: recommendation.timeline,
-                success_metrics: recommendation.success_criteria.clone(),
+                implementation_guidance: recommendation.description.clone(),
+                expected_risk_reduction,
+                implementation_cost: recommendation.estimated_cost.to_numeric_value(),
+                implementation_timeline: recommendation.implementation_timeline,
+                success_metrics: recommendation.testing_requirements.clone(),
+            });
+        }
+
+        // Vulnerability domain: flag when the aggregated vulnerability score is
+        // significant enough to warrant a dedicated consolidated recommendation.
+        if vulnerability_assessment.overall_vulnerability_score >= 5.0 {
+            recommendations.push(ConsolidatedRecommendation {
+                recommendation_id: "vuln_aggregate".to_string(),
+                title: "Remediate aggregated known vulnerabilities".to_string(),
+                description: format!(
+                    "{} known vulnerabilit(y/ies) identified with an aggregated score of {:.1}/10.0",
+                    vulnerability_assessment.total_count,
+                    vulnerability_assessment.overall_vulnerability_score
+                ),
+                priority: Self::risk_level_to_priority(&RiskLevel::from_score(
+                    vulnerability_assessment.overall_vulnerability_score,
+                )),
+                analysis_domains: vec!["vulnerability_assessment".to_string()],
+                related_vulnerabilities: vulnerability_assessment
+                    .vulnerabilities
+                    .iter()
+                    .map(|v| v.id.clone())
+                    .collect(),
+                related_risks: Vec::new(),
+                related_compliance_issues: Vec::new(),
+                implementation_guidance: "Prioritize remediation of the highest-severity vulnerabilities first.".to_string(),
+                expected_risk_reduction: vulnerability_assessment.assessment_confidence,
+                implementation_cost: EstimatedCost::Medium.to_numeric_value(),
+                implementation_timeline: Duration::from_secs(86400 * 14),
+                success_metrics: vec!["Vulnerability score reduced below 5.0".to_string()],
+            });
+        }
+
+        // Risk domain: surface the risk assessor's own textual recommendations.
+        for (i, text) in risk_assessment.recommendations.iter().enumerate() {
+            recommendations.push(ConsolidatedRecommendation {
+                recommendation_id: format!("risk_{}", i),
+                title: "Risk assessment recommendation".to_string(),
+                description: text.clone(),
+                priority: Self::risk_level_to_priority(&risk_assessment.risk_level),
+                analysis_domains: vec!["risk_assessment".to_string()],
+                related_vulnerabilities: Vec::new(),
+                related_risks: risk_assessment
+                    .risk_factors
+                    .iter()
+                    .map(|f| f.name.clone())
+                    .collect(),
+                related_compliance_issues: Vec::new(),
+                implementation_guidance: text.clone(),
+                expected_risk_reduction: risk_assessment.assessment_confidence,
+                implementation_cost: EstimatedCost::Medium.to_numeric_value(),
+                implementation_timeline: Duration::from_secs(86400 * 14),
+                success_metrics: vec![format!(
+                    "Overall risk score reduced below {:.1}",
+                    risk_assessment.overall_risk_score
+                )],
+            });
+        }
+
+        // Threat modeling domain: one consolidated recommendation per identified threat.
+        for (i, threat) in threat_modeling.identified_threats.iter().enumerate() {
+            recommendations.push(ConsolidatedRecommendation {
+                recommendation_id: format!("threat_{}", i),
+                title: format!("Mitigate threat: {}", threat.name),
+                description: threat.mitigation_strategy.clone(),
+                priority: Self::threat_severity_to_priority(&threat.severity),
+                analysis_domains: vec!["threat_modeling".to_string()],
+                related_vulnerabilities: Vec::new(),
+                related_risks: Vec::new(),
+                related_compliance_issues: Vec::new(),
+                implementation_guidance: threat.mitigation_strategy.clone(),
+                expected_risk_reduction: threat_modeling.model_confidence,
+                implementation_cost: match threat.mitigation_complexity {
+                    ImplementationEffort::Low => EstimatedCost::Low.to_numeric_value(),
+                    ImplementationEffort::Medium => EstimatedCost::Medium.to_numeric_value(),
+                    ImplementationEffort::High => EstimatedCost::High.to_numeric_value(),
+                },
+                implementation_timeline: Duration::from_secs(86400 * 14),
+                success_metrics: vec!["Threat no longer detected on re-analysis".to_string()],
+            });
+        }
+
+        // Cryptographic domain: one consolidated recommendation per identified issue.
+        for (i, issue) in cryptographic_analysis.identified_issues.iter().enumerate() {
+            recommendations.push(ConsolidatedRecommendation {
+                recommendation_id: format!("crypto_{}", i),
+                title: format!("Address cryptographic issue: {}", issue.issue_type),
+                description: issue.recommendation.clone(),
+                priority: Self::risk_severity_to_priority(&issue.severity),
+                analysis_domains: vec!["cryptographic_analysis".to_string()],
+                related_vulnerabilities: Vec::new(),
+                related_risks: Vec::new(),
+                related_compliance_issues: Vec::new(),
+                implementation_guidance: issue.recommendation.clone(),
+                expected_risk_reduction: cryptographic_analysis.analysis_confidence,
+                implementation_cost: match issue.fix_complexity {
+                    ImplementationEffort::Low => EstimatedCost::Low.to_numeric_value(),
+                    ImplementationEffort::Medium => EstimatedCost::Medium.to_numeric_value(),
+                    ImplementationEffort::High => EstimatedCost::High.to_numeric_value(),
+                },
+                implementation_timeline: Duration::from_secs(86400 * 14),
+                success_metrics: vec!["Issue no longer detected on re-analysis".to_string()],
+            });
+        }
+
+        // Compliance domain: flag a consolidated recommendation when overall compliance
+        // is weak enough to be actionable.
+        if compliance_assessment.compliance_score < 7.0 {
+            recommendations.push(ConsolidatedRecommendation {
+                recommendation_id: "compliance_aggregate".to_string(),
+                title: "Improve overall compliance posture".to_string(),
+                description: format!(
+                    "Aggregated compliance score is {:.1}/10.0 across {} framework(s)",
+                    compliance_assessment.compliance_score,
+                    compliance_assessment.framework_assessments.len()
+                ),
+                priority: AnalysisPriority::High,
+                analysis_domains: vec!["compliance_assessment".to_string()],
+                related_vulnerabilities: Vec::new(),
+                related_risks: Vec::new(),
+                related_compliance_issues: compliance_assessment
+                    .framework_assessments
+                    .keys()
+                    .cloned()
+                    .collect(),
+                implementation_guidance: "Review framework-level findings and close the highest-impact compliance gaps first.".to_string(),
+                expected_risk_reduction: compliance_assessment.assessment_confidence,
+                implementation_cost: EstimatedCost::Medium.to_numeric_value(),
+                implementation_timeline: Duration::from_secs(86400 * 30),
+                success_metrics: vec!["Compliance score at or above 7.0".to_string()],
             });
         }
 
         Ok(recommendations)
+    }
+
+    /// Map a [`ThreatSeverity`] onto the [`AnalysisPriority`] scale used by
+    /// [`ConsolidatedRecommendation`].
+    fn threat_severity_to_priority(severity: &ThreatSeverity) -> AnalysisPriority {
+        match severity {
+            ThreatSeverity::Critical => AnalysisPriority::Critical,
+            ThreatSeverity::High => AnalysisPriority::High,
+            ThreatSeverity::Medium => AnalysisPriority::Medium,
+            ThreatSeverity::Low => AnalysisPriority::Low,
+        }
+    }
+
+    /// Map the core analyzer's [`RiskSeverity`] (used on [`SecurityRecommendation`]) onto
+    /// the [`AnalysisPriority`] scale used by [`ConsolidatedRecommendation`].
+    fn risk_severity_to_priority(severity: &RiskSeverity) -> AnalysisPriority {
+        match severity {
+            RiskSeverity::Critical => AnalysisPriority::Critical,
+            RiskSeverity::High => AnalysisPriority::High,
+            RiskSeverity::Medium => AnalysisPriority::Medium,
+            RiskSeverity::Low => AnalysisPriority::Low,
+        }
+    }
+
+    /// Map a [`RiskLevel`] onto the [`AnalysisPriority`] scale used by
+    /// [`ConsolidatedRecommendation`].
+    fn risk_level_to_priority(level: &RiskLevel) -> AnalysisPriority {
+        match level {
+            RiskLevel::Critical => AnalysisPriority::Critical,
+            RiskLevel::High => AnalysisPriority::High,
+            RiskLevel::Medium => AnalysisPriority::Medium,
+            RiskLevel::Low => AnalysisPriority::Low,
+            RiskLevel::Minimal => AnalysisPriority::Informational,
+        }
     }
 
     fn generate_executive_summary(
@@ -649,12 +831,14 @@ impl ComprehensiveSecurityAnalyzer {
             _ => SecurityPosture::Critical,
         };
 
-        let critical_recommendations: Vec<_> = consolidated_recommendations.iter()
+        let critical_recommendations: Vec<_> = consolidated_recommendations
+            .iter()
             .filter(|r| matches!(r.priority, AnalysisPriority::Critical))
             .map(|r| r.title.clone())
             .collect();
 
-        let high_priority_recommendations: Vec<_> = consolidated_recommendations.iter()
+        let high_priority_recommendations: Vec<_> = consolidated_recommendations
+            .iter()
             .filter(|r| matches!(r.priority, AnalysisPriority::High))
             .map(|r| r.title.clone())
             .take(5)
@@ -669,47 +853,52 @@ impl ComprehensiveSecurityAnalyzer {
             ],
             critical_issues: critical_recommendations,
             top_risks: vec![], // Would be populated from risk assessment
-            compliance_summary: format!("Overall compliance status: {:?}", overall_compliance_status),
+            compliance_summary: format!(
+                "Overall compliance status: {:?}",
+                overall_compliance_status
+            ),
             recommended_next_steps: high_priority_recommendations,
             resource_requirements: ResourceRequirements {
-                budget_estimate: consolidated_recommendations.iter()
+                budget_estimate: consolidated_recommendations
+                    .iter()
                     .map(|r| r.implementation_cost)
                     .sum(),
-                personnel_requirements: vec!["Security Engineer".to_string(), "Compliance Specialist".to_string()],
-                technology_requirements: vec!["Vulnerability Scanner".to_string(), "SIEM System".to_string()],
+                personnel_requirements: vec![
+                    "Security Engineer".to_string(),
+                    "Compliance Specialist".to_string(),
+                ],
+                technology_requirements: vec![
+                    "Vulnerability Scanner".to_string(),
+                    "SIEM System".to_string(),
+                ],
                 training_requirements: vec!["Security Awareness Training".to_string()],
                 consulting_requirements: vec!["Security Assessment".to_string()],
             },
             improvement_timeline: Duration::from_secs(86400 * 90), // 90 days
-            roi_estimate: 3.5, // 3.5x return on investment
+            roi_estimate: 3.5,                                     // 3.5x return on investment
         })
     }
 
     fn calculate_analysis_confidence(
         &self,
-        core_analysis: &SecurityAnalysis,
-        vulnerability_assessment: &VulnerabilityAssessmentResult,
-        risk_assessment: &RiskAssessmentResult,
-        threat_modeling: &ThreatModelingResult,
-        cryptographic_analysis: &CryptographicAnalysisResult,
-        compliance_assessment: &ComplianceAssessmentResult,
-        security_metrics: &SecurityMetricsResult,
+        results: &AnalysisDomainResults<'_>,
     ) -> Result<f64, SecurityAnalysisError> {
         let confidence_scores = [
-            core_analysis.analysis_confidence,
-            vulnerability_assessment.assessment_confidence,
-            risk_assessment.assessment_confidence,
-            threat_modeling.model_confidence,
-            cryptographic_analysis.analysis_confidence,
-            compliance_assessment.assessment_confidence,
-            security_metrics.analysis_confidence,
+            Self::core_confidence(results.core_analysis),
+            results.vulnerability_assessment.assessment_confidence,
+            results.risk_assessment.assessment_confidence,
+            results.threat_modeling.model_confidence,
+            results.cryptographic_analysis.analysis_confidence,
+            results.compliance_assessment.assessment_confidence,
+            results.security_metrics.analysis_confidence,
         ];
 
-        let average_confidence = confidence_scores.iter().sum::<f64>() / confidence_scores.len() as f64;
-        Ok(average_confidence.min(1.0).max(0.0))
+        let average_confidence =
+            confidence_scores.iter().sum::<f64>() / confidence_scores.len() as f64;
+        Ok(average_confidence.clamp(0.0, 1.0))
     }
 
-    fn generate_analysis_metadata(&self, context: &TraitContext) -> HashMap<String, String> {
+    fn generate_analysis_metadata(&self, context: &TraitUsageContext) -> HashMap<String, String> {
         let mut metadata = HashMap::new();
         metadata.insert("analysis_version".to_string(), "1.0.0".to_string());
         metadata.insert("framework_version".to_string(), "2024.1".to_string());
@@ -730,17 +919,22 @@ pub fn create_comprehensive_security_analyzer() -> ComprehensiveSecurityAnalyzer
     ComprehensiveSecurityAnalyzer::new()
 }
 
-/// Perform comprehensive security analysis on trait usage context
-pub fn perform_comprehensive_security_analysis(
-    context: &TraitContext,
+/// Perform a full, all-domain security analysis (core, vulnerability, risk, threat,
+/// cryptographic, compliance, and metrics) on a trait usage context.
+///
+/// Named distinctly from [`core_analyzer::perform_comprehensive_security_analysis`]
+/// (which performs only the core-domain analysis) to avoid a name collision now that
+/// both are re-exported from this module.
+pub fn perform_full_security_analysis(
+    context: &TraitUsageContext,
 ) -> Result<ComprehensiveSecurityAnalysisResult, SecurityAnalysisError> {
     let mut analyzer = create_comprehensive_security_analyzer();
     analyzer.analyze_comprehensive_security(context)
 }
 
-/// Perform comprehensive security analysis with custom configuration
-pub fn perform_comprehensive_security_analysis_with_config(
-    context: &TraitContext,
+/// Perform a full, all-domain security analysis with custom configuration.
+pub fn perform_full_security_analysis_with_config(
+    context: &TraitUsageContext,
     config: SecurityAnalysisConfig,
 ) -> Result<ComprehensiveSecurityAnalysisResult, SecurityAnalysisError> {
     let mut analyzer = create_comprehensive_security_analyzer();

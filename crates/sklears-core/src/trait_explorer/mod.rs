@@ -113,7 +113,7 @@ pub mod dependency_analysis;
 // pub mod ml_recommendations;  // Temporarily disabled due to extensive compilation issues
 pub mod performance_analysis;
 // pub mod platform_compatibility; // Temporarily disabled - file missing
-// pub mod security_analysis;  // Temporarily disabled due to compilation issues
+pub mod security_analysis;
 pub mod trait_explorer_core;
 pub mod trait_registry;
 

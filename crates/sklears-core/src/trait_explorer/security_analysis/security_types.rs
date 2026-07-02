@@ -1,7 +1,7 @@
-use std::collections::{HashMap, HashSet, BTreeMap};
-use std::time::{Duration, SystemTime};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::net::IpAddr;
-use serde::{Serialize, Deserialize};
+use std::time::{Duration, SystemTime};
 
 // ================================================================================================
 // Core Security Analysis Types
@@ -20,15 +20,21 @@ pub struct SecurityAnalysisConfig {
     pub vulnerability_scanning_enabled: bool,
     pub penetration_testing_enabled: bool,
     pub social_engineering_testing_enabled: bool,
+    /// How long a cached analysis result remains valid for reuse.
+    pub cache_ttl: Duration,
+    /// Whether to run STRIDE-based threat modeling as part of the analysis.
+    pub enable_threat_modeling: bool,
+    /// Whether to run cryptographic usage analysis as part of the analysis.
+    pub enable_crypto_analysis: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AnalysisDepth {
-    Surface,      // Basic security checks
-    Standard,     // Comprehensive analysis
-    Deep,         // Advanced techniques
-    Exhaustive,   // Maximum coverage
-    Custom(u8),   // Custom depth level
+    Surface,    // Basic security checks
+    Standard,   // Comprehensive analysis
+    Deep,       // Advanced techniques
+    Exhaustive, // Maximum coverage
+    Custom(u8), // Custom depth level
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,11 +76,11 @@ pub struct RiskTolerance {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RiskAppetite {
-    Minimal,     // Risk-averse organization
+    Minimal,      // Risk-averse organization
     Conservative, // Cautious approach
-    Moderate,    // Balanced risk/reward
-    Aggressive,  // Higher risk tolerance
-    Extreme,     // Maximum risk acceptance
+    Moderate,     // Balanced risk/reward
+    Aggressive,   // Higher risk tolerance
+    Extreme,      // Maximum risk acceptance
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
@@ -95,10 +101,10 @@ pub enum RiskCategory {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum VulnerabilitySeverity {
-    Critical,    // CVSS 9.0-10.0
-    High,        // CVSS 7.0-8.9
-    Medium,      // CVSS 4.0-6.9
-    Low,         // CVSS 0.1-3.9
+    Critical,      // CVSS 9.0-10.0
+    High,          // CVSS 7.0-8.9
+    Medium,        // CVSS 4.0-6.9
+    Low,           // CVSS 0.1-3.9
     Informational, // CVSS 0.0
 }
 
@@ -125,7 +131,7 @@ pub struct VulnerabilityDetails {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExploitAvailability {
     None,           // No known exploits
-    Proof_of_Concept, // PoC available
+    ProofOfConcept, // PoC available
     Functional,     // Functional exploit exists
     High,           // Weaponized exploit
     Unknown,        // Status unknown
@@ -133,13 +139,13 @@ pub enum ExploitAvailability {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VulnerabilityStatus {
-    New,            // Recently discovered
-    Confirmed,      // Verified vulnerability
-    In_Progress,    // Remediation in progress
-    Resolved,       // Fixed/mitigated
-    Accepted,       // Risk accepted
-    False_Positive, // Not a real vulnerability
-    Duplicate,      // Duplicate of another finding
+    New,           // Recently discovered
+    Confirmed,     // Verified vulnerability
+    InProgress,    // Remediation in progress
+    Resolved,      // Fixed/mitigated
+    Accepted,      // Risk accepted
+    FalsePositive, // Not a real vulnerability
+    Duplicate,     // Duplicate of another finding
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -165,12 +171,12 @@ pub struct VulnerabilityReference {
 pub enum ReferenceType {
     Advisory,
     Vendor,
-    Third_Party,
+    ThirdParty,
     Research,
     News,
     Blog,
-    Social_Media,
-    Technical_Analysis,
+    SocialMedia,
+    TechnicalAnalysis,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -193,11 +199,11 @@ pub struct ThreatActor {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ThreatActorType {
-    Nation_State,
-    Criminal_Organization,
+    NationState,
+    CriminalOrganization,
     Hacktivist,
-    Insider_Threat,
-    Script_Kiddie,
+    InsiderThreat,
+    ScriptKiddie,
     Competitor,
     Terrorist,
     Unknown,
@@ -214,13 +220,13 @@ pub enum SophisticationLevel {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ThreatMotivation {
-    Financial_Gain,
+    FinancialGain,
     Espionage,
     Sabotage,
     Ideology,
     Revenge,
     Notoriety,
-    Testing_Skills,
+    TestingSkills,
     Unknown,
 }
 
@@ -248,9 +254,9 @@ pub struct RiskAssessment {
 pub enum RiskMethodology {
     Qualitative,
     Quantitative,
-    Semi_Quantitative,
-    NIST_SP800_30,
-    ISO_27005,
+    SemiQuantitative,
+    NistSp80030,
+    Iso27005,
     OCTAVE,
     FAIR,
     Custom(String),
@@ -276,29 +282,28 @@ pub struct RiskItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LikelihoodLevel {
-    Very_Low,    // 0-10%
-    Low,         // 11-30%
-    Medium,      // 31-70%
-    High,        // 71-90%
-    Very_High,   // 91-100%
+    VeryLow,  // 0-10%
+    Low,      // 11-30%
+    Medium,   // 31-70%
+    High,     // 71-90%
+    VeryHigh, // 91-100%
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ImpactLevel {
-    Negligible,  // Minimal impact
-    Minor,       // Limited impact
-    Moderate,    // Significant impact
-    Major,       // Severe impact
+    Negligible,   // Minimal impact
+    Minor,        // Limited impact
+    Moderate,     // Significant impact
+    Major,        // Severe impact
     Catastrophic, // Extreme impact
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RiskLevel {
-    Very_Low,
+    Minimal,
     Low,
     Medium,
     High,
-    Very_High,
     Critical,
 }
 
@@ -351,11 +356,11 @@ pub enum MediaAttentionLevel {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SentimentLevel {
-    Very_Negative,
+    VeryNegative,
     Negative,
     Neutral,
     Positive,
-    Very_Positive,
+    VeryPositive,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -408,7 +413,7 @@ pub struct RiskRecommendation {
     pub description: String,
     pub priority: AnalysisPriority,
     pub category: RecommendationCategory,
-    pub implementation_effort: ImplementationEffort,
+    pub implementation_effort: EffortEstimate,
     pub expected_risk_reduction: f64,
     pub cost_estimate: f64,
     pub timeline: Duration,
@@ -418,18 +423,23 @@ pub struct RiskRecommendation {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RecommendationCategory {
-    Technical_Control,
-    Administrative_Control,
-    Physical_Control,
-    Process_Improvement,
+    TechnicalControl,
+    AdministrativeControl,
+    PhysicalControl,
+    ProcessImprovement,
     Training,
-    Technology_Investment,
-    Policy_Update,
-    Governance_Change,
+    TechnologyInvestment,
+    PolicyUpdate,
+    GovernanceChange,
 }
 
+/// Detailed effort estimate (used by [`RiskRecommendation`]).
+///
+/// Not to be confused with [`ImplementationEffort`], the coarse-grained
+/// three-tier effort enum used throughout the vulnerability / security
+/// recommendation types in this module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ImplementationEffort {
+pub struct EffortEstimate {
     pub effort_level: EffortLevel,
     pub required_skills: Vec<String>,
     pub estimated_hours: u32,
@@ -437,13 +447,51 @@ pub struct ImplementationEffort {
     pub external_dependencies: Vec<String>,
 }
 
+/// Coarse-grained implementation effort classification used by vulnerability
+/// and security recommendation types across the security analysis framework.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum ImplementationEffort {
+    Low,
+    Medium,
+    High,
+}
+
+/// Priority for mitigating an identified security risk.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum MitigationPriority {
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+/// Coarse-grained cost estimate for implementing a security recommendation.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum EstimatedCost {
+    Low,
+    Medium,
+    High,
+}
+
+impl EstimatedCost {
+    /// Approximate numeric cost value (in arbitrary "cost units") useful for
+    /// aggregating recommendation costs into a single budget figure.
+    pub fn to_numeric_value(&self) -> f64 {
+        match self {
+            EstimatedCost::Low => 5_000.0,
+            EstimatedCost::Medium => 25_000.0,
+            EstimatedCost::High => 100_000.0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EffortLevel {
-    Minimal,      // < 8 hours
-    Low,          // 8-40 hours
-    Medium,       // 40-200 hours
-    High,         // 200-1000 hours
-    Very_High,    // > 1000 hours
+    Minimal,  // < 8 hours
+    Low,      // 8-40 hours
+    Medium,   // 40-200 hours
+    High,     // 200-1000 hours
+    VeryHigh, // > 1000 hours
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -463,11 +511,11 @@ pub struct MitigationStrategy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MitigationType {
-    Accept,       // Accept the risk
-    Avoid,        // Eliminate the risk
-    Mitigate,     // Reduce the risk
-    Transfer,     // Transfer the risk to others
-    Monitor,      // Monitor and reassess
+    Accept,   // Accept the risk
+    Avoid,    // Eliminate the risk
+    Mitigate, // Reduce the risk
+    Transfer, // Transfer the risk to others
+    Monitor,  // Monitor and reassess
 }
 
 // ================================================================================================
@@ -494,11 +542,11 @@ pub struct ComplianceFramework {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ComplianceFrameworkType {
-    Regulatory,    // Government regulation
-    Standard,      // Industry standard
-    Best_Practice, // Best practice framework
-    Internal,      // Internal policy
-    Contractual,   // Contract requirement
+    Regulatory,   // Government regulation
+    Standard,     // Industry standard
+    BestPractice, // Best practice framework
+    Internal,     // Internal policy
+    Contractual,  // Contract requirement
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -517,10 +565,10 @@ pub struct ComplianceRequirement {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ObligationLevel {
-    Mandatory,    // Must be implemented
-    Recommended,  // Should be implemented
-    Optional,     // May be implemented
-    Conditional,  // Required under certain conditions
+    Mandatory,   // Must be implemented
+    Recommended, // Should be implemented
+    Optional,    // May be implemented
+    Conditional, // Required under certain conditions
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -549,14 +597,14 @@ pub enum ControlType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TestingFrequency {
-    Continuous,   // Real-time monitoring
-    Daily,        // Daily testing
-    Weekly,       // Weekly testing
-    Monthly,      // Monthly testing
-    Quarterly,    // Quarterly testing
-    Semi_Annual,  // Twice yearly
-    Annual,       // Yearly testing
-    Ad_Hoc,       // As needed
+    Continuous, // Real-time monitoring
+    Daily,      // Daily testing
+    Weekly,     // Weekly testing
+    Monthly,    // Monthly testing
+    Quarterly,  // Quarterly testing
+    SemiAnnual, // Twice yearly
+    Annual,     // Yearly testing
+    AdHoc,      // As needed
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -576,14 +624,14 @@ pub struct AssessmentProcedure {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AssessmentType {
-    Self_Assessment,
-    Internal_Audit,
-    External_Audit,
-    Third_Party_Assessment,
-    Continuous_Monitoring,
-    Penetration_Test,
-    Vulnerability_Assessment,
-    Code_Review,
+    SelfAssessment,
+    InternalAudit,
+    ExternalAudit,
+    ThirdPartyAssessment,
+    ContinuousMonitoring,
+    PenetrationTest,
+    VulnerabilityAssessment,
+    CodeReview,
 }
 
 // ================================================================================================
@@ -610,20 +658,20 @@ pub struct SecurityEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SecurityEventType {
-    Authentication_Failure,
-    Authorization_Violation,
-    Data_Access_Anomaly,
-    Network_Intrusion_Attempt,
-    Malware_Detection,
-    Data_Exfiltration_Attempt,
-    System_Compromise,
-    Policy_Violation,
-    Configuration_Change,
-    Privilege_Escalation,
-    Lateral_Movement,
-    Command_And_Control,
-    Data_Destruction,
-    Service_Disruption,
+    AuthenticationFailure,
+    AuthorizationViolation,
+    DataAccessAnomaly,
+    NetworkIntrusionAttempt,
+    MalwareDetection,
+    DataExfiltrationAttempt,
+    SystemCompromise,
+    PolicyViolation,
+    ConfigurationChange,
+    PrivilegeEscalation,
+    LateralMovement,
+    CommandAndControl,
+    DataDestruction,
+    ServiceDisruption,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -667,21 +715,21 @@ pub struct UserContext {
 pub enum InvestigationStatus {
     New,           // Recently detected
     Assigned,      // Assigned to analyst
-    In_Progress,   // Under investigation
+    InProgress,    // Under investigation
     Escalated,     // Escalated to higher level
     Resolved,      // Investigation complete
     Closed,        // Case closed
-    False_Positive, // Determined not malicious
+    FalsePositive, // Determined not malicious
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EscalationLevel {
-    Level_1,       // SOC analyst
-    Level_2,       // Senior analyst
-    Level_3,       // Security engineer
-    Management,    // Management notification
-    Executive,     // Executive notification
-    External,      // External parties (law enforcement, etc.)
+    Level1,     // SOC analyst
+    Level2,     // Senior analyst
+    Level3,     // Security engineer
+    Management, // Management notification
+    Executive,  // Executive notification
+    External,   // External parties (law enforcement, etc.)
 }
 
 // ================================================================================================
@@ -708,14 +756,14 @@ pub struct SecurityMetric {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SecurityMetricType {
-    Vulnerability_Metric,
-    Threat_Metric,
-    Risk_Metric,
-    Compliance_Metric,
-    Incident_Metric,
-    Performance_Metric,
-    Effectiveness_Metric,
-    Maturity_Metric,
+    VulnerabilityMetric,
+    ThreatMetric,
+    RiskMetric,
+    ComplianceMetric,
+    IncidentMetric,
+    PerformanceMetric,
+    EffectivenessMetric,
+    MaturityMetric,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -756,12 +804,12 @@ pub struct MetricThreshold {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ThresholdType {
-    Upper_Warning,   // Warn if value exceeds threshold
-    Upper_Critical,  // Critical if value exceeds threshold
-    Lower_Warning,   // Warn if value below threshold
-    Lower_Critical,  // Critical if value below threshold
-    Range_Warning,   // Warn if value outside range
-    Range_Critical,  // Critical if value outside range
+    UpperWarning,  // Warn if value exceeds threshold
+    UpperCritical, // Critical if value exceeds threshold
+    LowerWarning,  // Warn if value below threshold
+    LowerCritical, // Critical if value below threshold
+    RangeWarning,  // Warn if value outside range
+    RangeCritical, // Critical if value outside range
 }
 
 // ================================================================================================
@@ -797,16 +845,16 @@ pub struct ConfigurationItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ConfigurationItemType {
-    Registry_Key,
-    File_Permission,
-    Service_Configuration,
-    Network_Setting,
-    User_Account_Setting,
-    Password_Policy,
-    Audit_Policy,
-    Firewall_Rule,
-    Encryption_Setting,
-    Certificate_Configuration,
+    RegistryKey,
+    FilePermission,
+    ServiceConfiguration,
+    NetworkSetting,
+    UserAccountSetting,
+    PasswordPolicy,
+    AuditPolicy,
+    FirewallRule,
+    EncryptionSetting,
+    CertificateConfiguration,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -822,10 +870,10 @@ pub enum ConfigurationValue {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ConfigurationComplianceStatus {
     Compliant,
-    Non_Compliant,
-    Partially_Compliant,
+    NonCompliant,
+    PartiallyCompliant,
     Unknown,
-    Not_Applicable,
+    NotApplicable,
     Exempted,
 }
 
@@ -843,16 +891,16 @@ pub struct BaselineRequirement {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum BaselineCategory {
-    Access_Control,
-    Audit_And_Logging,
+    AccessControl,
+    AuditAndLogging,
     Authentication,
     Encryption,
-    Network_Security,
-    System_Hardening,
-    Data_Protection,
-    Incident_Response,
-    Backup_And_Recovery,
-    Physical_Security,
+    NetworkSecurity,
+    SystemHardening,
+    DataProtection,
+    IncidentResponse,
+    BackupAndRecovery,
+    PhysicalSecurity,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -900,10 +948,10 @@ pub struct ChangeControlRequirement {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ChangeType {
-    Emergency,    // Immediate implementation required
-    Standard,     // Normal change process
-    Minor,        // Pre-approved change
-    Major,        // High-impact change
+    Emergency, // Immediate implementation required
+    Standard,  // Normal change process
+    Minor,     // Pre-approved change
+    Major,     // High-impact change
 }
 
 // ================================================================================================
@@ -932,7 +980,9 @@ pub enum SecurityAnalysisError {
 impl std::fmt::Display for SecurityAnalysisError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SecurityAnalysisError::ConfigurationError(msg) => write!(f, "Configuration error: {}", msg),
+            SecurityAnalysisError::ConfigurationError(msg) => {
+                write!(f, "Configuration error: {}", msg)
+            }
             SecurityAnalysisError::DataAccessError(msg) => write!(f, "Data access error: {}", msg),
             SecurityAnalysisError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
             SecurityAnalysisError::AnalysisError(msg) => write!(f, "Analysis error: {}", msg),
@@ -942,9 +992,15 @@ impl std::fmt::Display for SecurityAnalysisError {
             SecurityAnalysisError::ResourceError(msg) => write!(f, "Resource error: {}", msg),
             SecurityAnalysisError::TimeoutError(msg) => write!(f, "Timeout error: {}", msg),
             SecurityAnalysisError::NetworkError(msg) => write!(f, "Network error: {}", msg),
-            SecurityAnalysisError::AuthenticationError(msg) => write!(f, "Authentication error: {}", msg),
-            SecurityAnalysisError::AuthorizationError(msg) => write!(f, "Authorization error: {}", msg),
-            SecurityAnalysisError::CryptographicError(msg) => write!(f, "Cryptographic error: {}", msg),
+            SecurityAnalysisError::AuthenticationError(msg) => {
+                write!(f, "Authentication error: {}", msg)
+            }
+            SecurityAnalysisError::AuthorizationError(msg) => {
+                write!(f, "Authorization error: {}", msg)
+            }
+            SecurityAnalysisError::CryptographicError(msg) => {
+                write!(f, "Cryptographic error: {}", msg)
+            }
             SecurityAnalysisError::ComplianceError(msg) => write!(f, "Compliance error: {}", msg),
             SecurityAnalysisError::AuditError(msg) => write!(f, "Audit error: {}", msg),
         }
@@ -954,6 +1010,81 @@ impl std::fmt::Display for SecurityAnalysisError {
 impl std::error::Error for SecurityAnalysisError {}
 
 pub type SecurityAnalysisResult<T> = Result<T, SecurityAnalysisError>;
+
+// ================================================================================================
+// Trait Usage Context
+// ================================================================================================
+
+/// Describes how a trait (or set of traits) is used within a piece of code, as a set of
+/// coarse-grained boolean signals plus the trait names themselves.
+///
+/// This is the shared input type for every analysis routine in the security analysis
+/// framework (vulnerability assessment, risk assessment, threat modeling, cryptographic
+/// analysis, compliance checking, and security metrics collection). Each boolean flag
+/// represents a fact that an upstream caller (e.g. a static analyzer walking a trait's
+/// implementation) would establish about the code in question.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct TraitUsageContext {
+    /// Name of the primary trait under analysis.
+    pub trait_name: String,
+    /// All traits involved in the usage pattern (including `trait_name`).
+    pub traits: Vec<String>,
+
+    /// The code handles data that is considered sensitive (credentials, secrets, etc.).
+    pub handles_sensitive_data: bool,
+    /// The code handles personally identifiable information.
+    pub handles_personal_data: bool,
+    /// The code performs unsafe (`unsafe` block) operations.
+    pub has_unsafe_operations: bool,
+    /// The code performs explicit bounds checking before unsafe/indexed access.
+    pub has_bounds_checking: bool,
+    /// The code performs serialization/deserialization.
+    pub has_serialization: bool,
+    /// The code validates external/user-supplied input.
+    pub has_input_validation: bool,
+    /// The code uses dynamic dispatch (`dyn Trait`, trait objects).
+    pub has_dynamic_dispatch: bool,
+    /// The code performs runtime type-safety checks (e.g. downcasting checks).
+    pub has_type_safety_checks: bool,
+    /// The code performs resource-intensive operations (large allocations, heavy compute).
+    pub has_resource_intensive_operations: bool,
+    /// The code enforces limits on resource usage.
+    pub has_resource_limits: bool,
+    /// The code requires elevated system/process privileges to operate.
+    pub requires_elevated_privileges: bool,
+    /// The code enforces access control checks before sensitive operations.
+    pub has_access_controls: bool,
+    /// The code encrypts sensitive data at rest or in transit.
+    pub has_encryption: bool,
+    /// The code has timing-dependent behavior (branch timing, early returns, etc.).
+    pub has_timing_dependencies: bool,
+    /// The code performs cryptographic operations.
+    pub has_cryptographic_operations: bool,
+    /// Cryptographic operations are implemented with constant-time guarantees.
+    pub has_constant_time_operations: bool,
+    /// The code allocates memory in patterns that could leak information.
+    pub has_memory_allocation_patterns: bool,
+    /// User-supplied input is accepted and processed.
+    pub has_user_input: bool,
+    /// SQL statements are constructed/executed.
+    pub has_sql_operations: bool,
+    /// SQL statements use parameterized queries (as opposed to string concatenation).
+    pub has_parameterized_queries: bool,
+    /// The code may recurse without a bounded depth.
+    pub has_unbounded_recursion: bool,
+    /// The code enforces memory usage limits.
+    pub has_memory_limits: bool,
+    /// The code anonymizes or pseudonymizes personal data before use.
+    pub has_data_anonymization: bool,
+    /// The code separates privileged operations from unprivileged ones.
+    pub has_privilege_separation: bool,
+    /// The code enforces rate limiting on expensive/sensitive operations.
+    pub has_rate_limiting: bool,
+    /// The code writes an audit trail for security-relevant operations.
+    pub has_audit_logging: bool,
+    /// Cryptographic keys are generated, stored, and rotated securely.
+    pub has_secure_key_management: bool,
+}
 
 // ================================================================================================
 // Default Implementations
@@ -973,6 +1104,9 @@ impl Default for SecurityAnalysisConfig {
             vulnerability_scanning_enabled: true,
             penetration_testing_enabled: false,
             social_engineering_testing_enabled: false,
+            cache_ttl: Duration::from_secs(3600), // 1 hour
+            enable_threat_modeling: true,
+            enable_crypto_analysis: true,
         }
     }
 }
@@ -1060,22 +1194,20 @@ impl RiskLevel {
     pub fn from_score(score: f64) -> Self {
         match score {
             s if s >= 9.0 => RiskLevel::Critical,
-            s if s >= 7.0 => RiskLevel::Very_High,
-            s if s >= 5.0 => RiskLevel::High,
-            s if s >= 3.0 => RiskLevel::Medium,
-            s if s >= 1.0 => RiskLevel::Low,
-            _ => RiskLevel::Very_Low,
+            s if s >= 7.0 => RiskLevel::High,
+            s if s >= 5.0 => RiskLevel::Medium,
+            s if s >= 3.0 => RiskLevel::Low,
+            _ => RiskLevel::Minimal,
         }
     }
 
     pub fn to_numeric_value(&self) -> u8 {
         match self {
-            RiskLevel::Critical => 6,
-            RiskLevel::Very_High => 5,
+            RiskLevel::Critical => 5,
             RiskLevel::High => 4,
             RiskLevel::Medium => 3,
             RiskLevel::Low => 2,
-            RiskLevel::Very_Low => 1,
+            RiskLevel::Minimal => 1,
         }
     }
 }
@@ -1083,21 +1215,21 @@ impl RiskLevel {
 impl LikelihoodLevel {
     pub fn to_probability(&self) -> f64 {
         match self {
-            LikelihoodLevel::Very_Low => 0.05,
+            LikelihoodLevel::VeryLow => 0.05,
             LikelihoodLevel::Low => 0.2,
             LikelihoodLevel::Medium => 0.5,
             LikelihoodLevel::High => 0.8,
-            LikelihoodLevel::Very_High => 0.95,
+            LikelihoodLevel::VeryHigh => 0.95,
         }
     }
 
     pub fn from_probability(prob: f64) -> Self {
         match prob {
-            p if p <= 0.1 => LikelihoodLevel::Very_Low,
+            p if p <= 0.1 => LikelihoodLevel::VeryLow,
             p if p <= 0.3 => LikelihoodLevel::Low,
             p if p <= 0.7 => LikelihoodLevel::Medium,
             p if p <= 0.9 => LikelihoodLevel::High,
-            _ => LikelihoodLevel::Very_High,
+            _ => LikelihoodLevel::VeryHigh,
         }
     }
 }
@@ -1235,7 +1367,13 @@ pub fn create_security_event(
     source_system: String,
 ) -> SecurityEvent {
     SecurityEvent {
-        event_id: format!("evt_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("duration_since should succeed").as_secs()),
+        event_id: format!(
+            "evt_{}",
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("duration_since should succeed")
+                .as_secs()
+        ),
         timestamp: SystemTime::now(),
         event_type,
         severity,
@@ -1248,6 +1386,6 @@ pub fn create_security_event(
         event_signature: None,
         false_positive_likelihood: 0.1,
         investigation_status: InvestigationStatus::New,
-        escalation_level: EscalationLevel::Level_1,
+        escalation_level: EscalationLevel::Level1,
     }
 }

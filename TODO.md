@@ -177,19 +177,37 @@ reports **zero warnings**. Per-item outcome:
 
 These are "re-enable after refactor" / commented-out re-export plumbing items. Each is a P2 cleanup that unblocks once the named module's API stabilizes; the pure re-export ones are trivial.
 
-- [ ] **sklears** `sklears-core`: `crates/sklears-core/src/trait_explorer/security_analysis/mod.rs:167-199` — `TODO`: `Add when implemented` (≈18 commented-out re-exports: `SecurityAnalysis`, `SecurityVulnerability`, `RiskAssessmentResult`, `VulnerabilityDatabaseError`, etc.)
+- [~] **sklears** `sklears-core`: `crates/sklears-core/src/trait_explorer/security_analysis/mod.rs:167-199` — `TODO`: `Add when implemented` (≈18 commented-out re-exports: `SecurityAnalysis`, `SecurityVulnerability`, `RiskAssessmentResult`, `VulnerabilityDatabaseError`, etc.) (planned 2026-07-02)
   - **Priority:** P2  **Scope:** trivial  **Cross-project:** none
   - **Blocked:** audited 2026-06-25 — `SecurityAnalysis`, `SecurityVulnerability`, `SecurityRisk`, `SecurityRecommendation`, `SecurityAnalysisMetadata`, `create_trait_security_analyzer`, `perform_comprehensive_security_analysis` are NOT in `core_analyzer.rs`; `VulnerabilityAssessmentResult`, `VulnerabilityDatabaseError`, etc. are NOT in `vulnerability_database.rs`; `RiskAssessmentResult`, `RiskFactor`, etc. are NOT in `risk_assessment.rs`. `RiskFactor` lives in `dependency_analysis.rs` not `security_analysis`. All 18 items require implementation before they can be re-exported.
   - **Approach:** Implement the missing types/fns in each submodule first, then un-comment the re-exports one at a time with `cargo check` per addition.
-- [ ] **sklears** `sklears-gaussian-process`: `crates/sklears-gaussian-process/src/lib.rs:63,67,82,131` — `TODO`: `Re-enable when modules are fully implemented` (FITC, kernel_selection, variational module re-exports gated off)
+  - **Goal:** define the ~10 missing types the module's struct-literals require (SecurityVulnerability, RiskAssessmentResult, SecurityAnalysis, VulnerabilityAssessmentResult, VulnerabilityDatabaseError, RiskAssessmentError, SecurityRisk, SecurityRecommendation, SecurityAnalysisMetadata, RiskAnalysis), add missing create_* constructors, fix compile errors across the 9-file subtree, re-enable `pub mod security_analysis;` in trait_explorer/mod.rs:116 and the gated re-exports.
+  - **Design:** inventory undefined-type struct-literal sites (core_analyzer.rs 238/255/275/292, vulnerability_database.rs 449/492+, risk_assessment.rs 142, mod.rs:291); define missing types in security_types.rs (or a new security_result_types.rs if size demands) reusing existing enums (RiskLevel, VulnerabilitySeverity, AnalysisPriority) rather than duplicating; add thiserror-style error enums matching SklearsError conventions; add free-fn constructors/wrappers; uncomment re-exports only once compiling.
+  - **Files:** crates/sklears-core/src/trait_explorer/security_analysis/*.rs, crates/sklears-core/src/trait_explorer/mod.rs
+  - **Prerequisites:** none external (self-contained subtree)
+  - **Tests:** make existing `#[cfg(test)] mod tests` in vulnerability_database.rs / risk_assessment.rs compile & pass; add a smoke test constructing an analyzer and running a comprehensive analysis on a sample trait descriptor.
+  - **Risk:** high — module is disabled precisely because it doesn't compile; strictly bounded to the security_analysis/ subtree + the mod.rs re-enable line; if it balloons beyond this subtree, this item may come back as `deviated` rather than being forced.
+- [~] **sklears** `sklears-gaussian-process`: `crates/sklears-gaussian-process/src/lib.rs:63,67,82,131` — `TODO`: `Re-enable when modules are fully implemented` (FITC, kernel_selection, variational module re-exports gated off) (planned 2026-07-02)
   - **Priority:** P2  **Scope:** small  **Cross-project:** none
   - **Blocked:** audited 2026-06-25 — `fitc.rs`, `kernel_selection.rs`, `variational.rs` are each 1-line stub files (doc comment only, no types or impls). Nothing to re-export until these are implemented.
   - **Approach:** Implement the modules (FITC inducing-point approximation, kernel selection via AIC/BIC/CV, variational sparse GPC), add smoke tests, then re-enable the lib.rs re-exports.
+  - **Goal:** fitc.rs, kernel_selection.rs, variational.rs become real implementations exporting exactly the names in the gated `pub use` blocks of lib.rs; re-enable those three blocks.
+  - **Design:** fitc.rs — FitcGaussianProcessRegressor/Config/FitcGprTrained/InducingPointInit reusing the diagonal-corrected math already in sparse_gpr.rs (Λ = diag(Knn − Qnn) + σ², Q = Knm Kmm⁻¹ Kmn) plus utils::{robust_cholesky, triangular_solve, triangular_solve_matrix}. kernel_selection.rs — KernelSelector/Config/Result, SelectionCriterion{Aic,Bic,Cv,LogMarginalLikelihood}, select_best_kernel/select_kernel_aic/select_kernel_bic/select_kernel_cv built on marginal_likelihood::{log_marginal_likelihood_stable, optimize_hyperparameters, cross_validate_hyperparameters}. variational.rs — SVGP Bernoulli classifier (VariationalGaussianProcessClassifier/Config/Trained, SparseGaussianProcessClassifier/SgpcTrained) with ELBO = Σ E_q[log p(yᵢ|fᵢ)] − KL(q(u)‖p(u)), reusing classification.rs sigmoid/GPC scaffolding, utils::kl_divergence_gaussian, and regression.rs's VariationalSparseGaussianProcessRegressor as structural template.
+  - **Files:** crates/sklears-gaussian-process/src/{fitc,kernel_selection,variational}.rs, lib.rs (re-enable 3 gated pub use blocks ~lines 55-135)
+  - **Prerequisites:** none — all lin-alg/likelihood/inducing-point/classification primitives already exist
+  - **Tests:** inline #[cfg(test)] mod tests with approx::assert_abs_diff_eq!. FITC predictions approach full-GPR as m→n; kernel_selection picks RBF over Linear by AIC/BIC on RBF-generated data; variational ELBO increases across iterations and accuracy > 0.9 on separable toy set.
+  - **Risk:** medium — variational is hardest; implement in order fitc → kernel_selection → variational; watch file sizes (<2000 lines).
 - [x] **sklears** `sklears-python`: `crates/sklears-python/src/lib.rs:39,51,110` — DONE (2026-06-25): rewrote `classification.rs` and `regression.rs` to use `sklears_metrics::basic_metrics` and `sklears_metrics::regression` directly; fixed PyO3 0.28 API (`unbind()` instead of `to_owned()`, `is_multiple_of()`, removed `ToPyObject`); un-commented `mod metrics;`, `pub use metrics::*;`, and all 11 function registrations.
-- [ ] **sklears** `sklears-datasets`: `crates/sklears-datasets/src/generators/mod.rs:9-14,35` — `TODO`: generator submodules (`manifold`, `time_series`, `adversarial`, `causal`, `domain_specific`, `statistical`) listed as TODO and not yet declared
+- [~] **sklears** `sklears-datasets`: `crates/sklears-datasets/src/generators/mod.rs:9-14,35` — `TODO`: generator submodules (`manifold`, `time_series`, `adversarial`, `causal`, `domain_specific`, `statistical`) listed as TODO and not yet declared (planned 2026-07-02)
   - **Priority:** P2  **Scope:** small  **Cross-project:** none
   - **Blocked:** audited 2026-06-25 — module files don't exist yet; this is pure new work, not re-enable plumbing.
   - **Approach:** Implement each generator submodule, declare in mod.rs, re-export, and sync the doc comment. Drop `lib_original.rs` (superseded backup) during this cleanup.
+  - **Goal:** generators/{manifold,time_series,adversarial,causal,domain_specific,statistical}.rs exist with real make_* generators, declared + glob-re-exported in generators/mod.rs (uncomment the 6 gated lines), each with inline #[cfg(test)] mod tests.
+  - **Design:** manifold (make_swiss_roll, make_s_curve, make_severed_sphere, make_helix — parametric 3D + 1D position target); time_series (make_ar_process, make_ma_process, make_arma_process, make_seasonal_trend, make_random_walk); statistical (make_multivariate_normal via Cholesky sampling, make_gaussian_mixture, make_correlated_features, make_low_rank_matrix); causal (make_treatment_effect with known ATE, make_iv_dataset, make_confounded_regression); adversarial (make_label_noise, make_outlier_contamination, make_covariate_shift, make_fgsm_style_perturbation); domain_specific (make_financial_returns GARCH-lite, make_sensor_stream, make_survival_data). All: signature (…params, random_state: Option<u64>) -> Result<(Array2<f64>, Array1<_>)>, RNG via scirs2_core::random::rngs::StdRng::seed_from_u64, validate via SklearsError::InvalidInput, no .unwrap().
+  - **Files:** 6 new files under crates/sklears-datasets/src/generators/, edit generators/mod.rs
+  - **Prerequisites:** none
+  - **Tests:** shape asserts, seed-determinism, one property per generator (e.g. causal recovers ATE within tolerance; AR series variance finite).
+  - **Risk:** low — mechanical pattern; keep files <2000 lines; avoid glob re-export name collisions in mod.rs.
 
 ---
 
@@ -280,4 +298,13 @@ oxicuda-backend / oxicuda-blas / oxicuda-solver 等に一本化する。
 - [ ] `cargo clippy --workspace --all-targets -- -D warnings`
 - [ ] `cargo test --workspace`
 - [ ] workspace Cargo.toml から `wgpu`, `cudarc`, `candle-core` の残存参照を完全削除
+
+---
+
+## Proposed follow-ups
+
+- **GPU migration (27 items, oxicuda-* rewrite)** — plannable next, with two required shape corrections: (1) oxicuda-blas/-solver ops are free functions taking `&BlasHandle`/`&mut SolverHandle`, NOT methods (rewrite `handle.gemm(...)` → `oxicuda_blas::level3::gemm(&h, …)` etc.); (2) standalone relu/sigmoid/tanh/softmax GPU ops live in `oxicuda-blas` (`elementwise::unary`, `reduction::softmax`), not `oxicuda-dnn` (fused epilogues only). Confirmed buildable via `cargo check --features gpu` with no CUDA toolkit present (runtime dlopen, no build.rs), but not runtime-testable on a machine without an NVIDIA GPU/libcuda. Also align the sklears oxicuda-* pin comment 0.4.0 → 0.4.1 and fix the stale "v0.3" comment. Recommend a dedicated `/ultra` run.
+- **`sklears-discriminant-analysis` `[~]` gpu_acceleration** — blocked on a scirs2-core GPU API that doesn't exist; a future GPU-focused run could retarget it to oxicuda reductions instead. Leave as `[~]`; do not restart from scratch.
+- **`sklears-compose/distributed_optimization/` orphaned tree** (161 files, ~3.3 MB, pre-existing compile errors, not declared in lib.rs) — needs a human decision: wire in (large effort) or delete. Blocked on user call.
+- **`sklears-core trait_explorer/graph_visualization`** (disabled, mod.rs:112 commented out; depends on refactored-away api_reference_generator + scirs2_core gpu/profiling/validation features) — medium-effort re-enable, candidate for a later run.
 
