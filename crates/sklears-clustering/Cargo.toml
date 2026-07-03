@@ -45,7 +45,7 @@ bytemuck = { workspace = true, optional = true }
 criterion = { workspace = true }
 proptest = { workspace = true }
 sklears-metrics = { path = "../sklears-metrics" }
-pollster = "0.4"
+pollster = { workspace = true }
 # rand_distr usage replaced with scirs2-core random module per SciRS2 policy
 
 [features]

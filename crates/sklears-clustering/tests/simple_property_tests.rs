@@ -197,17 +197,32 @@ mod kmeans_consistency {
             }
 
             let n_clusters = (n_samples / 4).clamp(2, 4);
-            let config = KMeansConfig {
+            let config1 = KMeansConfig {
                 n_clusters,
                 random_seed: Some(42),
                 ..Default::default()
             };
-            let kmeans = KMeans::new(config);
+            let config2 = KMeansConfig {
+                n_clusters,
+                random_seed: Some(42),
+                ..Default::default()
+            };
+            let kmeans1 = KMeans::new(config1);
+            let kmeans2 = KMeans::new(config2);
             let y_dummy = Array1::zeros(n_samples);
 
-            if let Ok(_fitted) = kmeans.fit(&data, &y_dummy) {
-                // Inertia method not available in current API
-                // TODO: Re-enable when inertia() is exposed
+            if let Ok(fitted) = kmeans1.fit(&data, &y_dummy) {
+                // Inertia is a sum of squared distances to centroids, so it must be
+                // non-negative and finite.
+                prop_assert!(fitted.inertia >= 0.0);
+                prop_assert!(fitted.inertia.is_finite());
+
+                // Fitting is deterministic given a fixed seed (sequential assignment/update
+                // loop, no threading or hash-order dependence), so re-fitting the same data
+                // with the same seed must reproduce the same inertia.
+                if let Ok(fitted2) = kmeans2.fit(&data, &y_dummy) {
+                    prop_assert!((fitted.inertia - fitted2.inertia).abs() < 1e-9);
+                }
             }
         }
     }

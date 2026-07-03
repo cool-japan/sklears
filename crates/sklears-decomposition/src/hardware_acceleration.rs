@@ -10,6 +10,11 @@
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
+// Used unconditionally: `ParallelDecomposition::sequential_svd` /
+// `sequential_eigendecomposition` delegate to these real implementations
+// regardless of whether the `gpu` feature is enabled (see Wave B3 bugfix:
+// these used to return a hardcoded `(eye, ones, eye)` "result").
+use scirs2_linalg::{eigh as linalg_eigh, svd as linalg_svd};
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
@@ -22,7 +27,11 @@ use std::ptr::NonNull;
 use std::slice;
 
 #[cfg(feature = "gpu")]
-use scirs2_linalg::{eigh as linalg_eigh, svd as linalg_svd};
+use oxicuda_memory::DeviceBuffer;
+#[cfg(feature = "gpu")]
+use oxicuda_solver::{EigJob, SolverHandle, SvdJob};
+#[cfg(feature = "gpu")]
+use scirs2_core::ndarray::ShapeBuilder;
 #[cfg(feature = "gpu")]
 use sklears_core::gpu::{GpuArray, GpuContext, GpuMatrixOps};
 
@@ -457,12 +466,13 @@ impl ParallelDecomposition {
         &self,
         matrix: &Array2<Float>,
     ) -> Result<(Array2<Float>, Array1<Float>, Array2<Float>)> {
-        // Simplified block-based SVD - in practice would use more sophisticated algorithms
-        let (_m, _n) = matrix.dim();
-        let _block_size = 256;
-
-        // For now, fall back to sequential SVD
-        // A full implementation would use randomized SVD or hierarchical SVD
+        // NOTE: a genuine block/hierarchical SVD (splitting the matrix into
+        // `block_size` panels and merging partial factorizations) is a
+        // substantial numerical-algorithms undertaking in its own right and
+        // is tracked as a follow-up. Critically, this must NOT fabricate a
+        // result: delegating to `sequential_svd` guarantees a real,
+        // correct decomposition (via `scirs2_linalg::svd`) for every input,
+        // which a half-finished block algorithm would not.
         self.sequential_svd(matrix)
     }
 
@@ -470,16 +480,12 @@ impl ParallelDecomposition {
         &self,
         matrix: &Array2<Float>,
     ) -> Result<(Array2<Float>, Array1<Float>, Array2<Float>)> {
-        // Use ndarray_linalg for SVD computation
-        // This is a placeholder - actual implementation would depend on available LAPACK
-        let (m, n) = matrix.dim();
-        let min_dim = m.min(n);
-
-        // Simplified SVD placeholder
-        let u = Array2::eye(m);
-        let s = Array1::ones(min_dim);
-        let vt = Array2::eye(n);
-
+        // Real SVD via scirs2_linalg -- the same function `GpuAcceleration::gpu_svd`
+        // uses for its CPU fallback path. Earlier revisions of this function
+        // returned a hardcoded `(Array2::eye(m), Array1::ones(min_dim), Array2::eye(n))`
+        // "result" for every input, silently corrupting any caller that trusted it.
+        let (u, s, vt) = linalg_svd(&matrix.view(), false, self.config.num_threads)
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
         Ok((u, s, vt))
     }
 
@@ -507,8 +513,10 @@ impl ParallelDecomposition {
         &self,
         matrix: &Array2<Float>,
     ) -> Result<(Array1<Float>, Array2<Float>)> {
-        // Simplified parallel eigendecomposition
-        // A full implementation would use divide-and-conquer algorithms
+        // NOTE: a genuine divide-and-conquer eigensolver is tracked as a
+        // follow-up (see `block_parallel_svd`). Delegating to
+        // `sequential_eigendecomposition` guarantees a real, correct
+        // decomposition for every input in the meantime.
         self.sequential_eigendecomposition(matrix)
     }
 
@@ -516,12 +524,13 @@ impl ParallelDecomposition {
         &self,
         matrix: &Array2<Float>,
     ) -> Result<(Array1<Float>, Array2<Float>)> {
-        let n = matrix.nrows();
-
-        // Simplified eigendecomposition placeholder
-        let eigenvalues = Array1::ones(n);
-        let eigenvectors = Array2::eye(n);
-
+        // Real symmetric eigendecomposition via scirs2_linalg -- the same
+        // function `GpuAcceleration::gpu_eigendecomposition` uses for its CPU
+        // fallback path. Earlier revisions of this function returned a
+        // hardcoded `(Array1::ones(n), Array2::eye(n))` "result" for every
+        // input, silently corrupting any caller that trusted it.
+        let (eigenvalues, eigenvectors) = linalg_eigh(&matrix.view(), self.config.num_threads)
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
         Ok((eigenvalues, eigenvectors))
     }
 
@@ -552,86 +561,68 @@ impl ParallelDecomposition {
         }
     }
 
+    /// Row-tiled matrix multiplication.
+    ///
+    /// Splits the output into `tile_size`-row bands and computes each band's
+    /// full `A_band * B` product with a single (BLAS-backed) `dot` call,
+    /// writing the result directly into that band's slice of `result`. Since
+    /// distinct row bands own disjoint output rows, the bands can be computed
+    /// concurrently with no locking or synchronization.
+    ///
+    /// An earlier revision of this function computed `(i, j, k)` tiles by
+    /// hand via nested loops, accumulated them into a per-tile `tile_result`,
+    /// and then discarded every one of them, unconditionally returning
+    /// `a.dot(b)` instead -- real work was performed and thrown away on every
+    /// call. This version keeps the row-tiling (for parallel work
+    /// distribution) but actually writes the computed tiles into the
+    /// returned matrix.
     fn tiled_parallel_multiply(
         &self,
         a: &Array2<Float>,
         b: &Array2<Float>,
     ) -> Result<Array2<Float>> {
-        let (m, k) = a.dim();
+        let (m, _k) = a.dim();
         let (_, n) = b.dim();
-        let tile_size = 64; // Cache-friendly tile size
+        let tile_size = 64; // Cache-friendly row-band size
 
-        let _result = Array2::<Float>::zeros((m, n));
-
-        // Parallel tiled multiplication
-        let m_tiles = m.div_ceil(tile_size);
-        let n_tiles = n.div_ceil(tile_size);
-        let k_tiles = k.div_ceil(tile_size);
+        let mut result = Array2::<Float>::zeros((m, n));
 
         #[cfg(feature = "parallel")]
         {
-            (0..m_tiles).into_par_iter().for_each(|i_tile| {
-                for j_tile in 0..n_tiles {
-                    let mut tile_result = Array2::zeros((
-                        (tile_size).min(m - i_tile * tile_size),
-                        (tile_size).min(n - j_tile * tile_size),
-                    ));
-
-                    for k_tile in 0..k_tiles {
-                        let i_start = i_tile * tile_size;
-                        let i_end = (i_start + tile_size).min(m);
-                        let j_start = j_tile * tile_size;
-                        let j_end = (j_start + tile_size).min(n);
-                        let k_start = k_tile * tile_size;
-                        let k_end = (k_start + tile_size).min(k);
-
-                        let a_tile =
-                            a.slice(scirs2_core::ndarray::s![i_start..i_end, k_start..k_end]);
-                        let b_tile =
-                            b.slice(scirs2_core::ndarray::s![k_start..k_end, j_start..j_end]);
-
-                        tile_result += &a_tile.dot(&b_tile);
-                    }
-
-                    // This requires synchronization - simplified for demonstration
-                    // In practice, would need proper synchronization mechanisms
-                }
-            });
+            // `AxisChunksIterMut` itself doesn't implement rayon's
+            // `IntoParallelIterator` unless the underlying `ndarray` crate is
+            // built with its own `rayon` feature (a workspace-level knob out
+            // of scope for this crate); collecting into a `Vec` first lets us
+            // parallelize via rayon's plain `Vec<T>` support instead, with no
+            // extra dependency surface.
+            let row_chunks: Vec<_> = result
+                .axis_chunks_iter_mut(scirs2_core::ndarray::Axis(0), tile_size)
+                .collect();
+            row_chunks
+                .into_par_iter()
+                .enumerate()
+                .for_each(|(tile_idx, mut out_chunk)| {
+                    let row_start = tile_idx * tile_size;
+                    let row_end = row_start + out_chunk.nrows();
+                    let a_rows = a.slice(scirs2_core::ndarray::s![row_start..row_end, ..]);
+                    out_chunk.assign(&a_rows.dot(b));
+                });
         }
 
         #[cfg(not(feature = "parallel"))]
         {
-            (0..m_tiles).for_each(|i_tile| {
-                for j_tile in 0..n_tiles {
-                    let mut tile_result = Array2::zeros((
-                        (tile_size).min(m - i_tile * tile_size),
-                        (tile_size).min(n - j_tile * tile_size),
-                    ));
-
-                    for k_tile in 0..k_tiles {
-                        let i_start = i_tile * tile_size;
-                        let i_end = (i_start + tile_size).min(m);
-                        let j_start = j_tile * tile_size;
-                        let j_end = (j_start + tile_size).min(n);
-                        let k_start = k_tile * tile_size;
-                        let k_end = (k_start + tile_size).min(k);
-
-                        let a_tile =
-                            a.slice(scirs2_core::ndarray::s![i_start..i_end, k_start..k_end]);
-                        let b_tile =
-                            b.slice(scirs2_core::ndarray::s![k_start..k_end, j_start..j_end]);
-
-                        tile_result += &a_tile.dot(&b_tile);
-                    }
-
-                    // Write tile result back (this would need proper synchronization)
-                    // For now, skip the actual writing since we fall back anyway
-                }
-            });
+            result
+                .axis_chunks_iter_mut(scirs2_core::ndarray::Axis(0), tile_size)
+                .enumerate()
+                .for_each(|(tile_idx, mut out_chunk)| {
+                    let row_start = tile_idx * tile_size;
+                    let row_end = row_start + out_chunk.nrows();
+                    let a_rows = a.slice(scirs2_core::ndarray::s![row_start..row_end, ..]);
+                    out_chunk.assign(&a_rows.dot(b));
+                });
         }
 
-        // For now, fall back to standard multiplication
-        Ok(a.dot(b))
+        Ok(result)
     }
 }
 
@@ -769,12 +760,14 @@ impl AlignedMemoryOps {
 
     /// Copy data to aligned buffer if necessary
     pub fn ensure_aligned(&self, data: &Array1<Float>) -> AlignedBuffer {
-        let slice = data
-            .as_slice()
-            .expect("Array1 should have a contiguous slice representation");
-
-        let mut buffer = self.create_aligned_array(slice.len());
-        buffer.as_mut_slice().copy_from_slice(slice);
+        // Copy element-by-element in logical order instead of requiring a
+        // contiguous slice: `Array1` is normally contiguous, but this keeps
+        // the method correct (never panicking) for any memory layout rather
+        // than relying on that invariant.
+        let mut buffer = self.create_aligned_array(data.len());
+        for (dst, src) in buffer.as_mut_slice().iter_mut().zip(data.iter()) {
+            *dst = *src;
+        }
         buffer
     }
 }
@@ -787,6 +780,19 @@ impl Default for AlignedMemoryOps {
 
 impl AlignedBuffer {
     pub fn new(size: usize, alignment: usize) -> Self {
+        // Callers may request any `alignment` (including values smaller than
+        // `align_of::<Float>()`, or non-powers-of-two); `Layout::from_size_align`
+        // would accept those verbatim, but the resulting allocation is then
+        // reinterpreted as `*mut Float` below (and dereferenced as `&[Float]`
+        // in `as_slice`/`as_mut_slice`), which requires at least
+        // `align_of::<Float>()`. Sanitize here -- mirroring
+        // `AlignedMemoryOps::sanitize_alignment` and `AlignedMatrix::new` in
+        // `cache_optimization.rs` -- so this constructor is sound on its own,
+        // regardless of how callers reach it.
+        let alignment = alignment
+            .max(std::mem::align_of::<Float>())
+            .next_power_of_two();
+
         if size == 0 {
             return Self {
                 ptr: NonNull::dangling(),
@@ -879,6 +885,23 @@ impl GpuAcceleration {
         Self::with_config(AccelerationConfig::default())
     }
 
+    /// A CPU-only instance that skips GPU/driver initialization entirely.
+    ///
+    /// Infallible by construction: `with_config`'s `enable_gpu = false`
+    /// branch returns `Ok` before ever touching the driver, so this helper
+    /// reproduces exactly that branch without going through a `Result` at
+    /// all. Used as the guaranteed-to-succeed fallback in
+    /// [`GpuDecomposition`]'s `Default` impl.
+    fn cpu_only() -> Self {
+        Self {
+            config: AccelerationConfig {
+                enable_gpu: false,
+                ..AccelerationConfig::default()
+            },
+            context: None,
+        }
+    }
+
     pub fn with_config(config: AccelerationConfig) -> Result<Self> {
         if !config.enable_gpu {
             eprintln!(
@@ -897,11 +920,25 @@ impl GpuAcceleration {
             config.gpu_device_id, config.gpu_memory_limit
         );
 
+        // `GpuContext::with_device_id` (== `GpuBackend::with_device_id`) is
+        // fallible-and-optional: `Ok(None)` means "driver/hardware not
+        // present", which is expected on machines without a GPU and must
+        // fall back to CPU rather than be treated as an error. Only a
+        // genuine `Err` (a real initialisation failure) is surfaced to the
+        // caller.
         let context = match GpuContext::with_device_id(config.gpu_device_id as usize) {
-            Ok(ctx) => Some(ctx),
-            Err(_) => {
+            Ok(Some(ctx)) => Some(ctx),
+            Ok(None) => {
+                eprintln!(
+                    "[GpuAcceleration] No GPU detected at device {} (or CUDA driver unavailable); \
+                     falling back to CPU.",
+                    config.gpu_device_id
+                );
+                None
+            }
+            Err(e) => {
                 return Err(SklearsError::InvalidInput(format!(
-                    "Failed to initialize GPU device {}",
+                    "Failed to initialize GPU device {}: {e}",
                     config.gpu_device_id
                 )));
             }
@@ -937,7 +974,10 @@ impl GpuAcceleration {
             return Err(SklearsError::InvalidInput("GPU not available".to_string()));
         }
 
-        let ctx = self.context.as_ref().expect("checked above");
+        let ctx = self
+            .context
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("GPU not available".to_string()))?;
         let (_m, k1) = a.dim();
         let (k2, _n) = b.dim();
 
@@ -955,9 +995,12 @@ impl GpuAcceleration {
 
     /// GPU-accelerated SVD decomposition.
     ///
-    /// Dispatches matrix to `GpuContext` for data management; SVD computation uses
-    /// `scirs2_linalg::svd` (the full oxicuda-solver pipeline requires a standalone
-    /// `SolverHandle` + `DeviceBuffer` setup that is out of scope here).
+    /// Attempts a real on-device SVD via `oxicuda_solver::dense::svd` (using
+    /// this instance's `GpuContext`). If the on-device solve fails for any
+    /// reason (e.g. a convergence failure in the current host-fallback
+    /// implementation of that solver -- see `oxicuda_solver::dense::svd`'s
+    /// own docs), this transparently falls back to the CPU
+    /// `scirs2_linalg::svd` path rather than failing the whole request.
     pub fn gpu_svd(
         &self,
         matrix: &Array2<Float>,
@@ -965,13 +1008,90 @@ impl GpuAcceleration {
         if !self.is_gpu_available() {
             return Err(SklearsError::InvalidInput("GPU not available".to_string()));
         }
+        let ctx = self
+            .context
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("GPU not available".to_string()))?;
 
-        let (u, s, vt) = linalg_svd(&matrix.view(), false, None)
+        match Self::gpu_svd_on_device(ctx, matrix) {
+            Ok(result) => Ok(result),
+            Err(gpu_err) => {
+                eprintln!(
+                    "[GpuAcceleration] on-device SVD failed ({gpu_err}); \
+                     falling back to CPU scirs2_linalg::svd."
+                );
+                let (u, s, vt) = linalg_svd(&matrix.view(), false, self.config.num_threads)
+                    .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+                Ok((u, s, vt))
+            }
+        }
+    }
+
+    /// On-device SVD via `oxicuda_solver::dense::svd`.
+    ///
+    /// `oxicuda_solver`'s dense solvers expect column-major input with
+    /// leading dimension `lda`; `matrix.t().iter()` (row-major iteration of
+    /// the *transposed* view) yields exactly that layout with `lda = m`,
+    /// with no extra copy logic needed beyond the collect. Results (also
+    /// column-major) are reshaped back into row-major-queryable `Array2`s
+    /// via `Array2::from_shape_vec((rows, cols).f(), data)`.
+    fn gpu_svd_on_device(
+        ctx: &GpuContext,
+        matrix: &Array2<Float>,
+    ) -> Result<(Array2<Float>, Array1<Float>, Array2<Float>)> {
+        let (m, n) = matrix.dim();
+        if m == 0 || n == 0 {
+            return Err(SklearsError::InvalidInput(
+                "Matrix must be non-empty for SVD".to_string(),
+            ));
+        }
+        let k = m.min(n);
+
+        // Make this backend's context current on the calling thread before
+        // touching any device memory: `SolverHandle`/`DeviceBuffer` resolve
+        // against the ambient current CUDA context, and this call may run on
+        // a different thread than the one that originally constructed `ctx`.
+        ctx.context()
+            .set_current()
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+
+        let col_major: Vec<Float> = matrix.t().iter().copied().collect();
+        let mut a_buf =
+            DeviceBuffer::from_host(&col_major).map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+        let mut handle = SolverHandle::new(ctx.context())
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+
+        let result = oxicuda_solver::dense::svd(
+            &mut handle,
+            &mut a_buf,
+            m as u32,
+            n as u32,
+            m as u32,
+            SvdJob::Thin,
+        )
+        .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+
+        let u_data = result.u.ok_or_else(|| {
+            SklearsError::NumericalError("oxicuda_solver::svd: missing U".to_string())
+        })?;
+        let vt_data = result.vt.ok_or_else(|| {
+            SklearsError::NumericalError("oxicuda_solver::svd: missing Vt".to_string())
+        })?;
+
+        let u = Array2::from_shape_vec((m, k).f(), u_data)
+            .map_err(|e| SklearsError::NumericalError(format!("reshape U: {e}")))?;
+        let vt = Array2::from_shape_vec((k, n).f(), vt_data)
+            .map_err(|e| SklearsError::NumericalError(format!("reshape Vt: {e}")))?;
+        let s = Array1::from_vec(result.singular_values);
+
         Ok((u, s, vt))
     }
 
     /// GPU-accelerated eigendecomposition of a symmetric matrix.
+    ///
+    /// Attempts a real on-device solve via `oxicuda_solver::dense::syevd`,
+    /// falling back to the CPU `scirs2_linalg::eigh` path if the on-device
+    /// solve fails (mirrors `gpu_svd`'s fallback shape).
     pub fn gpu_eigendecomposition(
         &self,
         matrix: &Array2<Float>,
@@ -986,10 +1106,78 @@ impl GpuAcceleration {
                 "Matrix must be square for eigendecomposition".to_string(),
             ));
         }
+        let ctx = self
+            .context
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("GPU not available".to_string()))?;
 
-        let (eigenvals, eigenvecs) = linalg_eigh(&matrix.view(), None)
+        match Self::gpu_eigh_on_device(ctx, matrix) {
+            Ok(result) => Ok(result),
+            Err(gpu_err) => {
+                eprintln!(
+                    "[GpuAcceleration] on-device eigendecomposition failed ({gpu_err}); \
+                     falling back to CPU scirs2_linalg::eigh."
+                );
+                let (eigenvals, eigenvecs) = linalg_eigh(&matrix.view(), self.config.num_threads)
+                    .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+                Ok((eigenvals, eigenvecs))
+            }
+        }
+    }
+
+    /// On-device symmetric eigendecomposition via `oxicuda_solver::dense::syevd`.
+    ///
+    /// See `gpu_svd_on_device` for the column-major layout rationale; the
+    /// same conversion applies here (`syevd` only reads the lower triangle,
+    /// so any negligible floating-point asymmetry in `matrix` is immaterial).
+    fn gpu_eigh_on_device(
+        ctx: &GpuContext,
+        matrix: &Array2<Float>,
+    ) -> Result<(Array1<Float>, Array2<Float>)> {
+        let n = matrix.nrows();
+        if n == 0 {
+            return Err(SklearsError::InvalidInput(
+                "Matrix must be non-empty for eigendecomposition".to_string(),
+            ));
+        }
+
+        ctx.context()
+            .set_current()
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
-        Ok((eigenvals, eigenvecs))
+
+        let col_major: Vec<Float> = matrix.t().iter().copied().collect();
+        let mut a_buf =
+            DeviceBuffer::from_host(&col_major).map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+        let mut eigenvalues_buf =
+            DeviceBuffer::<Float>::zeroed(n).map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+        let mut handle = SolverHandle::new(ctx.context())
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+
+        oxicuda_solver::dense::syevd(
+            &mut handle,
+            &mut a_buf,
+            n as u32,
+            n as u32,
+            &mut eigenvalues_buf,
+            EigJob::ValuesAndVectors,
+        )
+        .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+
+        let mut eigenvalues_host = vec![0.0 as Float; n];
+        eigenvalues_buf
+            .copy_to_host(&mut eigenvalues_host)
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+
+        let mut eigenvectors_host = vec![0.0 as Float; n * n];
+        a_buf
+            .copy_to_host(&mut eigenvectors_host)
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+
+        let eigenvalues = Array1::from_vec(eigenvalues_host);
+        let eigenvectors = Array2::from_shape_vec((n, n).f(), eigenvectors_host)
+            .map_err(|e| SklearsError::NumericalError(format!("reshape eigenvectors: {e}")))?;
+
+        Ok((eigenvalues, eigenvectors))
     }
 
     pub fn batch_gpu_multiply(&self, matrices: &[Array2<Float>]) -> Result<Vec<Array2<Float>>> {
@@ -1078,7 +1266,9 @@ impl GpuDecomposition {
         // Center the data
         let col_means = data
             .mean_axis(scirs2_core::ndarray::Axis(0))
-            .expect("array should have elements for mean computation");
+            .ok_or_else(|| {
+                SklearsError::InvalidInput("data must have at least one row for PCA".to_string())
+            })?;
         let centered_data = data - &col_means.insert_axis(scirs2_core::ndarray::Axis(0));
 
         // Perform GPU SVD
@@ -1118,16 +1308,8 @@ impl GpuDecomposition {
 #[cfg(feature = "gpu")]
 impl Default for GpuDecomposition {
     fn default() -> Self {
-        Self::new().unwrap_or_else(|_| {
-            // Create a fallback instance
-            let config = AccelerationConfig {
-                enable_gpu: false,
-                ..AccelerationConfig::default()
-            };
-            Self {
-                gpu_acceleration: GpuAcceleration::with_config(config)
-                    .expect("operation should succeed"),
-            }
+        Self::new().unwrap_or_else(|_| Self {
+            gpu_acceleration: GpuAcceleration::cpu_only(),
         })
     }
 }
@@ -1213,6 +1395,130 @@ mod tests {
         let (eigenvals, eigenvecs) = result.expect("operation should succeed");
         assert_eq!(eigenvals.len(), 3);
         assert_eq!(eigenvecs.dim(), (3, 3));
+    }
+
+    /// Regression test for the Wave B3 critical bug: `sequential_svd` used to
+    /// return a hardcoded `(Array2::eye(m), Array1::ones(min_dim),
+    /// Array2::eye(n))` "result" for *every* input, no matter what. That only
+    /// looks correct by accident on an identity input, so this deliberately
+    /// uses a non-trivial, non-symmetric, non-identity matrix: the old fake
+    /// implementation fails both the "not all-ones singular values" check and
+    /// the reconstruction check below.
+    #[test]
+    fn test_sequential_svd_reconstructs_matrix() {
+        let config = AccelerationConfig {
+            enable_parallel: false, // force the `sequential_svd` code path
+            ..AccelerationConfig::default()
+        };
+        let parallel_ops = ParallelDecomposition::new().with_config(config);
+
+        let matrix =
+            Array2::from_shape_vec((3, 3), vec![4.0, 1.0, 2.0, 0.0, 3.0, 1.0, 5.0, 2.0, 6.0])
+                .expect("shape and data length should match");
+
+        let (u, s, vt) = parallel_ops
+            .parallel_svd(&matrix)
+            .expect("SVD should succeed");
+
+        assert_eq!(u.dim(), (3, 3));
+        assert_eq!(s.len(), 3);
+        assert_eq!(vt.dim(), (3, 3));
+        // The fake implementation returned `s = [1, 1, 1]`.
+        assert!(s.iter().any(|&x| (x - 1.0).abs() > 1e-6));
+
+        // Reconstruction check: A ≈ U * diag(S) * Vt.
+        let us = &u * &s.view().insert_axis(scirs2_core::ndarray::Axis(0));
+        let reconstructed = us.dot(&vt);
+        for (r, e) in reconstructed.iter().zip(matrix.iter()) {
+            assert!((r - e).abs() < 1e-8, "reconstructed={r}, expected={e}");
+        }
+    }
+
+    /// Same bug, but for `block_parallel_svd` specifically (named explicitly
+    /// in the bug report alongside `sequential_svd`). It's normally only
+    /// reached for matrices larger than 1000x1000 via the public
+    /// `parallel_svd`; call the private method directly (visible to this
+    /// child module) so the test stays fast.
+    #[test]
+    fn test_block_parallel_svd_reconstructs_matrix() {
+        let parallel_ops = ParallelDecomposition::new();
+        let matrix =
+            Array2::from_shape_vec((3, 3), vec![4.0, 1.0, 2.0, 0.0, 3.0, 1.0, 5.0, 2.0, 6.0])
+                .expect("shape and data length should match");
+
+        let (u, s, vt) = parallel_ops
+            .block_parallel_svd(&matrix)
+            .expect("block SVD should succeed");
+
+        assert!(s.iter().any(|&x| (x - 1.0).abs() > 1e-6));
+        let us = &u * &s.view().insert_axis(scirs2_core::ndarray::Axis(0));
+        let reconstructed = us.dot(&vt);
+        for (r, e) in reconstructed.iter().zip(matrix.iter()) {
+            assert!((r - e).abs() < 1e-8, "reconstructed={r}, expected={e}");
+        }
+    }
+
+    /// Regression test for the matching bug in `sequential_eigendecomposition`,
+    /// which used to return `(Array1::ones(n), Array2::eye(n))` unconditionally.
+    #[test]
+    fn test_sequential_eigendecomposition_reconstructs_symmetric_matrix() {
+        let config = AccelerationConfig {
+            enable_parallel: false,
+            ..AccelerationConfig::default()
+        };
+        let parallel_ops = ParallelDecomposition::new().with_config(config);
+
+        // A genuine (non-identity) symmetric tridiagonal matrix; eigenvalues
+        // are 2, 2 - sqrt(2), 2 + sqrt(2).
+        let matrix =
+            Array2::from_shape_vec((3, 3), vec![2.0, 1.0, 0.0, 1.0, 2.0, 1.0, 0.0, 1.0, 2.0])
+                .expect("shape and data length should match");
+
+        let (eigenvalues, eigenvectors) = parallel_ops
+            .parallel_eigendecomposition(&matrix)
+            .expect("eigendecomposition should succeed");
+
+        assert_eq!(eigenvalues.len(), 3);
+        assert_eq!(eigenvectors.dim(), (3, 3));
+        // The fake implementation returned eigenvalues = [1, 1, 1].
+        assert!(eigenvalues.iter().any(|&x| (x - 1.0).abs() > 1e-6));
+
+        // Correctness check: A * v ≈ λ * v for every eigenvector column.
+        for j in 0..3 {
+            let v = eigenvectors.column(j);
+            let av = matrix.dot(&v);
+            let lambda_v = v.mapv(|x| x * eigenvalues[j]);
+            for (a, b) in av.iter().zip(lambda_v.iter()) {
+                assert!((a - b).abs() < 1e-8, "A*v={a}, lambda*v={b}");
+            }
+        }
+    }
+
+    /// Regression test for the dead-tile-computation bug in
+    /// `tiled_parallel_multiply`: tiles used to be computed and then thrown
+    /// away in favor of an unconditional `a.dot(b)`. Dimensions are chosen to
+    /// (a) trigger the tiled path via the public `parallel_matrix_multiply`
+    /// (`m, n, k > 100`) and (b) NOT be exact multiples of the 64-row tile
+    /// size, so an off-by-one in the remainder-tile handling would show up.
+    #[test]
+    fn test_tiled_parallel_multiply_matches_reference() {
+        let parallel_ops = ParallelDecomposition::new();
+
+        let m = 130;
+        let k = 150;
+        let n = 110;
+        let a = Array2::from_shape_fn((m, k), |(i, j)| ((i * 7 + j * 3) % 13) as Float);
+        let b = Array2::from_shape_fn((k, n), |(i, j)| ((i * 5 + j * 11) % 17) as Float);
+
+        let result = parallel_ops
+            .parallel_matrix_multiply(&a, &b)
+            .expect("multiply should succeed");
+        let expected = a.dot(&b);
+
+        assert_eq!(result.dim(), expected.dim());
+        for (r, e) in result.iter().zip(expected.iter()) {
+            assert!((r - e).abs() < 1e-6, "result={r}, expected={e}");
+        }
     }
 
     #[test]
@@ -1315,6 +1621,60 @@ mod tests {
         assert!(config.enable_gpu);
         assert_eq!(config.gpu_device_id, 0);
         assert_eq!(config.gpu_memory_limit, Some(1024 * 1024 * 1024));
+    }
+
+    /// Regression test for the Part 1 mechanical adaptation:
+    /// `GpuContext::with_device_id` now returns `Result<Option<Self>>`
+    /// instead of an (effectively) infallible `Result<Self>`. On a machine
+    /// with no CUDA device (this crate's own dev/CI environment), requesting
+    /// GPU acceleration must gracefully fall back to CPU -- `Ok` with
+    /// `is_gpu_available() == false` -- rather than hard-erroring out of
+    /// `with_config`.
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_gpu_acceleration_with_config_falls_back_when_no_gpu() {
+        let config = AccelerationConfig {
+            enable_gpu: true,
+            ..AccelerationConfig::default()
+        };
+        let gpu_acc = GpuAcceleration::with_config(config).expect(
+            "GPU init must fall back to CPU gracefully (Ok), not hard-error, when no GPU is present",
+        );
+        // Whether or not a real GPU happens to be present on the machine
+        // running this test, construction itself must succeed either way.
+        let _ = gpu_acc.is_gpu_available();
+    }
+
+    /// Best-effort correctness check for the Part 3 GPU wiring
+    /// (`gpu_svd` -> `oxicuda_solver::dense::svd`). Gracefully skips without
+    /// real hardware (expected on this crate's dev/CI machine), mirroring the
+    /// skip pattern already used by `sklears_core::gpu`'s own GPU tests.
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_gpu_svd_reconstructs_matrix_when_available() {
+        let config = AccelerationConfig {
+            enable_gpu: true,
+            ..AccelerationConfig::default()
+        };
+        let Ok(gpu_acc) = GpuAcceleration::with_config(config) else {
+            return;
+        };
+        if !gpu_acc.is_gpu_available() {
+            eprintln!("skipping test_gpu_svd_reconstructs_matrix_when_available: no GPU detected");
+            return;
+        }
+
+        let matrix =
+            Array2::from_shape_vec((3, 3), vec![4.0, 1.0, 2.0, 0.0, 3.0, 1.0, 5.0, 2.0, 6.0])
+                .expect("shape and data length should match");
+        let (u, s, vt) = gpu_acc
+            .gpu_svd(&matrix)
+            .expect("GPU SVD should succeed when a GPU is available");
+        let us = &u * &s.view().insert_axis(scirs2_core::ndarray::Axis(0));
+        let reconstructed = us.dot(&vt);
+        for (r, e) in reconstructed.iter().zip(matrix.iter()) {
+            assert!((r - e).abs() < 1e-6, "reconstructed={r}, expected={e}");
+        }
     }
 
     #[cfg(feature = "gpu")]

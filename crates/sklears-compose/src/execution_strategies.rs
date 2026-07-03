@@ -1968,6 +1968,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_sequential_strategy_execution() {
         let strategy = SequentialExecutionStrategy::new();
         let task = crate::task_definitions::ExecutionTask::builder()

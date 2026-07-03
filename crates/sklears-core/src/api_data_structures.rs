@@ -347,6 +347,16 @@ pub enum Visibility {
     Restricted(String),
 }
 
+impl std::fmt::Display for Visibility {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Visibility::Public => write!(f, "public"),
+            Visibility::Private => write!(f, "private"),
+            Visibility::Restricted(path) => write!(f, "restricted({path})"),
+        }
+    }
+}
+
 // ================================================================================================
 // EXAMPLE-RELATED STRUCTURES
 // ================================================================================================
@@ -1259,5 +1269,15 @@ mod tests {
 
         assert_eq!(example.title, deserialized.title);
         assert_eq!(example.code, deserialized.code);
+    }
+
+    #[test]
+    fn test_visibility_display() {
+        assert_eq!(Visibility::Public.to_string(), "public");
+        assert_eq!(Visibility::Private.to_string(), "private");
+        assert_eq!(
+            Visibility::Restricted("crate".to_string()).to_string(),
+            "restricted(crate)"
+        );
     }
 }

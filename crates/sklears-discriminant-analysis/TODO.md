@@ -4,7 +4,7 @@
 
 - [x] Re-enable `pub mod async_optimization` — ENABLED (fixed SklearsError::ComputationError → ProcessingError, array view add, RwLockGuard across await)
 - [x] Re-enable `pub mod boundary_adjustment` — ENABLED (fixed associated type bound: T::Fitted → explicit F generic with Fitted=F + Send+Sync)
-- [~] Re-enable `pub mod gpu_acceleration` — DEFERRED: scirs2_core::gpu::kernels::reduction::ReductionKernel and scirs2_core::gpu::memory path do not exist in scirs2-core 0.4.2; requires gpu feature dep not in Cargo.toml
+- [x] Re-enable `pub mod gpu_acceleration` — DONE (2026-07-03): retargeted from dead `scirs2_core::gpu::*` to the real `sklears_core::gpu::{GpuBackend, GpuArray, GpuMatrixOps}` foundation; real GEMM-based class means/covariance; oxicuda-solver wiring for QDA inverse/log-determinant and an LDA generalized eigensolve via Cholesky reduction (no sygvd in oxicuda-solver 0.4.0); found and fixed a real bug in `NumericalStability::stable_inverse` (was a stub returning NotImplemented for non-symmetric matrices, now uses scirs2_linalg::inv); 322 tests passing (16 new gpu_acceleration tests, all GPU-path tests gracefully skip on this no-CUDA machine rather than silently no-op-passing).
 - [x] Re-enable `pub mod phantom_types` — ENABLED (const _: () = assert!() in generic fn → runtime assert!(), const fn → fn in ConfigurationValidator, added ldlt_solver() builder method)
 
 ## Source-level TODOs

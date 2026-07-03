@@ -744,10 +744,14 @@ impl SparseRandomProjection<Untrained> {
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)] // retained for serialization/introspection
 pub struct SRPTrained {
     projection_matrix: Array2<f64>,
     scaling_factor: f64,
+    // Duplicates the outer `SparseRandomProjection::density` hyperparameter.
+    // Not currently read anywhere (derived `Debug`/`Clone` impls are ignored by
+    // dead-code analysis), but retained on the trained state for future
+    // serialization/introspection parity with `RandomProjection`.
+    #[allow(dead_code)]
     density: f64,
 }
 
@@ -834,5 +838,15 @@ impl Transform<ArrayView2<'_, Float>, Array2<f64>> for SparseRandomProjection<SR
         let scaled = projected * self.state.scaling_factor;
 
         Ok(scaled)
+    }
+}
+
+impl SparseRandomProjection<SRPTrained> {
+    /// Return a reference to the fitted projection matrix.
+    ///
+    /// The matrix has shape `(n_features, n_components)` and is applied to the
+    /// input data via a matrix product during [`Transform::transform`].
+    pub fn projection_matrix(&self) -> &Array2<f64> {
+        &self.state.projection_matrix
     }
 }

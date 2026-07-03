@@ -1720,6 +1720,15 @@ mod tests {
     }
 
     #[test]
+    // This test asserts wall-clock elapsed time stays under a 100ms `max_age`
+    // budget between tracking an allocation and the first `check_leaks()`
+    // call. Miri's interpretation overhead (10-50x+ native) can easily blow
+    // through that budget on otherwise-correct code, so the assertion is not
+    // meaningful under Miri.
+    #[cfg_attr(
+        miri,
+        ignore = "wall-clock timing assertion (max_age budget) unreliable under Miri's interpretation overhead"
+    )]
     fn test_memory_leak_detector() {
         let config = MemoryLeakConfig {
             collect_stack_traces: false,

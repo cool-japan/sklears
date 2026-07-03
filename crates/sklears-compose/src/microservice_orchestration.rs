@@ -709,6 +709,7 @@ mod tests {
     use crate::api_gateway::MLPipelineGateway;
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_workflow_registration() {
         let gateway = Arc::new(MLPipelineGateway::new());
         let orchestrator = MicroserviceOrchestrator::new(gateway);
@@ -742,6 +743,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_execution_order_calculation() {
         let gateway = Arc::new(MLPipelineGateway::new());
         let orchestrator = MicroserviceOrchestrator::new(gateway);
@@ -784,6 +786,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_circular_dependency_detection() {
         let gateway = Arc::new(MLPipelineGateway::new());
         let orchestrator = MicroserviceOrchestrator::new(gateway);
@@ -826,6 +829,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_workflow_validation() {
         let gateway = Arc::new(MLPipelineGateway::new());
         let orchestrator = MicroserviceOrchestrator::new(gateway);

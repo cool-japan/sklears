@@ -1116,6 +1116,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_component_registration() {
         let system = FaultIsolationSystem::with_defaults("test_system".to_string());
 
@@ -1141,6 +1142,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_dependency_management() {
         let system = FaultIsolationSystem::with_defaults("test_system".to_string());
 
@@ -1160,6 +1162,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_quarantine_isolation() {
         let system = FaultIsolationSystem::with_defaults("test_system".to_string());
 
@@ -1202,6 +1205,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_isolation_rollback() {
         let system = FaultIsolationSystem::with_defaults("test_system".to_string());
 
@@ -1235,6 +1239,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_impact_assessment() {
         let system = FaultIsolationSystem::with_defaults("test_system".to_string());
 
@@ -1280,6 +1285,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_isolation_metrics() {
         let system = FaultIsolationSystem::with_defaults("test_system".to_string());
 
@@ -1305,6 +1311,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_health_status() {
         let system = FaultIsolationSystem::with_defaults("test_system".to_string());
 

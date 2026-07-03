@@ -1055,6 +1055,7 @@ mod tests {
     use tokio::io::AsyncWriteExt;
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_function_deployment() {
         let runtime = ServerlessRuntime::new();
         
@@ -1081,6 +1082,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_function_validation() {
         let runtime = ServerlessRuntime::new();
         
@@ -1105,6 +1107,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_cost_calculation() {
         let runtime = ServerlessRuntime::new();
         
@@ -1117,6 +1120,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_resource_allocation() {
         let runtime = ServerlessRuntime::new();
         
@@ -1149,6 +1153,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_execution_queue() {
         let runtime = ServerlessRuntime::new();
         

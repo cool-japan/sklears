@@ -2,8 +2,18 @@
 //!
 //! Orchestrates work across multiple GPU devices (or CPU-reference backends
 //! when real GPUs are absent). The core GEMM dispatch delegates to
-//! `oxicuda-backend`'s `ComputeBackend::gemm()` through the `GpuLinearOps`
-//! infrastructure when the `gpu` feature is enabled.
+//! `sklears_core::gpu::{GpuArray, GpuMatrixOps}` (backed directly by
+//! `oxicuda-blas`) through the [`AdvancedGpuOps`] infrastructure when the
+//! `gpu` feature is enabled.
+//!
+//! # Wave B1
+//!
+//! [`AdvancedGpuOps`] now caches a single `Option<GpuBackend>` (detected
+//! once in [`AdvancedGpuOps::new`]) instead of calling the old infallible
+//! `GpuContext::new()` fresh on every GEMM call; every GPU-dispatch site
+//! extends its existing problem-size-threshold branch to also require that
+//! cached backend, falling back to the CPU path whenever no GPU was
+//! detected (see `sklears_core::gpu::GpuBackend::detect`).
 
 use scirs2_core::ndarray::{s, Array2, Array3, ArrayView2};
 use sklears_core::{error::Result, prelude::SklearsError, types::Float};
@@ -12,7 +22,21 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 #[cfg(feature = "gpu")]
-use sklears_core::gpu::{GpuArray, GpuContext, GpuMatrixOps, GpuUtils};
+use sklears_core::gpu::{GpuArray, GpuBackend, GpuMatrixOps, GpuUtils};
+#[cfg(feature = "gpu")]
+use oxicuda_blas::{Layout, MatrixDesc, MatrixDescMut, Transpose};
+#[cfg(feature = "gpu")]
+use oxicuda_memory::DeviceBuffer;
+#[cfg(feature = "gpu")]
+use half::f16;
+
+/// Maps any GPU-stack error (`oxicuda-driver`/`oxicuda-blas`) to a
+/// `SklearsError`, without needing those crates as direct dependencies just
+/// to name their error types.
+#[cfg(feature = "gpu")]
+fn gpu_err<E: std::fmt::Display>(e: E) -> SklearsError {
+    SklearsError::NumericalError(format!("GPU error: {e}"))
+}
 
 // ─── AdvancedGpuConfig ─────────────────────────────────────────────────────────
 
@@ -236,6 +260,12 @@ pub struct AdvancedGpuOps {
     streams: Vec<Vec<CudaStream>>,
     performance_metrics: Vec<GpuPerformanceMetrics>,
     load_balancer: LoadBalancer,
+    /// Detected once at construction time (see [`GpuBackend::detect`]);
+    /// `None` when no GPU is present (or the `gpu` feature is disabled), in
+    /// which case every GEMM dispatch below falls back to its CPU
+    /// counterpart.
+    #[cfg(feature = "gpu")]
+    gpu_backend: Option<GpuBackend>,
 }
 
 impl AdvancedGpuOps {
@@ -263,6 +293,9 @@ impl AdvancedGpuOps {
 
         let load_balancer = LoadBalancer::new(config.load_balancing, &devices);
 
+        #[cfg(feature = "gpu")]
+        let gpu_backend = GpuBackend::detect()?;
+
         Ok(Self {
             config,
             devices,
@@ -270,6 +303,8 @@ impl AdvancedGpuOps {
             streams,
             performance_metrics: Vec::new(),
             load_balancer,
+            #[cfg(feature = "gpu")]
+            gpu_backend,
         })
     }
 
@@ -315,14 +350,12 @@ impl AdvancedGpuOps {
         _device_id: usize,
     ) -> Result<Array2<Float>> {
         #[cfg(feature = "gpu")]
-        {
+        if let Some(backend) = self.gpu_backend.as_ref() {
             let (m, k) = a.dim();
             let (_, n) = b.dim();
             if m * k + k * n >= self.config.min_problem_size {
-                let ctx =
-                    GpuContext::new().map_err(|e| SklearsError::NumericalError(e.to_string()))?;
-                let a_gpu = GpuArray::<Float>::from_array2(&ctx, a)?;
-                let b_gpu = GpuArray::<Float>::from_array2(&ctx, b)?;
+                let a_gpu = GpuArray::<Float>::from_array2(backend, a)?;
+                let b_gpu = GpuArray::<Float>::from_array2(backend, b)?;
                 let c_gpu = a_gpu.matmul(&b_gpu)?;
                 return c_gpu.to_array2();
             }
@@ -441,7 +474,23 @@ impl AdvancedGpuOps {
         Ok(result)
     }
 
-    /// Mixed precision matrix multiplication (AMP path or fallback).
+    /// Mixed precision matrix multiplication.
+    ///
+    /// When mixed precision is enabled and a GPU is available, this runs a
+    /// real FP16-input GEMM via `oxicuda_blas::level3::gemm::<half::f16>`.
+    /// `GpuFloat::Accumulator` for `f16` is `f32` (see
+    /// `oxicuda_blas::types::GpuFloat`), so this is the standard Tensor
+    /// Core "mixed precision" mode: every multiply-accumulate happens in
+    /// FP32 even though the operands and result are stored as FP16. `a`/`b`
+    /// are downcast to FP16 before upload and the FP16 result is upcast
+    /// back to `Float` on return -- trading precision for throughput and
+    /// memory bandwidth, the same trade-off `torch.cuda.amp` and similar
+    /// mixed-precision training modes make.
+    ///
+    /// Falls back to the plain-precision path (identical to the
+    /// `enable_mixed_precision == false` case) whenever no GPU is
+    /// available or the FP16 path itself errors (e.g. unsupported
+    /// architecture).
     pub fn mixed_precision_matrix_multiply(
         &mut self,
         a: &Array2<Float>,
@@ -452,29 +501,127 @@ impl AdvancedGpuOps {
         }
 
         let start_time = Instant::now();
-        let result = self.single_gpu_matrix_multiply(a, b, 0)?;
 
-        if self.config.enable_profiling {
-            let duration = start_time.elapsed();
-            let (m, k) = a.dim();
-            let (_, n) = b.dim();
-            let ops = 2.0 * m as f64 * n as f64 * k as f64;
-            let throughput = ops / duration.as_secs_f64() / 1e9;
-            self.performance_metrics.push(GpuPerformanceMetrics {
-                device_id: 0,
-                operation_name: "mixed_precision_matrix_multiply".to_string(),
-                duration,
-                memory_used: (m * k + k * n + m * n) * std::mem::size_of::<Float>(),
-                throughput_gflops: throughput,
-                memory_bandwidth_gbps: 0.0,
-                occupancy_percentage: 0.0,
-            });
+        #[cfg(feature = "gpu")]
+        if let Some(backend) = self.gpu_backend.as_ref() {
+            match Self::fp16_matrix_multiply(backend, a, b) {
+                Ok(result) => {
+                    self.record_matmul_metrics(
+                        "mixed_precision_matrix_multiply",
+                        a,
+                        b,
+                        start_time,
+                    );
+                    return Ok(result);
+                }
+                Err(e) => {
+                    log::warn!(
+                        "Mixed-precision (FP16) GEMM failed ({e}), falling back to plain-precision path"
+                    );
+                }
+            }
         }
 
+        let result = self.single_gpu_matrix_multiply(a, b, 0)?;
+        self.record_matmul_metrics("mixed_precision_matrix_multiply", a, b, start_time);
         Ok(result)
     }
 
-    /// Submit an asynchronous GEMM; returns a handle with shape metadata.
+    /// Records a `GpuPerformanceMetrics` sample for a plain `m x k` by
+    /// `k x n` GEMM, if profiling is enabled. Shared by both branches of
+    /// [`mixed_precision_matrix_multiply`] so they report comparable
+    /// throughput numbers.
+    fn record_matmul_metrics(
+        &mut self,
+        operation_name: &str,
+        a: &Array2<Float>,
+        b: &Array2<Float>,
+        start_time: Instant,
+    ) {
+        if !self.config.enable_profiling {
+            return;
+        }
+        let duration = start_time.elapsed();
+        let (m, k) = a.dim();
+        let (_, n) = b.dim();
+        let ops = 2.0 * m as f64 * n as f64 * k as f64;
+        let throughput = ops / duration.as_secs_f64() / 1e9;
+        self.performance_metrics.push(GpuPerformanceMetrics {
+            device_id: 0,
+            operation_name: operation_name.to_string(),
+            duration,
+            memory_used: (m * k + k * n + m * n) * std::mem::size_of::<Float>(),
+            throughput_gflops: throughput,
+            memory_bandwidth_gbps: 0.0,
+            occupancy_percentage: 0.0,
+        });
+    }
+
+    /// Executes a GEMM in FP16 (see [`mixed_precision_matrix_multiply`] for
+    /// why this counts as genuine mixed-precision compute). Implemented
+    /// directly against `oxicuda-blas`/`oxicuda-memory` rather than
+    /// `sklears_core::gpu::{GpuArray, GpuMatrixOps}`, since that wrapper
+    /// only covers `f32`/`f64` today.
+    #[cfg(feature = "gpu")]
+    fn fp16_matrix_multiply(
+        backend: &GpuBackend,
+        a: &Array2<Float>,
+        b: &Array2<Float>,
+    ) -> Result<Array2<Float>> {
+        let (m, k) = a.dim();
+        let (k2, n) = b.dim();
+        if k != k2 {
+            return Err(SklearsError::InvalidInput(format!(
+                "fp16_matrix_multiply: inner dimensions differ ({k} vs {k2})"
+            )));
+        }
+
+        backend.context().set_current().map_err(gpu_err)?;
+
+        let a_f16: Vec<f16> = a.iter().map(|&v| f16::from_f64(v)).collect();
+        let b_f16: Vec<f16> = b.iter().map(|&v| f16::from_f64(v)).collect();
+
+        let a_buf = DeviceBuffer::from_host(&a_f16).map_err(gpu_err)?;
+        let b_buf = DeviceBuffer::from_host(&b_f16).map_err(gpu_err)?;
+        let mut c_buf = DeviceBuffer::<f16>::zeroed(m * n).map_err(gpu_err)?;
+
+        let a_desc =
+            MatrixDesc::from_buffer(&a_buf, m as u32, k as u32, Layout::RowMajor).map_err(gpu_err)?;
+        let b_desc =
+            MatrixDesc::from_buffer(&b_buf, k as u32, n as u32, Layout::RowMajor).map_err(gpu_err)?;
+        let mut c_desc = MatrixDescMut::from_buffer(&mut c_buf, m as u32, n as u32, Layout::RowMajor)
+            .map_err(gpu_err)?;
+
+        oxicuda_blas::level3::gemm(
+            backend.blas(),
+            Transpose::NoTrans,
+            Transpose::NoTrans,
+            f16::ONE,
+            &a_desc,
+            &b_desc,
+            f16::ZERO,
+            &mut c_desc,
+        )
+        .map_err(gpu_err)?;
+
+        let mut c_f16 = vec![f16::ZERO; m * n];
+        c_buf.copy_to_host(&mut c_f16).map_err(gpu_err)?;
+
+        let c_flat: Vec<Float> = c_f16.iter().map(|v| v.to_f64()).collect();
+        Ok(Array2::from_shape_vec((m, n), c_flat)?)
+    }
+
+    /// Submit a GEMM and return a handle carrying its (real) result.
+    ///
+    /// There is no actual asynchronous GPU stream plumbing in this module:
+    /// `CudaStream::synchronize` is bookkeeping only, and
+    /// `single_gpu_matrix_multiply` is a blocking call. Rather than return a
+    /// handle that can never honestly report completion (or, worse, one
+    /// that fabricates a zeroed result once "complete"), the multiply is
+    /// executed eagerly here and the genuine computed array is stored on
+    /// the handle; [`AsyncGpuOperation::is_ready`] is `true` immediately
+    /// because the computation has, in fact, already finished by the time
+    /// this function returns. See [`AsyncGpuOperation::get_result`].
     pub fn async_matrix_multiply(
         &mut self,
         a: &Array2<Float>,
@@ -492,16 +639,22 @@ impl AdvancedGpuOps {
         }
 
         let stream_id = self.find_available_stream(device_id)?;
-        let operation = AsyncGpuOperation {
+        self.streams[device_id][stream_id].is_busy = true;
+
+        let start_time = Instant::now();
+        let result = self.single_gpu_matrix_multiply(a, b, device_id)?;
+        // The (synchronous) work is done, so the stream is free again.
+        self.streams[device_id][stream_id].is_busy = false;
+
+        Ok(AsyncGpuOperation {
             operation_id: 0,
             device_id,
             stream_id,
-            start_time: Instant::now(),
+            start_time,
             result_shape: (m, n),
-            is_complete: false,
-        };
-        self.streams[device_id][stream_id].is_busy = true;
-        Ok(operation)
+            is_complete: true,
+            result,
+        })
     }
 
     fn find_available_stream(&self, device_id: usize) -> Result<usize> {
@@ -745,7 +898,10 @@ impl LoadBalancer {
 
 // ─── AsyncGpuOperation ─────────────────────────────────────────────────────────
 
-/// Handle for a submitted asynchronous GPU operation.
+/// Handle for a submitted GPU operation.
+///
+/// See [`AdvancedGpuOps::async_matrix_multiply`] for why `result` is the
+/// real, already-computed output rather than a promise resolved later.
 #[derive(Debug)]
 pub struct AsyncGpuOperation {
     pub operation_id: usize,
@@ -754,6 +910,7 @@ pub struct AsyncGpuOperation {
     pub start_time: Instant,
     pub result_shape: (usize, usize),
     pub is_complete: bool,
+    result: Array2<Float>,
 }
 
 impl AsyncGpuOperation {
@@ -761,13 +918,19 @@ impl AsyncGpuOperation {
         self.is_complete
     }
 
+    /// Returns the result of this operation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SklearsError::InvalidInput`] if the operation has not
+    /// completed yet (`is_ready()` is `false`).
     pub fn get_result(&self) -> Result<Array2<Float>> {
         if !self.is_complete {
             return Err(SklearsError::InvalidInput(
                 "Operation not complete".to_string(),
             ));
         }
-        Ok(Array2::zeros(self.result_shape))
+        Ok(self.result.clone())
     }
 
     pub fn elapsed_time(&self) -> Duration {
@@ -954,6 +1117,19 @@ mod tests {
             .expect("operation should succeed");
         assert_eq!(async_op.device_id, 0);
         assert_eq!(async_op.result_shape, (4, 2));
+
+        // Regression test: `get_result()` must return the real product,
+        // not a fabricated zero matrix (see `AsyncGpuOperation::get_result`).
+        assert!(async_op.is_ready());
+        let result = async_op.get_result().expect("result should be available");
+        assert_eq!(result.dim(), (4, 2));
+        let expected = a.dot(&b);
+        for (got, want) in result.iter().zip(expected.iter()) {
+            assert!(
+                (got - want).abs() < 1e-10,
+                "got {got}, want {want} (async result must match a.dot(b))"
+            );
+        }
     }
 
     #[test]

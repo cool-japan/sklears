@@ -6,6 +6,7 @@
 use numpy::{PyArray1, PyArray2, PyArrayMethods};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::thread_rng;
 use std::collections::HashMap;
@@ -81,41 +82,50 @@ pub fn has_feature(feature_name: &str) -> bool {
 }
 
 /// Get hardware acceleration capabilities
+///
+/// Returns a Python `dict` mixing boolean capability flags (e.g. `avx2`,
+/// `neon`, `parallel_support`) with the integer CPU core count under the
+/// `num_cpus` key. A plain `HashMap<String, bool>` cannot represent this
+/// mixed shape, so we build a `PyDict` directly (matching the heterogeneous
+/// dict pattern already used by `get_params` in the `linear` module) rather
+/// than lossily coercing the core count into a boolean.
 #[pyfunction]
-pub fn get_hardware_info() -> HashMap<String, bool> {
-    let mut info = HashMap::new();
+pub fn get_hardware_info(py: Python<'_>) -> PyResult<Py<PyDict>> {
+    let info = PyDict::new(py);
 
     // CPU features
     #[cfg(target_arch = "x86_64")]
     {
-        info.insert("x86_64".to_string(), true);
-        info.insert("avx2".to_string(), is_x86_feature_detected!("avx2"));
-        info.insert("fma".to_string(), is_x86_feature_detected!("fma"));
-        info.insert("sse4_1".to_string(), is_x86_feature_detected!("sse4.1"));
-        info.insert("sse4_2".to_string(), is_x86_feature_detected!("sse4.2"));
+        info.set_item("x86_64", true)?;
+        info.set_item("avx2", is_x86_feature_detected!("avx2"))?;
+        info.set_item("fma", is_x86_feature_detected!("fma"))?;
+        info.set_item("sse4_1", is_x86_feature_detected!("sse4.1"))?;
+        info.set_item("sse4_2", is_x86_feature_detected!("sse4.2"))?;
     }
 
     #[cfg(target_arch = "aarch64")]
     {
-        info.insert("aarch64".to_string(), true);
-        info.insert("neon".to_string(), cfg!(target_feature = "neon"));
+        info.set_item("aarch64", true)?;
+        info.set_item("neon", cfg!(target_feature = "neon"))?;
     }
 
     // Other architectures
     #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
     {
-        info.insert("simd_support".to_string(), false);
+        info.set_item("simd_support", false)?;
     }
 
     // GPU support (placeholder - would need actual detection)
-    info.insert("cuda_available".to_string(), false);
-    info.insert("opencl_available".to_string(), false);
+    info.set_item("cuda_available", false)?;
+    info.set_item("opencl_available", false)?;
 
     // Thread support
-    info.insert("parallel_support".to_string(), true);
-    info.insert("num_cpus".to_string(), num_cpus::get() > 1);
+    info.set_item("parallel_support", true)?;
+    // Real CPU core count. Previously this collapsed the count into a bool
+    // (`num_cpus::get() > 1`), which discarded the actual core count.
+    info.set_item("num_cpus", num_cpus::get())?;
 
-    info
+    Ok(info.into())
 }
 
 /// Get memory usage information
@@ -174,7 +184,7 @@ pub fn get_config() -> HashMap<String, String> {
 
 /// Print system information
 #[pyfunction]
-pub fn show_versions() -> String {
+pub fn show_versions(py: Python<'_>) -> PyResult<String> {
     let mut output = String::new();
 
     output.push_str("sklears information:\n");
@@ -188,8 +198,8 @@ pub fn show_versions() -> String {
     output.push_str("\nHardware information:\n");
     output.push_str("====================\n");
 
-    let hardware_info = get_hardware_info();
-    for (key, value) in &hardware_info {
+    let hardware_info = get_hardware_info(py)?;
+    for (key, value) in hardware_info.bind(py).iter() {
         output.push_str(&format!("{}: {}\n", key, value));
     }
 
@@ -201,7 +211,7 @@ pub fn show_versions() -> String {
         output.push_str(&format!("{}: {}\n", key, value));
     }
 
-    output
+    Ok(output)
 }
 
 /// Performance testing utility

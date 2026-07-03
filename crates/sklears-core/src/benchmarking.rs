@@ -830,6 +830,16 @@ mod tests {
     }
 
     #[test]
+    // `PerformanceProfiler::profile()` calls `MemoryTracker::current_usage()`,
+    // which on macOS calls `libc::getrusage()` via `extern "C"` FFI. Miri
+    // cannot interpret this foreign function (confirmed: "unsupported
+    // operation: can't call foreign function `getrusage` on OS `macos`"), so
+    // this test is skipped under Miri; the function itself remains callable
+    // normally.
+    #[cfg_attr(
+        miri,
+        ignore = "calls libc getrusage via extern \"C\" FFI (MemoryTracker::current_usage), which Miri cannot interpret"
+    )]
     fn test_performance_profiler() {
         let profiler = PerformanceProfiler::new();
 

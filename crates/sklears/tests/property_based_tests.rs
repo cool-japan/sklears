@@ -5,17 +5,18 @@
 
 use proptest::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
-use sklears_core::traits::{Fit, Predict};
+use sklears_core::traits::{Fit, Predict, Transform};
 use sklears_metrics::classification::accuracy_score;
 use sklears_metrics::regression::{mean_absolute_error, mean_squared_error, r2_score};
 use sklears_neighbors::{KNeighborsClassifier, KNeighborsRegressor};
-// Preprocessing modules not available in facade - tests using these will be disabled
+// LabelEncoder/OneHotEncoder/FunctionTransformer/PolynomialFeatures/SimpleImputer property
+// tests remain disabled pending a follow-up slice; only the StandardScaler/MinMaxScaler/
+// Normalizer scaling properties below are wired up in this pass.
 // use sklears_preprocessing::encoding::{LabelEncoder, OneHotEncoder};
 // use sklears_preprocessing::feature_engineering::{FunctionTransformer, PolynomialFeatures};
 // use sklears_preprocessing::imputation::SimpleImputer;
-// use sklears_preprocessing::scaling::{
-//     MaxAbsScaler, MinMaxScaler, NormType, Normalizer, RobustScaler, StandardScaler,
-// };
+#[cfg(feature = "preprocessing")]
+use sklears_preprocessing::scaling::{MinMaxScaler, NormType, Normalizer, StandardScaler};
 
 // Helper function to generate valid test data
 fn generate_valid_data() -> impl Strategy<Value = (Array2<f64>, Array1<i32>)> {
@@ -49,32 +50,87 @@ fn generate_regression_data() -> impl Strategy<Value = (Array2<f64>, Array1<f64>
 
 proptest! {
     #[test]
-    #[ignore = "Preprocessing modules not available in facade"]
+    #[cfg(feature = "preprocessing")]
     fn test_scaling_preserves_shape((data, _) in generate_valid_data()) {
-        // Test disabled - StandardScaler and other scalers not available in facade
-        // TODO: Re-enable when preprocessing modules are exposed
-        let _ = data;
+        let scaler = StandardScaler::new();
+        let fitted = scaler.fit(&data, &()).expect("StandardScaler fit should succeed");
+        let transformed = fitted.transform(&data).expect("StandardScaler transform should succeed");
+
+        prop_assert_eq!(transformed.nrows(), data.nrows());
+        prop_assert_eq!(transformed.ncols(), data.ncols());
     }
 
     #[test]
-    #[ignore = "Preprocessing modules not available in facade"]
+    #[cfg(feature = "preprocessing")]
     fn test_normalizer_unit_norm((data, _) in generate_valid_data()) {
-        // Test disabled - Normalizer not available in facade
-        let _ = data;
+        let normalizer = Normalizer::new().norm(NormType::L2);
+        let transformed = normalizer.transform(&data).expect("Normalizer transform should succeed");
+
+        prop_assert_eq!(transformed.dim(), data.dim());
+
+        for i in 0..transformed.nrows() {
+            let original_norm: f64 = data.row(i).iter().map(|&v| v * v).sum::<f64>().sqrt();
+            let scaled_norm: f64 = transformed.row(i).iter().map(|&v| v * v).sum::<f64>().sqrt();
+
+            // Rows whose original L2 norm is effectively zero are left unchanged by
+            // Normalizer (documented behaviour), so they are exempt from the
+            // unit-norm assertion below.
+            if original_norm > 1e-8 {
+                prop_assert!(
+                    (scaled_norm - 1.0).abs() < 1e-6,
+                    "Row {} should have unit L2 norm, got {}", i, scaled_norm
+                );
+            }
+        }
     }
 
     #[test]
-    #[ignore = "Preprocessing modules not available in facade"]
+    #[cfg(feature = "preprocessing")]
     fn test_standard_scaler_zero_mean_unit_variance(data in prop::collection::vec(-10.0..10.0, 20..100).prop_map(|v| { let rows = 20; let cols = v.len() / rows; let actual_size = rows * cols; Array2::from_shape_vec((rows, cols), v[..actual_size].to_vec()).expect("shape and data length should match") })) {
-        // Test disabled - StandardScaler not available in facade
-        let _ = data;
+        let scaler = StandardScaler::new();
+        let fitted = scaler.fit(&data, &()).expect("StandardScaler fit should succeed");
+        let transformed = fitted.transform(&data).expect("StandardScaler transform should succeed");
+
+        prop_assert_eq!(transformed.dim(), data.dim());
+
+        let n = transformed.nrows() as f64;
+        for j in 0..transformed.ncols() {
+            let original_col = data.column(j);
+            let original_mean: f64 = original_col.iter().sum::<f64>() / n;
+            let original_variance: f64 = original_col.iter().map(|&v| (v - original_mean).powi(2)).sum::<f64>() / n;
+
+            let col = transformed.column(j);
+            let mean: f64 = col.iter().sum::<f64>() / n;
+
+            // A (numerically) constant input column has zero variance, and
+            // StandardScaler's documented zero-variance guard maps it to all
+            // zeros rather than unit variance -- that is expected, not a bug.
+            if original_variance > 1e-12 {
+                let variance: f64 = col.iter().map(|&v| (v - mean).powi(2)).sum::<f64>() / n;
+                prop_assert!(mean.abs() < 1e-6, "Column {} mean should be ~0, got {}", j, mean);
+                prop_assert!((variance - 1.0).abs() < 1e-6, "Column {} variance should be ~1, got {}", j, variance);
+            } else {
+                prop_assert!(mean.abs() < 1e-6, "Constant column {} should map to 0, got mean {}", j, mean);
+            }
+        }
     }
 
     #[test]
-    #[ignore = "Preprocessing modules not available in facade"]
+    #[cfg(feature = "preprocessing")]
     fn test_minmax_scaler_range((data, _) in generate_valid_data(), min_val in -5.0..0.0, max_val in 1.0..5.0) {
-        // Test disabled - MinMaxScaler not available in facade
-        let _ = (data, min_val, max_val);
+        let scaler = MinMaxScaler::new().feature_range(min_val, max_val);
+        let fitted = scaler.fit(&data, &()).expect("MinMaxScaler fit should succeed");
+        let transformed = fitted.transform(&data).expect("MinMaxScaler transform should succeed");
+
+        prop_assert_eq!(transformed.dim(), data.dim());
+
+        let eps = 1e-8;
+        for &value in transformed.iter() {
+            prop_assert!(
+                value >= min_val - eps && value <= max_val + eps,
+                "Value {} should be within [{}, {}]", value, min_val, max_val
+            );
+        }
     }
 
     #[test]

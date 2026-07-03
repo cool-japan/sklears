@@ -10,10 +10,11 @@
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::Distribution;
 use sklears_clustering::{KMeans, KMeansConfig, DBSCAN};
-use sklears_core::traits::{Fit, Predict};
+use sklears_core::traits::{Fit, Predict, Transform};
 use sklears_linear::LinearRegression;
 #[cfg(feature = "logistic-regression")]
 use sklears_linear::LogisticRegression;
+use sklears_preprocessing::{MinMaxScaler, StandardScaler};
 use std::time::Instant;
 
 struct PerformanceResult {
@@ -259,13 +260,8 @@ fn benchmark_clustering(X: &Array2<f64>) -> Vec<PerformanceResult> {
 }
 
 #[allow(non_snake_case)]
-fn benchmark_preprocessing(_X: &Array2<f64>) -> Vec<PerformanceResult> {
-    // Note: StandardScaler and MinMaxScaler are currently placeholders without
-    // full implementations. Preprocessing benchmarks are disabled until these
-    // transformers are fully implemented.
-
-    // TODO: Re-enable once StandardScaler and MinMaxScaler have proper fit/transform implementations
-    /*
+fn benchmark_preprocessing(X: &Array2<f64>) -> Vec<PerformanceResult> {
+    let mut results = Vec::new();
     let dataset_info = format!("{}×{}", X.nrows(), X.ncols());
 
     // Standard Scaling
@@ -321,9 +317,8 @@ fn benchmark_preprocessing(_X: &Array2<f64>) -> Vec<PerformanceResult> {
         &dataset_info,
         "range=[0,1]",
     ));
-    */
 
-    Vec::new()
+    results
 }
 
 fn print_performance_table(results: &[PerformanceResult]) {

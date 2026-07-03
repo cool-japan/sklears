@@ -1115,6 +1115,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_execution_validation() {
         let config = ExecutionConfig::default();
         let engine = PatternExecutionCore::new(config).unwrap_or_default();
@@ -1141,6 +1142,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_invalid_execution_validation() {
         let config = ExecutionConfig::default();
         let engine = PatternExecutionCore::new(config).unwrap_or_default();

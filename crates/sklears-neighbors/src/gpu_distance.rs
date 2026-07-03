@@ -12,6 +12,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "gpu")]
+use oxicuda_manifold::{hnsw_build, hnsw_search, HnswConfig, HnswDistance, ManifoldError};
+#[cfg(feature = "gpu")]
 use sklears_core::gpu::{GpuArray, GpuContext, GpuMatrixOps};
 
 /// GPU backend type
@@ -364,7 +366,11 @@ impl GpuDistanceCalculator {
                     let (m, d) = x_data.dim();
                     let (n, _) = y_data.dim();
                     if m * n * d >= 512 {
-                        return Self::compute_gemm_euclidean_distances(x_data, y_data);
+                        if let Some(distances) =
+                            Self::compute_gemm_euclidean_distances(x_data, y_data)?
+                        {
+                            return Ok(distances);
+                        }
                     }
                 }
                 self.compute_parallel_distances(x_data, y_data, distance)
@@ -377,17 +383,26 @@ impl GpuDistanceCalculator {
     /// `D[i,j] = sqrt(||x_i||² + ||y_j||² - 2 · x_i·y_j)`.
     ///
     /// The inner-product matrix `X × Y^T` is computed through
-    /// `oxicuda-backend`'s `ComputeBackend::gemm()`.
+    /// `sklears_core::gpu`'s `GpuArray::matmul()`.
+    ///
+    /// Returns `Ok(None)` when [`GpuContext::detect`] finds no usable GPU
+    /// (e.g. no CUDA driver on this machine), so the caller can fall back to
+    /// the CPU path instead of hard-erroring just because there is no
+    /// device -- the same "no GPU ⇒ `None`, not `Err`" contract
+    /// `GpuBackend::detect` itself uses.
     #[cfg(feature = "gpu")]
     fn compute_gemm_euclidean_distances<'a>(
         x_data: &ArrayView2<'a, Float>,
         y_data: &ArrayView2<'a, Float>,
-    ) -> NeighborsResult<Array2<Float>> {
+    ) -> NeighborsResult<Option<Array2<Float>>> {
         let (m, _d) = x_data.dim();
         let (n, _) = y_data.dim();
 
-        let ctx = GpuContext::new()
-            .map_err(|e| NeighborsError::InvalidInput(format!("GPU context error: {e}")))?;
+        let Some(ctx) = GpuContext::detect()
+            .map_err(|e| NeighborsError::InvalidInput(format!("GPU context error: {e}")))?
+        else {
+            return Ok(None);
+        };
 
         let x_owned = x_data.to_owned();
         let y_owned = y_data.to_owned();
@@ -429,7 +444,7 @@ impl GpuDistanceCalculator {
             }
         }
 
-        Ok(distances)
+        Ok(Some(distances))
     }
 
     /// Compute distances using CPU fallback
@@ -481,7 +496,13 @@ impl GpuDistanceCalculator {
 
     /// Get computation statistics
     pub fn get_stats(&self) -> GpuComputationStats {
-        self.stats.lock().expect("operation should succeed").clone()
+        // Recover the statistics even if a prior holder of the lock panicked
+        // while it was held, rather than propagating that panic to every
+        // subsequent caller of this getter.
+        self.stats
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
     }
 
     /// Get device information
@@ -503,11 +524,38 @@ impl GpuDistanceCalculator {
     }
 }
 
+/// Row-major flatten of a 2-D view into `Vec<f64>`, matching the layout
+/// `oxicuda_manifold::hnsw_build`/`hnsw_search` expect. Mirrors
+/// `sklears_core::gpu::GpuArray::from_array2`'s handling of non-contiguous
+/// views: take the contiguous slice when one exists, otherwise fall back to
+/// the (always-correct, row-major) element iterator.
+#[cfg(feature = "gpu")]
+fn flatten_row_major(view: &ArrayView2<'_, Float>) -> Vec<Float> {
+    if view.is_standard_layout() {
+        match view.as_slice() {
+            Some(slice) => slice.to_vec(),
+            None => view.iter().copied().collect(),
+        }
+    } else {
+        view.iter().copied().collect()
+    }
+}
+
+/// Maps an `oxicuda-manifold` error to this crate's error type.
+#[cfg(feature = "gpu")]
+fn manifold_err(err: ManifoldError) -> NeighborsError {
+    NeighborsError::InvalidInput(format!("HNSW ANN error: {err}"))
+}
+
 /// GPU-accelerated k-nearest neighbors search
 pub struct GpuKNeighborsSearch {
     calculator: GpuDistanceCalculator,
     k: usize,
     distance: Distance,
+    /// When `true` (and the `gpu` feature is enabled), [`Self::kneighbors`]
+    /// prefers the approximate HNSW backend over the exact brute-force
+    /// distance matrix. See [`Self::with_ann`].
+    use_ann: bool,
 }
 
 impl GpuKNeighborsSearch {
@@ -517,6 +565,7 @@ impl GpuKNeighborsSearch {
             calculator: GpuDistanceCalculator::with_config(config),
             k,
             distance: Distance::Euclidean,
+            use_ann: false,
         }
     }
 
@@ -526,14 +575,68 @@ impl GpuKNeighborsSearch {
         self
     }
 
+    /// Opt into approximate nearest-neighbor search via an HNSW index
+    /// (`oxicuda_manifold::{hnsw_build, hnsw_search}`) instead of the exact
+    /// brute-force distance-matrix search.
+    ///
+    /// This only ever *narrows* [`Self::kneighbors`]'s behavior towards
+    /// "maybe faster, approximate": it has no effect unless the `gpu`
+    /// feature is compiled in, and even then [`Self::kneighbors`]
+    /// transparently falls back to the exact path whenever the configured
+    /// [`Distance`] has no native HNSW equivalent (currently only
+    /// `Euclidean` and `Cosine` do -- see [`Self::hnsw_distance_for`]).
+    /// Correctness-sensitive callers can always reach the exact path
+    /// directly via [`Self::kneighbors_exact`], regardless of this setting.
+    pub fn with_ann(mut self, use_ann: bool) -> Self {
+        self.use_ann = use_ann;
+        self
+    }
+
     /// Initialize GPU context
     pub fn initialize(&mut self) -> NeighborsResult<()> {
         self.calculator.initialize()
     }
 
-    /// Find k-nearest neighbors using GPU acceleration
+    /// Find k-nearest neighbors.
+    ///
+    /// Uses the approximate HNSW backend when [`Self::with_ann`] was set to
+    /// `true`, the `gpu` feature is enabled, and the configured [`Distance`]
+    /// maps onto an [`HnswDistance`] (see [`Self::hnsw_distance_for`]);
+    /// otherwise dispatches to the exact brute-force
+    /// [`Self::kneighbors_exact`].
     #[allow(non_snake_case)]
     pub fn kneighbors<'a>(
+        &self,
+        X: &ArrayView2<'a, Float>,
+        X_query: Option<&ArrayView2<'a, Float>>,
+    ) -> NeighborsResult<(Array2<usize>, Array2<Float>)> {
+        #[cfg(feature = "gpu")]
+        {
+            if self.use_ann {
+                if let Some(result) = self.kneighbors_ann(X, X_query)? {
+                    return Ok(result);
+                }
+            }
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            // `use_ann` only changes behavior when the `gpu` feature (and
+            // therefore the HNSW backend) is compiled in; without it every
+            // search is exact. Read the field so it is never reported dead
+            // in non-`gpu` builds.
+            let _ = self.use_ann;
+        }
+
+        self.kneighbors_exact(X, X_query)
+    }
+
+    /// Exact k-nearest neighbors via a full pairwise distance matrix.
+    ///
+    /// This is the correctness baseline: always available regardless of
+    /// [`Self::with_ann`], and what [`Self::kneighbors`] falls back to
+    /// whenever the approximate HNSW path isn't applicable.
+    #[allow(non_snake_case)]
+    pub fn kneighbors_exact<'a>(
         &self,
         X: &ArrayView2<'a, Float>,
         X_query: Option<&ArrayView2<'a, Float>>,
@@ -583,6 +686,117 @@ impl GpuKNeighborsSearch {
         }
 
         Ok((indices, neighbor_distances))
+    }
+
+    /// Approximate k-nearest neighbors via an HNSW index
+    /// (`oxicuda_manifold::{hnsw_build, hnsw_search}`).
+    ///
+    /// Returns `Ok(None)` when the configured [`Distance`] has no HNSW
+    /// equivalent (see [`Self::hnsw_distance_for`]) or the input is
+    /// degenerate (`0` points, `0` dimensions, or `k == 0`), signalling
+    /// [`Self::kneighbors`] to fall back to [`Self::kneighbors_exact`] --
+    /// the same "unsupported metric → exact CPU path" pattern
+    /// `GpuDistanceCalculator::dispatch_gpu_distances` already uses for the
+    /// GEMM trick. Genuine shape errors (mismatched dimensionality between
+    /// `X` and `X_query`) are still hard errors, exactly as in
+    /// [`Self::kneighbors_exact`]'s underlying `pairwise_distances`.
+    #[cfg(feature = "gpu")]
+    #[allow(non_snake_case)]
+    fn kneighbors_ann<'a>(
+        &self,
+        X: &ArrayView2<'a, Float>,
+        X_query: Option<&ArrayView2<'a, Float>>,
+    ) -> NeighborsResult<Option<(Array2<usize>, Array2<Float>)>> {
+        let Some(hnsw_distance) = Self::hnsw_distance_for(&self.distance) else {
+            return Ok(None);
+        };
+
+        let n_points = X.nrows();
+        let dim = X.ncols();
+        if n_points == 0 || dim == 0 || self.k == 0 {
+            return Ok(None);
+        }
+
+        let query_view = X_query.unwrap_or(X);
+        if query_view.ncols() != dim {
+            return Err(NeighborsError::ShapeMismatch {
+                expected: vec![n_points, dim],
+                actual: vec![query_view.nrows(), query_view.ncols()],
+            });
+        }
+        let is_self_query = query_view.as_ptr() == X.as_ptr();
+        let n_queries = query_view.nrows();
+
+        let config = HnswConfig {
+            distance: hnsw_distance,
+            ..Default::default()
+        };
+
+        let data = flatten_row_major(X);
+        let index = hnsw_build(&data, n_points, dim, &config).map_err(manifold_err)?;
+
+        // When searching the training set against itself, fetch one extra
+        // neighbor so the self-match can be dropped below without shorting
+        // the result by one -- mirrors `kneighbors_exact`'s self-exclusion.
+        let search_k = (self.k + usize::from(is_self_query)).min(n_points);
+        let query_data = flatten_row_major(query_view);
+        let result = hnsw_search(&index, &query_data, n_queries, search_k).map_err(manifold_err)?;
+
+        let mut indices = Array2::<usize>::zeros((n_queries, self.k));
+        let mut neighbor_distances = Array2::<Float>::zeros((n_queries, self.k));
+
+        for (i, (row_idx, row_dist)) in result
+            .indices
+            .iter()
+            .zip(result.distances.iter())
+            .enumerate()
+        {
+            let mut count = 0;
+            for (&idx, &dist) in row_idx.iter().zip(row_dist.iter()) {
+                if count >= self.k {
+                    break;
+                }
+                if is_self_query && idx == i {
+                    continue;
+                }
+                indices[[i, count]] = idx;
+                neighbor_distances[[i, count]] =
+                    Self::postprocess_hnsw_distance(hnsw_distance, dist);
+                count += 1;
+            }
+        }
+
+        Ok(Some((indices, neighbor_distances)))
+    }
+
+    /// Maps this search's configured [`Distance`] to an [`HnswDistance`],
+    /// for metrics the HNSW backend can represent exactly. `None` covers
+    /// every metric without a native HNSW mode (Manhattan, Chebyshev,
+    /// Minkowski, Mahalanobis, kernels, ...) -- those stay honestly
+    /// CPU/exact-only, same as `GpuDistanceCalculator::dispatch_gpu_distances`
+    /// already treats them for the GEMM trick.
+    #[cfg(feature = "gpu")]
+    fn hnsw_distance_for(distance: &Distance) -> Option<HnswDistance> {
+        match distance {
+            Distance::Euclidean => Some(HnswDistance::Euclidean),
+            Distance::Cosine => Some(HnswDistance::Cosine),
+            _ => None,
+        }
+    }
+
+    /// Converts a raw HNSW distance value back to this crate's convention.
+    ///
+    /// [`HnswDistance::Euclidean`] is *squared* Euclidean distance, while
+    /// every other Euclidean computation in this file (the CPU path and the
+    /// GEMM trick) reports true (square-rooted) distance -- undo the square
+    /// here so exact and approximate results stay comparable. Cosine
+    /// dissimilarity needs no adjustment.
+    #[cfg(feature = "gpu")]
+    fn postprocess_hnsw_distance(metric: HnswDistance, raw: f64) -> Float {
+        match metric {
+            HnswDistance::Euclidean => raw.max(0.0).sqrt(),
+            _ => raw,
+        }
     }
 
     /// Get GPU computation statistics
@@ -745,6 +959,97 @@ mod tests {
                 assert!(distances[[i, j]] >= distances[[i, j - 1]]);
             }
         }
+    }
+
+    /// Small, well-separated clusters (3 clusters of 4 points each) so both
+    /// the exact brute-force path and the approximate HNSW path should
+    /// agree, with high probability, on which cluster each point's nearest
+    /// neighbors fall into -- a "sensible, if approximate" check rather than
+    /// requiring bit-for-bit index equality (HNSW is allowed to disagree on
+    /// tie-breaks / ordering within a cluster).
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_gpu_kneighbors_ann_matches_brute_force_on_clusters() {
+        #[rustfmt::skip]
+        let data = Array2::from_shape_vec(
+            (12, 2),
+            vec![
+                0.0, 0.0, 0.1, 0.0, 0.0, 0.1, 0.1, 0.1, // cluster A: points 0..4
+                10.0, 10.0, 10.1, 10.0, 10.0, 10.1, 10.1, 10.1, // cluster B: points 4..8
+                20.0, 0.0, 20.1, 0.0, 20.0, 0.1, 20.1, 0.1, // cluster C: points 8..12
+            ],
+        )
+        .expect("operation should succeed");
+
+        let config = GpuConfig::default();
+        let exact_search = GpuKNeighborsSearch::new(3, config.clone());
+        let ann_search = GpuKNeighborsSearch::new(3, config).with_ann(true);
+
+        let (exact_indices, _exact_distances) = exact_search
+            .kneighbors_exact(&data.view(), None)
+            .expect("exact search should succeed");
+        let (ann_indices, ann_distances) = ann_search
+            .kneighbors(&data.view(), None)
+            .expect("ann search should succeed");
+
+        assert_eq!(ann_indices.shape(), &[12, 3]);
+        assert_eq!(ann_distances.shape(), &[12, 3]);
+
+        for i in 0..12 {
+            let cluster_start = (i / 4) * 4;
+            let cluster_end = cluster_start + 4;
+
+            for j in 0..3 {
+                let exact_idx = exact_indices[[i, j]];
+                let ann_idx = ann_indices[[i, j]];
+                assert!(
+                    (cluster_start..cluster_end).contains(&exact_idx),
+                    "exact neighbor {exact_idx} of point {i} escaped its cluster \
+                     [{cluster_start}, {cluster_end})"
+                );
+                assert!(
+                    (cluster_start..cluster_end).contains(&ann_idx),
+                    "ANN neighbor {ann_idx} of point {i} escaped its cluster \
+                     [{cluster_start}, {cluster_end})"
+                );
+            }
+
+            // Same self-exclusion contract as the exact path: a point must
+            // never be reported as its own neighbor.
+            assert!(
+                !ann_indices.row(i).iter().any(|&idx| idx == i),
+                "point {i} was returned as its own ANN neighbor"
+            );
+
+            // Distances sorted ascending, same contract as the exact path.
+            for j in 1..3 {
+                assert!(
+                    ann_distances[[i, j]] >= ann_distances[[i, j - 1]],
+                    "ANN distances not sorted ascending for point {i}"
+                );
+            }
+        }
+    }
+
+    /// `with_ann(true)` combined with a metric that has no HNSW equivalent
+    /// (Manhattan) must transparently fall back to the exact path rather
+    /// than erroring -- exercises the `Ok(None)` branch of
+    /// `hnsw_distance_for` / `kneighbors_ann`.
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_gpu_kneighbors_ann_falls_back_for_unsupported_metric() {
+        let data = create_test_data();
+        let config = GpuConfig::default();
+        let search = GpuKNeighborsSearch::new(5, config)
+            .with_distance(Distance::Manhattan)
+            .with_ann(true);
+
+        let (indices, distances) = search
+            .kneighbors(&data.view(), None)
+            .expect("should transparently fall back to the exact path");
+
+        assert_eq!(indices.shape(), &[100, 5]);
+        assert_eq!(distances.shape(), &[100, 5]);
     }
 
     #[test]

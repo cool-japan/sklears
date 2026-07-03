@@ -5,7 +5,7 @@
 //! DOT, JSON, and specialized formats for visualization tools.
 
 use super::graph_config::{GraphConfig, GraphExportFormat, VisualizationTheme};
-use super::graph_structures::{TraitGraph, TraitGraphNode, TraitGraphEdge, PerformanceMetrics};
+use super::graph_structures::TraitGraph;
 use crate::error::{Result, SklearsError};
 
 use serde_json;
@@ -276,7 +276,7 @@ impl GraphExporter {
             ));
         }
 
-        dot.push_str("\n");
+        dot.push('\n');
 
         // Add edges
         for edge in &graph.edges {
@@ -547,12 +547,16 @@ impl GraphExporter {
         }
 
         // Add arrowhead marker for directed edges
-        svg.push_str(r#"  <defs>
+        // NOTE: uses a `r##"..."##` raw string (two hashes) because the
+        // content contains a literal `"#666"` CSS hex color, whose `"#`
+        // would otherwise be misread as the closing delimiter of a
+        // single-hash `r#"..."#` raw string.
+        svg.push_str(r##"  <defs>
     <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
     </marker>
   </defs>
-"#);
+"##);
 
         // Draw nodes
         for node in &graph.nodes {
@@ -565,7 +569,7 @@ impl GraphExporter {
   <text x="{}" y="{}" class="label">{}</text>
 "#,
                     x, y, radius, color, theme.text_color,
-                    x, y + 4, Self::escape_xml(&node.label)
+                    x, y + 4.0, Self::escape_xml(&node.label)
                 ));
             }
         }
@@ -739,8 +743,15 @@ impl GraphExporter {
     }
 
     /// Generate interactive JavaScript code
-    fn generate_interactive_javascript(&self, graph: &TraitGraph) -> String {
-        format!(r#"
+    fn generate_interactive_javascript(&self, _graph: &TraitGraph) -> String {
+        // NOTE: uses a `r##"..."##` raw string (two hashes) because the D3.js
+        // template below contains several literal `"#id"`/`"#rrggbb"`
+        // sequences (`d3.select("#graph")`, `"#999"`, `"#69b3a2"`), whose
+        // `"#` would otherwise be misread as the closing delimiter of a
+        // single-hash `r#"..."#` raw string. There are no `{}` placeholders
+        // in this particular template (unlike the other export templates),
+        // so it is a plain string rather than a `format!` call.
+        r##"
         // Graph visualization with D3.js
         const width = document.getElementById('graph-container').clientWidth;
         const height = document.getElementById('graph-container').clientHeight;
@@ -752,9 +763,9 @@ impl GraphExporter {
         // Create zoom behavior
         const zoom = d3.zoom()
             .scaleExtent([0.1, 10])
-            .on("zoom", (event) => {{
+            .on("zoom", (event) => {
                 container.attr("transform", event.transform);
-            }});
+            });
 
         svg.call(zoom);
 
@@ -807,7 +818,7 @@ impl GraphExporter {
             .attr("dy", -3);
 
         // Update positions on simulation tick
-        simulation.on("tick", () => {{
+        simulation.on("tick", () => {
             link
                 .attr("x1", d => d.source.x)
                 .attr("y1", d => d.source.y)
@@ -821,87 +832,87 @@ impl GraphExporter {
             label
                 .attr("x", d => d.x)
                 .attr("y", d => d.y);
-        }});
+        });
 
         // Drag functions
-        function dragStarted(event) {{
+        function dragStarted(event) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
             event.subject.fx = event.subject.x;
             event.subject.fy = event.subject.y;
-        }}
+        }
 
-        function dragged(event) {{
+        function dragged(event) {
             event.subject.fx = event.x;
             event.subject.fy = event.y;
-        }}
+        }
 
-        function dragEnded(event) {{
+        function dragEnded(event) {
             if (!event.active) simulation.alphaTarget(0);
             event.subject.fx = null;
             event.subject.fy = null;
-        }}
+        }
 
         // Tooltip functions
-        function showTooltip(event, d) {{
+        function showTooltip(event, d) {
             tooltip.transition()
                 .duration(200)
                 .style("opacity", .9);
             tooltip.html(`
-                <strong>${{d.label}}</strong><br/>
-                Type: ${{d.type}}<br/>
-                Size: ${{d.size}}
+                <strong>${d.label}</strong><br/>
+                Type: ${d.type}<br/>
+                Size: ${d.size}
             `)
                 .style("left", (event.pageX + 10) + "px")
                 .style("top", (event.pageY - 28) + "px");
-        }}
+        }
 
-        function hideTooltip() {{
+        function hideTooltip() {
             tooltip.transition()
                 .duration(500)
                 .style("opacity", 0);
-        }}
+        }
 
         // Node info panel
-        function showNodeInfo(event, d) {{
+        function showNodeInfo(event, d) {
             const infoPanel = document.getElementById('node-info');
             infoPanel.innerHTML = `
-                <h4>${{d.label}}</h4>
-                <p><strong>Type:</strong> ${{d.type}}</p>
-                <p><strong>Size:</strong> ${{d.size}}</p>
-                <p><strong>ID:</strong> ${{d.id}}</p>
+                <h4>${d.label}</h4>
+                <p><strong>Type:</strong> ${d.type}</p>
+                <p><strong>Size:</strong> ${d.size}</p>
+                <p><strong>ID:</strong> ${d.id}</p>
             `;
-        }}
+        }
 
         // Control handlers
-        document.getElementById('zoomIn').onclick = () => {{
+        document.getElementById('zoomIn').onclick = () => {
             svg.transition().call(zoom.scaleBy, 1.5);
-        }};
+        };
 
-        document.getElementById('zoomOut').onclick = () => {{
+        document.getElementById('zoomOut').onclick = () => {
             svg.transition().call(zoom.scaleBy, 0.75);
-        }};
+        };
 
-        document.getElementById('resetView').onclick = () => {{
+        document.getElementById('resetView').onclick = () => {
             svg.transition().call(zoom.transform, d3.zoomIdentity);
-        }};
+        };
 
         // Search functionality
-        document.getElementById('search').oninput = function(event) {{
+        document.getElementById('search').oninput = function(event) {
             const searchTerm = event.target.value.toLowerCase();
-            node.style("opacity", d => {{
+            node.style("opacity", d => {
                 if (searchTerm === '') return 1;
                 return d.label.toLowerCase().includes(searchTerm) ? 1 : 0.3;
-            }});
-            label.style("opacity", d => {{
+            });
+            label.style("opacity", d => {
                 if (searchTerm === '') return 1;
                 return d.label.toLowerCase().includes(searchTerm) ? 1 : 0.3;
-            }});
-        }};
+            });
+        };
 
         // Layout selector
-        document.getElementById('layoutSelect').onchange = function(event) {{
+        document.getElementById('layoutSelect').onchange = function(event) {
             const layout = event.target.value;
-            switch(layout) {{
+            switch(layout) {
                 case 'hierarchical':
                     applyHierarchicalLayout();
                     break;
@@ -913,30 +924,30 @@ impl GraphExporter {
                     break;
                 default:
                     restartForceSimulation();
-            }}
-        }};
+            }
+        };
 
-        function applyHierarchicalLayout() {{
+        function applyHierarchicalLayout() {
             simulation.stop();
-            graphData.nodes.forEach((d, i) => {{
+            graphData.nodes.forEach((d, i) => {
                 d.fx = (i % 5) * 150 + 100;
                 d.fy = Math.floor(i / 5) * 100 + 100;
-            }});
+            });
             simulation.alpha(1).restart();
-        }}
+        }
 
-        function applyCircularLayout() {{
+        function applyCircularLayout() {
             simulation.stop();
             const radius = Math.min(width, height) / 3;
-            graphData.nodes.forEach((d, i) => {{
+            graphData.nodes.forEach((d, i) => {
                 const angle = (i / graphData.nodes.length) * 2 * Math.PI;
                 d.fx = width / 2 + radius * Math.cos(angle);
                 d.fy = height / 2 + radius * Math.sin(angle);
-            }});
+            });
             simulation.alpha(1).restart();
-        }}
+        }
 
-        function applyRadialLayout() {{
+        function applyRadialLayout() {
             simulation.stop();
             // Place most connected node at center
             const centerNode = graphData.nodes.reduce((max, node) =>
@@ -948,22 +959,23 @@ impl GraphExporter {
 
             // Place others in concentric circles
             let radius = 100;
-            graphData.nodes.filter(n => n !== centerNode).forEach((d, i) => {{
+            graphData.nodes.filter(n => n !== centerNode).forEach((d, i) => {
                 const angle = (i / (graphData.nodes.length - 1)) * 2 * Math.PI;
                 d.fx = width / 2 + radius * Math.cos(angle);
                 d.fy = height / 2 + radius * Math.sin(angle);
-            }});
+            });
             simulation.alpha(1).restart();
-        }}
+        }
 
-        function restartForceSimulation() {{
-            graphData.nodes.forEach(d => {{
+        function restartForceSimulation() {
+            graphData.nodes.forEach(d => {
                 d.fx = null;
                 d.fy = null;
-            }});
+            });
             simulation.alpha(1).restart();
-        }}
-        "#)
+        }
+        "##
+        .to_string()
     }
 
     /// Create theme template
@@ -1152,7 +1164,9 @@ mod tests {
 
         let html_str = html_result.expect("expected valid value");
         assert!(html_str.contains("<!DOCTYPE html>"));
-        assert!(html_str.contains("d3.js"));
+        // The D3.js CDN script tag is `<script src="https://d3js.org/d3.v7.min.js">`;
+        // "d3.js" itself is not a contiguous substring of that URL.
+        assert!(html_str.contains("d3js.org"));
     }
 
     #[test]

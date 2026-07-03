@@ -71,8 +71,11 @@ where
         *score_slot = feature_importance / n_repeats as Float;
     }
 
-    // Convert to ndarray
-    let importance_array = Array1::from_vec(importance_scores);
+    // Convert to ndarray. This copies out of the (possibly over-aligned)
+    // `AlignedVec` into a normally-allocated `Vec`, since `Array1`/`Vec`
+    // always deallocate assuming `Float`'s natural alignment; `importance_scores`
+    // then drops normally, freeing its own allocation with its own layout.
+    let importance_array = Array1::from_vec(importance_scores.to_vec());
 
     Ok(importance_array)
 }

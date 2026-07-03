@@ -962,6 +962,13 @@ mod tests {
     // ======================
 
     #[test]
+    // Asserts wall-clock durations (creation/validation) stay under fixed
+    // millisecond budgets. Miri's interpretation overhead (10-50x+ native)
+    // makes those budgets unachievable regardless of code correctness.
+    #[cfg_attr(
+        miri,
+        ignore = "wall-clock performance assertion unreliable under Miri's interpretation overhead"
+    )]
     fn test_large_workflow_performance() {
         let mut builder = VisualPipelineBuilder::new();
         let start_time = std::time::Instant::now();
@@ -990,6 +997,13 @@ mod tests {
     }
 
     #[test]
+    // Asserts DSL parse wall-clock time stays under a fixed millisecond
+    // budget. Miri's interpretation overhead (10-50x+ native) makes that
+    // budget unachievable regardless of code correctness.
+    #[cfg_attr(
+        miri,
+        ignore = "wall-clock performance assertion unreliable under Miri's interpretation overhead"
+    )]
     fn test_dsl_parsing_performance() {
         // Generate large DSL text
         let mut large_dsl = String::from(r#"pipeline "Performance Test" { version "1.0.0""#);

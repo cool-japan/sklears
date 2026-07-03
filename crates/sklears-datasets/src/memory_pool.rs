@@ -239,8 +239,13 @@ impl SizeBucket {
 
                 self.available.push_back(block);
             } else {
-                // Block will be dropped and memory freed
-                block.invalidate();
+                // Block will be dropped here and its memory freed by
+                // `MemoryBlock`'s `Drop` impl. Do NOT call `block.invalidate()`
+                // beforehand: `Drop::drop` only calls `dealloc()` when
+                // `is_valid()` is true, so pre-invalidating here would make
+                // the drop silently skip deallocation, leaking the block on
+                // every non-reuse deallocation (confirmed via a Miri leak
+                // report from `test_pool_exhaustion`).
             }
 
             Ok(())

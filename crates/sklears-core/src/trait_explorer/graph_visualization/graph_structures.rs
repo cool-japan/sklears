@@ -4,14 +4,13 @@
 //! the graph visualization system, including nodes, edges, and the main
 //! graph container with associated metadata and statistics.
 
-use super::graph_config::{TraitNodeType, EdgeType, StabilityLevel, CommunityDetection};
-use crate::api_reference_generator::{AssociatedType, TraitInfo};
+use super::graph_config::{TraitNodeType, EdgeType, StabilityLevel};
 use crate::error::{Result, SklearsError};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::time::{Duration, Instant, SystemTime};
+use std::collections::{HashMap, HashSet};
+use std::time::Duration;
 
 /// Node in the trait graph with enhanced properties
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -440,6 +439,16 @@ pub struct TraitGraphMetadata {
     pub tags: Vec<String>,
     /// Custom metadata
     pub custom_metadata: HashMap<String, String>,
+    /// Full analysis results, if the graph was generated with analysis
+    /// enabled (centrality measures, communities, critical paths, quality
+    /// metrics as a single bundle).
+    pub analysis_results: Option<GraphAnalysisResult>,
+    /// Quality metrics for the layout that was applied to this graph, if any.
+    pub layout_quality: Option<LayoutQualityMetrics>,
+    /// Communities detected in this graph, if community detection was run.
+    pub communities: Option<Vec<Community>>,
+    /// Critical paths identified in this graph, if path analysis was run.
+    pub critical_paths: Option<Vec<GraphPath>>,
 }
 
 impl Default for TraitGraphMetadata {
@@ -453,6 +462,10 @@ impl Default for TraitGraphMetadata {
             git_commit: None,
             tags: Vec::new(),
             custom_metadata: HashMap::new(),
+            analysis_results: None,
+            layout_quality: None,
+            communities: None,
+            critical_paths: None,
         }
     }
 }
@@ -508,10 +521,11 @@ impl Default for GraphStatistics {
 impl GraphStatistics {
     /// Calculate basic statistics from nodes and edges
     pub fn from_graph(nodes: &[TraitGraphNode], edges: &[TraitGraphEdge]) -> Self {
-        let mut stats = Self::default();
-
-        stats.node_count = nodes.len();
-        stats.edge_count = edges.len();
+        let mut stats = Self {
+            node_count: nodes.len(),
+            edge_count: edges.len(),
+            ..Default::default()
+        };
 
         // Count nodes by type
         for node in nodes {
@@ -557,7 +571,7 @@ impl GraphStatistics {
 }
 
 /// Results of graph analysis
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct GraphAnalysisResult {
     /// Centrality measures for each node
     pub centrality_measures: HashMap<String, CentralityMeasures>,
@@ -664,6 +678,25 @@ impl GraphPath {
     }
 }
 
+/// Quality metrics for a computed graph layout.
+///
+/// Produced by layout algorithms (see
+/// `crate::trait_explorer::graph_visualization::graph_generator::LayoutResult`
+/// and `crate::trait_explorer::graph_visualization::layout_algorithms`) and
+/// optionally stored on [`TraitGraphMetadata::layout_quality`] once a layout
+/// has been applied to a graph.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct LayoutQualityMetrics {
+    /// Number of edge crossings
+    pub edge_crossings: usize,
+    /// Average edge length
+    pub average_edge_length: f64,
+    /// Distribution uniformity (0.0-1.0)
+    pub distribution_uniformity: f64,
+    /// Overall aesthetic score (0.0-1.0)
+    pub aesthetic_score: f64,
+}
+
 /// Performance metrics for graph generation and analysis
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PerformanceMetrics {
@@ -754,7 +787,7 @@ impl Default for CentralityMeasures {
 impl CentralityMeasures {
     /// Get the overall importance score (weighted average)
     pub fn importance_score(&self) -> f64 {
-        (self.degree * 0.2 + self.betweenness * 0.3 + self.closeness * 0.2 + self.eigenvector * 0.2 + self.pagerank * 0.1)
+        self.degree * 0.2 + self.betweenness * 0.3 + self.closeness * 0.2 + self.eigenvector * 0.2 + self.pagerank * 0.1
     }
 
     /// Get the most important centrality measure
@@ -893,9 +926,9 @@ impl TraitGraph {
         let mut neighbors = Vec::new();
         for edge in &self.edges {
             if edge.from == node_id {
-                neighbors.push(&edge.to);
+                neighbors.push(edge.to.as_str());
             } else if !edge.directed && edge.to == node_id {
-                neighbors.push(&edge.from);
+                neighbors.push(edge.from.as_str());
             }
         }
         neighbors

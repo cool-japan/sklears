@@ -963,6 +963,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_failover_basic_functionality() {
         let system = FailoverManagementSystem::with_defaults("test_system".to_string());
 
@@ -978,6 +979,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_manual_failover() {
         let system = FailoverManagementSystem::with_defaults("test_system".to_string());
 
@@ -997,6 +999,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_no_healthy_instances() {
         let system = FailoverManagementSystem::with_defaults("test_system".to_string());
 
@@ -1011,6 +1014,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_round_robin_selection() {
         let mut config = FailoverConfig {
             config_id: "test".to_string(),
@@ -1053,6 +1057,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_least_connections_selection() {
         let config = FailoverConfig {
             config_id: "test".to_string(),
@@ -1084,6 +1089,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_metrics_collection() {
         let system = FailoverManagementSystem::with_defaults("test_system".to_string());
 
@@ -1105,6 +1111,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_health_status() {
         let system = FailoverManagementSystem::with_defaults("test_system".to_string());
 

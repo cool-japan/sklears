@@ -1208,6 +1208,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_pattern_execution() {
         let coordinator = ResiliencePatternsCoordinator::with_defaults("test_coordinator".to_string());
 
@@ -1221,6 +1222,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_auto_pattern_selection() {
         let coordinator = ResiliencePatternsCoordinator::with_defaults("test_coordinator".to_string());
 
@@ -1238,6 +1240,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_pattern_composition() {
         let mut config = ResiliencePatternsConfig::default();
 
@@ -1270,6 +1273,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_pattern_metrics() {
         let coordinator = ResiliencePatternsCoordinator::with_defaults("test_coordinator".to_string());
 
@@ -1287,6 +1291,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_adaptation_consideration() {
         let coordinator = ResiliencePatternsCoordinator::with_defaults("test_coordinator".to_string());
 
@@ -1302,6 +1307,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_health_status() {
         let coordinator = ResiliencePatternsCoordinator::with_defaults("test_coordinator".to_string());
 
@@ -1318,6 +1324,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_concurrent_execution_limit() {
         let mut config = ResiliencePatternsConfig::default();
         config.max_concurrent_executions = 1;

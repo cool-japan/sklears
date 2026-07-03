@@ -60,9 +60,8 @@ pub use classification::{
 //     ConstraintApproximation, ConstraintConfig, ConstraintEvaluation, ConstraintFunction,
 //     FeasibilityAnalysis,
 // };
-// TODO: Re-enable when modules are fully implemented
-// pub use convolution_processes::{ConvolutionProcess, ConvolutionProcessTrained};
-// pub use deep_gp::{DeepGPConfig, DeepGPLayer, DeepGaussianProcessRegressor};
+pub use convolution_processes::{ConvolutionProcess, ConvolutionProcessTrained};
+pub use deep_gp::{DeepGPConfig, DeepGPLayer, DeepGaussianProcessRegressor};
 pub use features::{RandomFourierFeatures, RandomFourierFeaturesGPR, RffGprTrained};
 pub use fitc::{
     FitcGaussianProcessRegressor, FitcGaussianProcessRegressorConfig, FitcGprTrained,

@@ -257,20 +257,25 @@ impl GaussianProcessRegressor<GprTrained> {
             mean_normalized
         };
 
-        // Compute predictive variance
-        // Solve L * v = K_star for each test point
-        let mut v = Array2::<f64>::zeros((self.state.L.nrows(), X.nrows()));
+        // Compute predictive variance: K** - k_*^T K_reg^{-1} k_*, where
+        // K_reg = K + alpha*I (`self.state.L` is its Cholesky factor).
+        // `triangular_solve` performs a *full* solve (forward + backward
+        // substitution), i.e. `v_i = K_reg^{-1} k_star_i` already applies the
+        // inverse once; the quadratic form must therefore dot the *original*
+        // k_star_i against v_i (not v_i against itself, which would apply
+        // K_reg^{-1} a second time and give the wrong quantity K_reg^{-2}).
+        let mut quad_form = Array1::<f64>::zeros(X.nrows());
         for i in 0..X.nrows() {
-            let k_star_i = K_star.column(i);
-            let v_i = crate::utils::triangular_solve(&self.state.L, &k_star_i.to_owned())?;
-            v.column_mut(i).assign(&v_i);
+            let k_star_i = K_star.column(i).to_owned();
+            let v_i = crate::utils::triangular_solve(&self.state.L, &k_star_i)?;
+            quad_form[i] = k_star_i.dot(&v_i);
         }
         let K_star_star_diag = X
             .axis_iter(Axis(0))
             .map(|x| self.state.kernel.kernel(&x, &x))
             .collect::<Array1<f64>>();
 
-        let var_normalized = K_star_star_diag - v.map_axis(Axis(0), |col| col.dot(&col));
+        let var_normalized = K_star_star_diag - quad_form;
 
         // Ensure non-negative variance
         let var_normalized = var_normalized.mapv(|x| x.max(0.0));

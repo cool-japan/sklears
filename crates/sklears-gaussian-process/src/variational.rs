@@ -98,13 +98,30 @@ const GH10_WEIGHTS: [f64; 10] = [
     7.640_432_855_232_62e-6,
 ];
 
-/// Generous cap on the Euclidean/Frobenius norm of each raw gradient before
-/// it is scaled by the learning rate. `q(f_i)`'s mean and variance can be far
-/// from calibrated early in training (`S` starts at the identity), which can
-/// otherwise produce a very large first step; clipping is a standard,
-/// correctness-preserving optimization safeguard (it does not change any
-/// fixed point of the ascent, only how quickly early steps approach one).
+/// Generous cap on the Euclidean norm of the raw `m` (and kernel-parameter)
+/// gradients before they are scaled by the learning rate. `q(f_i)`'s mean and
+/// variance can be far from calibrated early in training (`S` starts at the
+/// identity), which can otherwise produce a very large first step; clipping
+/// is a standard, correctness-preserving optimization safeguard (it does not
+/// change any fixed point of the ascent, only how quickly early steps
+/// approach one).
 const GRADIENT_CLIP_NORM: f64 = 25.0;
+
+/// Tighter Frobenius-norm cap for the raw `S` gradient. The KL term
+/// contributes a `-0.5 S⁻¹` component whose magnitude grows without bound as
+/// `S` approaches singularity, which makes *plain* (non-natural) gradient
+/// ascent directly on the covariance matrix prone to a runaway
+/// shrink-and-invert feedback loop; a tighter clip than `m`'s keeps each step
+/// small enough that the PSD repair below stays within reach.
+const GRADIENT_CLIP_NORM_S: f64 = 5.0;
+
+/// `S` is updated with `learning_rate * S_LEARNING_RATE_SCALE` rather than
+/// the raw `learning_rate`: the covariance update is intrinsically more
+/// sensitive than the mean update (small negative moves compound through
+/// `S⁻¹` in the next iteration's KL gradient), so damping it relative to `m`
+/// keeps the ascent stable without changing the (m, S) fixed point that
+/// maximizes the ELBO.
+const S_LEARNING_RATE_SCALE: f64 = 0.1;
 
 /// Numerically stable softplus: `log(1 + exp(x))`.
 fn softplus(x: f64) -> f64 {
@@ -598,12 +615,19 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>>
             }
 
             let grad_m_clipped = clip_vector_norm(grad_m, GRADIENT_CLIP_NORM);
-            let grad_S_clipped = clip_matrix_norm(grad_S, GRADIENT_CLIP_NORM);
+            let grad_S_clipped = clip_matrix_norm(grad_S, GRADIENT_CLIP_NORM_S);
 
             m = &m + self.config.learning_rate * &grad_m_clipped;
-            let S_updated = &S + self.config.learning_rate * &grad_S_clipped;
+            let S_updated =
+                &S + (self.config.learning_rate * S_LEARNING_RATE_SCALE) * &grad_S_clipped;
             let S_sym = 0.5 * (&S_updated + &S_updated.t());
-            S = utils::ensure_positive_definite(&S_sym)?;
+            // Repair to a strictly PSD matrix via `robust_cholesky`'s
+            // escalating-jitter search (far more robust than a single fixed
+            // regularization attempt), then reconstruct S = L L^T so the
+            // result is *exactly* PSD by construction rather than merely
+            // "hopefully regularized enough".
+            let L_s_repair = utils::robust_cholesky(&S_sym)?;
+            S = L_s_repair.dot(&L_s_repair.t());
         }
 
         let final_elbo = elbo_history.last().copied().unwrap_or(f64::NEG_INFINITY);

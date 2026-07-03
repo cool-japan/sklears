@@ -691,6 +691,10 @@ mod tests {
 
     #[test]
     #[cfg(feature = "memmap")]
+    #[cfg_attr(
+        miri,
+        ignore = "Miri does not support file-backed memory mappings (confirmed interpreter limitation, not a bug)"
+    )]
     fn test_mmap_neighbor_index_store_and_retrieve() {
         let temp_file = NamedTempFile::new().expect("operation should succeed");
         let file_path = temp_file.path();

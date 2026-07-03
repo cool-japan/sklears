@@ -29,6 +29,7 @@ dashmap = { workspace = true }
 parking_lot = { workspace = true }
 oxicuda-backend = { workspace = true, optional = true }
 oxicuda-blas    = { workspace = true, optional = true }
+oxicuda-memory  = { workspace = true, optional = true }
 oxicuda-ptx     = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
@@ -39,13 +40,16 @@ sklears-metrics = { path = "../sklears-metrics" }
 approx = { workspace = true }
 tempfile = { workspace = true }
 proptest = { workspace = true }
+# Blocks on the async `gpu` feature's GPU-init futures from sync `#[test]`s
+# (same rationale/version as sklears-clustering's gpu_distances.rs tests).
+pollster = { workspace = true }
 
 [features]
 default = ["std", "parallel"]
 std = ["sklears-core/std"]
 parallel = ["rayon"]
 serde = ["dep:serde", "sklears-core/serde"]
-gpu = ["dep:oxicuda-backend", "dep:oxicuda-blas", "dep:oxicuda-ptx", "bytemuck", "sklears-core/gpu_support"]
+gpu = ["dep:oxicuda-backend", "dep:oxicuda-blas", "dep:oxicuda-memory", "dep:oxicuda-ptx", "bytemuck", "sklears-core/gpu_support"]
 visualization = ["serde_json"]
 
 [[example]]

@@ -440,10 +440,15 @@ impl NumericalStability {
 
             Ok(result)
         } else {
-            // For general matrices, would use SVD (not implemented here)
-            Err(SklearsError::NotImplemented(
-                "SVD-based inverse for non-symmetric matrices".to_string(),
-            ))
+            // General (possibly non-symmetric) square matrix: LU-based
+            // inverse via `scirs2_linalg::inv`. This path is hit e.g. when
+            // inverting a triangular Cholesky factor (lower-triangular, and
+            // so not symmetric) as part of a generalized-eigenproblem
+            // reduction -- the eigenvalue-decomposition pseudoinverse above
+            // only applies to symmetric input.
+            scirs2_linalg::inv(&matrix.view(), None).map_err(|e| {
+                SklearsError::NumericalError(format!("General matrix inverse failed: {}", e))
+            })
         }
     }
 

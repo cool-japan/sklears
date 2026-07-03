@@ -9,10 +9,6 @@
 //! These models can handle multiple target variables simultaneously,
 //! potentially leveraging correlations between targets for improved performance.
 
-// The nalgebra-tests feature is intentionally not declared in Cargo.toml —
-// it exists only as a gate for legacy test code that predates the ndarray migration.
-#![allow(unexpected_cfgs)]
-
 use crate::errors::{LinearModelError, OptimizationError, OptimizationErrorKind};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_linalg::compat::svd;
@@ -271,10 +267,22 @@ impl MultiOutputRegression {
             None
         };
 
+        // Target correlations depend only on the target matrix Y, not on the fitting
+        // strategy, so compute them here whenever requested. This ensures
+        // `model_correlations` is honored for every strategy, not just `Joint` (the
+        // only strategy whose fit routine happens to compute them inline).
+        let target_correlations = match result.target_correlations {
+            Some(correlations) => Some(correlations),
+            None if self.config.model_correlations => {
+                Some(self.compute_target_correlations(&y_centered)?)
+            }
+            None => None,
+        };
+
         self.result = Some(MultiOutputResult {
             coefficients: result.coefficients,
             intercept,
-            target_correlations: result.target_correlations,
+            target_correlations,
             rank_factors: result.rank_factors,
             chain_order: result.chain_order,
             training_loss: result.training_loss,
@@ -907,61 +915,65 @@ impl Default for MultiOutputRegressionBuilder {
     }
 }
 
-// TODO: These tests use nalgebra while the rest of sklears uses ndarray
-// The tests need to be rewritten to use ndarray or the whole module needs migration
-#[cfg(all(test, feature = "nalgebra-tests"))]
+#[cfg(test)]
 mod tests {
     use super::*;
-    use nalgebra::{DMatrix, DVector};
+    use scirs2_core::ndarray::array;
 
     fn create_test_data() -> (Array2<f64>, Array2<f64>) {
-        let X = DMatrix::from_row_slice(
-            5,
-            3,
-            &[
-                1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0, 4.0, 5.0, 6.0, 5.0, 6.0, 7.0,
-            ],
-        );
+        let x = array![
+            [1.0, 2.0, 3.0],
+            [2.0, 3.0, 4.0],
+            [3.0, 4.0, 5.0],
+            [4.0, 5.0, 6.0],
+            [5.0, 6.0, 7.0],
+        ];
 
-        let Y = DMatrix::from_row_slice(5, 2, &[1.0, 2.0, 2.0, 4.0, 3.0, 6.0, 4.0, 8.0, 5.0, 10.0]);
+        let y = array![
+            [1.0, 2.0],
+            [2.0, 4.0],
+            [3.0, 6.0],
+            [4.0, 8.0],
+            [5.0, 10.0],
+        ];
 
-        (X, Y)
+        (x, y)
     }
 
     #[test]
     fn test_multi_output_ridge() {
-        let (X, Y) = create_test_data();
+        let (x, y) = create_test_data();
         let mut model = MultiOutputRegression::ridge(0.1);
 
-        let result = model.fit(&X, &Y);
+        let result = model.fit(&x, &y);
         assert!(result.is_ok());
 
-        let predictions = model.predict(&X);
+        let predictions = model.predict(&x);
         assert!(predictions.is_ok());
 
         let pred = predictions.expect("operation should succeed");
-        assert_eq!(pred.nrows(), X.nrows());
-        assert_eq!(pred.ncols(), Y.ncols());
+        assert_eq!(pred.nrows(), x.nrows());
+        assert_eq!(pred.ncols(), y.ncols());
     }
 
     #[test]
     fn test_multi_output_lasso() {
-        let (X, Y) = create_test_data();
+        let (x, y) = create_test_data();
         let mut model = MultiOutputRegression::lasso(0.1);
 
-        let result = model.fit(&X, &Y);
+        let result = model.fit(&x, &y);
         assert!(result.is_ok());
 
-        let predictions = model.predict(&X);
+        let predictions = model.predict(&x);
         assert!(predictions.is_ok());
     }
 
     #[test]
     fn test_multi_output_elastic_net() {
-        let (X, Y) = create_test_data();
+        let (x, y) = create_test_data();
         let mut model = MultiOutputRegression::elastic_net(0.1, 0.5);
 
-        let result = model.fit(&X, &Y);
+        let result = model.fit(&x, &y);
         assert!(result.is_ok());
 
         let coefficients = model.coefficients();
@@ -970,7 +982,7 @@ mod tests {
 
     #[test]
     fn test_independent_strategy() {
-        let (X, Y) = create_test_data();
+        let (x, y) = create_test_data();
         let config = MultiOutputConfig {
             strategy: MultiOutputStrategy::Independent,
             alpha: 0.1,
@@ -978,13 +990,13 @@ mod tests {
         };
         let mut model = MultiOutputRegression::new(config);
 
-        let result = model.fit(&X, &Y);
+        let result = model.fit(&x, &y);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_chain_strategy() {
-        let (X, Y) = create_test_data();
+        let (x, y) = create_test_data();
         let config = MultiOutputConfig {
             strategy: MultiOutputStrategy::Chain,
             alpha: 0.1,
@@ -993,13 +1005,13 @@ mod tests {
         };
         let mut model = MultiOutputRegression::new(config);
 
-        let result = model.fit(&X, &Y);
+        let result = model.fit(&x, &y);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_reduced_rank_strategy() {
-        let (X, Y) = create_test_data();
+        let (x, y) = create_test_data();
         let config = MultiOutputConfig {
             strategy: MultiOutputStrategy::ReducedRank,
             alpha: 0.1,
@@ -1008,13 +1020,13 @@ mod tests {
         };
         let mut model = MultiOutputRegression::new(config);
 
-        let result = model.fit(&X, &Y);
+        let result = model.fit(&x, &y);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_target_correlations() {
-        let (X, Y) = create_test_data();
+        let (x, y) = create_test_data();
         let config = MultiOutputConfig {
             model_correlations: true,
             alpha: 0.1,
@@ -1022,17 +1034,17 @@ mod tests {
         };
         let mut model = MultiOutputRegression::new(config);
 
-        model.fit(&X, &Y).expect("model fitting should succeed");
+        model.fit(&x, &y).expect("model fitting should succeed");
         let correlations = model.target_correlations();
         assert!(correlations.is_some());
 
         let corr_matrix = correlations.expect("operation should succeed");
-        assert_eq!(corr_matrix.nrows(), Y.ncols());
-        assert_eq!(corr_matrix.ncols(), Y.ncols());
+        assert_eq!(corr_matrix.nrows(), y.ncols());
+        assert_eq!(corr_matrix.ncols(), y.ncols());
 
         // Diagonal should be 1.0
         for i in 0..corr_matrix.nrows() {
-            assert!((corr_matrix[(i, i)] - 1.0).abs() < 1e-10);
+            assert!((corr_matrix[[i, i]] - 1.0).abs() < 1e-10);
         }
     }
 
@@ -1059,32 +1071,32 @@ mod tests {
 
     #[test]
     fn test_prediction_dimensions() {
-        let (X, Y) = create_test_data();
+        let (x, y) = create_test_data();
         let mut model = MultiOutputRegression::ridge(0.1);
 
-        model.fit(&X, &Y).expect("model fitting should succeed");
+        model.fit(&x, &y).expect("model fitting should succeed");
 
         // Test with same dimensions
-        let predictions = model.predict(&X).expect("prediction should succeed");
-        assert_eq!(predictions.nrows(), X.nrows());
-        assert_eq!(predictions.ncols(), Y.ncols());
+        let predictions = model.predict(&x).expect("prediction should succeed");
+        assert_eq!(predictions.nrows(), x.nrows());
+        assert_eq!(predictions.ncols(), y.ncols());
 
         // Test with different number of samples
-        let X_new = DMatrix::from_row_slice(3, 3, &[1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0]);
-        let predictions_new = model.predict(&X_new).expect("prediction should succeed");
+        let x_new = array![[1.0, 2.0, 3.0], [2.0, 3.0, 4.0], [3.0, 4.0, 5.0]];
+        let predictions_new = model.predict(&x_new).expect("prediction should succeed");
         assert_eq!(predictions_new.nrows(), 3);
-        assert_eq!(predictions_new.ncols(), Y.ncols());
+        assert_eq!(predictions_new.ncols(), y.ncols());
     }
 
     #[test]
     fn test_invalid_dimensions() {
-        let (X, Y) = create_test_data();
+        let (x, _y) = create_test_data();
         let mut model = MultiOutputRegression::ridge(0.1);
 
         // Different number of samples
-        let Y_bad = DMatrix::from_row_slice(3, 2, &[1.0, 2.0, 2.0, 4.0, 3.0, 6.0]);
+        let y_bad = array![[1.0, 2.0], [2.0, 4.0], [3.0, 6.0]];
 
-        let result = model.fit(&X, &Y_bad);
+        let result = model.fit(&x, &y_bad);
         assert!(result.is_err());
     }
 }

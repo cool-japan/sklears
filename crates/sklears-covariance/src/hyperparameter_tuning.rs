@@ -6,6 +6,7 @@
 
 use scirs2_core::ndarray::{s, Array2, ArrayView2, NdFloat};
 use scirs2_core::Distribution;
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::error::{Result as SklResult, SklearsError};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -696,25 +697,77 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
     }
 
     /// Compute log-likelihood score
+    /// Gaussian log-likelihood of `x` under `N(mean(x), covariance)`.
+    ///
+    /// `-0.5 * n * (p * ln(2*pi) + ln(det(covariance)) + tr(covariance^-1 * S))`,
+    /// where `S` is the (mean-centered) empirical covariance of `x`. The
+    /// `tr(covariance^-1 * S)` quadratic-form term used to be missing
+    /// entirely, which meant `x`'s actual *values* played no role at all --
+    /// only its shape did -- so this "log-likelihood" was really just a
+    /// monotone function of `det(covariance)` alone, independent of whether
+    /// `covariance` was anywhere close to `x`'s real spread.
     fn compute_log_likelihood(&self, covariance: &Array2<F>, x: &ArrayView2<F>) -> SklResult<f64> {
-        // Simplified log-likelihood computation
         let n_samples = x.nrows() as f64;
         let n_features = x.ncols() as f64;
 
-        // Compute determinant (simplified)
         let det = self.compute_determinant(covariance)?;
         if det <= F::zero() {
             return Ok(f64::NEG_INFINITY);
         }
-
         let log_det = det
             .to_f64()
             .ok_or_else(|| SklearsError::NumericalError("to_f64 failed".into()))?
             .ln();
+
+        let covariance_f64 = covariance.mapv(|value| value.to_f64().unwrap_or(0.0));
+        let x_f64 = x.mapv(|value| value.to_f64().unwrap_or(0.0));
+
+        let precision_f64 = match covariance_f64.inv() {
+            Ok(inv) => inv,
+            // `det > 0` above already rules out exact singularity; a failure
+            // here means the matrix is numerically too ill-conditioned to
+            // invert reliably, which is itself evidence of a very poor fit.
+            Err(_) => return Ok(f64::NEG_INFINITY),
+        };
+        let sample_covariance = Self::empirical_covariance_f64(&x_f64);
+        let trace_term = trace_of_product(&precision_f64, &sample_covariance);
+
         let log_likelihood =
-            -0.5 * n_samples * (n_features * (2.0 * std::f64::consts::PI).ln() + log_det);
+            -0.5 * n_samples * (n_features * (2.0 * std::f64::consts::PI).ln() + log_det + trace_term);
 
         Ok(log_likelihood)
+    }
+
+    /// Mean-centered empirical (sample) covariance of `x`, in `f64`.
+    fn empirical_covariance_f64(x: &Array2<f64>) -> Array2<f64> {
+        let n = x.nrows();
+        let p = x.ncols();
+
+        let mut mean = vec![0.0_f64; p];
+        for row in x.rows() {
+            for j in 0..p {
+                mean[j] += row[j];
+            }
+        }
+        if n > 0 {
+            let n_f = n as f64;
+            for m in mean.iter_mut() {
+                *m /= n_f;
+            }
+        }
+
+        let mut cov = Array2::<f64>::zeros((p, p));
+        for row in x.rows() {
+            for i in 0..p {
+                let di = row[i] - mean[i];
+                for j in 0..p {
+                    cov[[i, j]] += di * (row[j] - mean[j]);
+                }
+            }
+        }
+        let denom = if n > 1 { (n - 1) as f64 } else { 1.0 };
+        cov.mapv_inplace(|value| value / denom);
+        cov
     }
 
     /// Compute Frobenius norm error
@@ -807,26 +860,72 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
     }
 
     /// Compute determinant (simplified)
+    /// Compute the determinant of a square matrix via Gaussian elimination
+    /// with partial pivoting (`O(n^3)`).
+    ///
+    /// This used to fall back, for `n > 2`, to the product of the diagonal
+    /// entries ("assuming diagonal dominance"), which is only exact for a
+    /// diagonal matrix. For any matrix with real off-diagonal structure --
+    /// exactly what most covariance-estimator regularization parameters
+    /// act on -- that shortcut silently returned the wrong determinant,
+    /// which made every log-likelihood-based `ScoringMetric`
+    /// (`LogLikelihood`, `PredictiveLikelihood`, `CrossValidationScore`)
+    /// nearly insensitive to those parameters.
     fn compute_determinant(&self, matrix: &Array2<F>) -> SklResult<F> {
-        // Simplified determinant for small matrices
         let n = matrix.nrows();
         if n != matrix.ncols() {
             return Err(SklearsError::InvalidInput(
                 "Matrix must be square".to_string(),
             ));
         }
+        if n == 0 {
+            return Ok(F::one());
+        }
 
-        match n {
-            1 => Ok(matrix[[0, 0]]),
-            2 => Ok(matrix[[0, 0]] * matrix[[1, 1]] - matrix[[0, 1]] * matrix[[1, 0]]),
-            _ => {
-                // For larger matrices, use product of diagonal (assuming diagonal dominance)
-                let det = (0..n)
-                    .map(|i| matrix[[i, i]])
-                    .fold(F::one(), |acc, x| acc * x);
-                Ok(det)
+        let mut a = matrix.clone();
+        let mut det = F::one();
+
+        for col in 0..n {
+            // Partial pivoting: bring the largest-magnitude entry in this
+            // column (at or below the diagonal) onto the diagonal, for
+            // numerical stability.
+            let mut pivot_row = col;
+            let mut pivot_val = a[[col, col]].abs();
+            for row in (col + 1)..n {
+                let val = a[[row, col]].abs();
+                if val > pivot_val {
+                    pivot_val = val;
+                    pivot_row = row;
+                }
+            }
+
+            if pivot_val <= F::epsilon() {
+                // Singular (or numerically indistinguishable from it).
+                return Ok(F::zero());
+            }
+
+            if pivot_row != col {
+                for k in 0..n {
+                    a.swap([col, k], [pivot_row, k]);
+                }
+                det = -det;
+            }
+
+            det *= a[[col, col]];
+
+            let pivot = a[[col, col]];
+            for row in (col + 1)..n {
+                let factor = a[[row, col]] / pivot;
+                if factor != F::zero() {
+                    for k in col..n {
+                        let delta = factor * a[[col, k]];
+                        a[[row, k]] -= delta;
+                    }
+                }
             }
         }
+
+        Ok(det)
     }
 
     /// Check if the metric should be maximized
@@ -903,6 +1002,20 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
 
         improvement < early_stopping.min_delta
     }
+}
+
+/// `tr(a * b)` for two same-shape square matrices, computed directly as
+/// `sum_{i,j} a[i,j] * b[j,i]` rather than forming the full product, since
+/// only the trace is needed.
+fn trace_of_product(a: &Array2<f64>, b: &Array2<f64>) -> f64 {
+    let n = a.nrows();
+    let mut sum = 0.0;
+    for i in 0..n {
+        for j in 0..n {
+            sum += a[[i, j]] * b[[j, i]];
+        }
+    }
+    sum
 }
 
 /// Trait for covariance estimators that can be tuned
@@ -1042,6 +1155,150 @@ pub mod presets {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::GraphicalLasso;
+    use scirs2_core::random::essentials::Normal;
+    use scirs2_core::random::{Distribution, SeedableRng, StdRng};
+    use sklears_core::traits::Fit;
+
+    /// Wraps [`GraphicalLasso`] so `alpha` can be searched by the tuner.
+    /// `get_covariance()`/`get_precision()` are forwarded directly -- no
+    /// manual ridge-then-invert workaround is needed here, since
+    /// `GraphicalLasso::get_covariance()` already returns the covariance
+    /// implied by the fitted, regularized precision matrix.
+    struct TunableGraphicalLassoAlpha {
+        alpha: f64,
+    }
+
+    impl CovarianceEstimatorTunable<f64> for TunableGraphicalLassoAlpha {
+        fn fit(
+            &self,
+            x: &ArrayView2<f64>,
+            _y: Option<ArrayView2<f64>>,
+        ) -> SklResult<Box<dyn CovarianceEstimatorFitted<f64>>> {
+            let fitted = GraphicalLasso::new().alpha(self.alpha).fit(x, &())?;
+            Ok(Box::new(FittedGraphicalLassoAlpha {
+                covariance: fitted.get_covariance().clone(),
+                precision: fitted.get_precision().clone(),
+            }))
+        }
+    }
+
+    struct FittedGraphicalLassoAlpha {
+        covariance: Array2<f64>,
+        precision: Array2<f64>,
+    }
+
+    impl CovarianceEstimatorFitted<f64> for FittedGraphicalLassoAlpha {
+        fn get_covariance(&self) -> &Array2<f64> {
+            &self.covariance
+        }
+
+        fn get_precision(&self) -> Option<&Array2<f64>> {
+            Some(&self.precision)
+        }
+    }
+
+    /// Block-correlated toy dataset: features `0..block_size` share one
+    /// latent factor (a real, recoverable dependency structure); the rest
+    /// are independent noise. Before `get_covariance()` was fixed to depend
+    /// on `alpha`, every candidate in a search would score identically
+    /// (`compute_score` always reads `estimator.get_covariance()`), so the
+    /// "winner" would just be whichever config the search happened to visit
+    /// first/last -- never a data-dependent choice.
+    fn generate_block_sparse_data(
+        n_samples: usize,
+        n_features: usize,
+        block_size: usize,
+        seed: u64,
+    ) -> Array2<f64> {
+        let mut rng = StdRng::seed_from_u64(seed);
+        let normal = Normal::new(0.0, 1.0).expect("standard normal parameters are always valid");
+
+        let mut data = Array2::<f64>::zeros((n_samples, n_features));
+        for i in 0..n_samples {
+            let factor_a = normal.sample(&mut rng);
+            let factor_b = normal.sample(&mut rng);
+            for j in 0..n_features {
+                let noise = normal.sample(&mut rng);
+                data[[i, j]] = if j < block_size {
+                    0.9 * factor_a + 0.3 * noise
+                } else if j < 2 * block_size {
+                    0.9 * factor_b + 0.3 * noise
+                } else {
+                    noise
+                };
+            }
+        }
+        data
+    }
+
+    /// End-to-end confirmation of the `get_covariance()` alpha-invariance
+    /// fix: tuning `GraphicalLasso`'s `alpha` via cross-validated
+    /// log-likelihood must (a) produce genuinely different scores across
+    /// the alpha grid, and (b) land on a sensible interior value rather
+    /// than always the same (data-independent) boundary alpha.
+    #[test]
+    fn test_graphical_lasso_tuning_selects_interior_alpha() {
+        let data = generate_block_sparse_data(150, 12, 3, 7);
+
+        let param_specs = vec![ParameterSpec {
+            name: "alpha".to_string(),
+            param_type: ParameterType::Continuous { min: -3.0, max: 0.5 }, // log10: alpha in [1e-3, ~3.16]
+            log_scale: true,
+        }];
+        let config = TuningConfig {
+            cv_config: CrossValidationConfig {
+                n_folds: 5,
+                shuffle: true,
+                random_seed: Some(42),
+                stratify: false,
+            },
+            search_strategy: SearchStrategy::GridSearch,
+            scoring: ScoringMetric::LogLikelihood,
+            max_evaluations: 10,
+            random_seed: Some(42),
+            n_jobs: None,
+            early_stopping: None,
+        };
+
+        let tuner = CovarianceHyperparameterTuner::new(param_specs, config);
+        let factory = |params: &HashMap<String, ParameterValue>| -> SklResult<
+            Box<dyn CovarianceEstimatorTunable<f64>>,
+        > {
+            let alpha = match params.get("alpha") {
+                Some(ParameterValue::Float(a)) => *a,
+                _ => 0.01,
+            };
+            Ok(Box::new(TunableGraphicalLassoAlpha { alpha }))
+        };
+
+        let result = tuner
+            .tune(factory, &data.view(), None)
+            .expect("tuning should succeed");
+
+        // (a) Scores must actually depend on alpha now: they cannot all be
+        // tied, which is what alpha-invariant scoring would produce.
+        let scores: Vec<f64> = result.cv_results.iter().map(|r| r.mean_score).collect();
+        let min_score = scores.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max_score = scores.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        assert!(
+            max_score - min_score > 1e-6,
+            "CV scores across the alpha grid should vary once get_covariance() responds to \
+             alpha (got a flat score range [{min_score}, {max_score}])"
+        );
+
+        // (b) The winner should be a sensible interior value, not glued to
+        // whichever grid boundary the search happened to visit.
+        let best_alpha = match result.best_params.get("alpha") {
+            Some(ParameterValue::Float(a)) => *a,
+            other => panic!("expected a float alpha in best_params, got {other:?}"),
+        };
+        assert!(
+            (0.005..1.0).contains(&best_alpha),
+            "expected the tuner to select an interior alpha in [0.005, 1.0) out of the \
+             searched [0.001, 3.162] range, got {best_alpha}"
+        );
+    }
 
     #[test]
     fn test_parameter_value_equality() {

@@ -49,9 +49,11 @@ libloading = { workspace = true, optional = true }
 oxicuda-backend = { workspace = true, optional = true }
 oxicuda-memory  = { workspace = true, optional = true }
 oxicuda-blas    = { workspace = true, optional = true }
+oxicuda-driver  = { workspace = true, optional = true }
 chrono = { workspace = true }
 async-trait = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
+regex = { workspace = true }
 
 # Platform-specific dependencies for benchmarking and system monitoring
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -101,7 +103,11 @@ ensemble_methods = []
 # Advanced features
 async_support = ["dep:async-trait", "dep:tokio"]
 streaming = ["async_support"]
-gpu_support = ["dep:oxicuda-backend", "dep:oxicuda-memory", "dep:oxicuda-blas"]
+gpu_support = ["dep:oxicuda-backend", "dep:oxicuda-memory", "dep:oxicuda-blas", "dep:oxicuda-driver"]
+# Optional: report real GPU-vs-CPU backend selection in the trait graph
+# visualization system's generated PerformanceMetrics, via scirs2-core's own
+# GPU abstraction (distinct from the oxicuda-backed `gpu_support` above).
+scirs2-gpu-reporting = ["scirs2-core/gpu"]
 distributed = ["async_support"]
 exotic_hardware = ["async_support"]
 effect_types = []

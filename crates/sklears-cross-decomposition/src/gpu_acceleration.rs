@@ -1,50 +1,58 @@
 //! GPU Acceleration Module for Cross-Decomposition Methods
 //!
 //! This module provides GPU-accelerated implementations of core cross-decomposition
-//! algorithms including CCA, PLS, and tensor decomposition methods. It leverages
-//! SciRS2-Core's comprehensive GPU backend support.
+//! algorithms including CCA, PLS, and tensor decomposition methods. It is backed by
+//! the shared `sklears_core::gpu` abstraction (a real CUDA context + BLAS handle, via
+//! the `oxicuda` crate family) -- the same foundation the rest of this GPU-migration
+//! wave builds on.
+//!
+//! ## Wave B8 rewrite
+//!
+//! This module used to carry its own bespoke, placeholder GPU layer
+//! (`DummyGpuContext` / `DummyGpuBuffer` / `DummyGpuKernel`, plus locally defined
+//! `GpuBackend` / `GpuContext` / `GpuBuffer` / `GpuKernel` types) because, at the
+//! time, there was no real shared GPU abstraction to build on: `matmul` / `eig` /
+//! `svd` / `batch_matmul` always silently ran on the CPU no matter what backend was
+//! requested.
+//!
+//! That dummy scaffolding is gone. [`GpuMatrixOps::matmul`] and
+//! [`GpuMatrixOps::batch_matmul`] now dispatch to real on-device GEMM through
+//! `sklears_core::gpu`'s `GpuArray` / `GpuMatrixOps` whenever a CUDA device is
+//! detected (via `sklears_core::gpu::GpuBackend::detect`); otherwise -- and always
+//! when the `gpu` feature is disabled -- they fall back to the same CPU path
+//! (`ndarray`) this crate always used. `eig` / `svd` still run entirely on the CPU
+//! via `scirs2_linalg::compat::{eigh, svd}`: there is no `oxicuda-solver`-backed
+//! dense SVD/eigendecomposition wired into this crate yet, matching the "CPU-correct
+//! baseline" bar this wave sets for that pair of operations.
+//!
+//! The local [`GpuBackendKind`] enum (formerly named `GpuBackend`) was renamed to
+//! avoid colliding with `sklears_core::gpu::GpuBackend`, which is a live handle to an
+//! already-initialised GPU rather than a plain "which kind of backend" tag. The local
+//! `GpuContext` / `GpuBuffer` / `GpuKernel` traits were removed outright: they only
+//! ever existed to be implemented by the now-deleted dummy types, and have no
+//! remaining purpose now that `sklears_core::gpu` provides a real, concrete
+//! implementation.
 //!
 //! ## Supported Backends
-//! - CUDA (NVIDIA GPUs)
-//! - Metal (Apple Silicon/AMD GPUs on macOS)
-//! - WebGPU (Cross-platform)
-//! - ROCm (AMD GPUs)
-//! - OpenCL (General purpose)
-//! - CPU fallback for compatibility
+//! - CUDA (NVIDIA GPUs), via `sklears_core::gpu` / `oxicuda`
+//! - CPU fallback for compatibility (always available)
+//!
+//! Metal / WebGPU / ROCm / OpenCL are enumerated in [`GpuBackendKind`] for
+//! forward/API compatibility but have no implementation behind them yet.
 //!
 //! ## Performance Benefits
-//! - 10-100x speedup for large matrix operations
-//! - Parallel eigenvalue decomposition
-//! - Batched SVD computations
-//! - Memory-efficient tensor operations
+//! - Real on-device GEMM for `matmul` / `batch_matmul` when a CUDA device is present
+//! - CPU fallback (`scirs2_linalg`) for eigenvalue decomposition and SVD
 
-#[cfg(feature = "gpu")]
-use scirs2_core::gpu::GpuBackend;
-#[cfg(not(feature = "gpu"))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GpuBackend {
-    Cpu,
-    Cuda,
-    Metal,
-    WebGpu,
-    Rocm,
-    OpenCl,
-}
-
-#[cfg(not(feature = "gpu"))]
-impl GpuBackend {
-    pub fn preferred() -> Self {
-        Self::Cpu
-    }
-
-    pub fn is_available(&self) -> bool {
-        matches!(self, Self::Cpu)
-    }
-}
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_linalg::compat::{eigh, inv, svd, UPLO};
 use scirs2_linalg::LinalgError;
-use std::sync::Arc;
+
+#[cfg(feature = "gpu")]
+use sklears_core::{
+    error::SklearsError,
+    gpu::{GpuArray, GpuBackend as SklearsGpuBackend, GpuMatrixOps as SklearsGpuMatrixOps},
+};
 
 // Define our own Result type for GPU operations
 pub type GpuResult<T> = std::result::Result<T, GpuError>;
@@ -59,45 +67,84 @@ pub enum GpuError {
     GpuError(String),
 }
 
-/// Trait for GPU context operations
-pub trait GpuContext: Send + Sync {
-    /// Get the backend type
-    fn backend(&self) -> GpuBackend;
-    /// Create a GPU buffer
-    fn create_buffer(&self, size: usize) -> GpuResult<Box<dyn GpuBuffer>>;
-    /// Create a GPU kernel
-    fn create_kernel(&self, source: &str) -> GpuResult<Box<dyn GpuKernel>>;
-    /// Synchronize GPU operations
-    fn synchronize(&self) -> GpuResult<()>;
+/// Converts an error from the shared `sklears_core::gpu` abstraction into this
+/// module's own [`GpuError`].
+#[cfg(feature = "gpu")]
+fn map_gpu_err(e: SklearsError) -> GpuError {
+    GpuError::GpuError(e.to_string())
 }
 
-/// Trait for GPU buffer operations
-pub trait GpuBuffer: Send + Sync {
-    /// Get buffer size
-    fn size(&self) -> usize;
-    /// Copy data from host to GPU
-    fn copy_from_host(&mut self, data: &[u8]) -> GpuResult<()>;
-    /// Copy data from GPU to host
-    fn copy_to_host(&self, data: &mut [u8]) -> GpuResult<()>;
+// ─── GpuBackendKind ─────────────────────────────────────────────────────────────
+
+/// The class of compute backend a [`GpuAcceleratedContext`] prefers or is bound to.
+///
+/// This is intentionally distinct from `sklears_core::gpu::GpuBackend`: that type is
+/// a *live handle* to an already-initialised GPU (a real CUDA context + BLAS handle
+/// pair), constructible only once a device has actually been found via
+/// `GpuBackend::detect`. `GpuBackendKind` is a plain, always-constructible tag
+/// describing which *kind* of backend is wanted or active, independent of whether
+/// that backend was actually detected.
+///
+/// Only [`Cpu`](Self::Cpu) and [`Cuda`](Self::Cuda) have a working implementation
+/// behind them in this crate (via `sklears_core::gpu`, backed by the `oxicuda` crate
+/// family). The remaining variants are retained for forward/API compatibility and
+/// always report [`is_available`](Self::is_available) as `false`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GpuBackendKind {
+    Cpu,
+    Cuda,
+    Metal,
+    WebGpu,
+    Rocm,
+    OpenCl,
 }
 
-/// Trait for GPU kernel operations
-pub trait GpuKernel: Send + Sync {
-    /// Launch the kernel
-    fn launch(&self, grid_size: (u32, u32, u32), block_size: (u32, u32, u32)) -> GpuResult<()>;
-    /// Set buffer argument
-    fn set_buffer_arg(&mut self, index: u32, buffer: &dyn GpuBuffer) -> GpuResult<()>;
+impl GpuBackendKind {
+    /// The backend this process would actually use: [`Cuda`](Self::Cuda) if a CUDA
+    /// device is detected, else [`Cpu`](Self::Cpu).
+    pub fn preferred() -> Self {
+        if Self::cuda_available() {
+            Self::Cuda
+        } else {
+            Self::Cpu
+        }
+    }
+
+    /// Whether this specific backend kind is actually usable right now. `Cpu` is
+    /// always available; `Cuda` reflects real device detection; the remaining
+    /// variants have no implementation in this crate yet.
+    pub fn is_available(&self) -> bool {
+        match self {
+            Self::Cpu => true,
+            Self::Cuda => Self::cuda_available(),
+            Self::Metal | Self::WebGpu | Self::Rocm | Self::OpenCl => false,
+        }
+    }
+
+    #[cfg(feature = "gpu")]
+    fn cuda_available() -> bool {
+        SklearsGpuBackend::is_available()
+    }
+
+    #[cfg(not(feature = "gpu"))]
+    fn cuda_available() -> bool {
+        false
+    }
 }
 
-/// GPU-accelerated context for cross-decomposition operations
+// ─── GpuAcceleratedContext ───────────────────────────────────────────────────────
+
+/// GPU-accelerated context for cross-decomposition operations.
+///
+/// Wraps a real `sklears_core::gpu::GpuBackend` (CUDA context + BLAS handle) when the
+/// `gpu` feature is enabled and a device is detected; otherwise this is a CPU-only
+/// marker, and every operation built on top of it (see [`GpuMatrixOps`])
+/// transparently runs on the CPU.
 #[derive(Clone)]
 pub struct GpuAcceleratedContext {
-    /// GPU backend being used
-    backend: GpuBackend,
-    /// GPU context for computations
-    context: Arc<dyn GpuContext>,
-    /// Whether GPU acceleration is enabled
-    enabled: bool,
+    backend_kind: GpuBackendKind,
+    #[cfg(feature = "gpu")]
+    gpu: Option<SklearsGpuBackend>,
 }
 
 impl Default for GpuAcceleratedContext {
@@ -107,56 +154,95 @@ impl Default for GpuAcceleratedContext {
 }
 
 impl GpuAcceleratedContext {
-    /// Create a new GPU-accelerated context
+    /// Create a new GPU-accelerated context, auto-detecting the best available
+    /// backend (currently: CUDA if present, else CPU).
     pub fn new() -> Self {
-        let backend = GpuBackend::preferred();
-        let enabled = backend.is_available() && backend != GpuBackend::Cpu;
+        Self::auto_detect()
+    }
 
-        Self {
-            backend,
-            context: Arc::new(DummyGpuContext::new(backend)),
-            enabled,
+    /// Create a context bound to a specific [`GpuBackendKind`].
+    ///
+    /// Requesting [`GpuBackendKind::Cuda`] attempts real device detection, falling
+    /// back to CPU if none is found. Requesting anything else forces CPU-only
+    /// operation, since only `Cpu`/`Cuda` are implemented (see
+    /// [`GpuBackendKind::is_available`]).
+    pub fn with_backend(backend_kind: GpuBackendKind) -> Self {
+        match backend_kind {
+            GpuBackendKind::Cuda => Self::auto_detect(),
+            _ => Self::cpu_only(),
         }
     }
 
-    /// Create context with specific backend
-    pub fn with_backend(backend: GpuBackend) -> Self {
-        let enabled = backend.is_available() && backend != GpuBackend::Cpu;
-
-        Self {
-            backend,
-            context: Arc::new(DummyGpuContext::new(backend)),
-            enabled,
+    #[cfg(feature = "gpu")]
+    fn auto_detect() -> Self {
+        match SklearsGpuBackend::detect() {
+            Ok(Some(gpu)) => Self {
+                backend_kind: GpuBackendKind::Cuda,
+                gpu: Some(gpu),
+            },
+            _ => Self::cpu_only(),
         }
     }
 
-    /// Check if GPU acceleration is available and enabled
+    #[cfg(not(feature = "gpu"))]
+    fn auto_detect() -> Self {
+        Self::cpu_only()
+    }
+
+    #[cfg(feature = "gpu")]
+    fn cpu_only() -> Self {
+        Self {
+            backend_kind: GpuBackendKind::Cpu,
+            gpu: None,
+        }
+    }
+
+    #[cfg(not(feature = "gpu"))]
+    fn cpu_only() -> Self {
+        Self {
+            backend_kind: GpuBackendKind::Cpu,
+        }
+    }
+
+    /// Check if GPU acceleration is available and enabled for this context.
     pub fn is_gpu_enabled(&self) -> bool {
-        self.enabled
-    }
-
-    /// Get the current GPU backend
-    pub fn backend(&self) -> GpuBackend {
-        self.backend
-    }
-
-    /// Get the GPU context (trait object access for downstream operations)
-    pub fn gpu_context(&self) -> &dyn GpuContext {
-        &*self.context
-    }
-
-    /// Get GPU memory info
-    pub fn memory_info(&self) -> GpuMemoryInfo {
-        if self.enabled {
-            // In a real implementation, query actual GPU memory
-            GpuMemoryInfo {
-                total: 8 * 1024 * 1024 * 1024,     // 8GB default
-                available: 6 * 1024 * 1024 * 1024, // 6GB available
-                used: 2 * 1024 * 1024 * 1024,      // 2GB used
-            }
-        } else {
-            GpuMemoryInfo::default()
+        #[cfg(feature = "gpu")]
+        {
+            self.gpu.is_some()
         }
+        #[cfg(not(feature = "gpu"))]
+        {
+            false
+        }
+    }
+
+    /// Get the current GPU backend kind.
+    pub fn backend(&self) -> GpuBackendKind {
+        self.backend_kind
+    }
+
+    /// Access the real, live GPU backend handle, if one was detected.
+    #[cfg(feature = "gpu")]
+    pub fn gpu_backend(&self) -> Option<&SklearsGpuBackend> {
+        self.gpu.as_ref()
+    }
+
+    /// Get GPU memory info. Returns real free/total/used device memory when a GPU is
+    /// bound to this context; an all-zero [`GpuMemoryInfo::default`] otherwise.
+    pub fn memory_info(&self) -> GpuMemoryInfo {
+        #[cfg(feature = "gpu")]
+        {
+            if let Some(ref gpu) = self.gpu {
+                if let Ok(info) = gpu.memory_info() {
+                    return GpuMemoryInfo {
+                        total: info.total,
+                        available: info.free,
+                        used: info.used,
+                    };
+                }
+            }
+        }
+        GpuMemoryInfo::default()
     }
 }
 
@@ -171,7 +257,15 @@ pub struct GpuMemoryInfo {
     pub used: usize,
 }
 
-/// GPU-accelerated matrix operations for cross-decomposition
+// ─── GpuMatrixOps ────────────────────────────────────────────────────────────────
+
+/// GPU-accelerated matrix operations for cross-decomposition.
+///
+/// `matmul` / `batch_matmul` dispatch to real on-device GEMM (via
+/// `sklears_core::gpu`'s `GpuArray` / `GpuMatrixOps`) whenever the wrapped
+/// [`GpuAcceleratedContext`] has a live CUDA backend; otherwise they run on the CPU
+/// via `ndarray`. `eig` / `svd` always run on the CPU via
+/// `scirs2_linalg::compat::{eigh, svd}` -- see the module docs for why.
 #[derive(Clone)]
 pub struct GpuMatrixOps {
     context: GpuAcceleratedContext,
@@ -196,75 +290,9 @@ impl GpuMatrixOps {
         Self { context }
     }
 
-    /// GPU-accelerated matrix multiplication
-    /// Falls back to CPU if GPU is not available
+    /// Matrix multiplication: real on-device GEMM when a CUDA backend is available,
+    /// CPU (`ndarray::Array2::dot`) otherwise.
     pub fn matmul(&self, a: &Array2<f64>, b: &Array2<f64>) -> GpuResult<Array2<f64>> {
-        if self.context.is_gpu_enabled() {
-            self.gpu_matmul(a, b)
-        } else {
-            self.cpu_matmul(a, b)
-        }
-    }
-
-    /// GPU-accelerated eigenvalue decomposition
-    pub fn eig(&self, matrix: &Array2<f64>) -> GpuResult<(Array1<f64>, Array2<f64>)> {
-        if self.context.is_gpu_enabled() {
-            self.gpu_eig(matrix)
-        } else {
-            self.cpu_eig(matrix)
-        }
-    }
-
-    /// GPU-accelerated singular value decomposition
-    pub fn svd(&self, matrix: &Array2<f64>) -> GpuResult<(Array2<f64>, Array1<f64>, Array2<f64>)> {
-        if self.context.is_gpu_enabled() {
-            self.gpu_svd(matrix)
-        } else {
-            self.cpu_svd(matrix)
-        }
-    }
-
-    /// GPU-accelerated batch matrix multiplication for tensor operations
-    pub fn batch_matmul(
-        &self,
-        a: &[Array2<f64>],
-        b: &[Array2<f64>],
-    ) -> GpuResult<Vec<Array2<f64>>> {
-        if self.context.is_gpu_enabled() && !a.is_empty() && !b.is_empty() {
-            self.gpu_batch_matmul(a, b)
-        } else {
-            self.cpu_batch_matmul(a, b)
-        }
-    }
-
-    // GPU implementation methods
-    fn gpu_matmul(&self, a: &Array2<f64>, b: &Array2<f64>) -> GpuResult<Array2<f64>> {
-        // For now, fall back to optimized CPU implementation
-        // In a real implementation, this would use GPU kernels
-        self.optimized_cpu_matmul(a, b)
-    }
-
-    fn gpu_eig(&self, matrix: &Array2<f64>) -> GpuResult<(Array1<f64>, Array2<f64>)> {
-        // Fall back to CPU eigendecomposition for now
-        self.cpu_eig(matrix)
-    }
-
-    fn gpu_svd(&self, matrix: &Array2<f64>) -> GpuResult<(Array2<f64>, Array1<f64>, Array2<f64>)> {
-        // Fall back to CPU SVD for now
-        self.cpu_svd(matrix)
-    }
-
-    fn gpu_batch_matmul(
-        &self,
-        a: &[Array2<f64>],
-        b: &[Array2<f64>],
-    ) -> GpuResult<Vec<Array2<f64>>> {
-        // Fall back to parallel CPU implementation
-        self.parallel_cpu_batch_matmul(a, b)
-    }
-
-    // CPU fallback implementations
-    fn cpu_matmul(&self, a: &Array2<f64>, b: &Array2<f64>) -> GpuResult<Array2<f64>> {
         if a.ncols() != b.nrows() {
             return Err(GpuError::DimensionError(format!(
                 "Matrix dimensions incompatible: ({}, {}) x ({}, {}), expected ({}, K) x (K, {})",
@@ -277,30 +305,66 @@ impl GpuMatrixOps {
             )));
         }
 
-        Ok(a.dot(b))
-    }
+        // `is_gpu_enabled` is always compiled in (it just always returns `false`
+        // without the `gpu` feature), so this check -- and therefore `self.context`
+        // -- is genuinely read regardless of feature flags; only the on-device
+        // dispatch itself (`gpu_matmul_dispatch`'s `gpu`-feature body) needs real
+        // GPU types.
+        if self.context.is_gpu_enabled() {
+            return self.gpu_matmul_dispatch(a, b);
+        }
 
-    fn optimized_cpu_matmul(&self, a: &Array2<f64>, b: &Array2<f64>) -> GpuResult<Array2<f64>> {
-        // Use SIMD-optimized operations when available
         self.cpu_matmul(a, b)
     }
 
+    #[cfg(feature = "gpu")]
+    fn gpu_matmul_dispatch(&self, a: &Array2<f64>, b: &Array2<f64>) -> GpuResult<Array2<f64>> {
+        match self.context.gpu_backend() {
+            Some(backend) => dispatch_gpu_matmul(backend, a, b),
+            None => self.cpu_matmul(a, b),
+        }
+    }
+
+    #[cfg(not(feature = "gpu"))]
+    fn gpu_matmul_dispatch(&self, a: &Array2<f64>, b: &Array2<f64>) -> GpuResult<Array2<f64>> {
+        // Unreachable in practice: `is_gpu_enabled()` is always `false` without the
+        // `gpu` feature, so `matmul` never calls this. Kept only so `matmul` itself
+        // does not need a `#[cfg]` split.
+        self.cpu_matmul(a, b)
+    }
+
+    fn cpu_matmul(&self, a: &Array2<f64>, b: &Array2<f64>) -> GpuResult<Array2<f64>> {
+        Ok(a.dot(b))
+    }
+
+    /// Symmetric eigendecomposition (CPU only; see module docs).
+    ///
+    /// CCA covariance matrices are symmetric positive semi-definite, so `eigh` is the
+    /// correct decomposition here.
+    pub fn eig(&self, matrix: &Array2<f64>) -> GpuResult<(Array1<f64>, Array2<f64>)> {
+        self.cpu_eig(matrix)
+    }
+
     fn cpu_eig(&self, matrix: &Array2<f64>) -> GpuResult<(Array1<f64>, Array2<f64>)> {
-        // Real symmetric eigendecomposition via scirs2_linalg::compat::eigh.
-        // CCA covariance matrices are symmetric positive semi-definite, so eigh is correct.
         let (eigenvalues, eigenvectors) = eigh(matrix, UPLO::Upper)
             .map_err(|e: LinalgError| GpuError::ComputationError(e.to_string()))?;
         Ok((eigenvalues, eigenvectors))
     }
 
+    /// Singular value decomposition (CPU only; see module docs).
+    pub fn svd(&self, matrix: &Array2<f64>) -> GpuResult<(Array2<f64>, Array1<f64>, Array2<f64>)> {
+        self.cpu_svd(matrix)
+    }
+
     fn cpu_svd(&self, matrix: &Array2<f64>) -> GpuResult<(Array2<f64>, Array1<f64>, Array2<f64>)> {
-        // Real SVD via scirs2_linalg::compat::svd. compute_uv=true returns full (U, S, Vt).
         let (u, s, vt) = svd(matrix, true)
             .map_err(|e: LinalgError| GpuError::ComputationError(e.to_string()))?;
         Ok((u, s, vt))
     }
 
-    fn cpu_batch_matmul(
+    /// Batch matrix multiplication: dispatches each pair through [`Self::matmul`]
+    /// (real on-device GEMM per pair when a CUDA backend is available).
+    pub fn batch_matmul(
         &self,
         a: &[Array2<f64>],
         b: &[Array2<f64>],
@@ -313,32 +377,28 @@ impl GpuMatrixOps {
             )));
         }
 
-        let mut results = Vec::with_capacity(a.len());
-        for (ai, bi) in a.iter().zip(b.iter()) {
-            results.push(self.cpu_matmul(ai, bi)?);
-        }
-
-        Ok(results)
-    }
-
-    fn parallel_cpu_batch_matmul(
-        &self,
-        a: &[Array2<f64>],
-        b: &[Array2<f64>],
-    ) -> GpuResult<Vec<Array2<f64>>> {
-        if a.len() != b.len() {
-            return Err(GpuError::DimensionError(format!(
-                "Batch size mismatch: expected {}, got {}",
-                a.len(),
-                b.len()
-            )));
-        }
-
-        // For now, fall back to sequential processing
-        // In a full implementation, this would use proper parallel processing
-        self.cpu_batch_matmul(a, b)
+        a.iter()
+            .zip(b.iter())
+            .map(|(ai, bi)| self.matmul(ai, bi))
+            .collect()
     }
 }
+
+/// `C = A * B` on-device: uploads `a`/`b` to the GPU, dispatches through
+/// `sklears_core::gpu`'s real GEMM, and downloads the result.
+#[cfg(feature = "gpu")]
+fn dispatch_gpu_matmul(
+    backend: &SklearsGpuBackend,
+    a: &Array2<f64>,
+    b: &Array2<f64>,
+) -> GpuResult<Array2<f64>> {
+    let a_gpu = GpuArray::<f64>::from_array2(backend, a).map_err(map_gpu_err)?;
+    let b_gpu = GpuArray::<f64>::from_array2(backend, b).map_err(map_gpu_err)?;
+    let c_gpu = SklearsGpuMatrixOps::matmul(&a_gpu, &b_gpu).map_err(map_gpu_err)?;
+    c_gpu.to_array2().map_err(map_gpu_err)
+}
+
+// ─── GpuCCA ──────────────────────────────────────────────────────────────────────
 
 /// GPU-accelerated CCA implementation
 pub struct GpuCCA {
@@ -394,7 +454,9 @@ impl GpuCCA {
     fn center_data(&self, data: &Array2<f64>) -> GpuResult<Array2<f64>> {
         let mean = data
             .mean_axis(scirs2_core::ndarray::Axis(0))
-            .expect("mean_axis requires non-empty array");
+            .ok_or_else(|| {
+                GpuError::DimensionError("center_data requires a non-empty array".to_string())
+            })?;
         let mut centered = data.clone();
         for mut row in centered.rows_mut() {
             row -= &mean;
@@ -534,77 +596,6 @@ impl GpuCCAFitted {
     }
 }
 
-// Dummy implementation for GpuContext trait since it's not fully implemented in SciRS2-Core
-struct DummyGpuContext {
-    backend: GpuBackend,
-}
-
-impl DummyGpuContext {
-    fn new(backend: GpuBackend) -> Self {
-        Self { backend }
-    }
-}
-
-impl GpuContext for DummyGpuContext {
-    fn backend(&self) -> GpuBackend {
-        self.backend
-    }
-
-    fn create_buffer(&self, _size: usize) -> GpuResult<Box<dyn GpuBuffer>> {
-        Ok(Box::new(DummyGpuBuffer::new()))
-    }
-
-    fn create_kernel(&self, _source: &str) -> GpuResult<Box<dyn GpuKernel>> {
-        Ok(Box::new(DummyGpuKernel::new()))
-    }
-
-    fn synchronize(&self) -> GpuResult<()> {
-        Ok(())
-    }
-}
-
-struct DummyGpuBuffer;
-
-impl DummyGpuBuffer {
-    fn new() -> Self {
-        Self
-    }
-}
-
-impl GpuBuffer for DummyGpuBuffer {
-    fn size(&self) -> usize {
-        0
-    }
-
-    fn copy_from_host(&mut self, _data: &[u8]) -> GpuResult<()> {
-        Ok(())
-    }
-
-    fn copy_to_host(&self, _data: &mut [u8]) -> GpuResult<()> {
-        Ok(())
-    }
-}
-
-struct DummyGpuKernel;
-
-impl DummyGpuKernel {
-    fn new() -> Self {
-        Self
-    }
-}
-
-impl GpuKernel for DummyGpuKernel {
-    fn launch(&self, _grid_size: (u32, u32, u32), _block_size: (u32, u32, u32)) -> GpuResult<()> {
-        Ok(())
-    }
-
-    fn set_buffer_arg(&mut self, _index: u32, _buffer: &dyn GpuBuffer) -> GpuResult<()> {
-        Ok(())
-    }
-}
-
-use scirs2_core::ndarray::s;
-
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -616,19 +607,35 @@ mod tests {
     #[test]
     fn test_gpu_context_creation() {
         let context = GpuAcceleratedContext::new();
-        // Should always succeed, may fall back to CPU
-        assert!(
-            context.backend() != GpuBackend::Cuda
-                || !context.is_gpu_enabled()
-                || context.is_gpu_enabled()
-        );
+        // Should always succeed, and must never panic; whichever backend it landed
+        // on, `backend()` and `is_gpu_enabled()` must agree with each other.
+        if context.is_gpu_enabled() {
+            assert_eq!(context.backend(), GpuBackendKind::Cuda);
+        } else {
+            assert_eq!(context.backend(), GpuBackendKind::Cpu);
+        }
     }
 
     #[test]
     fn test_gpu_context_with_backend() {
-        let context = GpuAcceleratedContext::with_backend(GpuBackend::Cpu);
-        assert_eq!(context.backend(), GpuBackend::Cpu);
+        let context = GpuAcceleratedContext::with_backend(GpuBackendKind::Cpu);
+        assert_eq!(context.backend(), GpuBackendKind::Cpu);
         assert!(!context.is_gpu_enabled());
+    }
+
+    #[test]
+    fn test_gpu_backend_kind_preferred_is_available() {
+        let kind = GpuBackendKind::preferred();
+        assert!(kind.is_available());
+    }
+
+    #[test]
+    fn test_gpu_backend_kind_unimplemented_variants_unavailable() {
+        assert!(GpuBackendKind::Cpu.is_available());
+        assert!(!GpuBackendKind::Metal.is_available());
+        assert!(!GpuBackendKind::WebGpu.is_available());
+        assert!(!GpuBackendKind::Rocm.is_available());
+        assert!(!GpuBackendKind::OpenCl.is_available());
     }
 
     #[test]

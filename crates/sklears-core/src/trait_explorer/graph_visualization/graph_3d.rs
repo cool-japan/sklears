@@ -5,8 +5,8 @@
 //! and immersive visualization experiences.
 
 use super::graph_config::{GraphConfig, VisualizationTheme};
-use super::graph_structures::{TraitGraph, TraitGraphNode, TraitGraphEdge, PerformanceMetrics};
-use crate::error::{Result, SklearsError};
+use super::graph_structures::{TraitGraph, TraitGraphNode};
+use crate::error::Result;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -84,6 +84,27 @@ impl Default for ThreeDConfig {
     }
 }
 
+impl ThreeDConfig {
+    /// Derive a reasonable 3D configuration from a 2D [`GraphConfig`].
+    ///
+    /// There is no lossless mapping between the two (they configure
+    /// different concerns), so this carries over the parts that do
+    /// correspond: the visualization theme's background color becomes the
+    /// 3D scene's background, and the optimization level's implied
+    /// quality/performance trade-off determines whether the more expensive
+    /// physics simulation and shadow rendering are enabled.
+    pub fn from_graph_config(config: &GraphConfig) -> Self {
+        let prefer_quality = config.optimization_level.enable_expensive_analysis();
+        Self {
+            enable_physics: prefer_quality,
+            enable_shadows: prefer_quality,
+            background_type: BackgroundType::SolidColor,
+            background_value: config.theme.background_color().to_string(),
+            ..Self::default()
+        }
+    }
+}
+
 /// Background types for 3D scenes
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum BackgroundType {
@@ -103,6 +124,12 @@ pub enum BackgroundType {
 #[derive(Debug)]
 pub struct ThreeDConfigBuilder {
     config: ThreeDConfig,
+}
+
+impl Default for ThreeDConfigBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ThreeDConfigBuilder {
@@ -302,6 +329,21 @@ pub struct Layout3DQualityMetrics {
     pub visual_clarity: f64,
     /// Depth perception score
     pub depth_perception: f64,
+}
+
+/// Positioning parameters for [`Graph3DGenerator::position_tree_children`],
+/// grouped into a single struct so the recursive helper stays within a
+/// reasonable argument count.
+struct TreeChildLayout {
+    /// X position of the parent node whose children are being placed.
+    parent_x: f64,
+    /// Y position (depth level) at which children are placed.
+    level_y: f64,
+    /// How many levels deep from the root this call is (used to spread
+    /// siblings across the Z axis so subtrees don't overlap).
+    child_offset: i32,
+    /// Horizontal spacing between sibling nodes at this level.
+    spacing: f64,
 }
 
 impl Graph3DGenerator {
@@ -611,7 +653,7 @@ impl Graph3DGenerator {
             }
         }
 
-        let levels = vec![&trait_nodes, &impl_nodes, &other_nodes];
+        let levels = [&trait_nodes, &impl_nodes, &other_nodes];
 
         for (level_idx, level_nodes) in levels.iter().enumerate() {
             let y = level_idx as f64 * height_per_level - height_per_level;
@@ -673,7 +715,7 @@ impl Graph3DGenerator {
         // Group nodes by type
         for node in &graph.nodes {
             let layer_key = node.node_type.display_name().to_string();
-            layers.entry(layer_key).or_insert_with(Vec::new).push(node);
+            layers.entry(layer_key).or_default().push(node);
         }
 
         for (layer_idx, (_layer_name, layer_nodes)) in layers.iter().enumerate() {
@@ -721,7 +763,17 @@ impl Graph3DGenerator {
             let root_x = root_idx as f64 * 300.0 - (root_nodes.len() as f64 - 1.0) * 150.0;
             positions.insert(root.id.clone(), (root_x, 0.0, 0.0));
 
-            self.position_tree_children(graph, &root.id, &mut positions, root_x, -level_height, 0, sibling_spacing);
+            self.position_tree_children(
+                graph,
+                &root.id,
+                &mut positions,
+                TreeChildLayout {
+                    parent_x: root_x,
+                    level_y: -level_height,
+                    child_offset: 0,
+                    spacing: sibling_spacing,
+                },
+            );
         }
 
         Ok(positions)
@@ -733,10 +785,7 @@ impl Graph3DGenerator {
         graph: &TraitGraph,
         parent_id: &str,
         positions: &mut HashMap<String, (f64, f64, f64)>,
-        parent_x: f64,
-        level_y: f64,
-        child_offset: i32,
-        spacing: f64,
+        layout: TreeChildLayout,
     ) {
         let children: Vec<_> = graph.edges.iter()
             .filter(|edge| edge.from == parent_id && edge.edge_type == super::graph_config::EdgeType::Inherits)
@@ -744,20 +793,22 @@ impl Graph3DGenerator {
             .collect();
 
         for (child_idx, child_id) in children.iter().enumerate() {
-            let child_x = parent_x + (child_idx as f64 - (children.len() as f64 - 1.0) / 2.0) * spacing;
-            let child_z = child_offset as f64 * 50.0;
+            let child_x = layout.parent_x + (child_idx as f64 - (children.len() as f64 - 1.0) / 2.0) * layout.spacing;
+            let child_z = layout.child_offset as f64 * 50.0;
 
-            positions.insert(child_id.to_string(), (child_x, level_y, child_z));
+            positions.insert(child_id.to_string(), (child_x, layout.level_y, child_z));
 
             // Recursively position grandchildren
             self.position_tree_children(
                 graph,
                 child_id,
                 positions,
-                child_x,
-                level_y - 120.0,
-                child_offset + 1,
-                spacing * 0.8,
+                TreeChildLayout {
+                    parent_x: child_x,
+                    level_y: layout.level_y - 120.0,
+                    child_offset: layout.child_offset + 1,
+                    spacing: layout.spacing * 0.8,
+                },
             );
         }
     }

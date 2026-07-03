@@ -155,10 +155,12 @@ pub mod fault_core;
 pub mod feature_engineering;
 pub mod few_shot;
 pub mod fluent_api;
+pub mod hierarchical_composition;
 pub mod memory_optimization;
 pub mod meta_learning;
 pub mod middleware;
 pub mod mock;
+pub mod model_fusion;
 pub mod modular_framework;
 pub mod monitoring;
 pub mod nlp_pipelines;
@@ -181,6 +183,7 @@ pub mod comprehensive_benchmarking;
 pub mod enhanced_wasm_integration;
 pub mod scheduling;
 pub mod simd_optimizations;
+pub mod stacking;
 pub mod state_management;
 pub mod streaming;
 pub mod stress_testing;
@@ -388,8 +391,9 @@ pub use ensemble::{
     DynamicEnsembleSelectorTrained, FusionStrategy, HierarchicalComposition,
     HierarchicalCompositionBuilder, HierarchicalCompositionTrained, HierarchicalNode,
     HierarchicalStrategy, ModelFusion, ModelFusionBuilder, ModelFusionTrained, SelectionStrategy,
-    VotingClassifier, VotingClassifierBuilder, VotingClassifierTrained, VotingRegressor,
-    VotingRegressorBuilder, VotingRegressorTrained,
+    StackingEnsemble, StackingEnsembleBuilder, StackingEnsembleTrained, VotingClassifier,
+    VotingClassifierBuilder, VotingClassifierTrained, VotingRegressor, VotingRegressorBuilder,
+    VotingRegressorTrained,
 };
 pub use execution::{
     ExecutionEngineConfig, ExecutionStrategy, ExecutionTask,

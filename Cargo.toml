@@ -115,7 +115,7 @@ log = { version = "0.4" }
 env_logger = { version = "0.11" }
 
 # Memory layout and zero-copy
-bytemuck = { version = "1.25", features = ["derive"] }
+bytemuck = { version = "1.25", features = ["derive", "extern_crate_alloc"] }
 memmap2 = { version = "0.9" }
 libc = { version = "0.2" }
 winapi = { version = "0.3", features = ["handleapi", "memoryapi", "winnt"] }
@@ -161,7 +161,7 @@ parquet = { version = "59.0" }
 pyo3 = { version = "0.29", features = ["extension-module", "chrono", "indexmap"] }
 numpy = { version = "0.29" }
 
-# GPU and performance — oxicuda-* v0.3 (replaces wgpu/cudarc/candle-core direct deps)
+# GPU and performance — oxicuda-* v0.4 (replaces wgpu/cudarc/candle-core direct deps)
 oxicuda-backend    = { version = "0.4.0" }
 oxicuda-memory     = { version = "0.4.0" }
 oxicuda-blas       = { version = "0.4.0" }
@@ -173,6 +173,8 @@ oxicuda-ptx        = { version = "0.4.0" }
 oxicuda-primitives = { version = "0.4.0" }
 wide = { version = "1.5" }
 half = { version = "2.7", features = ["bytemuck"] }
+# Blocks on async GPU-init futures from sync `#[test]`s (see sklears-svm, sklears-clustering)
+pollster = { version = "0.4.0" }
 
 # Web and WASM support
 wasm-bindgen = { version = "0.2" }

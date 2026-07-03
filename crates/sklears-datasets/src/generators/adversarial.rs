@@ -5,7 +5,6 @@ use scirs2_core::random::prelude::*;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{Normal, RngExt};
 use sklears_core::error::{Result, SklearsError};
-use std::collections::HashSet;
 
 /// Standard deviation of the small Gaussian jitter added on top of a deterministic
 /// covariate shift in [`make_covariate_shift`]. This keeps repeated calls with
@@ -115,12 +114,18 @@ pub fn make_outlier_contamination(
     let n_outliers = (n_samples as f64 * contamination_frac) as usize;
     let mut indices: Vec<usize> = (0..n_samples).collect();
     indices.shuffle(&mut rng);
-    let outlier_indices: HashSet<usize> = indices[..n_outliers].iter().copied().collect();
+    // Deliberately iterate the shuffled `Vec` (deterministic, seed-dependent order) rather
+    // than collecting into a `HashSet` first: Rust's default `HashSet` hasher is randomly
+    // seeded per-instance, so its iteration order is NOT reproducible across runs even with
+    // an identical `random_state` -- iterating it here would silently break the
+    // seed-determinism guarantee, since the order rows are visited in determines which RNG
+    // draws each row consumes.
+    let outlier_rows = &indices[..n_outliers];
 
     let mut out = x.clone();
     let mut is_outlier = Array1::from_elem(n_samples, false);
     let normal_unit = Normal::new(0.0, 1.0).expect("operation should succeed");
-    for &row in &outlier_indices {
+    for &row in outlier_rows {
         is_outlier[row] = true;
         for j in 0..n_features {
             let z: f64 = rng.sample(normal_unit);
@@ -293,14 +298,27 @@ mod tests {
         let (out, is_outlier) =
             make_outlier_contamination(&x, 0.1, 15.0, Some(7)).expect("operation should succeed");
 
+        // A per-row hard threshold would be flaky here: each contaminated value is
+        // `mean + outlier_scale * std * z` with `z ~ N(0,1)`, and any individual `z` can by
+        // chance land close to zero even for a large `outlier_scale`. Averaging the
+        // deviation over all ~100 contaminated rows instead relies on the law of large
+        // numbers -- the expected deviation is `outlier_scale * std * E[|Z|] =
+        // 15 * std * sqrt(2/pi) ~= 12 * std`, so a generous threshold well below that mean
+        // is reliable while a per-row check is not.
+        let mut total_abs_z_score = 0.0;
+        let mut n_contaminated = 0usize;
         for row in 0..out.nrows() {
             if is_outlier[row] {
-                assert!(
-                    (out[[row, 0]] - mean0).abs() > 3.0 * std0,
-                    "contaminated row {row} is not far enough from the mean"
-                );
+                total_abs_z_score += (out[[row, 0]] - mean0).abs() / std0;
+                n_contaminated += 1;
             }
         }
+        assert!(n_contaminated > 0, "expected at least one contaminated row");
+        let mean_abs_z_score = total_abs_z_score / n_contaminated as f64;
+        assert!(
+            mean_abs_z_score > 3.0,
+            "contaminated rows are not far enough from the mean on average: mean |z-score| = {mean_abs_z_score}"
+        );
     }
 
     #[test]

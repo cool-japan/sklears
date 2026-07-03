@@ -23,8 +23,6 @@ scirs2-linalg = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 num_cpus = { workspace = true }
-oxicuda-backend = { workspace = true, optional = true }
-oxicuda-blas    = { workspace = true, optional = true }
 # ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
 # ❌ scirs2-autograd - use scirs2_core::ndarray instead
 # ❌ ndarray - use scirs2_core::ndarray instead
@@ -38,4 +36,4 @@ proptest = { workspace = true }
 [features]
 default = []
 serde = ["dep:serde", "sklears-core/serde"]
-gpu = ["dep:oxicuda-backend", "dep:oxicuda-blas"]
+gpu = ["sklears-core/gpu_support"]

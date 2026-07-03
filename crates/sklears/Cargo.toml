@@ -29,7 +29,7 @@ sklears-svm = { workspace = true, optional = true }
 sklears-tree = { workspace = true, optional = true }
 sklears-neighbors = { workspace = true, optional = true }
 sklears-decomposition = { workspace = true, optional = true }
-# sklears-preprocessing = { workspace = true, optional = true }  # Temporarily disabled
+sklears-preprocessing = { workspace = true, optional = true }
 sklears-model-selection = { workspace = true, optional = true }
 sklears-metrics = { workspace = true, optional = true }
 sklears-utils = { workspace = true }
@@ -96,7 +96,7 @@ svm = ["sklears-svm"]
 tree = ["sklears-tree"]
 neighbors = ["sklears-neighbors"]
 decomposition = ["sklears-decomposition"]
-# preprocessing = ["sklears-preprocessing"]  # Temporarily disabled
+preprocessing = ["sklears-preprocessing"]
 model-selection = ["sklears-model-selection"]
 metrics = ["sklears-metrics"]
 neural = ["sklears-neural"]
@@ -123,7 +123,7 @@ inspection = ["sklears-inspection"]
 mixture = ["sklears-mixture"]
 all-algorithms = [
     "linear", "clustering", "ensemble", "svm", "tree", "neighbors",
-    "decomposition", "model-selection", "metrics", 
+    "decomposition", "preprocessing", "model-selection", "metrics",
     "neural", # "simd", # Temporarily disabled
     "datasets", "feature-selection", "naive-bayes",
     "gaussian-process", "discriminant-analysis", "manifold", 
@@ -151,37 +151,37 @@ optional = true
 # name = "quickstart"
 # required-features = ["linear", "preprocessing", "model-selection", "metrics"]  # Temporarily disabled due to preprocessing
 
-# [[example]]
-# name = "linear_models_showcase"
-# required-features = ["linear", "preprocessing", "metrics"]
+[[example]]
+name = "linear_models_showcase"
+required-features = ["linear", "preprocessing", "metrics"]
 
-# [[example]]
-# name = "lasso_regression"
-# required-features = ["linear", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+[[example]]
+name = "lasso_regression"
+required-features = ["linear", "preprocessing", "metrics"]
 
-# [[example]]
-# name = "kmeans_clustering"
-# required-features = ["clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+[[example]]
+name = "kmeans_clustering"
+required-features = ["clustering", "preprocessing", "metrics"]
 
-# [[example]]
-# name = "dbscan_clustering"
-# required-features = ["clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+[[example]]
+name = "dbscan_clustering"
+required-features = ["clustering", "preprocessing", "metrics"]
 
-# [[example]]
-# name = "hierarchical_clustering"
-# required-features = ["clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+[[example]]
+name = "hierarchical_clustering"
+required-features = ["clustering", "preprocessing", "metrics"]
 
-# [[example]]
-# name = "mean_shift_clustering"
-# required-features = ["clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+[[example]]
+name = "mean_shift_clustering"
+required-features = ["clustering", "preprocessing", "metrics"]
 
-# [[example]]
-# name = "spectral_clustering"
-# required-features = ["clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+[[example]]
+name = "spectral_clustering"
+required-features = ["clustering", "preprocessing", "metrics"]
 
-# [[example]]
-# name = "gmm_clustering"
-# required-features = ["clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+[[example]]
+name = "gmm_clustering"
+required-features = ["clustering", "preprocessing", "metrics"]
 
 # [[example]]
 # name = "bayesian_regression"
@@ -215,9 +215,9 @@ required-features = ["model-selection"]
 name = "pairwise_metrics_demo"
 required-features = ["metrics"]
 
-# [[example]]
-# name = "performance_comparison_comprehensive"
-# required-features = ["linear", "clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+[[example]]
+name = "performance_comparison_comprehensive"
+required-features = ["linear", "clustering", "preprocessing", "metrics"]
 
 # [[example]]
 # name = "simd_demo"
@@ -228,10 +228,10 @@ name = "comprehensive_benchmarks"
 harness = false
 required-features = ["all-algorithms"]
 
-# [[bench]]
-# name = "tree_ensemble_benchmarks"
-# harness = false
-# required-features = ["tree", "ensemble", "neighbors", "preprocessing", "metrics", "model-selection"]  # Temporarily disabled due to preprocessing
+[[bench]]
+name = "tree_ensemble_benchmarks"
+harness = false
+required-features = ["tree", "ensemble", "neighbors", "preprocessing", "metrics", "model-selection"]
 
 [[bench]]
 name = "continuous_benchmarks"

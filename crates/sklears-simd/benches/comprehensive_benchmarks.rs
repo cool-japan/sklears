@@ -1,16 +1,20 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use scirs2_core::ndarray::Array1;
 use scirs2_core::random::thread_rng;
 use sklears_simd::activation::{relu, sigmoid, tanh_activation};
 use sklears_simd::benchmark_framework::{
     BenchmarkSuite, Duration, OptimizationAdvisor, RegressionDetector,
 };
+use sklears_simd::clustering::{kmeans_distances, update_centroids};
 use sklears_simd::distance::{cosine_distance, euclidean_distance, manhattan_distance};
 use sklears_simd::kernels::{linear_kernel, polynomial_kernel, rbf_kernel};
 use sklears_simd::matrix::{matrix_multiply_f32_simd, transpose_simd};
-use std::hint::black_box;
-// use sklears_simd::optimization::{gradient_descent_step, momentum_update, soft_threshold};
-// use sklears_simd::reduction::{parallel_max, parallel_min, parallel_sum};
+use sklears_simd::optimization::{simd_momentum_update, GradientDescent};
+use sklears_simd::reduction::{
+    parallel_max_f32_simd, parallel_min_f32_simd, parallel_sum_f32_simd,
+};
 use sklears_simd::vector::{dot_product, mean, norm_l2};
+use std::hint::black_box;
 
 fn generate_random_vector(size: usize) -> Vec<f32> {
     let mut rng = thread_rng();
@@ -279,141 +283,138 @@ fn bench_matrix_memory_analysis(c: &mut Criterion) {
     group.finish();
 }
 
-// TODO: Re-enable when clustering API is updated to match benchmarks
-// /// Benchmark clustering operations
-// fn bench_clustering_comprehensive(c: &mut Criterion) {
-//     let mut group = c.benchmark_group("clustering_comprehensive");
+/// Benchmark clustering operations
+fn bench_clustering_comprehensive(c: &mut Criterion) {
+    let mut group = c.benchmark_group("clustering_comprehensive");
 
-//     for size in [1000, 5000, 10000].iter() {
-//         let points = generate_random_matrix(*size, 2); // 2D points
-//         let centroids = generate_random_matrix(5, 2); // 5 clusters
+    for size in [1000, 5000, 10000].iter() {
+        // 2D points, laid out as per-row slices (n_samples x n_features)
+        let points_data: Vec<Vec<f32>> = (0..*size).map(|_| generate_random_vector(2)).collect();
+        let points: Vec<&[f32]> = points_data.iter().map(Vec::as_slice).collect();
 
-//         let points_flat: Vec<f32> = points.iter().flatten().cloned().collect();
-//         let centroids_flat: Vec<f32> = centroids.iter().flatten().cloned().collect();
+        // 5 clusters, laid out as per-row slices (n_clusters x n_features)
+        let centroids_data: Vec<Vec<f32>> = (0..5).map(|_| generate_random_vector(2)).collect();
+        let centroids: Vec<&[f32]> = centroids_data.iter().map(Vec::as_slice).collect();
 
-//         group.bench_with_input(
-//             BenchmarkId::new("kmeans_distances_comprehensive", size),
-//             size,
-//             |bench, _| {
-//                 bench.iter(|| {
-//                     kmeans_distances(
-//                         black_box(&points_flat),
-//                         black_box(&centroids_flat),
-//                         black_box(2),
-//                         black_box(5),
-//                     )
-//                 });
-//             },
-//         );
+        let mut distances: Vec<Vec<f32>> = vec![vec![0.0f32; 5]; *size];
 
-//         group.bench_with_input(
-//             BenchmarkId::new("update_centroids_comprehensive", size),
-//             size,
-//             |bench, _| {
-//                 let assignments = vec![0, 1, 2, 3, 4]
-//                     .iter()
-//                     .cycle()
-//                     .take(*size)
-//                     .cloned()
-//                     .collect::<Vec<_>>();
-//                 bench.iter(|| {
-//                     update_centroids(
-//                         black_box(&points_flat),
-//                         black_box(&assignments),
-//                         black_box(2),
-//                         black_box(5),
-//                     )
-//                 });
-//             },
-//         );
-//     }
+        group.bench_with_input(
+            BenchmarkId::new("kmeans_distances_comprehensive", size),
+            size,
+            |bench, _| {
+                bench.iter(|| {
+                    kmeans_distances(
+                        black_box(&points),
+                        black_box(&centroids),
+                        black_box(&mut distances),
+                    )
+                });
+            },
+        );
 
-//     group.finish();
-// }
+        let assignments: Vec<usize> = (0..5usize).cycle().take(*size).collect();
+        let mut updated_centroids: Vec<Vec<f32>> = vec![vec![0.0f32; 2]; 5];
 
-// TODO: Re-enable when reduction module is implemented
-// /// Benchmark reduction operations across platforms
-// fn bench_reduction_cross_platform(c: &mut Criterion) {
-//     let mut group = c.benchmark_group("reduction_cross_platform");
+        group.bench_with_input(
+            BenchmarkId::new("update_centroids_comprehensive", size),
+            size,
+            |bench, _| {
+                bench.iter(|| {
+                    update_centroids(
+                        black_box(&points),
+                        black_box(&assignments),
+                        black_box(5),
+                        black_box(&mut updated_centroids),
+                    )
+                });
+            },
+        );
+    }
 
-//     for size in [10000, 100000, 1000000].iter() {
-//         let data = generate_random_vector(*size);
+    group.finish();
+}
 
-//         group.bench_with_input(
-//             BenchmarkId::new("parallel_sum_cross", size),
-//             size,
-//             |bench, _| {
-//                 bench.iter(|| parallel_sum(black_box(&data)));
-//             },
-//         );
+/// Benchmark reduction operations across platforms
+fn bench_reduction_cross_platform(c: &mut Criterion) {
+    let mut group = c.benchmark_group("reduction_cross_platform");
 
-//         group.bench_with_input(
-//             BenchmarkId::new("parallel_max_cross", size),
-//             size,
-//             |bench, _| {
-//                 bench.iter(|| parallel_max(black_box(&data)));
-//             },
-//         );
+    for size in [10000, 100000, 1000000].iter() {
+        let data = generate_random_vector(*size);
 
-//         group.bench_with_input(
-//             BenchmarkId::new("parallel_min_cross", size),
-//             size,
-//             |bench, _| {
-//                 bench.iter(|| parallel_min(black_box(&data)));
-//             },
-//         );
-//     }
+        group.bench_with_input(
+            BenchmarkId::new("parallel_sum_cross", size),
+            size,
+            |bench, _| {
+                bench.iter(|| parallel_sum_f32_simd(black_box(&data)));
+            },
+        );
 
-//     group.finish();
-// }
+        group.bench_with_input(
+            BenchmarkId::new("parallel_max_cross", size),
+            size,
+            |bench, _| {
+                bench.iter(|| parallel_max_f32_simd(black_box(&data)));
+            },
+        );
 
-// TODO: Re-enable when optimization module is implemented
-// /// Benchmark optimization operations
-// fn bench_optimization_comprehensive(c: &mut Criterion) {
-//     let mut group = c.benchmark_group("optimization_comprehensive");
+        group.bench_with_input(
+            BenchmarkId::new("parallel_min_cross", size),
+            size,
+            |bench, _| {
+                bench.iter(|| parallel_min_f32_simd(black_box(&data)));
+            },
+        );
+    }
 
-//     for size in [1000, 10000, 100000].iter() {
-//         let mut params = generate_random_vector(*size);
-//         let gradient = generate_random_vector(*size);
-//         let mut velocity = vec![0.0f32; *size];
-//         let learning_rate = 0.01f32;
-//         let momentum = 0.9f32;
+    group.finish();
+}
 
-//         group.bench_with_input(
-//             BenchmarkId::new("gradient_descent_step_comprehensive", size),
-//             size,
-//             |bench, _| {
-//                 bench.iter(|| {
-//                     gradient_descent_step(
-//                         black_box(&mut params),
-//                         black_box(&gradient),
-//                         black_box(learning_rate),
-//                     )
-//                 });
-//             },
-//         );
+/// Benchmark optimization operations
+fn bench_optimization_comprehensive(c: &mut Criterion) {
+    let mut group = c.benchmark_group("optimization_comprehensive");
 
-//         group.bench_with_input(
-//             BenchmarkId::new("momentum_update_comprehensive", size),
-//             size,
-//             |bench, _| {
-//                 bench.iter(|| {
-//                     momentum_update(
-//                         black_box(&mut velocity),
-//                         black_box(&gradient),
-//                         black_box(momentum),
-//                     )
-//                 });
-//             },
-//         );
+    for size in [1000, 10000, 100000].iter() {
+        let mut params = Array1::from_vec(generate_random_vector(*size));
+        let gradient = Array1::from_vec(generate_random_vector(*size));
+        let mut velocity = Array1::<f32>::zeros(*size);
+        let learning_rate = 0.01f32;
+        let momentum = 0.9f32;
 
-//         // Reset for next iteration
-//         params = generate_random_vector(*size);
-//         velocity = vec![0.0f32; *size];
-//     }
+        let optimizer = GradientDescent::new(learning_rate).with_momentum(momentum);
 
-//     group.finish();
-// }
+        group.bench_with_input(
+            BenchmarkId::new("gradient_descent_step_comprehensive", size),
+            size,
+            |bench, _| {
+                bench.iter(|| {
+                    optimizer.step(
+                        black_box(&mut params.view_mut()),
+                        black_box(&gradient.view()),
+                        black_box(&mut velocity.view_mut()),
+                    )
+                });
+            },
+        );
+
+        let mut momentum_velocity = Array1::<f32>::zeros(*size);
+
+        group.bench_with_input(
+            BenchmarkId::new("momentum_update_comprehensive", size),
+            size,
+            |bench, _| {
+                bench.iter(|| {
+                    simd_momentum_update(
+                        black_box(momentum),
+                        black_box(&gradient.view()),
+                        black_box(&mut momentum_velocity.view_mut()),
+                    )
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
 
 /// Performance regression testing
 fn bench_regression_testing(c: &mut Criterion) {
@@ -452,9 +453,9 @@ criterion_group!(
     bench_activation_performance_analysis,
     bench_kernel_cross_platform,
     bench_matrix_memory_analysis,
-    // bench_clustering_comprehensive,  // TODO: Re-enable when clustering API is updated
-    // bench_reduction_cross_platform,  // TODO: Re-enable when reduction module is implemented
-    // bench_optimization_comprehensive,  // TODO: Re-enable when optimization module is implemented
+    bench_clustering_comprehensive,
+    bench_reduction_cross_platform,
+    bench_optimization_comprehensive,
     bench_regression_testing
 );
 

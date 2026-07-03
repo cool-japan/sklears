@@ -88,32 +88,31 @@ def demo_clustering():
     print(f"DBSCAN - Time: {dbscan_time:.4f}s, Clusters: {n_clusters}, Noise points: {n_noise}")
     print()
 
-# TODO: Coming soon - demo_preprocessing() (StandardScaler, MinMaxScaler, LabelEncoder not yet exposed)
-# def demo_preprocessing():
-#     """Demonstrate preprocessing utilities"""
-#     print("=== Preprocessing Demo ===")
-#
-#     X = np.random.randn(100, 5) * 10 + 5
-#
-#     # Standard scaling
-#     scaler = skl.StandardScaler()
-#     X_scaled = scaler.fit_transform(X)
-#     print(f"Original data - Mean: {X.mean():.2f}, Std: {X.std():.2f}")
-#     print(f"Scaled data - Mean: {X_scaled.mean():.2f}, Std: {X_scaled.std():.2f}")
-#
-#     # Min-Max scaling
-#     minmax_scaler = skl.MinMaxScaler()
-#     X_minmax = minmax_scaler.fit_transform(X)
-#     print(f"MinMax scaled - Min: {X_minmax.min():.2f}, Max: {X_minmax.max():.2f}")
-#
-#     # Label encoding
-#     labels = ['cat', 'dog', 'cat', 'fish', 'dog', 'fish']
-#     encoder = skl.LabelEncoder()
-#     encoded_labels = encoder.fit_transform(labels)
-#     print(f"Original labels: {labels}")
-#     print(f"Encoded labels: {encoded_labels}")
-#     print(f"Classes: {encoder.classes_}")
-#     print()
+def demo_preprocessing():
+    """Demonstrate preprocessing utilities"""
+    print("=== Preprocessing Demo ===")
+
+    X = np.random.randn(100, 5) * 10 + 5
+
+    # Standard scaling
+    scaler = skl.StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    print(f"Original data - Mean: {X.mean():.2f}, Std: {X.std():.2f}")
+    print(f"Scaled data - Mean: {X_scaled.mean():.2f}, Std: {X_scaled.std():.2f}")
+
+    # Min-Max scaling
+    minmax_scaler = skl.MinMaxScaler()
+    X_minmax = minmax_scaler.fit_transform(X)
+    print(f"MinMax scaled - Min: {X_minmax.min():.2f}, Max: {X_minmax.max():.2f}")
+
+    # Label encoding
+    labels = ['cat', 'dog', 'cat', 'fish', 'dog', 'fish']
+    encoder = skl.LabelEncoder()
+    encoded_labels = encoder.fit_transform(labels)
+    print(f"Original labels: {labels}")
+    print(f"Encoded labels: {encoded_labels}")
+    print(f"Classes: {encoder.classes_}")
+    print()
 
 def demo_model_selection():
     """Demonstrate model selection utilities"""
@@ -137,26 +136,27 @@ def demo_model_selection():
 
     print()
 
-# TODO: Coming soon - demo_metrics() (accuracy_score, mean_squared_error, r2_score not yet exposed via skl)
-# def demo_metrics():
-#     """Demonstrate metrics functions"""
-#     print("=== Metrics Demo ===")
-#
-#     y_true = np.array([0, 1, 1, 0, 1, 0, 1, 1])
-#     y_pred = np.array([0, 1, 0, 0, 1, 1, 1, 0])
-#
-#     accuracy = skl.accuracy_score(y_true, y_pred)
-#     print(f"Classification Accuracy: {accuracy:.3f}")
-#
-#     y_true_reg = np.array([3.0, -0.5, 2.0, 7.0])
-#     y_pred_reg = np.array([2.5, 0.0, 2.0, 8.0])
-#
-#     mse = skl.mean_squared_error(y_true_reg, y_pred_reg)
-#     r2 = skl.r2_score(y_true_reg, y_pred_reg)
-#
-#     print(f"Regression MSE: {mse:.3f}")
-#     print(f"Regression R2: {r2:.3f}")
-#     print()
+def demo_metrics():
+    """Demonstrate metrics functions"""
+    print("=== Metrics Demo ===")
+
+    # accuracy_score's PyO3 signature requires exact-dtype PyReadonlyArray1<i32>;
+    # NumPy defaults to int64 on 64-bit platforms, so the dtype must be explicit.
+    y_true = np.array([0, 1, 1, 0, 1, 0, 1, 1], dtype=np.int32)
+    y_pred = np.array([0, 1, 0, 0, 1, 1, 1, 0], dtype=np.int32)
+
+    accuracy = skl.accuracy_score(y_true, y_pred)
+    print(f"Classification Accuracy: {accuracy:.3f}")
+
+    y_true_reg = np.array([3.0, -0.5, 2.0, 7.0])
+    y_pred_reg = np.array([2.5, 0.0, 2.0, 8.0])
+
+    mse = skl.mean_squared_error(y_true_reg, y_pred_reg)
+    r2 = skl.r2_score(y_true_reg, y_pred_reg)
+
+    print(f"Regression MSE: {mse:.3f}")
+    print(f"Regression R2: {r2:.3f}")
+    print()
 
 def demo_system_info():
     """Demonstrate system information utilities"""
@@ -170,17 +170,16 @@ def demo_system_info():
     for key, value in build_info.items():
         print(f"  {key}: {value}")
 
-    # TODO: Coming soon - get_hardware_info() and benchmark_basic_operations() not yet exposed
-    # hardware_info = skl.get_hardware_info()
-    # print("Hardware capabilities:")
-    # for key, value in hardware_info.items():
-    #     print(f"  {key}: {value}")
-    #
-    # print("Running basic performance benchmarks...")
-    # benchmarks = skl.benchmark_basic_operations()
-    # print("Benchmark results:")
-    # for operation, time_ms in benchmarks.items():
-    #     print(f"  {operation}: {time_ms:.2f}")
+    hardware_info = skl.get_hardware_info()
+    print("Hardware capabilities:")
+    for key, value in hardware_info.items():
+        print(f"  {key}: {value}")
+
+    print("Running basic performance benchmarks...")
+    benchmarks = skl.benchmark_basic_operations()
+    print("Benchmark results:")
+    for operation, time_ms in benchmarks.items():
+        print(f"  {operation}: {time_ms:.2f}")
 
     print()
 
@@ -193,9 +192,9 @@ def main():
     try:
         demo_linear_regression()
         demo_clustering()
-        # demo_preprocessing()  # TODO: Coming soon (StandardScaler, MinMaxScaler, LabelEncoder)
+        demo_preprocessing()
         demo_model_selection()
-        # demo_metrics()  # TODO: Coming soon (metrics not yet exposed via skl)
+        demo_metrics()
         demo_system_info()
 
         print("All demos completed successfully!")

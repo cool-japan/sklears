@@ -36,9 +36,10 @@ thiserror = { workspace = true }
 log = { workspace = true }
 rayon = { workspace = true, optional = true }
 oxicuda-driver = { workspace = true, optional = true }
-oxicuda-blas   = { workspace = true, optional = true }
+oxicuda-blas   = { workspace = true, optional = true, features = ["f16"] }
 oxicuda-dnn    = { workspace = true, optional = true }
 oxicuda-ptx    = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true }
 memmap2 = { workspace = true, optional = true }
 half = { workspace = true, optional = true }
@@ -52,7 +53,7 @@ proptest = { workspace = true }
 [features]
 default = []
 parallel = ["rayon"]
-gpu = ["dep:oxicuda-driver", "dep:oxicuda-blas", "dep:oxicuda-dnn", "dep:oxicuda-ptx", "bytemuck", "half", "sklears-core/gpu_support"]
+gpu = ["dep:oxicuda-driver", "dep:oxicuda-blas", "dep:oxicuda-dnn", "dep:oxicuda-ptx", "dep:oxicuda-memory", "bytemuck", "half", "sklears-core/gpu_support"]
 serde = ["dep:serde", "dep:serde_json", "dep:serde_yaml", "dep:chrono", "dep:oxicode", "dep:oxiarc-deflate"]
 mmap = ["memmap2"]
 

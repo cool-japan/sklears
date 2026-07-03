@@ -98,16 +98,17 @@
 //! Input validation utilities ensure data consistency:
 //!
 //! ```rust,ignore
-//! use sklears_core::validation;
+//! use sklears_core::error::validate;
+//! use sklears_core::types::arrays::validation as array_validation;
 //!
 //! // Check that X and y have compatible shapes
-//! validation::check_consistent_length(x, y)?;
+//! validate::check_consistent_length(x, y)?;
 //!
 //! // Check for NaN/Inf values
-//! validation::check_array(x)?;
+//! array_validation::check_finite(x)?;
 //!
 //! // Validate classification targets
-//! validation::check_classification_targets(y)?;
+//! array_validation::check_classification_targets(y)?;
 //! ```
 //!
 //! ## Parallel Processing
@@ -216,6 +217,11 @@ pub mod api_analyzers;
 pub mod api_data_structures;
 pub mod api_formatters;
 pub mod api_generator_config;
+
+// Rich API types consumed by the trait graph visualization system (distinct
+// from the modularized api_data_structures shape used above).
+pub mod api_reference_generator;
+
 pub mod interactive_api_reference;
 pub mod interactive_playground;
 pub mod search_engines;
@@ -332,8 +338,8 @@ pub mod prelude {
     // GPU acceleration - experimental, requires feature flag and CUDA
     #[cfg(feature = "gpu_support")]
     pub use crate::gpu::{
-        GpuArray, GpuContext, GpuDeviceProperties, GpuMatrixOps, GpuMemoryInfo, GpuUtils,
-        MemoryTransferOpts, TransferStrategy,
+        GpuArray, GpuBackend, GpuContext, GpuDeviceProperties, GpuMatrixOps, GpuMemoryInfo,
+        GpuUtils, MemoryTransferOpts, TransferStrategy,
     };
 
     // Parallel processing - stable

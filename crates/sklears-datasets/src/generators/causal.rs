@@ -12,6 +12,9 @@ use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{RngExt, StandardNormal};
 use sklears_core::error::{Result, SklearsError};
 
+/// Result type for the IV dataset generator: (instrument Z, confounder U, treatment X, outcome Y)
+type IvDatasetResult = (Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>);
+
 /// Standard logistic sigmoid, used to convert a linear index into a propensity score in (0,1).
 fn sigmoid(x: f64) -> f64 {
     1.0 / (1.0 + (-x).exp())
@@ -129,7 +132,7 @@ pub fn make_iv_dataset(
     instrument_strength: f64,
     confounding_strength: f64,
     random_state: Option<u64>,
-) -> Result<(Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>)> {
+) -> Result<IvDatasetResult> {
     if n_samples == 0 {
         return Err(SklearsError::InvalidInput(
             "n_samples must be positive".to_string(),

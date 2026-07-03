@@ -939,6 +939,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_session_initialization() {
         let config = MetricsCollectionConfig::default();
         let mut system = MetricsCollectionSystem::new(&config).unwrap_or_default();

@@ -161,6 +161,9 @@ pub use sklears_neighbors as neighbors;
 #[cfg(feature = "decomposition")]
 pub use sklears_decomposition as decomposition;
 
+#[cfg(feature = "preprocessing")]
+pub use sklears_preprocessing as preprocessing;
+
 #[cfg(feature = "model-selection")]
 pub use sklears_model_selection as model_selection;
 

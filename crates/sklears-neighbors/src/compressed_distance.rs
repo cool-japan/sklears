@@ -5,7 +5,7 @@
 //! maintaining reasonable accuracy for neighbor search operations.
 
 use crate::{NeighborsError, NeighborsResult};
-use bytemuck::{bytes_of, cast_slice, Pod, Zeroable};
+use bytemuck::{bytes_of, pod_collect_to_vec, Pod, Zeroable};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use sklears_core::types::Float;
 use std::collections::HashMap;
@@ -457,8 +457,16 @@ impl CompressedDistanceMatrix {
             )));
         }
 
-        let half_slice: &[Float16] = cast_slice(data);
-        let values: Vec<Float> = half_slice.iter().map(|h| h.to_f32()).collect();
+        // NOTE: `data` is a plain `Vec<u8>` byte buffer, only guaranteed to be
+        // 1-byte aligned. `bytemuck::cast_slice::<u8, Float16>` would require
+        // reinterpreting it in place at `Float16`'s (2-byte) alignment, which
+        // native allocators tend to satisfy "by luck" but which Miri's
+        // allocator does not guarantee -- causing a real (if latent) alignment
+        // violation. `pod_collect_to_vec` instead byte-copies into a freshly
+        // allocated, properly aligned `Vec<Float16>`, which is sound for any
+        // input alignment.
+        let half_vec: Vec<Float16> = pod_collect_to_vec(data);
+        let values: Vec<Float> = half_vec.iter().map(|h| h.to_f32()).collect();
 
         Array2::from_shape_vec(shape, values)
             .map_err(|e| NeighborsError::InvalidInput(format!("Shape error: {}", e)))
@@ -535,7 +543,10 @@ impl CompressedDistanceMatrix {
     ) -> NeighborsResult<Array2<Float>> {
         let mut result = Array2::from_elem(shape, threshold + 1.0); // Default to above threshold
 
-        let values: &[Float] = cast_slice(data);
+        // See the comment in `decompress_float16`: `data` is only 1-byte
+        // aligned, so we must byte-copy into a properly aligned `Vec<Float>`
+        // rather than reinterpreting it in place via `cast_slice`.
+        let values: Vec<Float> = pod_collect_to_vec(data);
 
         if values.len() != indices.len() {
             return Err(NeighborsError::InvalidInput(
@@ -553,7 +564,8 @@ impl CompressedDistanceMatrix {
     }
 
     fn decompress_delta(data: &[u8], shape: (usize, usize)) -> NeighborsResult<Array2<Float>> {
-        let values: &[Float] = cast_slice(data);
+        // See the comment in `decompress_float16` regarding alignment.
+        let values: Vec<Float> = pod_collect_to_vec(data);
         let expected_len = shape.0 * shape.1;
 
         if values.len() != expected_len {
@@ -602,8 +614,9 @@ impl CompressedDistanceMatrix {
             .map(|(idx, &pos)| (pos, idx))
             .collect();
 
-        let sparse_data: &[Float] =
-            cast_slice(&data[..sparse_count * std::mem::size_of::<Float>()]);
+        // See the comment in `decompress_float16` regarding alignment.
+        let sparse_data: Vec<Float> =
+            pod_collect_to_vec(&data[..sparse_count * std::mem::size_of::<Float>()]);
         let dense_data = &data[sparse_count * std::mem::size_of::<Float>()..];
 
         let range = max_val - min_val;
@@ -646,8 +659,9 @@ impl CompressedDistanceMatrix {
         }
 
         let row_data = &data[start_idx..end_idx];
-        let half_slice: &[Float16] = cast_slice(row_data);
-        let values: Vec<Float> = half_slice.iter().map(|h| h.to_f32()).collect();
+        // See the comment in `decompress_float16` regarding alignment.
+        let half_vec: Vec<Float16> = pod_collect_to_vec(row_data);
+        let values: Vec<Float> = half_vec.iter().map(|h| h.to_f32()).collect();
 
         Ok(Array1::from_vec(values))
     }
@@ -725,7 +739,8 @@ impl CompressedDistanceMatrix {
         threshold: Float,
     ) -> NeighborsResult<Array1<Float>> {
         let mut result = Array1::from_elem(shape.1, threshold + 1.0);
-        let values: &[Float] = cast_slice(data);
+        // See the comment in `decompress_float16` regarding alignment.
+        let values: Vec<Float> = pod_collect_to_vec(data);
 
         for (&(i, j), &val) in indices.iter().zip(values.iter()) {
             if i == row_idx && j < shape.1 {
@@ -758,8 +773,9 @@ impl CompressedDistanceMatrix {
             .into_values()
             .collect();
 
-        let sparse_data: &[Float] =
-            cast_slice(&data[..sparse_count * std::mem::size_of::<Float>()]);
+        // See the comment in `decompress_float16` regarding alignment.
+        let sparse_data: Vec<Float> =
+            pod_collect_to_vec(&data[..sparse_count * std::mem::size_of::<Float>()]);
         let dense_data = &data[sparse_count * std::mem::size_of::<Float>()..];
 
         let range = max_val - min_val;

@@ -433,7 +433,7 @@ impl ThreatModelingEngine {
     }
 
     fn calculate_model_confidence(&self) -> Result<f64, ThreatModelingError> {
-        let confidence_factors = vec![
+        let confidence_factors = [
             self.calculate_data_quality_confidence()?,
             self.calculate_intelligence_confidence()?,
             self.calculate_model_completeness_confidence()?,

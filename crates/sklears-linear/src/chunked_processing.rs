@@ -47,7 +47,13 @@ impl ChunkProcessingConfig {
         // Default to 4GB if we can't detect system memory
         const DEFAULT_MEMORY: usize = 4 * 1024 * 1024 * 1024;
 
-        #[cfg(unix)]
+        // `_SC_PHYS_PAGES` is not implemented by Miri's libc shim ("unsupported
+        // operation: unimplemented sysconf name"), so this real-syscall path is
+        // skipped under the interpreter in favor of `DEFAULT_MEMORY` below. This
+        // is a confirmed Miri scope limitation (not something any MIRIFLAGS
+        // isolation setting affects), so real (non-Miri) unix builds are
+        // unaffected and still query the OS as before.
+        #[cfg(all(unix, not(miri)))]
         {
             unsafe {
                 let pages = libc::sysconf(libc::_SC_PHYS_PAGES);
@@ -656,6 +662,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        miri,
+        ignore = "Miri does not support file-backed memory mappings (confirmed interpreter limitation, not a bug)"
+    )]
     fn test_chunked_matrix_multiplication() {
         let dir = tempdir().expect("operation should succeed");
         let file_a = dir.path().join("matrix_a.dat");
@@ -684,6 +694,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        miri,
+        ignore = "Miri does not support file-backed memory mappings (confirmed interpreter limitation, not a bug)"
+    )]
     fn test_chunked_data_iterator() {
         let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_data.dat");
