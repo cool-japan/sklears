@@ -73,8 +73,9 @@ impl AlignedVec {
             };
         }
 
-        let layout = Layout::from_size_align(total_size, alignment)
-            .expect("size/alignment combination must fit within isize::MAX for any realistic buffer length");
+        let layout = Layout::from_size_align(total_size, alignment).expect(
+            "size/alignment combination must fit within isize::MAX for any realistic buffer length",
+        );
 
         // SAFETY: `layout` has non-zero size (checked above).
         let raw_ptr = unsafe { alloc(layout) };

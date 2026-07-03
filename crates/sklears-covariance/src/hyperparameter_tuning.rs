@@ -732,8 +732,9 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
         let sample_covariance = Self::empirical_covariance_f64(&x_f64);
         let trace_term = trace_of_product(&precision_f64, &sample_covariance);
 
-        let log_likelihood =
-            -0.5 * n_samples * (n_features * (2.0 * std::f64::consts::PI).ln() + log_det + trace_term);
+        let log_likelihood = -0.5
+            * n_samples
+            * (n_features * (2.0 * std::f64::consts::PI).ln() + log_det + trace_term);
 
         Ok(log_likelihood)
     }
@@ -1243,7 +1244,10 @@ mod tests {
 
         let param_specs = vec![ParameterSpec {
             name: "alpha".to_string(),
-            param_type: ParameterType::Continuous { min: -3.0, max: 0.5 }, // log10: alpha in [1e-3, ~3.16]
+            param_type: ParameterType::Continuous {
+                min: -3.0,
+                max: 0.5,
+            }, // log10: alpha in [1e-3, ~3.16]
             log_scale: true,
         }];
         let config = TuningConfig {

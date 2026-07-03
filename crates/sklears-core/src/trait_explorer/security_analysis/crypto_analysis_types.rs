@@ -16,13 +16,13 @@
 //! `threat_modeling.rs` / `threat_modeling_types.rs`).
 
 use super::super::security_types::*;
+use super::{
+    CachedCryptographicAnalysis, CryptoSubAnalysesRef, CryptographicAnalysisError,
+    CryptographicAnalysisResult, CryptographicAnalyzer,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::SystemTime;
-use super::{
-    CachedCryptographicAnalysis, CryptographicAnalysisError, CryptographicAnalysisResult, CryptographicAnalyzer,
-    CryptoSubAnalysesRef,
-};
 
 // Shared heuristic-analysis infrastructure: the cryptographic-analysis domain model below fans
 // out into a very large number of narrow, single-purpose sub-analyzers. None perform real
@@ -363,7 +363,10 @@ impl CryptographicAnalyzer {
         format!("crypto_analysis_{:x}", hasher.finish())
     }
 
-    pub(super) fn get_cached_analysis(&self, analysis_id: &str) -> Option<&CachedCryptographicAnalysis> {
+    pub(super) fn get_cached_analysis(
+        &self,
+        analysis_id: &str,
+    ) -> Option<&CachedCryptographicAnalysis> {
         self.analysis_cache.get(analysis_id)
     }
 
@@ -374,7 +377,11 @@ impl CryptographicAnalyzer {
             .unwrap_or(false)
     }
 
-    pub(super) fn cache_analysis(&mut self, analysis_id: String, result: &CryptographicAnalysisResult) {
+    pub(super) fn cache_analysis(
+        &mut self,
+        analysis_id: String,
+        result: &CryptographicAnalysisResult,
+    ) {
         let cache_ttl = self.analysis_config.cache_duration;
         self.analysis_cache.insert(
             analysis_id,
@@ -386,7 +393,10 @@ impl CryptographicAnalyzer {
         );
     }
 
-    pub(super) fn generate_analysis_metadata(&self, context: &TraitUsageContext) -> HashMap<String, String> {
+    pub(super) fn generate_analysis_metadata(
+        &self,
+        context: &TraitUsageContext,
+    ) -> HashMap<String, String> {
         HashMap::from([
             ("analyzer".to_string(), "CryptographicAnalyzer".to_string()),
             ("trait_name".to_string(), context.trait_name.clone()),

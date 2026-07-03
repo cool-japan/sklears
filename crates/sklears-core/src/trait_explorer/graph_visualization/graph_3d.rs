@@ -484,7 +484,10 @@ impl Graph3DGenerator {
     }
 
     /// Compute force-directed 3D layout
-    fn compute_force_3d_layout(&self, graph: &TraitGraph) -> Result<HashMap<String, (f64, f64, f64)>> {
+    fn compute_force_3d_layout(
+        &self,
+        graph: &TraitGraph,
+    ) -> Result<HashMap<String, (f64, f64, f64)>> {
         let mut positions = HashMap::new();
         let n = graph.nodes.len();
 
@@ -516,18 +519,17 @@ impl Graph3DGenerator {
 
             // Repulsive forces
             for i in 0..graph.nodes.len() {
-                for j in i+1..graph.nodes.len() {
+                for j in i + 1..graph.nodes.len() {
                     let node1 = &graph.nodes[i];
                     let node2 = &graph.nodes[j];
 
-                    if let (Some(&(x1, y1, z1)), Some(&(x2, y2, z2))) = (
-                        positions.get(&node1.id),
-                        positions.get(&node2.id)
-                    ) {
+                    if let (Some(&(x1, y1, z1)), Some(&(x2, y2, z2))) =
+                        (positions.get(&node1.id), positions.get(&node2.id))
+                    {
                         let dx = x1 - x2;
                         let dy = y1 - y2;
                         let dz = z1 - z2;
-                        let distance = (dx*dx + dy*dy + dz*dz).sqrt().max(0.1);
+                        let distance = (dx * dx + dy * dy + dz * dz).sqrt().max(0.1);
 
                         let force = k * k / distance;
                         let fx = force * dx / distance;
@@ -550,14 +552,13 @@ impl Graph3DGenerator {
 
             // Attractive forces for connected nodes
             for edge in &graph.edges {
-                if let (Some(&(x1, y1, z1)), Some(&(x2, y2, z2))) = (
-                    positions.get(&edge.from),
-                    positions.get(&edge.to)
-                ) {
+                if let (Some(&(x1, y1, z1)), Some(&(x2, y2, z2))) =
+                    (positions.get(&edge.from), positions.get(&edge.to))
+                {
                     let dx = x2 - x1;
                     let dy = y2 - y1;
                     let dz = z2 - z1;
-                    let distance = (dx*dx + dy*dy + dz*dz).sqrt().max(0.1);
+                    let distance = (dx * dx + dy * dy + dz * dz).sqrt().max(0.1);
 
                     let force = distance * distance / k;
                     let fx = force * dx / distance;
@@ -581,7 +582,7 @@ impl Graph3DGenerator {
             let cooling = temperature * 50.0;
             for node in &graph.nodes {
                 if let Some(&(fx, fy, fz)) = forces.get(&node.id) {
-                    let force_magnitude = (fx*fx + fy*fy + fz*fz).sqrt();
+                    let force_magnitude = (fx * fx + fy * fy + fz * fz).sqrt();
                     if force_magnitude > 0.0 {
                         let displacement = cooling.min(force_magnitude);
                         let scale = displacement / force_magnitude;
@@ -599,7 +600,10 @@ impl Graph3DGenerator {
     }
 
     /// Compute spherical layout
-    fn compute_spherical_layout(&self, graph: &TraitGraph) -> Result<HashMap<String, (f64, f64, f64)>> {
+    fn compute_spherical_layout(
+        &self,
+        graph: &TraitGraph,
+    ) -> Result<HashMap<String, (f64, f64, f64)>> {
         let mut positions = HashMap::new();
         let n = graph.nodes.len();
 
@@ -629,7 +633,10 @@ impl Graph3DGenerator {
     }
 
     /// Compute cylindrical layout
-    fn compute_cylindrical_layout(&self, graph: &TraitGraph) -> Result<HashMap<String, (f64, f64, f64)>> {
+    fn compute_cylindrical_layout(
+        &self,
+        graph: &TraitGraph,
+    ) -> Result<HashMap<String, (f64, f64, f64)>> {
         let mut positions = HashMap::new();
         let n = graph.nodes.len();
 
@@ -676,7 +683,10 @@ impl Graph3DGenerator {
     }
 
     /// Compute helical layout
-    fn compute_helical_layout(&self, graph: &TraitGraph) -> Result<HashMap<String, (f64, f64, f64)>> {
+    fn compute_helical_layout(
+        &self,
+        graph: &TraitGraph,
+    ) -> Result<HashMap<String, (f64, f64, f64)>> {
         let mut positions = HashMap::new();
         let n = graph.nodes.len();
 
@@ -703,7 +713,10 @@ impl Graph3DGenerator {
     }
 
     /// Compute layered 3D layout
-    fn compute_layered_layout(&self, graph: &TraitGraph) -> Result<HashMap<String, (f64, f64, f64)>> {
+    fn compute_layered_layout(
+        &self,
+        graph: &TraitGraph,
+    ) -> Result<HashMap<String, (f64, f64, f64)>> {
         let mut positions = HashMap::new();
 
         // Simple layered approach based on node types
@@ -727,7 +740,8 @@ impl Graph3DGenerator {
                 let col = i % nodes_per_row;
 
                 let x = (col as f64 - nodes_per_row as f64 / 2.0) * node_spacing;
-                let y = (row as f64 - (layer_nodes.len() as f64 / nodes_per_row as f64) / 2.0) * node_spacing;
+                let y = (row as f64 - (layer_nodes.len() as f64 / nodes_per_row as f64) / 2.0)
+                    * node_spacing;
 
                 positions.insert(node.id.clone(), (x, y, z));
             }
@@ -737,15 +751,18 @@ impl Graph3DGenerator {
     }
 
     /// Compute tree 3D layout
-    fn compute_tree_3d_layout(&self, graph: &TraitGraph) -> Result<HashMap<String, (f64, f64, f64)>> {
+    fn compute_tree_3d_layout(
+        &self,
+        graph: &TraitGraph,
+    ) -> Result<HashMap<String, (f64, f64, f64)>> {
         let mut positions = HashMap::new();
 
         // Find root nodes (nodes with no incoming edges of type "inherits")
         let mut root_nodes = Vec::new();
         for node in &graph.nodes {
-            let has_incoming_inherits = graph.edges.iter().any(|edge|
+            let has_incoming_inherits = graph.edges.iter().any(|edge| {
                 edge.to == node.id && edge.edge_type == super::graph_config::EdgeType::Inherits
-            );
+            });
             if !has_incoming_inherits {
                 root_nodes.push(node);
             }
@@ -787,13 +804,18 @@ impl Graph3DGenerator {
         positions: &mut HashMap<String, (f64, f64, f64)>,
         layout: TreeChildLayout,
     ) {
-        let children: Vec<_> = graph.edges.iter()
-            .filter(|edge| edge.from == parent_id && edge.edge_type == super::graph_config::EdgeType::Inherits)
+        let children: Vec<_> = graph
+            .edges
+            .iter()
+            .filter(|edge| {
+                edge.from == parent_id && edge.edge_type == super::graph_config::EdgeType::Inherits
+            })
             .map(|edge| &edge.to)
             .collect();
 
         for (child_idx, child_id) in children.iter().enumerate() {
-            let child_x = layout.parent_x + (child_idx as f64 - (children.len() as f64 - 1.0) / 2.0) * layout.spacing;
+            let child_x = layout.parent_x
+                + (child_idx as f64 - (children.len() as f64 - 1.0) / 2.0) * layout.spacing;
             let child_z = layout.child_offset as f64 * 50.0;
 
             positions.insert(child_id.to_string(), (child_x, layout.level_y, child_z));
@@ -814,7 +836,10 @@ impl Graph3DGenerator {
     }
 
     /// Compute custom layout (placeholder)
-    fn compute_custom_layout(&self, _graph: &TraitGraph) -> Result<HashMap<String, (f64, f64, f64)>> {
+    fn compute_custom_layout(
+        &self,
+        _graph: &TraitGraph,
+    ) -> Result<HashMap<String, (f64, f64, f64)>> {
         // Placeholder for custom layout algorithms
         Ok(HashMap::new())
     }
@@ -829,7 +854,9 @@ impl Graph3DGenerator {
 
         for node in &graph.nodes {
             // Find connected nodes to determine orientation
-            let connected_nodes: Vec<_> = graph.edges.iter()
+            let connected_nodes: Vec<_> = graph
+                .edges
+                .iter()
                 .filter_map(|edge| {
                     if edge.from == node.id {
                         Some(&edge.to)
@@ -859,7 +886,9 @@ impl Graph3DGenerator {
             }
 
             // Convert direction to rotation (simplified)
-            let magnitude = (avg_direction.0.powi(2) + avg_direction.1.powi(2) + avg_direction.2.powi(2)).sqrt();
+            let magnitude =
+                (avg_direction.0.powi(2) + avg_direction.1.powi(2) + avg_direction.2.powi(2))
+                    .sqrt();
             if magnitude > 0.0 {
                 let normalized = (
                     avg_direction.0 / magnitude,
@@ -892,7 +921,10 @@ impl Graph3DGenerator {
         // Calculate average edge length
         for edge in &graph.edges {
             if let (Some(pos1), Some(pos2)) = (positions.get(&edge.from), positions.get(&edge.to)) {
-                let distance = ((pos1.0 - pos2.0).powi(2) + (pos1.1 - pos2.1).powi(2) + (pos1.2 - pos2.2).powi(2)).sqrt();
+                let distance = ((pos1.0 - pos2.0).powi(2)
+                    + (pos1.1 - pos2.1).powi(2)
+                    + (pos1.2 - pos2.2).powi(2))
+                .sqrt();
                 total_edge_length += distance;
                 edge_count += 1;
             }
@@ -917,25 +949,32 @@ impl Graph3DGenerator {
             max_bounds.2 = max_bounds.2.max(pos.2);
         }
 
-        let volume = (max_bounds.0 - min_bounds.0) * (max_bounds.1 - min_bounds.1) * (max_bounds.2 - min_bounds.2);
+        let volume = (max_bounds.0 - min_bounds.0)
+            * (max_bounds.1 - min_bounds.1)
+            * (max_bounds.2 - min_bounds.2);
         let volume_utilization = if volume > 0.0 {
             (positions.len() as f64 * 1000.0) / volume // Normalize by approximate node volume
         } else {
             0.0
-        }.min(1.0);
+        }
+        .min(1.0);
 
         Layout3DQualityMetrics {
             volume_utilization,
             average_edge_length,
             edge_intersections: 0, // Simplified - would require complex 3D intersection tests
             distribution_uniformity: 0.7, // Placeholder
-            visual_clarity: 0.8, // Placeholder
+            visual_clarity: 0.8,   // Placeholder
             depth_perception: 0.75, // Placeholder
         }
     }
 
     /// Generate Three.js code for the 3D visualization
-    fn generate_threejs_code(&self, graph: &TraitGraph, layout_result: &Layout3DResult) -> Result<String> {
+    fn generate_threejs_code(
+        &self,
+        graph: &TraitGraph,
+        layout_result: &Layout3DResult,
+    ) -> Result<String> {
         let mut code = String::new();
 
         // Scene setup
@@ -987,9 +1026,10 @@ impl Graph3DGenerator {
                     "scene.background = new THREE.Color('{}');\n",
                     self.config.background_value
                 ));
-            },
+            }
             BackgroundType::Gradient => {
-                code.push_str(&format!(r#"
+                code.push_str(&format!(
+                    r#"
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');
                 canvas.width = 256;
@@ -1000,8 +1040,10 @@ impl Graph3DGenerator {
                 context.fillStyle = gradient;
                 context.fillRect(0, 0, 256, 256);
                 scene.background = new THREE.CanvasTexture(canvas);
-                "#, self.config.background_value));
-            },
+                "#,
+                    self.config.background_value
+                ));
+            }
             _ => {
                 // Other background types would require more complex setup
                 code.push_str(&format!(
@@ -1025,7 +1067,9 @@ impl Graph3DGenerator {
 
         for node in &graph.nodes {
             if let Some(position) = layout_result.positions.get(&node.id) {
-                let geometry = self.node_geometries.get(node.node_type.display_name())
+                let geometry = self
+                    .node_geometries
+                    .get(node.node_type.display_name())
                     .cloned()
                     .unwrap_or_else(|| NodeGeometry {
                         geometry_type: GeometryType::Sphere,
@@ -1034,7 +1078,9 @@ impl Graph3DGenerator {
                         parameters: HashMap::new(),
                     });
 
-                let material = self.material_templates.get(node.node_type.display_name())
+                let material = self
+                    .material_templates
+                    .get(node.node_type.display_name())
                     .cloned()
                     .unwrap_or_else(|| MaterialTemplate {
                         material_type: MaterialType::Standard,
@@ -1052,7 +1098,8 @@ impl Graph3DGenerator {
                 let geometry_code = self.generate_geometry_code(&geometry);
                 let material_code = self.generate_material_code(&material);
 
-                code.push_str(&format!(r#"
+                code.push_str(&format!(
+                    r#"
                 {{
                     const geometry = {};
                     const material = {};
@@ -1074,8 +1121,12 @@ impl Graph3DGenerator {
                 "#,
                     geometry_code,
                     material_code,
-                    position.0, position.1, position.2,
-                    node.size, node.size, node.size,
+                    position.0,
+                    position.1,
+                    position.2,
+                    node.size,
+                    node.size,
+                    node.size,
                     Self::escape_js_string(&node.id),
                     Self::escape_js_string(&node.label),
                     node.node_type.display_name(),
@@ -1091,12 +1142,13 @@ impl Graph3DGenerator {
         for edge in &graph.edges {
             if let (Some(from_pos), Some(to_pos)) = (
                 layout_result.positions.get(&edge.from),
-                layout_result.positions.get(&edge.to)
+                layout_result.positions.get(&edge.to),
             ) {
                 let color = edge.color.as_deref().unwrap_or("#666666");
                 let thickness = edge.thickness.unwrap_or(1.0);
 
-                code.push_str(&format!(r#"
+                code.push_str(&format!(
+                    r#"
                 {{
                     const points = [
                         new THREE.Vector3({}, {}, {}),
@@ -1118,9 +1170,14 @@ impl Graph3DGenerator {
                     edges.push(line);
                 }}
                 "#,
-                    from_pos.0, from_pos.1, from_pos.2,
-                    to_pos.0, to_pos.1, to_pos.2,
-                    color, thickness,
+                    from_pos.0,
+                    from_pos.1,
+                    from_pos.2,
+                    to_pos.0,
+                    to_pos.1,
+                    to_pos.2,
+                    color,
+                    thickness,
                     Self::escape_js_string(&edge.from),
                     Self::escape_js_string(&edge.to),
                     edge.edge_type.display_name(),
@@ -1131,7 +1188,8 @@ impl Graph3DGenerator {
 
         // Controls and interaction
         if self.config.enable_camera_controls {
-            code.push_str(r#"
+            code.push_str(
+                r#"
             // Camera controls
             const controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
@@ -1140,11 +1198,13 @@ impl Graph3DGenerator {
             controls.minDistance = 10;
             controls.maxDistance = 1000;
             controls.maxPolarAngle = Math.PI;
-            "#);
+            "#,
+            );
         }
 
         // Animation and rendering
-        code.push_str(&format!(r#"
+        code.push_str(&format!(
+            r#"
         // Animation loop
         let animationId;
         const clock = new THREE.Clock();
@@ -1202,9 +1262,7 @@ impl Graph3DGenerator {
 
         window.addEventListener('beforeunload', cleanup);
         "#,
-            self.config.enable_physics,
-            self.config.physics_gravity,
-            self.config.physics_damping
+            self.config.enable_physics, self.config.physics_gravity, self.config.physics_damping
         ));
 
         Ok(code)
@@ -1215,7 +1273,9 @@ impl Graph3DGenerator {
         match geometry.geometry_type {
             GeometryType::Sphere => format!(
                 "new THREE.SphereGeometry({}, {}, {})",
-                geometry.size.0, geometry.segments, geometry.segments / 2
+                geometry.size.0,
+                geometry.segments,
+                geometry.segments / 2
             ),
             GeometryType::Box => format!(
                 "new THREE.BoxGeometry({}, {}, {})",
@@ -1229,21 +1289,21 @@ impl Graph3DGenerator {
                 "new THREE.ConeGeometry({}, {}, {})",
                 geometry.size.0, geometry.size.1, geometry.segments
             ),
-            GeometryType::Octahedron => format!(
-                "new THREE.OctahedronGeometry({})",
-                geometry.size.0
-            ),
-            GeometryType::Icosahedron => format!(
-                "new THREE.IcosahedronGeometry({})",
-                geometry.size.0
-            ),
-            GeometryType::Dodecahedron => format!(
-                "new THREE.DodecahedronGeometry({})",
-                geometry.size.0
-            ),
+            GeometryType::Octahedron => {
+                format!("new THREE.OctahedronGeometry({})", geometry.size.0)
+            }
+            GeometryType::Icosahedron => {
+                format!("new THREE.IcosahedronGeometry({})", geometry.size.0)
+            }
+            GeometryType::Dodecahedron => {
+                format!("new THREE.DodecahedronGeometry({})", geometry.size.0)
+            }
             GeometryType::Torus => format!(
                 "new THREE.TorusGeometry({}, {}, {}, {})",
-                geometry.size.0, geometry.size.1, geometry.segments / 2, geometry.segments
+                geometry.size.0,
+                geometry.size.1,
+                geometry.segments / 2,
+                geometry.segments
             ),
             GeometryType::Custom => "new THREE.SphereGeometry(1, 16, 8)".to_string(), // Fallback
         }
@@ -1276,7 +1336,8 @@ impl Graph3DGenerator {
 
     /// Create HTML template for 3D visualization
     fn create_html_template(&self, three_js_code: &str) -> String {
-        format!(r#"<!DOCTYPE html>
+        format!(
+            r#"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1440,8 +1501,16 @@ impl Graph3DGenerator {
 </body>
 </html>"#,
             self.theme.background_color(),
-            if self.config.enable_physics { "Enabled" } else { "Disabled" },
-            if self.config.enable_vr { "Available" } else { "Not Available" },
+            if self.config.enable_physics {
+                "Enabled"
+            } else {
+                "Disabled"
+            },
+            if self.config.enable_vr {
+                "Available"
+            } else {
+                "Not Available"
+            },
             three_js_code,
             self.config.camera_position.0,
             self.config.camera_position.1,
@@ -1487,14 +1556,18 @@ impl Graph3DGenerator {
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
+    use super::super::graph_structures::{TraitGraph, TraitGraphEdge, TraitGraphNode};
     use super::*;
-    use super::super::graph_structures::{TraitGraph, TraitGraphNode, TraitGraphEdge};
 
     fn create_test_graph() -> TraitGraph {
         let mut graph = TraitGraph::new();
 
         let node1 = TraitGraphNode::new_trait("Trait1".to_string(), "Trait1".to_string());
-        let node2 = TraitGraphNode::new_implementation("Impl1".to_string(), "Impl1".to_string(), "Trait1".to_string());
+        let node2 = TraitGraphNode::new_implementation(
+            "Impl1".to_string(),
+            "Impl1".to_string(),
+            "Trait1".to_string(),
+        );
 
         graph.add_node(node1);
         graph.add_node(node2);

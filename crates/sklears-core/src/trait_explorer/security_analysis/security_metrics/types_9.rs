@@ -2,26 +2,33 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
+use super::super::security_types::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, SystemTime};
-use super::super::security_types::*;
 
-use super::types_7::{BenchmarkingResults, ClusteringAnomaly, DashboardConfiguration, DetectedAnomaly, MitigationRecommendation, RealTimeUpdate, SecurityMetricsError};
-use super::types::{AnomalyCorrelation, BaselineDeviation, BenchmarkReporting, CorrelationAnalysisResult, DashboardAccessControls, DashboardData, DashboardType, EscalationTrigger, InteractiveElement, KpiAnalysisResult, KriMonitoringResult, KriValue, MetricsRecommendation, MlAnomaly, PerformanceMetricsResult, PredictiveAlert, RealTimeStatus, SecurityScorecard, StatisticalOutlier, TrendAnalysisResult, VisualizationData};
 use super::functions::{average_quality, metric_value_as_f64};
 use super::macros::{
     AssociationMiner, BenchmarkCategory, BestPracticeComparison, CausalityAnalyzer,
     CompetitiveAnalysis, CorrelationEngine, CorrelationMethod, CrossDomainAnalyzer,
-    CustomBenchmark, CustomizationOption, DataAggregator, DependencyAnalyzer,
-    EarlyWarningSystem, EscalationProcedure, ExportCapability, IndustryComparison,
-    InteractiveFeature, KriDefinition, MaturityAssessment, MetricValue, MitigationTrigger,
-    MultivariateAnalyzer, NetworkAnalyzer, PatternCorrelator, PeerGroupAnalysis,
-    PerformanceOptimizer, PredictiveModel, RealTimeUpdater, RiskAppetiteMonitor,
-    RiskThreshold, StandardBenchmark, TemporalCorrelator, ThresholdStatus, TimestampedValue,
-    TrendDirection, VisualizationComponent,
+    CustomBenchmark, CustomizationOption, DataAggregator, DependencyAnalyzer, EarlyWarningSystem,
+    EscalationProcedure, ExportCapability, IndustryComparison, InteractiveFeature, KriDefinition,
+    MaturityAssessment, MetricValue, MitigationTrigger, MultivariateAnalyzer, NetworkAnalyzer,
+    PatternCorrelator, PeerGroupAnalysis, PerformanceOptimizer, PredictiveModel, RealTimeUpdater,
+    RiskAppetiteMonitor, RiskThreshold, StandardBenchmark, TemporalCorrelator, ThresholdStatus,
+    TimestampedValue, TrendDirection, VisualizationComponent,
 };
-
+use super::types::{
+    AnomalyCorrelation, BaselineDeviation, BenchmarkReporting, CorrelationAnalysisResult,
+    DashboardAccessControls, DashboardData, DashboardType, EscalationTrigger, InteractiveElement,
+    KpiAnalysisResult, KriMonitoringResult, KriValue, MetricsRecommendation, MlAnomaly,
+    PerformanceMetricsResult, PredictiveAlert, RealTimeStatus, SecurityScorecard,
+    StatisticalOutlier, TrendAnalysisResult, VisualizationData,
+};
+use super::types_7::{
+    BenchmarkingResults, ClusteringAnomaly, DashboardConfiguration, DetectedAnomaly,
+    MitigationRecommendation, RealTimeUpdate, SecurityMetricsError,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KpiScore {
@@ -49,55 +56,48 @@ impl DashboardManager {
         metrics: &HashMap<String, MetricCollection>,
     ) -> Result<DashboardData, SecurityMetricsError> {
         let config_depth = self.visualization_components.len()
-            + self.data_aggregators.len() + self.real_time_updaters.len()
-            + self.interactive_features.len() + self.export_capabilities.len()
-            + self.customization_options.len() + self.performance_optimizers.len();
-        let (
-            mut dashboard_configurations,
-            mut visualization_data,
-            mut export_ready_data,
-        ) = (HashMap::new(), HashMap::new(), HashMap::new());
+            + self.data_aggregators.len()
+            + self.real_time_updaters.len()
+            + self.interactive_features.len()
+            + self.export_capabilities.len()
+            + self.customization_options.len()
+            + self.performance_optimizers.len();
+        let (mut dashboard_configurations, mut visualization_data, mut export_ready_data) =
+            (HashMap::new(), HashMap::new(), HashMap::new());
         let (mut real_time_updates, mut interactive_elements) = (Vec::new(), Vec::new());
-        dashboard_configurations
-            .insert(
-                self.dashboard_id.clone(),
-                DashboardConfiguration {
-                    dashboard_name: format!("{:?}", self.dashboard_type),
-                    refresh_interval: Duration::from_secs(60),
+        dashboard_configurations.insert(
+            self.dashboard_id.clone(),
+            DashboardConfiguration {
+                dashboard_name: format!("{:?}", self.dashboard_type),
+                refresh_interval: Duration::from_secs(60),
+            },
+        );
+        for (name, collection) in metrics {
+            visualization_data.insert(
+                name.clone(),
+                VisualizationData {
+                    chart_type: "line".to_string(),
+                    data_points: vec![metric_value_as_f64(&collection.current_value)],
                 },
             );
-        for (name, collection) in metrics {
-            visualization_data
-                .insert(
-                    name.clone(),
-                    VisualizationData {
-                        chart_type: "line".to_string(),
-                        data_points: vec![
-                            metric_value_as_f64(& collection.current_value)
-                        ],
-                    },
-                );
             if self.access_controls.enabled && context.has_audit_logging {
-                real_time_updates
-                    .push(RealTimeUpdate {
-                        update_id: format!("{}::{name}", self.dashboard_id),
-                        timestamp: SystemTime::now(),
-                    });
+                real_time_updates.push(RealTimeUpdate {
+                    update_id: format!("{}::{name}", self.dashboard_id),
+                    timestamp: SystemTime::now(),
+                });
             }
         }
-        interactive_elements
-            .push(InteractiveElement {
-                element_id: self.dashboard_id.clone(),
-                element_type: format!("{:?}", self.dashboard_type),
-            });
-        export_ready_data
-            .insert(
-                self.dashboard_id.clone(),
-                ExportData {
-                    format: "json".to_string(),
-                    size_bytes: (metrics.len() * 128) as u64,
-                },
-            );
+        interactive_elements.push(InteractiveElement {
+            element_id: self.dashboard_id.clone(),
+            element_type: format!("{:?}", self.dashboard_type),
+        });
+        export_ready_data.insert(
+            self.dashboard_id.clone(),
+            ExportData {
+                format: "json".to_string(),
+                size_bytes: (metrics.len() * 128) as u64,
+            },
+        );
         let performance_statistics = DashboardPerformanceStats {
             render_time_ms: 40.0 + config_depth as f64,
             data_load_time_ms: 90.0,
@@ -211,19 +211,17 @@ impl BenchmarkingEngine {
         metrics: &HashMap<String, MetricCollection>,
     ) -> Result<BenchmarkingResults, SecurityMetricsError> {
         let config_depth = self.benchmark_categories.len()
-            + self.industry_comparisons.len() + self.peer_group_analysis.len()
-            + self.best_practice_comparisons.len() + self.maturity_assessments.len()
-            + self.competitive_analysis.len() + self.standard_benchmarks.len()
+            + self.industry_comparisons.len()
+            + self.peer_group_analysis.len()
+            + self.best_practice_comparisons.len()
+            + self.maturity_assessments.len()
+            + self.competitive_analysis.len()
+            + self.standard_benchmarks.len()
             + self.custom_benchmarks.len();
-        let (
-            mut benchmark_comparisons,
-            mut industry_rankings,
-            mut peer_group_analysis,
-        ) = (HashMap::new(), HashMap::new(), HashMap::new());
-        let (mut maturity_assessments, mut competitive_positions) = (
-            HashMap::new(),
-            HashMap::new(),
-        );
+        let (mut benchmark_comparisons, mut industry_rankings, mut peer_group_analysis) =
+            (HashMap::new(), HashMap::new(), HashMap::new());
+        let (mut maturity_assessments, mut competitive_positions) =
+            (HashMap::new(), HashMap::new());
         let mut best_practice_gaps = Vec::new();
         for (name, collection) in metrics {
             let score = collection.quality_score * 10.0;
@@ -237,25 +235,17 @@ impl BenchmarkingEngine {
             }
         }
         if context.has_audit_logging && self.benchmark_reporting.enabled {
-            best_practice_gaps
-                .push(
-                    format!(
-                        "{} reporting reviewed ({config_depth} categories)", self
-                        .engine_id
-                    ),
-                );
+            best_practice_gaps.push(format!(
+                "{} reporting reviewed ({config_depth} categories)",
+                self.engine_id
+            ));
         }
         let overall_benchmark_score = if benchmark_comparisons.is_empty() {
             5.0
         } else {
-            benchmark_comparisons.values().sum::<f64>()
-                / benchmark_comparisons.len() as f64
+            benchmark_comparisons.values().sum::<f64>() / benchmark_comparisons.len() as f64
         };
-        let improvement_priorities = best_practice_gaps
-            .iter()
-            .take(3)
-            .cloned()
-            .collect();
+        let improvement_priorities = best_practice_gaps.iter().take(3).cloned().collect();
         Ok(BenchmarkingResults {
             benchmark_comparisons,
             industry_rankings,
@@ -288,23 +278,18 @@ impl CorrelationAnalyzer {
         metrics: &HashMap<String, MetricCollection>,
     ) -> Result<CorrelationAnalysisResult, SecurityMetricsError> {
         let config_depth = self.correlation_methods.len()
-            + self.dependency_analyzers.len() + self.causality_analyzers.len()
-            + self.association_miners.len() + self.pattern_correlators.len()
-            + self.cross_domain_analyzers.len() + self.temporal_correlators.len()
-            + self.multivariate_analyzers.len() + self.network_analyzers.len();
+            + self.dependency_analyzers.len()
+            + self.causality_analyzers.len()
+            + self.association_miners.len()
+            + self.pattern_correlators.len()
+            + self.cross_domain_analyzers.len()
+            + self.temporal_correlators.len()
+            + self.multivariate_analyzers.len()
+            + self.network_analyzers.len();
         let names: Vec<String> = metrics.keys().cloned().collect();
-        let (mut metric_correlations, mut dependency_networks) = (
-            HashMap::new(),
-            HashMap::new(),
-        );
-        let (mut causality_relationships, mut association_patterns) = (
-            Vec::new(),
-            Vec::new(),
-        );
-        let (mut cross_domain_correlations, mut temporal_correlations) = (
-            Vec::new(),
-            Vec::new(),
-        );
+        let (mut metric_correlations, mut dependency_networks) = (HashMap::new(), HashMap::new());
+        let (mut causality_relationships, mut association_patterns) = (Vec::new(), Vec::new());
+        let (mut cross_domain_correlations, mut temporal_correlations) = (Vec::new(), Vec::new());
         for (name, collection) in metrics {
             metric_correlations.insert(name.clone(), collection.quality_score);
             let related: Vec<String> = names
@@ -319,27 +304,22 @@ impl CorrelationAnalyzer {
             }
         }
         if names.len() > 1 {
-            causality_relationships
-                .push(format!("{} -> {}", names[0], names[names.len() - 1]));
-            association_patterns
-                .push(
-                    format!(
-                        "{} shared pattern across {} metrics", self.analyzer_id, names
-                        .len()
-                    ),
-                );
+            causality_relationships.push(format!("{} -> {}", names[0], names[names.len() - 1]));
+            association_patterns.push(format!(
+                "{} shared pattern across {} metrics",
+                self.analyzer_id,
+                names.len()
+            ));
         }
         if config_depth > 0 {
-            cross_domain_correlations
-                .push(
-                    format!(
-                        "{} cross-domain signal ({config_depth} methods)", self
-                        .analyzer_id
-                    ),
-                );
+            cross_domain_correlations.push(format!(
+                "{} cross-domain signal ({config_depth} methods)",
+                self.analyzer_id
+            ));
         }
         let correlation_strength_summary = format!(
-            "{} metrics analyzed with {config_depth} configured methods", names.len()
+            "{} metrics analyzed with {config_depth} configured methods",
+            names.len()
         );
         let actionable_correlations = causality_relationships.clone();
         Ok(CorrelationAnalysisResult {
@@ -400,73 +380,62 @@ impl KriMonitor {
         context: &TraitUsageContext,
         metrics: &HashMap<String, MetricCollection>,
     ) -> Result<KriMonitoringResult, SecurityMetricsError> {
-        let config_depth = self.kri_definitions.len() + self.risk_thresholds.len()
-            + self.early_warning_systems.len() + self.predictive_models.len()
-            + self.correlation_engines.len() + self.escalation_procedures.len()
-            + self.mitigation_triggers.len() + self.risk_appetite_monitors.len();
-        let (mut kri_values, mut risk_threshold_status) = (
-            HashMap::new(),
-            HashMap::new(),
-        );
-        let (mut early_warnings, mut predictive_alerts, mut correlation_findings) = (
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-        );
-        let (mut escalation_triggers, mut mitigation_recommendations) = (
-            Vec::new(),
-            Vec::new(),
-        );
+        let config_depth = self.kri_definitions.len()
+            + self.risk_thresholds.len()
+            + self.early_warning_systems.len()
+            + self.predictive_models.len()
+            + self.correlation_engines.len()
+            + self.escalation_procedures.len()
+            + self.mitigation_triggers.len()
+            + self.risk_appetite_monitors.len();
+        let (mut kri_values, mut risk_threshold_status) = (HashMap::new(), HashMap::new());
+        let (mut early_warnings, mut predictive_alerts, mut correlation_findings) =
+            (Vec::new(), Vec::new(), Vec::new());
+        let (mut escalation_triggers, mut mitigation_recommendations) = (Vec::new(), Vec::new());
         for (name, collection) in metrics {
             let value = metric_value_as_f64(&collection.current_value);
             let status = collection.threshold_status.clone();
             if !matches!(status, ThresholdStatus::Normal) {
-                early_warnings
-                    .push(EarlyWarning {
-                        indicator: name.clone(),
-                        severity: RiskSeverity::Medium,
-                        message: format!(
-                            "{} ({name}) trending outside expected range", self
-                            .monitor_id
-                        ),
-                    });
-                escalation_triggers
-                    .push(EscalationTrigger {
-                        trigger_name: name.clone(),
-                        threshold_breached: value,
-                    });
-                mitigation_recommendations
-                    .push(MitigationRecommendation {
-                        recommendation: format!("Review {name}"),
-                        priority: MitigationPriority::Medium,
-                    });
+                early_warnings.push(EarlyWarning {
+                    indicator: name.clone(),
+                    severity: RiskSeverity::Medium,
+                    message: format!(
+                        "{} ({name}) trending outside expected range",
+                        self.monitor_id
+                    ),
+                });
+                escalation_triggers.push(EscalationTrigger {
+                    trigger_name: name.clone(),
+                    threshold_breached: value,
+                });
+                mitigation_recommendations.push(MitigationRecommendation {
+                    recommendation: format!("Review {name}"),
+                    priority: MitigationPriority::Medium,
+                });
             }
             if context.requires_elevated_privileges {
-                predictive_alerts
-                    .push(PredictiveAlert {
-                        metric_name: name.clone(),
-                        predicted_value: value * 1.1,
-                        confidence: average_quality(metrics),
-                    });
+                predictive_alerts.push(PredictiveAlert {
+                    metric_name: name.clone(),
+                    predicted_value: value * 1.1,
+                    confidence: average_quality(metrics),
+                });
             }
-            kri_values
-                .insert(
-                    name.clone(),
-                    KriValue {
-                        current_value: value,
-                        threshold: value,
-                        status: status.clone(),
-                    },
-                );
+            kri_values.insert(
+                name.clone(),
+                KriValue {
+                    current_value: value,
+                    threshold: value,
+                    status: status.clone(),
+                },
+            );
             risk_threshold_status.insert(name.clone(), status);
         }
         if kri_values.len() > 1 || config_depth > 0 {
-            correlation_findings
-                .push(CorrelationFinding {
-                    metric_a: self.monitor_id.clone(),
-                    metric_b: "aggregate".to_string(),
-                    correlation_coefficient: average_quality(metrics),
-                });
+            correlation_findings.push(CorrelationFinding {
+                metric_a: self.monitor_id.clone(),
+                metric_b: "aggregate".to_string(),
+                correlation_coefficient: average_quality(metrics),
+            });
         }
         let risk_appetite_compliance = average_quality(metrics);
         Ok(KriMonitoringResult {

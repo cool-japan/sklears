@@ -4,7 +4,7 @@
 //! the graph visualization system, including nodes, edges, and the main
 //! graph container with associated metadata and statistics.
 
-use super::graph_config::{TraitNodeType, EdgeType, StabilityLevel};
+use super::graph_config::{EdgeType, StabilityLevel, TraitNodeType};
 use crate::error::{Result, SklearsError};
 
 use chrono::{DateTime, Utc};
@@ -372,7 +372,8 @@ impl TraitGraphEdge {
 
     /// Check if this edge connects the given nodes (in either direction)
     pub fn connects(&self, node1: &str, node2: &str) -> bool {
-        (self.from == node1 && self.to == node2) || (!self.directed && self.from == node2 && self.to == node1)
+        (self.from == node1 && self.to == node2)
+            || (!self.directed && self.from == node2 && self.to == node1)
     }
 
     /// Get the other endpoint given one endpoint
@@ -622,9 +623,10 @@ impl Community {
     /// Get the density of connections within the community
     pub fn internal_density(&self, edges: &[TraitGraphEdge]) -> f64 {
         let node_set: HashSet<_> = self.nodes.iter().collect();
-        let internal_edges = edges.iter().filter(|edge| {
-            node_set.contains(&edge.from) && node_set.contains(&edge.to)
-        }).count();
+        let internal_edges = edges
+            .iter()
+            .filter(|edge| node_set.contains(&edge.from) && node_set.contains(&edge.to))
+            .count();
 
         let max_edges = self.nodes.len() * (self.nodes.len() - 1) / 2;
         if max_edges > 0 {
@@ -753,7 +755,8 @@ impl PerformanceMetrics {
 
     /// Check if performance is acceptable
     pub fn is_acceptable(&self) -> bool {
-        self.total_time() < Duration::from_secs(30) && self.memory_usage < 1024 * 1024 * 1024 // 1GB
+        self.total_time() < Duration::from_secs(30) && self.memory_usage < 1024 * 1024 * 1024
+        // 1GB
     }
 }
 
@@ -787,7 +790,11 @@ impl Default for CentralityMeasures {
 impl CentralityMeasures {
     /// Get the overall importance score (weighted average)
     pub fn importance_score(&self) -> f64 {
-        self.degree * 0.2 + self.betweenness * 0.3 + self.closeness * 0.2 + self.eigenvector * 0.2 + self.pagerank * 0.1
+        self.degree * 0.2
+            + self.betweenness * 0.3
+            + self.closeness * 0.2
+            + self.eigenvector * 0.2
+            + self.pagerank * 0.1
     }
 
     /// Get the most important centrality measure
@@ -800,7 +807,8 @@ impl CentralityMeasures {
             ("pagerank", self.pagerank),
         ];
 
-        measures.iter()
+        measures
+            .iter()
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(name, _)| *name)
             .unwrap_or("degree")
@@ -837,7 +845,12 @@ impl Default for GraphQualityMetrics {
 impl GraphQualityMetrics {
     /// Get the overall quality score
     pub fn overall_quality(&self) -> f64 {
-        (self.clarity + self.layout_quality + self.information_density + self.aesthetic_appeal + self.usability) / 5.0
+        (self.clarity
+            + self.layout_quality
+            + self.information_density
+            + self.aesthetic_appeal
+            + self.usability)
+            / 5.0
     }
 
     /// Check if the quality is acceptable
@@ -936,7 +949,10 @@ impl TraitGraph {
 
     /// Get all edges connected to a node
     pub fn get_node_edges(&self, node_id: &str) -> Vec<&TraitGraphEdge> {
-        self.edges.iter().filter(|e| e.from == node_id || e.to == node_id).collect()
+        self.edges
+            .iter()
+            .filter(|e| e.from == node_id || e.to == node_id)
+            .collect()
     }
 
     /// Check if two nodes are directly connected
@@ -946,7 +962,10 @@ impl TraitGraph {
 
     /// Get the degree of a node
     pub fn get_degree(&self, node_id: &str) -> usize {
-        self.edges.iter().filter(|e| e.from == node_id || (!e.directed && e.to == node_id)).count()
+        self.edges
+            .iter()
+            .filter(|e| e.from == node_id || (!e.directed && e.to == node_id))
+            .count()
     }
 
     /// Update graph statistics
@@ -956,12 +975,18 @@ impl TraitGraph {
 
     /// Filter nodes by type
     pub fn nodes_by_type(&self, node_type: TraitNodeType) -> Vec<&TraitGraphNode> {
-        self.nodes.iter().filter(|n| n.node_type == node_type).collect()
+        self.nodes
+            .iter()
+            .filter(|n| n.node_type == node_type)
+            .collect()
     }
 
     /// Filter edges by type
     pub fn edges_by_type(&self, edge_type: EdgeType) -> Vec<&TraitGraphEdge> {
-        self.edges.iter().filter(|e| e.edge_type == edge_type).collect()
+        self.edges
+            .iter()
+            .filter(|e| e.edge_type == edge_type)
+            .collect()
     }
 
     /// Check if the graph is empty
@@ -980,23 +1005,26 @@ impl TraitGraph {
         let mut node_ids = HashSet::new();
         for node in &self.nodes {
             if !node_ids.insert(&node.id) {
-                return Err(SklearsError::ValidationError(
-                    format!("Duplicate node ID: {}", node.id)
-                ));
+                return Err(SklearsError::ValidationError(format!(
+                    "Duplicate node ID: {}",
+                    node.id
+                )));
             }
         }
 
         // Check that all edges reference existing nodes
         for edge in &self.edges {
             if !node_ids.contains(&edge.from) {
-                return Err(SklearsError::ValidationError(
-                    format!("Edge references non-existent source node: {}", edge.from)
-                ));
+                return Err(SklearsError::ValidationError(format!(
+                    "Edge references non-existent source node: {}",
+                    edge.from
+                )));
             }
             if !node_ids.contains(&edge.to) {
-                return Err(SklearsError::ValidationError(
-                    format!("Edge references non-existent target node: {}", edge.to)
-                ));
+                return Err(SklearsError::ValidationError(format!(
+                    "Edge references non-existent target node: {}",
+                    edge.to
+                )));
             }
         }
 
@@ -1053,11 +1081,16 @@ mod tests {
     fn test_graph_statistics() {
         let nodes = vec![
             TraitGraphNode::new_trait("t1".to_string(), "Trait1".to_string()),
-            TraitGraphNode::new_implementation("i1".to_string(), "Impl1".to_string(), "t1".to_string()),
+            TraitGraphNode::new_implementation(
+                "i1".to_string(),
+                "Impl1".to_string(),
+                "t1".to_string(),
+            ),
         ];
-        let edges = vec![
-            TraitGraphEdge::new_implementation("t1".to_string(), "i1".to_string()),
-        ];
+        let edges = vec![TraitGraphEdge::new_implementation(
+            "t1".to_string(),
+            "i1".to_string(),
+        )];
 
         let stats = GraphStatistics::from_graph(&nodes, &edges);
         assert_eq!(stats.node_count, 2);
@@ -1104,13 +1137,23 @@ mod tests {
     #[test]
     fn test_graph_validation() {
         let mut graph = TraitGraph::new();
-        graph.add_node(TraitGraphNode::new_trait("t1".to_string(), "Trait1".to_string()));
-        graph.add_edge(TraitGraphEdge::new_implementation("t1".to_string(), "t2".to_string()));
+        graph.add_node(TraitGraphNode::new_trait(
+            "t1".to_string(),
+            "Trait1".to_string(),
+        ));
+        graph.add_edge(TraitGraphEdge::new_implementation(
+            "t1".to_string(),
+            "t2".to_string(),
+        ));
 
         // Should fail because t2 doesn't exist
         assert!(graph.validate().is_err());
 
-        graph.add_node(TraitGraphNode::new_implementation("t2".to_string(), "Impl1".to_string(), "t1".to_string()));
+        graph.add_node(TraitGraphNode::new_implementation(
+            "t2".to_string(),
+            "Impl1".to_string(),
+            "t1".to_string(),
+        ));
         // Should pass now
         assert!(graph.validate().is_ok());
     }
@@ -1130,9 +1173,18 @@ mod tests {
     #[test]
     fn test_graph_navigation() {
         let mut graph = TraitGraph::new();
-        graph.add_node(TraitGraphNode::new_trait("t1".to_string(), "Trait1".to_string()));
-        graph.add_node(TraitGraphNode::new_trait("t2".to_string(), "Trait2".to_string()));
-        graph.add_edge(TraitGraphEdge::new_inheritance("t1".to_string(), "t2".to_string()));
+        graph.add_node(TraitGraphNode::new_trait(
+            "t1".to_string(),
+            "Trait1".to_string(),
+        ));
+        graph.add_node(TraitGraphNode::new_trait(
+            "t2".to_string(),
+            "Trait2".to_string(),
+        ));
+        graph.add_edge(TraitGraphEdge::new_inheritance(
+            "t1".to_string(),
+            "t2".to_string(),
+        ));
 
         let neighbors = graph.get_neighbors("t1");
         assert_eq!(neighbors.len(), 1);

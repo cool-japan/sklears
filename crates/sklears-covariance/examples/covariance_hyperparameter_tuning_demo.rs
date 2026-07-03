@@ -34,8 +34,9 @@ use sklears_covariance::{
 use std::collections::HashMap;
 
 /// Factory closures handed to [`CovarianceHyperparameterTuner::tune`].
-type TunableFactory =
-    Box<dyn Fn(&HashMap<String, ParameterValue>) -> SklResult<Box<dyn CovarianceEstimatorTunable<f64>>>>;
+type TunableFactory = Box<
+    dyn Fn(&HashMap<String, ParameterValue>) -> SklResult<Box<dyn CovarianceEstimatorTunable<f64>>>,
+>;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Hyperparameter Tuning Demo for Covariance Estimators");
@@ -362,7 +363,10 @@ fn demo_graphical_lasso_tuning() -> SklResult<()> {
         .fit(&data.view(), &())?;
     let precision = best_fit.get_precision();
     let n = precision.nrows();
-    let near_zero = precision.iter().filter(|&&value| value.abs() < 1e-3).count();
+    let near_zero = precision
+        .iter()
+        .filter(|&&value| value.abs() < 1e-3)
+        .count();
     let sparsity = near_zero as f64 / (n * n) as f64;
 
     println!("\nSparsity of the tuned precision matrix:");
@@ -417,10 +421,8 @@ fn graphical_lasso_tuner() -> (CovarianceHyperparameterTuner<f64>, TunableFactor
             Some(ParameterValue::Int(iter)) => *iter as usize,
             _ => 100,
         };
-        Ok(
-            Box::new(TunableGraphicalLasso { alpha, max_iter })
-                as Box<dyn CovarianceEstimatorTunable<f64>>,
-        )
+        Ok(Box::new(TunableGraphicalLasso { alpha, max_iter })
+            as Box<dyn CovarianceEstimatorTunable<f64>>)
     });
     (tuner, factory)
 }

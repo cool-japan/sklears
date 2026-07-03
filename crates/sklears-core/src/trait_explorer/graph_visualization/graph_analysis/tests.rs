@@ -3,9 +3,9 @@
 
 #![allow(non_snake_case)]
 
-use super::*;
 use super::super::graph_config::CommunityDetection;
-use super::super::graph_structures::{TraitGraph, TraitGraphNode, TraitGraphEdge, Community};
+use super::super::graph_structures::{Community, TraitGraph, TraitGraphEdge, TraitGraphNode};
+use super::*;
 
 fn create_test_graph() -> TraitGraph {
     let mut graph = TraitGraph::new();
@@ -165,7 +165,9 @@ fn test_comprehensive_analysis() {
     let analyzer = GraphAnalyzer::new();
     let graph = create_test_graph();
 
-    let analysis = analyzer.analyze_graph(&graph).expect("analyze_graph should succeed");
+    let analysis = analyzer
+        .analyze_graph(&graph)
+        .expect("analyze_graph should succeed");
 
     assert!(!analysis.centrality_measures.is_empty());
     // `find_critical_paths_comprehensive` only considers node pairs
@@ -434,9 +436,13 @@ fn test_betweenness_centrality_cache_hit_returns_same_result() {
         .expect("calculate_betweenness_centrality should succeed");
     assert_eq!(first, second);
 
-    let stats = analyzer.get_performance_stats().expect("tracker should be lockable");
+    let stats = analyzer
+        .get_performance_stats()
+        .expect("tracker should be lockable");
     assert!(stats.contains_key("betweenness_C"));
 
-    let memory_stats = analyzer.get_memory_stats().expect("tracker should be lockable");
+    let memory_stats = analyzer
+        .get_memory_stats()
+        .expect("tracker should be lockable");
     assert!(memory_stats.contains_key("betweenness"));
 }

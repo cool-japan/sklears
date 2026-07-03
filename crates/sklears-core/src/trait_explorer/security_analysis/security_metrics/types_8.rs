@@ -2,17 +2,29 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
+use super::super::security_types::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
-use super::super::security_types::*;
 
-use super::types_9::{ActionableInsight, AnomalyDetectionResult, BenchmarkingEngine, ComplianceMetricsResult, CorrelationAnalyzer, DashboardManager, DashboardPerformanceStats, HealthIndicator, ImprovementOpportunity, KpiScore, KriMonitor, MetricCollection, MetricsStorage, SecurityMetricsResult};
-use super::types_7::{BenchmarkingResults, KpiAnalyzer, MetricCollector, PerformanceMeasurer, SecurityMetricsError};
-use super::types::{AnomalyDetector, ComplianceTracker, CorrelationAnalysisResult, DashboardData, KpiAnalysisResult, KriMonitoringResult, KriValue, MetricsRecommendation, PerformanceMetricsResult, RealTimeMonitor, RealTimeStatus, ScorecardGenerator, SecurityAlertingSystem, SecurityMetricsConfig, SecurityScorecard, TrendAnalysisResult, TrendAnalyzer, VarianceAnalysis};
 use super::functions::{average_quality, business_impact_from_severity, metric_value_as_f64};
 use super::macros::{CachedMetrics, ThresholdStatus, TrendDirection};
-
+use super::types::{
+    AnomalyDetector, ComplianceTracker, CorrelationAnalysisResult, DashboardData,
+    KpiAnalysisResult, KriMonitoringResult, KriValue, MetricsRecommendation,
+    PerformanceMetricsResult, RealTimeMonitor, RealTimeStatus, ScorecardGenerator,
+    SecurityAlertingSystem, SecurityMetricsConfig, SecurityScorecard, TrendAnalysisResult,
+    TrendAnalyzer, VarianceAnalysis,
+};
+use super::types_7::{
+    BenchmarkingResults, KpiAnalyzer, MetricCollector, PerformanceMeasurer, SecurityMetricsError,
+};
+use super::types_9::{
+    ActionableInsight, AnomalyDetectionResult, BenchmarkingEngine, ComplianceMetricsResult,
+    CorrelationAnalyzer, DashboardManager, DashboardPerformanceStats, HealthIndicator,
+    ImprovementOpportunity, KpiScore, KriMonitor, MetricCollection, MetricsStorage,
+    SecurityMetricsResult,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityMetricsCollector {
@@ -70,40 +82,32 @@ impl SecurityMetricsCollector {
         let dashboard_data = self.prepare_dashboard_data(context, &metric_collections)?;
         let trend_analysis = self.analyze_trends(context, &metric_collections)?;
         let anomaly_detection = self.detect_anomalies(context, &metric_collections)?;
-        let benchmarking_results = self
-            .perform_benchmarking(context, &metric_collections)?;
+        let benchmarking_results = self.perform_benchmarking(context, &metric_collections)?;
         let real_time_status = self.get_real_time_status(context)?;
-        let security_scorecard = self
-            .generate_security_scorecard(context, &metric_collections)?;
-        let correlation_analysis = self
-            .analyze_correlations(context, &metric_collections)?;
-        let performance_metrics = self
-            .measure_performance(context, &metric_collections)?;
+        let security_scorecard = self.generate_security_scorecard(context, &metric_collections)?;
+        let correlation_analysis = self.analyze_correlations(context, &metric_collections)?;
+        let performance_metrics = self.measure_performance(context, &metric_collections)?;
         let compliance_metrics = self.track_compliance(context, &metric_collections)?;
-        let overall_security_score = self
-            .calculate_overall_security_score(
-                &kpi_analysis,
-                &kri_monitoring,
-                &compliance_metrics,
-                &performance_metrics,
-            )?;
+        let overall_security_score = self.calculate_overall_security_score(
+            &kpi_analysis,
+            &kri_monitoring,
+            &compliance_metrics,
+            &performance_metrics,
+        )?;
         let health_indicators = self.generate_health_indicators(&metric_collections)?;
-        let actionable_insights = self
-            .generate_actionable_insights(
-                &trend_analysis,
-                &anomaly_detection,
-                &correlation_analysis,
-            )?;
-        let recommendations = self
-            .generate_metrics_recommendations(
-                &kpi_analysis,
-                &kri_monitoring,
-                &trend_analysis,
-                &anomaly_detection,
-            )?;
+        let actionable_insights = self.generate_actionable_insights(
+            &trend_analysis,
+            &anomaly_detection,
+            &correlation_analysis,
+        )?;
+        let recommendations = self.generate_metrics_recommendations(
+            &kpi_analysis,
+            &kri_monitoring,
+            &trend_analysis,
+            &anomaly_detection,
+        )?;
         let next_collection_time = self.calculate_next_collection_time()?;
-        let analysis_confidence = self
-            .calculate_analysis_confidence(&metric_collections)?;
+        let analysis_confidence = self.calculate_analysis_confidence(&metric_collections)?;
         let result = SecurityMetricsResult {
             result_id: result_id.clone(),
             collection_timestamp: SystemTime::now(),
@@ -137,8 +141,7 @@ impl SecurityMetricsCollector {
         for (collector_id, collector) in &self.metric_collectors {
             let collection = collector.collect_metrics(context)?;
             for (metric_name, metric_data) in collection {
-                collections
-                    .insert(format!("{}_{}", collector_id, metric_name), metric_data);
+                collections.insert(format!("{}_{}", collector_id, metric_name), metric_data);
             }
         }
         Ok(collections)
@@ -160,10 +163,10 @@ impl SecurityMetricsCollector {
             variance_analysis.extend(analysis.variance_analysis);
         }
         let goal_alignment_score = self.calculate_goal_alignment_score(&kpi_scores)?;
-        let business_impact_assessment = self
-            .assess_business_impact(&kpi_scores, &target_achievement)?;
-        let improvement_opportunities = self
-            .identify_improvement_opportunities(&variance_analysis)?;
+        let business_impact_assessment =
+            self.assess_business_impact(&kpi_scores, &target_achievement)?;
+        let improvement_opportunities =
+            self.identify_improvement_opportunities(&variance_analysis)?;
         Ok(KpiAnalysisResult {
             kpi_scores,
             target_achievement,
@@ -194,11 +197,9 @@ impl SecurityMetricsCollector {
             predictive_alerts.extend(monitoring_result.predictive_alerts);
             correlation_findings.extend(monitoring_result.correlation_findings);
             escalation_triggers.extend(monitoring_result.escalation_triggers);
-            mitigation_recommendations
-                .extend(monitoring_result.mitigation_recommendations);
+            mitigation_recommendations.extend(monitoring_result.mitigation_recommendations);
         }
-        let risk_appetite_compliance = self
-            .calculate_risk_appetite_compliance(&kri_values)?;
+        let risk_appetite_compliance = self.calculate_risk_appetite_compliance(&kri_values)?;
         Ok(KriMonitoringResult {
             kri_values,
             risk_threshold_status,
@@ -290,8 +291,7 @@ impl SecurityMetricsCollector {
             baseline_deviations.extend(detection_result.baseline_deviations);
             behavioral_changes.extend(detection_result.behavioral_changes);
             statistical_outliers.extend(detection_result.statistical_outliers);
-            machine_learning_anomalies
-                .extend(detection_result.machine_learning_anomalies);
+            machine_learning_anomalies.extend(detection_result.machine_learning_anomalies);
             clustering_anomalies.extend(detection_result.clustering_anomalies);
             anomaly_correlations.extend(detection_result.anomaly_correlations);
         }
@@ -326,10 +326,9 @@ impl SecurityMetricsCollector {
             maturity_assessments.extend(benchmarking_result.maturity_assessments);
             competitive_positions.extend(benchmarking_result.competitive_positions);
         }
-        let overall_benchmark_score = self
-            .calculate_overall_benchmark_score(&benchmark_comparisons)?;
-        let improvement_priorities = self
-            .identify_improvement_priorities(&best_practice_gaps)?;
+        let overall_benchmark_score =
+            self.calculate_overall_benchmark_score(&benchmark_comparisons)?;
+        let improvement_priorities = self.identify_improvement_priorities(&best_practice_gaps)?;
         Ok(BenchmarkingResults {
             benchmark_comparisons,
             industry_rankings,
@@ -360,10 +359,10 @@ impl SecurityMetricsCollector {
             throughput_metrics.extend(status.throughput_metrics);
             latency_metrics.extend(status.latency_metrics);
         }
-        let overall_health_score = self
-            .calculate_overall_health_score(&stream_health, &system_status)?;
-        let performance_summary = self
-            .generate_performance_summary(&throughput_metrics, &latency_metrics)?;
+        let overall_health_score =
+            self.calculate_overall_health_score(&stream_health, &system_status)?;
+        let performance_summary =
+            self.generate_performance_summary(&throughput_metrics, &latency_metrics)?;
         Ok(RealTimeStatus {
             real_time_metrics,
             stream_health,
@@ -395,10 +394,8 @@ impl SecurityMetricsCollector {
         }
         let overall_score = self.calculate_overall_scorecard_score(&weighted_scores)?;
         let grade = self.determine_security_grade(overall_score)?;
-        let improvement_areas = self
-            .identify_scorecard_improvement_areas(&category_scores)?;
-        let historical_comparison = self
-            .generate_historical_comparison(&category_scores)?;
+        let improvement_areas = self.identify_scorecard_improvement_areas(&category_scores)?;
+        let historical_comparison = self.generate_historical_comparison(&category_scores)?;
         Ok(SecurityScorecard {
             category_scores,
             weighted_scores,
@@ -428,14 +425,13 @@ impl SecurityMetricsCollector {
             dependency_networks.extend(correlation_result.dependency_networks);
             causality_relationships.extend(correlation_result.causality_relationships);
             association_patterns.extend(correlation_result.association_patterns);
-            cross_domain_correlations
-                .extend(correlation_result.cross_domain_correlations);
+            cross_domain_correlations.extend(correlation_result.cross_domain_correlations);
             temporal_correlations.extend(correlation_result.temporal_correlations);
         }
-        let correlation_strength_summary = self
-            .summarize_correlation_strengths(&metric_correlations)?;
-        let actionable_correlations = self
-            .identify_actionable_correlations(&causality_relationships)?;
+        let correlation_strength_summary =
+            self.summarize_correlation_strengths(&metric_correlations)?;
+        let actionable_correlations =
+            self.identify_actionable_correlations(&causality_relationships)?;
         Ok(CorrelationAnalysisResult {
             metric_correlations,
             dependency_networks,
@@ -471,18 +467,16 @@ impl SecurityMetricsCollector {
             roi_metrics.extend(performance_result.roi_metrics);
             value_metrics.extend(performance_result.value_metrics);
         }
-        let overall_performance_score = self
-            .calculate_overall_performance_score(
-                &efficiency_metrics,
-                &effectiveness_metrics,
-                &quality_metrics,
-            )?;
-        let optimization_recommendations = self
-            .generate_optimization_recommendations(
-                &performance_indicators,
-                &efficiency_metrics,
-                &cost_metrics,
-            )?;
+        let overall_performance_score = self.calculate_overall_performance_score(
+            &efficiency_metrics,
+            &effectiveness_metrics,
+            &quality_metrics,
+        )?;
+        let optimization_recommendations = self.generate_optimization_recommendations(
+            &performance_indicators,
+            &efficiency_metrics,
+            &cost_metrics,
+        )?;
         Ok(PerformanceMetricsResult {
             performance_indicators,
             efficiency_metrics,
@@ -518,11 +512,10 @@ impl SecurityMetricsCollector {
             remediation_progress.extend(compliance_result.remediation_progress);
             certification_status.extend(compliance_result.certification_status);
         }
-        let overall_compliance_score = self
-            .calculate_overall_compliance_score(&framework_compliance)?;
+        let overall_compliance_score =
+            self.calculate_overall_compliance_score(&framework_compliance)?;
         let compliance_trends = self.analyze_compliance_trends(&framework_compliance)?;
-        let priority_actions = self
-            .identify_priority_compliance_actions(&compliance_gaps)?;
+        let priority_actions = self.identify_priority_compliance_actions(&compliance_gaps)?;
         Ok(ComplianceMetricsResult {
             framework_compliance,
             requirement_status,
@@ -538,33 +531,30 @@ impl SecurityMetricsCollector {
     }
     pub(super) fn initialize_metric_collectors() -> HashMap<String, MetricCollector> {
         let mut collectors = HashMap::new();
-        collectors
-            .insert(
-                "vulnerability_metrics".to_string(),
-                MetricCollector::new_vulnerability_collector(),
-            );
-        collectors
-            .insert(
-                "threat_metrics".to_string(),
-                MetricCollector::new_threat_collector(),
-            );
-        collectors
-            .insert("risk_metrics".to_string(), MetricCollector::new_risk_collector());
-        collectors
-            .insert(
-                "compliance_metrics".to_string(),
-                MetricCollector::new_compliance_collector(),
-            );
-        collectors
-            .insert(
-                "performance_metrics".to_string(),
-                MetricCollector::new_performance_collector(),
-            );
-        collectors
-            .insert(
-                "operational_metrics".to_string(),
-                MetricCollector::new_operational_collector(),
-            );
+        collectors.insert(
+            "vulnerability_metrics".to_string(),
+            MetricCollector::new_vulnerability_collector(),
+        );
+        collectors.insert(
+            "threat_metrics".to_string(),
+            MetricCollector::new_threat_collector(),
+        );
+        collectors.insert(
+            "risk_metrics".to_string(),
+            MetricCollector::new_risk_collector(),
+        );
+        collectors.insert(
+            "compliance_metrics".to_string(),
+            MetricCollector::new_compliance_collector(),
+        );
+        collectors.insert(
+            "performance_metrics".to_string(),
+            MetricCollector::new_performance_collector(),
+        );
+        collectors.insert(
+            "operational_metrics".to_string(),
+            MetricCollector::new_operational_collector(),
+        );
         collectors
     }
 }
@@ -575,7 +565,10 @@ impl SecurityMetricsCollector {
             .duration_since(SystemTime::UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(fallback);
-        format!("secmetrics_{}_{timestamp}", context.trait_name.replace(' ', "_"))
+        format!(
+            "secmetrics_{}_{timestamp}",
+            context.trait_name.replace(' ', "_")
+        )
     }
     pub(super) fn get_cached_metrics(&self, result_id: &str) -> Option<CachedMetrics> {
         self.metrics_cache.get(result_id).cloned()
@@ -587,25 +580,20 @@ impl SecurityMetricsCollector {
             .map(|elapsed| elapsed < cached.cache_ttl)
             .unwrap_or(false)
     }
-    pub(super) fn cache_metrics(
-        &mut self,
-        result_id: String,
-        result: &SecurityMetricsResult,
-    ) {
+    pub(super) fn cache_metrics(&mut self, result_id: String, result: &SecurityMetricsResult) {
         self.metrics_storage.total_stored_metrics += 1;
         let cache_ttl = self
             .metrics_config
             .dashboard_refresh_rate
             .max(Duration::from_secs(60));
-        self.metrics_cache
-            .insert(
-                result_id,
-                CachedMetrics {
-                    result: result.clone(),
-                    cache_timestamp: SystemTime::now(),
-                    cache_ttl,
-                },
-            );
+        self.metrics_cache.insert(
+            result_id,
+            CachedMetrics {
+                result: result.clone(),
+                cache_timestamp: SystemTime::now(),
+                cache_ttl,
+            },
+        );
     }
     pub(super) fn calculate_overall_security_score(
         &self,
@@ -614,7 +602,8 @@ impl SecurityMetricsCollector {
         compliance: &ComplianceMetricsResult,
         performance: &PerformanceMetricsResult,
     ) -> Result<f64, SecurityMetricsError> {
-        let score = kpi.goal_alignment_score * 0.3 + kri.risk_appetite_compliance * 0.3
+        let score = kpi.goal_alignment_score * 0.3
+            + kri.risk_appetite_compliance * 0.3
             + (compliance.overall_compliance_score / 100.0).clamp(0.0, 1.0) * 0.25
             + (performance.overall_performance_score / 100.0).clamp(0.0, 1.0) * 0.15;
         Ok((score * 10.0).clamp(0.0, 10.0))
@@ -638,12 +627,11 @@ impl SecurityMetricsCollector {
             })
             .collect();
         if self.alerting_system.enabled {
-            indicators
-                .push(HealthIndicator {
-                    indicator_name: "alerting_system".to_string(),
-                    status: ThresholdStatus::Normal,
-                    value: self.alerting_system.alert_channels.len() as f64,
-                });
+            indicators.push(HealthIndicator {
+                indicator_name: "alerting_system".to_string(),
+                status: ThresholdStatus::Normal,
+                value: self.alerting_system.alert_channels.len() as f64,
+            });
         }
         Ok(indicators)
     }
@@ -656,29 +644,26 @@ impl SecurityMetricsCollector {
         let mut insights = Vec::new();
         for (name, significance) in &trend_analysis.statistical_significance {
             if *significance > 0.05 {
-                insights
-                    .push(ActionableInsight {
-                        insight: format!("Significant trend detected in {name}"),
-                        priority: AnalysisPriority::Medium,
-                        related_metrics: vec![name.clone()],
-                    });
+                insights.push(ActionableInsight {
+                    insight: format!("Significant trend detected in {name}"),
+                    priority: AnalysisPriority::Medium,
+                    related_metrics: vec![name.clone()],
+                });
             }
         }
         for anomaly in &anomaly_detection.detected_anomalies {
-            insights
-                .push(ActionableInsight {
-                    insight: format!("Anomaly detected: {}", anomaly.anomaly_id),
-                    priority: AnalysisPriority::High,
-                    related_metrics: vec![anomaly.metric_name.clone()],
-                });
+            insights.push(ActionableInsight {
+                insight: format!("Anomaly detected: {}", anomaly.anomaly_id),
+                priority: AnalysisPriority::High,
+                related_metrics: vec![anomaly.metric_name.clone()],
+            });
         }
         if !correlation_analysis.actionable_correlations.is_empty() {
-            insights
-                .push(ActionableInsight {
-                    insight: correlation_analysis.correlation_strength_summary.clone(),
-                    priority: AnalysisPriority::Informational,
-                    related_metrics: correlation_analysis.actionable_correlations.clone(),
-                });
+            insights.push(ActionableInsight {
+                insight: correlation_analysis.correlation_strength_summary.clone(),
+                priority: AnalysisPriority::Informational,
+                related_metrics: correlation_analysis.actionable_correlations.clone(),
+            });
         }
         Ok(insights)
     }
@@ -691,36 +676,32 @@ impl SecurityMetricsCollector {
     ) -> Result<Vec<MetricsRecommendation>, SecurityMetricsError> {
         let mut recommendations = Vec::new();
         for opportunity in &kpi_analysis.improvement_opportunities {
-            recommendations
-                .push(MetricsRecommendation {
-                    recommendation: format!("Improve {}", opportunity.area),
-                    priority: MitigationPriority::Medium,
-                    estimated_cost: EstimatedCost::Low,
-                });
+            recommendations.push(MetricsRecommendation {
+                recommendation: format!("Improve {}", opportunity.area),
+                priority: MitigationPriority::Medium,
+                estimated_cost: EstimatedCost::Low,
+            });
         }
         for warning in &kri_monitoring.early_warnings {
-            recommendations
-                .push(MetricsRecommendation {
-                    recommendation: warning.message.clone(),
-                    priority: MitigationPriority::High,
-                    estimated_cost: EstimatedCost::Medium,
-                });
+            recommendations.push(MetricsRecommendation {
+                recommendation: warning.message.clone(),
+                priority: MitigationPriority::High,
+                estimated_cost: EstimatedCost::Medium,
+            });
         }
         if !trend_analysis.trend_patterns.is_empty() {
-            recommendations
-                .push(MetricsRecommendation {
-                    recommendation: "Review emerging trend patterns".to_string(),
-                    priority: MitigationPriority::Low,
-                    estimated_cost: EstimatedCost::Low,
-                });
+            recommendations.push(MetricsRecommendation {
+                recommendation: "Review emerging trend patterns".to_string(),
+                priority: MitigationPriority::Low,
+                estimated_cost: EstimatedCost::Low,
+            });
         }
         if !anomaly_detection.detected_anomalies.is_empty() {
-            recommendations
-                .push(MetricsRecommendation {
-                    recommendation: "Investigate detected anomalies".to_string(),
-                    priority: MitigationPriority::Critical,
-                    estimated_cost: EstimatedCost::High,
-                });
+            recommendations.push(MetricsRecommendation {
+                recommendation: "Investigate detected anomalies".to_string(),
+                priority: MitigationPriority::Critical,
+                estimated_cost: EstimatedCost::High,
+            });
         }
         Ok(recommendations)
     }
@@ -736,11 +717,13 @@ impl SecurityMetricsCollector {
         if kpi_scores.is_empty() {
             return Ok(0.75);
         }
-        Ok(
-            (kpi_scores.values().map(|s| s.achievement_percentage).sum::<f64>()
-                / kpi_scores.len() as f64 / 100.0)
-                .clamp(0.0, 1.0),
-        )
+        Ok((kpi_scores
+            .values()
+            .map(|s| s.achievement_percentage)
+            .sum::<f64>()
+            / kpi_scores.len() as f64
+            / 100.0)
+            .clamp(0.0, 1.0))
     }
     pub(super) fn assess_business_impact(
         &self,
@@ -760,17 +743,15 @@ impl SecurityMetricsCollector {
         &self,
         variance_analysis: &HashMap<String, VarianceAnalysis>,
     ) -> Result<Vec<ImprovementOpportunity>, SecurityMetricsError> {
-        Ok(
-            variance_analysis
-                .iter()
-                .filter(|(_, v)| v.variance_percentage.abs() > 10.0)
-                .map(|(name, v)| ImprovementOpportunity {
-                    area: name.clone(),
-                    potential_impact: v.variance_percentage.abs(),
-                    effort: ImplementationEffort::Medium,
-                })
-                .collect(),
-        )
+        Ok(variance_analysis
+            .iter()
+            .filter(|(_, v)| v.variance_percentage.abs() > 10.0)
+            .map(|(name, v)| ImprovementOpportunity {
+                area: name.clone(),
+                potential_impact: v.variance_percentage.abs(),
+                effort: ImplementationEffort::Medium,
+            })
+            .collect())
     }
     pub(super) fn calculate_risk_appetite_compliance(
         &self,
@@ -788,7 +769,11 @@ impl SecurityMetricsCollector {
     pub(super) fn collect_dashboard_performance_stats(
         &self,
     ) -> Result<DashboardPerformanceStats, SecurityMetricsError> {
-        let cache_hit_rate = if self.metrics_cache.is_empty() { 0.0 } else { 0.9 };
+        let cache_hit_rate = if self.metrics_cache.is_empty() {
+            0.0
+        } else {
+            0.9
+        };
         Ok(DashboardPerformanceStats {
             render_time_ms: 45.0,
             data_load_time_ms: 120.0,
@@ -802,10 +787,7 @@ impl SecurityMetricsCollector {
         if benchmark_comparisons.is_empty() {
             return Ok(5.0);
         }
-        Ok(
-            benchmark_comparisons.values().sum::<f64>()
-                / benchmark_comparisons.len() as f64,
-        )
+        Ok(benchmark_comparisons.values().sum::<f64>() / benchmark_comparisons.len() as f64)
     }
     pub(super) fn identify_improvement_priorities(
         &self,
@@ -826,7 +808,10 @@ impl SecurityMetricsCollector {
         let operational_ratio = if system_status.is_empty() {
             1.0
         } else {
-            system_status.values().filter(|s| s.as_str() == "operational").count() as f64
+            system_status
+                .values()
+                .filter(|s| s.as_str() == "operational")
+                .count() as f64
                 / system_status.len() as f64
         };
         Ok((health_avg * 0.6 + operational_ratio * 0.4).clamp(0.0, 1.0))
@@ -842,7 +827,9 @@ impl SecurityMetricsCollector {
         } else {
             latency_metrics.values().sum::<f64>() / latency_metrics.len() as f64
         };
-        Ok(format!("throughput={throughput:.2}, avg_latency={latency:.2}ms"))
+        Ok(format!(
+            "throughput={throughput:.2}, avg_latency={latency:.2}ms"
+        ))
     }
     pub(super) fn calculate_overall_scorecard_score(
         &self,
@@ -870,24 +857,20 @@ impl SecurityMetricsCollector {
         &self,
         category_scores: &HashMap<String, f64>,
     ) -> Result<Vec<String>, SecurityMetricsError> {
-        Ok(
-            category_scores
-                .iter()
-                .filter(|(_, score)| **score < 7.0)
-                .map(|(name, _)| name.clone())
-                .collect(),
-        )
+        Ok(category_scores
+            .iter()
+            .filter(|(_, score)| **score < 7.0)
+            .map(|(name, _)| name.clone())
+            .collect())
     }
     pub(super) fn generate_historical_comparison(
         &self,
         category_scores: &HashMap<String, f64>,
     ) -> Result<HashMap<String, f64>, SecurityMetricsError> {
-        Ok(
-            category_scores
-                .iter()
-                .map(|(name, score)| (name.clone(), score * 0.95))
-                .collect(),
-        )
+        Ok(category_scores
+            .iter()
+            .map(|(name, score)| (name.clone(), score * 0.95))
+            .collect())
     }
     pub(super) fn summarize_correlation_strengths(
         &self,
@@ -896,12 +879,14 @@ impl SecurityMetricsCollector {
         if metric_correlations.is_empty() {
             return Ok("no correlations observed".to_string());
         }
-        let strong = metric_correlations.values().filter(|c| c.abs() > 0.7).count();
-        Ok(
-            format!(
-                "{strong} strong correlation(s) out of {}", metric_correlations.len()
-            ),
-        )
+        let strong = metric_correlations
+            .values()
+            .filter(|c| c.abs() > 0.7)
+            .count();
+        Ok(format!(
+            "{strong} strong correlation(s) out of {}",
+            metric_correlations.len()
+        ))
     }
     pub(super) fn identify_actionable_correlations(
         &self,
@@ -916,12 +901,15 @@ impl SecurityMetricsCollector {
         quality_metrics: &HashMap<String, f64>,
     ) -> Result<f64, SecurityMetricsError> {
         let avg = |m: &HashMap<String, f64>| {
-            if m.is_empty() { 75.0 } else { m.values().sum::<f64>() / m.len() as f64 }
+            if m.is_empty() {
+                75.0
+            } else {
+                m.values().sum::<f64>() / m.len() as f64
+            }
         };
-        Ok(
-            avg(efficiency_metrics) * 0.4 + avg(effectiveness_metrics) * 0.35
-                + avg(quality_metrics) * 0.25,
-        )
+        Ok(avg(efficiency_metrics) * 0.4
+            + avg(effectiveness_metrics) * 0.35
+            + avg(quality_metrics) * 0.25)
     }
     pub(super) fn generate_optimization_recommendations(
         &self,
@@ -948,32 +936,27 @@ impl SecurityMetricsCollector {
         if framework_compliance.is_empty() {
             return Ok(80.0);
         }
-        Ok(
-            framework_compliance.values().sum::<f64>()
-                / framework_compliance.len() as f64,
-        )
+        Ok(framework_compliance.values().sum::<f64>() / framework_compliance.len() as f64)
     }
     pub(super) fn analyze_compliance_trends(
         &self,
         framework_compliance: &HashMap<String, f64>,
     ) -> Result<HashMap<String, TrendDirection>, SecurityMetricsError> {
-        Ok(
-            framework_compliance
-                .iter()
-                .map(|(name, score)| {
-                    (
-                        name.clone(),
-                        if *score >= 90.0 {
-                            TrendDirection::Stable
-                        } else if *score >= 70.0 {
-                            TrendDirection::Volatile
-                        } else {
-                            TrendDirection::Decreasing
-                        },
-                    )
-                })
-                .collect(),
-        )
+        Ok(framework_compliance
+            .iter()
+            .map(|(name, score)| {
+                (
+                    name.clone(),
+                    if *score >= 90.0 {
+                        TrendDirection::Stable
+                    } else if *score >= 70.0 {
+                        TrendDirection::Volatile
+                    } else {
+                        TrendDirection::Decreasing
+                    },
+                )
+            })
+            .collect())
     }
     pub(super) fn identify_priority_compliance_actions(
         &self,

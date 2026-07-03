@@ -4,9 +4,7 @@
 //! including force-directed, hierarchical, circular, and other specialized layouts.
 
 use crate::trait_explorer::graph_visualization::{
-    graph_config::*,
-    graph_generator::LayoutResult,
-    graph_structures::*,
+    graph_config::*, graph_generator::LayoutResult, graph_structures::*,
 };
 use scirs2_core::random::Random;
 use std::collections::HashMap;
@@ -18,7 +16,11 @@ use std::time::Instant;
 /// interfaces for graph positioning and quality assessment.
 pub trait LayoutAlgorithmImpl: Send + Sync {
     /// Compute the layout for a given graph
-    fn compute_layout(&self, graph: &TraitGraph, config: &GraphConfig) -> Result<LayoutResult, Box<dyn std::error::Error>>;
+    fn compute_layout(
+        &self,
+        graph: &TraitGraph,
+        config: &GraphConfig,
+    ) -> Result<LayoutResult, Box<dyn std::error::Error>>;
 
     /// Get the name of the layout algorithm
     fn name(&self) -> &str;
@@ -106,11 +108,15 @@ impl ForceDirectedLayout {
                 let fx = (dx / distance_2d) * repulsive_force;
                 let fy = (dy / distance_2d) * repulsive_force;
 
-                let f1 = forces_2d.get_mut(&node1.id).expect("get_mut should succeed");
+                let f1 = forces_2d
+                    .get_mut(&node1.id)
+                    .expect("get_mut should succeed");
                 f1.0 += fx;
                 f1.1 += fy;
 
-                let f2 = forces_2d.get_mut(&node2.id).expect("get_mut should succeed");
+                let f2 = forces_2d
+                    .get_mut(&node2.id)
+                    .expect("get_mut should succeed");
                 f2.0 -= fx;
                 f2.1 -= fy;
             }
@@ -125,11 +131,14 @@ impl ForceDirectedLayout {
             let dy = pos1_2d.1 - pos2_2d.1;
             let distance_2d = (dx * dx + dy * dy).sqrt().max(0.01);
 
-            let attractive_force = self.attractive_strength * distance_2d * distance_2d / k * edge.weight;
+            let attractive_force =
+                self.attractive_strength * distance_2d * distance_2d / k * edge.weight;
             let fx = (dx / distance_2d) * attractive_force;
             let fy = (dy / distance_2d) * attractive_force;
 
-            let f1 = forces_2d.get_mut(&edge.from).expect("get_mut should succeed");
+            let f1 = forces_2d
+                .get_mut(&edge.from)
+                .expect("get_mut should succeed");
             f1.0 -= fx;
             f1.1 -= fy;
 
@@ -171,12 +180,16 @@ impl ForceDirectedLayout {
                 let fy = (dy / distance_3d) * repulsive_force;
                 let fz = (dz / distance_3d) * repulsive_force;
 
-                let f1_3d = forces_3d.get_mut(&node1.id).expect("get_mut should succeed");
+                let f1_3d = forces_3d
+                    .get_mut(&node1.id)
+                    .expect("get_mut should succeed");
                 f1_3d.0 += fx;
                 f1_3d.1 += fy;
                 f1_3d.2 += fz;
 
-                let f2_3d = forces_3d.get_mut(&node2.id).expect("get_mut should succeed");
+                let f2_3d = forces_3d
+                    .get_mut(&node2.id)
+                    .expect("get_mut should succeed");
                 f2_3d.0 -= fx;
                 f2_3d.1 -= fy;
                 f2_3d.2 -= fz;
@@ -193,12 +206,15 @@ impl ForceDirectedLayout {
             let dz = pos1_3d.2 - pos2_3d.2;
             let distance_3d = (dx * dx + dy * dy + dz * dz).sqrt().max(0.01);
 
-            let attractive_force = self.attractive_strength * distance_3d * distance_3d / k * edge.weight;
+            let attractive_force =
+                self.attractive_strength * distance_3d * distance_3d / k * edge.weight;
             let fx = (dx / distance_3d) * attractive_force;
             let fy = (dy / distance_3d) * attractive_force;
             let fz = (dz / distance_3d) * attractive_force;
 
-            let f1_3d = forces_3d.get_mut(&edge.from).expect("get_mut should succeed");
+            let f1_3d = forces_3d
+                .get_mut(&edge.from)
+                .expect("get_mut should succeed");
             f1_3d.0 -= fx;
             f1_3d.1 -= fy;
             f1_3d.2 -= fz;
@@ -229,7 +245,9 @@ impl ForceDirectedLayout {
 
             if force_magnitude > 0.0 {
                 let displacement = force_magnitude.min(temperature) * self.damping_factor;
-                let pos = positions_2d.get_mut(&node.id).expect("get_mut should succeed");
+                let pos = positions_2d
+                    .get_mut(&node.id)
+                    .expect("get_mut should succeed");
                 let dx = (force_2d.0 / force_magnitude) * displacement;
                 let dy = (force_2d.1 / force_magnitude) * displacement;
 
@@ -243,12 +261,18 @@ impl ForceDirectedLayout {
             // reborrows through the `&mut Option<_>` each iteration instead
             // of moving it, which would only be possible on the loop's
             // first iteration.
-            if let (Some(pos_3d_map), Some(force_3d)) = (positions_3d.as_mut(), forces_3d.get(&node.id)) {
-                let force_magnitude_3d = (force_3d.0 * force_3d.0 + force_3d.1 * force_3d.1 + force_3d.2 * force_3d.2).sqrt();
+            if let (Some(pos_3d_map), Some(force_3d)) =
+                (positions_3d.as_mut(), forces_3d.get(&node.id))
+            {
+                let force_magnitude_3d =
+                    (force_3d.0 * force_3d.0 + force_3d.1 * force_3d.1 + force_3d.2 * force_3d.2)
+                        .sqrt();
 
                 if force_magnitude_3d > 0.0 {
                     let displacement_3d = force_magnitude_3d.min(temperature) * self.damping_factor;
-                    let pos_3d = pos_3d_map.get_mut(&node.id).expect("get_mut should succeed");
+                    let pos_3d = pos_3d_map
+                        .get_mut(&node.id)
+                        .expect("get_mut should succeed");
 
                     let dx = (force_3d.0 / force_magnitude_3d) * displacement_3d;
                     let dy = (force_3d.1 / force_magnitude_3d) * displacement_3d;
@@ -277,7 +301,11 @@ impl Default for ForceDirectedLayout {
 }
 
 impl LayoutAlgorithmImpl for ForceDirectedLayout {
-    fn compute_layout(&self, graph: &TraitGraph, config: &GraphConfig) -> Result<LayoutResult, Box<dyn std::error::Error>> {
+    fn compute_layout(
+        &self,
+        graph: &TraitGraph,
+        config: &GraphConfig,
+    ) -> Result<LayoutResult, Box<dyn std::error::Error>> {
         let start_time = Instant::now();
         let n = graph.nodes.len();
 
@@ -745,7 +773,10 @@ fn radial_layout_fn(layout: &RadialLayout, graph: &TraitGraph) -> HashMap<String
     positions
 }
 
-fn hierarchical_layout_fn(layout: &HierarchicalLayout, graph: &TraitGraph) -> HashMap<String, (f64, f64)> {
+fn hierarchical_layout_fn(
+    layout: &HierarchicalLayout,
+    graph: &TraitGraph,
+) -> HashMap<String, (f64, f64)> {
     let mut positions = HashMap::new();
     let n = graph.nodes.len();
 
@@ -791,7 +822,9 @@ fn hierarchical_layout_fn(layout: &HierarchicalLayout, graph: &TraitGraph) -> Ha
             for edge in &graph.edges {
                 if edge.from == node.id {
                     if let Some(child) = graph.nodes.iter().find(|n| n.id == edge.to) {
-                        if !processed.contains(&child.id) && !next_level.iter().any(|n| n.id == child.id) {
+                        if !processed.contains(&child.id)
+                            && !next_level.iter().any(|n| n.id == child.id)
+                        {
                             next_level.push(child);
                         }
                     }
@@ -835,7 +868,10 @@ fn tree_layout_fn(layout: &TreeLayout, graph: &TraitGraph) -> HashMap<String, (f
     hierarchical_layout_fn(&hierarchical, graph)
 }
 
-fn spring_embedder_layout_fn(layout: &SpringEmbedderLayout, graph: &TraitGraph) -> HashMap<String, (f64, f64)> {
+fn spring_embedder_layout_fn(
+    layout: &SpringEmbedderLayout,
+    graph: &TraitGraph,
+) -> HashMap<String, (f64, f64)> {
     let mut positions = HashMap::new();
     let mut rng = Random::seed(layout.seed);
 
@@ -857,7 +893,8 @@ fn spring_embedder_layout_fn(layout: &SpringEmbedderLayout, graph: &TraitGraph) 
 
         // Spring forces between connected nodes
         for edge in &graph.edges {
-            if let (Some(&pos1), Some(&pos2)) = (positions.get(&edge.from), positions.get(&edge.to)) {
+            if let (Some(&pos1), Some(&pos2)) = (positions.get(&edge.from), positions.get(&edge.to))
+            {
                 let dx = pos2.0 - pos1.0;
                 let dy = pos2.1 - pos1.1;
                 let distance = (dx * dx + dy * dy).sqrt().max(0.01);
@@ -892,11 +929,23 @@ fn spring_embedder_layout_fn(layout: &SpringEmbedderLayout, graph: &TraitGraph) 
 }
 
 // Generate layout implementations using the macro
-simple_layout_impl!(HierarchicalLayout, "Hierarchical", false, false, hierarchical_layout_fn);
+simple_layout_impl!(
+    HierarchicalLayout,
+    "Hierarchical",
+    false,
+    false,
+    hierarchical_layout_fn
+);
 simple_layout_impl!(CircularLayout, "Circular", false, false, circular_layout_fn);
 simple_layout_impl!(GridLayout, "Grid", false, false, grid_layout_fn);
 simple_layout_impl!(RadialLayout, "Radial", false, false, radial_layout_fn);
-simple_layout_impl!(SpringEmbedderLayout, "Spring Embedder", true, false, spring_embedder_layout_fn);
+simple_layout_impl!(
+    SpringEmbedderLayout,
+    "Spring Embedder",
+    true,
+    false,
+    spring_embedder_layout_fn
+);
 simple_layout_impl!(TreeLayout, "Tree", false, false, tree_layout_fn);
 
 /// Factory for creating layout algorithm instances
@@ -924,9 +973,11 @@ impl LayoutAlgorithmFactory {
                     .get_parameter("iterations")
                     .map(|value| value.max(0.0) as usize)
                     .unwrap_or(500);
-                let temperature_factor = params.get_parameter("temperature_factor").unwrap_or(100.0);
+                let temperature_factor =
+                    params.get_parameter("temperature_factor").unwrap_or(100.0);
                 let repulsive_strength = params.get_parameter("repulsive_strength").unwrap_or(1.0);
-                let attractive_strength = params.get_parameter("attractive_strength").unwrap_or(1.0);
+                let attractive_strength =
+                    params.get_parameter("attractive_strength").unwrap_or(1.0);
                 Box::new(ForceDirectedLayout::with_parameters(
                     iterations,
                     temperature_factor,

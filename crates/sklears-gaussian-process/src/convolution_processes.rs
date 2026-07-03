@@ -359,7 +359,8 @@ impl ConvolutionProcess<Untrained> {
             }
             ls.clone()
         } else {
-            if self.config.default_length_scale <= 0.0 || !self.config.default_length_scale.is_finite()
+            if self.config.default_length_scale <= 0.0
+                || !self.config.default_length_scale.is_finite()
             {
                 return Err(SklearsError::InvalidInput(
                     "default_length_scale must be strictly positive and finite".to_string(),
@@ -596,7 +597,8 @@ impl Fit<Vec<Array2<f64>>, Vec<Array1<f64>>> for ConvolutionProcess<Untrained> {
         let n_latent = self.config.n_latent;
         let (offsets, n_total) = compute_offsets(X);
 
-        let mut K = build_stacked_covariance(X, &length_scales, &output_variances, &offsets, n_total);
+        let mut K =
+            build_stacked_covariance(X, &length_scales, &output_variances, &offsets, n_total);
         for d in 0..n_outputs {
             for i in 0..X[d].nrows() {
                 K[[offsets[d] + i, offsets[d] + i]] += noise_variances[d];
@@ -814,7 +816,7 @@ impl Predict<Vec<Array2<f64>>, Vec<Array1<f64>>> for ConvolutionProcess<Convolut
 mod tests {
     use super::*;
     use crate::gpr::GaussianProcessRegressor;
-    use crate::kernels::{ARDRBF, Kernel, RBF};
+    use crate::kernels::{Kernel, ARDRBF, RBF};
     use approx::assert_abs_diff_eq;
     // SciRS2 Policy - Use scirs2-core for array! macro and types
     use scirs2_core::ndarray::array;
@@ -912,9 +914,7 @@ mod tests {
         let y1 = array![1.0, 2.0, 3.0, 4.0];
 
         let cp = ConvolutionProcess::new().n_latent(1).noise_variance(1e-6);
-        let fitted = cp
-            .fit(&vec![x1], &vec![y1])
-            .expect("fit should succeed");
+        let fitted = cp.fit(&vec![x1], &vec![y1]).expect("fit should succeed");
 
         assert!(fitted.log_marginal_likelihood().is_finite());
     }
@@ -960,8 +960,9 @@ mod tests {
 
         // Every eigenvalue is non-negative (up to numerical tolerance).
         use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
-        let (eigenvalues, _eigenvectors) =
-            k.eigh(UPLO::Lower).expect("eigendecomposition should succeed");
+        let (eigenvalues, _eigenvectors) = k
+            .eigh(UPLO::Lower)
+            .expect("eigendecomposition should succeed");
         for &ev in eigenvalues.iter() {
             assert!(
                 ev >= -1e-8,

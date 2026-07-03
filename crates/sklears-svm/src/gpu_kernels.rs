@@ -203,8 +203,7 @@ impl GpuKernelComputer {
                 //               = -g * sq[i,j]
                 // This is the O(n_x*n_y) transform: it runs entirely
                 // on-device, directly against the un-downloaded GEMM output.
-                axpy(handle, n as u32, 2.0 * g, &inner_buf, 1, &mut pre_buf, 1)
-                    .map_err(gpu_err)?;
+                axpy(handle, n as u32, 2.0 * g, &inner_buf, 1, &mut pre_buf, 1).map_err(gpu_err)?;
 
                 let mut out_buf = DeviceBuffer::<f32>::zeroed(n).map_err(gpu_err)?;
                 exp(handle, n as u32, &pre_buf, &mut out_buf).map_err(gpu_err)?;
@@ -607,9 +606,7 @@ mod tests {
     fn test_gpu_kernel_matches_cpu_reference() {
         let x = Array2::from_shape_vec(
             (4, 3),
-            vec![
-                1.0, 2.0, 3.0, -1.0, 0.5, 2.0, 0.0, 0.0, 1.0, 2.5, -1.5, 0.5,
-            ],
+            vec![1.0, 2.0, 3.0, -1.0, 0.5, 2.0, 0.0, 0.0, 1.0, 2.5, -1.5, 0.5],
         )
         .expect("valid 4x3 shape");
         let y = Array2::from_shape_vec((3, 3), vec![1.0, 1.0, 1.0, -2.0, 1.0, 0.0, 0.5, 0.5, 0.5])

@@ -3,15 +3,14 @@
 
 use super::graph_config::CommunityDetection;
 use super::graph_structures::{
-    TraitGraph, CentralityMeasures, Community, GraphPath, GraphAnalysisResult,
-    GraphQualityMetrics,
+    CentralityMeasures, Community, GraphAnalysisResult, GraphPath, GraphQualityMetrics, TraitGraph,
 };
 use crate::error::{Result, SklearsError};
+use chrono::Utc;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::Random;
-use chrono::Utc;
-use std::collections::{HashMap, HashSet, VecDeque, BinaryHeap};
 use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::f64;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -60,9 +59,7 @@ impl AnalysisPerformanceTracker {
     fn record_timing(&mut self, operation: String, duration: std::time::Duration) {
         let bucket = if operation.starts_with("community_") {
             &mut self.community_timings
-        } else if operation.starts_with("path_")
-            || operation.starts_with("shortest_path")
-        {
+        } else if operation.starts_with("path_") || operation.starts_with("shortest_path") {
             &mut self.path_timings
         } else {
             &mut self.centrality_timings
@@ -122,11 +119,7 @@ impl GraphAnalyzer {
         let critical_paths = self.find_critical_paths_comprehensive(graph)?;
         let quality_metrics = self.calculate_graph_quality_metrics(graph)?;
         if let Ok(mut tracker) = self.performance_tracker.lock() {
-            tracker
-                .record_timing(
-                    "comprehensive_analysis".to_string(),
-                    start_time.elapsed(),
-                );
+            tracker.record_timing("comprehensive_analysis".to_string(), start_time.elapsed());
         }
         Ok(GraphAnalysisResult {
             centrality_measures,
@@ -163,11 +156,7 @@ impl GraphAnalyzer {
     /// source (e.g. a trait's supertrait) and being the target (e.g. a
     /// trait's implementation) — unlike path-following analyses, there is
     /// no reason to ignore incoming edges here.
-    fn calculate_degree_centrality(
-        &self,
-        graph: &TraitGraph,
-        node_id: &str,
-    ) -> Result<f64> {
+    fn calculate_degree_centrality(&self, graph: &TraitGraph, node_id: &str) -> Result<f64> {
         let degree = graph
             .edges
             .iter()
@@ -190,15 +179,14 @@ impl GraphAnalyzer {
     /// [`Self::analyze_graph`] calls on an unchanged graph) reuse the cached
     /// result instead of recomputing it, as long as the entry has not
     /// exceeded `CACHE_TTL`.
-    fn calculate_betweenness_centrality(
-        &self,
-        graph: &TraitGraph,
-        node_id: &str,
-    ) -> Result<f64> {
+    fn calculate_betweenness_centrality(&self, graph: &TraitGraph, node_id: &str) -> Result<f64> {
         const CACHE_TTL: Duration = Duration::from_secs(300);
         const COMPUTATION_TYPE: &str = "betweenness";
         let cache_key = format!(
-            "{}:{}:{}", COMPUTATION_TYPE, Self::graph_structural_hash(graph), node_id
+            "{}:{}:{}",
+            COMPUTATION_TYPE,
+            Self::graph_structural_hash(graph),
+            node_id
         );
         if let Ok(cache) = self.computation_cache.lock() {
             if let Some(entry) = cache.get(&cache_key) {
@@ -245,19 +233,17 @@ impl GraphAnalyzer {
             0.0
         };
         if let Ok(mut cache) = self.computation_cache.lock() {
-            cache
-                .insert(
-                    cache_key,
-                    ComputationCacheEntry {
-                        result: vec![normalized_betweenness],
-                        timestamp: Instant::now(),
-                        computation_type: COMPUTATION_TYPE.to_string(),
-                    },
-                );
+            cache.insert(
+                cache_key,
+                ComputationCacheEntry {
+                    result: vec![normalized_betweenness],
+                    timestamp: Instant::now(),
+                    computation_type: COMPUTATION_TYPE.to_string(),
+                },
+            );
         }
         if let Ok(mut tracker) = self.performance_tracker.lock() {
-            tracker
-                .record_timing(format!("betweenness_{}", node_id), start_time.elapsed());
+            tracker.record_timing(format!("betweenness_{}", node_id), start_time.elapsed());
             let estimated_bytes = (n * std::mem::size_of::<CentralityMeasures>()) as u64;
             tracker.record_memory_usage("betweenness".to_string(), estimated_bytes);
         }
@@ -271,11 +257,7 @@ impl GraphAnalyzer {
     fn graph_structural_hash(graph: &TraitGraph) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        let mut node_ids: Vec<&str> = graph
-            .nodes
-            .iter()
-            .map(|n| n.id.as_str())
-            .collect();
+        let mut node_ids: Vec<&str> = graph.nodes.iter().map(|n| n.id.as_str()).collect();
         node_ids.sort_unstable();
         let mut edge_keys: Vec<(&str, &str, bool)> = graph
             .edges
@@ -289,11 +271,7 @@ impl GraphAnalyzer {
         hasher.finish()
     }
     /// Calculate closeness centrality
-    fn calculate_closeness_centrality(
-        &self,
-        graph: &TraitGraph,
-        node_id: &str,
-    ) -> Result<f64> {
+    fn calculate_closeness_centrality(&self, graph: &TraitGraph, node_id: &str) -> Result<f64> {
         let distances = self.calculate_shortest_path_distances(graph, node_id)?;
         if distances.is_empty() {
             return Ok(0.0);
@@ -307,11 +285,7 @@ impl GraphAnalyzer {
         }
     }
     /// Calculate eigenvector centrality using power iteration
-    fn calculate_eigenvector_centrality(
-        &self,
-        graph: &TraitGraph,
-        node_id: &str,
-    ) -> Result<f64> {
+    fn calculate_eigenvector_centrality(&self, graph: &TraitGraph, node_id: &str) -> Result<f64> {
         let n = graph.nodes.len();
         if n == 0 {
             return Ok(0.0);
@@ -359,8 +333,7 @@ impl GraphAnalyzer {
                 new_pagerank[i] = (1.0 - damping_factor) / n as f64;
                 for j in 0..n {
                     if transition_matrix[(j, i)] > 0.0 {
-                        new_pagerank[i]
-                            += damping_factor * pagerank[j] * transition_matrix[(j, i)];
+                        new_pagerank[i] += damping_factor * pagerank[j] * transition_matrix[(j, i)];
                     }
                 }
             }
@@ -389,19 +362,11 @@ impl GraphAnalyzer {
             CommunityDetection::Leiden => self.leiden_community_detection(graph)?,
             CommunityDetection::LabelPropagation => self.label_propagation(graph)?,
             CommunityDetection::Walktrap => self.walktrap_community_detection(graph)?,
-            CommunityDetection::GirvanNewman => {
-                self.girvan_newman_community_detection(graph)?
-            }
-            CommunityDetection::FastGreedy => {
-                self.fast_greedy_community_detection(graph)?
-            }
+            CommunityDetection::GirvanNewman => self.girvan_newman_community_detection(graph)?,
+            CommunityDetection::FastGreedy => self.fast_greedy_community_detection(graph)?,
         };
         if let Ok(mut tracker) = self.performance_tracker.lock() {
-            tracker
-                .record_timing(
-                    format!("community_{:?}", algorithm),
-                    start_time.elapsed(),
-                );
+            tracker.record_timing(format!("community_{:?}", algorithm), start_time.elapsed());
         }
         Ok(communities)
     }
@@ -430,34 +395,30 @@ impl GraphAnalyzer {
             }
             improved = false;
             for node in &graph.nodes {
-                let current_community = *node_communities
-                    .get(&node.id)
-                    .expect("get should succeed");
+                let current_community =
+                    *node_communities.get(&node.id).expect("get should succeed");
                 let mut best_community = current_community;
                 let mut best_gain = 0.0;
-                let neighbor_communities = self
-                    .get_neighbor_communities(graph, &node.id, &node_communities);
+                let neighbor_communities =
+                    self.get_neighbor_communities(graph, &node.id, &node_communities);
                 for &neighbor_community in &neighbor_communities {
                     if neighbor_community == current_community {
                         continue;
                     }
-                    let gain = self
-                        .calculate_modularity_gain(
-                            graph,
-                            &node.id,
-                            current_community,
-                            neighbor_community,
-                            &node_communities,
-                        );
+                    let gain = self.calculate_modularity_gain(
+                        graph,
+                        &node.id,
+                        current_community,
+                        neighbor_community,
+                        &node_communities,
+                    );
                     if gain > best_gain {
                         best_gain = gain;
                         best_community = neighbor_community;
                     }
                 }
                 if best_community != current_community && best_gain > 0.0 {
-                    if let Some(old_community) = community_nodes
-                        .get_mut(&current_community)
-                    {
+                    if let Some(old_community) = community_nodes.get_mut(&current_community) {
                         old_community.remove(&node.id);
                     }
                     community_nodes
@@ -472,13 +433,12 @@ impl GraphAnalyzer {
         for (community_id, nodes) in community_nodes {
             if !nodes.is_empty() {
                 let modularity = self.calculate_community_modularity(graph, &nodes);
-                communities
-                    .push(Community {
-                        id: format!("community_{}", community_id),
-                        nodes: nodes.into_iter().collect(),
-                        modularity,
-                        description: None,
-                    });
+                communities.push(Community {
+                    id: format!("community_{}", community_id),
+                    nodes: nodes.into_iter().collect(),
+                    modularity,
+                    description: None,
+                });
             }
         }
         Ok(communities)
@@ -511,8 +471,7 @@ impl GraphAnalyzer {
                     };
                     if let Some(neighbor_id) = neighbor_id {
                         if let Some(&neighbor_label) = node_labels.get(neighbor_id) {
-                            *label_counts.entry(neighbor_label).or_insert(0.0)
-                                += edge.weight;
+                            *label_counts.entry(neighbor_label).or_insert(0.0) += edge.weight;
                         }
                     }
                 }
@@ -520,9 +479,7 @@ impl GraphAnalyzer {
                     .iter()
                     .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(Ordering::Equal))
                 {
-                    let current_label = *node_labels
-                        .get(&node.id)
-                        .expect("get should succeed");
+                    let current_label = *node_labels.get(&node.id).expect("get should succeed");
                     if most_frequent_label != current_label {
                         node_labels.insert(node.id.clone(), most_frequent_label);
                         changed = true;
@@ -542,43 +499,30 @@ impl GraphAnalyzer {
             if nodes.len() > 1 {
                 let node_set: HashSet<String> = nodes.iter().cloned().collect();
                 let modularity = self.calculate_community_modularity(graph, &node_set);
-                communities
-                    .push(Community {
-                        id: format!("community_{}", label),
-                        nodes,
-                        modularity,
-                        description: Some("Label propagation community".to_string()),
-                    });
+                communities.push(Community {
+                    id: format!("community_{}", label),
+                    nodes,
+                    modularity,
+                    description: Some("Label propagation community".to_string()),
+                });
             }
         }
         Ok(communities)
     }
     /// Walktrap community detection (simplified)
-    fn walktrap_community_detection(
-        &self,
-        _graph: &TraitGraph,
-    ) -> Result<Vec<Community>> {
+    fn walktrap_community_detection(&self, _graph: &TraitGraph) -> Result<Vec<Community>> {
         Ok(Vec::new())
     }
     /// Girvan-Newman community detection (edge betweenness)
-    fn girvan_newman_community_detection(
-        &self,
-        _graph: &TraitGraph,
-    ) -> Result<Vec<Community>> {
+    fn girvan_newman_community_detection(&self, _graph: &TraitGraph) -> Result<Vec<Community>> {
         Ok(Vec::new())
     }
     /// Fast greedy community detection
-    fn fast_greedy_community_detection(
-        &self,
-        _graph: &TraitGraph,
-    ) -> Result<Vec<Community>> {
+    fn fast_greedy_community_detection(&self, _graph: &TraitGraph) -> Result<Vec<Community>> {
         Ok(Vec::new())
     }
     /// Find critical paths in the graph
-    pub fn find_critical_paths_comprehensive(
-        &self,
-        graph: &TraitGraph,
-    ) -> Result<Vec<GraphPath>> {
+    pub fn find_critical_paths_comprehensive(&self, graph: &TraitGraph) -> Result<Vec<GraphPath>> {
         let mut critical_paths = Vec::new();
         let centrality_measures = self.calculate_all_centrality_measures(graph)?;
         let mut high_centrality_nodes: Vec<_> = centrality_measures
@@ -586,18 +530,17 @@ impl GraphAnalyzer {
             .filter(|(_, measures)| measures.importance_score() > 0.7)
             .map(|(id, _)| id.as_str())
             .collect();
-        high_centrality_nodes
-            .sort_by(|a, b| {
-                let a_score = centrality_measures
-                    .get(*a)
-                    .map(|m| m.importance_score())
-                    .unwrap_or(0.0);
-                let b_score = centrality_measures
-                    .get(*b)
-                    .map(|m| m.importance_score())
-                    .unwrap_or(0.0);
-                b_score.partial_cmp(&a_score).unwrap_or(Ordering::Equal)
-            });
+        high_centrality_nodes.sort_by(|a, b| {
+            let a_score = centrality_measures
+                .get(*a)
+                .map(|m| m.importance_score())
+                .unwrap_or(0.0);
+            let b_score = centrality_measures
+                .get(*b)
+                .map(|m| m.importance_score())
+                .unwrap_or(0.0);
+            b_score.partial_cmp(&a_score).unwrap_or(Ordering::Equal)
+        });
         for i in 0..high_centrality_nodes.len().min(5) {
             for j in (i + 1)..high_centrality_nodes.len().min(5) {
                 let source = high_centrality_nodes[i];
@@ -607,8 +550,7 @@ impl GraphAnalyzer {
                 }
             }
         }
-        critical_paths
-            .sort_by(|a, b| a.weight.partial_cmp(&b.weight).unwrap_or(Ordering::Equal));
+        critical_paths.sort_by(|a, b| a.weight.partial_cmp(&b.weight).unwrap_or(Ordering::Equal));
         critical_paths.truncate(10);
         Ok(critical_paths)
     }
@@ -642,15 +584,13 @@ impl GraphAnalyzer {
                     match distances.get(next_node) {
                         None => {
                             distances.insert(next_node.clone(), new_distance);
-                            predecessors
-                                .insert(next_node.clone(), vec![current.clone()]);
+                            predecessors.insert(next_node.clone(), vec![current.clone()]);
                             queue.push_back(next_node.clone());
                         }
                         Some(&existing_distance) => {
                             if new_distance < existing_distance {
                                 distances.insert(next_node.clone(), new_distance);
-                                predecessors
-                                    .insert(next_node.clone(), vec![current.clone()]);
+                                predecessors.insert(next_node.clone(), vec![current.clone()]);
                             } else if (new_distance - existing_distance).abs() < 1e-10 {
                                 predecessors
                                     .entry(next_node.clone())
@@ -706,10 +646,9 @@ impl GraphAnalyzer {
             .map(|(i, node)| (node.id.clone(), i))
             .collect();
         for edge in &graph.edges {
-            if let (Some(&from_idx), Some(&to_idx)) = (
-                node_indices.get(&edge.from),
-                node_indices.get(&edge.to),
-            ) {
+            if let (Some(&from_idx), Some(&to_idx)) =
+                (node_indices.get(&edge.from), node_indices.get(&edge.to))
+            {
                 matrix[(from_idx, to_idx)] = edge.weight;
                 if !edge.directed {
                     matrix[(to_idx, from_idx)] = edge.weight;
@@ -735,10 +674,9 @@ impl GraphAnalyzer {
             }
         }
         for edge in &graph.edges {
-            if let (Some(&from_idx), Some(&to_idx)) = (
-                node_indices.get(&edge.from),
-                node_indices.get(&edge.to),
-            ) {
+            if let (Some(&from_idx), Some(&to_idx)) =
+                (node_indices.get(&edge.from), node_indices.get(&edge.to))
+            {
                 if out_degrees[from_idx] > 0.0 {
                     matrix[(from_idx, to_idx)] = edge.weight / out_degrees[from_idx];
                 }
@@ -805,10 +743,8 @@ impl GraphAnalyzer {
                 if let Some(next_node) = next_node {
                     let next_cost = cost.0 + edge.weight;
                     if !visited.contains(next_node) {
-                        let current_distance = distances
-                            .get(next_node)
-                            .copied()
-                            .unwrap_or(f64::INFINITY);
+                        let current_distance =
+                            distances.get(next_node).copied().unwrap_or(f64::INFINITY);
                         if next_cost < current_distance {
                             distances.insert(next_node.clone(), next_cost);
                             heap.push(State {
@@ -874,18 +810,15 @@ impl GraphAnalyzer {
             .edges
             .iter()
             .filter(|edge| {
-                community_nodes.contains(&edge.from)
-                    && community_nodes.contains(&edge.to)
+                community_nodes.contains(&edge.from) && community_nodes.contains(&edge.to)
             })
             .count() as f64;
         let external_edges = graph
             .edges
             .iter()
             .filter(|edge| {
-                (community_nodes.contains(&edge.from)
-                    && !community_nodes.contains(&edge.to))
-                    || (!community_nodes.contains(&edge.from)
-                        && community_nodes.contains(&edge.to))
+                (community_nodes.contains(&edge.from) && !community_nodes.contains(&edge.to))
+                    || (!community_nodes.contains(&edge.from) && community_nodes.contains(&edge.to))
             })
             .count() as f64;
         if total_edges > 0.0 {
@@ -933,8 +866,7 @@ impl GraphAnalyzer {
         }
         let node_density = graph.nodes.len() as f64 / 1000.0;
         let edge_density = graph.edges.len() as f64 / (graph.nodes.len() as f64).powi(2);
-        let clarity_score = 1.0
-            - (node_density.min(1.0) * 0.5 + edge_density.min(1.0) * 0.5);
+        let clarity_score = 1.0 - (node_density.min(1.0) * 0.5 + edge_density.min(1.0) * 0.5);
         clarity_score.clamp(0.0, 1.0)
     }
     /// Calculate layout quality
@@ -957,10 +889,9 @@ impl GraphAnalyzer {
                 graph.nodes.iter().find(|n| n.id == edge.from),
                 graph.nodes.iter().find(|n| n.id == edge.to),
             ) {
-                if let (Some((x1, y1)), Some((x2, y2))) = (
-                    from_node.position_2d,
-                    to_node.position_2d,
-                ) {
+                if let (Some((x1, y1)), Some((x2, y2))) =
+                    (from_node.position_2d, to_node.position_2d)
+                {
                     let length = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt();
                     edge_lengths.push(length);
                 }
@@ -968,7 +899,10 @@ impl GraphAnalyzer {
         }
         let edge_length_uniformity = if edge_lengths.len() > 1 {
             let mean = edge_lengths.iter().sum::<f64>() / edge_lengths.len() as f64;
-            let variance = edge_lengths.iter().map(|&x| (x - mean).powi(2)).sum::<f64>()
+            let variance = edge_lengths
+                .iter()
+                .map(|&x| (x - mean).powi(2))
+                .sum::<f64>()
                 / edge_lengths.len() as f64;
             let std_dev = variance.sqrt();
             1.0 - (std_dev / mean.max(1.0)).min(1.0)
@@ -1041,19 +975,21 @@ impl GraphAnalyzer {
             adjacency.entry(node.id.as_str()).or_default();
         }
         for edge in &graph.edges {
-            adjacency.entry(edge.from.as_str()).or_default().push(edge.to.as_str());
-            adjacency.entry(edge.to.as_str()).or_default().push(edge.from.as_str());
+            adjacency
+                .entry(edge.from.as_str())
+                .or_default()
+                .push(edge.to.as_str());
+            adjacency
+                .entry(edge.to.as_str())
+                .or_default()
+                .push(edge.from.as_str());
         }
         adjacency
     }
     /// Identify "hub" nodes: nodes whose overall centrality importance
     /// (see [`CentralityMeasures::importance_score`]) meets or exceeds
     /// `threshold` (expected range `0.0..=1.0`).
-    pub fn identify_hub_nodes(
-        &self,
-        graph: &TraitGraph,
-        threshold: f64,
-    ) -> Result<Vec<String>> {
+    pub fn identify_hub_nodes(&self, graph: &TraitGraph, threshold: f64) -> Result<Vec<String>> {
         let centrality = self.calculate_all_centrality_measures(graph)?;
         let mut hubs: Vec<String> = centrality
             .into_iter()
@@ -1094,10 +1030,7 @@ impl GraphAnalyzer {
                 articulation_points.insert(id);
             }
         }
-        let mut result: Vec<String> = articulation_points
-            .into_iter()
-            .map(String::from)
-            .collect();
+        let mut result: Vec<String> = articulation_points.into_iter().map(String::from).collect();
         result.sort();
         Ok(result)
     }
@@ -1351,13 +1284,10 @@ impl GraphAnalyzer {
         } else {
             n as f64
         };
-        if random_clustering <= 0.0 || random_path_length <= 0.0
-            || avg_path_length <= 0.0
-        {
+        if random_clustering <= 0.0 || random_path_length <= 0.0 || avg_path_length <= 0.0 {
             return Ok(0.0);
         }
-        let sigma = (clustering / random_clustering)
-            / (avg_path_length / random_path_length);
+        let sigma = (clustering / random_clustering) / (avg_path_length / random_path_length);
         Ok(sigma)
     }
     /// Average (undirected) clustering coefficient across all nodes with at
@@ -1372,8 +1302,14 @@ impl GraphAnalyzer {
             adjacency.entry(node.id.as_str()).or_default();
         }
         for edge in &graph.edges {
-            adjacency.entry(edge.from.as_str()).or_default().insert(edge.to.as_str());
-            adjacency.entry(edge.to.as_str()).or_default().insert(edge.from.as_str());
+            adjacency
+                .entry(edge.from.as_str())
+                .or_default()
+                .insert(edge.to.as_str());
+            adjacency
+                .entry(edge.to.as_str())
+                .or_default()
+                .insert(edge.from.as_str());
         }
         let mut total = 0.0;
         let mut counted = 0usize;
@@ -1401,7 +1337,11 @@ impl GraphAnalyzer {
                 counted += 1;
             }
         }
-        if counted == 0 { 0.0 } else { total / counted as f64 }
+        if counted == 0 {
+            0.0
+        } else {
+            total / counted as f64
+        }
     }
     /// Enable or disable SIMD optimization
     pub fn set_simd_enabled(&mut self, enabled: bool) {

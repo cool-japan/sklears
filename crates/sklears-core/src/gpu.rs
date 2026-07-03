@@ -551,10 +551,10 @@ fn gpu_matmul<T: GpuFloat>(a: &GpuArray<T>, b: &GpuArray<T>) -> Result<GpuArray<
     }
 
     a.backend.ensure_current()?;
-    let a_desc = MatrixDesc::from_buffer(&a.buf, m as u32, k as u32, Layout::RowMajor)
-        .map_err(blas_err)?;
-    let b_desc = MatrixDesc::from_buffer(&b.buf, k as u32, n as u32, Layout::RowMajor)
-        .map_err(blas_err)?;
+    let a_desc =
+        MatrixDesc::from_buffer(&a.buf, m as u32, k as u32, Layout::RowMajor).map_err(blas_err)?;
+    let b_desc =
+        MatrixDesc::from_buffer(&b.buf, k as u32, n as u32, Layout::RowMajor).map_err(blas_err)?;
     let mut c_buf = DeviceBuffer::<T>::zeroed(m * n).map_err(cuda_err)?;
     let mut c_desc = MatrixDescMut::from_buffer(&mut c_buf, m as u32, n as u32, Layout::RowMajor)
         .map_err(blas_err)?;
@@ -780,8 +780,9 @@ impl GpuUtils {
         let ordinal = i32::try_from(device_id).map_err(|_| {
             SklearsError::InvalidInput(format!("device id {device_id} out of range"))
         })?;
-        let device = Device::get(ordinal)
-            .map_err(|e| SklearsError::InvalidInput(format!("no device at index {device_id}: {e}")))?;
+        let device = Device::get(ordinal).map_err(|e| {
+            SklearsError::InvalidInput(format!("no device at index {device_id}: {e}"))
+        })?;
         let info = device.info().map_err(cuda_err)?;
 
         // `DeviceInfo::total_memory_bytes` is a static property queried at

@@ -291,11 +291,7 @@ impl std::fmt::Debug for HierarchicalCompositionTrained {
         f.debug_struct("HierarchicalCompositionTrained")
             .field(
                 "level_sizes",
-                &self
-                    .fitted_levels
-                    .iter()
-                    .map(Vec::len)
-                    .collect::<Vec<_>>(),
+                &self.fitted_levels.iter().map(Vec::len).collect::<Vec<_>>(),
             )
             .field("n_features_in", &self.n_features_in)
             .finish()
@@ -431,8 +427,7 @@ impl<S> HierarchicalComposition<S> {
         if self.level_models.is_empty() {
             return Err(SklearsError::InvalidParameter {
                 name: "level_models".to_string(),
-                reason: "HierarchicalComposition requires at least one level of models"
-                    .to_string(),
+                reason: "HierarchicalComposition requires at least one level of models".to_string(),
             });
         }
 
@@ -846,7 +841,10 @@ fn prepare_meta_input(level_predictions: &[Array1<Float>]) -> Array2<Float> {
 /// to a `(0, 1]` confidence score (higher disagreement -> lower confidence).
 /// A level with a single model is treated as maximally confident, since there
 /// is no ensemble spread to measure.
-fn estimate_prediction_confidence(level_preds: &[Array1<Float>], combined: &Array1<Float>) -> Float {
+fn estimate_prediction_confidence(
+    level_preds: &[Array1<Float>],
+    combined: &Array1<Float>,
+) -> Float {
     if level_preds.len() <= 1 {
         return 1.0;
     }
@@ -916,10 +914,9 @@ impl HierarchicalComposition<HierarchicalCompositionTrained> {
             }
         }
 
-        let final_prediction = level_predictions
-            .last()
-            .cloned()
-            .ok_or_else(|| SklearsError::InvalidState("No level predictions generated".to_string()))?;
+        let final_prediction = level_predictions.last().cloned().ok_or_else(|| {
+            SklearsError::InvalidState("No level predictions generated".to_string())
+        })?;
 
         Ok(HierarchicalPrediction {
             prediction: final_prediction,
@@ -977,8 +974,9 @@ impl HierarchicalComposition<HierarchicalCompositionTrained> {
             final_prediction = Some(combined_pred);
         }
 
-        let final_pred = final_prediction
-            .ok_or_else(|| SklearsError::InvalidState("No final prediction generated".to_string()))?;
+        let final_pred = final_prediction.ok_or_else(|| {
+            SklearsError::InvalidState("No final prediction generated".to_string())
+        })?;
 
         Ok(HierarchicalPrediction {
             prediction: final_pred,
@@ -1018,10 +1016,9 @@ impl HierarchicalComposition<HierarchicalCompositionTrained> {
             level_predictions.push(combined_pred);
         }
 
-        let final_prediction = level_predictions
-            .last()
-            .cloned()
-            .ok_or_else(|| SklearsError::InvalidState("No level predictions generated".to_string()))?;
+        let final_prediction = level_predictions.last().cloned().ok_or_else(|| {
+            SklearsError::InvalidState("No level predictions generated".to_string())
+        })?;
 
         Ok(HierarchicalPrediction {
             prediction: final_prediction,
@@ -1362,7 +1359,9 @@ mod tests {
                 .build();
 
             match composition.strategy {
-                HierarchicalStrategy::Stacked { blend_method: bm, .. } => {
+                HierarchicalStrategy::Stacked {
+                    blend_method: bm, ..
+                } => {
                     assert_eq!(bm, blend_method);
                 }
                 _ => panic!("Expected Stacked strategy"),
@@ -1424,7 +1423,14 @@ mod tests {
     /// genuinely-fitted clone must behave differently from a fresh one.
     #[test]
     fn test_each_level_differs_from_a_fresh_unfitted_clone() {
-        let x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0], [5.0, 6.0], [6.0, 7.0]];
+        let x = array![
+            [1.0, 2.0],
+            [2.0, 3.0],
+            [3.0, 4.0],
+            [4.0, 5.0],
+            [5.0, 6.0],
+            [6.0, 7.0]
+        ];
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 
         let composition = HierarchicalComposition::builder()
@@ -1473,7 +1479,9 @@ mod tests {
                 Box::new(MockPredictor::new()) as Box<dyn PipelinePredictor>,
                 Box::new(MockPredictor::new()) as Box<dyn PipelinePredictor>,
             ])
-            .add_level_models(vec![Box::new(MockPredictor::new()) as Box<dyn PipelinePredictor>])
+            .add_level_models(vec![
+                Box::new(MockPredictor::new()) as Box<dyn PipelinePredictor>
+            ])
             .random_state(11)
             .build();
 

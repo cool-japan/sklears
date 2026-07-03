@@ -2,21 +2,27 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
+use super::super::security_types::*;
 use std::collections::HashMap;
 use std::time::Duration;
-use super::super::security_types::*;
 
-use super::types_8::SecurityMetricsCollector;
-use super::types_7::SecurityMetricsError;
-use super::types_9::{MetricCollection, SecurityMetricsResult};
 use super::macros::MetricValue;
+use super::types_7::SecurityMetricsError;
+use super::types_8::SecurityMetricsCollector;
+use super::types_9::{MetricCollection, SecurityMetricsResult};
 
 /// Convert a local [`MetricValue`] into a numeric approximation usable in shallow heuristics.
 pub(super) fn metric_value_as_f64(value: &MetricValue) -> f64 {
     match value {
         MetricValue::Integer(i) => *i as f64,
         MetricValue::Float(f) => *f,
-        MetricValue::Boolean(b) => if *b { 1.0 } else { 0.0 }
+        MetricValue::Boolean(b) => {
+            if *b {
+                1.0
+            } else {
+                0.0
+            }
+        }
         MetricValue::String(_) => 0.0,
     }
 }
@@ -107,16 +113,19 @@ mod tests {
             ..Default::default()
         };
         let result = collect_comprehensive_security_metrics(&context);
-        assert!(result.is_ok(), "metrics collection should succeed: {result:?}");
+        assert!(
+            result.is_ok(),
+            "metrics collection should succeed: {result:?}"
+        );
         let metrics = result.expect("metrics collection should succeed");
         assert!(
-            ! metrics.metric_collections.is_empty(),
+            !metrics.metric_collections.is_empty(),
             "expected at least one collected metric"
         );
-        assert!((0.0..= 10.0).contains(& metrics.overall_security_score));
-        assert!((0.0..= 1.0).contains(& metrics.analysis_confidence));
+        assert!((0.0..=10.0).contains(&metrics.overall_security_score));
+        assert!((0.0..=1.0).contains(&metrics.analysis_confidence));
         assert!(
-            ! metrics.health_indicators.is_empty(),
+            !metrics.health_indicators.is_empty(),
             "expected health indicators derived from collected metrics"
         );
     }
@@ -132,7 +141,8 @@ mod tests {
         );
         let metrics = result.expect("collection with a default context should succeed");
         assert_eq!(
-            metrics.metric_collections.len(), 12,
+            metrics.metric_collections.len(),
+            12,
             "6 collectors x 2 metric definitions each"
         );
     }

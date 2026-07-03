@@ -562,7 +562,10 @@ impl OptimizationLevel {
 
     /// Whether to enable expensive analysis features
     pub fn enable_expensive_analysis(&self) -> bool {
-        matches!(self, OptimizationLevel::Quality | OptimizationLevel::Balanced)
+        matches!(
+            self,
+            OptimizationLevel::Quality | OptimizationLevel::Balanced
+        )
     }
 }
 

@@ -22,13 +22,13 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 #[cfg(feature = "gpu")]
-use sklears_core::gpu::{GpuArray, GpuBackend, GpuMatrixOps, GpuUtils};
+use half::f16;
 #[cfg(feature = "gpu")]
 use oxicuda_blas::{Layout, MatrixDesc, MatrixDescMut, Transpose};
 #[cfg(feature = "gpu")]
 use oxicuda_memory::DeviceBuffer;
 #[cfg(feature = "gpu")]
-use half::f16;
+use sklears_core::gpu::{GpuArray, GpuBackend, GpuMatrixOps, GpuUtils};
 
 /// Maps any GPU-stack error (`oxicuda-driver`/`oxicuda-blas`) to a
 /// `SklearsError`, without needing those crates as direct dependencies just
@@ -506,12 +506,7 @@ impl AdvancedGpuOps {
         if let Some(backend) = self.gpu_backend.as_ref() {
             match Self::fp16_matrix_multiply(backend, a, b) {
                 Ok(result) => {
-                    self.record_matmul_metrics(
-                        "mixed_precision_matrix_multiply",
-                        a,
-                        b,
-                        start_time,
-                    );
+                    self.record_matmul_metrics("mixed_precision_matrix_multiply", a, b, start_time);
                     return Ok(result);
                 }
                 Err(e) => {
@@ -585,12 +580,13 @@ impl AdvancedGpuOps {
         let b_buf = DeviceBuffer::from_host(&b_f16).map_err(gpu_err)?;
         let mut c_buf = DeviceBuffer::<f16>::zeroed(m * n).map_err(gpu_err)?;
 
-        let a_desc =
-            MatrixDesc::from_buffer(&a_buf, m as u32, k as u32, Layout::RowMajor).map_err(gpu_err)?;
-        let b_desc =
-            MatrixDesc::from_buffer(&b_buf, k as u32, n as u32, Layout::RowMajor).map_err(gpu_err)?;
-        let mut c_desc = MatrixDescMut::from_buffer(&mut c_buf, m as u32, n as u32, Layout::RowMajor)
+        let a_desc = MatrixDesc::from_buffer(&a_buf, m as u32, k as u32, Layout::RowMajor)
             .map_err(gpu_err)?;
+        let b_desc = MatrixDesc::from_buffer(&b_buf, k as u32, n as u32, Layout::RowMajor)
+            .map_err(gpu_err)?;
+        let mut c_desc =
+            MatrixDescMut::from_buffer(&mut c_buf, m as u32, n as u32, Layout::RowMajor)
+                .map_err(gpu_err)?;
 
         oxicuda_blas::level3::gemm(
             backend.blas(),

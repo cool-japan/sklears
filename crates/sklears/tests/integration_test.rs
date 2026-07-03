@@ -133,7 +133,10 @@ fn test_preprocessing_pipeline() {
         let n = col.len() as f64;
         let mean: f64 = col.iter().sum::<f64>() / n;
         let variance: f64 = col.iter().map(|&v| (v - mean).powi(2)).sum::<f64>() / n;
-        assert!(mean.abs() < 1e-8, "column {j} mean should be ~0, got {mean}");
+        assert!(
+            mean.abs() < 1e-8,
+            "column {j} mean should be ~0, got {mean}"
+        );
         assert!(
             (variance - 1.0).abs() < 1e-8,
             "column {j} variance should be ~1, got {variance}"

@@ -128,8 +128,7 @@ pub mod simd_operations {
                     let summed = Float::simd_add(&recon_row.view(), &patch_row);
                     recon_row.assign(&summed);
 
-                    let mut count_row =
-                        overlap_counts.slice_mut(s![img_y, col..col + valid_width]);
+                    let mut count_row = overlap_counts.slice_mut(s![img_y, col..col + valid_width]);
                     let incremented = Float::simd_add(&count_row.view(), &ones.view());
                     count_row.assign(&incremented);
                 }
@@ -555,7 +554,10 @@ fn box_filter_sum(integral: &ArrayView2<Float>, x: usize, y: usize, w: usize, h:
     ];
     let signs = [1.0, 1.0, -1.0, -1.0];
 
-    Float::simd_dot(&ArrayView1::from(&values[..]), &ArrayView1::from(&signs[..]))
+    Float::simd_dot(
+        &ArrayView1::from(&values[..]),
+        &ArrayView1::from(&signs[..]),
+    )
 }
 
 #[allow(non_snake_case)]
@@ -656,15 +658,14 @@ mod tests {
 
     #[test]
     fn test_reconstruct_from_patches_2d_matches_reference() {
-        let patches = Array3::from_shape_vec((2, 2, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
-            .expect("operation should succeed");
+        let patches =
+            Array3::from_shape_vec((2, 2, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+                .expect("operation should succeed");
         let recon = simd_reconstruct_from_patches_2d(&patches.view(), (3, 3))
             .expect("operation should succeed");
-        let expected = Array2::from_shape_vec(
-            (3, 3),
-            vec![1.0, 2.0, 0.0, 4.0, 5.0, 0.0, 7.0, 8.0, 0.0],
-        )
-        .expect("operation should succeed");
+        let expected =
+            Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 0.0, 4.0, 5.0, 0.0, 7.0, 8.0, 0.0])
+                .expect("operation should succeed");
         assert_array2_close(&recon, &expected, 1e-9);
     }
 
@@ -701,7 +702,8 @@ mod tests {
             .expect("operation should succeed");
         let b = Array2::from_shape_vec((2, 3), vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
             .expect("operation should succeed");
-        let result = simd_array_subtraction(&a.view(), &b.view()).expect("operation should succeed");
+        let result =
+            simd_array_subtraction(&a.view(), &b.view()).expect("operation should succeed");
         let expected = Array2::from_shape_vec((2, 3), vec![0.9, -2.7, 2.7, 3.85, -5.5, 6.15])
             .expect("operation should succeed");
         assert_array2_close(&result, &expected, 1e-9);
@@ -709,16 +711,12 @@ mod tests {
 
     #[test]
     fn test_detect_extrema_matches_reference() {
-        let center = Array2::from_shape_vec(
-            (3, 3),
-            vec![2.0, 3.0, 2.0, 3.0, 9.0, 3.0, 2.0, 3.0, 2.0],
-        )
-        .expect("operation should succeed");
-        let below3 = Array2::from_shape_vec(
-            (3, 3),
-            vec![1.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 1.0],
-        )
-        .expect("operation should succeed");
+        let center =
+            Array2::from_shape_vec((3, 3), vec![2.0, 3.0, 2.0, 3.0, 9.0, 3.0, 2.0, 3.0, 2.0])
+                .expect("operation should succeed");
+        let below3 =
+            Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 1.0])
+                .expect("operation should succeed");
         let above3 = below3.clone();
 
         // Dimension mismatch: below/above are ignored, only center's 8-ring matters.
@@ -728,16 +726,13 @@ mod tests {
         assert_eq!(extrema_nodims, vec![(1, 1, true)]);
 
         // Matching dims on all three scale levels.
-        let extrema_full =
-            simd_detect_extrema(&below3.view(), &center.view(), &above3.view(), 1.0);
+        let extrema_full = simd_detect_extrema(&below3.view(), &center.view(), &above3.view(), 1.0);
         assert_eq!(extrema_full, vec![(1, 1, true)]);
 
         // Minimum case.
-        let center_min = Array2::from_shape_vec(
-            (3, 3),
-            vec![5.0, 5.0, 5.0, 5.0, 0.5, 5.0, 5.0, 5.0, 5.0],
-        )
-        .expect("operation should succeed");
+        let center_min =
+            Array2::from_shape_vec((3, 3), vec![5.0, 5.0, 5.0, 5.0, 0.5, 5.0, 5.0, 5.0, 5.0])
+                .expect("operation should succeed");
         let extrema_min =
             simd_detect_extrema(&below3.view(), &center_min.view(), &above3.view(), 0.1);
         assert_eq!(extrema_min, vec![(1, 1, false)]);
@@ -838,18 +833,14 @@ mod tests {
         let img2x4 = Array2::from_shape_vec((2, 4), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
             .expect("operation should succeed");
         let integ2x4 = simd_compute_integral_image(&img2x4.view());
-        let expected2x4 = Array2::from_shape_vec(
-            (2, 4),
-            vec![1.0, 3.0, 6.0, 10.0, 6.0, 14.0, 24.0, 36.0],
-        )
-        .expect("operation should succeed");
+        let expected2x4 =
+            Array2::from_shape_vec((2, 4), vec![1.0, 3.0, 6.0, 10.0, 6.0, 14.0, 24.0, 36.0])
+                .expect("operation should succeed");
         assert_array2_close(&integ2x4, &expected2x4, 1e-9);
 
-        let img3x3 = Array2::from_shape_vec(
-            (3, 3),
-            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
-        )
-        .expect("operation should succeed");
+        let img3x3 =
+            Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
+                .expect("operation should succeed");
         let integ3x3 = simd_compute_integral_image(&img3x3.view());
         let expected3x3 = Array2::from_shape_vec(
             (3, 3),
@@ -870,8 +861,11 @@ mod tests {
 
         let values2 = vec![2.0, 8.0, 0.0, 4.0, 4.0, 4.0, 4.0, 6.0, 10.0, 4.0];
         let mean2 = values2.iter().sum::<Float>() / values2.len() as Float;
-        let var2 =
-            values2.iter().map(|v| (v - mean2) * (v - mean2)).sum::<Float>() / values2.len() as Float;
+        let var2 = values2
+            .iter()
+            .map(|v| (v - mean2) * (v - mean2))
+            .sum::<Float>()
+            / values2.len() as Float;
         let std2 = var2.sqrt();
         assert_abs_diff_eq!(mean2, 4.6, epsilon = 1e-9);
         assert_abs_diff_eq!(std2, 2.690724809414742, epsilon = 1e-9);
@@ -882,7 +876,11 @@ mod tests {
         );
 
         // std_dev == 0 short-circuits to 0.0
-        assert_abs_diff_eq!(simd_compute_kurtosis(&values, 3.0, 0.0), 0.0, epsilon = 1e-9);
+        assert_abs_diff_eq!(
+            simd_compute_kurtosis(&values, 3.0, 0.0),
+            0.0,
+            epsilon = 1e-9
+        );
     }
 
     #[test]

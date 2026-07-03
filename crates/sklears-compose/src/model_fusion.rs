@@ -378,8 +378,7 @@ impl<S> ModelFusion<S> {
             FusionStrategy::NeuralNetwork { hidden_layers, .. } if hidden_layers.is_empty() => {
                 return Err(SklearsError::InvalidParameter {
                     name: "fusion_strategy.hidden_layers".to_string(),
-                    reason: "neural network fusion requires at least one hidden layer"
-                        .to_string(),
+                    reason: "neural network fusion requires at least one hidden layer".to_string(),
                 });
             }
             FusionStrategy::AttentionFusion {
@@ -389,8 +388,7 @@ impl<S> ModelFusion<S> {
             } if *num_heads == 0 || *head_dim == 0 => {
                 return Err(SklearsError::InvalidParameter {
                     name: "fusion_strategy.num_heads/head_dim".to_string(),
-                    reason: "attention fusion requires positive num_heads and head_dim"
-                        .to_string(),
+                    reason: "attention fusion requires positive num_heads and head_dim".to_string(),
                 });
             }
             _ => {}
@@ -525,12 +523,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, Float>> for ModelFusion<Untrained
         // from data collected before training (which previously wasn't collected
         // at all — the learned weights were hard-coded to uniform 1/n_models).
         let predictions = collect_predictions(&fitted_base_models, x)?;
-        let fusion_params = learn_fusion_parameters(
-            &self.fusion_strategy,
-            &predictions,
-            y,
-            self.random_state,
-        )?;
+        let fusion_params =
+            learn_fusion_parameters(&self.fusion_strategy, &predictions, y, self.random_state)?;
 
         Ok(ModelFusion {
             state: ModelFusionTrained {
@@ -832,8 +826,9 @@ fn learn_neural_network(
 /// the L1 norm of each input model's row in the first layer's weight matrix,
 /// normalized to sum to one.
 fn neural_contribution(first_layer: &Array2<Float>) -> Array1<Float> {
-    let mut contribution =
-        Array1::from_shape_fn(first_layer.nrows(), |j| first_layer.row(j).mapv(Float::abs).sum());
+    let mut contribution = Array1::from_shape_fn(first_layer.nrows(), |j| {
+        first_layer.row(j).mapv(Float::abs).sum()
+    });
     let total: Float = contribution.sum();
     if total > 0.0 {
         contribution.mapv_inplace(|v| v / total);
@@ -1384,7 +1379,9 @@ mod tests {
             let fusion = ModelFusion::builder().fusion_strategy(strategy).build();
 
             match fusion.fusion_strategy {
-                FusionStrategy::GatingNetwork { gating_type: gt, .. } => {
+                FusionStrategy::GatingNetwork {
+                    gating_type: gt, ..
+                } => {
                     assert_eq!(gt, gating_type);
                 }
                 _ => panic!("Expected GatingNetwork fusion strategy"),

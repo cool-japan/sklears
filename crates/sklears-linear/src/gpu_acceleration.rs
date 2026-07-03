@@ -30,14 +30,14 @@ use sklears_core::{
 };
 
 #[cfg(feature = "gpu")]
-use sklears_core::gpu::{GpuArray, GpuMatrixOps};
-#[cfg(feature = "gpu")]
 use oxicuda_memory::DeviceBuffer;
 #[cfg(feature = "gpu")]
 use oxicuda_solver::{
     dense::{lu_factorize, lu_solve, qr_factorize, qr_generate_q},
     SolverHandle,
 };
+#[cfg(feature = "gpu")]
+use sklears_core::gpu::{GpuArray, GpuMatrixOps};
 
 /// Maps any GPU-stack error (`oxicuda-driver`/`oxicuda-blas`/`oxicuda-solver`)
 /// to a `SklearsError`, without needing those crates as direct dependencies
@@ -401,8 +401,15 @@ impl GpuLinearOps {
         let mut d_a = DeviceBuffer::from_host(&a_col_major).map_err(gpu_err)?;
         let mut d_tau = DeviceBuffer::<Float>::zeroed(k).map_err(gpu_err)?;
 
-        qr_factorize::<Float>(&mut solver, &mut d_a, m as u32, n as u32, m as u32, &mut d_tau)
-            .map_err(gpu_err)?;
+        qr_factorize::<Float>(
+            &mut solver,
+            &mut d_a,
+            m as u32,
+            n as u32,
+            m as u32,
+            &mut d_tau,
+        )
+        .map_err(gpu_err)?;
 
         let mut d_q = DeviceBuffer::<Float>::zeroed(m * m).map_err(gpu_err)?;
         qr_generate_q::<Float>(&solver, &d_a, &d_tau, &mut d_q, m as u32, n as u32)

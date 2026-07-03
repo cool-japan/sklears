@@ -114,8 +114,9 @@ impl<T: bytemuck::Pod + Clone + Default> GpuTensor<T> {
             )));
         }
         ensure_current(&ctx.inner)?;
-        let buf = DeviceBuffer::<T>::from_host(data)
-            .map_err(|e| SklearsError::InvalidInput(format!("Failed to copy data to GPU: {}", e)))?;
+        let buf = DeviceBuffer::<T>::from_host(data).map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to copy data to GPU: {}", e))
+        })?;
         Ok(Self {
             shape: shape.to_vec(),
             buf,
@@ -407,8 +408,7 @@ impl GpuContext {
         a: &GpuTensor<half::f16>,
         b: &GpuTensor<half::f16>,
     ) -> NeuralResult<GpuTensor<half::f16>> {
-        let (buf, m, n) =
-            gpu_gemm::<half::f16>(&self.inner, &a.buf, &a.shape, &b.buf, &b.shape)?;
+        let (buf, m, n) = gpu_gemm::<half::f16>(&self.inner, &a.buf, &a.shape, &b.buf, &b.shape)?;
         Ok(GpuTensor {
             shape: vec![m, n],
             buf,

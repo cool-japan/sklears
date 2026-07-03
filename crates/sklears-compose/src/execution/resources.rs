@@ -839,7 +839,10 @@ mod tests {
     // performs a genuine `extern "C"` FFI call to libc's `statvfs`. Miri
     // cannot interpret foreign function calls, so this test is skipped
     // under Miri; the function itself remains callable normally.
-    #[cfg_attr(miri, ignore = "calls libc statvfs via extern \"C\" FFI, which Miri cannot interpret")]
+    #[cfg_attr(
+        miri,
+        ignore = "calls libc statvfs via extern \"C\" FFI, which Miri cannot interpret"
+    )]
     fn test_resource_manager_creation() {
         let resource_manager = ResourceManager::new();
         assert!(resource_manager.is_ok());
@@ -848,7 +851,10 @@ mod tests {
     #[test]
     // See `test_resource_manager_creation`: `ResourceManager::new()` reaches
     // the `statvfs` FFI call, which Miri cannot interpret.
-    #[cfg_attr(miri, ignore = "calls libc statvfs via extern \"C\" FFI, which Miri cannot interpret")]
+    #[cfg_attr(
+        miri,
+        ignore = "calls libc statvfs via extern \"C\" FFI, which Miri cannot interpret"
+    )]
     fn test_resource_allocation() {
         let resource_manager = ResourceManager::new().expect("operation should succeed");
         let task = create_test_task();
@@ -864,7 +870,10 @@ mod tests {
     #[test]
     // See `test_resource_manager_creation`: `ResourceManager::new()` reaches
     // the `statvfs` FFI call, which Miri cannot interpret.
-    #[cfg_attr(miri, ignore = "calls libc statvfs via extern \"C\" FFI, which Miri cannot interpret")]
+    #[cfg_attr(
+        miri,
+        ignore = "calls libc statvfs via extern \"C\" FFI, which Miri cannot interpret"
+    )]
     fn test_resource_release() {
         let resource_manager = ResourceManager::new().expect("operation should succeed");
         let task = create_test_task();

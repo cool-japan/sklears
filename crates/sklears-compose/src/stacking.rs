@@ -30,8 +30,8 @@
 //! let predictions = fitted.predict(&x_test.view())?;
 //! ```
 
-use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::linalg::lstsq_ndarray;
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use scirs2_core::SliceRandomExt;
@@ -411,9 +411,12 @@ struct OlsMetaLearner {
 
 impl PipelinePredictor for OlsMetaLearner {
     fn predict(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array1<Float>> {
-        let coef = self.coefficients.as_ref().ok_or_else(|| SklearsError::NotFitted {
-            operation: "predict".to_string(),
-        })?;
+        let coef = self
+            .coefficients
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "predict".to_string(),
+            })?;
 
         let mut preds = Array1::<Float>::zeros(x.nrows());
         for i in 0..x.nrows() {
@@ -657,7 +660,9 @@ mod tests {
         let n = 10;
         let x = Array2::from_shape_vec((n, 1), (0..n).map(|v| v as Float).collect())
             .expect("valid shape");
-        let y = Array1::from_vec(vec![1.0, 100.0, 1.0, 100.0, 1.0, 100.0, 1.0, 100.0, 1.0, 100.0]);
+        let y = Array1::from_vec(vec![
+            1.0, 100.0, 1.0, 100.0, 1.0, 100.0, 1.0, 100.0, 1.0, 100.0,
+        ]);
 
         let stacking = StackingEnsemble::builder()
             .base_learner("m", Box::new(MockPredictor::new()))

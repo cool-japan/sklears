@@ -1889,7 +1889,10 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
+    #[cfg_attr(
+        miri,
+        ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS"
+    )]
     async fn test_optimization_iteration() {
         let mut optimizer = PerformanceOptimizer::new().expect("operation should succeed");
         optimizer.initialize().unwrap_or_default();

@@ -4,18 +4,18 @@
 //! graphs from source code analysis, with support for hierarchical relationships,
 //! implementations, associated types, and complex trait dependencies.
 
-use super::graph_config::{GraphConfig, TraitNodeType, EdgeType, StabilityLevel};
+use super::graph_config::{EdgeType, GraphConfig, StabilityLevel, TraitNodeType};
 use super::graph_structures::{
-    TraitGraph, TraitGraphNode, TraitGraphEdge, NodeMetadata, EdgeMetadata,
-    TraitGraphMetadata, GraphStatistics, PerformanceMetrics, LayoutQualityMetrics,
+    EdgeMetadata, GraphStatistics, LayoutQualityMetrics, NodeMetadata, PerformanceMetrics,
+    TraitGraph, TraitGraphEdge, TraitGraphMetadata, TraitGraphNode,
 };
 use crate::api_reference_generator::{AssociatedType, MethodInfo, TraitInfo};
 use crate::error::{Result, SklearsError};
 
 // SciRS2 Core imports for full compliance
-use scirs2_core::random::Random;
 #[cfg(feature = "scirs2-gpu-reporting")]
 use scirs2_core::gpu::{GpuBackend, GpuContext};
+use scirs2_core::random::Random;
 
 use chrono::Utc;
 use std::collections::{HashMap, HashSet};
@@ -126,9 +126,16 @@ impl TraitGraphGenerator {
         };
 
         // Initialize layout algorithms
-        let mut layout_algorithms: HashMap<String, Box<dyn LayoutAlgorithmImpl + Send + Sync>> = HashMap::new();
-        layout_algorithms.insert("force_directed".to_string(), Box::new(ForceDirectedLayout::new()));
-        layout_algorithms.insert("hierarchical".to_string(), Box::new(HierarchicalLayout::new()));
+        let mut layout_algorithms: HashMap<String, Box<dyn LayoutAlgorithmImpl + Send + Sync>> =
+            HashMap::new();
+        layout_algorithms.insert(
+            "force_directed".to_string(),
+            Box::new(ForceDirectedLayout::new()),
+        );
+        layout_algorithms.insert(
+            "hierarchical".to_string(),
+            Box::new(HierarchicalLayout::new()),
+        );
         layout_algorithms.insert("circular".to_string(), Box::new(CircularLayout::new()));
         layout_algorithms.insert("grid".to_string(), Box::new(GridLayout::new()));
         layout_algorithms.insert("radial".to_string(), Box::new(RadialLayout::new()));
@@ -215,7 +222,8 @@ impl TraitGraphGenerator {
 
         // Add associated type nodes if any
         for associated_type in &trait_info.associated_types {
-            let assoc_node = self.create_associated_type_node(&associated_type.name, &trait_info.name)?;
+            let assoc_node =
+                self.create_associated_type_node(&associated_type.name, &trait_info.name)?;
             // Read the node's actual (namespaced, e.g. "TraitName::AssocTypeName")
             // id before moving it into `nodes`, so the edge below points at
             // the node that really exists rather than the bare associated
@@ -246,7 +254,12 @@ impl TraitGraphGenerator {
         }
 
         // Add method nodes if configured
-        if self.config.filter_config.node_types.contains(&TraitNodeType::Method) {
+        if self
+            .config
+            .filter_config
+            .node_types
+            .contains(&TraitNodeType::Method)
+        {
             for method in &trait_info.methods {
                 let method_node = self.create_method_node(&method.name, &trait_info.name)?;
                 // As with associated types above: the node's id is
@@ -370,7 +383,8 @@ impl TraitGraphGenerator {
 
             // Process associated types
             for associated_type in &trait_info.associated_types {
-                let assoc_node = self.create_associated_type_node(&associated_type.name, &trait_info.name)?;
+                let assoc_node =
+                    self.create_associated_type_node(&associated_type.name, &trait_info.name)?;
                 // See the identical comment in `generate_trait_graph`: the
                 // edge must target the node's actual (namespaced) id.
                 let assoc_node_id = assoc_node.id.clone();
@@ -391,7 +405,12 @@ impl TraitGraphGenerator {
             }
 
             // Process methods if configured
-            if self.config.filter_config.node_types.contains(&TraitNodeType::Method) {
+            if self
+                .config
+                .filter_config
+                .node_types
+                .contains(&TraitNodeType::Method)
+            {
                 for method in &trait_info.methods {
                     let method_node = self.create_method_node(&method.name, &trait_info.name)?;
                     // See the identical comment in `generate_trait_graph`.
@@ -423,12 +442,19 @@ impl TraitGraphGenerator {
         // Create comprehensive metadata
         let metadata = TraitGraphMetadata {
             title: "Comprehensive Trait Relationship Graph".to_string(),
-            description: Some(format!("Complete relationship graph for {} traits", traits.len())),
+            description: Some(format!(
+                "Complete relationship graph for {} traits",
+                traits.len()
+            )),
             generated_at: Utc::now(),
             generator_version: env!("CARGO_PKG_VERSION").to_string(),
             source_project: None,
             git_commit: None,
-            tags: vec!["traits".to_string(), "comprehensive".to_string(), "relationships".to_string()],
+            tags: vec![
+                "traits".to_string(),
+                "comprehensive".to_string(),
+                "relationships".to_string(),
+            ],
             custom_metadata: HashMap::new(),
             ..Default::default()
         };
@@ -484,7 +510,11 @@ impl TraitGraphGenerator {
             attributes: HashMap::new(),
         };
 
-        let size = self.calculate_node_size(complexity, &trait_info.methods, &trait_info.associated_types);
+        let size = self.calculate_node_size(
+            complexity,
+            &trait_info.methods,
+            &trait_info.associated_types,
+        );
 
         Ok(TraitGraphNode {
             id: trait_info.name.clone(),
@@ -573,7 +603,7 @@ impl TraitGraphGenerator {
         let metadata = NodeMetadata {
             trait_name: Some(supertrait_name.to_string()),
             stability: StabilityLevel::Stable, // Default assumption
-            complexity: 5.0, // Default complexity
+            complexity: 5.0,                   // Default complexity
             ..Default::default()
         };
 
@@ -592,7 +622,11 @@ impl TraitGraphGenerator {
     }
 
     /// Create an implementation node
-    fn create_implementation_node(&self, impl_name: &str, trait_name: &str) -> Result<TraitGraphNode> {
+    fn create_implementation_node(
+        &self,
+        impl_name: &str,
+        trait_name: &str,
+    ) -> Result<TraitGraphNode> {
         let metadata = NodeMetadata {
             trait_name: Some(trait_name.to_string()),
             stability: StabilityLevel::Stable,
@@ -615,7 +649,11 @@ impl TraitGraphGenerator {
     }
 
     /// Create an associated type node
-    fn create_associated_type_node(&self, type_name: &str, trait_name: &str) -> Result<TraitGraphNode> {
+    fn create_associated_type_node(
+        &self,
+        type_name: &str,
+        trait_name: &str,
+    ) -> Result<TraitGraphNode> {
         let metadata = NodeMetadata {
             trait_name: Some(trait_name.to_string()),
             stability: StabilityLevel::Stable,
@@ -668,8 +706,11 @@ impl TraitGraphGenerator {
         let supertrait_complexity = trait_info.supertraits.len() as f64 * 2.5;
 
         let base_complexity = 1.0;
-        let total = base_complexity + method_complexity + associated_type_complexity +
-                   generic_complexity + supertrait_complexity;
+        let total = base_complexity
+            + method_complexity
+            + associated_type_complexity
+            + generic_complexity
+            + supertrait_complexity;
 
         // Normalize to 0-100 scale
         total.min(100.0)
@@ -680,9 +721,16 @@ impl TraitGraphGenerator {
         // Simple heuristics - in practice would analyze attributes and documentation
         if trait_info.feature_flags.contains(&"unstable".to_string()) {
             StabilityLevel::Unstable
-        } else if trait_info.feature_flags.contains(&"experimental".to_string()) {
+        } else if trait_info
+            .feature_flags
+            .contains(&"experimental".to_string())
+        {
             StabilityLevel::Experimental
-        } else if trait_info.docs.as_ref().is_some_and(|docs| docs.contains("deprecated")) {
+        } else if trait_info
+            .docs
+            .as_ref()
+            .is_some_and(|docs| docs.contains("deprecated"))
+        {
             StabilityLevel::Deprecated
         } else {
             StabilityLevel::Stable
@@ -690,7 +738,12 @@ impl TraitGraphGenerator {
     }
 
     /// Calculate appropriate node size based on complexity and content
-    fn calculate_node_size(&self, complexity: f64, methods: &[MethodInfo], associated_types: &[AssociatedType]) -> f64 {
+    fn calculate_node_size(
+        &self,
+        complexity: f64,
+        methods: &[MethodInfo],
+        associated_types: &[AssociatedType],
+    ) -> f64 {
         let base_size = 1.0;
         let complexity_factor = complexity / 50.0; // Normalize complexity
         let method_factor = methods.len() as f64 * 0.1;
@@ -700,7 +753,11 @@ impl TraitGraphGenerator {
     }
 
     /// Apply filters to nodes and edges based on configuration
-    fn apply_filters(&self, nodes: &mut Vec<TraitGraphNode>, edges: &mut Vec<TraitGraphEdge>) -> Result<()> {
+    fn apply_filters(
+        &self,
+        nodes: &mut Vec<TraitGraphNode>,
+        edges: &mut Vec<TraitGraphEdge>,
+    ) -> Result<()> {
         let filter_config = &self.config.filter_config;
 
         // Filter nodes by type
@@ -708,12 +765,16 @@ impl TraitGraphGenerator {
 
         // Filter nodes by complexity
         nodes.retain(|node| {
-            node.metadata.complexity >= filter_config.min_complexity &&
-            node.metadata.complexity <= filter_config.max_complexity
+            node.metadata.complexity >= filter_config.min_complexity
+                && node.metadata.complexity <= filter_config.max_complexity
         });
 
         // Filter nodes by stability
-        nodes.retain(|node| filter_config.stability_levels.contains(&node.metadata.stability));
+        nodes.retain(|node| {
+            filter_config
+                .stability_levels
+                .contains(&node.metadata.stability)
+        });
 
         // Filter nodes by deprecated status
         if !filter_config.include_deprecated {
@@ -749,7 +810,8 @@ impl TraitGraphGenerator {
         if nodes.len() > self.config.max_nodes {
             // Sort by importance and keep the most important nodes
             nodes.sort_by(|a, b| {
-                b.importance_score().partial_cmp(&a.importance_score())
+                b.importance_score()
+                    .partial_cmp(&a.importance_score())
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
             nodes.truncate(self.config.max_nodes);
@@ -765,7 +827,11 @@ impl TraitGraphGenerator {
     }
 
     /// Add cross-trait relationships (usage, dependencies, etc.)
-    fn add_cross_trait_relationships(&self, edges: &mut Vec<TraitGraphEdge>, traits: &[&TraitInfo]) -> Result<()> {
+    fn add_cross_trait_relationships(
+        &self,
+        edges: &mut Vec<TraitGraphEdge>,
+        traits: &[&TraitInfo],
+    ) -> Result<()> {
         // Simple implementation - look for trait names mentioned in other traits
         for trait_info in traits {
             for other_trait in traits {
@@ -792,7 +858,11 @@ impl TraitGraphGenerator {
                 // Check associated types for references
                 if !has_relationship {
                     for assoc_type in &trait_info.associated_types {
-                        if assoc_type.bounds.iter().any(|bound| bound.contains(&other_trait.name)) {
+                        if assoc_type
+                            .bounds
+                            .iter()
+                            .any(|bound| bound.contains(&other_trait.name))
+                        {
                             has_relationship = true;
                             break;
                         }
@@ -854,9 +924,10 @@ impl TraitGraphGenerator {
         let layout_result = if let Some(algorithm) = self.layout_algorithms.get(algorithm_name) {
             algorithm.compute_layout(graph, &self.config)?
         } else {
-            return Err(SklearsError::ValidationError(
-                format!("Layout algorithm '{}' not found", algorithm_name)
-            ));
+            return Err(SklearsError::ValidationError(format!(
+                "Layout algorithm '{}' not found",
+                algorithm_name
+            )));
         };
 
         // Cache the result
@@ -869,7 +940,8 @@ impl TraitGraphGenerator {
 
         // Update performance metrics
         graph.performance.layout_time = layout_start.elapsed();
-        graph.performance.layout_iterations = self.config.optimization_level.layout_iterations() as u32;
+        graph.performance.layout_iterations =
+            self.config.optimization_level.layout_iterations() as u32;
 
         Ok(())
     }
@@ -1073,7 +1145,11 @@ impl LayoutAlgorithmImpl for ForceDirectedLayout {
                     // Attractive forces from connected nodes
                     for edge in &graph.edges {
                         if edge.from == node.id || edge.to == node.id {
-                            let other_id = if edge.from == node.id { &edge.to } else { &edge.from };
+                            let other_id = if edge.from == node.id {
+                                &edge.to
+                            } else {
+                                &edge.from
+                            };
                             if let Some((ox, oy)) = positions_2d.get(other_id).copied() {
                                 let dx = ox - x;
                                 let dy = oy - y;
@@ -1360,7 +1436,9 @@ impl LayoutAlgorithmImpl for RadialLayout {
         let mut positions_2d = HashMap::new();
 
         // Place the most connected node at center
-        let center_node = graph.nodes.iter()
+        let center_node = graph
+            .nodes
+            .iter()
             .max_by_key(|node| graph.get_degree(&node.id))
             .map(|node| node.id.clone())
             .unwrap_or_else(|| graph.nodes[0].id.clone());
@@ -1369,7 +1447,9 @@ impl LayoutAlgorithmImpl for RadialLayout {
 
         // Place other nodes in concentric circles
         let mut radius = 80.0;
-        let mut remaining_nodes: Vec<_> = graph.nodes.iter()
+        let mut remaining_nodes: Vec<_> = graph
+            .nodes
+            .iter()
             .filter(|node| node.id != center_node)
             .collect();
 
@@ -1522,7 +1602,9 @@ mod tests {
         let generator = TraitGraphGenerator::new(config).expect("expected valid value");
         let trait_info = create_test_trait_info();
 
-        let node = generator.create_trait_node(&trait_info).expect("create_trait_node should succeed");
+        let node = generator
+            .create_trait_node(&trait_info)
+            .expect("create_trait_node should succeed");
         assert_eq!(node.id, "TestTrait");
         assert_eq!(node.node_type, TraitNodeType::Trait);
         assert!(node.visible);
@@ -1603,7 +1685,9 @@ mod tests {
         let generator = TraitGraphGenerator::new(config).expect("expected valid value");
         let trait_info = create_test_trait_info();
 
-        let mut nodes = vec![generator.create_trait_node(&trait_info).expect("create_trait_node should succeed")];
+        let mut nodes = vec![generator
+            .create_trait_node(&trait_info)
+            .expect("create_trait_node should succeed")];
         let mut edges = Vec::new();
 
         // This should work since our test trait has low complexity
@@ -1616,8 +1700,14 @@ mod tests {
         let config = GraphConfig::default();
         let generator = TraitGraphGenerator::new(config).expect("expected valid value");
 
-        let nodes = vec![TraitGraphNode::new_trait("test".to_string(), "Test".to_string())];
-        let edges = vec![TraitGraphEdge::new_inheritance("a".to_string(), "b".to_string())];
+        let nodes = vec![TraitGraphNode::new_trait(
+            "test".to_string(),
+            "Test".to_string(),
+        )];
+        let edges = vec![TraitGraphEdge::new_inheritance(
+            "a".to_string(),
+            "b".to_string(),
+        )];
 
         let memory = generator.estimate_memory_usage(&nodes, &edges);
         assert!(memory > 0);
@@ -1684,14 +1774,17 @@ mod tests {
         let implementations = vec!["SmokeImpl".to_string()];
 
         let config = GraphConfig::default();
-        let generator = TraitGraphGenerator::new(config).expect("generator creation should succeed");
+        let generator =
+            TraitGraphGenerator::new(config).expect("generator creation should succeed");
 
         let graph = generator
             .generate_trait_graph(&trait_info, &implementations)
             .expect("graph generation should succeed for a well-formed rich TraitInfo");
 
         // The graph must validate (no dangling edges, no duplicate node IDs).
-        graph.validate().expect("generated graph should be internally consistent");
+        graph
+            .validate()
+            .expect("generated graph should be internally consistent");
 
         // Expect at least: the trait node itself, its supertrait, its
         // implementation, and its associated type.
@@ -1713,13 +1806,22 @@ mod tests {
             trait_node.metadata.visibility.as_deref(),
             Some("restricted(crate)")
         );
-        assert_eq!(trait_node.metadata.feature_flags, vec!["experimental".to_string()]);
+        assert_eq!(
+            trait_node.metadata.feature_flags,
+            vec!["experimental".to_string()]
+        );
 
         // Expect at least one edge for each relationship kind that was fed
         // in: inherits (supertrait), implements (implementation), and
         // associated-with (associated type).
-        assert!(graph.edges.iter().any(|e| e.edge_type == EdgeType::Inherits));
-        assert!(graph.edges.iter().any(|e| e.edge_type == EdgeType::Implements));
+        assert!(graph
+            .edges
+            .iter()
+            .any(|e| e.edge_type == EdgeType::Inherits));
+        assert!(graph
+            .edges
+            .iter()
+            .any(|e| e.edge_type == EdgeType::Implements));
         assert!(graph
             .edges
             .iter()

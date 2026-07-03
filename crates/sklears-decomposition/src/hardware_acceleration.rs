@@ -1056,8 +1056,8 @@ impl GpuAcceleration {
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
         let col_major: Vec<Float> = matrix.t().iter().copied().collect();
-        let mut a_buf =
-            DeviceBuffer::from_host(&col_major).map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+        let mut a_buf = DeviceBuffer::from_host(&col_major)
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
         let mut handle = SolverHandle::new(ctx.context())
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
@@ -1118,8 +1118,9 @@ impl GpuAcceleration {
                     "[GpuAcceleration] on-device eigendecomposition failed ({gpu_err}); \
                      falling back to CPU scirs2_linalg::eigh."
                 );
-                let (eigenvals, eigenvecs) = linalg_eigh(&matrix.view(), self.config.num_threads)
-                    .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+                let (eigenvals, eigenvecs) =
+                    linalg_eigh(&matrix.view(), self.config.num_threads)
+                        .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
                 Ok((eigenvals, eigenvecs))
             }
         }
@@ -1146,10 +1147,10 @@ impl GpuAcceleration {
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
         let col_major: Vec<Float> = matrix.t().iter().copied().collect();
-        let mut a_buf =
-            DeviceBuffer::from_host(&col_major).map_err(|e| SklearsError::NumericalError(e.to_string()))?;
-        let mut eigenvalues_buf =
-            DeviceBuffer::<Float>::zeroed(n).map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+        let mut a_buf = DeviceBuffer::from_host(&col_major)
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+        let mut eigenvalues_buf = DeviceBuffer::<Float>::zeroed(n)
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
         let mut handle = SolverHandle::new(ctx.context())
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 

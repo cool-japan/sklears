@@ -2,24 +2,24 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
+use super::super::security_types::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, SystemTime};
-use super::super::security_types::*;
 
 use super::functions::{average_quality, business_impact_from_severity, metric_value_as_f64};
-use super::types_9::{ImprovementOpportunity, KpiScore, MetricCollection, MetricType};
-use super::types::{CollectionMethod, KpiAnalysisResult, PerformanceMetricsResult, VarianceAnalysis};
 use super::macros::{
-    AggregationRule, BusinessImpactAssessor, CostAnalyzer, DataSource, EfficiencyCalculator,
-    EffectivenessAssessor, GoalAlignmentChecker, KpiDefinition, MetricDefinition,
-    MetricThreshold, MetricValue, OptimizationSuggester, PerformanceIndicator,
-    PerformanceTracker, ProductivityAnalyzer, QualityControl, QualityMeasurer,
-    RetentionPolicy, RoiCalculator, SamplingStrategy, TargetValue, ThresholdMonitor,
-    ThresholdStatus, TimestampedValue, TrendCalculator, TrendDirection, ValueAssessor,
-    VarianceAnalyzer,
+    AggregationRule, BusinessImpactAssessor, CostAnalyzer, DataSource, EffectivenessAssessor,
+    EfficiencyCalculator, GoalAlignmentChecker, KpiDefinition, MetricDefinition, MetricThreshold,
+    MetricValue, OptimizationSuggester, PerformanceIndicator, PerformanceTracker,
+    ProductivityAnalyzer, QualityControl, QualityMeasurer, RetentionPolicy, RoiCalculator,
+    SamplingStrategy, TargetValue, ThresholdMonitor, ThresholdStatus, TimestampedValue,
+    TrendCalculator, TrendDirection, ValueAssessor, VarianceAnalyzer,
 };
-
+use super::types::{
+    CollectionMethod, KpiAnalysisResult, PerformanceMetricsResult, VarianceAnalysis,
+};
+use super::types_9::{ImprovementOpportunity, KpiScore, MetricCollection, MetricType};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KpiAnalyzer {
@@ -39,16 +39,20 @@ impl KpiAnalyzer {
         context: &TraitUsageContext,
         metrics: &HashMap<String, MetricCollection>,
     ) -> Result<KpiAnalysisResult, SecurityMetricsError> {
-        let config_depth = self.kpi_definitions.len() + self.target_values.len()
-            + self.threshold_monitors.len() + self.trend_calculators.len()
-            + self.variance_analyzers.len() + self.performance_trackers.len()
-            + self.goal_alignment_checkers.len() + self.business_impact_assessors.len();
-        let (
-            mut kpi_scores,
-            mut target_achievement,
-            mut performance_trends,
-            mut variance_analysis,
-        ) = (HashMap::new(), HashMap::new(), HashMap::new(), HashMap::new());
+        let config_depth = self.kpi_definitions.len()
+            + self.target_values.len()
+            + self.threshold_monitors.len()
+            + self.trend_calculators.len()
+            + self.variance_analyzers.len()
+            + self.performance_trackers.len()
+            + self.goal_alignment_checkers.len()
+            + self.business_impact_assessors.len();
+        let (mut kpi_scores, mut target_achievement, mut performance_trends, mut variance_analysis) = (
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+        );
         for (name, collection) in metrics {
             let current = metric_value_as_f64(&collection.current_value);
             let target = collection
@@ -61,42 +65,38 @@ impl KpiAnalyzer {
             } else {
                 collection.quality_score
             };
-            kpi_scores
-                .insert(
-                    name.clone(),
-                    KpiScore {
-                        current_score: current,
-                        target_score: target,
-                        achievement_percentage: achievement * 100.0,
-                    },
-                );
+            kpi_scores.insert(
+                name.clone(),
+                KpiScore {
+                    current_score: current,
+                    target_score: target,
+                    achievement_percentage: achievement * 100.0,
+                },
+            );
             target_achievement.insert(name.clone(), achievement);
-            performance_trends
-                .insert(
-                    name.clone(),
-                    PerformanceTrend {
-                        direction: collection.trend_direction.clone(),
-                        magnitude: (current - target).abs(),
-                        period_days: 30,
+            performance_trends.insert(
+                name.clone(),
+                PerformanceTrend {
+                    direction: collection.trend_direction.clone(),
+                    magnitude: (current - target).abs(),
+                    period_days: 30,
+                },
+            );
+            variance_analysis.insert(
+                name.clone(),
+                VarianceAnalysis {
+                    expected_value: target,
+                    actual_value: current,
+                    variance_percentage: if target.abs() > f64::EPSILON {
+                        (current - target) / target.abs() * 100.0
+                    } else {
+                        0.0
                     },
-                );
-            variance_analysis
-                .insert(
-                    name.clone(),
-                    VarianceAnalysis {
-                        expected_value: target,
-                        actual_value: current,
-                        variance_percentage: if target.abs() > f64::EPSILON {
-                            (current - target) / target.abs() * 100.0
-                        } else {
-                            0.0
-                        },
-                    },
-                );
+                },
+            );
         }
-        let goal_alignment_score = (average_quality(metrics)
-            + config_depth.min(8) as f64 * 0.001)
-            .clamp(0.0, 1.0);
+        let goal_alignment_score =
+            (average_quality(metrics) + config_depth.min(8) as f64 * 0.001).clamp(0.0, 1.0);
         let business_impact_assessment = business_impact_from_severity(
             1.0 - goal_alignment_score,
             context.handles_personal_data,
@@ -152,29 +152,31 @@ impl PerformanceMeasurer {
         metrics: &HashMap<String, MetricCollection>,
     ) -> Result<PerformanceMetricsResult, SecurityMetricsError> {
         let config_depth = self.performance_indicators.len()
-            + self.efficiency_calculators.len() + self.effectiveness_assessors.len()
-            + self.productivity_analyzers.len() + self.quality_measurers.len()
-            + self.cost_analyzers.len() + self.roi_calculators.len()
-            + self.value_assessors.len() + self.optimization_suggesters.len();
-        let (
-            mut performance_indicators,
-            mut efficiency_metrics,
-            mut effectiveness_metrics,
-        ) = (HashMap::new(), HashMap::new(), HashMap::new());
-        let (mut productivity_metrics, mut quality_metrics, mut cost_metrics) = (
-            HashMap::new(),
-            HashMap::new(),
-            HashMap::new(),
-        );
+            + self.efficiency_calculators.len()
+            + self.effectiveness_assessors.len()
+            + self.productivity_analyzers.len()
+            + self.quality_measurers.len()
+            + self.cost_analyzers.len()
+            + self.roi_calculators.len()
+            + self.value_assessors.len()
+            + self.optimization_suggesters.len();
+        let (mut performance_indicators, mut efficiency_metrics, mut effectiveness_metrics) =
+            (HashMap::new(), HashMap::new(), HashMap::new());
+        let (mut productivity_metrics, mut quality_metrics, mut cost_metrics) =
+            (HashMap::new(), HashMap::new(), HashMap::new());
         let (mut roi_metrics, mut value_metrics) = (HashMap::new(), HashMap::new());
         for (name, collection) in metrics {
             let score = collection.quality_score * 100.0;
             performance_indicators.insert(name.clone(), score);
-            efficiency_metrics
-                .insert(
-                    name.clone(),
-                    score * if context.has_resource_limits { 1.0 } else { 0.85 },
-                );
+            efficiency_metrics.insert(
+                name.clone(),
+                score
+                    * if context.has_resource_limits {
+                        1.0
+                    } else {
+                        0.85
+                    },
+            );
             effectiveness_metrics.insert(name.clone(), score * 0.9);
             productivity_metrics.insert(name.clone(), score * 0.8);
             quality_metrics.insert(name.clone(), collection.quality_score * 100.0);
@@ -185,11 +187,13 @@ impl PerformanceMeasurer {
         let overall_performance_score = if performance_indicators.is_empty() {
             75.0
         } else {
-            performance_indicators.values().sum::<f64>()
-                / performance_indicators.len() as f64
+            performance_indicators.values().sum::<f64>() / performance_indicators.len() as f64
         };
         let optimization_recommendations = if overall_performance_score < 80.0 {
-            vec![format!("{}: review low-performing metrics", self.measurer_id)]
+            vec![format!(
+                "{}: review low-performing metrics",
+                self.measurer_id
+            )]
         } else {
             Vec::new()
         };
@@ -251,7 +255,8 @@ impl MetricCollector {
             collection_method: CollectionMethod::Automated,
             data_sources: vec![
                 DataSource::new("vulnerability_scanners"),
-                DataSource::new("cve_databases"), DataSource::new("security_tools"),
+                DataSource::new("cve_databases"),
+                DataSource::new("security_tools"),
             ],
             aggregation_rules: vec![
                 AggregationRule::new("count_by_severity"),
@@ -401,93 +406,158 @@ impl MetricCollector {
     }
     pub(super) fn initialize_vulnerability_metrics() -> Vec<MetricDefinition> {
         vec![
-            MetricDefinition { metric_name : "critical_vulnerabilities_count"
-            .to_string(), description : "Number of critical severity vulnerabilities"
-            .to_string(), unit : "count".to_string(), calculation_method : "count"
-            .to_string(), target_value : Some(MetricValue::Integer(0)), thresholds :
-            vec![MetricThreshold::new("warning", 5.0), MetricThreshold::new("critical",
-            10.0),], }, MetricDefinition { metric_name : "mean_time_to_remediation"
-            .to_string(), description : "Average time to remediate vulnerabilities"
-            .to_string(), unit : "hours".to_string(), calculation_method : "average"
-            .to_string(), target_value : Some(MetricValue::Float(72.0)), thresholds :
-            vec![MetricThreshold::new("warning", 120.0), MetricThreshold::new("critical",
-            240.0),], },
+            MetricDefinition {
+                metric_name: "critical_vulnerabilities_count".to_string(),
+                description: "Number of critical severity vulnerabilities".to_string(),
+                unit: "count".to_string(),
+                calculation_method: "count".to_string(),
+                target_value: Some(MetricValue::Integer(0)),
+                thresholds: vec![
+                    MetricThreshold::new("warning", 5.0),
+                    MetricThreshold::new("critical", 10.0),
+                ],
+            },
+            MetricDefinition {
+                metric_name: "mean_time_to_remediation".to_string(),
+                description: "Average time to remediate vulnerabilities".to_string(),
+                unit: "hours".to_string(),
+                calculation_method: "average".to_string(),
+                target_value: Some(MetricValue::Float(72.0)),
+                thresholds: vec![
+                    MetricThreshold::new("warning", 120.0),
+                    MetricThreshold::new("critical", 240.0),
+                ],
+            },
         ]
     }
     pub(super) fn initialize_threat_metrics() -> Vec<MetricDefinition> {
         vec![
-            MetricDefinition { metric_name : "active_threats_count".to_string(),
-            description : "Number of active threats detected".to_string(), unit : "count"
-            .to_string(), calculation_method : "count".to_string(), target_value :
-            Some(MetricValue::Integer(0)), thresholds :
-            vec![MetricThreshold::new("warning", 10.0), MetricThreshold::new("critical",
-            25.0),], }, MetricDefinition { metric_name : "threat_detection_rate"
-            .to_string(), description : "Percentage of threats successfully detected"
-            .to_string(), unit : "percentage".to_string(), calculation_method :
-            "percentage".to_string(), target_value : Some(MetricValue::Float(95.0)),
-            thresholds : vec![MetricThreshold::new("warning", 90.0),
-            MetricThreshold::new("critical", 85.0),], },
+            MetricDefinition {
+                metric_name: "active_threats_count".to_string(),
+                description: "Number of active threats detected".to_string(),
+                unit: "count".to_string(),
+                calculation_method: "count".to_string(),
+                target_value: Some(MetricValue::Integer(0)),
+                thresholds: vec![
+                    MetricThreshold::new("warning", 10.0),
+                    MetricThreshold::new("critical", 25.0),
+                ],
+            },
+            MetricDefinition {
+                metric_name: "threat_detection_rate".to_string(),
+                description: "Percentage of threats successfully detected".to_string(),
+                unit: "percentage".to_string(),
+                calculation_method: "percentage".to_string(),
+                target_value: Some(MetricValue::Float(95.0)),
+                thresholds: vec![
+                    MetricThreshold::new("warning", 90.0),
+                    MetricThreshold::new("critical", 85.0),
+                ],
+            },
         ]
     }
     pub(super) fn initialize_risk_metrics() -> Vec<MetricDefinition> {
         vec![
-            MetricDefinition { metric_name : "overall_risk_score".to_string(),
-            description : "Overall organizational risk score".to_string(), unit : "score"
-            .to_string(), calculation_method : "weighted_average".to_string(),
-            target_value : Some(MetricValue::Float(2.0)), thresholds :
-            vec![MetricThreshold::new("warning", 3.0), MetricThreshold::new("critical",
-            4.0),], }, MetricDefinition { metric_name : "high_risk_issues_count"
-            .to_string(), description : "Number of high-risk issues identified"
-            .to_string(), unit : "count".to_string(), calculation_method : "count"
-            .to_string(), target_value : Some(MetricValue::Integer(0)), thresholds :
-            vec![MetricThreshold::new("warning", 3.0), MetricThreshold::new("critical",
-            7.0),], },
+            MetricDefinition {
+                metric_name: "overall_risk_score".to_string(),
+                description: "Overall organizational risk score".to_string(),
+                unit: "score".to_string(),
+                calculation_method: "weighted_average".to_string(),
+                target_value: Some(MetricValue::Float(2.0)),
+                thresholds: vec![
+                    MetricThreshold::new("warning", 3.0),
+                    MetricThreshold::new("critical", 4.0),
+                ],
+            },
+            MetricDefinition {
+                metric_name: "high_risk_issues_count".to_string(),
+                description: "Number of high-risk issues identified".to_string(),
+                unit: "count".to_string(),
+                calculation_method: "count".to_string(),
+                target_value: Some(MetricValue::Integer(0)),
+                thresholds: vec![
+                    MetricThreshold::new("warning", 3.0),
+                    MetricThreshold::new("critical", 7.0),
+                ],
+            },
         ]
     }
     pub(super) fn initialize_compliance_metrics() -> Vec<MetricDefinition> {
         vec![
-            MetricDefinition { metric_name : "overall_compliance_score".to_string(),
-            description : "Overall compliance percentage across all frameworks"
-            .to_string(), unit : "percentage".to_string(), calculation_method :
-            "weighted_average".to_string(), target_value :
-            Some(MetricValue::Float(95.0)), thresholds :
-            vec![MetricThreshold::new("warning", 90.0), MetricThreshold::new("critical",
-            85.0),], }, MetricDefinition { metric_name : "audit_findings_count"
-            .to_string(), description : "Number of audit findings requiring remediation"
-            .to_string(), unit : "count".to_string(), calculation_method : "count"
-            .to_string(), target_value : Some(MetricValue::Integer(0)), thresholds :
-            vec![MetricThreshold::new("warning", 5.0), MetricThreshold::new("critical",
-            15.0),], },
+            MetricDefinition {
+                metric_name: "overall_compliance_score".to_string(),
+                description: "Overall compliance percentage across all frameworks".to_string(),
+                unit: "percentage".to_string(),
+                calculation_method: "weighted_average".to_string(),
+                target_value: Some(MetricValue::Float(95.0)),
+                thresholds: vec![
+                    MetricThreshold::new("warning", 90.0),
+                    MetricThreshold::new("critical", 85.0),
+                ],
+            },
+            MetricDefinition {
+                metric_name: "audit_findings_count".to_string(),
+                description: "Number of audit findings requiring remediation".to_string(),
+                unit: "count".to_string(),
+                calculation_method: "count".to_string(),
+                target_value: Some(MetricValue::Integer(0)),
+                thresholds: vec![
+                    MetricThreshold::new("warning", 5.0),
+                    MetricThreshold::new("critical", 15.0),
+                ],
+            },
         ]
     }
     pub(super) fn initialize_performance_metrics() -> Vec<MetricDefinition> {
         vec![
-            MetricDefinition { metric_name : "system_availability".to_string(),
-            description : "System availability percentage".to_string(), unit :
-            "percentage".to_string(), calculation_method : "availability".to_string(),
-            target_value : Some(MetricValue::Float(99.9)), thresholds :
-            vec![MetricThreshold::new("warning", 99.5), MetricThreshold::new("critical",
-            99.0),], }, MetricDefinition { metric_name : "security_response_time"
-            .to_string(), description : "Average response time for security incidents"
-            .to_string(), unit : "minutes".to_string(), calculation_method : "average"
-            .to_string(), target_value : Some(MetricValue::Float(15.0)), thresholds :
-            vec![MetricThreshold::new("warning", 30.0), MetricThreshold::new("critical",
-            60.0),], },
+            MetricDefinition {
+                metric_name: "system_availability".to_string(),
+                description: "System availability percentage".to_string(),
+                unit: "percentage".to_string(),
+                calculation_method: "availability".to_string(),
+                target_value: Some(MetricValue::Float(99.9)),
+                thresholds: vec![
+                    MetricThreshold::new("warning", 99.5),
+                    MetricThreshold::new("critical", 99.0),
+                ],
+            },
+            MetricDefinition {
+                metric_name: "security_response_time".to_string(),
+                description: "Average response time for security incidents".to_string(),
+                unit: "minutes".to_string(),
+                calculation_method: "average".to_string(),
+                target_value: Some(MetricValue::Float(15.0)),
+                thresholds: vec![
+                    MetricThreshold::new("warning", 30.0),
+                    MetricThreshold::new("critical", 60.0),
+                ],
+            },
         ]
     }
     pub(super) fn initialize_operational_metrics() -> Vec<MetricDefinition> {
         vec![
-            MetricDefinition { metric_name : "security_incidents_count".to_string(),
-            description : "Number of security incidents reported".to_string(), unit :
-            "count".to_string(), calculation_method : "count".to_string(), target_value :
-            Some(MetricValue::Integer(0)), thresholds :
-            vec![MetricThreshold::new("warning", 5.0), MetricThreshold::new("critical",
-            15.0),], }, MetricDefinition { metric_name : "incident_resolution_time"
-            .to_string(), description : "Average time to resolve security incidents"
-            .to_string(), unit : "hours".to_string(), calculation_method : "average"
-            .to_string(), target_value : Some(MetricValue::Float(4.0)), thresholds :
-            vec![MetricThreshold::new("warning", 8.0), MetricThreshold::new("critical",
-            24.0),], },
+            MetricDefinition {
+                metric_name: "security_incidents_count".to_string(),
+                description: "Number of security incidents reported".to_string(),
+                unit: "count".to_string(),
+                calculation_method: "count".to_string(),
+                target_value: Some(MetricValue::Integer(0)),
+                thresholds: vec![
+                    MetricThreshold::new("warning", 5.0),
+                    MetricThreshold::new("critical", 15.0),
+                ],
+            },
+            MetricDefinition {
+                metric_name: "incident_resolution_time".to_string(),
+                description: "Average time to resolve security incidents".to_string(),
+                unit: "hours".to_string(),
+                calculation_method: "average".to_string(),
+                target_value: Some(MetricValue::Float(4.0)),
+                thresholds: vec![
+                    MetricThreshold::new("warning", 8.0),
+                    MetricThreshold::new("critical", 24.0),
+                ],
+            },
         ]
     }
 }
@@ -498,7 +568,8 @@ impl MetricCollector {
     ) -> Result<HashMap<String, MetricCollection>, SecurityMetricsError> {
         let mut collections = HashMap::new();
         let risk_signal = self.context_risk_signal(context);
-        let source_confidence = (self.data_sources.len() + self.aggregation_rules.len()
+        let source_confidence = (self.data_sources.len()
+            + self.aggregation_rules.len()
             + self.quality_controls.len()) as f64;
         let collection_mode = match self.collection_method {
             CollectionMethod::RealTime | CollectionMethod::EventDriven => "live",
@@ -507,18 +578,18 @@ impl MetricCollector {
         };
         for definition in &self.metric_definitions {
             let current_value = self.derive_current_value(definition, risk_signal);
-            let threshold_status = Self::evaluate_threshold(
-                &current_value,
-                &definition.thresholds,
-            );
-            let quality_score = (0.6 + source_confidence * 0.02 - risk_signal * 0.1)
-                .clamp(0.3, 0.99);
+            let threshold_status = Self::evaluate_threshold(&current_value, &definition.thresholds);
+            let quality_score =
+                (0.6 + source_confidence * 0.02 - risk_signal * 0.1).clamp(0.3, 0.99);
             let trend_direction = match self.sampling_strategy {
                 _ if risk_signal > 0.5
                     && matches!(
-                        self.sampling_strategy, SamplingStrategy::Continuous |
-                        SamplingStrategy::EventDriven
-                    ) => TrendDirection::Increasing,
+                        self.sampling_strategy,
+                        SamplingStrategy::Continuous | SamplingStrategy::EventDriven
+                    ) =>
+                {
+                    TrendDirection::Increasing
+                }
                 _ if risk_signal > 0.5 => TrendDirection::Volatile,
                 _ => TrendDirection::Stable,
             };
@@ -531,20 +602,17 @@ impl MetricCollector {
                 ),
                 (
                     "retention_days".to_string(),
-                    (self.retention_policy.retention_duration.as_secs() / 86400)
-                        .to_string(),
+                    (self.retention_policy.retention_duration.as_secs() / 86400).to_string(),
                 ),
             ]);
             let collection = MetricCollection {
                 metric_name: definition.metric_name.clone(),
                 metric_type: self.metric_type.clone(),
                 current_value: current_value.clone(),
-                historical_values: VecDeque::from(
-                    vec![
-                        TimestampedValue { timestamp : SystemTime::now(), value :
-                        current_value, }
-                    ],
-                ),
+                historical_values: VecDeque::from(vec![TimestampedValue {
+                    timestamp: SystemTime::now(),
+                    value: current_value,
+                }]),
                 target_value: definition.target_value.clone(),
                 threshold_status,
                 trend_direction,
@@ -601,9 +669,7 @@ impl MetricCollector {
                 }
             }
             MetricType::Performance => {
-                if context.has_resource_intensive_operations
-                    && !context.has_resource_limits
-                {
+                if context.has_resource_intensive_operations && !context.has_resource_limits {
                     score += 0.5;
                 }
                 if context.has_unbounded_recursion {
@@ -633,9 +699,7 @@ impl MetricCollector {
     ) -> MetricValue {
         match &definition.target_value {
             Some(MetricValue::Integer(target)) => {
-                MetricValue::Integer(
-                    (*target as f64 + risk_signal * 10.0).round() as i64,
-                )
+                MetricValue::Integer((*target as f64 + risk_signal * 10.0).round() as i64)
             }
             Some(MetricValue::Float(target)) => {
                 MetricValue::Float(target + risk_signal * target.abs().max(1.0) * 0.2)

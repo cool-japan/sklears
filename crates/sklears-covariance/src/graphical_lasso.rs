@@ -631,7 +631,7 @@ mod tests {
             for j in 0..n {
                 let diff = (heavily_regularized.get_covariance()[[i, j]]
                     - empirical.get_covariance()[[i, j]])
-                    .abs();
+                .abs();
                 max_abs_diff = max_abs_diff.max(diff);
             }
         }

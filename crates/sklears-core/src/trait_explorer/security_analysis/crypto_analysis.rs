@@ -244,7 +244,6 @@ pub struct SideChannelAnalysisResult {
     pub mitigation_recommendations: Vec<SideChannelMitigationRecommendation>,
 }
 
-
 impl CryptographicAnalyzer {
     pub fn new() -> Self {
         Self {
@@ -927,7 +926,6 @@ struct CryptoSubAnalysesRef<'a> {
     quantum_resistance: &'a QuantumResistanceAnalysisResult,
     implementation: &'a ImplementationAnalysisResult,
 }
-
 
 impl Default for CryptographicAnalyzer {
     fn default() -> Self {

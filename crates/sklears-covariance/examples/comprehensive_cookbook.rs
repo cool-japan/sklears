@@ -336,10 +336,8 @@ fn comprehensive_selector() -> AutoCovarianceSelector<f64> {
     selector.add_candidate(
         "GraphicalLasso(0.05)".to_string(),
         Box::new(|_chars: &DataCharacteristics| {
-            Ok(
-                Box::new(GraphicalLassoArrayEstimator { alpha: 0.05 })
-                    as Box<dyn ArrayEstimator<f64>>,
-            )
+            Ok(Box::new(GraphicalLassoArrayEstimator { alpha: 0.05 })
+                as Box<dyn ArrayEstimator<f64>>)
         }),
         DataCharacteristics::default(),
         ComputationalComplexity::Cubic,
@@ -567,10 +565,11 @@ fn recipe_production_deployment() -> SklResult<()> {
     );
 
     println!("\nStep 1: robust model selection");
-    let selector = comprehensive_selector().selection_strategy(SelectionStrategy::CrossValidation {
-        scoring: ModelSelectionScoring::CrossValidationStability,
-        selection_rule: SelectionRule::OneStandardError,
-    });
+    let selector =
+        comprehensive_selector().selection_strategy(SelectionStrategy::CrossValidation {
+            scoring: ModelSelectionScoring::CrossValidationStability,
+            selection_rule: SelectionRule::OneStandardError,
+        });
     let prod_result = selector.select_best(&production_data.view())?;
 
     println!("  Selected estimator: {}", prod_result.best_estimator.name);
@@ -660,13 +659,12 @@ fn recipe_troubleshooting() -> SklResult<()> {
         "  Condition number: {:.2e}",
         diagnostics.properties.condition_number
     );
-    println!("  Quality assessment label: {:?}", diagnostics.quality_assessment);
     println!(
-        "  (the label is a coarse, multi-factor summary -- always sanity-check the"
+        "  Quality assessment label: {:?}",
+        diagnostics.quality_assessment
     );
-    println!(
-        "  condition number and other raw diagnostics directly rather than relying"
-    );
+    println!("  (the label is a coarse, multi-factor summary -- always sanity-check the");
+    println!("  condition number and other raw diagnostics directly rather than relying");
     println!("  on the single label alone, as this example's numbers do.)");
     if diagnostics.properties.condition_number > 1e6 {
         println!("  Diagnosis: one feature's variance is orders of magnitude");
@@ -708,7 +706,10 @@ fn recipe_troubleshooting() -> SklResult<()> {
         "  EmpiricalCovariance: {:.3}ms mean",
         empirical_bench.mean_time_ms()
     );
-    println!("  GraphicalLasso:      {:.3}ms mean", gl_bench.mean_time_ms());
+    println!(
+        "  GraphicalLasso:      {:.3}ms mean",
+        gl_bench.mean_time_ms()
+    );
     if gl_bench.mean_time_ms() > empirical_bench.mean_time_ms() {
         println!("  GraphicalLasso is slower here; prefer it when you specifically");
         println!("  need a sparse precision matrix, not as a default choice.");

@@ -49,4 +49,3 @@ impl std::fmt::Display for SecurityMetricsError {
 }
 
 impl std::error::Error for SecurityMetricsError {}
-

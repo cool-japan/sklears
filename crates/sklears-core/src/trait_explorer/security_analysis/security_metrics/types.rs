@@ -2,13 +2,11 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
+use super::super::security_types::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
-use super::super::security_types::*;
 
-use super::types_9::{AnomalyDetectionResult, BehavioralChange, ChangePoint, ComplianceMetricsResult, CorrelationFinding, DashboardPerformanceStats, EarlyWarning, ExportData, ForecastResult, ImprovementOpportunity, KpiScore, MetricCollection, MetricType, SeasonalityFinding, TrendPattern};
-use super::types_7::{ClusteringAnomaly, DashboardConfiguration, DetectedAnomaly, MitigationRecommendation, PerformanceTrend, RealTimeUpdate, RegressionModel, SecurityMetricsError};
 use super::functions::{average_quality, metric_value_as_f64};
 use super::macros::{
     AggregationMethod, AlertGenerator, AnomalyAlgorithm, AuditPreparednessAssessor,
@@ -16,15 +14,23 @@ use super::macros::{
     ClusteringDetector, ComplianceScorer, ControlEffectivenessMeasurer, EscalationManager,
     EventCorrelator, ForecastingEngine, GapAnalyzer, GoalTracker, HistoricalComparison,
     IsolationForestDetector, MachineLearningDetector, MetricsAggregator, NotificationSystem,
-    OutlierDetector, PatternRecognizer, PredictiveAnalytic, RealTimeStream,
-    RegressionAnalyzer, RegulatoryChangeTracker, RemediationTracker, ReportGenerator,
-    RequirementTracker, ResponseCoordinator, ScorecardTemplate, ScoringAlgorithm,
-    SeasonalityDetector, StakeholderView, StatisticalAnomalyDetector, StatisticalModel,
-    StreamProcessor, ThresholdAnomalyDetector, ThresholdChecker, ThresholdStatus,
-    TimeSeriesAnalyzer, TrendAlgorithm, TrendDirection, VisualizationEngine,
-    WeightCalculator,
+    OutlierDetector, PatternRecognizer, PredictiveAnalytic, RealTimeStream, RegressionAnalyzer,
+    RegulatoryChangeTracker, RemediationTracker, ReportGenerator, RequirementTracker,
+    ResponseCoordinator, ScorecardTemplate, ScoringAlgorithm, SeasonalityDetector, StakeholderView,
+    StatisticalAnomalyDetector, StatisticalModel, StreamProcessor, ThresholdAnomalyDetector,
+    ThresholdChecker, ThresholdStatus, TimeSeriesAnalyzer, TrendAlgorithm, TrendDirection,
+    VisualizationEngine, WeightCalculator,
 };
-
+use super::types_7::{
+    ClusteringAnomaly, DashboardConfiguration, DetectedAnomaly, MitigationRecommendation,
+    PerformanceTrend, RealTimeUpdate, RegressionModel, SecurityMetricsError,
+};
+use super::types_9::{
+    AnomalyDetectionResult, BehavioralChange, ChangePoint, ComplianceMetricsResult,
+    CorrelationFinding, DashboardPerformanceStats, EarlyWarning, ExportData, ForecastResult,
+    ImprovementOpportunity, KpiScore, MetricCollection, MetricType, SeasonalityFinding,
+    TrendPattern,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BaselineDeviation {
@@ -90,31 +96,28 @@ impl ScorecardGenerator {
         context: &TraitUsageContext,
         metrics: &HashMap<String, MetricCollection>,
     ) -> Result<SecurityScorecard, SecurityMetricsError> {
-        let config_depth = self.scorecard_templates.len() + self.scoring_algorithms.len()
-            + self.weight_calculators.len() + self.aggregation_methods.len()
-            + self.visualization_engines.len() + self.report_generators.len()
-            + self.stakeholder_views.len() + self.historical_comparisons.len()
+        let config_depth = self.scorecard_templates.len()
+            + self.scoring_algorithms.len()
+            + self.weight_calculators.len()
+            + self.aggregation_methods.len()
+            + self.visualization_engines.len()
+            + self.report_generators.len()
+            + self.stakeholder_views.len()
+            + self.historical_comparisons.len()
             + self.goal_tracking.len();
-        let (mut category_scores, mut weighted_scores) = (
-            HashMap::new(),
-            HashMap::new(),
-        );
-        let (mut performance_indicators, mut trend_indicators, mut risk_indicators) = (
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-        );
+        let (mut category_scores, mut weighted_scores) = (HashMap::new(), HashMap::new());
+        let (mut performance_indicators, mut trend_indicators, mut risk_indicators) =
+            (Vec::new(), Vec::new(), Vec::new());
         for (name, collection) in metrics {
             let score = collection.quality_score * 10.0;
             category_scores.insert(name.clone(), score);
-            weighted_scores
-                .insert(name.clone(), score * (1.0 + config_depth as f64 * 0.001));
+            weighted_scores.insert(name.clone(), score * (1.0 + config_depth as f64 * 0.001));
             performance_indicators.push(format!("{}: {score:.1}", self.generator_id));
             trend_indicators.push(format!("{name}: {:?}", collection.trend_direction));
             if context.handles_sensitive_data
                 && matches!(
-                    collection.threshold_status, ThresholdStatus::Warning |
-                    ThresholdStatus::Critical
+                    collection.threshold_status,
+                    ThresholdStatus::Warning | ThresholdStatus::Critical
                 )
             {
                 risk_indicators.push(name.clone());
@@ -125,7 +128,11 @@ impl ScorecardGenerator {
         } else {
             weighted_scores.values().sum::<f64>() / weighted_scores.len() as f64
         };
-        let grade = if overall_score >= 8.0 { "B".to_string() } else { "C".to_string() };
+        let grade = if overall_score >= 8.0 {
+            "B".to_string()
+        } else {
+            "C".to_string()
+        };
         let improvement_areas = risk_indicators.clone();
         let historical_comparison = category_scores.clone();
         Ok(SecurityScorecard {
@@ -237,45 +244,53 @@ impl ComplianceTracker {
     ) -> Result<ComplianceMetricsResult, SecurityMetricsError> {
         let config_depth = self.requirement_trackers.len()
             + self.control_effectiveness_measurers.len()
-            + self.audit_preparedness_assessors.len() + self.gap_analyzers.len()
-            + self.remediation_trackers.len() + self.certification_monitors.len()
-            + self.regulatory_change_trackers.len() + self.compliance_scorers.len();
-        let (
-            mut framework_compliance,
-            mut requirement_status,
-            mut control_effectiveness,
-        ) = (HashMap::new(), HashMap::new(), HashMap::new());
-        let (mut audit_readiness, mut remediation_progress, mut certification_status) = (
-            HashMap::new(),
-            HashMap::new(),
-            HashMap::new(),
-        );
+            + self.audit_preparedness_assessors.len()
+            + self.gap_analyzers.len()
+            + self.remediation_trackers.len()
+            + self.certification_monitors.len()
+            + self.regulatory_change_trackers.len()
+            + self.compliance_scorers.len();
+        let (mut framework_compliance, mut requirement_status, mut control_effectiveness) =
+            (HashMap::new(), HashMap::new(), HashMap::new());
+        let (mut audit_readiness, mut remediation_progress, mut certification_status) =
+            (HashMap::new(), HashMap::new(), HashMap::new());
         let mut compliance_gaps = Vec::new();
         for framework in &self.compliance_frameworks {
-            let score: f64 = if context.has_audit_logging { 90.0 } else { 65.0 };
+            let score: f64 = if context.has_audit_logging {
+                90.0
+            } else {
+                65.0
+            };
             framework_compliance.insert(framework.clone(), score);
-            requirement_status
-                .insert(
-                    framework.clone(),
-                    if score >= 80.0 { "met".to_string() } else { "gap".to_string() },
-                );
-            control_effectiveness
-                .insert(framework.clone(), score * (1.0 + config_depth as f64 * 0.005));
-            audit_readiness
-                .insert(
-                    framework.clone(),
-                    if context.has_audit_logging { 95.0 } else { 60.0 },
-                );
+            requirement_status.insert(
+                framework.clone(),
+                if score >= 80.0 {
+                    "met".to_string()
+                } else {
+                    "gap".to_string()
+                },
+            );
+            control_effectiveness.insert(
+                framework.clone(),
+                score * (1.0 + config_depth as f64 * 0.005),
+            );
+            audit_readiness.insert(
+                framework.clone(),
+                if context.has_audit_logging {
+                    95.0
+                } else {
+                    60.0
+                },
+            );
             remediation_progress.insert(framework.clone(), 100.0 - score);
-            certification_status
-                .insert(
-                    framework.clone(),
-                    if score >= 90.0 {
-                        "certified".to_string()
-                    } else {
-                        "in_progress".to_string()
-                    },
-                );
+            certification_status.insert(
+                framework.clone(),
+                if score >= 90.0 {
+                    "certified".to_string()
+                } else {
+                    "in_progress".to_string()
+                },
+            );
             if score < 80.0 {
                 compliance_gaps.push(format!("{}: {framework}", self.tracker_id));
             }
@@ -288,8 +303,7 @@ impl ComplianceTracker {
         let overall_compliance_score = if framework_compliance.is_empty() {
             80.0
         } else {
-            framework_compliance.values().sum::<f64>()
-                / framework_compliance.len() as f64
+            framework_compliance.values().sum::<f64>() / framework_compliance.len() as f64
         };
         Ok(ComplianceMetricsResult {
             framework_compliance,
@@ -352,78 +366,75 @@ impl TrendAnalyzer {
         context: &TraitUsageContext,
         metrics: &HashMap<String, MetricCollection>,
     ) -> Result<TrendAnalysisResult, SecurityMetricsError> {
-        let config_depth = self.trend_algorithms.len() + self.statistical_models.len()
-            + self.forecasting_engines.len() + self.seasonality_detectors.len()
-            + self.change_point_detectors.len() + self.regression_analyzers.len()
-            + self.time_series_analyzers.len() + self.pattern_recognizers.len()
+        let config_depth = self.trend_algorithms.len()
+            + self.statistical_models.len()
+            + self.forecasting_engines.len()
+            + self.seasonality_detectors.len()
+            + self.change_point_detectors.len()
+            + self.regression_analyzers.len()
+            + self.time_series_analyzers.len()
+            + self.pattern_recognizers.len()
             + self.predictive_analytics.len();
-        let (
-            mut trend_patterns,
-            mut statistical_significance,
-            mut forecasting_results,
-        ) = (HashMap::new(), HashMap::new(), HashMap::new());
+        let (mut trend_patterns, mut statistical_significance, mut forecasting_results) =
+            (HashMap::new(), HashMap::new(), HashMap::new());
         let (
             mut seasonality_findings,
             mut change_points,
             mut regression_models,
             mut predictive_accuracy,
-        ) = (HashMap::new(), HashMap::new(), HashMap::new(), HashMap::new());
+        ) = (
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+        );
         for (name, collection) in metrics {
             let value = metric_value_as_f64(&collection.current_value);
-            trend_patterns
-                .insert(
-                    name.clone(),
-                    TrendPattern {
-                        pattern_type: format!(
-                            "{}:{:?}", self.analyzer_id, collection.trend_direction
-                        ),
-                        strength: collection.quality_score,
-                    },
-                );
-            statistical_significance
-                .insert(
-                    name.clone(),
-                    (config_depth as f64 * 0.01 + collection.quality_score * 0.1)
-                        .min(1.0),
-                );
-            forecasting_results
-                .insert(
-                    name.clone(),
-                    ForecastResult {
-                        forecasted_value: value
-                            * (1.0
-                                + if context.has_resource_intensive_operations {
-                                    0.1
-                                } else {
-                                    0.02
-                                }),
-                        confidence: collection.quality_score,
-                    },
-                );
-            seasonality_findings
-                .insert(
-                    name.clone(),
-                    SeasonalityFinding {
-                        period_days: 7,
-                        amplitude: (value * 0.05).abs(),
-                    },
-                );
-            change_points
-                .insert(
-                    name.clone(),
-                    vec![
-                        ChangePoint { timestamp : SystemTime::now(), magnitude : value *
-                        0.01, }
-                    ],
-                );
-            regression_models
-                .insert(
-                    name.clone(),
-                    RegressionModel {
-                        model_type: "linear".to_string(),
-                        r_squared: collection.quality_score,
-                    },
-                );
+            trend_patterns.insert(
+                name.clone(),
+                TrendPattern {
+                    pattern_type: format!("{}:{:?}", self.analyzer_id, collection.trend_direction),
+                    strength: collection.quality_score,
+                },
+            );
+            statistical_significance.insert(
+                name.clone(),
+                (config_depth as f64 * 0.01 + collection.quality_score * 0.1).min(1.0),
+            );
+            forecasting_results.insert(
+                name.clone(),
+                ForecastResult {
+                    forecasted_value: value
+                        * (1.0
+                            + if context.has_resource_intensive_operations {
+                                0.1
+                            } else {
+                                0.02
+                            }),
+                    confidence: collection.quality_score,
+                },
+            );
+            seasonality_findings.insert(
+                name.clone(),
+                SeasonalityFinding {
+                    period_days: 7,
+                    amplitude: (value * 0.05).abs(),
+                },
+            );
+            change_points.insert(
+                name.clone(),
+                vec![ChangePoint {
+                    timestamp: SystemTime::now(),
+                    magnitude: value * 0.01,
+                }],
+            );
+            regression_models.insert(
+                name.clone(),
+                RegressionModel {
+                    model_type: "linear".to_string(),
+                    r_squared: collection.quality_score,
+                },
+            );
             predictive_accuracy.insert(name.clone(), collection.quality_score);
         }
         Ok(TrendAnalysisResult {
@@ -460,48 +471,49 @@ impl RealTimeMonitor {
         &self,
         context: &TraitUsageContext,
     ) -> Result<RealTimeStatus, SecurityMetricsError> {
-        let config_depth = self.real_time_streams.len() + self.stream_processors.len()
-            + self.event_correlators.len() + self.threshold_checkers.len()
-            + self.alert_generators.len() + self.notification_systems.len()
-            + self.escalation_managers.len() + self.response_coordinators.len()
+        let config_depth = self.real_time_streams.len()
+            + self.stream_processors.len()
+            + self.event_correlators.len()
+            + self.threshold_checkers.len()
+            + self.alert_generators.len()
+            + self.notification_systems.len()
+            + self.escalation_managers.len()
+            + self.response_coordinators.len()
             + self.metrics_aggregators.len();
-        let (mut real_time_metrics, mut stream_health, mut system_status) = (
-            HashMap::new(),
-            HashMap::new(),
-            HashMap::new(),
-        );
-        let (mut throughput_metrics, mut latency_metrics) = (
-            HashMap::new(),
-            HashMap::new(),
-        );
+        let (mut real_time_metrics, mut stream_health, mut system_status) =
+            (HashMap::new(), HashMap::new(), HashMap::new());
+        let (mut throughput_metrics, mut latency_metrics) = (HashMap::new(), HashMap::new());
         let mut active_alerts = Vec::new();
         real_time_metrics.insert(self.monitor_id.clone(), config_depth as f64);
-        stream_health
-            .insert(
-                self.monitor_id.clone(),
-                if context.has_resource_limits { 0.95 } else { 0.7 },
-            );
+        stream_health.insert(
+            self.monitor_id.clone(),
+            if context.has_resource_limits {
+                0.95
+            } else {
+                0.7
+            },
+        );
         system_status.insert(self.monitor_id.clone(), "operational".to_string());
         throughput_metrics.insert(self.monitor_id.clone(), 100.0 + config_depth as f64);
-        latency_metrics
-            .insert(
-                self.monitor_id.clone(),
-                if context.has_resource_intensive_operations { 25.0 } else { 5.0 },
-            );
+        latency_metrics.insert(
+            self.monitor_id.clone(),
+            if context.has_resource_intensive_operations {
+                25.0
+            } else {
+                5.0
+            },
+        );
         if context.requires_elevated_privileges && !context.has_access_controls {
-            active_alerts
-                .push(
-                    format!(
-                        "{}: elevated privileges without access controls", self
-                        .monitor_id
-                    ),
-                );
+            active_alerts.push(format!(
+                "{}: elevated privileges without access controls",
+                self.monitor_id
+            ));
         }
-        let overall_health_score = stream_health.values().sum::<f64>()
-            / stream_health.len().max(1) as f64;
+        let overall_health_score =
+            stream_health.values().sum::<f64>() / stream_health.len().max(1) as f64;
         let performance_summary = format!(
-            "{config_depth} streams monitored, throughput baseline {:.1}", 100.0 +
-            config_depth as f64
+            "{config_depth} streams monitored, throughput baseline {:.1}",
+            100.0 + config_depth as f64
         );
         Ok(RealTimeStatus {
             real_time_metrics,
@@ -592,25 +604,19 @@ impl AnomalyDetector {
         metrics: &HashMap<String, MetricCollection>,
     ) -> Result<AnomalyDetectionResult, SecurityMetricsError> {
         let config_depth = self.anomaly_algorithms.len()
-            + self.baseline_calculators.len() + self.outlier_detectors.len()
-            + self.behavioral_analyzers.len() + self.statistical_anomaly_detectors.len()
+            + self.baseline_calculators.len()
+            + self.outlier_detectors.len()
+            + self.behavioral_analyzers.len()
+            + self.statistical_anomaly_detectors.len()
             + self.machine_learning_detectors.len()
-            + self.threshold_anomaly_detectors.len() + self.clustering_detectors.len()
+            + self.threshold_anomaly_detectors.len()
+            + self.clustering_detectors.len()
             + self.isolation_forest_detectors.len();
-        let (mut detected_anomalies, mut behavioral_changes, mut statistical_outliers) = (
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-        );
-        let (
-            mut machine_learning_anomalies,
-            mut clustering_anomalies,
-            mut anomaly_correlations,
-        ) = (Vec::new(), Vec::new(), Vec::new());
-        let (mut anomaly_scores, mut baseline_deviations) = (
-            HashMap::new(),
-            HashMap::new(),
-        );
+        let (mut detected_anomalies, mut behavioral_changes, mut statistical_outliers) =
+            (Vec::new(), Vec::new(), Vec::new());
+        let (mut machine_learning_anomalies, mut clustering_anomalies, mut anomaly_correlations) =
+            (Vec::new(), Vec::new(), Vec::new());
+        let (mut anomaly_scores, mut baseline_deviations) = (HashMap::new(), HashMap::new());
         for (name, collection) in metrics {
             let value = metric_value_as_f64(&collection.current_value);
             let target = collection
@@ -624,62 +630,54 @@ impl AnomalyDetector {
                 0.0
             };
             anomaly_scores.insert(name.clone(), deviation);
-            baseline_deviations
-                .insert(
-                    name.clone(),
-                    BaselineDeviation {
-                        expected: target,
-                        observed: value,
-                        deviation_percentage: deviation * 100.0,
-                    },
-                );
-            if deviation > 0.25
-                || matches!(collection.threshold_status, ThresholdStatus::Critical)
+            baseline_deviations.insert(
+                name.clone(),
+                BaselineDeviation {
+                    expected: target,
+                    observed: value,
+                    deviation_percentage: deviation * 100.0,
+                },
+            );
+            if deviation > 0.25 || matches!(collection.threshold_status, ThresholdStatus::Critical)
             {
-                detected_anomalies
-                    .push(DetectedAnomaly {
-                        anomaly_id: format!("{}::{name}", self.detector_id),
-                        metric_name: name.clone(),
-                        severity: if deviation > 0.5 {
-                            RiskSeverity::High
-                        } else {
-                            RiskSeverity::Medium
-                        },
-                    });
-                statistical_outliers
-                    .push(StatisticalOutlier {
-                        metric_name: name.clone(),
-                        value,
-                        z_score: deviation * 3.0,
-                    });
+                detected_anomalies.push(DetectedAnomaly {
+                    anomaly_id: format!("{}::{name}", self.detector_id),
+                    metric_name: name.clone(),
+                    severity: if deviation > 0.5 {
+                        RiskSeverity::High
+                    } else {
+                        RiskSeverity::Medium
+                    },
+                });
+                statistical_outliers.push(StatisticalOutlier {
+                    metric_name: name.clone(),
+                    value,
+                    z_score: deviation * 3.0,
+                });
                 if context.has_unsafe_operations {
-                    behavioral_changes
-                        .push(BehavioralChange {
-                            description: format!("{name} deviates from baseline"),
-                            magnitude: deviation,
-                        });
+                    behavioral_changes.push(BehavioralChange {
+                        description: format!("{name} deviates from baseline"),
+                        magnitude: deviation,
+                    });
                 }
             }
         }
         if config_depth > 0 || !detected_anomalies.is_empty() {
-            machine_learning_anomalies
-                .push(MlAnomaly {
-                    model_name: self.detector_id.clone(),
-                    anomaly_score: average_quality(metrics),
-                });
-            clustering_anomalies
-                .push(ClusteringAnomaly {
-                    cluster_id: format!("{}_cluster", self.detector_id),
-                    distance_from_centroid: config_depth as f64 * 0.1,
-                });
+            machine_learning_anomalies.push(MlAnomaly {
+                model_name: self.detector_id.clone(),
+                anomaly_score: average_quality(metrics),
+            });
+            clustering_anomalies.push(ClusteringAnomaly {
+                cluster_id: format!("{}_cluster", self.detector_id),
+                distance_from_centroid: config_depth as f64 * 0.1,
+            });
         }
         if detected_anomalies.len() > 1 {
-            anomaly_correlations
-                .push(AnomalyCorrelation {
-                    anomaly_a: detected_anomalies[0].anomaly_id.clone(),
-                    anomaly_b: detected_anomalies[1].anomaly_id.clone(),
-                    correlation_strength: 0.5,
-                });
+            anomaly_correlations.push(AnomalyCorrelation {
+                anomaly_a: detected_anomalies[0].anomaly_id.clone(),
+                anomaly_b: detected_anomalies[1].anomaly_id.clone(),
+                correlation_strength: 0.5,
+            });
         }
         Ok(AnomalyDetectionResult {
             detected_anomalies,

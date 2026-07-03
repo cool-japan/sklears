@@ -191,7 +191,11 @@ impl PyMinMaxScaler {
     /// -------
     /// Xt : ndarray of shape (n_samples, n_features)
     ///     Transformed data.
-    fn transform<'py>(&self, py: Python<'py>, x: PyReadonlyArray2<f64>) -> PyResult<Py<PyArray2<f64>>> {
+    fn transform<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Py<PyArray2<f64>>> {
         let state = self
             .state
             .as_ref()

@@ -51,9 +51,7 @@ fn manifold_err(e: ManifoldError) -> SklearsError {
             expected: a,
             actual: b,
         },
-        ManifoldError::NotConverged { iter } => {
-            SklearsError::ConvergenceError { iterations: iter }
-        }
+        ManifoldError::NotConverged { iter } => SklearsError::ConvergenceError { iterations: iter },
         ManifoldError::EmptyInput => {
             SklearsError::InvalidInput("oxicuda_manifold: empty input".to_string())
         }
