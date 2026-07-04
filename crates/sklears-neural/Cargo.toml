@@ -47,6 +47,7 @@ half = { workspace = true, optional = true }
 [dev-dependencies]
 approx = { workspace = true }
 proptest = { workspace = true }
+criterion = { workspace = true }
 # sklears-preprocessing = { workspace = true }  # Temporarily disabled due to compilation issues
 # sklears-utils = { workspace = true }         # Temporarily disabled due to compilation issues
 
@@ -64,3 +65,7 @@ path = "examples/rbm_demo.rs"
 [[example]]
 name = "autoencoder_demo"
 path = "examples/autoencoder_demo.rs"
+
+[[bench]]
+name = "mlp_training_benchmarks"
+harness = false

@@ -44,6 +44,11 @@ approx = { workspace = true }
 proptest = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "inspection_benchmarks"
+harness = false
 
 [features]
 default = ["serde", "parallel", "mmap"]

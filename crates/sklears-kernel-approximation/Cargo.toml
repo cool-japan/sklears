@@ -41,6 +41,7 @@ serde_json = { workspace = true }
 [dev-dependencies]
 approx = { workspace = true }
 proptest = { workspace = true }
+criterion = { workspace = true }
 
 [features]
 default = ["serde"]
@@ -49,3 +50,7 @@ simd = []
 # Unstable SIMD features requiring nightly Rust
 nightly-simd = []
 nightly = ["simd"]
+
+[[bench]]
+name = "kernel_approximation_benchmarks"
+harness = false

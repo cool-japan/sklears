@@ -26,9 +26,14 @@ rayon = { workspace = true, optional = true }
 [dev-dependencies]
 approx = { workspace = true }
 proptest = { workspace = true }
+criterion = { workspace = true }
 
 [features]
 default = []
 serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]
 parallel = ["dep:rayon"]
 benchmarks = []
+
+[[bench]]
+name = "isotonic_benchmarks"
+harness = false

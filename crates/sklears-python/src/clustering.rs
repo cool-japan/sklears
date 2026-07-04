@@ -44,7 +44,13 @@ impl PyKMeans {
     /// standalone `cargo test` binary -- so all `#[cfg(test)]` coverage in
     /// this file goes through `*_core` helpers like this one instead of
     /// exercising the `#[pymethods]` directly.
-    fn fit_core(&mut self, x: &Array2<f64>) -> PyResult<()> {
+    ///
+    /// `pub` (rather than crate-private) so that
+    /// `benches/core_helpers_benchmarks.rs` -- which compiles as a
+    /// separate crate -- can call it directly for the same reason; this is
+    /// a minimal exposed surface for benchmarking, not part of the stable
+    /// Python-facing API.
+    pub fn fit_core(&mut self, x: &Array2<f64>) -> PyResult<()> {
         let dummy_y = Array1::<f64>::zeros(x.nrows());
         let fitted = KMeans::new(self.config())
             .fit(x, &dummy_y)
@@ -53,8 +59,10 @@ impl PyKMeans {
         Ok(())
     }
 
-    /// Core predict logic; see `fit_core` for why this is split out.
-    fn predict_core(&self, x: &Array2<f64>) -> PyResult<Vec<i32>> {
+    /// Core predict logic; see `fit_core` for why this is split out and
+    /// `pub` (exposed for benchmarking from `benches/`, not part of the
+    /// stable Python-facing API).
+    pub fn predict_core(&self, x: &Array2<f64>) -> PyResult<Vec<i32>> {
         let fitted = self
             .fitted
             .as_ref()
@@ -67,9 +75,13 @@ impl PyKMeans {
 
 #[pymethods]
 impl PyKMeans {
+    /// `pub` in addition to being reachable from Python via `#[new]`, so
+    /// `benches/core_helpers_benchmarks.rs` (a separate crate) can
+    /// construct instances to call `fit_core`/`predict_core` on; not part
+    /// of the stable Python-facing API surface.
     #[new]
     #[pyo3(signature = (n_clusters=8, max_iter=300, tol=1e-4, random_state=None))]
-    fn new(n_clusters: usize, max_iter: usize, tol: f64, random_state: Option<u64>) -> Self {
+    pub fn new(n_clusters: usize, max_iter: usize, tol: f64, random_state: Option<u64>) -> Self {
         Self {
             n_clusters,
             max_iter,
@@ -174,8 +186,10 @@ pub struct PyDBSCAN {
 
 impl PyDBSCAN {
     /// Core fit_predict logic; see `PyKMeans::fit_core` for why this is
-    /// split out from the `#[pymethods]` wrapper.
-    fn fit_predict_core(&mut self, x: &Array2<f64>) -> PyResult<Vec<i32>> {
+    /// split out from the `#[pymethods]` wrapper and `pub` (exposed for
+    /// benchmarking from `benches/`, not part of the stable Python-facing
+    /// API).
+    pub fn fit_predict_core(&mut self, x: &Array2<f64>) -> PyResult<Vec<i32>> {
         let model = DBSCAN::new().eps(self.eps).min_samples(self.min_samples);
         let fitted = model
             .fit(x, &())
@@ -198,9 +212,13 @@ impl PyDBSCAN {
 
 #[pymethods]
 impl PyDBSCAN {
+    /// `pub` in addition to being reachable from Python via `#[new]`, so
+    /// `benches/core_helpers_benchmarks.rs` (a separate crate) can
+    /// construct instances to call `fit_predict_core` on; not part of the
+    /// stable Python-facing API surface.
     #[new]
     #[pyo3(signature = (eps=0.5, min_samples=5))]
-    fn new(eps: f64, min_samples: usize) -> Self {
+    pub fn new(eps: f64, min_samples: usize) -> Self {
         Self {
             eps,
             min_samples,

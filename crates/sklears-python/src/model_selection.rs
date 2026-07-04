@@ -37,7 +37,13 @@ type CoreTrainTestSplitResult = (Array2<f64>, Array2<f64>, Array1<f64>, Array1<f
 /// shuffles before splitting and has no `train_size`/`stratify` support
 /// (unlike scikit-learn's version). Extending the core splitting algorithm
 /// to support those is out of scope for this fix.
-fn train_test_split_core(
+///
+/// `pub` (rather than crate-private) so that
+/// `benches/core_helpers_benchmarks.rs` -- which compiles as a separate
+/// crate -- can call it directly for the same reason; this is a minimal
+/// exposed surface for benchmarking, not part of the stable Python-facing
+/// API.
+pub fn train_test_split_core(
     x: &Array2<f64>,
     y: &Array1<f64>,
     test_size: Option<f64>,
@@ -89,8 +95,10 @@ pub struct PyKFold {
 
 impl PyKFold {
     /// Core split logic, directly unit-testable without a live Python
-    /// interpreter (see `train_test_split_core` for why).
-    fn split_core(&self, n_samples: usize) -> PyResult<Vec<(Vec<usize>, Vec<usize>)>> {
+    /// interpreter (see `train_test_split_core` for why) and `pub`
+    /// (exposed for benchmarking from `benches/`, not part of the stable
+    /// Python-facing API).
+    pub fn split_core(&self, n_samples: usize) -> PyResult<Vec<(Vec<usize>, Vec<usize>)>> {
         let n_splits = self.inner.n_splits();
         if n_splits > n_samples {
             return Err(PyValueError::new_err(format!(
@@ -104,9 +112,13 @@ impl PyKFold {
 
 #[pymethods]
 impl PyKFold {
+    /// `pub` in addition to being reachable from Python via `#[new]`, so
+    /// `benches/core_helpers_benchmarks.rs` (a separate crate) can
+    /// construct instances to call `split_core` on; not part of the
+    /// stable Python-facing API surface.
     #[new]
     #[pyo3(signature = (n_splits=5, shuffle=false, random_state=None))]
-    fn new(n_splits: usize, shuffle: bool, random_state: Option<u64>) -> PyResult<Self> {
+    pub fn new(n_splits: usize, shuffle: bool, random_state: Option<u64>) -> PyResult<Self> {
         // The real `KFold::new` asserts `n_splits >= 2` and panics
         // otherwise; guard here so bad input raises a normal Python
         // `ValueError` instead of an uncatchable Rust panic.

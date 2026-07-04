@@ -14,7 +14,15 @@ categories = ["api-bindings", "science", "mathematics"]
 
 [lib]
 name = "sklears_python"
-crate-type = ["cdylib"]
+# "rlib" is additive alongside "cdylib": maturin/pip wheel builds only ever
+# look for the cdylib artifact (unaffected), but a cdylib-only crate-type
+# produces no linkable rlib, which means no separate crate -- including a
+# `benches/*.rs` criterion target or a `tests/*.rs` integration test -- can
+# `use sklears_python::...` at all (this is why the existing `tests/`
+# integration tests avoid importing the crate directly). Adding "rlib" is
+# the standard PyO3 pattern for making a `cdylib` extension module also
+# `cargo test`/`cargo bench`-able.
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # Core sklears dependencies (enabled with SciRS2 compatibility)
@@ -72,9 +80,14 @@ parallel = []
 proptest = { workspace = true }
 # Use SciRS2 random number generation in tests
 # rand = { workspace = true }  # Replaced with scirs2-core::random
+criterion = { workspace = true }
 
 # Python examples are not Rust examples - they should be run separately
 # [[example]]
 # name = "python_demo"
 # path = "examples/python_demo.py"
 # required-features = []
+
+[[bench]]
+name = "core_helpers_benchmarks"
+harness = false

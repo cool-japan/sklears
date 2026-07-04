@@ -45,7 +45,12 @@ serde_json = { workspace = true, optional = true }
 [dev-dependencies]
 approx = { workspace = true }
 proptest = { workspace = true }
+criterion = { workspace = true }
 
 [features]
 default = ["serde"]
 serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]
+
+[[bench]]
+name = "naive_bayes_benchmarks"
+harness = false

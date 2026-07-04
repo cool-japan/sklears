@@ -70,3 +70,7 @@ cloud-storage = ["dep:tokio", "dep:futures", "dep:url"]
 cloud-s3 = ["cloud-storage", "dep:aws-config", "dep:aws-sdk-s3"]
 cloud-gcs = ["cloud-storage", "dep:google-cloud-storage"]
 visualization = ["dep:plotters", "dep:plotters-backend"]
+
+[[bench]]
+name = "generator_benchmarks"
+harness = false
