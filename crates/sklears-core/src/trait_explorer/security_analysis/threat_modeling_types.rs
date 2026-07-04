@@ -222,7 +222,7 @@ pub type ThreatAnalysisResult = ThreatModelingResult;
 
 /// A single, concrete security threat identified during comprehensive threat modeling,
 /// derived from the STRIDE analysis and attack vector assessment performed by
-/// [`ThreatModelingEngine::analyze_threats`].
+/// [`super::ThreatModelingEngine::analyze_threats`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdentifiedThreat {
     pub id: String,

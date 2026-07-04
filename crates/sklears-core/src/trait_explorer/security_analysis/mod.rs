@@ -19,11 +19,11 @@
 //! ## Usage
 //!
 //! ```rust,no_run
-//! use crate::trait_explorer::security_analysis::{
-//!     TraitSecurityAnalyzer, SecurityAnalysisConfig, create_comprehensive_security_analyzer
+//! use sklears_core::trait_explorer::security_analysis::{
+//!     create_comprehensive_security_analyzer, SecurityAnalysisConfig, TraitUsageContext,
 //! };
-//! use crate::trait_explorer::TraitUsageContext;
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create a comprehensive security analyzer
 //! let mut analyzer = create_comprehensive_security_analyzer();
 //!
@@ -32,14 +32,22 @@
 //! analyzer.configure_analysis(config);
 //!
 //! // Perform security analysis
-//! let context = TraitUsageContext::new(/* ... */);
-//! let analysis_result = analyzer.analyze_trait_security(&context)?;
+//! let context = TraitUsageContext {
+//!     trait_name: "MyTrait".to_string(),
+//!     ..Default::default()
+//! };
+//! let analysis_result = analyzer.analyze_comprehensive_security(&context)?;
 //!
 //! // Access specific analysis results
 //! println!("Overall security score: {}", analysis_result.overall_security_score);
-//! println!("Vulnerabilities found: {}", analysis_result.vulnerabilities.len());
-//! println!("Risk level: {:?}", analysis_result.risk_level);
-//! println!("Compliance status: {:?}", analysis_result.compliance_status);
+//! println!(
+//!     "Vulnerabilities found: {}",
+//!     analysis_result.vulnerability_assessment.vulnerabilities.len()
+//! );
+//! println!("Risk level: {:?}", analysis_result.overall_risk_level);
+//! println!("Compliance status: {:?}", analysis_result.overall_compliance_status);
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Key Features
@@ -94,8 +102,8 @@
 //! The framework supports extensive configuration through the `SecurityAnalysisConfig` struct:
 //!
 //! ```rust,no_run
-//! use crate::trait_explorer::security_analysis::{
-//!     SecurityAnalysisConfig, AnalysisDepth, RiskAppetite
+//! use sklears_core::trait_explorer::security_analysis::{
+//!     SecurityAnalysisConfig, AnalysisDepth, RiskAppetite, RiskTolerance
 //! };
 //! use std::time::Duration;
 //!

@@ -14,7 +14,7 @@
 ## Key Features
 
 - **Text Processing**: CountVectorizer, TfidfVectorizer, HashingVectorizer, N-gram analyzers, character models.
-- **Image Features**: Patch extraction, HOG descriptors, SIFT-like outlines, and GPU pipelines.
+- **Image Features**: Patch extraction, HOG descriptors, SIFT-like outlines, and GPU pipelines; `image::simd_accelerated` genuinely delegates to `scirs2_core::simd_ops::SimdUnifiedOps` for vectorized execution (previously several of its functions were plain scalar loops mislabeled as SIMD).
 - **Signal Features**: Windowed statistics, spectrograms, wavelet transforms, and FFT-based descriptors.
 - **Pipeline Support**: Integrates with sklears preprocessing, selection, and model selection crates.
 
@@ -39,6 +39,7 @@ let tfidf = vectorizer.fit_transform(&docs)?;
 
 ## Status
 
-- Extensively tested; 407 passing crate tests in `0.2.0`.
+- Extensively tested; 416 passing crate tests in `0.2.0`.
 - Offers >99% parity with scikit-learn’s feature extraction module, plus GPU paths.
+- This session fixed `image::simd_accelerated`: 9 functions previously labeled "SIMD-accelerated" (with fabricated speedup figures in their own doc comments) were plain scalar loops; they now genuinely delegate to `scirs2_core::simd_ops::SimdUnifiedOps`, verified numerically equivalent to the prior behavior to 1e-9 tolerance.
 - Additional work (streaming text ingestion, audio-specific transforms) documented in `TODO.md`.

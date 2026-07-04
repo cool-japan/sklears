@@ -399,7 +399,7 @@ impl<S> ModelFusion<S> {
 
     /// Initialize fusion parameters for the configured strategy. Exposed mainly
     /// for introspection/testing; `fit` computes the real, data-dependent
-    /// parameters via [`learn_fusion_parameters`] instead of using this initial
+    /// parameters via an internal learning routine instead of using this initial
     /// guess.
     #[must_use]
     pub fn initialize_parameters(&self, input_dim: usize) -> FusionParameters {

@@ -138,7 +138,7 @@ pub fn make_outlier_contamination(
 
 /// Apply a covariate shift to `x_train` by adding a fixed per-feature `shift`
 /// vector to every row, plus a small fixed Gaussian jitter (std
-/// [`COVARIATE_SHIFT_JITTER_STD`]) so repeated calls with different seeds are not
+/// `COVARIATE_SHIFT_JITTER_STD`) so repeated calls with different seeds are not
 /// bit-identical to a purely deterministic shift.
 ///
 /// # Errors

@@ -383,8 +383,8 @@ impl PipelineVisualizer {
     /// # Errors
     ///
     /// Graph extraction is **not implemented yet**. This always returns
-    /// `Err(SklearsError::NotImplemented(_))` (propagated from [`Self::extract_nodes`] /
-    /// [`Self::extract_edges`]) instead of silently adding an empty graph. See `TODO.md`
+    /// `Err(SklearsError::NotImplemented(_))` (propagated from the internal node/edge
+    /// extraction routines) instead of silently adding an empty graph. See `TODO.md`
     /// for the tracked follow-up.
     pub fn add_pipeline(&mut self, pipeline: &dyn PipelineComponent) -> SklResult<()> {
         // Convert pipeline to graph representation

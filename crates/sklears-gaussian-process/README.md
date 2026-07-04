@@ -17,6 +17,7 @@
 - **Kernel Library**: RBF, Matern, RationalQuadratic, DotProduct, ExpSineSquared, White, Constant, and custom combinators.
 - **Performance**: Hierarchical matrix factorizations, GPU-accelerated covariance operations, and stochastic approximations for big data.
 - **Uncertainty Quantification**: Predictive variance, confidence intervals, and Bayesian optimization primitives.
+- **Deep & Multi-Output GPs**: `deep_gp` (composable Deep Gaussian Process layers) and `convolution_processes` (an Álvarez & Lawrence-style Convolution Process / dependent multi-output GP) that provably collapses to a standard single-output GP in the degenerate case and demonstrably shares information across correlated outputs.
 
 ## Quick Start
 
@@ -32,19 +33,19 @@ let x = array![
 ];
 let y = Array1::from(vec![0.0, 0.2, -0.1, 0.3]);
 
-let gpr = GaussianProcessRegressor::builder()
-    .kernel(RBF::new(1.0))
+let gpr = GaussianProcessRegressor::new()
+    .kernel(Box::new(RBF::new(1.0)))
     .alpha(1e-6)
     .normalize_y(true)
-    .random_state(Some(123))
-    .build();
+    .random_state(Some(123));
 
 let fitted = gpr.fit(&x, &y)?;
-let (mean, std) = fitted.predict(&x, true)?;
+let (mean, std) = fitted.predict_with_std(&x)?;
 ```
 
 ## Status
 
-- Validated by 149 passing tests (5 skipped) in `0.2.0` (Stable).
+- Validated by 182 passing tests in `0.2.0` (Partial — actively evolving).
 - Benchmarks show 5–20× faster kernel computations versus CPython implementations.
+- `deep_gp` (deep Gaussian Process layers) and `convolution_processes` (dependent multi-output GP) are now enabled; `convolution_processes` is verified to collapse exactly to a standard single-output GP in the degenerate case and to demonstrably share information across correlated outputs.
 - Future milestones (variational inference, GPU sparse GPs) tracked in this crate’s `TODO.md`.

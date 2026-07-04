@@ -6,10 +6,10 @@
 //! # Wave B7
 //!
 //! Two operations here are genuine host-side algorithms with no GPU-device
-//! dependency at all: [`GpuTSNE::fit_transform`] (via
+//! dependency at all: [`GpuTSNE::fit_transform`](crate::gpu_acceleration::GpuTSNE::fit_transform) (via
 //! `oxicuda_manifold::tsne_fit`) and the HNSW branch of
-//! [`GpuAccelerator::knn_search`] (via `oxicuda_manifold::{hnsw_build,
-//! hnsw_search}`). Neither checks [`GpuAccelerator::is_gpu_available`]
+//! [`GpuAccelerator::knn_search`](crate::gpu_acceleration::GpuAccelerator::knn_search) (via `oxicuda_manifold::{hnsw_build,
+//! hnsw_search}`). Neither checks [`GpuAccelerator::is_gpu_available`](crate::gpu_acceleration::GpuAccelerator::is_gpu_available)
 //! before running, because they are not GPU kernels being conditionally
 //! dispatched -- they *are* the CPU implementation, unconditionally. Only
 //! `pairwise_distances`/`matrix_operations` have a real GPU code path (an

@@ -81,6 +81,7 @@ scirs2-graph = { version = "0.6.0", default-features = false }  # For graph neur
 
 # ✅ APPROVED Numerical dependencies (compatible with SciRS2)
 approx = { version = "0.5" }
+num = { version = "0.4.3" }  # Complex numbers and numeric traits (used by sklears-simd)
 
 # Parallelism and performance
 # NOTE: Consider migrating to scirs2_core::rayon when available (SciRS2 Policy)
@@ -109,6 +110,7 @@ criterion = { version = "0.8" }
 proptest = { version = "1.11" }
 divan = { version = "0.1" }
 tempfile = { version = "3.27" }
+tokio-test = { version = "0.4.5" }
 
 # Logging
 log = { version = "0.4" }
@@ -118,6 +120,7 @@ env_logger = { version = "0.11" }
 bytemuck = { version = "1.25", features = ["derive", "extern_crate_alloc"] }
 memmap2 = { version = "0.9" }
 libc = { version = "0.2" }
+mach = { version = "0.3.2" }  # macOS-only Mach kernel bindings (target-specific)
 winapi = { version = "0.3", features = ["handleapi", "memoryapi", "winnt"] }
 
 # Lazy statics and thread-safe initialization
@@ -158,7 +161,23 @@ arrow-ipc = { version = "59" }
 parquet = { version = "59.0" }
 
 # Python bindings
-pyo3 = { version = "0.29", features = ["extension-module", "chrono", "indexmap"] }
+#
+# NOTE: `extension-module` is intentionally *not* enabled here. That feature
+# tells pyo3 to defer linking against libpython to the Python interpreter
+# that dlopen()s the built `cdylib` at import time -- correct for the
+# distributable wheel, but it also means a standalone `cargo test`/`cargo
+# nextest` binary (which no Python process ever loads) fails at the link
+# step with dozens of "symbol(s) not found" errors for `Py_*`/`PyErr_*`
+# symbols, unconditionally, for the entire sklears-python crate (regardless
+# of which specific tests are run) since it is baked into this shared
+# dependency. sklears-python/pyproject.toml's `[tool.maturin] features =
+# ["pyo3/extension-module"]` already activates it explicitly and
+# independently for actual `maturin build`/`maturin develop` invocations
+# (via `dep/feature` cargo syntax), so nothing is lost for the real wheel
+# build by leaving it off the shared workspace dependency; plain `cargo
+# build`/`cargo test` now link normally against the active Python's
+# libpython instead.
+pyo3 = { version = "0.29", features = ["chrono", "indexmap"] }
 numpy = { version = "0.29" }
 
 # GPU and performance — oxicuda-* v0.4 (replaces wgpu/cudarc/candle-core direct deps)
@@ -200,6 +219,9 @@ parking_lot = { version = "0.12" }
 aws-config = { version = "1.8" }
 aws-sdk-s3 = { version = "1.137" }
 google-cloud-storage = { version = "1.15" }
+
+# Third-party ML libraries (evaluated for specific algorithms)
+smartcore = { version = "0.5.0" }  # Third-party ML library for specific algorithms
 
 # Internal crates
 sklears = { version = "0.2.0", path = "crates/sklears" }

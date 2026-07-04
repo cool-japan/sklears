@@ -584,7 +584,7 @@ impl GpuKNeighborsSearch {
     /// feature is compiled in, and even then [`Self::kneighbors`]
     /// transparently falls back to the exact path whenever the configured
     /// [`Distance`] has no native HNSW equivalent (currently only
-    /// `Euclidean` and `Cosine` do -- see [`Self::hnsw_distance_for`]).
+    /// `Euclidean` and `Cosine` do -- see `hnsw_distance_for`).
     /// Correctness-sensitive callers can always reach the exact path
     /// directly via [`Self::kneighbors_exact`], regardless of this setting.
     pub fn with_ann(mut self, use_ann: bool) -> Self {
@@ -601,7 +601,7 @@ impl GpuKNeighborsSearch {
     ///
     /// Uses the approximate HNSW backend when [`Self::with_ann`] was set to
     /// `true`, the `gpu` feature is enabled, and the configured [`Distance`]
-    /// maps onto an [`HnswDistance`] (see [`Self::hnsw_distance_for`]);
+    /// maps onto an [`HnswDistance`] (see `hnsw_distance_for`);
     /// otherwise dispatches to the exact brute-force
     /// [`Self::kneighbors_exact`].
     #[allow(non_snake_case)]

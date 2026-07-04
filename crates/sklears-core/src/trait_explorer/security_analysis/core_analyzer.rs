@@ -137,8 +137,23 @@ impl CachedSecurityAnalysis {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust,no_run
 /// use sklears_core::trait_explorer::security_analysis::{
+///     create_trait_security_analyzer, TraitUsageContext,
+/// };
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut analyzer = create_trait_security_analyzer();
+/// let context = TraitUsageContext {
+///     trait_name: "MyTrait".to_string(),
+///     ..Default::default()
+/// };
+/// let analysis = analyzer.analyze_trait_security(&context)?;
+/// println!("Risk level: {:?}", analysis.overall_risk_level);
+/// println!("Vulnerabilities: {}", analysis.vulnerabilities.len());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct TraitSecurityAnalyzer {
     vulnerability_database: VulnerabilityDatabase,

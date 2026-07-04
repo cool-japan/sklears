@@ -104,16 +104,24 @@ class PerformanceBenchmarker:
         self.random_state = 42
         np.random.seed(self.random_state)
 
-    def _time_operation(self, operation, *args, **kwargs) -> Tuple[Any, float]:
-        """Time a single operation and return result and elapsed time"""
+    def _time_operation(self, operation, *args, **kwargs) -> Tuple[bool, Any, float]:
+        """Time a single operation; returns (success, result, elapsed).
+
+        Success is tracked explicitly via whether an exception was raised,
+        *not* via `result is not None`: sklears' `.fit()` methods mutate
+        `self` and return `None` on success (unlike scikit-learn's `.fit()`,
+        which returns `self`), so a `result is not None` check would
+        misclassify every successful sklears fit as a failure and silently
+        drop it from the report.
+        """
         start_time = time.perf_counter()
         try:
             result = operation(*args, **kwargs)
             elapsed = time.perf_counter() - start_time
-            return result, elapsed
+            return True, result, elapsed
         except Exception as e:
             elapsed = time.perf_counter() - start_time
-            return None, elapsed
+            return False, e, elapsed
 
     def _generate_regression_data(self, n_samples: int, n_features: int) -> Tuple[np.ndarray, np.ndarray]:
         """Generate regression dataset"""
@@ -159,10 +167,13 @@ class PerformanceBenchmarker:
             # Benchmark sklears
             try:
                 model = skl.LinearRegression()
-                fitted_model, fit_time = self._time_operation(model.fit, X_train, y_train)
-                predictions, predict_time = self._time_operation(model.predict, X_test)
+                fit_ok, fit_err, fit_time = self._time_operation(model.fit, X_train, y_train)
+                if fit_ok:
+                    predict_ok, predictions, predict_time = self._time_operation(model.predict, X_test)
+                else:
+                    predict_ok, predictions, predict_time = False, None, 0.0
 
-                if fitted_model is not None and predictions is not None:
+                if fit_ok and predict_ok:
                     # Use numpy fallback since skl.r2_score is not yet exposed
                     r2 = _numpy_r2_score(y_test, predictions)
                     self.results.append(BenchmarkResult(
@@ -173,6 +184,17 @@ class PerformanceBenchmarker:
                         predict_time=predict_time,
                         total_time=fit_time + predict_time,
                         accuracy_metric=r2
+                    ))
+                else:
+                    failure = fit_err if not fit_ok else predictions
+                    self.results.append(BenchmarkResult(
+                        algorithm="LinearRegression",
+                        library="sklears",
+                        dataset_size=(n_samples, n_features),
+                        fit_time=0,
+                        predict_time=0,
+                        total_time=0,
+                        error_message=str(failure)
                     ))
             except Exception as e:
                 self.results.append(BenchmarkResult(
@@ -189,10 +211,13 @@ class PerformanceBenchmarker:
             if HAS_SKLEARN:
                 try:
                     model = SklearnLR()
-                    fitted_model, fit_time = self._time_operation(model.fit, X_train, y_train)
-                    predictions, predict_time = self._time_operation(model.predict, X_test)
+                    fit_ok, fit_err, fit_time = self._time_operation(model.fit, X_train, y_train)
+                    if fit_ok:
+                        predict_ok, predictions, predict_time = self._time_operation(model.predict, X_test)
+                    else:
+                        predict_ok, predictions, predict_time = False, None, 0.0
 
-                    if fitted_model is not None and predictions is not None:
+                    if fit_ok and predict_ok:
                         r2 = r2_score(y_test, predictions)
                         self.results.append(BenchmarkResult(
                             algorithm="LinearRegression",
@@ -202,6 +227,17 @@ class PerformanceBenchmarker:
                             predict_time=predict_time,
                             total_time=fit_time + predict_time,
                             accuracy_metric=r2
+                        ))
+                    else:
+                        failure = fit_err if not fit_ok else predictions
+                        self.results.append(BenchmarkResult(
+                            algorithm="LinearRegression",
+                            library="sklearn",
+                            dataset_size=(n_samples, n_features),
+                            fit_time=0,
+                            predict_time=0,
+                            total_time=0,
+                            error_message=str(failure)
                         ))
                 except Exception as e:
                     self.results.append(BenchmarkResult(
@@ -234,9 +270,9 @@ class PerformanceBenchmarker:
 
             for alg_name, model, library in algorithms:
                 try:
-                    labels, total_time = self._time_operation(model.fit_predict, X)
+                    success, labels, total_time = self._time_operation(model.fit_predict, X)
 
-                    if labels is not None:
+                    if success:
                         n_clusters = len(np.unique(labels))
                         self.results.append(BenchmarkResult(
                             algorithm=alg_name,
@@ -246,6 +282,16 @@ class PerformanceBenchmarker:
                             predict_time=0,
                             total_time=total_time,
                             accuracy_metric=float(n_clusters)
+                        ))
+                    else:
+                        self.results.append(BenchmarkResult(
+                            algorithm=alg_name,
+                            library=library,
+                            dataset_size=(n_samples, n_features),
+                            fit_time=0,
+                            predict_time=0,
+                            total_time=0,
+                            error_message=str(labels)
                         ))
                 except Exception as e:
                     self.results.append(BenchmarkResult(
@@ -276,10 +322,13 @@ class PerformanceBenchmarker:
 
             for scaler_name, scaler, library in scalers:
                 try:
-                    fitted_scaler, fit_time = self._time_operation(scaler.fit, X)
-                    X_scaled, transform_time = self._time_operation(scaler.transform, X)
+                    fit_ok, fit_err, fit_time = self._time_operation(scaler.fit, X)
+                    if fit_ok:
+                        transform_ok, X_scaled, transform_time = self._time_operation(scaler.transform, X)
+                    else:
+                        transform_ok, X_scaled, transform_time = False, None, 0.0
 
-                    if fitted_scaler is not None and X_scaled is not None:
+                    if fit_ok and transform_ok:
                         mean_close_to_zero = np.abs(X_scaled.mean()) < 0.01
                         std_close_to_one = np.abs(X_scaled.std() - 1.0) < 0.01
                         accuracy = float(mean_close_to_zero and std_close_to_one)
@@ -292,6 +341,17 @@ class PerformanceBenchmarker:
                             predict_time=transform_time,
                             total_time=fit_time + transform_time,
                             accuracy_metric=accuracy
+                        ))
+                    else:
+                        failure = fit_err if not fit_ok else X_scaled
+                        self.results.append(BenchmarkResult(
+                            algorithm=scaler_name,
+                            library=library,
+                            dataset_size=(n_samples, n_features),
+                            fit_time=0,
+                            predict_time=0,
+                            total_time=0,
+                            error_message=str(failure)
                         ))
                 except Exception as e:
                     self.results.append(BenchmarkResult(

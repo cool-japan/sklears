@@ -22,7 +22,13 @@ pub fn accuracy_score(
     let yt = Array1::from_vec(y_true.as_array().to_vec());
     let yp = Array1::from_vec(y_pred.as_array().to_vec());
 
-    validate_int_arrays_same_length(yt.as_slice().unwrap(), yp.as_slice().unwrap())?;
+    let yt_slice = yt
+        .as_slice()
+        .ok_or_else(|| PyValueError::new_err("internal error: array not contiguous"))?;
+    let yp_slice = yp
+        .as_slice()
+        .ok_or_else(|| PyValueError::new_err("internal error: array not contiguous"))?;
+    validate_int_arrays_same_length(yt_slice, yp_slice)?;
 
     match skl_accuracy(&yt, &yp) {
         Ok(acc) => Ok(if normalize {
@@ -50,7 +56,13 @@ pub fn precision_score(
     let yt = Array1::from_vec(y_true.as_array().to_vec());
     let yp = Array1::from_vec(y_pred.as_array().to_vec());
 
-    validate_int_arrays_same_length(yt.as_slice().unwrap(), yp.as_slice().unwrap())?;
+    let yt_slice = yt
+        .as_slice()
+        .ok_or_else(|| PyValueError::new_err("internal error: array not contiguous"))?;
+    let yp_slice = yp
+        .as_slice()
+        .ok_or_else(|| PyValueError::new_err("internal error: array not contiguous"))?;
+    validate_int_arrays_same_length(yt_slice, yp_slice)?;
 
     match skl_precision(&yt, &yp, Some(pos_label)) {
         Ok(v) => Ok(v),
@@ -74,7 +86,13 @@ pub fn recall_score(
     let yt = Array1::from_vec(y_true.as_array().to_vec());
     let yp = Array1::from_vec(y_pred.as_array().to_vec());
 
-    validate_int_arrays_same_length(yt.as_slice().unwrap(), yp.as_slice().unwrap())?;
+    let yt_slice = yt
+        .as_slice()
+        .ok_or_else(|| PyValueError::new_err("internal error: array not contiguous"))?;
+    let yp_slice = yp
+        .as_slice()
+        .ok_or_else(|| PyValueError::new_err("internal error: array not contiguous"))?;
+    validate_int_arrays_same_length(yt_slice, yp_slice)?;
 
     match skl_recall(&yt, &yp, Some(pos_label)) {
         Ok(v) => Ok(v),
@@ -98,7 +116,13 @@ pub fn f1_score(
     let yt = Array1::from_vec(y_true.as_array().to_vec());
     let yp = Array1::from_vec(y_pred.as_array().to_vec());
 
-    validate_int_arrays_same_length(yt.as_slice().unwrap(), yp.as_slice().unwrap())?;
+    let yt_slice = yt
+        .as_slice()
+        .ok_or_else(|| PyValueError::new_err("internal error: array not contiguous"))?;
+    let yp_slice = yp
+        .as_slice()
+        .ok_or_else(|| PyValueError::new_err("internal error: array not contiguous"))?;
+    validate_int_arrays_same_length(yt_slice, yp_slice)?;
 
     match skl_f1(&yt, &yp, Some(pos_label)) {
         Ok(v) => Ok(v),
@@ -121,7 +145,13 @@ pub fn confusion_matrix(
     let yt = Array1::from_vec(y_true.as_array().to_vec());
     let yp = Array1::from_vec(y_pred.as_array().to_vec());
 
-    validate_int_arrays_same_length(yt.as_slice().unwrap(), yp.as_slice().unwrap())?;
+    let yt_slice = yt
+        .as_slice()
+        .ok_or_else(|| PyValueError::new_err("internal error: array not contiguous"))?;
+    let yp_slice = yp
+        .as_slice()
+        .ok_or_else(|| PyValueError::new_err("internal error: array not contiguous"))?;
+    validate_int_arrays_same_length(yt_slice, yp_slice)?;
 
     match skl_confusion_matrix(&yt, &yp) {
         Ok(cm) => {
@@ -154,7 +184,13 @@ pub fn classification_report(
     let yt = Array1::from_vec(y_true.as_array().to_vec());
     let yp = Array1::from_vec(y_pred.as_array().to_vec());
 
-    validate_int_arrays_same_length(yt.as_slice().unwrap(), yp.as_slice().unwrap())?;
+    let yt_slice = yt
+        .as_slice()
+        .ok_or_else(|| PyValueError::new_err("internal error: array not contiguous"))?;
+    let yp_slice = yp
+        .as_slice()
+        .ok_or_else(|| PyValueError::new_err("internal error: array not contiguous"))?;
+    validate_int_arrays_same_length(yt_slice, yp_slice)?;
 
     let pos_label = *yt.iter().max().unwrap_or(&1);
     let support = yt.len() as f64;

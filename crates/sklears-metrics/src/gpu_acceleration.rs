@@ -40,8 +40,8 @@
 //! // Initialize GPU context
 //! let mut gpu_context = GpuMetricsContext::new()?;
 //!
-//! let y_true = Array1::from(vec![0, 1, 1, 0, 1]);
-//! let y_pred = Array1::from(vec![0, 1, 0, 0, 1]);
+//! let y_true = Array1::from(vec![0.0, 1.0, 1.0, 0.0, 1.0]);
+//! let y_pred = Array1::from(vec![0.0, 1.0, 0.0, 0.0, 1.0]);
 //!
 //! // Compute accuracy on GPU
 //! let accuracy = gpu_context.compute_metric(

@@ -57,7 +57,7 @@ regex = { workspace = true }
 
 # Platform-specific dependencies for benchmarking and system monitoring
 [target.'cfg(target_os = "macos")'.dependencies]
-mach = "0.3"
+mach = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }

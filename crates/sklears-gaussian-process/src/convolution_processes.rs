@@ -58,7 +58,7 @@
 //!     * exp( - sum_{k=1}^{K} (x_k - x'_k)^2 / (L_{d,q,k}^2 + L_{d',q,k}^2) )
 //! ```
 //!
-//! (implemented by [`latent_covariance`] / [`induced_covariance_sum`] below, in
+//! (implemented by `latent_covariance` / `induced_covariance_sum` below, in
 //! log-space for numerical stability). This has two properties that make it a
 //! trustworthy building block for a multi-output GP:
 //!

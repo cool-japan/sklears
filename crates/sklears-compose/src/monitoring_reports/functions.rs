@@ -19,7 +19,7 @@ mod tests {
     fn test_report_generation() {
         let config = ReportGeneratorConfig {
             default_template: "test".to_string(),
-            output_directory: "/tmp".to_string(),
+            output_directory: std::env::temp_dir().display().to_string(),
             enable_caching: false,
             cache_duration: Duration::from_secs(60),
         };

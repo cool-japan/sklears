@@ -633,7 +633,7 @@ mod tests {
             "float64"
         };
         let mma = MemoryMappedArray::new(
-            "/tmp/test.npy".to_string(),
+            std::env::temp_dir().join("test.npy").display().to_string(),
             (10, 10),
             native_dtype.to_string(),
         );
@@ -654,7 +654,7 @@ mod tests {
             "float32"
         };
         let mma = MemoryMappedArray::new(
-            "/tmp/test.npy".to_string(),
+            std::env::temp_dir().join("test.npy").display().to_string(),
             (10, 10),
             wrong_dtype.to_string(),
         );
@@ -679,17 +679,17 @@ mod tests {
         } else {
             "float64"
         };
-        let nonexistent_path = "/tmp/does_not_exist_for_sklears_test_12345.npy";
-        let mma = MemoryMappedArray::new(
-            nonexistent_path.to_string(),
-            (5, 5),
-            native_dtype.to_string(),
-        );
+        let nonexistent_path = std::env::temp_dir()
+            .join("does_not_exist_for_sklears_test_12345.npy")
+            .display()
+            .to_string();
+        let mma =
+            MemoryMappedArray::new(nonexistent_path.clone(), (5, 5), native_dtype.to_string());
         let err = mma.to_array();
         assert!(err.is_err(), "to_array should fail for missing file");
         let msg = format!("{:?}", err);
         assert!(
-            msg.contains(nonexistent_path),
+            msg.contains(nonexistent_path.as_str()),
             "error message should include the file path"
         );
     }
@@ -697,7 +697,7 @@ mod tests {
     /// path() and dtype() accessors return the stored values.
     #[test]
     fn test_memory_mapped_array_accessors() {
-        let path = "/tmp/data.bin".to_string();
+        let path = std::env::temp_dir().join("data.bin").display().to_string();
         let dtype = "float64".to_string();
         let mma = MemoryMappedArray::new(path.clone(), (3, 4), dtype.clone());
         assert_eq!(mma.path(), path);

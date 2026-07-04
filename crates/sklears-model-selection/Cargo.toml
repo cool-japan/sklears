@@ -32,7 +32,7 @@ scirs2-stats = { workspace = true }
 # Approved numerical dependencies
 thiserror = { workspace = true }
 rayon = { workspace = true, optional = true }
-num_cpus = "1.17"
+num_cpus = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
 

@@ -89,7 +89,7 @@ All major scikit-learn modules are implemented with production-ready quality:
 
 ## 📊 Quality Metrics
 
-- **Test Suite**: 11,222 tests (11,222 passing, 100% success rate)
+- **Test Suite**: 12,598 tests (12,598 passing, 0 failed, 161 skipped, 100% pass rate)
 - **Code Quality**: 100% warning-free compilation
 - **Performance**: Pure Rust implementation with ongoing performance optimization
 - **Dependencies**: Pure Rust stack (OxiBLAS v0.1.2, Oxicode v0.1.1)
@@ -105,7 +105,8 @@ All major scikit-learn modules are implemented with production-ready quality:
 - [ ] Community feedback integration
 
 ### v0.2.0 and Beyond
-- [ ] Enhanced GPU acceleration (CUDA/WebGPU optimization)
+- [x] Enhanced GPU acceleration (CUDA) — DONE (2026-07-04): real oxicuda-backed `GpuBackend`/`GpuArray`/`GpuMatrixOps` foundation shipped across `sklears-core` + 9 downstream crates (clustering, cross-decomposition, decomposition, discriminant-analysis, linear, manifold, neighbors, neural, svm); see "GPU Migration: oxicuda-* v0.3 への完全移行" above.
+- [ ] WebGPU acceleration (not started)
 - [ ] Distributed computing support
 - [ ] Advanced AutoML capabilities
 - [ ] ONNX/PMML model interchange
@@ -141,8 +142,8 @@ All major scikit-learn modules are implemented with production-ready quality:
 
 ---
 
-*Version: 0.2.0 (in development)*
-*Last Release: v0.1.2 — 2026-06-30*
+*Version: 0.2.0 — 2026-07-04*
+*Last Release: v0.2.0 — 2026-07-04*
 *Next Milestone: TBD*
 
 ## ✅ Stub-check backlog — COMPLETED (2026-06-21, v0.1.2)
@@ -294,9 +295,27 @@ oxicuda-backend / oxicuda-blas / oxicuda-solver 等に一本化する。
 ## Proposed follow-ups
 
 - **GPU migration (27 items, oxicuda-* rewrite)** — **RESOLVED (2026-07-03):** implemented in full; see "GPU Migration: oxicuda-* v0.3 への完全移行" section above (Phases 1-9b + 10, all `[x]`). Both anticipated shape corrections were confirmed and correctly applied during the wave: (1) oxicuda-blas/-solver ops are free functions taking `&BlasHandle`/`&mut SolverHandle`, NOT methods (e.g. `oxicuda_blas::level3::gemm(&h, …)`); (2) standalone relu/sigmoid/tanh/softmax GPU ops live in `oxicuda-blas` (`elementwise::unary`, `reduction::softmax`), not `oxicuda-dnn` (fused epilogues only). The oxicuda-* pin comment and the stale "v0.3" comment were corrected to 0.4.1.
-- **`sklears-discriminant-analysis` `[~]` gpu_acceleration** — blocked on a scirs2-core GPU API that doesn't exist; a future GPU-focused run could retarget it to oxicuda reductions instead. Leave as `[~]`; do not restart from scratch.
+- **`sklears-discriminant-analysis` `[x]` gpu_acceleration** — DONE (2026-07-04): retargeted to oxicuda as anticipated. `GpuLDAKernel::solve_generalized_eigen_gpu` is a real Cholesky-reduction generalized eigensolver for LDA's `S_b w = λ S_w w` (`S_w = LLᵀ` via `oxicuda_solver::dense::cholesky`, reduce to `Cy = λy` via a GPU inverse + two GEMMs, solve via `dense::syevd`, back-transform `w = L⁻ᵀy`); new opt-in `gpu` feature (not in `default`) plus `with_device_id`/`compute_within_scatter_gpu` and 16 new tests (module had none before, since it never compiled).
 - **`sklears-compose/distributed_optimization/` orphaned tree** (161 files, ~3.3 MB, pre-existing compile errors, not declared in lib.rs) — needs a human decision: wire in (large effort) or delete. Blocked on user call.
-- **`sklears-core trait_explorer/graph_visualization`** (disabled, mod.rs:112 commented out; depends on refactored-away api_reference_generator + scirs2_core gpu/profiling/validation features) — medium-effort re-enable, candidate for a later run.
+- ~~**`sklears-core trait_explorer/graph_visualization`** (disabled, mod.rs:112 commented out)~~ — RESOLVED (2026-07-03): re-enabled with a real `api_reference_generator` module and 5 new graph-analysis algorithms; see "🔎 Follow-up findings" above (this entry predated that fix and was left stale).
 - **`sklears-compose` `pipeline_visualization`** — `PipelineVisualizer`/`DefaultRenderingEngine` (`crates/sklears-compose/src/pipeline_visualization/core.rs`) are wired into `lib.rs` and publicly exposed, but need a real implementation across 4 sub-areas: **graph** (real node/edge extraction by walking a `Pipeline`/`PipelineComponent` structure — `extract_nodes`/`extract_edges` are currently unimplemented), **rendering** (actual SVG/PNG/HTML generation — no rendering dependency currently exists in `sklears-compose`'s `Cargo.toml`; hand-rolled-vs-new-dependency is an open decision), **metrics** (per-node timing/resource stats, could pull from the crate's existing `execution`/`performance_profiler` modules), **interactive** (event-driven/JS-backed interactive output — there's an unused `interactive: bool` field on `VisualizationConfig` already waiting for this). `pipeline_visualization/mod.rs` already has commented-out `pub mod graph;`/`metrics;`/`rendering;`/`interactive;` lines anticipating this split. As of 2026-07-03: `DefaultRenderingEngine::render()` and `PipelineVisualizer::extract_nodes`/`extract_edges` now return an honest `Err(SklearsError::NotImplemented(_))` instead of silently succeeding with fake/empty output (previously: a hardcoded `<svg></svg>` and always-empty node/edge vecs with no error).
   - Priority: P3 | Scope: large
+
+---
+
+## Policy follow-ups
+
+- [ ] **Pure Rust governance violation: 4 crates leak FFI `-sys` deps via opt-in Cargo features** (found 2026-07-03 by `/policy-check`, measured under `cargo tree --workspace --all-features` — the actual measurement surface mandated by `~/work/.pure-rust-governance.md` v2, deliberately checking the full features closure rather than just default features to close a known loophole)
+  - **Goal**: restore all 4 crates' `--all-features` closures to `-sys`-free, per the governance doc's own prescribed fix (§5 Quarantine model).
+  - **Finding**: the governance doc's **Quarantine model (§5)** explicitly forbids this pattern — "a pure crate may NEVER declare a Cargo feature that, when enabled, adds a `-sys`/FFI dep — `--all-features` exposes it and fails L1. Irreducible FFI lives in separate, suffix-named quarantine crates (`*-aws-lc`, `*-mp3-lame`, `*-native`, `*-jack`, `*-adapter-<ffi>`), excluded from the pure-set, consumed as an application's own direct dep." Violations found:
+    - `sklears-datasets` (`crates/sklears-datasets/Cargo.toml`): `parquet` feature → `zstd-sys`; `hdf5` feature → `hdf5-sys`; `cloud-s3`/`cloud-gcs` features → `aws-lc-sys`/`ring`/`security-framework-sys`/`core-foundation-sys` (via `aws-config`/`aws-sdk-s3`/`google-cloud-storage`); `visualization` feature → `dirs-sys`/`font-kit` (via `plotters`)
+    - `sklears-decomposition` (`crates/sklears-decomposition/Cargo.toml`): `hdf5-support` feature → `hdf5-sys`
+    - `sklears-feature-selection` (`crates/sklears-feature-selection/Cargo.toml`): `parquet` feature → `zstd-sys`
+    - `sklears-metrics` (`crates/sklears-metrics/Cargo.toml`): `distributed` feature → `mpi-sys` + `clang-sys` (build-dep of `mpi-sys`)
+  - **Prescribed fix**: split each FFI-pulling feature out into a physically separate, suffix-named crate that depends on the base crate and adds only its own FFI-touching dependency, so the base crates' `--all-features` closures stay `-sys`-free: `sklears-datasets-hdf5`, `sklears-datasets-parquet`, `sklears-datasets-cloud-s3`, `sklears-datasets-cloud-gcs`, `sklears-datasets-viz`, `sklears-decomposition-hdf5`, `sklears-feature-selection-parquet`, `sklears-metrics-mpi`.
+  - **Evaluate first (hdf5 only)**: `oxih5` (`~/work/oxih5`, Pure-Rust read-only HDF5 reader, already at v0.1.4 locally) should be evaluated as a full replacement for `hdf5-sys` in both `sklears-datasets`'s `hdf5` feature and `sklears-decomposition`'s `hdf5-support` feature *before* quarantining — it may eliminate the FFI dependency outright rather than just fence it off. Only fall back to `sklears-datasets-hdf5` / `sklears-decomposition-hdf5` quarantine crates if `oxih5` can't cover the required read/write surface.
+  - **No replacement exists**: `mpi-sys` has no Pure-Rust equivalent anywhere in the COOLJAPAN ecosystem yet — `sklears-metrics`'s `distributed` feature must be quarantined into `sklears-metrics-mpi` as-is, not replaced.
+  - **Files**: `crates/sklears-datasets/Cargo.toml`, `crates/sklears-decomposition/Cargo.toml`, `crates/sklears-feature-selection/Cargo.toml`, `crates/sklears-metrics/Cargo.toml`
+  - **Scope: large, needs user input** — this is a genuine architecture decision (splitting crate boundaries, potentially breaking every existing call site using `--features hdf5`/`--features parquet`/`--features cloud-s3`/`--features cloud-gcs`/`--features visualization`/`--features hdf5-support`/`--features distributed` today). Warrants its own dedicated planning pass, not a quick mechanical fix — needs user decision on migration strategy and whether renaming/removing these feature flags as a breaking change is acceptable before implementation starts.
+  - Priority: P2 | Scope: large
 

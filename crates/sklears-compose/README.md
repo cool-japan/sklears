@@ -17,6 +17,10 @@
 - **Column Transforms**: ColumnTransformer, make_column_transformer, and feature selection by dtype or name.
 - **Target Transformations**: TransformedTargetRegressor, inverse-transform aware scorers, and custom adapters.
 - **Serialization**: Friendly with serde-powered persistence and Python interoperability via `sklears-python`.
+- **Stacking**: `stacking::StackingEnsemble` performs genuine out-of-fold k-fold stacked generalization (leakage-safe meta-features) over a pluggable set of base learners plus a meta-learner (defaults to OLS).
+- **Hierarchical Composition**: `hierarchical_composition::HierarchicalComposition` trains every level for real; its `Stacked` strategy builds meta-features via genuine out-of-fold cross-validation instead of a placeholder.
+- **Model Fusion**: `model_fusion::ModelFusion` trains its base models via real `fit()` calls; the `WeightedLinear` strategy solves a real OLS/ridge-regularized least-squares problem for fusion weights, and `NeuralNetwork` fusion trains a small MLP via real gradient descent. Other fusion strategies honestly return `NotImplemented` rather than fabricating a result.
+- **Pipeline Visualization (not yet functional)**: `pipeline_visualization` types are wired into the public API, but rendering and graph/node/edge extraction now honestly return `NotImplemented` errors instead of fake or empty output — there is no working visualization output yet (see `TODO.md`).
 
 ## Quick Start
 
@@ -41,6 +45,7 @@ let predictions = fitted.predict(&x_test)?;
 
 ## Status
 
-- Verified through workspace integration tests; `0.2.0` records 654 tests (406 stubs remaining).
+- Verified through workspace integration tests; `0.2.0` records 782 passing tests.
 - Supports all major scikit-learn compose APIs plus Rust-centric ergonomic improvements.
-- Future enhancements (async pipelines, streaming feature unions) tracked in `TODO.md`.
+- This session replaced several silently-faked training paths with real implementations: ensemble `model_fusion` (real fit calls, real OLS/ridge weight solve, real gradient-descent neural fusion), `hierarchical_composition` (every level genuinely trained, real out-of-fold stacking), and a new `stacking` module. `pipeline_visualization` now honestly reports `NotImplemented` instead of returning fake output, but rendering itself is still not implemented.
+- Future enhancements (async pipelines, streaming feature unions, full pipeline visualization) tracked in `TODO.md`.

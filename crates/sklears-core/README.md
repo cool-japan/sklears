@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-The foundational crate for sklears, providing core traits, types, and utilities that power the entire machine learning ecosystem. Production-ready with 100% test coverage.
+The foundational crate for sklears, providing core traits, types, and utilities that power the entire machine learning ecosystem. Actively evolving (Partial) — core traits and error handling are stable, while some advanced modules are still maturing; see [Status](#status).
 
 > **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
@@ -15,15 +15,16 @@ The foundational crate for sklears, providing core traits, types, and utilities 
 
 - **Core Traits**: Comprehensive ML abstractions with type-safe state management
 - **Advanced Type System**: Compile-time validation, phantom types, const generics
-- **Performance Infrastructure**: SIMD, GPU support, memory pooling, parallel processing
+- **Performance Infrastructure**: SIMD, an oxicuda-backed GPU backend (`gpu::{GpuBackend, GpuArray, GpuMatrixOps}`) that gracefully reports "no GPU" instead of faking a CPU fallback, memory pooling, parallel processing
 - **Error Handling**: Rich error types with context propagation and recovery
 - **Integration**: scikit-learn compatibility, format I/O, cross-framework support
+- **Trait Explorer Tooling**: Graph-based analysis of the crate's own trait relationships (hub/bridge/bottleneck node detection, Newman modularity, small-world coefficient), plus API reference generation
 
 ## Status
 
-- **Implementation**: 0.2.0 ships with >99% of the planned v0.1 APIs implemented (141 stubs remaining).
-- **Validation**: Covered by 697 passing crate tests executed on June 30, 2026.
-- **Performance**: Pure Rust implementation with ongoing performance optimization via SIMD, threading, and cache-friendly layouts.
+- **Implementation**: 0.2.0 ships with >99% of the planned v0.1 APIs implemented (141 stubs remaining). Status: **Partial** — actively evolving, not yet claiming full stability.
+- **Validation**: Covered by 855 passing crate tests.
+- **Performance**: Pure Rust implementation with ongoing performance optimization via SIMD, threading, and cache-friendly layouts. An oxicuda-backed GPU backend (`gpu::GpuBackend` / `GpuArray` / `GpuMatrixOps`) is available behind the `gpu_support` feature, wired directly to `oxicuda-driver` / `oxicuda-blas`; `GpuBackend::detect()` gracefully returns `Ok(None)` on machines without a usable GPU rather than silently substituting a fake backend.
 - **API Stability**: Minor breaking changes possible in pre-1.0 releases; stabilization roadmap tracked in the root `TODO.md`.
 
 ## Core Trait System
@@ -93,11 +94,17 @@ pub trait AsyncPredict<X, Output> {
 ```
 
 #### GPU Acceleration
-```rust
-use sklears_core::gpu::GpuContext;
+Behind the `gpu_support` feature, backed by real `oxicuda-driver` / `oxicuda-blas` calls (no CPU-fallback stub):
 
-pub trait GpuAccelerated {
-    fn to_gpu(self, ctx: &GpuContext) -> Result<Self::GpuVersion>;
+```rust
+use sklears_core::gpu::{GpuArray, GpuBackend, GpuMatrixOps};
+
+// `detect()` gracefully returns `Ok(None)` when no GPU/driver is present,
+// instead of silently substituting a fake backend.
+if let Some(backend) = GpuBackend::detect()? {
+    let a = GpuArray::from_array2(&backend, &matrix_a)?;
+    let b = GpuArray::from_array2(&backend, &matrix_b)?;
+    let result = a.matmul(&b)?.to_array2()?;
 }
 ```
 

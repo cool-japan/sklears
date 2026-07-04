@@ -121,8 +121,13 @@ def demo_model_selection():
     # Generate sample data
     X, y = datasets.make_classification(n_samples=200, n_features=10, n_classes=2, random_state=42)
 
-    # Train-test split
-    X_train, X_test, y_train, y_test = skl.train_test_split(X, y, test_size=0.3, random_state=42)
+    # Train-test split. train_test_split's PyO3 signature requires exact-dtype
+    # PyReadonlyArray1<f64> for y; make_classification() returns int64 labels
+    # on 64-bit platforms, so the dtype must be made explicit here (same
+    # reasoning as the accuracy_score dtype note in demo_metrics() below).
+    X_train, X_test, y_train, y_test = skl.train_test_split(
+        X, y.astype(np.float64), test_size=0.3, random_state=42
+    )
 
     print(f"Dataset split - Train: {X_train.shape[0]}, Test: {X_test.shape[0]}")
 

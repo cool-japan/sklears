@@ -164,8 +164,24 @@ impl From<&RiskAssessmentResult> for RiskAnalysis {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust,no_run
 /// use sklears_core::trait_explorer::security_analysis::{
+///     create_security_risk_assessor, TraitUsageContext,
+/// };
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let assessor = create_security_risk_assessor();
+/// let context = TraitUsageContext {
+///     trait_name: "MyTrait".to_string(),
+///     ..Default::default()
+/// };
+/// let assessment = assessor.assess_comprehensive_risk(&context)?;
+/// println!("Overall risk score: {}", assessment.overall_risk_score);
+/// println!("Risk level: {:?}", assessment.risk_level);
+/// println!("Risk factors: {}", assessment.risk_factors.len());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SecurityRiskAssessor {

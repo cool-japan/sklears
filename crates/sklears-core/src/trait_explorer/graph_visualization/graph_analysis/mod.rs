@@ -1004,8 +1004,8 @@ impl GraphAnalyzer {
     /// graph-theoretic "cut vertices" / articulation points).
     ///
     /// Computed via the standard Hopcroft-Tarjan DFS discovery-time /
-    /// low-link algorithm over the graph's undirected adjacency (see
-    /// [`Self::build_undirected_adjacency`]).
+    /// low-link algorithm over the graph's undirected adjacency (built
+    /// internally from `graph`).
     pub fn identify_bridge_nodes(&self, graph: &TraitGraph) -> Result<Vec<String>> {
         let adjacency = Self::build_undirected_adjacency(graph);
         let mut discovery: HashMap<&str, usize> = HashMap::new();

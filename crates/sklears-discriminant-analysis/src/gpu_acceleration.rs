@@ -17,8 +17,8 @@
 //! estimators whenever: no GPU was detected, the problem is smaller than
 //! [`GpuAccelerationConfig::gpu_threshold`], the requested solver
 //! configuration uses a regularization mode the GPU path does not (yet)
-//! implement (see [`GpuDiscriminantAnalysis::lda_config_supported_on_gpu`] /
-//! [`GpuDiscriminantAnalysis::qda_config_supported_on_gpu`]), or an on-device
+//! implement (an internal eligibility check specific to each of the LDA and
+//! QDA configuration types), or an on-device
 //! call fails for any reason. This mirrors the fallback shape already used by
 //! `sklears_decomposition::hardware_acceleration::GpuAcceleration`.
 //!
@@ -228,8 +228,8 @@ fn argmax_rows(scores: &ArrayView2<Float>) -> Array1<usize> {
 
 /// Row-wise softmax, for callers that need class probabilities from raw
 /// discriminant scores. Cheap (`O(n·k)`), computed host-side, matching the
-/// approach already used by [`LinearDiscriminantAnalysis::predict_proba`] and
-/// [`QuadraticDiscriminantAnalysis::predict_proba`].
+/// approach already used by `LinearDiscriminantAnalysis`'s and
+/// `QuadraticDiscriminantAnalysis`'s `predict_proba` (via the `PredictProba` trait).
 pub fn softmax_rows(scores: &ArrayView2<Float>) -> Array2<Float> {
     let mut probabilities = Array2::zeros(scores.dim());
     for (i, row) in scores.axis_iter(Axis(0)).enumerate() {
@@ -776,8 +776,8 @@ impl GpuQDAKernel {
     /// computed the same way as
     /// [`GpuLDAKernel::compute_discriminant_gpu`] but with a per-class
     /// covariance inverse and an added log-determinant term (matches
-    /// [`crate::qda::QuadraticDiscriminantAnalysis::predict_proba`]'s
-    /// log-likelihood formula).
+    /// `QuadraticDiscriminantAnalysis`'s `predict_proba` (via the `PredictProba`
+    /// trait) log-likelihood formula).
     pub fn compute_qda_discriminant_gpu(
         &self,
         backend: &GpuBackend,
@@ -928,8 +928,9 @@ impl GpuDiscriminantAnalysis {
     }
 
     /// Fits LDA on `(x, y)` and predicts on `x_test`, using the GPU path when
-    /// available, large enough, and the configuration is GPU-eligible (see
-    /// [`Self::lda_config_supported_on_gpu`]); otherwise (or if any on-device
+    /// available, large enough, and the configuration is GPU-eligible (i.e.
+    /// requests only regularization modes the GPU LDA path implements
+    /// today); otherwise (or if any on-device
     /// step fails) transparently falls back to plain CPU
     /// [`LinearDiscriminantAnalysis`].
     ///
@@ -1018,8 +1019,8 @@ impl GpuDiscriminantAnalysis {
     }
 
     /// Fits QDA on `(x, y)` and predicts on `x_test`, mirroring
-    /// [`Self::gpu_lda_fit_predict`]'s dispatch/fallback shape (see
-    /// [`Self::qda_config_supported_on_gpu`] for GPU-eligibility rules).
+    /// [`Self::gpu_lda_fit_predict`]'s dispatch/fallback shape (GPU-eligibility
+    /// requires that robust MCD estimation not be requested, since it is CPU-only).
     pub fn gpu_qda_fit_predict(
         &self,
         x: &ArrayView2<Float>,
