@@ -36,7 +36,8 @@ fn generate_features(n_samples: usize, n_features: usize, seed: u64) -> Array2<f
         .map(|_| normal.sample(&mut rng))
         .collect();
 
-    Array2::from_shape_vec((n_samples, n_features), data).expect("shape and data length should match")
+    Array2::from_shape_vec((n_samples, n_features), data)
+        .expect("shape and data length should match")
 }
 
 /// Generate deterministic class labels cycling through `n_classes`

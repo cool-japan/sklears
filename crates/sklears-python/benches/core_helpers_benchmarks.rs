@@ -71,8 +71,8 @@ fn generate_indexed_dataset(
     let x_data: Vec<f64> = (0..n_samples * n_features)
         .map(|_| normal.sample(&mut rng))
         .collect();
-    let x = Array2::from_shape_vec((n_samples, n_features), x_data)
-        .expect("shape matches data length");
+    let x =
+        Array2::from_shape_vec((n_samples, n_features), x_data).expect("shape matches data length");
     let y = Array1::from_vec((0..n_samples).map(|i| i as f64).collect());
     (x, y)
 }

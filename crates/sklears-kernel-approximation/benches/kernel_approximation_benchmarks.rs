@@ -13,7 +13,9 @@ use scirs2_core::ndarray::Array2;
 use scirs2_core::random::essentials::Normal;
 use scirs2_core::random::{seeded_rng, Distribution};
 use sklears_core::traits::{Fit, Transform};
-use sklears_kernel_approximation::{ArcCosineSampler, Kernel, Nystroem, PolynomialSampler, RBFSampler};
+use sklears_kernel_approximation::{
+    ArcCosineSampler, Kernel, Nystroem, PolynomialSampler, RBFSampler,
+};
 use std::hint::black_box;
 
 /// Generate test data for benchmarks
