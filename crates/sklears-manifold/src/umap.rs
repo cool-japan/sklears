@@ -642,7 +642,8 @@ impl UMAP<UmapTrained> {
                             // This prevents a lone out-of-sample point from being
                             // flung out of the embedding by repulsion-driven runaway.
                             let grad = (grad_coeff
-                                * (new_embedding[[p, d]] - self.state.embedding[[neighbor_idx, d]]))
+                                * (new_embedding[[p, d]]
+                                    - self.state.embedding[[neighbor_idx, d]]))
                             .clamp(-4.0, 4.0);
                             new_embedding[[p, d]] += alpha * weight * grad;
                         }
@@ -652,8 +653,8 @@ impl UMAP<UmapTrained> {
                 // Repulsive forces against randomly sampled training points.
                 for _ in 0..self.negative_sample_rate {
                     let t = rng.random_range(0..n_train);
-                    let dist_sq = self
-                        .squared_distance(&new_embedding.row(p), &self.state.embedding.row(t));
+                    let dist_sq =
+                        self.squared_distance(&new_embedding.row(p), &self.state.embedding.row(t));
                     if dist_sq > 0.0 {
                         let grad_coeff = 2.0 * b / (0.001 + dist_sq) / (a * dist_sq.powf(b) + 1.0);
 

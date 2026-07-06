@@ -13,15 +13,15 @@ use sklears_core::{
 };
 use smartcore::{
     linalg::basic::matrix::DenseMatrix,
-    tree::decision_tree_regressor::{*, DecisionTreeRegressor as SmartCoreRegressor},
+    tree::decision_tree_regressor::{DecisionTreeRegressor as SmartCoreRegressor, *},
 };
 
-use crate::config::{
-    DecisionTreeConfig, FeatureType, MaxFeatures, MissingValueStrategy, PruningStrategy,
-    SplitCriterion, TreeGrowingStrategy, SplitType,
-};
 use crate::builder::{find_best_mae_split, handle_missing_values};
 use crate::config::ndarray_to_dense_matrix;
+use crate::config::{
+    DecisionTreeConfig, FeatureType, MaxFeatures, MissingValueStrategy, PruningStrategy,
+    SplitCriterion, SplitType, TreeGrowingStrategy,
+};
 
 /// Decision Tree Regressor
 pub struct DecisionTreeRegressor<State = Untrained> {
@@ -297,9 +297,13 @@ impl DecisionTreeRegressor<Untrained> {
         // Split data: 70% training, 30% validation
         let train_size = (n_samples as f64 * 0.7) as usize;
 
-        let train_x = x.slice(scirs2_core::ndarray::s![..train_size, ..]).to_owned();
+        let train_x = x
+            .slice(scirs2_core::ndarray::s![..train_size, ..])
+            .to_owned();
         let train_y = y.slice(scirs2_core::ndarray::s![..train_size]).to_owned();
-        let val_x = x.slice(scirs2_core::ndarray::s![train_size.., ..]).to_owned();
+        let val_x = x
+            .slice(scirs2_core::ndarray::s![train_size.., ..])
+            .to_owned();
         let val_y = y.slice(scirs2_core::ndarray::s![train_size..]).to_owned();
 
         let depths_to_try = vec![3, 5, 7, 10, 15];
@@ -645,8 +649,8 @@ mod tests {
             y_data.push(2.0 * x_val + noise);
         }
 
-        let x = Array2::from_shape_vec((n_samples, 1), x_data)
-            .expect("shape should match data length");
+        let x =
+            Array2::from_shape_vec((n_samples, 1), x_data).expect("shape should match data length");
         let y = Array1::from_vec(y_data);
 
         let model = DecisionTreeRegressor::new()

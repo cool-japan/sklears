@@ -478,8 +478,8 @@ impl Transform<ArrayView2<'_, Float>, Array2<f64>> for Isomap<IsomapTrained> {
                 if eigenval > 1e-12 {
                     let mut acc = 0.0;
                     for (j, &d_p_j) in d_p.iter().enumerate() {
-                        let b_p = -0.5
-                            * (d_p_j - self.state.row_means[j] - m_p + self.state.grand_mean);
+                        let b_p =
+                            -0.5 * (d_p_j - self.state.row_means[j] - m_p + self.state.grand_mean);
                         acc += b_p * self.state.eigenvectors[[j, c]];
                     }
                     embedding_new[[p, c]] = acc / eigenval.sqrt();
@@ -618,15 +618,13 @@ mod tests {
             .transform(&perturbed.view())
             .expect("transform should succeed");
 
-        let dist_to_own = ((out[[0, 0]] - emb[[0, 0]]).powi(2)
-            + (out[[0, 1]] - emb[[0, 1]]).powi(2))
-        .sqrt();
+        let dist_to_own =
+            ((out[[0, 0]] - emb[[0, 0]]).powi(2) + (out[[0, 1]] - emb[[0, 1]]).powi(2)).sqrt();
 
         // It must land closer to its own original embedding row than to any other row.
         for i in 1..emb.nrows() {
-            let dist_to_other = ((out[[0, 0]] - emb[[i, 0]]).powi(2)
-                + (out[[0, 1]] - emb[[i, 1]]).powi(2))
-            .sqrt();
+            let dist_to_other =
+                ((out[[0, 0]] - emb[[i, 0]]).powi(2) + (out[[0, 1]] - emb[[i, 1]]).powi(2)).sqrt();
             assert!(
                 dist_to_own < dist_to_other,
                 "perturbed point 0 should map nearest to embedding row 0, but row {i} \

@@ -480,9 +480,7 @@ mod tests {
             .n_iter(50)
             .random_state(Some(42));
 
-        let fitted = htsne
-            .fit(&x.view(), &())
-            .expect("operation should succeed");
+        let fitted = htsne.fit(&x.view(), &()).expect("operation should succeed");
 
         assert_eq!(fitted.embedding().dim(), (4, 2));
     }
@@ -503,9 +501,7 @@ mod tests {
             .n_iter(50)
             .random_state(Some(42));
 
-        let fitted = htsne
-            .fit(&x.view(), &())
-            .expect("operation should succeed");
+        let fitted = htsne.fit(&x.view(), &()).expect("operation should succeed");
 
         let result = fitted.transform(&x.view());
         assert!(matches!(result, Err(SklearsError::NotImplemented(_))));

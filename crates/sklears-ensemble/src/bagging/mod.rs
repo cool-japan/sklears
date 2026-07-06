@@ -1,6 +1,9 @@
 // Copyright 2026 COOLJAPAN OU (Team KitaSan)
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::adaboost::{DecisionTreeClassifier, DecisionTreeRegressor, SplitCriterion};
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::prelude::*;
@@ -8,12 +11,9 @@ use sklears_core::error::{Result, SklearsError};
 use sklears_core::prelude::Predict;
 use sklears_core::traits::{Estimator, Fit, Trained, Untrained};
 use sklears_core::types::{Float, Int};
-use crate::adaboost::{DecisionTreeClassifier, DecisionTreeRegressor, SplitCriterion};
 #[allow(unused_imports)]
 use std::collections::HashSet;
 use std::marker::PhantomData;
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
 /// Convenience type alias for bootstrap sample data tuple
 type BootstrapSampleData = (Array2<Float>, Array1<Int>, Vec<usize>, Vec<usize>);
 /// Convenience type alias for trained classifier ensemble results
@@ -23,12 +23,7 @@ type ClassifierEnsembleResult = (
     Vec<Vec<usize>>,
 );
 /// Convenience type alias for regressor bootstrap sample data tuple
-type RegressorBootstrapSampleData = (
-    Array2<Float>,
-    Array1<Float>,
-    Vec<usize>,
-    Vec<usize>,
-);
+type RegressorBootstrapSampleData = (Array2<Float>, Array1<Float>, Vec<usize>, Vec<usize>);
 /// Convenience type alias for trained regressor ensemble results
 type RegressorEnsembleResult = (
     Vec<DecisionTreeRegressor<Trained>>,
@@ -206,12 +201,15 @@ impl BaggingClassifier<Untrained> {
             return Ok((x.clone(), y.clone(), sample_indices));
         }
         let max_samples = self.config.max_samples.unwrap_or(n_samples);
-        let mut class_indices: std::collections::HashMap<Int, Vec<usize>> = std::collections::HashMap::new();
+        let mut class_indices: std::collections::HashMap<Int, Vec<usize>> =
+            std::collections::HashMap::new();
         for (idx, &class) in y.iter().enumerate() {
             class_indices.entry(class).or_default().push(idx);
         }
         let mut sample_indices: Vec<usize> = if self.config.bootstrap {
-            (0..max_samples).map(|_| rng.gen_range(0..n_samples)).collect()
+            (0..max_samples)
+                .map(|_| rng.gen_range(0..n_samples))
+                .collect()
         } else {
             let mut indices: Vec<usize> = (0..n_samples).collect();
             indices.shuffle(rng);
@@ -259,14 +257,12 @@ impl BaggingClassifier<Untrained> {
     ) -> Result<ClassifierEnsembleResult> {
         let mut bootstrap_data = Vec::new();
         for i in 0..self.config.n_estimators {
-            let mut local_rng = StdRng::seed_from_u64(
-                self.config.random_state.unwrap_or(42) + i as u64,
-            );
-            let (x_bootstrap, y_bootstrap, sample_indices) = self
-                .bootstrap_sample(x, y, &mut local_rng)?;
+            let mut local_rng =
+                StdRng::seed_from_u64(self.config.random_state.unwrap_or(42) + i as u64);
+            let (x_bootstrap, y_bootstrap, sample_indices) =
+                self.bootstrap_sample(x, y, &mut local_rng)?;
             let feature_indices = self.get_feature_indices(n_features, &mut local_rng);
-            bootstrap_data
-                .push((x_bootstrap, y_bootstrap, sample_indices, feature_indices));
+            bootstrap_data.push((x_bootstrap, y_bootstrap, sample_indices, feature_indices));
         }
         let use_parallel = self.should_use_parallel();
         if use_parallel {
@@ -275,26 +271,21 @@ impl BaggingClassifier<Untrained> {
                 let results: Result<Vec<_>> = bootstrap_data
                     .into_par_iter()
                     .enumerate()
-                    .map(|
-                        (i, (x_bootstrap, y_bootstrap, sample_indices, feature_indices))|
-                    {
-                        self.fit_single_estimator(
+                    .map(
+                        |(i, (x_bootstrap, y_bootstrap, sample_indices, feature_indices))| {
+                            self.fit_single_estimator(
                                 &x_bootstrap,
                                 &y_bootstrap,
                                 &feature_indices,
                                 i,
                             )
-                            .map(|estimator| (
-                                estimator,
-                                feature_indices,
-                                sample_indices,
-                            ))
-                    })
+                            .map(|estimator| (estimator, feature_indices, sample_indices))
+                        },
+                    )
                     .collect();
                 let fitted_data = results?;
-                let (estimators, estimators_features, estimators_samples) = fitted_data
-                    .into_iter()
-                    .fold(
+                let (estimators, estimators_features, estimators_samples) =
+                    fitted_data.into_iter().fold(
                         (Vec::new(), Vec::new(), Vec::new()),
                         |(mut e, mut ef, mut es), (estimator, features, samples)| {
                             e.push(estimator);
@@ -306,7 +297,9 @@ impl BaggingClassifier<Untrained> {
                 Ok((estimators, estimators_features, estimators_samples))
             }
             #[cfg(not(feature = "parallel"))]
-            { self.train_ensemble_sequential(bootstrap_data) }
+            {
+                self.train_ensemble_sequential(bootstrap_data)
+            }
         } else {
             self.train_ensemble_sequential(bootstrap_data)
         }
@@ -319,12 +312,11 @@ impl BaggingClassifier<Untrained> {
         let mut estimators = Vec::new();
         let mut estimators_features = Vec::new();
         let mut estimators_samples = Vec::new();
-        for (i, (x_bootstrap, y_bootstrap, sample_indices, feature_indices)) in bootstrap_data
-            .into_iter()
-            .enumerate()
+        for (i, (x_bootstrap, y_bootstrap, sample_indices, feature_indices)) in
+            bootstrap_data.into_iter().enumerate()
         {
-            let fitted_tree = self
-                .fit_single_estimator(&x_bootstrap, &y_bootstrap, &feature_indices, i)?;
+            let fitted_tree =
+                self.fit_single_estimator(&x_bootstrap, &y_bootstrap, &feature_indices, i)?;
             estimators.push(fitted_tree);
             estimators_features.push(feature_indices);
             estimators_samples.push(sample_indices);
@@ -341,7 +333,9 @@ impl BaggingClassifier<Untrained> {
     ) -> Result<DecisionTreeClassifier<Trained>> {
         let mut x_features = Array2::zeros((x_bootstrap.nrows(), feature_indices.len()));
         for (j, &feature_idx) in feature_indices.iter().enumerate() {
-            x_features.column_mut(j).assign(&x_bootstrap.column(feature_idx));
+            x_features
+                .column_mut(j)
+                .assign(&x_bootstrap.column(feature_idx));
         }
         let mut tree = DecisionTreeClassifier::new()
             .criterion(SplitCriterion::Gini)
@@ -350,8 +344,7 @@ impl BaggingClassifier<Untrained> {
         if let Some(max_depth) = self.config.max_depth {
             tree = tree.max_depth(max_depth);
         }
-        if let Some(seed) = self.config.random_state.map(|s| s + estimator_index as u64)
-        {
+        if let Some(seed) = self.config.random_state.map(|s| s + estimator_index as u64) {
             tree = tree.random_state(Some(seed));
         }
         tree.fit(&x_features, y_bootstrap)
@@ -405,14 +398,12 @@ impl BaggingClassifier<Untrained> {
                 if is_oob {
                     let x_sample = x.row(sample_idx);
                     let x_features = Array2::from_shape_vec(
-                            (1, features.len()),
-                            features.iter().map(|&f| x_sample[f]).collect(),
-                        )
-                        .map_err(|_| {
-                            SklearsError::InvalidInput(
-                                "Failed to create feature subset".to_string(),
-                            )
-                        })?;
+                        (1, features.len()),
+                        features.iter().map(|&f| x_sample[f]).collect(),
+                    )
+                    .map_err(|_| {
+                        SklearsError::InvalidInput("Failed to create feature subset".to_string())
+                    })?;
                     let pred = estimator.predict(&x_features)?;
                     oob_predictions[sample_idx] += pred[0] as Float;
                     oob_counts[sample_idx] += 1.0;
@@ -431,7 +422,11 @@ impl BaggingClassifier<Untrained> {
                 total += 1;
             }
         }
-        if total == 0 { Ok(0.0) } else { Ok(correct as Float / total as Float) }
+        if total == 0 {
+            Ok(0.0)
+        } else {
+            Ok(correct as Float / total as Float)
+        }
     }
 }
 impl Fit<Array2<Float>, Array1<Int>> for BaggingClassifier<Untrained> {
@@ -445,11 +440,9 @@ impl Fit<Array2<Float>, Array1<Int>> for BaggingClassifier<Untrained> {
             });
         }
         if n_samples == 0 {
-            return Err(
-                SklearsError::InvalidInput(
-                    "Cannot fit bagging on empty dataset".to_string(),
-                ),
-            );
+            return Err(SklearsError::InvalidInput(
+                "Cannot fit bagging on empty dataset".to_string(),
+            ));
         }
         let mut unique_classes: Vec<Int> = y.iter().cloned().collect();
         unique_classes.sort_unstable();
@@ -457,29 +450,24 @@ impl Fit<Array2<Float>, Array1<Int>> for BaggingClassifier<Untrained> {
         let classes = Array1::from_vec(unique_classes);
         let n_classes = classes.len();
         if n_classes < 2 {
-            return Err(
-                SklearsError::InvalidInput(
-                    "Bagging requires at least 2 classes".to_string(),
-                ),
-            );
+            return Err(SklearsError::InvalidInput(
+                "Bagging requires at least 2 classes".to_string(),
+            ));
         }
         let mut rng = match self.config.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
             None => StdRng::seed_from_u64(42),
         };
-        let (estimators, estimators_features, estimators_samples) = self
-            .train_ensemble_parallel(x, y, &mut rng, n_features)?;
+        let (estimators, estimators_features, estimators_samples) =
+            self.train_ensemble_parallel(x, y, &mut rng, n_features)?;
         let oob_score = if self.config.oob_score {
-            Some(
-                self
-                    .calculate_oob_predictions(
-                        x,
-                        y,
-                        &estimators,
-                        &estimators_features,
-                        &estimators_samples,
-                    )?,
-            )
+            Some(self.calculate_oob_predictions(
+                x,
+                y,
+                &estimators,
+                &estimators_features,
+                &estimators_samples,
+            )?)
         } else {
             None
         };
@@ -512,15 +500,21 @@ impl Fit<Array2<Float>, Array1<Int>> for BaggingClassifier<Untrained> {
 impl BaggingClassifier<Trained> {
     /// Get the fitted base estimators
     pub fn estimators(&self) -> &[DecisionTreeClassifier<Trained>] {
-        self.estimators_.as_ref().expect("BaggingClassifier should be fitted")
+        self.estimators_
+            .as_ref()
+            .expect("BaggingClassifier should be fitted")
     }
     /// Get the feature indices used by each estimator
     pub fn estimators_features(&self) -> &[Vec<usize>] {
-        self.estimators_features_.as_ref().expect("BaggingClassifier should be fitted")
+        self.estimators_features_
+            .as_ref()
+            .expect("BaggingClassifier should be fitted")
     }
     /// Get the sample indices used by each estimator
     pub fn estimators_samples(&self) -> &[Vec<usize>] {
-        self.estimators_samples_.as_ref().expect("BaggingClassifier should be fitted")
+        self.estimators_samples_
+            .as_ref()
+            .expect("BaggingClassifier should be fitted")
     }
     /// Get the out-of-bag score if calculated
     pub fn oob_score(&self) -> Option<Float> {
@@ -528,7 +522,9 @@ impl BaggingClassifier<Trained> {
     }
     /// Get the classes
     pub fn classes(&self) -> &Array1<Int> {
-        self.classes_.as_ref().expect("BaggingClassifier should be fitted")
+        self.classes_
+            .as_ref()
+            .expect("BaggingClassifier should be fitted")
     }
     /// Get the number of classes
     pub fn n_classes(&self) -> usize {
@@ -536,11 +532,14 @@ impl BaggingClassifier<Trained> {
     }
     /// Get the number of input features
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.expect("BaggingClassifier should be fitted")
+        self.n_features_in_
+            .expect("BaggingClassifier should be fitted")
     }
     /// Get feature importances
     pub fn feature_importances(&self) -> &Array1<Float> {
-        self.feature_importances_.as_ref().expect("BaggingClassifier should be fitted")
+        self.feature_importances_
+            .as_ref()
+            .expect("BaggingClassifier should be fitted")
     }
     /// Calculate bootstrap confidence intervals for predictions
     pub fn predict_with_confidence(
@@ -586,10 +585,7 @@ impl BaggingClassifier<Trained> {
             let sample_predictions = all_predictions.row(i);
             let mut class_counts = vec![0; n_classes];
             for &pred in sample_predictions {
-                let class_idx = classes
-                    .iter()
-                    .position(|&c| c == pred as Int)
-                    .unwrap_or(0);
+                let class_idx = classes.iter().position(|&c| c == pred as Int).unwrap_or(0);
                 class_counts[class_idx] += 1;
             }
             let max_class_idx = class_counts
@@ -600,15 +596,12 @@ impl BaggingClassifier<Trained> {
                 .unwrap_or(0);
             final_predictions[i] = classes[max_class_idx];
             let mut sorted_predictions: Vec<Float> = sample_predictions.to_vec();
-            sorted_predictions
-                .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
+            sorted_predictions.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             let alpha = 1.0 - self.config.confidence_level;
             let lower_idx = ((alpha / 2.0) * n_estimators as Float) as usize;
             let upper_idx = ((1.0 - alpha / 2.0) * n_estimators as Float) as usize;
-            confidence_intervals[[i, 0]] = sorted_predictions[lower_idx
-                .min(n_estimators - 1)];
-            confidence_intervals[[i, 1]] = sorted_predictions[upper_idx
-                .min(n_estimators - 1)];
+            confidence_intervals[[i, 0]] = sorted_predictions[lower_idx.min(n_estimators - 1)];
+            confidence_intervals[[i, 1]] = sorted_predictions[upper_idx.min(n_estimators - 1)];
         }
         Ok((final_predictions, confidence_intervals))
     }
@@ -669,50 +662,38 @@ impl<State> Estimator<State> for BaggingClassifier<State> {
     }
     fn validate_config(&self) -> Result<()> {
         if self.config.n_estimators == 0 {
-            return Err(
-                SklearsError::InvalidInput(
-                    "n_estimators must be greater than 0".to_string(),
-                ),
-            );
+            return Err(SklearsError::InvalidInput(
+                "n_estimators must be greater than 0".to_string(),
+            ));
         }
         if let Some(max_samples) = self.config.max_samples {
             if max_samples == 0 {
-                return Err(
-                    SklearsError::InvalidInput(
-                        "max_samples must be greater than 0".to_string(),
-                    ),
-                );
+                return Err(SklearsError::InvalidInput(
+                    "max_samples must be greater than 0".to_string(),
+                ));
             }
         }
         if let Some(max_features) = self.config.max_features {
             if max_features == 0 {
-                return Err(
-                    SklearsError::InvalidInput(
-                        "max_features must be greater than 0".to_string(),
-                    ),
-                );
+                return Err(SklearsError::InvalidInput(
+                    "max_features must be greater than 0".to_string(),
+                ));
             }
         }
         if self.config.min_samples_split < 2 {
-            return Err(
-                SklearsError::InvalidInput(
-                    "min_samples_split must be at least 2".to_string(),
-                ),
-            );
+            return Err(SklearsError::InvalidInput(
+                "min_samples_split must be at least 2".to_string(),
+            ));
         }
         if self.config.min_samples_leaf < 1 {
-            return Err(
-                SklearsError::InvalidInput(
-                    "min_samples_leaf must be at least 1".to_string(),
-                ),
-            );
+            return Err(SklearsError::InvalidInput(
+                "min_samples_leaf must be at least 1".to_string(),
+            ));
         }
         if self.config.confidence_level <= 0.0 || self.config.confidence_level >= 1.0 {
-            return Err(
-                SklearsError::InvalidInput(
-                    "confidence_level must be between 0.0 and 1.0".to_string(),
-                ),
-            );
+            return Err(SklearsError::InvalidInput(
+                "confidence_level must be between 0.0 and 1.0".to_string(),
+            ));
         }
         Ok(())
     }
@@ -849,7 +830,9 @@ impl BaggingRegressor<Untrained> {
         }
         let max_samples = self.config.max_samples.unwrap_or(n_samples);
         let sample_indices: Vec<usize> = if self.config.bootstrap {
-            (0..max_samples).map(|_| rng.gen_range(0..n_samples)).collect()
+            (0..max_samples)
+                .map(|_| rng.gen_range(0..n_samples))
+                .collect()
         } else {
             let mut indices: Vec<usize> = (0..n_samples).collect();
             indices.shuffle(rng);
@@ -874,14 +857,12 @@ impl BaggingRegressor<Untrained> {
     ) -> Result<RegressorEnsembleResult> {
         let mut bootstrap_data = Vec::new();
         for i in 0..self.config.n_estimators {
-            let mut local_rng = StdRng::seed_from_u64(
-                self.config.random_state.unwrap_or(42) + i as u64,
-            );
-            let (x_bootstrap, y_bootstrap, sample_indices) = self
-                .bootstrap_sample(x, y, &mut local_rng)?;
+            let mut local_rng =
+                StdRng::seed_from_u64(self.config.random_state.unwrap_or(42) + i as u64);
+            let (x_bootstrap, y_bootstrap, sample_indices) =
+                self.bootstrap_sample(x, y, &mut local_rng)?;
             let feature_indices = self.get_feature_indices(n_features, &mut local_rng);
-            bootstrap_data
-                .push((x_bootstrap, y_bootstrap, sample_indices, feature_indices));
+            bootstrap_data.push((x_bootstrap, y_bootstrap, sample_indices, feature_indices));
         }
         let use_parallel = self.should_use_parallel();
         if use_parallel {
@@ -890,26 +871,21 @@ impl BaggingRegressor<Untrained> {
                 let results: Result<Vec<_>> = bootstrap_data
                     .into_par_iter()
                     .enumerate()
-                    .map(|
-                        (i, (x_bootstrap, y_bootstrap, sample_indices, feature_indices))|
-                    {
-                        self.fit_single_estimator(
+                    .map(
+                        |(i, (x_bootstrap, y_bootstrap, sample_indices, feature_indices))| {
+                            self.fit_single_estimator(
                                 &x_bootstrap,
                                 &y_bootstrap,
                                 &feature_indices,
                                 i,
                             )
-                            .map(|estimator| (
-                                estimator,
-                                feature_indices,
-                                sample_indices,
-                            ))
-                    })
+                            .map(|estimator| (estimator, feature_indices, sample_indices))
+                        },
+                    )
                     .collect();
                 let fitted_data = results?;
-                let (estimators, estimators_features, estimators_samples) = fitted_data
-                    .into_iter()
-                    .fold(
+                let (estimators, estimators_features, estimators_samples) =
+                    fitted_data.into_iter().fold(
                         (Vec::new(), Vec::new(), Vec::new()),
                         |(mut e, mut ef, mut es), (estimator, features, samples)| {
                             e.push(estimator);
@@ -921,7 +897,9 @@ impl BaggingRegressor<Untrained> {
                 Ok((estimators, estimators_features, estimators_samples))
             }
             #[cfg(not(feature = "parallel"))]
-            { self.train_ensemble_sequential(bootstrap_data) }
+            {
+                self.train_ensemble_sequential(bootstrap_data)
+            }
         } else {
             self.train_ensemble_sequential(bootstrap_data)
         }
@@ -934,12 +912,11 @@ impl BaggingRegressor<Untrained> {
         let mut estimators = Vec::new();
         let mut estimators_features = Vec::new();
         let mut estimators_samples = Vec::new();
-        for (i, (x_bootstrap, y_bootstrap, sample_indices, feature_indices)) in bootstrap_data
-            .into_iter()
-            .enumerate()
+        for (i, (x_bootstrap, y_bootstrap, sample_indices, feature_indices)) in
+            bootstrap_data.into_iter().enumerate()
         {
-            let fitted_tree = self
-                .fit_single_estimator(&x_bootstrap, &y_bootstrap, &feature_indices, i)?;
+            let fitted_tree =
+                self.fit_single_estimator(&x_bootstrap, &y_bootstrap, &feature_indices, i)?;
             estimators.push(fitted_tree);
             estimators_features.push(feature_indices);
             estimators_samples.push(sample_indices);
@@ -956,7 +933,9 @@ impl BaggingRegressor<Untrained> {
     ) -> Result<DecisionTreeRegressor<Trained>> {
         let mut x_features = Array2::zeros((x_bootstrap.nrows(), feature_indices.len()));
         for (j, &feature_idx) in feature_indices.iter().enumerate() {
-            x_features.column_mut(j).assign(&x_bootstrap.column(feature_idx));
+            x_features
+                .column_mut(j)
+                .assign(&x_bootstrap.column(feature_idx));
         }
         let mut tree = DecisionTreeRegressor::new()
             .min_samples_split(self.config.min_samples_split)
@@ -964,8 +943,7 @@ impl BaggingRegressor<Untrained> {
         if let Some(max_depth) = self.config.max_depth {
             tree = tree.max_depth(max_depth);
         }
-        if let Some(seed) = self.config.random_state.map(|s| s + estimator_index as u64)
-        {
+        if let Some(seed) = self.config.random_state.map(|s| s + estimator_index as u64) {
             tree = tree.random_state(Some(seed));
         }
         tree.fit(&x_features, y_bootstrap)
@@ -1019,14 +997,12 @@ impl BaggingRegressor<Untrained> {
                 if is_oob {
                     let x_sample = x.row(sample_idx);
                     let x_features = Array2::from_shape_vec(
-                            (1, features.len()),
-                            features.iter().map(|&f| x_sample[f]).collect(),
-                        )
-                        .map_err(|_| {
-                            SklearsError::InvalidInput(
-                                "Failed to create feature subset".to_string(),
-                            )
-                        })?;
+                        (1, features.len()),
+                        features.iter().map(|&f| x_sample[f]).collect(),
+                    )
+                    .map_err(|_| {
+                        SklearsError::InvalidInput("Failed to create feature subset".to_string())
+                    })?;
                     let pred = estimator.predict(&x_features)?;
                     oob_predictions[sample_idx] += pred[0];
                     oob_counts[sample_idx] += 1.0;
@@ -1069,29 +1045,24 @@ impl Fit<Array2<Float>, Array1<Float>> for BaggingRegressor<Untrained> {
             });
         }
         if n_samples == 0 {
-            return Err(
-                SklearsError::InvalidInput(
-                    "Cannot fit bagging on empty dataset".to_string(),
-                ),
-            );
+            return Err(SklearsError::InvalidInput(
+                "Cannot fit bagging on empty dataset".to_string(),
+            ));
         }
         let mut rng = match self.config.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
             None => StdRng::seed_from_u64(42),
         };
-        let (estimators, estimators_features, estimators_samples) = self
-            .train_ensemble_parallel(x, y, &mut rng, n_features)?;
+        let (estimators, estimators_features, estimators_samples) =
+            self.train_ensemble_parallel(x, y, &mut rng, n_features)?;
         let oob_score = if self.config.oob_score {
-            Some(
-                self
-                    .calculate_oob_predictions(
-                        x,
-                        y,
-                        &estimators,
-                        &estimators_features,
-                        &estimators_samples,
-                    )?,
-            )
+            Some(self.calculate_oob_predictions(
+                x,
+                y,
+                &estimators,
+                &estimators_features,
+                &estimators_samples,
+            )?)
         } else {
             None
         };
@@ -1121,15 +1092,21 @@ impl Fit<Array2<Float>, Array1<Float>> for BaggingRegressor<Untrained> {
 impl BaggingRegressor<Trained> {
     /// Get the fitted base estimators
     pub fn estimators(&self) -> &[DecisionTreeRegressor<Trained>] {
-        self.estimators_.as_ref().expect("BaggingRegressor should be fitted")
+        self.estimators_
+            .as_ref()
+            .expect("BaggingRegressor should be fitted")
     }
     /// Get the feature indices used by each estimator
     pub fn estimators_features(&self) -> &[Vec<usize>] {
-        self.estimators_features_.as_ref().expect("BaggingRegressor should be fitted")
+        self.estimators_features_
+            .as_ref()
+            .expect("BaggingRegressor should be fitted")
     }
     /// Get the sample indices used by each estimator
     pub fn estimators_samples(&self) -> &[Vec<usize>] {
-        self.estimators_samples_.as_ref().expect("BaggingRegressor should be fitted")
+        self.estimators_samples_
+            .as_ref()
+            .expect("BaggingRegressor should be fitted")
     }
     /// Get the out-of-bag score if calculated
     pub fn oob_score(&self) -> Option<Float> {
@@ -1137,11 +1114,14 @@ impl BaggingRegressor<Trained> {
     }
     /// Get the number of input features
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.expect("BaggingRegressor should be fitted")
+        self.n_features_in_
+            .expect("BaggingRegressor should be fitted")
     }
     /// Get feature importances
     pub fn feature_importances(&self) -> &Array1<Float> {
-        self.feature_importances_.as_ref().expect("BaggingRegressor should be fitted")
+        self.feature_importances_
+            .as_ref()
+            .expect("BaggingRegressor should be fitted")
     }
 }
 impl Predict<Array2<Float>, Array1<Float>> for BaggingRegressor<Trained> {
@@ -1182,50 +1162,38 @@ impl<State> Estimator<State> for BaggingRegressor<State> {
     }
     fn validate_config(&self) -> Result<()> {
         if self.config.n_estimators == 0 {
-            return Err(
-                SklearsError::InvalidInput(
-                    "n_estimators must be greater than 0".to_string(),
-                ),
-            );
+            return Err(SklearsError::InvalidInput(
+                "n_estimators must be greater than 0".to_string(),
+            ));
         }
         if let Some(max_samples) = self.config.max_samples {
             if max_samples == 0 {
-                return Err(
-                    SklearsError::InvalidInput(
-                        "max_samples must be greater than 0".to_string(),
-                    ),
-                );
+                return Err(SklearsError::InvalidInput(
+                    "max_samples must be greater than 0".to_string(),
+                ));
             }
         }
         if let Some(max_features) = self.config.max_features {
             if max_features == 0 {
-                return Err(
-                    SklearsError::InvalidInput(
-                        "max_features must be greater than 0".to_string(),
-                    ),
-                );
+                return Err(SklearsError::InvalidInput(
+                    "max_features must be greater than 0".to_string(),
+                ));
             }
         }
         if self.config.min_samples_split < 2 {
-            return Err(
-                SklearsError::InvalidInput(
-                    "min_samples_split must be at least 2".to_string(),
-                ),
-            );
+            return Err(SklearsError::InvalidInput(
+                "min_samples_split must be at least 2".to_string(),
+            ));
         }
         if self.config.min_samples_leaf < 1 {
-            return Err(
-                SklearsError::InvalidInput(
-                    "min_samples_leaf must be at least 1".to_string(),
-                ),
-            );
+            return Err(SklearsError::InvalidInput(
+                "min_samples_leaf must be at least 1".to_string(),
+            ));
         }
         if self.config.confidence_level <= 0.0 || self.config.confidence_level >= 1.0 {
-            return Err(
-                SklearsError::InvalidInput(
-                    "confidence_level must be between 0.0 and 1.0".to_string(),
-                ),
-            );
+            return Err(SklearsError::InvalidInput(
+                "confidence_level must be between 0.0 and 1.0".to_string(),
+            ));
         }
         Ok(())
     }

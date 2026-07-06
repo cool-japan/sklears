@@ -773,12 +773,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_l1_log_likelihood_is_not_the_old_constant_bug() {
-        let X = array![
-            [0.0, 0.0],
-            [0.2, -0.1],
-            [10.0, 10.0],
-            [10.1, 9.9],
-        ];
+        let X = array![[0.0, 0.0], [0.2, -0.1], [10.0, 10.0], [10.1, 9.9],];
 
         let fitted = L1RegularizedGMM::builder()
             .n_components(2)

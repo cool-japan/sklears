@@ -989,7 +989,10 @@ mod tests {
         let x_wrong = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
             .expect("shape matches data length");
         let pred_err = model.predict(&x_wrong);
-        assert!(matches!(pred_err, Err(SklearsError::FeatureMismatch { .. })));
+        assert!(matches!(
+            pred_err,
+            Err(SklearsError::FeatureMismatch { .. })
+        ));
     }
 
     // -- Classifier ------------------------------------------------------------
@@ -1009,7 +1012,9 @@ mod tests {
 
         assert_eq!(model.classes(), &Array1::from_vec(vec![2.0, 5.0]));
 
-        let pred = model.predict(&x).expect("classifier predict should succeed");
+        let pred = model
+            .predict(&x)
+            .expect("classifier predict should succeed");
         assert!(
             pred.iter().any(|&p| p == 2.0),
             "no negative-class predictions"
@@ -1029,7 +1034,10 @@ mod tests {
     #[test]
     fn test_classifier_log_loss_decreases_with_more_estimators() {
         let (x, y) = two_blobs();
-        let y_binary: Vec<Float> = y.iter().map(|&t| if t == 5.0 { 1.0 } else { 0.0 }).collect();
+        let y_binary: Vec<Float> = y
+            .iter()
+            .map(|&t| if t == 5.0 { 1.0 } else { 0.0 })
+            .collect();
 
         let log_loss = |proba: &Array1<Float>| -> Float {
             proba

@@ -5,7 +5,7 @@
 
 use crate::builder::*;
 use crate::config::*;
-use scirs2_core::ndarray::{Array1, Array2, s};
+use scirs2_core::ndarray::{s, Array1, Array2};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Predict, Trained, Untrained},
@@ -650,7 +650,11 @@ pub fn handle_missing_values(
 
             for j in 0..x.ncols() {
                 let column = x.column(j);
-                let valid_values: Vec<f64> = column.iter().filter(|&&val| !val.is_nan()).cloned().collect();
+                let valid_values: Vec<f64> = column
+                    .iter()
+                    .filter(|&&val| !val.is_nan())
+                    .cloned()
+                    .collect();
 
                 if !valid_values.is_empty() {
                     let mean = valid_values.iter().sum::<f64>() / valid_values.len() as f64;
@@ -792,7 +796,9 @@ mod tests {
             .fit(&x, &y)
             .expect("fit should succeed");
 
-        let importances = model.feature_importances().expect("importances should compute");
+        let importances = model
+            .feature_importances()
+            .expect("importances should compute");
 
         assert_eq!(importances.len(), 3, "one importance per feature");
         for &imp in importances.iter() {

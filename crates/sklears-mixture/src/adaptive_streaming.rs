@@ -744,7 +744,9 @@ impl AdaptiveStreamingGMM<AdaptiveStreamingGMMTrained> {
 
         for (new_k, &old_k) in keep.iter().enumerate() {
             new_weights[new_k] = self.state.weights[old_k];
-            new_means.row_mut(new_k).assign(&self.state.means.row(old_k));
+            new_means
+                .row_mut(new_k)
+                .assign(&self.state.means.row(old_k));
             new_covariances
                 .row_mut(new_k)
                 .assign(&self.state.covariances.row(old_k));

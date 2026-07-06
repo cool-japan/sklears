@@ -198,8 +198,13 @@ pub(crate) fn predict_tied_diag_argmax(
         let mut best_log_prob = f64::NEG_INFINITY;
         for k in 0..n_components {
             let mean_k = means.row(k);
-            let log_prob =
-                tied_diag_weighted_log_prob(&sample, &mean_k, weights[k], &cov_diag.view(), reg_covar);
+            let log_prob = tied_diag_weighted_log_prob(
+                &sample,
+                &mean_k,
+                weights[k],
+                &cov_diag.view(),
+                reg_covar,
+            );
             if log_prob > best_log_prob {
                 best_log_prob = log_prob;
                 best_k = k;
@@ -362,12 +367,7 @@ mod tests {
     /// extracted to fix across the "advanced" EM variants).
     #[test]
     fn test_predict_tied_diag_argmax_recovers_clusters() {
-        let x = array![
-            [0.0, 0.0],
-            [0.1, -0.1],
-            [10.0, 10.0],
-            [10.1, 9.9],
-        ];
+        let x = array![[0.0, 0.0], [0.1, -0.1], [10.0, 10.0], [10.1, 9.9],];
         let weights = array![0.5_f64, 0.5];
         let means = array![[0.0_f64, 0.0], [10.0, 10.0]];
         let covariances = Array2::<f64>::eye(2);

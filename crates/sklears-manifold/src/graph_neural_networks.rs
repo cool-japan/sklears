@@ -904,10 +904,7 @@ mod tests {
     fn test_graphsage_fit_produces_embedding_of_requested_shape() {
         let x = synthetic_node_features();
 
-        let sage = GraphSAGE::new()
-            .n_components(3)
-            .n_layers(2)
-            .sample_size(4);
+        let sage = GraphSAGE::new().n_components(3).n_layers(2).sample_size(4);
 
         let fitted = sage.fit(&x.view(), &()).expect("operation should succeed");
 
@@ -918,10 +915,7 @@ mod tests {
     fn test_graphsage_transform_reports_not_implemented() {
         let x = synthetic_node_features();
 
-        let sage = GraphSAGE::new()
-            .n_components(3)
-            .n_layers(2)
-            .sample_size(4);
+        let sage = GraphSAGE::new().n_components(3).n_layers(2).sample_size(4);
 
         let fitted = sage.fit(&x.view(), &()).expect("operation should succeed");
 

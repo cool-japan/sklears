@@ -286,7 +286,8 @@ impl Fit<ArrayView2<'_, Float>, ()> for LaplaceGMM<Untrained> {
                 let sum_exp: f64 = log_probs.iter().map(|&lp| (lp - max_log).exp()).sum();
                 log_lik += max_log + sum_exp.ln();
                 for k in 0..self.n_components {
-                    responsibilities[[i, k]] = ((log_probs[k] - max_log).exp() / sum_exp).max(1e-10);
+                    responsibilities[[i, k]] =
+                        ((log_probs[k] - max_log).exp() / sum_exp).max(1e-10);
                 }
             }
 
@@ -317,7 +318,8 @@ impl Fit<ArrayView2<'_, Float>, ()> for LaplaceGMM<Untrained> {
             let weight_sum = weights.sum();
             weights /= weight_sum;
 
-            pooled_var = pooled_var / n_samples as f64 + Array1::from_elem(n_features, self.reg_covar);
+            pooled_var =
+                pooled_var / n_samples as f64 + Array1::from_elem(n_features, self.reg_covar);
             covariances.diag_mut().assign(&pooled_var);
 
             if iter > 0 && (log_lik - prev_log_lik).abs() < self.tol {
@@ -333,21 +335,25 @@ impl Fit<ArrayView2<'_, Float>, ()> for LaplaceGMM<Untrained> {
         // free parameters (means + weights-minus-one + shared diagonal
         // covariance).
         let n_params = self.n_components * n_features + (self.n_components - 1) + n_features;
-        let log_marginal_likelihood = prev_log_lik - 0.5 * (n_params as f64) * (n_samples as f64).ln();
+        let log_marginal_likelihood =
+            prev_log_lik - 0.5 * (n_params as f64) * (n_samples as f64).ln();
 
         // Diagonal-Hessian approximation to the posterior covariance of the
         // mean parameters: Var(mean_kj) ~ variance_j / n_effective_k, with
         // `hessian_regularization` as a numerical floor. Sized for the mean
         // parameters only (see `LaplaceGMMTrained::posterior_covariance`
         // docs for the disclosed simplification).
-        let mut posterior_covariance =
-            Array2::<f64>::zeros((self.n_components * n_features, self.n_components * n_features));
+        let mut posterior_covariance = Array2::<f64>::zeros((
+            self.n_components * n_features,
+            self.n_components * n_features,
+        ));
         let cov_diag_final = covariances.diag().to_owned();
         for k in 0..self.n_components {
             let nk = component_counts[k].max(1e-10);
             for j in 0..n_features {
                 let idx = k * n_features + j;
-                posterior_covariance[[idx, idx]] = cov_diag_final[j] / nk + self.hessian_regularization;
+                posterior_covariance[[idx, idx]] =
+                    cov_diag_final[j] / nk + self.hessian_regularization;
             }
         }
 

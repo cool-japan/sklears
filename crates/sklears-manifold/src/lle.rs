@@ -679,8 +679,16 @@ mod tests {
 
         // The stub's uniform [0.5, 0.5] would give A@x = [2.5, 2.0] != b and would fail here.
         let ax = a.dot(&x);
-        assert!((ax[0] - b[0]).abs() < 1e-6, "A@x[0] = {} (expected 1.0)", ax[0]);
-        assert!((ax[1] - b[1]).abs() < 1e-6, "A@x[1] = {} (expected 2.0)", ax[1]);
+        assert!(
+            (ax[0] - b[0]).abs() < 1e-6,
+            "A@x[0] = {} (expected 1.0)",
+            ax[0]
+        );
+        assert!(
+            (ax[1] - b[1]).abs() < 1e-6,
+            "A@x[1] = {} (expected 2.0)",
+            ax[1]
+        );
 
         assert!((x[0] - 1.0 / 11.0).abs() < 1e-6, "x[0] = {}", x[0]);
         assert!((x[1] - 7.0 / 11.0).abs() < 1e-6, "x[1] = {}", x[1]);

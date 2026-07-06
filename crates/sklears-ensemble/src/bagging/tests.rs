@@ -11,9 +11,9 @@ use super::*;
 #[cfg(test)]
 mod tests_2 {
     use super::*;
+    use proptest::prelude::*;
     use scirs2_core::ndarray::array;
     use sklears_core::traits::Predict;
-    use proptest::prelude::*;
     #[test]
     fn test_bagging_classifier_creation() {
         let classifier = BaggingClassifier::new()
@@ -27,12 +27,20 @@ mod tests_2 {
     #[test]
     fn test_bagging_classifier_fit_predict() {
         let x = array![
-            [1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0], [5.0, 6.0], [6.0, 7.0], [7.0,
-            8.0], [8.0, 9.0],
+            [1.0, 2.0],
+            [2.0, 3.0],
+            [3.0, 4.0],
+            [4.0, 5.0],
+            [5.0, 6.0],
+            [6.0, 7.0],
+            [7.0, 8.0],
+            [8.0, 9.0],
         ];
         let y = array![0, 0, 1, 1, 2, 2, 0, 1];
         let classifier = BaggingClassifier::new().n_estimators(5).random_state(42);
-        let fitted = classifier.fit(&x, &y).expect("model fitting should succeed");
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
         let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 8);
         assert_eq!(fitted.n_classes(), 3);
@@ -42,8 +50,16 @@ mod tests_2 {
     #[test]
     fn test_bagging_classifier_with_oob() {
         let x = array![
-            [1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0], [5.0, 6.0], [6.0, 7.0], [7.0,
-            8.0], [8.0, 9.0], [9.0, 10.0], [10.0, 11.0],
+            [1.0, 2.0],
+            [2.0, 3.0],
+            [3.0, 4.0],
+            [4.0, 5.0],
+            [5.0, 6.0],
+            [6.0, 7.0],
+            [7.0, 8.0],
+            [8.0, 9.0],
+            [9.0, 10.0],
+            [10.0, 11.0],
         ];
         let y = array![0, 0, 1, 1, 2, 2, 0, 1, 2, 0];
         let classifier = BaggingClassifier::new()
@@ -51,18 +67,24 @@ mod tests_2 {
             .random_state(42)
             .oob_score(true)
             .bootstrap(true);
-        let fitted = classifier.fit(&x, &y).expect("model fitting should succeed");
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
         assert!(fitted.oob_score().is_some());
         let oob_score = fitted.oob_score().expect("operation should succeed");
-        assert!((0.0..= 1.0).contains(& oob_score));
+        assert!((0.0..=1.0).contains(&oob_score));
         let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 10);
     }
     #[test]
     fn test_bagging_classifier_feature_bagging() {
         let x = array![
-            [1.0, 2.0, 3.0, 4.0], [2.0, 3.0, 4.0, 5.0], [3.0, 4.0, 5.0, 6.0], [4.0, 5.0,
-            6.0, 7.0], [5.0, 6.0, 7.0, 8.0], [6.0, 7.0, 8.0, 9.0],
+            [1.0, 2.0, 3.0, 4.0],
+            [2.0, 3.0, 4.0, 5.0],
+            [3.0, 4.0, 5.0, 6.0],
+            [4.0, 5.0, 6.0, 7.0],
+            [5.0, 6.0, 7.0, 8.0],
+            [6.0, 7.0, 8.0, 9.0],
         ];
         let y = array![0, 0, 1, 1, 2, 2];
         let classifier = BaggingClassifier::new()
@@ -70,7 +92,9 @@ mod tests_2 {
             .max_features(Some(2))
             .bootstrap_features(false)
             .random_state(42);
-        let fitted = classifier.fit(&x, &y).expect("model fitting should succeed");
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
         let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.n_features_in(), 4);
@@ -87,7 +111,9 @@ mod tests_2 {
             .n_estimators(10)
             .random_state(42)
             .confidence_level(0.95);
-        let fitted = classifier.fit(&x, &y).expect("model fitting should succeed");
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
         let (predictions, confidence_intervals) = fitted
             .predict_with_confidence(&x)
             .expect("operation should succeed");
@@ -105,12 +131,20 @@ mod tests_2 {
     }
     fn regression_dataset() -> (Array2<Float>, Array1<Float>) {
         let x = array![
-            [1.0, 1.0], [2.0, 1.0], [3.0, 2.0], [4.0, 2.0], [5.0, 3.0], [6.0, 3.0], [7.0,
-            4.0], [8.0, 4.0], [1.0, 5.0], [2.0, 6.0], [3.0, 7.0], [4.0, 8.0],
+            [1.0, 1.0],
+            [2.0, 1.0],
+            [3.0, 2.0],
+            [4.0, 2.0],
+            [5.0, 3.0],
+            [6.0, 3.0],
+            [7.0, 4.0],
+            [8.0, 4.0],
+            [1.0, 5.0],
+            [2.0, 6.0],
+            [3.0, 7.0],
+            [4.0, 8.0],
         ];
-        let y = array![
-            1.1, 2.9, 4.05, 5.95, 7.1, 8.9, 10.05, 11.95, - 2.9, - 2.1, - 0.95, - 0.05,
-        ];
+        let y = array![1.1, 2.9, 4.05, 5.95, 7.1, 8.9, 10.05, 11.95, -2.9, -2.1, -0.95, -0.05,];
         (x, y)
     }
     fn r2_score(y_true: &Array1<Float>, y_pred: &Array1<Float>) -> Float {
@@ -134,10 +168,17 @@ mod tests_2 {
             .expect("model fitting should succeed");
         let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), x.nrows());
-        let p_min = predictions.iter().cloned().fold(Float::INFINITY, Float::min);
-        let p_max = predictions.iter().cloned().fold(Float::NEG_INFINITY, Float::max);
+        let p_min = predictions
+            .iter()
+            .cloned()
+            .fold(Float::INFINITY, Float::min);
+        let p_max = predictions
+            .iter()
+            .cloned()
+            .fold(Float::NEG_INFINITY, Float::max);
         assert!(
-            p_max - p_min > 1.0, "predictions should vary, got range [{p_min}, {p_max}]"
+            p_max - p_min > 1.0,
+            "predictions should vary, got range [{p_min}, {p_max}]"
         );
         let r2 = r2_score(&y, &predictions);
         assert!(r2 > 0.9, "training R^2 too low: {r2}");
@@ -200,7 +241,8 @@ mod tests_2 {
         assert_eq!(pred_1.len(), pred_2.len());
         for (a, b) in pred_1.iter().zip(pred_2.iter()) {
             assert_eq!(
-                a.to_bits(), b.to_bits(),
+                a.to_bits(),
+                b.to_bits(),
                 "same seed must produce bit-identical predictions"
             );
         }
@@ -208,8 +250,16 @@ mod tests_2 {
     #[test]
     fn test_bagging_regressor_bootstrap_diversity() {
         let x = array![
-            [1.0, 1.0], [2.0, 1.0], [3.0, 2.0], [4.0, 2.0], [5.0, 3.0], [6.0, 3.0], [7.0,
-            4.0], [8.0, 4.0], [9.0, 5.0], [10.0, 5.0],
+            [1.0, 1.0],
+            [2.0, 1.0],
+            [3.0, 2.0],
+            [4.0, 2.0],
+            [5.0, 3.0],
+            [6.0, 3.0],
+            [7.0, 4.0],
+            [8.0, 4.0],
+            [9.0, 5.0],
+            [10.0, 5.0],
         ];
         let y = array![1.0, 3.0, 4.0, 6.0, 7.0, 9.0, 10.0, 12.0, 13.0, 15.0];
         let fitted = BaggingRegressor::new()
@@ -228,7 +278,8 @@ mod tests_2 {
         assert!(
             unique_sample_sets.len() > 1,
             "bootstrap samples lack diversity: {} unique of {} estimators",
-            unique_sample_sets.len(), estimators_samples.len()
+            unique_sample_sets.len(),
+            estimators_samples.len()
         );
     }
     #[test]
@@ -236,11 +287,11 @@ mod tests_2 {
         let regressor = BaggingRegressor::new();
         let x = Array2::zeros((0, 2));
         let y = Array1::zeros(0);
-        assert!(regressor.fit(& x, & y).is_err());
+        assert!(regressor.fit(&x, &y).is_err());
         let regressor = BaggingRegressor::new();
         let x = Array2::zeros((3, 2));
         let y = Array1::zeros(2);
-        assert!(regressor.fit(& x, & y).is_err());
+        assert!(regressor.fit(&x, &y).is_err());
     }
     #[test]
     fn test_bagging_regressor_feature_mismatch() {
@@ -250,13 +301,17 @@ mod tests_2 {
         let fitted = BaggingRegressor::new()
             .fit(&x_train, &y_train)
             .expect("model fitting should succeed");
-        assert!(fitted.predict(& x_test).is_err());
+        assert!(fitted.predict(&x_test).is_err());
     }
     #[test]
     fn test_bagging_regressor_feature_importances_sum() {
         let x = array![
-            [1.0, 2.0, 3.0, 4.0], [2.0, 3.0, 4.0, 5.0], [3.0, 4.0, 5.0, 6.0], [4.0, 5.0,
-            6.0, 7.0], [5.0, 6.0, 7.0, 8.0], [6.0, 7.0, 8.0, 9.0],
+            [1.0, 2.0, 3.0, 4.0],
+            [2.0, 3.0, 4.0, 5.0],
+            [3.0, 4.0, 5.0, 6.0],
+            [4.0, 5.0, 6.0, 7.0],
+            [5.0, 6.0, 7.0, 8.0],
+            [6.0, 7.0, 8.0, 9.0],
         ];
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
         let fitted = BaggingRegressor::new()
@@ -276,8 +331,8 @@ mod tests_2 {
         let config = BaggingConfig::default();
         assert_eq!(config.n_estimators, 10);
         assert!(config.bootstrap);
-        assert!(! config.bootstrap_features);
-        assert!(! config.oob_score);
+        assert!(!config.bootstrap_features);
+        assert!(!config.oob_score);
         assert_eq!(config.random_state, None);
         assert_eq!(config.min_samples_split, 2);
         assert_eq!(config.min_samples_leaf, 1);
@@ -288,15 +343,15 @@ mod tests_2 {
         let classifier = BaggingClassifier::new();
         let x = Array2::zeros((0, 2));
         let y = Array1::zeros(0);
-        assert!(classifier.fit(& x, & y).is_err());
+        assert!(classifier.fit(&x, &y).is_err());
         let classifier = BaggingClassifier::new();
         let x = Array2::zeros((3, 2));
         let y = Array1::zeros(2);
-        assert!(classifier.fit(& x, & y).is_err());
+        assert!(classifier.fit(&x, &y).is_err());
         let classifier = BaggingClassifier::new();
         let x = array![[1.0, 2.0], [3.0, 4.0]];
         let y = array![0, 0];
-        assert!(classifier.fit(& x, & y).is_err());
+        assert!(classifier.fit(&x, &y).is_err());
     }
     #[test]
     fn test_bagging_classifier_feature_mismatch() {
@@ -307,7 +362,7 @@ mod tests_2 {
         let fitted = classifier
             .fit(&x_train, &y_train)
             .expect("model fitting should succeed");
-        assert!(fitted.predict(& x_test).is_err());
+        assert!(fitted.predict(&x_test).is_err());
     }
     proptest! {
         #[test] fn prop_bagging_deterministic_with_seed(n_estimators in 1usize..10,
