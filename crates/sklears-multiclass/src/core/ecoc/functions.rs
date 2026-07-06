@@ -162,7 +162,9 @@ where
         predictions: &Array2<Float>,
         code_matrix: &CodeMatrix,
     ) -> SklResult<Option<Array1<i32>>> {
-        use crate::gpu::{detect_context, GpuMatrixOps as MulticlassGpuMatrixOps, OxiCudaMatrixOps};
+        use crate::gpu::{
+            detect_context, GpuMatrixOps as MulticlassGpuMatrixOps, OxiCudaMatrixOps,
+        };
 
         let Some(ctx) = detect_context()? else {
             return Ok(None);

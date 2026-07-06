@@ -63,22 +63,20 @@ fn enumerate_real_devices() -> Vec<GpuDevice> {
             .unwrap_or(info.total_memory_bytes as u64);
         let memory_clock_hz = info.memory_clock_rate_mhz * 1e6;
         let bus_width_bytes = f64::from(info.memory_bus_width_bits) / 8.0;
-        let memory_bandwidth_bytes_per_sec = (2.0 * memory_clock_hz * bus_width_bytes)
-            as u64;
-        devices
-            .push(GpuDevice {
-                id: ordinal.max(0) as u32,
-                name: info.name,
-                memory_total: info.total_memory_bytes as u64,
-                memory_available: free_memory,
-                compute_capability: (
-                    info.compute_capability.0.max(0) as u32,
-                    info.compute_capability.1.max(0) as u32,
-                ),
-                multiprocessor_count: info.multiprocessor_count.max(0) as u32,
-                clock_rate_mhz: info.clock_rate_mhz.max(0.0) as u32,
-                memory_bandwidth_bytes_per_sec,
-            });
+        let memory_bandwidth_bytes_per_sec = (2.0 * memory_clock_hz * bus_width_bytes) as u64;
+        devices.push(GpuDevice {
+            id: ordinal.max(0) as u32,
+            name: info.name,
+            memory_total: info.total_memory_bytes as u64,
+            memory_available: free_memory,
+            compute_capability: (
+                info.compute_capability.0.max(0) as u32,
+                info.compute_capability.1.max(0) as u32,
+            ),
+            multiprocessor_count: info.multiprocessor_count.max(0) as u32,
+            clock_rate_mhz: info.clock_rate_mhz.max(0.0) as u32,
+            memory_bandwidth_bytes_per_sec,
+        });
     }
     devices
 }
@@ -155,18 +153,11 @@ impl GpuUtils {
     pub fn get_best_device(&self) -> Option<&GpuDevice> {
         self.devices
             .iter()
-            .max_by_key(|d| {
-                u64::from(d.multiprocessor_count) * u64::from(d.clock_rate_mhz)
-            })
+            .max_by_key(|d| u64::from(d.multiprocessor_count) * u64::from(d.clock_rate_mhz))
             .or_else(|| self.devices.first())
     }
     /// Allocate GPU memory
-    pub fn allocate_memory(
-        &self,
-        size: u64,
-        device_id: u32,
-        name: &str,
-    ) -> Result<u64, GpuError> {
+    pub fn allocate_memory(&self, size: u64, device_id: u32, name: &str) -> Result<u64, GpuError> {
         let device = self.get_device(device_id).ok_or(GpuError::DeviceNotFound)?;
         if size > device.memory_available {
             return Err(GpuError::OutOfMemory);
@@ -187,10 +178,7 @@ impl GpuUtils {
     }
     /// Free GPU memory
     pub fn free_memory(&self, ptr: u64) -> Result<(), GpuError> {
-        let mut allocations = self
-            .allocations
-            .write()
-            .expect("operation should succeed");
+        let mut allocations = self.allocations.write().expect("operation should succeed");
         allocations.remove(&ptr).ok_or(GpuError::InvalidPointer)?;
         Ok(())
     }
@@ -205,36 +193,34 @@ impl GpuUtils {
                 .collect();
             let total_allocated = device_allocations.iter().map(|a| a.size).sum();
             let num_allocations = device_allocations.len();
-            stats
-                .insert(
-                    device.id,
-                    MemoryStats {
-                        total_memory: device.memory_total,
-                        available_memory: device.memory_available,
-                        allocated_memory: total_allocated,
-                        free_memory: device.memory_available - total_allocated,
-                        num_allocations,
-                        largest_allocation: device_allocations
-                            .iter()
-                            .map(|a| a.size)
-                            .max()
-                            .unwrap_or(0),
-                        fragmentation_ratio: if num_allocations > 0 {
-                            (num_allocations as f64) / (total_allocated as f64 / 1024.0)
-                        } else {
-                            0.0
-                        },
+            stats.insert(
+                device.id,
+                MemoryStats {
+                    total_memory: device.memory_total,
+                    available_memory: device.memory_available,
+                    allocated_memory: total_allocated,
+                    free_memory: device.memory_available - total_allocated,
+                    num_allocations,
+                    largest_allocation: device_allocations
+                        .iter()
+                        .map(|a| a.size)
+                        .max()
+                        .unwrap_or(0),
+                    fragmentation_ratio: if num_allocations > 0 {
+                        (num_allocations as f64) / (total_allocated as f64 / 1024.0)
+                    } else {
+                        0.0
                     },
-                );
+                },
+            );
         }
         stats
     }
     /// Execute GPU kernel
-    pub fn execute_kernel(
-        &self,
-        kernel: &GpuKernelInfo,
-    ) -> Result<GpuKernelExecution, GpuError> {
-        let _device = self.get_device(kernel.device_id).ok_or(GpuError::DeviceNotFound)?;
+    pub fn execute_kernel(&self, kernel: &GpuKernelInfo) -> Result<GpuKernelExecution, GpuError> {
+        let _device = self
+            .get_device(kernel.device_id)
+            .ok_or(GpuError::DeviceNotFound)?;
         let start_time = Instant::now();
         std::thread::sleep(std::time::Duration::from_millis(1));
         let execution_time = start_time.elapsed().as_secs_f64() * 1000.0;
@@ -255,11 +241,17 @@ impl GpuUtils {
     }
     /// Get kernel execution history
     pub fn get_kernel_history(&self) -> Vec<GpuKernelExecution> {
-        self.kernel_executions.read().expect("operation should succeed").clone()
+        self.kernel_executions
+            .read()
+            .expect("operation should succeed")
+            .clone()
     }
     /// Get performance counters
     pub fn get_performance_counters(&self) -> HashMap<String, f64> {
-        self.performance_counters.read().expect("operation should succeed").clone()
+        self.performance_counters
+            .read()
+            .expect("operation should succeed")
+            .clone()
     }
     /// Update performance counter
     pub fn update_counter(&self, name: &str, value: f64) {
@@ -269,30 +261,19 @@ impl GpuUtils {
             .insert(name.to_string(), value);
     }
     /// Get throughput estimate for array operations
-    pub fn estimate_throughput(
-        &self,
-        device_id: u32,
-        array_size: usize,
-        operation: &str,
-    ) -> f64 {
+    pub fn estimate_throughput(&self, device_id: u32, array_size: usize, operation: &str) -> f64 {
         let device = match self.get_device(device_id) {
             Some(d) => d,
             None => return 0.0,
         };
         let base_throughput = match operation {
-            "add" | "subtract" | "multiply" => {
-                device.memory_bandwidth_bytes_per_sec as f64 * 0.8
-            }
-            "divide" | "sqrt" | "exp" | "log" => {
-                device.memory_bandwidth_bytes_per_sec as f64 * 0.6
-            }
+            "add" | "subtract" | "multiply" => device.memory_bandwidth_bytes_per_sec as f64 * 0.8,
+            "divide" | "sqrt" | "exp" | "log" => device.memory_bandwidth_bytes_per_sec as f64 * 0.6,
             "matrix_multiply" => {
-                (device.multiprocessor_count as f64 * device.clock_rate_mhz as f64 * 1e6)
-                    * 0.5
+                (device.multiprocessor_count as f64 * device.clock_rate_mhz as f64 * 1e6) * 0.5
             }
             "fft" => {
-                (device.multiprocessor_count as f64 * device.clock_rate_mhz as f64 * 1e6)
-                    * 0.3
+                (device.multiprocessor_count as f64 * device.clock_rate_mhz as f64 * 1e6) * 0.3
             }
             _ => device.memory_bandwidth_bytes_per_sec as f64 * 0.5,
         };
@@ -335,8 +316,14 @@ impl GpuUtils {
         if !allocations.is_empty() {
             return Err(GpuError::ResourcesNotFreed);
         }
-        self.kernel_executions.write().expect("operation should succeed").clear();
-        self.performance_counters.write().expect("operation should succeed").clear();
+        self.kernel_executions
+            .write()
+            .expect("operation should succeed")
+            .clear();
+        self.performance_counters
+            .write()
+            .expect("operation should succeed")
+            .clear();
         Ok(())
     }
 }
@@ -376,11 +363,7 @@ pub struct GpuArrayOps;
 impl GpuArrayOps {
     /// Add two arrays, on GPU if `device_id` names a present device and this
     /// crate was built with the `gpu` feature, on CPU otherwise.
-    pub fn add_arrays(
-        a: &[f32],
-        b: &[f32],
-        device_id: u32,
-    ) -> Result<Vec<f32>, GpuError> {
+    pub fn add_arrays(a: &[f32], b: &[f32], device_id: u32) -> Result<Vec<f32>, GpuError> {
         if a.len() != b.len() {
             return Err(GpuError::ShapeMismatch);
         }
@@ -392,11 +375,7 @@ impl GpuArrayOps {
     /// Multiply two arrays elementwise, on GPU if `device_id` names a
     /// present device and this crate was built with the `gpu` feature, on
     /// CPU otherwise.
-    pub fn multiply_arrays(
-        a: &[f32],
-        b: &[f32],
-        device_id: u32,
-    ) -> Result<Vec<f32>, GpuError> {
+    pub fn multiply_arrays(a: &[f32], b: &[f32], device_id: u32) -> Result<Vec<f32>, GpuError> {
         if a.len() != b.len() {
             return Err(GpuError::ShapeMismatch);
         }
@@ -444,13 +423,11 @@ impl GpuArrayOps {
     ) -> Result<Vec<f32>, GpuError> {
         let result: Vec<f32> = input
             .iter()
-            .map(|&x| {
-                match activation {
-                    ActivationFunction::ReLU => x.max(0.0),
-                    ActivationFunction::Sigmoid => 1.0 / (1.0 + (-x).exp()),
-                    ActivationFunction::Tanh => x.tanh(),
-                    ActivationFunction::Softmax => x.exp(),
-                }
+            .map(|&x| match activation {
+                ActivationFunction::ReLU => x.max(0.0),
+                ActivationFunction::Sigmoid => 1.0 / (1.0 + (-x).exp()),
+                ActivationFunction::Tanh => x.tanh(),
+                ActivationFunction::Softmax => x.exp(),
             })
             .collect();
         Ok(result)
@@ -482,50 +459,48 @@ impl GpuArrayOps {
 /// caller falls back to CPU; returns `Err` only for a genuine GPU failure
 /// (as opposed to "no GPU here").
 #[cfg(feature = "gpu")]
-fn gpu_add_arrays(
-    a: &[f32],
-    b: &[f32],
-    device_id: u32,
-) -> Result<Option<Vec<f32>>, GpuError> {
+fn gpu_add_arrays(a: &[f32], b: &[f32], device_id: u32) -> Result<Option<Vec<f32>>, GpuError> {
     use sklears_core::gpu::{GpuArray, GpuBackend, GpuMatrixOps};
     let Some(backend) = GpuBackend::with_device_id(device_id as usize)
-        .map_err(|e| GpuError::InitializationFailed(e.to_string()))? else {
+        .map_err(|e| GpuError::InitializationFailed(e.to_string()))?
+    else {
         return Ok(None);
     };
     let ga = GpuArray::<f32>::from_slice(&backend, a)
         .map_err(|e| GpuError::InitializationFailed(e.to_string()))?;
     let gb = GpuArray::<f32>::from_slice(&backend, b)
         .map_err(|e| GpuError::InitializationFailed(e.to_string()))?;
-    let sum = ga.add(&gb).map_err(|e| GpuError::InitializationFailed(e.to_string()))?;
-    Ok(Some(sum.to_cpu().map_err(|e| GpuError::InitializationFailed(e.to_string()))?))
+    let sum = ga
+        .add(&gb)
+        .map_err(|e| GpuError::InitializationFailed(e.to_string()))?;
+    Ok(Some(sum.to_cpu().map_err(|e| {
+        GpuError::InitializationFailed(e.to_string())
+    })?))
 }
 #[cfg(not(feature = "gpu"))]
-fn gpu_add_arrays(
-    _a: &[f32],
-    _b: &[f32],
-    _device_id: u32,
-) -> Result<Option<Vec<f32>>, GpuError> {
+fn gpu_add_arrays(_a: &[f32], _b: &[f32], _device_id: u32) -> Result<Option<Vec<f32>>, GpuError> {
     Ok(None)
 }
 /// Attempts a real GPU-backed elementwise multiply. See
 /// [`gpu_add_arrays`] for the `Ok(None)`-means-"fall back to CPU" contract.
 #[cfg(feature = "gpu")]
-fn gpu_multiply_arrays(
-    a: &[f32],
-    b: &[f32],
-    device_id: u32,
-) -> Result<Option<Vec<f32>>, GpuError> {
+fn gpu_multiply_arrays(a: &[f32], b: &[f32], device_id: u32) -> Result<Option<Vec<f32>>, GpuError> {
     use sklears_core::gpu::{GpuArray, GpuBackend, GpuMatrixOps};
     let Some(backend) = GpuBackend::with_device_id(device_id as usize)
-        .map_err(|e| GpuError::InitializationFailed(e.to_string()))? else {
+        .map_err(|e| GpuError::InitializationFailed(e.to_string()))?
+    else {
         return Ok(None);
     };
     let ga = GpuArray::<f32>::from_slice(&backend, a)
         .map_err(|e| GpuError::InitializationFailed(e.to_string()))?;
     let gb = GpuArray::<f32>::from_slice(&backend, b)
         .map_err(|e| GpuError::InitializationFailed(e.to_string()))?;
-    let prod = ga.mul(&gb).map_err(|e| GpuError::InitializationFailed(e.to_string()))?;
-    Ok(Some(prod.to_cpu().map_err(|e| GpuError::InitializationFailed(e.to_string()))?))
+    let prod = ga
+        .mul(&gb)
+        .map_err(|e| GpuError::InitializationFailed(e.to_string()))?;
+    Ok(Some(prod.to_cpu().map_err(|e| {
+        GpuError::InitializationFailed(e.to_string())
+    })?))
 }
 #[cfg(not(feature = "gpu"))]
 fn gpu_multiply_arrays(
@@ -550,7 +525,8 @@ fn gpu_matrix_multiply(
     use scirs2_core::ndarray::Array2;
     use sklears_core::gpu::{GpuArray, GpuBackend, GpuMatrixOps};
     let Some(backend) = GpuBackend::with_device_id(device_id as usize)
-        .map_err(|e| GpuError::InitializationFailed(e.to_string()))? else {
+        .map_err(|e| GpuError::InitializationFailed(e.to_string()))?
+    else {
         return Ok(None);
     };
     let a2 = Array2::from_shape_vec((m, k), a.to_vec())
@@ -561,8 +537,12 @@ fn gpu_matrix_multiply(
         .map_err(|e| GpuError::InitializationFailed(e.to_string()))?;
     let gb = GpuArray::<f32>::from_array2(&backend, &b2)
         .map_err(|e| GpuError::InitializationFailed(e.to_string()))?;
-    let gc = ga.matmul(&gb).map_err(|e| GpuError::InitializationFailed(e.to_string()))?;
-    let c2 = gc.to_array2().map_err(|e| GpuError::InitializationFailed(e.to_string()))?;
+    let gc = ga
+        .matmul(&gb)
+        .map_err(|e| GpuError::InitializationFailed(e.to_string()))?;
+    let c2 = gc
+        .to_array2()
+        .map_err(|e| GpuError::InitializationFailed(e.to_string()))?;
     Ok(Some(c2.into_raw_vec_and_offset().0))
 }
 #[cfg(not(feature = "gpu"))]
@@ -620,11 +600,15 @@ impl GpuProfiler {
     }
     /// Record kernel execution time
     pub fn record_kernel_time(&mut self, kernel_name: &str, time_ms: f64) {
-        self.kernel_times.entry(kernel_name.to_string()).or_default().push(time_ms);
+        self.kernel_times
+            .entry(kernel_name.to_string())
+            .or_default()
+            .push(time_ms);
     }
     /// Record memory transfer
     pub fn record_memory_transfer(&mut self, size: u64, direction: &str) {
-        self.memory_transfers.push((Instant::now(), size, direction.to_string()));
+        self.memory_transfers
+            .push((Instant::now(), size, direction.to_string()));
     }
     /// Record device utilization
     pub fn record_utilization(&mut self, device_id: u32, utilization: f64) {
@@ -642,28 +626,23 @@ impl GpuProfiler {
             let avg_time = total_time / count as f64;
             let min_time = times.iter().fold(f64::INFINITY, |a, &b| a.min(b));
             let max_time = times.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-            stats
-                .insert(
-                    kernel_name.clone(),
-                    KernelStats {
-                        count,
-                        total_time,
-                        avg_time,
-                        min_time,
-                        max_time,
-                    },
-                );
+            stats.insert(
+                kernel_name.clone(),
+                KernelStats {
+                    count,
+                    total_time,
+                    avg_time,
+                    min_time,
+                    max_time,
+                },
+            );
         }
         stats
     }
     /// Get memory transfer statistics
     pub fn get_memory_transfer_stats(&self) -> MemoryTransferStats {
         let total_transfers = self.memory_transfers.len();
-        let total_bytes: u64 = self
-            .memory_transfers
-            .iter()
-            .map(|(_, size, _)| size)
-            .sum();
+        let total_bytes: u64 = self.memory_transfers.iter().map(|(_, size, _)| size).sum();
         let host_to_device = self
             .memory_transfers
             .iter()
@@ -753,10 +732,7 @@ impl MultiGpuCoordinator {
         Ok(())
     }
     /// Get optimal GPU assignment for workload
-    pub fn get_optimal_assignment(
-        &self,
-        workload: &DistributedWorkload,
-    ) -> Vec<GpuAssignment> {
+    pub fn get_optimal_assignment(&self, workload: &DistributedWorkload) -> Vec<GpuAssignment> {
         self.load_balancer.assign_workload(workload, &self.gpus)
     }
     /// Execute distributed operation across multiple GPUs
@@ -767,7 +743,10 @@ impl MultiGpuCoordinator {
         let assignments = self.get_optimal_assignment(&operation.workload);
         let mut results = Vec::new();
         for assignment in assignments {
-            let gpu = self.gpus.get(&assignment.gpu_id).ok_or(GpuError::DeviceNotFound)?;
+            let gpu = self
+                .gpus
+                .get(&assignment.gpu_id)
+                .ok_or(GpuError::DeviceNotFound)?;
             let kernel_info = GpuKernelInfo {
                 name: operation.kernel_name.clone(),
                 device_id: assignment.gpu_id,
@@ -862,7 +841,10 @@ impl GpuMemoryPool {
     }
     /// Free memory back to pool
     pub fn free(&mut self, ptr: u64, device_id: u32) -> Result<(), GpuError> {
-        let pool = self.pools.get_mut(&device_id).ok_or(GpuError::DeviceNotFound)?;
+        let pool = self
+            .pools
+            .get_mut(&device_id)
+            .ok_or(GpuError::DeviceNotFound)?;
         for block in pool.iter_mut() {
             if block.ptr == ptr {
                 block.is_allocated = false;
@@ -874,17 +856,18 @@ impl GpuMemoryPool {
         Err(GpuError::InvalidPointer)
     }
     /// Defragment memory pool
-    pub fn defragment(
-        &mut self,
-        device_id: u32,
-    ) -> Result<DefragmentationResult, GpuError> {
+    pub fn defragment(&mut self, device_id: u32) -> Result<DefragmentationResult, GpuError> {
         let before_fragmentation = self.calculate_fragmentation(device_id);
-        let pool = self.pools.get_mut(&device_id).ok_or(GpuError::DeviceNotFound)?;
+        let pool = self
+            .pools
+            .get_mut(&device_id)
+            .ok_or(GpuError::DeviceNotFound)?;
         let before_blocks = pool.len();
         pool.sort_by_key(|b| b.ptr);
         let mut i = 0;
         while i < pool.len() - 1 {
-            if !pool[i].is_allocated && !pool[i + 1].is_allocated
+            if !pool[i].is_allocated
+                && !pool[i + 1].is_allocated
                 && pool[i].ptr + pool[i].size == pool[i + 1].ptr
             {
                 pool[i].size += pool[i + 1].size;
@@ -911,7 +894,8 @@ impl GpuMemoryPool {
             pool.sort_by_key(|b| b.ptr);
             let mut i = 0;
             while i < pool.len() - 1 {
-                if !pool[i].is_allocated && !pool[i + 1].is_allocated
+                if !pool[i].is_allocated
+                    && !pool[i + 1].is_allocated
                     && pool[i].ptr + pool[i].size == pool[i + 1].ptr
                 {
                     pool[i].size += pool[i + 1].size;
@@ -927,7 +911,11 @@ impl GpuMemoryPool {
         let pool = self.pools.get(&device_id).unwrap_or(&empty_pool);
         let free_blocks = pool.iter().filter(|b| !b.is_allocated).count();
         let total_blocks = pool.len();
-        if total_blocks == 0 { 0.0 } else { free_blocks as f64 / total_blocks as f64 }
+        if total_blocks == 0 {
+            0.0
+        } else {
+            free_blocks as f64 / total_blocks as f64
+        }
     }
 }
 /// Asynchronous GPU operations
@@ -1059,39 +1047,36 @@ impl GpuOptimizationAdvisor {
         recommendations
     }
     fn init_default_rules(&mut self) {
-        self.optimization_rules
-            .push(OptimizationRule {
-                name: "Low Occupancy".to_string(),
-                condition: Box::new(|metric, _| metric.occupancy < 0.5),
-                recommendation: "Consider increasing block size or reducing register usage"
-                    .to_string(),
-                priority: RecommendationPriority::High,
-            });
-        self.optimization_rules
-            .push(OptimizationRule {
-                name: "Memory Bandwidth".to_string(),
-                condition: Box::new(|metric, _| metric.memory_bandwidth < 0.7),
-                recommendation: "Optimize memory access patterns for better coalescing"
-                    .to_string(),
-                priority: RecommendationPriority::Medium,
-            });
-        self.optimization_rules
-            .push(OptimizationRule {
-                name: "Small Grid Size".to_string(),
-                condition: Box::new(|_, execution| {
-                    let total_threads = execution.grid_size.0 * execution.grid_size.1
-                        * execution.grid_size.2 * execution.block_size.0
-                        * execution.block_size.1 * execution.block_size.2;
-                    total_threads < 1024
-                }),
-                recommendation: "Consider increasing grid size to better utilize GPU cores"
-                    .to_string(),
-                priority: RecommendationPriority::Low,
-            });
+        self.optimization_rules.push(OptimizationRule {
+            name: "Low Occupancy".to_string(),
+            condition: Box::new(|metric, _| metric.occupancy < 0.5),
+            recommendation: "Consider increasing block size or reducing register usage".to_string(),
+            priority: RecommendationPriority::High,
+        });
+        self.optimization_rules.push(OptimizationRule {
+            name: "Memory Bandwidth".to_string(),
+            condition: Box::new(|metric, _| metric.memory_bandwidth < 0.7),
+            recommendation: "Optimize memory access patterns for better coalescing".to_string(),
+            priority: RecommendationPriority::Medium,
+        });
+        self.optimization_rules.push(OptimizationRule {
+            name: "Small Grid Size".to_string(),
+            condition: Box::new(|_, execution| {
+                let total_threads = execution.grid_size.0
+                    * execution.grid_size.1
+                    * execution.grid_size.2
+                    * execution.block_size.0
+                    * execution.block_size.1
+                    * execution.block_size.2;
+                total_threads < 1024
+            }),
+            recommendation: "Consider increasing grid size to better utilize GPU cores".to_string(),
+            priority: RecommendationPriority::Low,
+        });
     }
     fn calculate_occupancy(&self, execution: &GpuKernelExecution) -> f64 {
-        let threads_per_block = execution.block_size.0 * execution.block_size.1
-            * execution.block_size.2;
+        let threads_per_block =
+            execution.block_size.0 * execution.block_size.1 * execution.block_size.2;
         let blocks_per_sm = 2048 / threads_per_block.max(1);
         (blocks_per_sm as f64 / 32.0).min(1.0)
     }
@@ -1257,9 +1242,8 @@ pub struct PerformanceMetric {
     pub memory_bandwidth: f64,
     pub occupancy: f64,
 }
-type OptimizationCondition = Box<
-    dyn Fn(&PerformanceMetric, &GpuKernelExecution) -> bool + Send + Sync,
->;
+type OptimizationCondition =
+    Box<dyn Fn(&PerformanceMetric, &GpuKernelExecution) -> bool + Send + Sync>;
 pub struct OptimizationRule {
     pub name: String,
     pub condition: OptimizationCondition,

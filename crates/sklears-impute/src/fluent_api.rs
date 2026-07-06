@@ -1696,7 +1696,10 @@ mod tests {
             .finish()
             .build();
 
-        assert!(pipeline.is_ok(), "device matching should be case-insensitive");
+        assert!(
+            pipeline.is_ok(),
+            "device matching should be case-insensitive"
+        );
     }
 
     #[test]
@@ -1711,7 +1714,10 @@ mod tests {
             .finish()
             .build();
 
-        assert!(result.is_err(), "\"cuda\" must be rejected: no GPU dispatch is wired up");
+        assert!(
+            result.is_err(),
+            "\"cuda\" must be rejected: no GPU dispatch is wired up"
+        );
         let message = result.err().expect("should be an error").to_string();
         assert!(
             message.contains("device"),

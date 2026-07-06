@@ -821,7 +821,9 @@ mod tests {
 
         let x = Array1::from_vec(vec![1.0, 1.0, 1.0]);
         let y = Array1::from_vec(vec![2.0, 2.0, 2.0]);
-        gpu_ops.vector_dot(&x, &y).expect("operation should succeed");
+        gpu_ops
+            .vector_dot(&x, &y)
+            .expect("operation should succeed");
 
         let stats = gpu_ops.get_performance_stats();
         assert_eq!(stats.total_operations, 2);

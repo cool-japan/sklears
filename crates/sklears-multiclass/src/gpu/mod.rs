@@ -276,7 +276,10 @@ pub mod memory {
 
     /// Transfer a 2-D array to the GPU device.
     #[cfg(feature = "gpu")]
-    pub fn to_device<T: Copy + Clone>(data: &Array2<T>, ctx: &GpuContext) -> SklResult<GpuArray<T>> {
+    pub fn to_device<T: Copy + Clone>(
+        data: &Array2<T>,
+        ctx: &GpuContext,
+    ) -> SklResult<GpuArray<T>> {
         GpuArray::from_array2(ctx, data)
     }
 
@@ -342,9 +345,7 @@ mod tests {
         // with the `gpu` feature compiled in.
         let ctx = detect_context().expect("detect_context should not hard-error");
         if ctx.is_none() {
-            eprintln!(
-                "skipping test_oxicuda_matrix_ops_requires_real_device: no GPU detected"
-            );
+            eprintln!("skipping test_oxicuda_matrix_ops_requires_real_device: no GPU detected");
         }
     }
 }

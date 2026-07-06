@@ -799,10 +799,7 @@ mod tests {
         let err = tsne
             .fit_transform(&data.view())
             .expect_err("fit_transform must fail without the gpu feature");
-        assert!(matches!(
-            err,
-            SklearsError::MissingDependency { .. }
-        ));
+        assert!(matches!(err, SklearsError::MissingDependency { .. }));
     }
 
     /// Two tight, well-separated 3-D "clusters" at fixed (non-random)

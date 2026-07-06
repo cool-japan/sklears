@@ -486,7 +486,12 @@ impl GpuContext {
                 kernel.shape
             )));
         }
-        let (n, c_in, h, w) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
+        let (n, c_in, h, w) = (
+            input.shape[0],
+            input.shape[1],
+            input.shape[2],
+            input.shape[3],
+        );
         let (k_out, c_k, r, s) = (
             kernel.shape[0],
             kernel.shape[1],
@@ -539,15 +544,18 @@ impl GpuContext {
         })? as usize;
 
         let input_desc = TensorDesc::nchw(&input.buf, n as u32, c_in as u32, h as u32, w as u32)
-            .map_err(|e| SklearsError::InvalidInput(format!("Invalid conv2d input tensor: {}", e)))?;
+            .map_err(|e| {
+                SklearsError::InvalidInput(format!("Invalid conv2d input tensor: {}", e))
+            })?;
         let filter_desc =
             TensorDesc::nchw(&kernel.buf, k_out as u32, c_k as u32, r as u32, s as u32).map_err(
                 |e| SklearsError::InvalidInput(format!("Invalid conv2d filter tensor: {}", e)),
             )?;
 
         let out_len = n * k_out * out_h * out_w;
-        let mut out_buf = DeviceBuffer::<half::f16>::zeroed(out_len)
-            .map_err(|e| SklearsError::InvalidInput(format!("Failed to allocate conv2d output: {}", e)))?;
+        let mut out_buf = DeviceBuffer::<half::f16>::zeroed(out_len).map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to allocate conv2d output: {}", e))
+        })?;
         let mut output_desc = TensorDescMut::nchw(
             &mut out_buf,
             n as u32,
@@ -584,7 +592,10 @@ impl GpuContext {
                 .map_err(|e| SklearsError::InvalidInput(format!("GPU conv2d failed: {}", e)))?;
             }
             Err(e) => {
-                return Err(SklearsError::InvalidInput(format!("GPU conv2d failed: {}", e)));
+                return Err(SklearsError::InvalidInput(format!(
+                    "GPU conv2d failed: {}",
+                    e
+                )));
             }
         }
 

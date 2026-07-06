@@ -32,7 +32,11 @@ mod tests_2 {
     fn test_gpu_utils_creation() {
         let utils = GpuUtils::new();
         assert!(utils.devices.is_empty());
-        assert!(utils.allocations.read().expect("operation should succeed").is_empty());
+        assert!(utils
+            .allocations
+            .read()
+            .expect("operation should succeed")
+            .is_empty());
     }
     /// `init_devices()` must never panic and must never fabricate a device.
     /// On this crate's dev/CI machines (macOS, no NVIDIA GPU, and/or built
@@ -44,7 +48,7 @@ mod tests_2 {
         let mut utils = GpuUtils::new();
         assert!(utils.init_devices().is_ok());
         for device in &utils.devices {
-            assert!(! device.name.is_empty());
+            assert!(!device.name.is_empty());
             assert!(device.memory_total > 0);
         }
     }
@@ -88,34 +92,28 @@ mod tests_2 {
     fn test_array_operations() {
         let a = vec![1.0, 2.0, 3.0, 4.0];
         let b = vec![5.0, 6.0, 7.0, 8.0];
-        let result = GpuArrayOps::add_arrays(&a, &b, 0)
-            .expect("operation should succeed");
+        let result = GpuArrayOps::add_arrays(&a, &b, 0).expect("operation should succeed");
         assert_eq!(result, vec![6.0, 8.0, 10.0, 12.0]);
-        let result = GpuArrayOps::multiply_arrays(&a, &b, 0)
-            .expect("operation should succeed");
+        let result = GpuArrayOps::multiply_arrays(&a, &b, 0).expect("operation should succeed");
         assert_eq!(result, vec![5.0, 12.0, 21.0, 32.0]);
     }
     #[test]
     fn test_matrix_multiplication() {
         let a = vec![1.0, 2.0, 3.0, 4.0];
         let b = vec![5.0, 6.0, 7.0, 8.0];
-        let result = GpuArrayOps::matrix_multiply(&a, &b, 2, 2, 2, 0)
-            .expect("operation should succeed");
+        let result =
+            GpuArrayOps::matrix_multiply(&a, &b, 2, 2, 2, 0).expect("operation should succeed");
         assert_eq!(result, vec![19.0, 22.0, 43.0, 50.0]);
     }
     #[test]
     fn test_activation_functions() {
-        let input = vec![- 1.0, 0.0, 1.0, 2.0];
+        let input = vec![-1.0, 0.0, 1.0, 2.0];
         let result = GpuArrayOps::apply_activation(&input, ActivationFunction::ReLU, 0)
             .expect("operation should succeed");
         assert_eq!(result, vec![0.0, 0.0, 1.0, 2.0]);
-        let result = GpuArrayOps::apply_activation(
-                &input,
-                ActivationFunction::Sigmoid,
-                0,
-            )
+        let result = GpuArrayOps::apply_activation(&input, ActivationFunction::Sigmoid, 0)
             .expect("operation should succeed");
-        assert!(result.iter().all(|& x | (0.0..= 1.0).contains(& x)));
+        assert!(result.iter().all(|&x| (0.0..=1.0).contains(&x)));
     }
     #[test]
     fn test_reduction_operations() {
@@ -148,7 +146,7 @@ mod tests_2 {
         let should_use = utils.should_use_gpu(1000, "add");
         assert!(should_use);
         let should_not_use = utils.should_use_gpu(100, "add");
-        assert!(! should_not_use);
+        assert!(!should_not_use);
     }
     #[test]
     fn test_memory_stats() {
@@ -158,9 +156,9 @@ mod tests_2 {
             .allocate_memory(1024, 0, "test")
             .expect("operation should succeed");
         let stats = utils.get_memory_stats();
-        assert!(stats.contains_key(& 0));
-        assert_eq!(stats[& 0].allocated_memory, 1024);
-        assert_eq!(stats[& 0].num_allocations, 1);
+        assert!(stats.contains_key(&0));
+        assert_eq!(stats[&0].allocated_memory, 1024);
+        assert_eq!(stats[&0].num_allocations, 1);
     }
     #[test]
     fn test_error_handling() {
@@ -178,9 +176,7 @@ mod tests_2 {
     fn test_multi_gpu_coordinator() {
         let mut coordinator = MultiGpuCoordinator::new();
         let result = coordinator.init_all_gpus();
-        assert!(
-            result.is_ok() || matches!(result, Err(GpuError::InitializationFailed(_)))
-        );
+        assert!(result.is_ok() || matches!(result, Err(GpuError::InitializationFailed(_))));
         let workload = DistributedWorkload {
             total_elements: 10_000,
             operation_type: "matrix_multiply".to_string(),
@@ -188,7 +184,7 @@ mod tests_2 {
             computation_complexity: 1.0,
         };
         let assignments = coordinator.get_optimal_assignment(&workload);
-        assert!(! assignments.is_empty() || coordinator.gpus.is_empty());
+        assert!(!assignments.is_empty() || coordinator.gpus.is_empty());
     }
     #[test]
     fn test_distributed_operation() {
@@ -206,10 +202,10 @@ mod tests_2 {
         if init_result.is_ok() && !coordinator.gpus.is_empty() {
             let result = coordinator.execute_distributed(&operation);
             if let Ok(dist_result) = result {
-                assert!(! dist_result.executions.is_empty());
+                assert!(!dist_result.executions.is_empty());
                 assert!(dist_result.total_time >= 0.0);
             } else {
-                assert!(! coordinator.gpus.is_empty());
+                assert!(!coordinator.gpus.is_empty());
             }
         } else {
             assert!(coordinator.gpus.is_empty());
@@ -240,8 +236,10 @@ mod tests_2 {
     #[test]
     fn test_memory_pool_strategies() {
         let strategies = vec![
-            AllocationStrategy::FirstFit, AllocationStrategy::BestFit,
-            AllocationStrategy::WorstFit, AllocationStrategy::BuddySystem,
+            AllocationStrategy::FirstFit,
+            AllocationStrategy::BestFit,
+            AllocationStrategy::WorstFit,
+            AllocationStrategy::BuddySystem,
         ];
         for strategy in strategies {
             let mut pool = GpuMemoryPool::new(strategy);
@@ -263,10 +261,7 @@ mod tests_2 {
             parameters: HashMap::new(),
         };
         let handle = async_ops
-            .launch_kernel_async(
-                &kernel_info,
-                stream_id.expect("operation should succeed"),
-            );
+            .launch_kernel_async(&kernel_info, stream_id.expect("operation should succeed"));
         assert!(handle.is_ok());
         let operation_handle = handle.expect("operation should succeed");
         let _is_complete_before = async_ops.is_complete(&operation_handle);
@@ -287,9 +282,8 @@ mod tests_2 {
             execution_time: 5.0,
             parameters: HashMap::new(),
         };
-        let recommendations = advisor
-            .analyze_performance("test_kernel", &execution, 1000);
-        assert!(! recommendations.is_empty());
+        let recommendations = advisor.analyze_performance("test_kernel", &execution, 1000);
+        assert!(!recommendations.is_empty());
         let has_grid_size_recommendation = recommendations
             .iter()
             .any(|r| r.rule_name.contains("Grid Size"));
@@ -322,7 +316,9 @@ mod tests_2 {
     #[test]
     fn test_stream_priorities() {
         let mut async_ops = AsyncGpuOps::new();
-        let _stream_id = async_ops.create_stream(0).expect("operation should succeed");
+        let _stream_id = async_ops
+            .create_stream(0)
+            .expect("operation should succeed");
         let streams = async_ops.streams.get(&0).expect("operation should succeed");
         assert_eq!(streams.len(), 1);
         assert!(matches!(streams[0].priority, StreamPriority::Normal));
@@ -341,7 +337,7 @@ mod tests_2 {
             is_allocated: true,
             allocation_time: Some(Instant::now()),
         };
-        assert!(! block1.is_allocated);
+        assert!(!block1.is_allocated);
         assert!(block2.is_allocated);
         assert!(block1.allocation_time.is_none());
         assert!(block2.allocation_time.is_some());
@@ -363,9 +359,8 @@ mod tests_2 {
         let ring_topology = CommunicationTopology::Ring;
         let tree_topology = CommunicationTopology::Tree;
         let all_to_all_topology = CommunicationTopology::AllToAll;
-        let custom_topology = CommunicationTopology::Custom(
-            vec![vec![1, 2], vec![0, 3], vec![0, 3], vec![1, 2]],
-        );
+        let custom_topology =
+            CommunicationTopology::Custom(vec![vec![1, 2], vec![0, 3], vec![0, 3], vec![1, 2]]);
         match ring_topology {
             CommunicationTopology::Ring => {}
             _ => panic!(),

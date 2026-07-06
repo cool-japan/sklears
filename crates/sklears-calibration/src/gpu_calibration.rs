@@ -492,7 +492,10 @@ impl GpuTemperatureScalingCalibrator {
     pub fn new(config: GpuCalibrationConfig) -> Result<Self, SklearsError> {
         let cpu = TemperatureScalingCalibrator::new();
         let gpu_calibrator = GpuCalibratedClassifier::new(Box::new(cpu.clone()), config)?;
-        Ok(Self { cpu, gpu_calibrator })
+        Ok(Self {
+            cpu,
+            gpu_calibrator,
+        })
     }
 
     /// Whether the GPU device fast path would run for a batch of this size:
@@ -509,10 +512,7 @@ impl GpuTemperatureScalingCalibrator {
     /// available, so callers can transparently fall back to the CPU path;
     /// device/kernel failures are still surfaced as `Err`.
     #[cfg(feature = "gpu")]
-    fn try_gpu_predict(
-        &self,
-        logits: &[Float],
-    ) -> sklears_core::error::Result<Option<Vec<Float>>> {
+    fn try_gpu_predict(&self, logits: &[Float]) -> sklears_core::error::Result<Option<Vec<Float>>> {
         let device = {
             let gpu_utils = self
                 .gpu_calibrator
@@ -536,8 +536,14 @@ impl GpuTemperatureScalingCalibrator {
         let mut scaled = oxicuda_memory::DeviceBuffer::<Float>::zeroed(n)
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
         let inv_temperature = 1.0 / self.cpu.temperature();
-        oxicuda_blas::elementwise::scale(backend.blas(), n as u32, inv_temperature, &input, &mut scaled)
-            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+        oxicuda_blas::elementwise::scale(
+            backend.blas(),
+            n as u32,
+            inv_temperature,
+            &input,
+            &mut scaled,
+        )
+        .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
         let mut activated = oxicuda_memory::DeviceBuffer::<Float>::zeroed(n)
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;

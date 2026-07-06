@@ -629,7 +629,10 @@ impl AdvancedGpuOps {
             name: info.name,
             memory_total: info.total_memory_bytes,
             memory_free,
-            compute_capability: (info.compute_capability.0 as u32, info.compute_capability.1 as u32),
+            compute_capability: (
+                info.compute_capability.0 as u32,
+                info.compute_capability.1 as u32,
+            ),
             multiprocessor_count: info.multiprocessor_count as u32,
             max_threads_per_block: info.max_threads_per_block as u32,
             max_shared_memory_per_block: info.max_shared_memory_per_block as usize,
@@ -1291,8 +1294,7 @@ impl AsyncGpuOperation {
                 // Placeholder swapped in only for the duration of this
                 // block; overwritten below with the real outcome before the
                 // borrow is released, so it is never observable externally.
-                let previous =
-                    std::mem::replace(&mut *state, AsyncGpuState::Failed(String::new()));
+                let previous = std::mem::replace(&mut *state, AsyncGpuState::Failed(String::new()));
                 let AsyncGpuState::Pending(pending) = previous else {
                     unreachable!("checked above: state is AsyncGpuState::Pending");
                 };

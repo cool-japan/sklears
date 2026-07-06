@@ -338,8 +338,7 @@ impl Fit<Array2<f64>, ()> for GpuRBFSampler {
 
         // Generate random biases.
         let mut rng = RealStdRng::from_seed(thread_rng().random());
-        let uniform =
-            RandUniform::new(0.0, 2.0 * std::f64::consts::PI).map_err(numerical_err)?;
+        let uniform = RandUniform::new(0.0, 2.0 * std::f64::consts::PI).map_err(numerical_err)?;
         let biases = Array1::from_vec(
             (0..self.n_components)
                 .map(|_| rng.sample(uniform))
@@ -539,9 +538,8 @@ impl Fit<Array2<f64>, ()> for GpuNystroem {
         // this always runs on the CPU, GPU feature or not, and for what it
         // replaces (a power-iteration-plus-fabrication placeholder that
         // invented every eigenvalue past the first as a flat `0.1`).
-        let (eigenvalues, eigenvectors) = eigh(&kernel_matrix, UPLO::Lower).map_err(|e| {
-            SklearsError::NumericalError(format!("eigendecomposition failed: {e}"))
-        })?;
+        let (eigenvalues, eigenvectors) = eigh(&kernel_matrix, UPLO::Lower)
+            .map_err(|e| SklearsError::NumericalError(format!("eigendecomposition failed: {e}")))?;
 
         Ok(FittedGpuNystroem {
             n_components,
@@ -749,7 +747,10 @@ mod tests {
         // Sort ascending-by-magnitude is already what `eigh` gives us; the
         // largest-magnitude eigenvalue should dominate, and every other one
         // should be near zero — not the fabricated `0.1`.
-        let max_abs = eigenvalues.iter().cloned().fold(0.0_f64, |a, b| a.max(b.abs()));
+        let max_abs = eigenvalues
+            .iter()
+            .cloned()
+            .fold(0.0_f64, |a, b| a.max(b.abs()));
         let mut others_near_zero = true;
         for &val in eigenvalues.iter() {
             if val.abs() < max_abs - 1e-9 && val.abs() > 1e-3 {
