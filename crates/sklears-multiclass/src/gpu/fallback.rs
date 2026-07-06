@@ -2,6 +2,8 @@
 //!
 //! This module provides CPU-based implementations that are used when GPU is not available.
 
+#[cfg(all(test, not(feature = "gpu")))]
+use super::GpuBackend;
 use super::{GpuContext, GpuMatrixOps, GpuVotingOps};
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::error::{Result as SklResult, SklearsError};
@@ -32,11 +34,13 @@ impl GpuVotingOps for CpuVotingOps {
                 row.to_vec()
             };
 
-            // Find class with maximum votes
+            // Find class with maximum votes. `total_cmp` gives a total order
+            // over f64 (including NaN) without ever panicking, unlike
+            // `partial_cmp().expect(..)`.
             let max_idx = weighted_votes
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
+                .max_by(|(_, a), (_, b)| a.total_cmp(b))
                 .map(|(idx, _)| idx)
                 .ok_or_else(|| SklearsError::InvalidInput("Empty votes".to_string()))?;
 
@@ -201,14 +205,34 @@ impl<P> CpuBatchPredict<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_autograd::ndarray::array;
+    use scirs2_core::ndarray::array;
+
+    /// Every fallback CPU op in this module ignores `ctx` entirely -- that's
+    /// the whole point of the CPU fallback path -- so any `GpuContext` value
+    /// works here. Without the `gpu` feature, `GpuContext` is a local,
+    /// always-constructible marker type. With `gpu` enabled, `GpuContext`
+    /// can only come from a real `GpuBackend::detect()` (no fake/CPU-backed
+    /// substitute exists any more), so these tests gracefully skip when no
+    /// device is present -- the same honest-detection contract used
+    /// throughout this workspace's oxicuda-backed crates.
+    #[cfg(not(feature = "gpu"))]
+    fn test_context() -> Option<GpuContext> {
+        Some(GpuBackend)
+    }
+
+    #[cfg(feature = "gpu")]
+    fn test_context() -> Option<GpuContext> {
+        super::super::detect_context().ok().flatten()
+    }
 
     #[test]
     fn test_cpu_voting_ops_basic() {
+        let Some(ctx) = test_context() else {
+            eprintln!("skipping test_cpu_voting_ops_basic: no GPU detected");
+            return;
+        };
         let ops = CpuVotingOps;
         let votes = array![[1.0, 2.0, 0.0], [0.0, 1.0, 3.0], [2.0, 1.0, 1.0]];
-        let config = super::super::GpuConfig::default();
-        let ctx = super::super::GpuContext::new(config).expect("operation should succeed");
 
         let predictions = ops
             .aggregate_votes_gpu(&votes, None, &ctx)
@@ -220,11 +244,13 @@ mod tests {
 
     #[test]
     fn test_cpu_voting_ops_with_weights() {
+        let Some(ctx) = test_context() else {
+            eprintln!("skipping test_cpu_voting_ops_with_weights: no GPU detected");
+            return;
+        };
         let ops = CpuVotingOps;
         let votes = array![[1.0, 2.0, 0.0], [1.0, 1.0, 1.0]];
         let weights = array![2.0, 0.5, 1.0];
-        let config = super::super::GpuConfig::default();
-        let ctx = super::super::GpuContext::new(config).expect("operation should succeed");
 
         let predictions = ops
             .aggregate_votes_gpu(&votes, Some(&weights), &ctx)
@@ -236,11 +262,13 @@ mod tests {
 
     #[test]
     fn test_cpu_matrix_ops_matmul() {
+        let Some(ctx) = test_context() else {
+            eprintln!("skipping test_cpu_matrix_ops_matmul: no GPU detected");
+            return;
+        };
         let ops = CpuMatrixOps;
         let matrix = array![[1.0, 2.0], [3.0, 4.0]];
         let vector = array![1.0, 2.0];
-        let config = super::super::GpuConfig::default();
-        let ctx = super::super::GpuContext::new(config).expect("operation should succeed");
 
         let result = ops
             .matmul_gpu(&matrix, &vector, &ctx)
@@ -251,11 +279,13 @@ mod tests {
 
     #[test]
     fn test_cpu_matrix_ops_distance() {
+        let Some(ctx) = test_context() else {
+            eprintln!("skipping test_cpu_matrix_ops_distance: no GPU detected");
+            return;
+        };
         let ops = CpuMatrixOps;
         let predictions = array![[1.0, 1.0], [0.0, 0.0]];
         let code_matrix = array![[1i8, 1i8], [0i8, 0i8]];
-        let config = super::super::GpuConfig::default();
-        let ctx = super::super::GpuContext::new(config).expect("operation should succeed");
 
         let distances = ops
             .compute_distances_gpu(&predictions, &code_matrix, &ctx)
@@ -267,12 +297,14 @@ mod tests {
 
     #[test]
     fn test_cpu_aggregate_probabilities() {
+        let Some(ctx) = test_context() else {
+            eprintln!("skipping test_cpu_aggregate_probabilities: no GPU detected");
+            return;
+        };
         let ops = CpuVotingOps;
         let probs1 = array![[0.7, 0.3], [0.4, 0.6]];
         let probs2 = array![[0.6, 0.4], [0.5, 0.5]];
         let probabilities = vec![probs1, probs2];
-        let config = super::super::GpuConfig::default();
-        let ctx = super::super::GpuContext::new(config).expect("operation should succeed");
 
         let aggregated = ops
             .aggregate_probabilities_gpu(&probabilities, None, &ctx)

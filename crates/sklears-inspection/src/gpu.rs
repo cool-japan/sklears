@@ -1,265 +1,197 @@
 //! GPU acceleration infrastructure for explanation methods
 //!
 //! This module provides the foundation for GPU-accelerated explanation computation,
-//! including device management, memory allocation, and kernel execution.
+//! including device management, memory allocation, and honest device detection.
+//!
+//! Everything here is a thin, explanation-domain wrapper around
+//! [`sklears_core::gpu`], which is itself backed directly by the real
+//! `oxicuda-driver` / `oxicuda-blas` / `oxicuda-memory` crates. There is no
+//! CPU-backed placeholder masquerading as a GPU anywhere in this module:
+//! [`GpuContext::new`] / [`GpuBackend::detect`] honestly report "no GPU"
+//! (`is_gpu_available() == false`) on hosts without a CUDA-capable device and
+//! driver, such as this crate's own macOS development machine.
 //!
 //! # Features
 //!
-//! * Device detection and selection
-//! * GPU memory management for explanation data
-//! * Asynchronous computation pipelines
-//! * Fallback to CPU when GPU is not available
-//! * Support for both CUDA and OpenCL backends
+//! * Device detection via `oxicuda-driver` (CUDA only; OxiCUDA does not
+//!   provide OpenCL or Metal backends)
+//! * GPU memory management for explanation data via [`GpuBuffer`]
+//! * Fallback to CPU explanation estimators when no GPU is available
 //!
 //! # Example
 //!
 //! ```rust,ignore
-//! use sklears_inspection::gpu::{GpuContext, GpuExplanationComputer, GpuBuffer};
+//! use sklears_inspection::gpu::{GpuContext, GpuExplanationComputer};
 //!
-//! // Create GPU context (automatically detects best available device)
-//! let mut gpu_ctx = GpuContext::new()?;
+//! // Create GPU context (honestly detects the best available device, if any)
+//! let gpu_ctx = GpuContext::new()?;
 //!
-//! // Create GPU-accelerated explanation computer
-//! let computer = GpuExplanationComputer::new(&mut gpu_ctx)?;
+//! // Create GPU-accelerated explanation computer; falls back to CPU
+//! // estimators transparently when `gpu_ctx.is_gpu_available()` is false.
+//! let computer = GpuExplanationComputer::new(&gpu_ctx)?;
 //!
-//! // Perform GPU-accelerated SHAP computation
+//! // Perform SHAP computation (GPU-staged when available, CPU otherwise)
 //! let shap_values = computer.compute_shap_parallel(&features, &background, &predict_fn).await?;
 //! ```
 
 use crate::types::Float;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use sklears_core::error::{Result as SklResult, SklearsError};
-use std::sync::Arc;
+pub use sklears_core::gpu::{GpuArray, GpuBackend, GpuMatrixOps, GpuUtils};
 
-/// GPU backend types supported by the system
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GpuBackend {
-    /// NVIDIA CUDA backend
-    Cuda,
-    /// OpenCL backend (cross-platform)
-    OpenCL,
-    /// Apple Metal backend (macOS/iOS)
-    Metal,
-    /// CPU fallback when no GPU is available
-    CpuFallback,
+/// Real device information, sourced from `oxicuda-driver` via
+/// [`GpuUtils::device_properties`]. Alias kept for API continuity with the
+/// pre-migration `GpuDevice` name.
+pub type GpuDevice = sklears_core::gpu::GpuDeviceProperties;
+
+/// GPU memory buffer for explanation data.
+///
+/// Thin wrapper around [`sklears_core::gpu::GpuArray`]: every `GpuBuffer`
+/// that exists represents real device memory allocated through
+/// `oxicuda-memory`. Unlike the pre-migration version there is no
+/// null-pointer placeholder here -- a `GpuBuffer` can only be constructed
+/// from a [`GpuBackend`], and a `GpuBackend` can only be constructed once
+/// [`GpuBackend::detect`] has found a real GPU.
+pub struct GpuBuffer<T: Copy> {
+    inner: GpuArray<T>,
 }
 
-/// GPU device information
-#[derive(Debug, Clone)]
-pub struct GpuDevice {
-    /// Device index
-    pub index: usize,
-    /// Device name
-    pub name: String,
-    /// Available memory in bytes
-    pub memory: usize,
-    /// Compute capability (CUDA) or version (OpenCL)
-    pub compute_capability: String,
-    /// Backend type
-    pub backend: GpuBackend,
-    /// Whether device supports double precision
-    pub supports_f64: bool,
-}
-
-/// GPU memory buffer for explanation data
-pub struct GpuBuffer<T> {
-    /// Raw pointer to GPU memory
-    #[allow(dead_code)] // used in unsafe GPU memory operations
-    ptr: *mut T,
-    /// Size in elements
-    size: usize,
-    /// Backend type
-    backend: GpuBackend,
-    /// Whether the buffer is pinned in memory
-    #[allow(dead_code)] // used for memory pinning checks
-    pinned: bool,
-}
-
-impl<T> GpuBuffer<T> {
-    /// Create a new GPU buffer with the specified size
-    pub fn new(size: usize, backend: GpuBackend) -> SklResult<Self> {
-        // For now, return a placeholder implementation
-        // In a real implementation, this would allocate GPU memory
+impl<T: Copy> GpuBuffer<T> {
+    /// Uploads `data` to a new device buffer.
+    pub fn from_host(backend: &GpuBackend, data: &[T]) -> SklResult<Self> {
         Ok(Self {
-            ptr: std::ptr::null_mut(),
-            size,
-            backend,
-            pinned: false,
+            inner: GpuArray::from_slice(backend, data)?,
         })
     }
 
-    /// Copy data from host to GPU buffer
-    pub fn copy_from_host(&mut self, data: &[T]) -> SklResult<()> {
-        if data.len() != self.size {
-            return Err(SklearsError::InvalidInput(
-                "Data size does not match buffer size".to_string(),
-            ));
-        }
-
-        // Placeholder implementation
-        // In a real implementation, this would copy data to GPU
-        Ok(())
+    /// Allocates a zero-initialised device buffer of `size` elements.
+    pub fn zeros(backend: &GpuBackend, size: usize) -> SklResult<Self> {
+        Ok(Self {
+            inner: GpuArray::zeros(backend, &[size])?,
+        })
     }
 
-    /// Copy data from GPU buffer to host
-    pub fn copy_to_host(&self, data: &mut [T]) -> SklResult<()> {
-        if data.len() != self.size {
-            return Err(SklearsError::InvalidInput(
-                "Data size does not match buffer size".to_string(),
-            ));
-        }
-
-        // Placeholder implementation
-        // In a real implementation, this would copy data from GPU
-        Ok(())
+    /// Downloads the buffer contents to the host.
+    pub fn to_host(&self) -> SklResult<Vec<T>>
+    where
+        T: Default,
+    {
+        self.inner.to_cpu()
     }
 
-    /// Get the size of the buffer in elements
-    pub fn size(&self) -> usize {
-        self.size
+    /// Number of elements in the buffer.
+    pub fn len(&self) -> usize {
+        self.inner.len()
     }
 
-    /// Get the backend type
-    pub fn backend(&self) -> GpuBackend {
-        self.backend
+    /// `true` iff the buffer holds no elements.
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
     }
 }
 
-unsafe impl<T: Send> Send for GpuBuffer<T> {}
-unsafe impl<T: Sync> Sync for GpuBuffer<T> {}
-
-/// GPU context for managing devices and memory
+/// GPU context for managing devices and memory.
+///
+/// Wraps an `Option<GpuBackend>`: `None` means [`GpuBackend::detect`]
+/// honestly found no usable CUDA device on this host, in which case every
+/// consumer of this context (e.g. [`GpuExplanationComputer`]) falls back to
+/// its CPU estimator instead of fabricating GPU results.
 pub struct GpuContext {
-    /// Available devices
-    devices: Vec<GpuDevice>,
-    /// Currently selected device
-    current_device: Option<usize>,
-    /// Backend type
-    backend: GpuBackend,
-    /// Memory pool for reusing allocations
-    #[allow(dead_code)] // used for GPU memory recycling
-    memory_pool: std::collections::HashMap<usize, Vec<*mut u8>>,
+    backend: Option<GpuBackend>,
 }
 
 impl GpuContext {
-    /// Create a new GPU context
+    /// Creates a context bound to the best available device (most free
+    /// memory), or to no device at all if none is present.
     pub fn new() -> SklResult<Self> {
-        let devices = Self::detect_devices();
-        let backend = if devices.is_empty() {
-            GpuBackend::CpuFallback
-        } else {
-            devices[0].backend
-        };
-        let has_devices = !devices.is_empty();
-
         Ok(Self {
-            devices,
-            current_device: if has_devices { Some(0) } else { None },
-            backend,
-            memory_pool: std::collections::HashMap::new(),
+            backend: GpuBackend::detect()?,
         })
     }
 
-    /// Detect available GPU devices
-    fn detect_devices() -> Vec<GpuDevice> {
-        let mut devices = Vec::new();
+    /// Creates a context bound to a specific device ordinal. Falls back to
+    /// "no device" (rather than erroring) if that ordinal is not available,
+    /// mirroring [`GpuBackend::with_device_id`]'s honest-`None` contract.
+    pub fn with_device_id(device_id: usize) -> SklResult<Self> {
+        Ok(Self {
+            backend: GpuBackend::with_device_id(device_id)?,
+        })
+    }
 
-        // Try to detect CUDA devices
-        if let Ok(cuda_devices) = Self::detect_cuda_devices() {
-            devices.extend(cuda_devices);
+    /// Lists all real devices visible to the OxiCUDA driver on this host, via
+    /// `oxicuda-driver` device enumeration. Returns an empty vector (not an
+    /// error) when no driver/GPU is present.
+    pub fn devices() -> SklResult<Vec<GpuDevice>> {
+        (0..GpuUtils::device_count())
+            .map(GpuUtils::device_properties)
+            .collect()
+    }
+
+    /// Rebinds this context to a different device ordinal.
+    pub fn set_device(&mut self, device_id: usize) -> SklResult<()> {
+        match GpuBackend::with_device_id(device_id)? {
+            Some(backend) => {
+                self.backend = Some(backend);
+                Ok(())
+            }
+            None => Err(SklearsError::InvalidInput(format!(
+                "GPU device {device_id} is not available"
+            ))),
         }
-
-        // Try to detect OpenCL devices
-        if let Ok(opencl_devices) = Self::detect_opencl_devices() {
-            devices.extend(opencl_devices);
-        }
-
-        // Try to detect Metal devices (macOS)
-        #[cfg(target_os = "macos")]
-        if let Ok(metal_devices) = Self::detect_metal_devices() {
-            devices.extend(metal_devices);
-        }
-
-        devices
     }
 
-    /// Detect CUDA devices (placeholder implementation)
-    fn detect_cuda_devices() -> SklResult<Vec<GpuDevice>> {
-        // In a real implementation, this would use CUDA runtime API
-        // For now, return empty vector
-        Ok(Vec::new())
+    /// Real, queried properties of the currently bound device, if any.
+    pub fn current_device(&self) -> Option<GpuDevice> {
+        self.backend
+            .as_ref()
+            .and_then(|b| GpuUtils::device_properties(b.device_id()).ok())
     }
 
-    /// Detect OpenCL devices (placeholder implementation)
-    fn detect_opencl_devices() -> SklResult<Vec<GpuDevice>> {
-        // In a real implementation, this would use OpenCL API
-        // For now, return empty vector
-        Ok(Vec::new())
-    }
-
-    /// Detect Metal devices (placeholder implementation)
-    #[cfg(target_os = "macos")]
-    fn detect_metal_devices() -> SklResult<Vec<GpuDevice>> {
-        // In a real implementation, this would use Metal API
-        // For now, return empty vector
-        Ok(Vec::new())
-    }
-
-    /// Get list of available devices
-    pub fn devices(&self) -> &[GpuDevice] {
-        &self.devices
-    }
-
-    /// Set the current device
-    pub fn set_device(&mut self, index: usize) -> SklResult<()> {
-        if index >= self.devices.len() {
-            return Err(SklearsError::InvalidInput(
-                "Device index out of range".to_string(),
-            ));
-        }
-
-        self.current_device = Some(index);
-        Ok(())
-    }
-
-    /// Get the current device
-    pub fn current_device(&self) -> Option<&GpuDevice> {
-        self.current_device.map(|idx| &self.devices[idx])
-    }
-
-    /// Check if GPU acceleration is available
+    /// Whether a real GPU backend is bound to this context.
     pub fn is_gpu_available(&self) -> bool {
-        !self.devices.is_empty() && self.backend != GpuBackend::CpuFallback
+        self.backend.is_some()
     }
 
-    /// Allocate GPU buffer
-    pub fn allocate_buffer<T>(&mut self, size: usize) -> SklResult<GpuBuffer<T>> {
-        GpuBuffer::new(size, self.backend)
+    /// The underlying real backend, if a device was detected.
+    pub fn backend(&self) -> Option<&GpuBackend> {
+        self.backend.as_ref()
+    }
+
+    /// Allocates a GPU buffer on this context's backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SklearsError::InvalidOperation`] if no GPU backend is bound
+    /// to this context (call [`is_gpu_available`](Self::is_gpu_available)
+    /// first to check, or use the CPU estimators directly).
+    pub fn allocate_buffer<T: Copy>(&self, size: usize) -> SklResult<GpuBuffer<T>> {
+        let backend = self.backend.as_ref().ok_or_else(|| {
+            SklearsError::InvalidOperation("no GPU backend available in this context".to_string())
+        })?;
+        GpuBuffer::zeros(backend, size)
     }
 }
 
-/// Configuration for GPU-accelerated explanation computation
+/// Configuration for GPU-accelerated explanation computation.
 #[derive(Debug, Clone)]
 pub struct GpuConfig {
-    /// Preferred backend (None for auto-detection)
-    pub preferred_backend: Option<GpuBackend>,
-    /// Device index to use (None for auto-selection)
-    pub device_index: Option<usize>,
-    /// Batch size for GPU computation
+    /// Preferred device ordinal (None for auto-detection via
+    /// [`GpuBackend::detect`]'s "most free memory" heuristic).
+    pub preferred_device_id: Option<usize>,
+    /// Batch size for GPU computation.
     pub batch_size: usize,
-    /// Number of streams for async computation
+    /// Number of streams for async computation.
     pub num_streams: usize,
-    /// Enable memory pinning for faster transfers
+    /// Enable memory pinning for faster transfers.
     pub pin_memory: bool,
-    /// Fallback to CPU if GPU computation fails
+    /// Fallback to CPU if GPU computation fails or no GPU is available.
     pub cpu_fallback: bool,
 }
 
 impl Default for GpuConfig {
     fn default() -> Self {
         Self {
-            preferred_backend: None,
-            device_index: None,
+            preferred_device_id: None,
             batch_size: 1024,
             num_streams: 4,
             pin_memory: true,
@@ -268,52 +200,51 @@ impl Default for GpuConfig {
     }
 }
 
-// SAFETY: GpuContext contains raw pointers for GPU memory management.
-// Access is controlled through Mutex, and GPU operations are synchronized externally.
-unsafe impl Send for GpuContext {}
-unsafe impl Sync for GpuContext {}
-
-/// GPU-accelerated explanation computer
+/// GPU-accelerated explanation computer.
+///
+/// Holds an `Option<GpuBackend>` (cheap to clone: two `Arc` bumps, see
+/// [`GpuBackend`]'s docs) rather than re-detecting per call. When no backend
+/// is present, every method here falls back to the CPU reference estimator
+/// with no behavioral difference beyond speed.
 pub struct GpuExplanationComputer {
-    /// GPU context
-    #[allow(dead_code)] // held for GPU lifetime management
-    context: Arc<std::sync::Mutex<GpuContext>>,
-    /// Configuration
-    #[allow(dead_code)] // stored for GPU operation configuration
+    backend: Option<GpuBackend>,
+    #[allow(dead_code)] // retained for future GPU-staged batch sizing
     config: GpuConfig,
-    /// Whether initialization was successful
-    initialized: bool,
 }
 
 impl GpuExplanationComputer {
-    /// Create a new GPU explanation computer
-    pub fn new(context: &mut GpuContext) -> SklResult<Self> {
-        let initialized = context.is_gpu_available();
-
+    /// Creates a new GPU explanation computer bound to `context`'s backend.
+    pub fn new(context: &GpuContext) -> SklResult<Self> {
         Ok(Self {
-            context: Arc::new(std::sync::Mutex::new(GpuContext::new()?)),
+            backend: context.backend().cloned(),
             config: GpuConfig::default(),
-            initialized,
         })
     }
 
-    /// Create with custom configuration
-    pub fn with_config(context: &mut GpuContext, config: GpuConfig) -> SklResult<Self> {
-        let initialized = context.is_gpu_available();
-
+    /// Creates a new GPU explanation computer with custom configuration.
+    pub fn with_config(context: &GpuContext, config: GpuConfig) -> SklResult<Self> {
         Ok(Self {
-            context: Arc::new(std::sync::Mutex::new(GpuContext::new()?)),
+            backend: context.backend().cloned(),
             config,
-            initialized,
         })
     }
 
-    /// Check if GPU acceleration is available
+    /// Whether this computer has a real GPU backend to dispatch to.
     pub fn is_gpu_available(&self) -> bool {
-        self.initialized
+        self.backend.is_some()
     }
 
-    /// Compute SHAP values using GPU acceleration
+    /// Compute SHAP values, staging the perturbation batches on the GPU when
+    /// a backend is available.
+    ///
+    /// `predict_fn` is a host-resident closure (the model itself is not
+    /// necessarily GPU-resident), so full on-device evaluation is not
+    /// possible in the general case; only the perturbed-batch construction
+    /// is GPU-staging-eligible. See `TODO.md`'s OxiCUDA Migration section for
+    /// the (deferred) plan to add a batched-linear-model fast path via
+    /// `oxicuda-blas` GEMM. For now this always runs the CPU reference
+    /// estimator, which is correct (not simulated) regardless of GPU
+    /// availability.
     pub async fn compute_shap_parallel<F>(
         &self,
         features: &ArrayView2<'_, Float>,
@@ -323,18 +254,6 @@ impl GpuExplanationComputer {
     where
         F: Fn(&ArrayView2<'_, Float>) -> Array1<Float> + Send + Sync + 'static,
     {
-        if !self.initialized || !self.is_gpu_available() {
-            // Fallback to CPU implementation
-            return self
-                .compute_shap_cpu(features, background, predict_fn)
-                .await;
-        }
-
-        // GPU implementation placeholder
-        // In a real implementation, this would:
-        // 1. Transfer data to GPU
-        // 2. Execute SHAP computation kernels
-        // 3. Transfer results back to CPU
         self.compute_shap_cpu(features, background, predict_fn)
             .await
     }
@@ -400,7 +319,12 @@ impl GpuExplanationComputer {
         Ok(shap)
     }
 
-    /// Compute permutation importance using GPU acceleration
+    /// Compute permutation importance.
+    ///
+    /// As with [`compute_shap_parallel`](Self::compute_shap_parallel),
+    /// `predict_fn` is host-resident, so this always runs the CPU reference
+    /// estimator today; GPU-staging the shuffled feature batches is deferred
+    /// (see `TODO.md`).
     pub async fn compute_permutation_importance<F>(
         &self,
         features: &ArrayView2<'_, Float>,
@@ -411,14 +335,6 @@ impl GpuExplanationComputer {
     where
         F: Fn(&ArrayView2<'_, Float>) -> Array1<Float> + Send + Sync + 'static,
     {
-        if !self.initialized || !self.is_gpu_available() {
-            // Fallback to CPU implementation
-            return self
-                .compute_permutation_importance_cpu(features, targets, predict_fn, n_permutations)
-                .await;
-        }
-
-        // GPU implementation placeholder
         self.compute_permutation_importance_cpu(features, targets, predict_fn, n_permutations)
             .await
     }
@@ -515,41 +431,21 @@ pub struct GpuPerformanceStats {
 pub mod utils {
     use super::*;
 
-    /// Check if a specific backend is available
-    pub fn is_backend_available(backend: GpuBackend) -> bool {
-        match backend {
-            GpuBackend::Cuda => check_cuda_available(),
-            GpuBackend::OpenCL => check_opencl_available(),
-            GpuBackend::Metal => check_metal_available(),
-            GpuBackend::CpuFallback => true,
-        }
+    /// `true` iff a real OxiCUDA-visible GPU is available on this host.
+    pub fn is_gpu_available() -> bool {
+        GpuUtils::is_gpu_available()
     }
 
-    fn check_cuda_available() -> bool {
-        // Placeholder implementation
-        // In a real implementation, this would check for CUDA runtime
-        false
+    /// Number of OxiCUDA-visible GPU devices on this host.
+    pub fn device_count() -> usize {
+        GpuUtils::device_count()
     }
 
-    fn check_opencl_available() -> bool {
-        // Placeholder implementation
-        // In a real implementation, this would check for OpenCL runtime
-        false
-    }
-
-    fn check_metal_available() -> bool {
-        // Placeholder implementation
-        // In a real implementation, this would check for Metal framework
-        #[cfg(target_os = "macos")]
-        return false;
-        #[cfg(not(target_os = "macos"))]
-        return false;
-    }
-
-    /// Get optimal batch size for the current device
+    /// Get optimal batch size for the given device's real reported memory.
     pub fn get_optimal_batch_size(device: &GpuDevice, data_size: usize) -> usize {
         // Simple heuristic based on device memory
-        let max_batch = device.memory / (data_size * std::mem::size_of::<Float>() * 4);
+        let denom = (data_size * std::mem::size_of::<Float>() * 4).max(1);
+        let max_batch = device.total_memory / denom;
         std::cmp::min(max_batch, 1024).max(32)
     }
 
@@ -579,8 +475,9 @@ mod tests {
         assert!(result.is_ok());
 
         let context = result.expect("operation should succeed");
-        // Should always have CPU fallback available
-        assert!(context.backend == GpuBackend::CpuFallback || !context.devices.is_empty());
+        // Honest detection: must agree with the underlying GpuUtils check,
+        // never fabricate availability.
+        assert_eq!(context.is_gpu_available(), GpuUtils::is_gpu_available());
     }
 
     #[test]
@@ -590,41 +487,41 @@ mod tests {
         assert_eq!(config.num_streams, 4);
         assert!(config.pin_memory);
         assert!(config.cpu_fallback);
-        assert!(config.preferred_backend.is_none());
-        assert!(config.device_index.is_none());
+        assert!(config.preferred_device_id.is_none());
     }
 
+    /// Requires real hardware; gracefully skips on machines (like this
+    /// crate's own dev/CI environment) where `detect()` legitimately finds
+    /// nothing, matching the pattern used in `sklears_core::gpu`'s own tests.
     #[test]
     fn test_gpu_buffer_creation() {
-        let buffer_result = GpuBuffer::<f32>::new(100, GpuBackend::CpuFallback);
-        assert!(buffer_result.is_ok());
+        let Some(backend) = GpuBackend::detect().expect("detect() should not hard-error") else {
+            eprintln!("skipping test_gpu_buffer_creation: no GPU detected");
+            return;
+        };
 
-        let buffer = buffer_result.expect("operation should succeed");
-        assert_eq!(buffer.size(), 100);
-        assert_eq!(buffer.backend(), GpuBackend::CpuFallback);
+        let buffer = GpuBuffer::<f32>::zeros(&backend, 100).expect("zeros");
+        assert_eq!(buffer.len(), 100);
+        assert!(!buffer.is_empty());
     }
 
     #[test]
     fn test_backend_availability_check() {
-        // CPU fallback should always be available
-        assert!(utils::is_backend_available(GpuBackend::CpuFallback));
-
-        // Other backends may not be available in test environment
-        // Just ensure the functions don't panic
-        let _ = utils::is_backend_available(GpuBackend::Cuda);
-        let _ = utils::is_backend_available(GpuBackend::OpenCL);
-        let _ = utils::is_backend_available(GpuBackend::Metal);
+        // Must never panic, regardless of whether a GPU is present.
+        let _ = utils::is_gpu_available();
+        let _ = utils::device_count();
     }
 
     #[test]
     fn test_optimal_batch_size_calculation() {
+        // A manually constructed device-properties value is fine here: this
+        // test exercises the pure batch-size heuristic, not detection.
         let device = GpuDevice {
-            index: 0,
+            device_id: 0,
             name: "Test Device".to_string(),
-            memory: 1024 * 1024 * 1024, // 1GB
-            compute_capability: "Test".to_string(),
-            backend: GpuBackend::CpuFallback,
-            supports_f64: true,
+            total_memory: 1024 * 1024 * 1024, // 1GB
+            free_memory: 1024 * 1024 * 1024,
+            compute_capability: (7, 5),
         };
 
         let batch_size = utils::get_optimal_batch_size(&device, 1000);
@@ -644,21 +541,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_gpu_explanation_computer_creation() {
-        let mut context = GpuContext::new().expect("operation should succeed");
-        let computer_result = GpuExplanationComputer::new(&mut context);
+        let context = GpuContext::new().expect("operation should succeed");
+        let computer_result = GpuExplanationComputer::new(&context);
         assert!(computer_result.is_ok());
 
         let computer = computer_result.expect("operation should succeed");
         // Should work even without GPU (fallback to CPU)
-        assert!(computer.is_gpu_available() || computer.config.cpu_fallback);
+        assert_eq!(computer.is_gpu_available(), context.is_gpu_available());
     }
 
     #[tokio::test]
     async fn test_shap_computation_fallback() {
         use scirs2_core::ndarray::array;
 
-        let mut context = GpuContext::new().expect("operation should succeed");
-        let computer = GpuExplanationComputer::new(&mut context).expect("operation should succeed");
+        let context = GpuContext::new().expect("operation should succeed");
+        let computer = GpuExplanationComputer::new(&context).expect("operation should succeed");
 
         let features = array![[1.0, 2.0], [3.0, 4.0]];
         let background = array![[0.0, 0.0], [1.0, 1.0]];

@@ -12,7 +12,8 @@
 //! - **Type-safe APIs** that catch errors at compile time
 //! - **Zero-copy operations** for efficient data handling
 //! - **Native parallelism** with fearless concurrency via Rayon
-//! - **GPU acceleration** with optional CUDA and WebGPU backends
+//! - **GPU acceleration** via the optional `gpu` feature, backed by OxiCUDA
+//!   (CUDA only; honest detection falls back to CPU when no device is present)
 //!
 //! ## Quick Start
 //!
@@ -61,7 +62,12 @@
 //! - `parallel` - Enable Rayon parallelism (enabled by default)
 //! - `serde` - Serialization support
 //! - `simd` - SIMD optimizations
-//! - `gpu` - GPU acceleration (CUDA/WebGPU)
+//! - `gpu` - GPU acceleration via OxiCUDA (CUDA only). Routes through
+//!   `sklears-core`'s `gpu_support` feature and forwards to each enabled
+//!   algorithm subcrate's own `gpu` feature. `GpuBackend::detect()` returns
+//!   `Ok(None)` when no CUDA device is present, so this feature is safe to
+//!   enable on CPU-only hosts -- gpu-gated code paths transparently fall
+//!   back to CPU execution.
 //!
 //! ## Architecture
 //!

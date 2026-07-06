@@ -57,14 +57,17 @@ Part of the workspace-wide scirs2-core GPU removal: all GPU claims must either r
 the oxicuda-backed `sklears_core::gpu` module (behind `gpu_support`) or honestly report absence.
 This crate currently hardcodes GPU availability in its system-info reporting.
 
-- [ ] (S) Report real CUDA availability via oxicuda when the bindings are built with GPU
-      support. `src/utils.rs:118-120` hardcodes `cuda_available = false` /
+- [x] (S) Report real CUDA availability via oxicuda when the bindings are built with GPU
+      support. `src/utils.rs` previously hardcoded `cuda_available = false` /
       `opencl_available = false` in the system-info dict ("placeholder - would need actual
-      detection"). Add a `gpu` feature in `Cargo.toml` forwarding to
-      `sklears-core/gpu_support`, and behind it set `cuda_available` from sklears-core's
-      oxicuda-driver detection (`GpuUtils::is_gpu_available`). Keep the hardcoded `false` for
-      the default Pure-Rust build, and document that OpenCL is not supported by the oxicuda
-      stack (so `opencl_available` stays honestly `false`).
+      detection"). Added a `gpu` feature in `Cargo.toml` forwarding to
+      `sklears-core/gpu_support`; behind it, `cuda_available` is now set from sklears-core's
+      oxicuda-driver detection (`sklears_core::gpu::GpuUtils::is_gpu_available()`). The
+      hardcoded `false` remains for the default Pure-Rust build (no `gpu` feature), and
+      `opencl_available` always stays honestly `false` since OpenCL is not supported by the
+      oxicuda stack (CUDA-only). Verified on this macOS host (no GPU): both `cargo check -p
+      sklears-python` and `--features gpu` are warning-free, and `GpuUtils::is_gpu_available()`
+      honestly reports `false` (all 55 tests pass in both configurations).
       Files: `src/utils.rs`, `Cargo.toml`
 
 ## Remaining / Future Enhancements

@@ -1,18 +1,26 @@
 //! GPU-Dispatched Preprocessing for Large-Scale Data
 //!
-//! This module provides preprocessing scalers that integrate with SciRS2's GPU
-//! abstractions. The numerics are implemented as a correct CPU reference; the
-//! module additionally performs *backend dispatch* through
-//! [`scirs2_core::gpu::GpuBackend`], honestly reporting whether a real GPU
-//! backend (CUDA, ROCm, Metal, WebGPU, OpenCL) is available on the current
-//! system. No dedicated GPU compute kernels are shipped yet, so when a backend
-//! is reported as available the dispatch path still evaluates the same verified
-//! CPU numerics; when no backend is available it falls back to CPU truthfully.
+//! This module provides preprocessing scalers whose GPU backend detection is
+//! wired to the shared `sklears_core::gpu` abstraction (a real CUDA context +
+//! BLAS handle, via the `oxicuda` crate family), behind this crate's `gpu`
+//! feature. The numerics are implemented as a correct CPU reference; the
+//! module additionally performs *backend dispatch*, honestly reporting
+//! whether a real GPU backend is available on the current system. Only
+//! `Cuda` (via OxiCUDA) has a working detection path in this crate; the
+//! `Rocm` / `Wgpu` / `Metal` / `OpenCL` variants of [`GpuBackend`] are kept
+//! for API/serde compatibility but always report unavailable, since there is
+//! no OxiCUDA-backed implementation behind them. No dedicated GPU compute
+//! kernels are shipped yet, so when a backend is reported as available the
+//! dispatch path still evaluates the same verified CPU numerics; when no
+//! backend is available (including whenever the `gpu` feature is disabled)
+//! it falls back to CPU truthfully.
 //!
-//! In other words: this is a CPU implementation with a GPU dispatch layer, not a
-//! set of hand-written CUDA/Metal kernels. Device detection never fabricates a
-//! "simulated" GPU — availability is delegated to SciRS2's real feature-gated
-//! and runtime checks.
+//! In other words: this is a CPU implementation with a GPU dispatch layer,
+//! not a set of hand-written CUDA kernels. Device detection never fabricates
+//! a "simulated" GPU — availability is delegated to
+//! [`sklears_core::gpu::GpuBackend::detect`]'s real runtime checks, which
+//! return `Ok(None)` (i.e. "not available") on hosts with no CUDA-capable
+//! device/driver, such as this crate's own macOS development machine.
 //!
 //! # Features
 //!
@@ -48,7 +56,6 @@
 //! }
 //! ```
 
-use scirs2_core::gpu::GpuBackend as ScirGpuBackend;
 use scirs2_core::memory::BufferPool;
 use scirs2_core::ndarray::{Array2, Axis};
 use sklears_core::{
@@ -57,6 +64,9 @@ use sklears_core::{
     types::Float,
 };
 use std::marker::PhantomData;
+
+#[cfg(feature = "gpu")]
+use sklears_core::gpu::GpuBackend as OxiCudaGpuBackend;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -80,39 +90,49 @@ pub enum GpuBackend {
 }
 
 impl Default for GpuBackend {
+    /// The backend this process would actually use: [`Self::Cuda`] if a real
+    /// CUDA device is detected via OxiCUDA (only checked when this crate's
+    /// `gpu` feature is enabled), else [`Self::Cpu`].
     fn default() -> Self {
-        Self::from_scir_backend(ScirGpuBackend::default())
+        if Self::cuda_available() {
+            Self::Cuda
+        } else {
+            Self::Cpu
+        }
     }
 }
 
 impl GpuBackend {
-    /// Convert from scirs2_core::GpuBackend
-    pub fn from_scir_backend(backend: ScirGpuBackend) -> Self {
-        match backend {
-            ScirGpuBackend::Cuda => Self::Cuda,
-            ScirGpuBackend::Rocm => Self::Rocm,
-            ScirGpuBackend::Wgpu => Self::Wgpu,
-            ScirGpuBackend::Metal => Self::Metal,
-            ScirGpuBackend::OpenCL => Self::OpenCL,
-            ScirGpuBackend::Cpu => Self::Cpu,
-        }
+    /// Real, feature-gated CUDA detection via `sklears_core::gpu`
+    /// (`oxicuda-driver` + `oxicuda-blas`), which itself returns `false`
+    /// truthfully whenever no CUDA-capable device/driver is present.
+    #[cfg(feature = "gpu")]
+    fn cuda_available() -> bool {
+        OxiCudaGpuBackend::is_available()
     }
 
-    /// Convert to scirs2_core::GpuBackend
-    pub fn to_scir_backend(self) -> ScirGpuBackend {
-        match self {
-            Self::Cuda => ScirGpuBackend::Cuda,
-            Self::Rocm => ScirGpuBackend::Rocm,
-            Self::Wgpu => ScirGpuBackend::Wgpu,
-            Self::Metal => ScirGpuBackend::Metal,
-            Self::OpenCL => ScirGpuBackend::OpenCL,
-            Self::Cpu => ScirGpuBackend::Cpu,
-        }
+    /// Without the `gpu` feature, no OxiCUDA detection code is compiled in at
+    /// all, so this always honestly reports unavailable rather than
+    /// fabricating a positive result.
+    #[cfg(not(feature = "gpu"))]
+    fn cuda_available() -> bool {
+        false
     }
 
-    /// Check if this backend is available on the current system
+    /// Check if this backend is available on the current system.
+    ///
+    /// Only [`Self::Cuda`] has a real detection path in this crate (wired to
+    /// OxiCUDA via [`sklears_core::gpu::GpuBackend::detect`], behind the
+    /// `gpu` feature). [`Self::Rocm`], [`Self::Wgpu`], [`Self::Metal`], and
+    /// [`Self::OpenCL`] have no OxiCUDA-backed implementation and always
+    /// report unavailable rather than fabricating support; [`Self::Cpu`] is
+    /// always available.
     pub fn is_available(&self) -> bool {
-        self.to_scir_backend().is_available()
+        match self {
+            Self::Cpu => true,
+            Self::Cuda => Self::cuda_available(),
+            Self::Rocm | Self::Wgpu | Self::Metal | Self::OpenCL => false,
+        }
     }
 }
 
@@ -202,9 +222,19 @@ impl GpuConfig {
     }
 }
 
-/// GPU context manager for preprocessing operations
+/// GPU context manager for preprocessing operations.
+///
+/// `backend_kind` records which [`GpuBackend`] variant is actually active
+/// (only ever [`GpuBackend::Cuda`] or [`GpuBackend::Cpu`], since those are
+/// the only variants with a real detection path — see
+/// [`GpuBackend::is_available`]). When this crate's `gpu` feature is
+/// enabled and `backend_kind` is [`GpuBackend::Cuda`], `gpu_backend` holds
+/// the live `sklears_core::gpu::GpuBackend` handle (a real CUDA context +
+/// BLAS handle) that a future on-device kernel could dispatch through.
 pub struct GpuContextManager {
-    backend: ScirGpuBackend,
+    backend_kind: GpuBackend,
+    #[cfg(feature = "gpu")]
+    gpu_backend: Option<OxiCudaGpuBackend>,
     buffer_pool: BufferPool<u8>,
     config: GpuConfig,
 }
@@ -212,17 +242,29 @@ pub struct GpuContextManager {
 impl GpuContextManager {
     /// Create a new GPU context manager
     pub fn new(config: GpuConfig) -> Result<Self> {
-        let backend = if config.backend.is_available() {
-            config.backend.to_scir_backend()
+        // Fall back to CPU if the requested backend is not available. Only
+        // `Cuda` can ever report available (see `GpuBackend::is_available`),
+        // and only when this crate's `gpu` feature is enabled and a real
+        // OxiCUDA device/driver is detected.
+        let backend_kind = if config.backend.is_available() {
+            config.backend
         } else {
-            // Fallback to CPU if requested backend is not available
-            ScirGpuBackend::Cpu
+            GpuBackend::Cpu
+        };
+
+        #[cfg(feature = "gpu")]
+        let gpu_backend = if backend_kind == GpuBackend::Cuda {
+            OxiCudaGpuBackend::detect()?
+        } else {
+            None
         };
 
         let buffer_pool = BufferPool::new();
 
         Ok(Self {
-            backend,
+            backend_kind,
+            #[cfg(feature = "gpu")]
+            gpu_backend,
             buffer_pool,
             config,
         })
@@ -230,7 +272,15 @@ impl GpuContextManager {
 
     /// Check if GPU is available
     pub fn is_gpu_available(&self) -> bool {
-        self.backend != ScirGpuBackend::Cpu
+        self.backend_kind != GpuBackend::Cpu
+    }
+
+    /// Access the live `sklears_core::gpu::GpuBackend` handle backing this
+    /// context, if the `gpu` feature is enabled and a real device was
+    /// detected.
+    #[cfg(feature = "gpu")]
+    pub fn oxicuda_backend(&self) -> Option<&OxiCudaGpuBackend> {
+        self.gpu_backend.as_ref()
     }
 
     /// Get the buffer pool

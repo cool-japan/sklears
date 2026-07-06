@@ -34,7 +34,7 @@ criterion = { workspace = true }
 [features]
 default = []
 serde = ["dep:serde", "sklears-core/serde"]
-gpu = []
+gpu = ["sklears-core/gpu_support"]
 memory-optimization = []
 
 [[bench]]

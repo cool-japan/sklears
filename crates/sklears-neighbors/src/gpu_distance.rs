@@ -1,8 +1,21 @@
 //! GPU-accelerated distance computations for high-performance neighbor search
 //!
-//! This module provides GPU acceleration for distance computations using various
-//! GPU backends including CUDA, OpenCL, and Metal. It includes batch processing
-//! capabilities and memory management for large-scale distance matrix computations.
+//! This module provides GPU acceleration for distance computations. All GPU
+//! compute routes through the OxiCUDA stack: pairwise-distance batches use the
+//! GEMM trick via `sklears_core::gpu` (a real `oxicuda-driver` `Context` +
+//! `oxicuda-blas` `BlasHandle`), and approximate k-NN search (see
+//! [`GpuKNeighborsSearch::with_ann`]) uses `oxicuda-manifold`'s HNSW index.
+//! There is no OpenCL or Metal backend -- those were previously
+//! decorative wrappers that dispatched to the exact same CUDA code path
+//! regardless of which one was selected. [`GpuBackend`] now only
+//! distinguishes "use OxiCUDA" ([`GpuBackend::Cuda`]) from "CPU only"
+//! ([`GpuBackend::CpuFallback`]), and [`GpuDistanceCalculator::detect_gpu_devices`]
+//! performs a real `oxicuda-driver` device query -- it never fabricates a
+//! device that isn't actually present. On a host with no CUDA driver,
+//! requesting [`GpuBackend::Cuda`] honestly reports `Ok(None)`, and callers
+//! fall back to the CPU path, exactly like [`sklears_core::gpu::GpuBackend::detect`]
+//! itself. Includes batch processing and memory-usage estimation helpers for
+//! large-scale distance matrix computations.
 
 use crate::distance::Distance;
 use crate::{NeighborsError, NeighborsResult};
@@ -16,16 +29,20 @@ use oxicuda_manifold::{hnsw_build, hnsw_search, HnswConfig, HnswDistance, Manifo
 #[cfg(feature = "gpu")]
 use sklears_core::gpu::{GpuArray, GpuContext, GpuMatrixOps};
 
-/// GPU backend type
+/// GPU backend type.
+///
+/// Collapsed from the pre-0.2.0 `{Cuda, OpenCl, Metal, CpuFallback}` set:
+/// this crate never actually had distinct OpenCL or Metal code paths --
+/// selecting either one dispatched to identical OxiCUDA GEMM logic as
+/// selecting `Cuda`. Only two honest states remain: [`GpuBackend::Cuda`]
+/// ("detect and use a real OxiCUDA device") and
+/// [`GpuBackend::CpuFallback`] ("CPU only, no device requested").
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GpuBackend {
-    /// CUDA backend (NVIDIA GPUs)
+    /// OxiCUDA-backed GPU compute, detected via
+    /// `sklears_core::gpu::GpuContext::detect`/`with_device_id`.
     Cuda,
-    /// OpenCL backend (Cross-platform)
-    OpenCl,
-    /// Metal backend (Apple GPUs)
-    Metal,
-    /// CPU fallback (for testing)
+    /// CPU-only fallback (no GPU device requested).
     CpuFallback,
 }
 
@@ -40,26 +57,20 @@ pub struct GpuDeviceInfo {
     pub max_work_group_size: usize,
 }
 
-/// GPU memory management strategy
-#[derive(Debug, Clone)]
-pub enum GpuMemoryStrategy {
-    /// Allocate all data on GPU at once
-    PreloadAll,
-    /// Stream data in chunks
-    Streaming { chunk_size: usize },
-    /// Adaptive strategy based on available memory
-    Adaptive,
-}
-
-/// GPU computation configuration
+/// GPU computation configuration.
+///
+/// The memory-management knobs that used to live here (`memory_strategy`,
+/// `max_memory_usage`, `enable_async`) were never actually consulted by any
+/// code in this module -- they were accepted and stored, then silently
+/// ignored. `batch_size` is the one knob this module genuinely implements:
+/// [`GpuDistanceCalculator::batch_pairwise_distances`] tiles the computation
+/// into `batch_size × batch_size` blocks, which is the real (and only)
+/// memory-management strategy this crate has.
 #[derive(Debug, Clone)]
 pub struct GpuConfig {
     pub backend: GpuBackend,
     pub device_id: Option<u32>,
-    pub memory_strategy: GpuMemoryStrategy,
     pub batch_size: usize,
-    pub max_memory_usage: Option<usize>,
-    pub enable_async: bool,
 }
 
 impl Default for GpuConfig {
@@ -67,10 +78,7 @@ impl Default for GpuConfig {
         Self {
             backend: GpuBackend::CpuFallback,
             device_id: None,
-            memory_strategy: GpuMemoryStrategy::Adaptive,
             batch_size: 1024,
-            max_memory_usage: None,
-            enable_async: true,
         }
     }
 }
@@ -144,86 +152,100 @@ impl GpuDistanceCalculator {
         Ok(())
     }
 
-    /// Detect available GPU devices
+    /// Detect available GPU devices.
+    ///
+    /// For [`GpuBackend::Cuda`] this performs a *real* `oxicuda-driver` query
+    /// (via [`Self::detect_cuda_device`]) -- no fabricated device names,
+    /// memory sizes, or compute-unit counts. On a host with no CUDA driver
+    /// (or when the `gpu` feature isn't compiled in), this honestly returns
+    /// `Ok(None)` rather than inventing a mock device.
+    /// [`GpuBackend::CpuFallback`] always reports the (real, queried) CPU
+    /// core count as its "compute units" -- never a hardcoded number.
     pub fn detect_gpu_devices(&self) -> NeighborsResult<Option<GpuDeviceInfo>> {
-        // In a real implementation, this would detect actual GPU devices
-        // For now, we'll simulate device detection
         match self.config.backend {
-            GpuBackend::Cuda => {
-                // Mock CUDA device detection
-                if self.is_cuda_available() {
-                    Ok(Some(GpuDeviceInfo {
-                        device_id: 0,
-                        name: "NVIDIA GPU (Mock)".to_string(),
-                        backend: GpuBackend::Cuda,
-                        memory_size: 8 * 1024 * 1024 * 1024, // 8GB
-                        compute_units: 32,
-                        max_work_group_size: 1024,
-                    }))
-                } else {
-                    Ok(None)
-                }
-            }
-            GpuBackend::OpenCl => {
-                // Mock OpenCL device detection
-                if self.is_opencl_available() {
-                    Ok(Some(GpuDeviceInfo {
-                        device_id: 0,
-                        name: "OpenCL Device (Mock)".to_string(),
-                        backend: GpuBackend::OpenCl,
-                        memory_size: 4 * 1024 * 1024 * 1024, // 4GB
-                        compute_units: 16,
-                        max_work_group_size: 256,
-                    }))
-                } else {
-                    Ok(None)
-                }
-            }
-            GpuBackend::Metal => {
-                // Mock Metal device detection
-                if self.is_metal_available() {
-                    Ok(Some(GpuDeviceInfo {
-                        device_id: 0,
-                        name: "Apple GPU (Mock)".to_string(),
-                        backend: GpuBackend::Metal,
-                        memory_size: 16 * 1024 * 1024 * 1024, // 16GB unified memory
-                        compute_units: 8,
-                        max_work_group_size: 512,
-                    }))
-                } else {
-                    Ok(None)
-                }
-            }
-            GpuBackend::CpuFallback => {
-                Ok(Some(GpuDeviceInfo {
-                    device_id: 0,
-                    name: "CPU Fallback".to_string(),
-                    backend: GpuBackend::CpuFallback,
-                    memory_size: 16 * 1024 * 1024 * 1024, // 16GB
-                    compute_units: 8,
-                    max_work_group_size: 1,
-                }))
-            }
+            GpuBackend::Cuda => self.detect_cuda_device(),
+            GpuBackend::CpuFallback => Ok(Some(Self::cpu_fallback_device_info())),
         }
     }
 
-    /// Check if CUDA is available
-    fn is_cuda_available(&self) -> bool {
-        // In a real implementation, this would check for CUDA runtime
-        // For now, we'll simulate availability based on platform
-        cfg!(target_os = "linux") || cfg!(target_os = "windows")
+    /// Real `oxicuda-driver` CUDA device query.
+    ///
+    /// Uses [`GpuContext::detect`]/`with_device_id` for presence -- the same
+    /// `Option`-returning contract `sklears-clustering`'s `gpu_distances.rs`
+    /// builds its `GpuDistanceComputer` context around -- honoring the "no
+    /// GPU ⇒ `Ok(None)`, not `Err`" rule. `context.memory_info()` supplies
+    /// live free/total device memory (mirroring that same
+    /// `gpu_distances.rs`'s `device_info` helper), and this additionally
+    /// reads the device's real name, streaming-multiprocessor count, and
+    /// max-threads-per-block directly off the `oxicuda_driver::Device`
+    /// backing the detected context, since `GpuDeviceInfo` (unlike that
+    /// crate's `HashMap<String, String>` diagnostic) needs those as
+    /// structured fields.
+    #[cfg(feature = "gpu")]
+    fn detect_cuda_device(&self) -> NeighborsResult<Option<GpuDeviceInfo>> {
+        let ctx = match self.config.device_id {
+            Some(id) => GpuContext::with_device_id(id as usize),
+            None => GpuContext::detect(),
+        }
+        .map_err(|e| NeighborsError::InvalidInput(format!("GPU context error: {e}")))?;
+
+        let Some(ctx) = ctx else {
+            return Ok(None);
+        };
+
+        let device = ctx.context().device();
+        let name = device
+            .name()
+            .map_err(|e| NeighborsError::InvalidInput(format!("GPU device name query: {e}")))?;
+        let memory = ctx
+            .memory_info()
+            .map_err(|e| NeighborsError::InvalidInput(format!("GPU memory query: {e}")))?;
+        let compute_units = device.multiprocessor_count().map_err(|e| {
+            NeighborsError::InvalidInput(format!("GPU multiprocessor-count query: {e}"))
+        })?;
+        let max_work_group_size = device.max_threads_per_block().map_err(|e| {
+            NeighborsError::InvalidInput(format!("GPU max-threads-per-block query: {e}"))
+        })?;
+
+        Ok(Some(GpuDeviceInfo {
+            device_id: ctx.device_id() as u32,
+            name,
+            backend: GpuBackend::Cuda,
+            memory_size: memory.total,
+            compute_units: compute_units.max(0) as u32,
+            max_work_group_size: max_work_group_size.max(0) as usize,
+        }))
     }
 
-    /// Check if OpenCL is available
-    fn is_opencl_available(&self) -> bool {
-        // In a real implementation, this would check for OpenCL runtime
-        true // OpenCL is generally available on most platforms
+    /// Without the `gpu` feature there is no OxiCUDA driver compiled in at
+    /// all, so requesting the CUDA backend always -- and honestly -- reports
+    /// "no device", the same as [`Self::detect_cuda_device`] would on a host
+    /// with no CUDA driver installed.
+    #[cfg(not(feature = "gpu"))]
+    fn detect_cuda_device(&self) -> NeighborsResult<Option<GpuDeviceInfo>> {
+        Ok(None)
     }
 
-    /// Check if Metal is available
-    fn is_metal_available(&self) -> bool {
-        // Metal is only available on Apple platforms
-        cfg!(target_os = "macos") || cfg!(target_os = "ios")
+    /// Real (not fabricated) CPU-fallback device description: the compute
+    /// unit count is the actual number of logical CPUs
+    /// [`std::thread::available_parallelism`] reports, rather than a
+    /// hardcoded number.
+    fn cpu_fallback_device_info() -> GpuDeviceInfo {
+        let logical_cpus = std::thread::available_parallelism()
+            .map(std::num::NonZeroUsize::get)
+            .unwrap_or(1);
+        GpuDeviceInfo {
+            device_id: 0,
+            name: "CPU Fallback".to_string(),
+            backend: GpuBackend::CpuFallback,
+            // CPU (host) memory size is not a meaningful "GPU memory"
+            // figure and this module has no reliable, dependency-free way
+            // to query it; report it honestly as unknown rather than
+            // fabricating a number.
+            memory_size: 0,
+            compute_units: logical_cpus as u32,
+            max_work_group_size: 1,
+        }
     }
 
     /// Compute pairwise distances using GPU acceleration
@@ -247,8 +269,6 @@ impl GpuDistanceCalculator {
 
         let result = match self.config.backend {
             GpuBackend::Cuda => self.compute_cuda_distances(X, Y, distance)?,
-            GpuBackend::OpenCl => self.compute_opencl_distances(X, Y, distance)?,
-            GpuBackend::Metal => self.compute_metal_distances(X, Y, distance)?,
             GpuBackend::CpuFallback => self.compute_cpu_distances(X, Y, distance)?,
         };
 
@@ -313,35 +333,12 @@ impl GpuDistanceCalculator {
         })
     }
 
-    /// Compute distances using CUDA backend.
+    /// Compute distances using the OxiCUDA backend.
     ///
-    /// For `Distance::Euclidean` uses the GEMM trick via `oxicuda-backend`
-    /// when the `gpu` feature is enabled; falls back to parallel CPU otherwise.
+    /// For `Distance::Euclidean` uses the GEMM trick via `sklears_core::gpu`
+    /// (backed by `oxicuda-driver`/`oxicuda-blas`) when the `gpu` feature is
+    /// enabled; falls back to parallel CPU otherwise.
     fn compute_cuda_distances<'a>(
-        &self,
-        x_data: &ArrayView2<'a, Float>,
-        y_data: &ArrayView2<'a, Float>,
-        distance: Distance,
-    ) -> NeighborsResult<(Array2<Float>, usize)> {
-        let distances = self.dispatch_gpu_distances(x_data, y_data, distance)?;
-        let memory_usage = distances.len() * std::mem::size_of::<Float>();
-        Ok((distances, memory_usage))
-    }
-
-    /// Compute distances using OpenCL backend.
-    fn compute_opencl_distances<'a>(
-        &self,
-        x_data: &ArrayView2<'a, Float>,
-        y_data: &ArrayView2<'a, Float>,
-        distance: Distance,
-    ) -> NeighborsResult<(Array2<Float>, usize)> {
-        let distances = self.dispatch_gpu_distances(x_data, y_data, distance)?;
-        let memory_usage = distances.len() * std::mem::size_of::<Float>();
-        Ok((distances, memory_usage))
-    }
-
-    /// Compute distances using Metal backend.
-    fn compute_metal_distances<'a>(
         &self,
         x_data: &ArrayView2<'a, Float>,
         y_data: &ArrayView2<'a, Float>,
@@ -871,7 +868,6 @@ mod tests {
         let config = GpuConfig::default();
         assert_eq!(config.backend, GpuBackend::CpuFallback);
         assert_eq!(config.batch_size, 1024);
-        assert!(config.enable_async);
     }
 
     #[test]
@@ -883,12 +879,12 @@ mod tests {
     #[test]
     fn test_gpu_distance_calculator_with_config() {
         let config = GpuConfig {
-            backend: GpuBackend::OpenCl,
+            backend: GpuBackend::Cuda,
             batch_size: 512,
             ..Default::default()
         };
         let calculator = GpuDistanceCalculator::with_config(config);
-        assert_eq!(calculator.config.backend, GpuBackend::OpenCl);
+        assert_eq!(calculator.config.backend, GpuBackend::Cuda);
         assert_eq!(calculator.config.batch_size, 512);
     }
 
@@ -1092,12 +1088,7 @@ mod tests {
 
     #[test]
     fn test_different_gpu_backends() {
-        let backends = vec![
-            GpuBackend::CpuFallback,
-            GpuBackend::OpenCl,
-            GpuBackend::Cuda,
-            GpuBackend::Metal,
-        ];
+        let backends = vec![GpuBackend::CpuFallback, GpuBackend::Cuda];
 
         for backend in backends {
             let config = GpuConfig {
@@ -1109,7 +1100,9 @@ mod tests {
                 .detect_gpu_devices()
                 .expect("operation should succeed");
 
-            // At least CPU fallback should always be available
+            // At least CPU fallback should always be available. `Cuda` on
+            // this (GPU-less) test host honestly reports `None` -- it must
+            // never fabricate a device that isn't there.
             if backend == GpuBackend::CpuFallback {
                 assert!(device_info.is_some());
             }

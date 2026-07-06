@@ -670,7 +670,22 @@ pub enum StreamState {
     Stopped,
 }
 
-/// GPU execution strategy for hardware-accelerated computation
+/// GPU execution strategy for hardware-accelerated computation.
+///
+/// # Scheduling-metadata status
+///
+/// `GpuExecutionStrategy` and the `GpuContext` / `GpuDevice` / `GpuKernel`
+/// types it composes (below) are **descriptors used by this crate's task
+/// scheduler**, not a GPU compute backend: nothing in this file launches a
+/// kernel or touches a real device. `devices`, `utilization`,
+/// `temperature`, and friends are scheduling-input fields a caller (or a
+/// future integration) can populate, not live hardware measurements this
+/// strategy samples itself. Real device discovery/counting for this crate
+/// lives in `resource_management::gpu_manager` and
+/// `comprehensive_benchmarking::execution_engine`, both backed by
+/// `sklears_core::gpu` (oxicuda-driver) behind the `gpu` feature. Backing
+/// `GpuExecutionStrategy` itself with oxicuda-launch kernels is tracked as a
+/// separate, larger future item.
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct GpuExecutionStrategy {
@@ -694,7 +709,9 @@ pub struct GpuExecutionStrategy {
     state: Arc<RwLock<StrategyState>>,
 }
 
-/// GPU execution context
+/// GPU execution context: a scheduling descriptor, not a live device
+/// handle. See the [`GpuExecutionStrategy`] doc comment above for what
+/// that means in practice.
 #[derive(Debug)]
 pub struct GpuContext {
     /// The devices.
@@ -705,7 +722,11 @@ pub struct GpuContext {
     pub active_kernels: HashMap<String, GpuKernel>,
 }
 
-/// GPU device information
+/// GPU device information: a scheduling descriptor populated by the
+/// caller, not a live-sampled hardware reading -- `utilization` and
+/// `temperature` are inputs to this crate's scheduler, not measurements
+/// this type takes itself. See the [`GpuExecutionStrategy`] doc comment
+/// above.
 #[derive(Debug, Clone)]
 pub struct GpuDevice {
     /// Device ID
@@ -718,9 +739,9 @@ pub struct GpuDevice {
     pub total_memory: u64,
     /// Available memory
     pub available_memory: u64,
-    /// Utilization percentage
+    /// Utilization percentage (scheduling metadata, not a live reading)
     pub utilization: f64,
-    /// Temperature
+    /// Temperature (scheduling metadata, not a live reading)
     pub temperature: f64,
 }
 
@@ -752,7 +773,10 @@ pub enum AllocationStrategy {
     Slab,
 }
 
-/// GPU kernel execution context
+/// GPU kernel execution context: a scheduling descriptor recording the
+/// launch parameters this crate's scheduler *would* use, not a handle to a
+/// kernel actually launched on a device. See the [`GpuExecutionStrategy`]
+/// doc comment above.
 #[derive(Debug)]
 pub struct GpuKernel {
     /// Kernel name

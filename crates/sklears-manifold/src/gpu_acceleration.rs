@@ -17,6 +17,7 @@
 //! device, with a CPU loop fallback when `GpuBackend::detect` finds none.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+#[cfg(feature = "gpu")]
 use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -81,10 +82,14 @@ fn manifold_err(e: ManifoldError) -> SklearsError {
 /// use sklears_manifold::gpu_acceleration::GpuAccelerator;
 /// use scirs2_core::ndarray::array;
 ///
-/// let data = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+/// fn main() -> Result<(), sklears_core::error::SklearsError> {
+///     let data = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
 ///
-/// let mut accelerator = GpuAccelerator::new().unwrap();
-/// let distances = accelerator.pairwise_distances(&data.view(), "euclidean").unwrap();
+///     let mut accelerator = GpuAccelerator::new()?;
+///     let distances = accelerator.pairwise_distances(&data.view(), "euclidean")?;
+///     assert_eq!(distances.shape(), &[3, 3]);
+///     Ok(())
+/// }
 /// ```
 pub struct GpuAccelerator {
     #[cfg(feature = "gpu")]
@@ -765,6 +770,11 @@ mod tests {
         assert_eq!(normalized.shape(), &[2, 2]);
     }
 
+    /// Without the `gpu` feature, `oxicuda-manifold` is not compiled in and
+    /// `fit_transform` deliberately returns `MissingDependency` (see its doc
+    /// comment) rather than a fake embedding, so this real-fit assertion only
+    /// applies under `gpu`.
+    #[cfg(feature = "gpu")]
     #[test]
     fn test_gpu_tsne() {
         let mut tsne = GpuTSNE::new().expect("operation should succeed");
@@ -776,10 +786,30 @@ mod tests {
         assert_eq!(embedding.shape(), &[3, 2]);
     }
 
+    /// Without the `gpu` feature, `fit_transform` returns `MissingDependency`
+    /// instead of running `oxicuda_manifold::tsne_fit`; assert that honest
+    /// failure mode here so the crate still exercises this path in default
+    /// builds.
+    #[cfg(not(feature = "gpu"))]
+    #[test]
+    fn test_gpu_tsne_without_gpu_feature_reports_missing_dependency() {
+        let mut tsne = GpuTSNE::new().expect("operation should succeed");
+        let data = array![[1.0_f64, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+
+        let err = tsne
+            .fit_transform(&data.view())
+            .expect_err("fit_transform must fail without the gpu feature");
+        assert!(matches!(
+            err,
+            SklearsError::MissingDependency { .. }
+        ));
+    }
+
     /// Two tight, well-separated 3-D "clusters" at fixed (non-random)
     /// coordinates, so the *input* itself is as deterministic as the fit
     /// under test. Six points per cluster mirrors the scale of
     /// `oxicuda_manifold`'s own `tsne_separates_clusters` test.
+    #[cfg(feature = "gpu")]
     fn well_separated_two_cluster_data() -> Array2<Float> {
         let cluster_a: [[Float; 3]; 6] = [
             [0.0, 0.0, 0.0],
@@ -811,6 +841,7 @@ mod tests {
     /// called it an embedding -- never fitting anything, never
     /// deterministic, and never cluster-preserving. This exercises exactly
     /// the two properties that bug could never have satisfied.
+    #[cfg(feature = "gpu")]
     #[test]
     fn test_gpu_tsne_fit_transform_is_deterministic_and_separates_clusters() {
         let data = well_separated_two_cluster_data();

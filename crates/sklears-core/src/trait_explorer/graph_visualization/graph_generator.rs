@@ -13,8 +13,8 @@ use crate::api_reference_generator::{AssociatedType, MethodInfo, TraitInfo};
 use crate::error::{Result, SklearsError};
 
 // SciRS2 Core imports for full compliance
-#[cfg(feature = "scirs2-gpu-reporting")]
-use scirs2_core::gpu::{GpuBackend, GpuContext};
+#[cfg(feature = "gpu_support")]
+use crate::gpu::GpuBackend;
 use scirs2_core::random::Random;
 
 use chrono::Utc;
@@ -31,9 +31,9 @@ pub struct TraitGraphGenerator {
     /// Configuration for graph generation
     config: GraphConfig,
     /// GPU context for acceleration (optional; only tracked when the
-    /// `scirs2-gpu-reporting` feature is enabled).
-    #[cfg(feature = "scirs2-gpu-reporting")]
-    gpu_context: Option<GpuContext>,
+    /// `gpu_support` feature is enabled).
+    #[cfg(feature = "gpu_support")]
+    gpu_context: Option<GpuBackend>,
     /// Layout algorithms registry
     layout_algorithms: HashMap<String, Box<dyn LayoutAlgorithmImpl + Send + Sync>>,
     /// Layout computation cache
@@ -99,28 +99,20 @@ impl std::fmt::Debug for TraitGraphGenerator {
 impl TraitGraphGenerator {
     /// Create a new graph generator with the specified configuration
     pub fn new(config: GraphConfig) -> Result<Self> {
-        // Initialize GPU context if enabled and the `scirs2-gpu-reporting`
-        // feature is active.
+        // Initialize GPU context if enabled and the `gpu_support` feature is
+        // active.
         //
-        // We use the SciRS2-Core GPU abstraction to select the best available
-        // backend. `GpuBackend::preferred()` performs runtime device detection
-        // and transparently yields `GpuBackend::Cpu` when no accelerator is
-        // present, so the resulting context honestly reflects the hardware that
-        // is actually in use rather than claiming a GPU that does not exist.
-        #[cfg(feature = "scirs2-gpu-reporting")]
+        // We use the crate's own oxicuda-backed GPU abstraction
+        // (`crate::gpu::GpuBackend`) to detect a real accelerator.
+        // `GpuBackend::detect()` performs runtime driver/device
+        // initialization and returns `Ok(None)` when no accelerator is
+        // present, so the resulting context honestly reflects the hardware
+        // that is actually in use rather than claiming a GPU that does not
+        // exist. There is no CPU-context fallback to construct here: `None`
+        // simply means "no GPU context is tracked".
+        #[cfg(feature = "gpu_support")]
         let gpu_context = if config.enable_gpu {
-            let preferred = GpuBackend::preferred();
-            match GpuContext::new(preferred) {
-                Ok(context) => Some(context),
-                Err(_err) => {
-                    // The preferred backend could not be initialized (for
-                    // example, a detected device became unavailable). Fall
-                    // back to a real CPU context so downstream code still has
-                    // a valid execution context, rather than fabricating GPU
-                    // availability.
-                    GpuContext::new(GpuBackend::Cpu).ok()
-                }
-            }
+            GpuBackend::detect()?
         } else {
             None
         };
@@ -144,7 +136,7 @@ impl TraitGraphGenerator {
 
         Ok(Self {
             config,
-            #[cfg(feature = "scirs2-gpu-reporting")]
+            #[cfg(feature = "gpu_support")]
             gpu_context,
             layout_algorithms,
             layout_cache,
@@ -994,29 +986,30 @@ impl TraitGraphGenerator {
     /// but no device is present) reports `false` so callers are never misled
     /// into believing the GPU is in use.
     ///
-    /// Without the `scirs2-gpu-reporting` feature enabled, no GPU context is
-    /// ever tracked and this always returns `false`.
+    /// Without the `gpu_support` feature enabled, no GPU context is ever
+    /// tracked and this always returns `false`.
     pub fn has_gpu_acceleration(&self) -> bool {
         self.is_gpu_accelerated()
     }
 
     /// Determine whether the active GPU context targets a real accelerator.
     ///
-    /// This inspects the backend selected for the context and treats only
-    /// non-CPU backends as genuinely GPU-accelerated.
-    #[cfg(feature = "scirs2-gpu-reporting")]
+    /// A tracked [`crate::gpu::GpuBackend`] only ever exists once
+    /// [`crate::gpu::GpuBackend::detect`] has found a real, usable GPU (see
+    /// its doc comment), so this collapses to "is a context tracked at all".
+    #[cfg(feature = "gpu_support")]
     fn is_gpu_accelerated(&self) -> bool {
         self.gpu_context
             .as_ref()
-            .map(|context| context.backend() != GpuBackend::Cpu)
+            .map(|backend| backend.is_gpu())
             .unwrap_or(false)
     }
 
     /// Determine whether the active GPU context targets a real accelerator.
     ///
-    /// The `scirs2-gpu-reporting` feature is disabled in this build, so no
-    /// GPU context is ever tracked and acceleration is never reported.
-    #[cfg(not(feature = "scirs2-gpu-reporting"))]
+    /// The `gpu_support` feature is disabled in this build, so no GPU
+    /// context is ever tracked and acceleration is never reported.
+    #[cfg(not(feature = "gpu_support"))]
     fn is_gpu_accelerated(&self) -> bool {
         false
     }
@@ -1024,15 +1017,15 @@ impl TraitGraphGenerator {
     /// Whether a GPU context is currently tracked (for [`std::fmt::Debug`]
     /// reporting only; does not imply the context targets a real
     /// accelerator, see [`Self::is_gpu_accelerated`]).
-    #[cfg(feature = "scirs2-gpu-reporting")]
+    #[cfg(feature = "gpu_support")]
     fn has_gpu_context(&self) -> bool {
         self.gpu_context.is_some()
     }
 
     /// Whether a GPU context is currently tracked (for [`std::fmt::Debug`]
-    /// reporting only). The `scirs2-gpu-reporting` feature is disabled in
-    /// this build, so no GPU context is ever tracked.
-    #[cfg(not(feature = "scirs2-gpu-reporting"))]
+    /// reporting only). The `gpu_support` feature is disabled in this build,
+    /// so no GPU context is ever tracked.
+    #[cfg(not(feature = "gpu_support"))]
     fn has_gpu_context(&self) -> bool {
         false
     }

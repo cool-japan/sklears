@@ -74,6 +74,11 @@ rayon = { workspace = true }
 [features]
 default = []
 parallel = []
+# Forwards to sklears-core's oxicuda-backed GPU detection so that
+# `get_hardware_info()` can report real CUDA availability instead of a
+# hardcoded `false`. Without this feature (the default, Pure-Rust build),
+# `cuda_available` honestly stays `false`.
+gpu = ["sklears-core/gpu_support"]
 
 [dev-dependencies]
 # Testing dependencies

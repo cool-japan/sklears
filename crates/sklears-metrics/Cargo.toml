@@ -62,6 +62,10 @@ tokio-stream = { workspace = true, optional = true }
 mpi = { workspace = true, optional = true }
 oxicode = { workspace = true, optional = true }
 
+# GPU acceleration (OxiCUDA; see the `gpu` feature below)
+oxicuda-blas = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true }
+
 # Note: ndarray and rand are provided through SciRS2 dependencies
 # Direct ndarray/rand imports are not used per SciRS2 policy
 
@@ -76,8 +80,8 @@ std = ["sklears-core/std"]
 parallel = ["rayon"]
 simd = ["wide", "bytemuck"]
 sparse = ["dep:scirs2-sparse"]  # Sparse metric computations via scirs2-sparse (SciRS2 Policy)
-gpu = []  # GPU acceleration support (temporarily disabled)
-cuda = ["gpu"]  # Alias for GPU support
+gpu = ["dep:oxicuda-blas", "dep:oxicuda-memory", "sklears-core/gpu_support"]  # GPU acceleration via OxiCUDA (sklears_core::gpu)
+cuda = ["gpu"]  # Back-compat alias for the `gpu` feature
 async = ["tokio", "futures", "tokio-stream"]  # Async streaming support
 optimized = ["parallel", "simd"]
 serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]

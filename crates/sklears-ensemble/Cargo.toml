@@ -34,6 +34,12 @@ serde = { workspace = true, optional = true }
 # ❌ rand_chacha - use scirs2_core::random instead
 half = { workspace = true }
 
+# GPU acceleration (oxicuda-* 0.4.x), optional, behind the `gpu` feature
+oxicuda-backend = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true }
+oxicuda-blas = { workspace = true, optional = true }
+oxicuda-driver = { workspace = true, optional = true }
+
 [dev-dependencies]
 criterion = { workspace = true }
 # sklears-metrics = { workspace = true } # Temporarily disabled due to SIMD compilation errors
@@ -48,6 +54,15 @@ serde = ["dep:serde", "sklears-core/serde"]
 # SIMD support via scirs2-core::simd_ops (SciRS2 Policy compliant)
 simd = []
 nightly = []
+# Real oxicuda-backed GPU acceleration (CUDA only; no CPU-fallback pretense).
+# Default features remain 100% Pure Rust / CPU.
+gpu = [
+    "dep:oxicuda-backend",
+    "dep:oxicuda-memory",
+    "dep:oxicuda-blas",
+    "dep:oxicuda-driver",
+    "sklears-core/gpu_support",
+]
 
 [[bench]]
 name = "ensemble_benchmarks"

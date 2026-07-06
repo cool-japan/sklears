@@ -130,7 +130,7 @@ pub use federated_neighbors::{
 };
 pub use gpu_distance::{
     GpuBackend, GpuComputationStats, GpuConfig, GpuDeviceInfo, GpuDistanceCalculator,
-    GpuDistanceResult, GpuKNeighborsSearch, GpuMemoryEstimator, GpuMemoryStrategy,
+    GpuDistanceResult, GpuKNeighborsSearch, GpuMemoryEstimator,
 };
 pub use graph_methods::{
     EpsilonGraph, GabrielGraph, GraphEdge, GraphNeighborSearch, GraphStatistics,

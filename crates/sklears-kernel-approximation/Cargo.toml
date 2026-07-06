@@ -38,6 +38,13 @@ thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
+# GPU acceleration (feature-gated, off by default) — routes through
+# sklears-core's oxicuda-backed `gpu` module (see `gpu_support`); the extra
+# direct `oxicuda-driver` dependency is only used for the handful of device
+# properties (multiprocessor count, max threads/block) that
+# `sklears_core::gpu::GpuUtils::device_properties` does not surface.
+oxicuda-driver = { workspace = true, optional = true }
+
 [dev-dependencies]
 approx = { workspace = true }
 proptest = { workspace = true }
@@ -50,6 +57,13 @@ simd = []
 # Unstable SIMD features requiring nightly Rust
 nightly-simd = []
 nightly = ["simd"]
+# Real GPU acceleration for kernel approximations, via `sklears-core`'s
+# oxicuda-backed `gpu` module. Off by default: with this feature disabled
+# (the Pure-Rust default build), `gpu_acceleration` and all GPU-named
+# re-exports (`GpuBackend`, `GpuConfig`, `GpuContext`, `GpuDevice`,
+# `GpuNystroem`, `GpuRBFSampler`, `GpuProfiler`, ...) do not compile in at
+# all, so no GPU-shaped API ships that secretly falls back to a CPU loop.
+gpu = ["sklears-core/gpu_support", "dep:oxicuda-driver"]
 
 [[bench]]
 name = "kernel_approximation_benchmarks"

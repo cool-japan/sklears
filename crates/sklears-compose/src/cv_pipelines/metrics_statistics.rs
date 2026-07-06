@@ -352,7 +352,9 @@ impl QualityMetrics {
 pub struct PerformanceMetrics {
     /// CPU utilization percentage
     pub cpu_utilization: f64,
-    /// GPU utilization percentage (if applicable)
+    /// GPU utilization percentage (if applicable). This is scheduling
+    /// metadata supplied by the caller, not a value live-sampled from a
+    /// device -- nothing in this crate measures GPU utilization itself.
     pub gpu_utilization: Option<f64>,
     /// Memory usage in bytes
     pub memory_usage: u64,
@@ -559,12 +561,18 @@ impl LatencyPercentiles {
     }
 }
 
-/// Thermal metrics for monitoring system temperature
+/// Thermal metrics for monitoring system temperature.
+///
+/// These fields are scheduling/reporting metadata a caller (or a future
+/// sensor integration) populates; this crate does not itself query any
+/// thermal sensor, CPU or GPU.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThermalMetrics {
     /// CPU temperature in Celsius
     pub cpu_temperature: f32,
-    /// GPU temperature in Celsius (if applicable)
+    /// GPU temperature in Celsius (if applicable). Scheduling metadata,
+    /// not a live sensor reading -- nothing in this crate queries a GPU
+    /// thermal sensor.
     pub gpu_temperature: Option<f32>,
     /// Ambient temperature
     pub ambient_temperature: Option<f32>,
@@ -602,7 +610,9 @@ impl ThermalMetrics {
 pub struct ResourceUtilization {
     /// CPU utilization percentage
     pub cpu_utilization: f64,
-    /// GPU utilization percentage (if applicable)
+    /// GPU utilization percentage (if applicable). This is scheduling
+    /// metadata supplied by the caller, not a value live-sampled from a
+    /// device -- nothing in this crate measures GPU utilization itself.
     pub gpu_utilization: Option<f64>,
     /// Memory usage in MB
     pub memory_usage_mb: f64,
@@ -937,7 +947,9 @@ pub struct MetricsSummary {
     pub cpu_utilization: f64,
     /// Memory utilization in MB
     pub memory_utilization: f64,
-    /// GPU utilization (if applicable)
+    /// GPU utilization (if applicable). This is scheduling metadata
+    /// supplied by the caller, not a value live-sampled from a device --
+    /// nothing in this crate measures GPU utilization itself.
     pub gpu_utilization: Option<f64>,
     /// System uptime
     pub uptime: Duration,

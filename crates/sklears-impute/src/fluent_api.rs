@@ -170,8 +170,37 @@ pub struct DeepLearningConfig {
     pub epochs: usize,
     /// batch_size
     pub batch_size: usize,
-    /// device
-    pub device: String, // "cpu", "cuda"
+    /// Requested compute device. Only `"cpu"` (case-insensitive) is honest
+    /// today: sklears-impute's deep-learning imputers do not dispatch any
+    /// computation through `sklears_core::gpu`/oxicuda yet, so any other
+    /// value is rejected at build time by [`DeepLearningConfig::validate_device`]
+    /// rather than silently ignored. A future release may accept `"cuda"`
+    /// once a real oxicuda-backed deep-learning imputer exists and routes
+    /// through `sklears-core`'s `gpu_support` feature.
+    pub device: String, // "cpu" only for now
+}
+
+impl DeepLearningConfig {
+    /// Validate the configured device string.
+    ///
+    /// Historically `device` was accepted (e.g. `"cuda"`) but never read for
+    /// dispatch, which silently pretended GPU acceleration was available.
+    /// Since no oxicuda-backed compute path exists for deep-learning
+    /// imputation yet, the only honest option is CPU; reject everything else
+    /// with a clear, actionable error instead.
+    fn validate_device(&self) -> SklResult<()> {
+        match self.device.trim().to_lowercase().as_str() {
+            "cpu" => Ok(()),
+            other => Err(SklearsError::InvalidParameter {
+                name: "device".to_string(),
+                reason: format!(
+                    "unsupported device '{other}': sklears-impute's deep-learning \
+                     imputers are CPU-only in this release (no oxicuda/GPU dispatch \
+                     is wired up yet); use \"cpu\""
+                ),
+            }),
+        }
+    }
 }
 
 /// Configuration for custom imputation methods
@@ -826,6 +855,10 @@ impl ImputationPipeline {
         postprocessing: PostprocessingConfig,
         parallel_config: Option<ParallelConfig>,
     ) -> SklResult<Self> {
+        if let ImputationMethod::DeepLearning(config) = &method {
+            config.validate_device()?;
+        }
+
         Ok(Self {
             method,
             validation,
@@ -1640,6 +1673,50 @@ mod tests {
         // Non-missing values should be preserved
         assert_abs_diff_eq!(result[[0, 0]], 1.0, epsilon = 1e-10);
         assert_abs_diff_eq!(result[[0, 1]], 2.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_deep_learning_device_cpu_is_accepted() {
+        let pipeline = ImputationBuilder::new()
+            .deep_learning()
+            .autoencoder()
+            .device("cpu")
+            .finish()
+            .build();
+
+        assert!(pipeline.is_ok(), "\"cpu\" device must be accepted");
+    }
+
+    #[test]
+    fn test_deep_learning_device_is_case_insensitive() {
+        let pipeline = ImputationBuilder::new()
+            .deep_learning()
+            .autoencoder()
+            .device("CPU")
+            .finish()
+            .build();
+
+        assert!(pipeline.is_ok(), "device matching should be case-insensitive");
+    }
+
+    #[test]
+    fn test_deep_learning_device_cuda_is_rejected() {
+        // Historically "cuda" was accepted but silently ignored (never
+        // dispatched to a GPU). It must now be rejected honestly instead of
+        // pretending GPU acceleration happens.
+        let result = ImputationBuilder::new()
+            .deep_learning()
+            .autoencoder()
+            .device("cuda")
+            .finish()
+            .build();
+
+        assert!(result.is_err(), "\"cuda\" must be rejected: no GPU dispatch is wired up");
+        let message = result.err().expect("should be an error").to_string();
+        assert!(
+            message.contains("device"),
+            "error message should mention the device parameter: {message}"
+        );
     }
 
     #[test]

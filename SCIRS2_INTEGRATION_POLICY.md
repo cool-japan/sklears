@@ -273,10 +273,12 @@ use scirs2_core::linalg::*;           // Linear algebra (when needed)
 - **OxiBLAS** (Pure Rust) is the default and only backend
 - **NO system dependencies required** - pure Rust implementation
 
-#### GPU Operations Policy
-- **ALWAYS use `scirs2-core::gpu` module** for GPU operations
-- **NEVER implement direct CUDA/OpenCL/Metal kernels**
-- **NEVER make direct GPU API calls** outside of SciRS2-core
+#### GPU Operations Policy (oxicuda-* migration, 2026-07-06)
+- **GPU operations go through `sklears_core::gpu`** (the oxicuda-backed `GpuBackend`/`GpuArray`/`GpuMatrixOps` foundation, built on `oxicuda-driver`/`oxicuda-blas`/`oxicuda-memory` behind the `gpu_support` feature)
+- **Direct `oxicuda-*` crates are allowed for kernels** not yet wrapped by `sklears_core::gpu` (e.g. `oxicuda-solver`, `oxicuda-manifold`, `oxicuda-dnn`) — implement real on-device kernels rather than stubs
+- **CPU `scirs2-linalg` fallbacks remain explicitly allowed** for hosts without a detected CUDA device; `detect()`/`with_device_id()` must return `Ok(None)` honestly rather than fabricating GPU availability
+- **NEVER use `scirs2-core::gpu`** — it is not part of this policy; do not reintroduce it
+- **NEVER implement raw CUDA/OpenCL/Metal FFI bindings directly** — go through the `oxicuda-*` crates
 
 ## Implementation Guidelines
 

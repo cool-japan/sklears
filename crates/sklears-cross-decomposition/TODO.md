@@ -22,12 +22,13 @@
 
 Status: fully migrated to the oxicuda-backed GPU stack (no scirs2-core GPU usage). Remaining item is a hardening/depth improvement (workspace Phase 5, optional for the 0.2.0 release).
 
-- [ ] (M) Offload `GpuMatrixOps::eig` and `svd` to oxicuda-solver when a CUDA backend is live — `src/gpu_acceleration.rs`, `Cargo.toml`
+- [ ] (M) Offload `GpuMatrixOps::eig` and `svd` to oxicuda-solver when a CUDA backend is live — `src/gpu_acceleration.rs`, `Cargo.toml` (deferred 2026-07-06: no genuine device win available yet)
   - `eig`/`svd` (`src/gpu_acceleration.rs:344-363`) always run on CPU via `scirs2_linalg::compat::{eigh, svd}`; module docs (lines 23-26) acknowledge this as the CPU-correct baseline pending oxicuda-solver wiring.
-  - Preferred: extend `sklears_core::gpu` with `eigh`/`svd` wrappers over `oxicuda_solver::dense` (syevd at `dense/eig.rs:70`, SVD at `dense/svd.rs:116`) and call those, keeping this crate free of direct oxicuda deps.
-  - Alternative: add optional `oxicuda-solver` + `oxicuda-memory` to the `gpu` feature mirroring sklears-discriminant-analysis (`Cargo.toml:46-48,61`), with column-major round-trips.
+  - Investigated 2026-07-06: read `oxicuda-solver` 0.4.0 source directly (`~/.cargo/registry/src/.../oxicuda-solver-0.4.0/src/dense/{eig,svd}.rs`). Both `dense::syevd` and `dense::svd` are, in their own words, "CPU host-fallback" with "NO GPU acceleration of this path" — unlike `sklears-discriminant-analysis`'s LDA generalized-eigensolve (which gets a genuine partial win from on-device `cholesky`/`inverse`/GEMM before falling back to host-only `syevd`), a plain symmetric `eig` or general `svd` has no such reduction step to accelerate: wiring either call in this crate would only add a dependency, a device round-trip (upload → solver internally downloads to host anyway → compute → re-upload → this crate downloads again), and complexity, with zero speed or correctness benefit over the current direct `scirs2_linalg` CPU call. Per the "no pretend offload" rule, the CPU path is being kept as-is rather than wiring a `dep:oxicuda-solver` `gpu`-feature path that would look GPU-accelerated but isn't.
+  - Preferred (unblocks when upstream ships real on-device syevd/SVD): extend `sklears_core::gpu` with `eigh`/`svd` wrappers over `oxicuda_solver::dense` (syevd at `dense/eig.rs:70`, SVD at `dense/svd.rs:116`) and call those, keeping this crate free of direct oxicuda deps.
+  - Alternative: add optional `oxicuda-solver` + `oxicuda-memory` to the `gpu` feature mirroring sklears-discriminant-analysis (`Cargo.toml:46-48,61`), with column-major round-trips — only worth doing once `oxicuda-solver` has genuine on-device syevd/SVD kernels, not the current host fallback.
   - Update module docs (lines 23-26, 44-45) and the `GpuMatrixOps` doc comment (lines 262-268) once wired.
-  - Caveat: oxicuda-solver 0.4.0's syevd/SVD device paths are documented CPU host fallbacks — do not claim on-device acceleration until upstream restores it.
+  - Caveat: oxicuda-solver 0.4.0's syevd/SVD device paths are documented CPU host fallbacks — do not claim on-device acceleration until upstream restores it. Re-check on every oxicuda-solver version bump.
 
 ---
 

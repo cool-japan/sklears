@@ -36,10 +36,6 @@ memmap2 = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true, optional = true }
 num_cpus = { workspace = true }
-oxicuda-backend    = { workspace = true, optional = true }
-oxicuda-blas       = { workspace = true, optional = true }
-oxicuda-primitives = { workspace = true, optional = true }
-bytemuck = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
@@ -53,4 +49,4 @@ default = ["std", "serde"]
 std = ["sklears-core/std"]
 parallel = ["rayon"]
 serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]
-gpu = ["dep:oxicuda-backend", "dep:oxicuda-blas", "dep:oxicuda-primitives", "bytemuck", "sklears-core/gpu_support"]
+gpu = ["sklears-core/gpu_support"]

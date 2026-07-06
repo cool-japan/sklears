@@ -34,6 +34,13 @@ regex = { workspace = true }
 lazy_static = { workspace = true }
 sysinfo = { workspace = true, optional = true }
 
+# Optional real-GPU device enumeration (see the `gpu` feature below). GPU
+# compute itself (matmul/add/mul) routes through sklears-core's
+# oxicuda-backed `gpu` module; `oxicuda-driver` is only needed directly
+# here for device metadata (SM count, clock rate, memory bus width) that
+# `sklears_core::gpu::GpuDeviceProperties` does not expose.
+oxicuda-driver = { workspace = true, optional = true }
+
 # Optional compression support
 oxiarc-deflate = { workspace = true, optional = true }
 
@@ -60,6 +67,12 @@ tempfile = { workspace = true }
 default = ["std", "simd"]
 std = ["sklears-core/std"]
 simd = []  # Enable SIMD optimizations
+# Real GPU acceleration: routes `gpu_computing`'s device enumeration and
+# array ops through oxicuda (via sklears-core's `gpu_support` feature),
+# instead of the CPU-only default build. Honest by construction: on a host
+# with no CUDA driver/device, detection returns empty/`None` rather than
+# fabricating hardware.
+gpu = ["sklears-core/gpu_support", "dep:oxicuda-driver"]
 compression = ["oxiarc-deflate"]
 sysinfo = ["dep:sysinfo"]
 yaml = ["serde_yaml"]

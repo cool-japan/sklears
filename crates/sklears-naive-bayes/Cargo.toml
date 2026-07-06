@@ -50,6 +50,10 @@ criterion = { workspace = true }
 [features]
 default = ["serde"]
 serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]
+# GPU-accelerated matrix multiply for `GpuOptimizer` (f32/f64 only), routed
+# through `sklears_core::gpu` -> `oxicuda-blas` GEMM. Honestly falls back to
+# `Ok(None)` detection / CPU compute on hosts with no usable GPU/driver.
+gpu = ["sklears-core/gpu_support"]
 
 [[bench]]
 name = "naive_bayes_benchmarks"

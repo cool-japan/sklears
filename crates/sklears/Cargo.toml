@@ -136,8 +136,36 @@ all-algorithms = [
 # Backend options
 backend-cpu = []  # Default
 backend-blas = []  # TODO: Add when numrs2 supports it
-backend-cuda = []
-backend-wgpu = []
+
+# GPU acceleration via OxiCUDA (routed through sklears-core::gpu). Honest
+# detection: GpuBackend::detect() returns Ok(None) when no CUDA device is
+# present, so enabling this feature on a CPU-only host is safe -- all
+# gpu-gated code paths fall back to CPU. Forwards to each algorithm
+# subcrate's own `gpu` feature using the weak-dependency `?/` syntax, so a
+# subcrate's GPU code is only compiled in when that subcrate is already
+# enabled via its own facade feature (e.g. `linear`, `clustering`, ...).
+gpu = [
+    "sklears-core/gpu_support",
+    "sklears-utils/gpu",
+    "sklears-linear?/gpu",
+    "sklears-clustering?/gpu",
+    "sklears-svm?/gpu",
+    "sklears-neighbors?/gpu",
+    "sklears-decomposition?/gpu",
+    "sklears-preprocessing?/gpu",
+    "sklears-neural?/gpu",
+    "sklears-ensemble?/gpu",
+    "sklears-metrics?/gpu",
+    "sklears-discriminant-analysis?/gpu",
+    "sklears-manifold?/gpu",
+    "sklears-cross-decomposition?/gpu",
+    "sklears-kernel-approximation?/gpu",
+    "sklears-calibration?/gpu",
+    "sklears-multiclass?/gpu",
+    "sklears-compose?/gpu",
+    "sklears-inspection?/gpu",
+    "sklears-naive-bayes?/gpu",
+]
 
 # Development
 dev = ["all-algorithms", "parallel", "serde"]

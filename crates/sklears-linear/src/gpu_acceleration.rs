@@ -28,6 +28,7 @@ use sklears_core::{
     gpu::GpuBackend,
     types::Float,
 };
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 #[cfg(feature = "gpu")]
 use oxicuda_memory::DeviceBuffer;
@@ -92,6 +93,47 @@ pub struct GpuLinearOps {
     /// every GPU-accelerated method below falls back to its CPU
     /// counterpart in that case. See [`GpuBackend::detect`].
     context: Option<GpuBackend>,
+    /// Live counters backing [`get_performance_stats`](Self::get_performance_stats).
+    /// Every field is an atomic so it can be updated from `&self` dispatch
+    /// methods; see [`OpCounters`].
+    stats: OpCounters,
+}
+
+/// Real, incrementally-updated operation counters for [`GpuLinearOps`].
+///
+/// Every dispatch site that chooses between a GPU path and a CPU fallback
+/// (`matrix_multiply`, `matrix_vector_multiply`, `vector_dot`,
+/// `solve_linear_system`, `qr_decomposition`) records which path actually
+/// ran and how long it took, plus (for the GPU path) the host<->device
+/// transfer volume. `vector_axpy`/`vector_scale`/`matrix_transpose` are
+/// CPU-only utility ops with no GPU/CPU decision to record, so they are not
+/// counted here.
+#[derive(Debug, Default)]
+struct OpCounters {
+    total_operations: AtomicUsize,
+    gpu_operations: AtomicUsize,
+    cpu_fallback_operations: AtomicUsize,
+    gpu_time_ns: AtomicU64,
+    cpu_time_ns: AtomicU64,
+    memory_transfer_bytes: AtomicU64,
+}
+
+impl OpCounters {
+    fn record_gpu(&self, elapsed: std::time::Duration, transfer_bytes: u64) {
+        self.total_operations.fetch_add(1, Ordering::Relaxed);
+        self.gpu_operations.fetch_add(1, Ordering::Relaxed);
+        self.gpu_time_ns
+            .fetch_add(elapsed.as_nanos() as u64, Ordering::Relaxed);
+        self.memory_transfer_bytes
+            .fetch_add(transfer_bytes, Ordering::Relaxed);
+    }
+
+    fn record_cpu_fallback(&self, elapsed: std::time::Duration) {
+        self.total_operations.fetch_add(1, Ordering::Relaxed);
+        self.cpu_fallback_operations.fetch_add(1, Ordering::Relaxed);
+        self.cpu_time_ns
+            .fetch_add(elapsed.as_nanos() as u64, Ordering::Relaxed);
+    }
 }
 
 impl GpuLinearOps {
@@ -103,7 +145,11 @@ impl GpuLinearOps {
     /// fallback.
     pub fn new(config: GpuConfig) -> Result<Self> {
         let context = GpuBackend::detect()?;
-        Ok(Self { config, context })
+        Ok(Self {
+            config,
+            context,
+            stats: OpCounters::default(),
+        })
     }
 
     /// Create with default configuration.
@@ -149,14 +195,22 @@ impl GpuLinearOps {
         #[cfg(feature = "gpu")]
         if m * k + k * n >= self.config.min_problem_size {
             if let Some(backend) = self.context.as_ref() {
+                let start = std::time::Instant::now();
                 let a_gpu = GpuArray::<Float>::from_array2(backend, a)?;
                 let b_gpu = GpuArray::<Float>::from_array2(backend, b)?;
                 let c_gpu = a_gpu.matmul(&b_gpu)?;
-                return c_gpu.to_array2();
+                let result = c_gpu.to_array2()?;
+                let transfer_bytes =
+                    ((m * k + k * n + m * n) * std::mem::size_of::<Float>()) as u64;
+                self.stats.record_gpu(start.elapsed(), transfer_bytes);
+                return Ok(result);
             }
         }
 
-        self.cpu_matrix_multiply(a, b)
+        let start = std::time::Instant::now();
+        let result = self.cpu_matrix_multiply(a, b);
+        self.stats.record_cpu_fallback(start.elapsed());
+        result
     }
 
     fn cpu_matrix_multiply(&self, a: &Array2<Float>, b: &Array2<Float>) -> Result<Array2<Float>> {
@@ -185,17 +239,23 @@ impl GpuLinearOps {
         #[cfg(feature = "gpu")]
         if m * k >= self.config.min_problem_size {
             if let Some(backend) = self.context.as_ref() {
+                let start = std::time::Instant::now();
                 let x_2d = Array2::from_shape_vec((k, 1), x.to_vec())
                     .map_err(|e| SklearsError::InvalidInput(format!("reshape x failed: {e}")))?;
                 let a_gpu = GpuArray::<Float>::from_array2(backend, a)?;
                 let x_gpu = GpuArray::<Float>::from_array2(backend, &x_2d)?;
                 let y_gpu = a_gpu.matmul(&x_gpu)?;
                 let y_2d = y_gpu.to_array2()?;
+                let transfer_bytes = ((m * k + k + m) * std::mem::size_of::<Float>()) as u64;
+                self.stats.record_gpu(start.elapsed(), transfer_bytes);
                 return Ok(y_2d.column(0).to_owned());
             }
         }
 
-        Ok(a.dot(x))
+        let start = std::time::Instant::now();
+        let result = a.dot(x);
+        self.stats.record_cpu_fallback(start.elapsed());
+        Ok(result)
     }
 
     /// AXPY: `y += alpha × x` (in-place, CPU-side for f64 correctness).
@@ -238,6 +298,7 @@ impl GpuLinearOps {
         #[cfg(feature = "gpu")]
         if n >= self.config.min_problem_size {
             if let Some(backend) = self.context.as_ref() {
+                let start = std::time::Instant::now();
                 let x_2d = Array2::from_shape_vec((1, n), x.to_vec())
                     .map_err(|e| SklearsError::InvalidInput(format!("reshape x failed: {e}")))?;
                 let y_2d = Array2::from_shape_vec((n, 1), y.to_vec())
@@ -246,11 +307,16 @@ impl GpuLinearOps {
                 let y_gpu = GpuArray::<Float>::from_array2(backend, &y_2d)?;
                 let r_gpu = x_gpu.matmul(&y_gpu)?;
                 let r_2d = r_gpu.to_array2()?;
+                let transfer_bytes = ((2 * n + 1) * std::mem::size_of::<Float>()) as u64;
+                self.stats.record_gpu(start.elapsed(), transfer_bytes);
                 return Ok(r_2d[[0, 0]]);
             }
         }
 
-        Ok(x.dot(y))
+        let start = std::time::Instant::now();
+        let result = x.dot(y);
+        self.stats.record_cpu_fallback(start.elapsed());
+        Ok(result)
     }
 
     /// Matrix transpose: `Aᵀ`.
@@ -290,15 +356,24 @@ impl GpuLinearOps {
 
         #[cfg(feature = "gpu")]
         if let Some(backend) = self.context.as_ref() {
+            let start = std::time::Instant::now();
             match Self::gpu_solve_normal_equations(backend, &ata, &atb) {
-                Ok(x) => return Ok(x),
+                Ok(x) => {
+                    let transfer_bytes =
+                        ((ata.len() + atb.len() + x.len()) * std::mem::size_of::<Float>()) as u64;
+                    self.stats.record_gpu(start.elapsed(), transfer_bytes);
+                    return Ok(x);
+                }
                 Err(e) => {
                     log::warn!("GPU LU solve failed ({e}), falling back to CPU solve");
                 }
             }
         }
 
-        Self::cpu_solve_normal_equations(&ata, &atb)
+        let start = std::time::Instant::now();
+        let result = Self::cpu_solve_normal_equations(&ata, &atb);
+        self.stats.record_cpu_fallback(start.elapsed());
+        result
     }
 
     fn cpu_solve_normal_equations(
@@ -361,15 +436,24 @@ impl GpuLinearOps {
     pub fn qr_decomposition(&self, a: &Array2<Float>) -> Result<(Array2<Float>, Array2<Float>)> {
         #[cfg(feature = "gpu")]
         if let Some(backend) = self.context.as_ref() {
+            let start = std::time::Instant::now();
             match Self::gpu_qr_decomposition(backend, a) {
-                Ok(result) => return Ok(result),
+                Ok((q, r)) => {
+                    let transfer_bytes =
+                        ((a.len() + q.len() + r.len()) * std::mem::size_of::<Float>()) as u64;
+                    self.stats.record_gpu(start.elapsed(), transfer_bytes);
+                    return Ok((q, r));
+                }
                 Err(e) => {
                     log::warn!("GPU QR decomposition failed ({e}), falling back to CPU");
                 }
             }
         }
 
-        Self::cpu_qr_decomposition(a)
+        let start = std::time::Instant::now();
+        let result = Self::cpu_qr_decomposition(a);
+        self.stats.record_cpu_fallback(start.elapsed());
+        result
     }
 
     fn cpu_qr_decomposition(a: &Array2<Float>) -> Result<(Array2<Float>, Array2<Float>)> {
@@ -456,15 +540,32 @@ impl GpuLinearOps {
         Ok(())
     }
 
-    /// Snapshot of performance statistics.
+    /// Snapshot of performance statistics, computed from the live counters
+    /// updated by every GPU/CPU dispatch decision above (see
+    /// [`OpCounters`]).
     pub fn get_performance_stats(&self) -> GpuPerformanceStats {
+        let total_operations = self.stats.total_operations.load(Ordering::Relaxed);
+        let gpu_operations = self.stats.gpu_operations.load(Ordering::Relaxed);
+        let cpu_fallback_operations = self.stats.cpu_fallback_operations.load(Ordering::Relaxed);
+        let gpu_time_ns = self.stats.gpu_time_ns.load(Ordering::Relaxed);
+        let cpu_time_ns = self.stats.cpu_time_ns.load(Ordering::Relaxed);
+        let memory_transfer_bytes = self.stats.memory_transfer_bytes.load(Ordering::Relaxed);
+
         GpuPerformanceStats {
-            total_operations: 0,
-            gpu_operations: 0,
-            cpu_fallback_operations: 0,
-            average_gpu_time_ms: 0.0,
-            average_cpu_time_ms: 0.0,
-            memory_transfers_mb: 0.0,
+            total_operations,
+            gpu_operations,
+            cpu_fallback_operations,
+            average_gpu_time_ms: if gpu_operations > 0 {
+                (gpu_time_ns as f64 / gpu_operations as f64) / 1_000_000.0
+            } else {
+                0.0
+            },
+            average_cpu_time_ms: if cpu_fallback_operations > 0 {
+                (cpu_time_ns as f64 / cpu_fallback_operations as f64) / 1_000_000.0
+            } else {
+                0.0
+            },
+            memory_transfers_mb: memory_transfer_bytes as f64 / (1024.0 * 1024.0),
         }
     }
 }
@@ -484,17 +585,89 @@ pub struct GpuPerformanceStats {
 
 // ─── GpuMemoryPool ─────────────────────────────────────────────────────────────
 
-/// Simple CPU-side memory-pool simulator for capacity accounting.
+/// Capacity-accounting memory pool, backed by a real reserved device-memory
+/// arena when a GPU is available.
+///
+/// `allocate()`/`deallocate()` manage a host-side (offset, size) ledger over
+/// `pool_size` bytes, same as before. What changed: when the `gpu` feature
+/// is enabled and [`GpuBackend::detect`] finds a real device, construction
+/// now also reserves `pool_size` bytes of genuine device memory (one
+/// `DeviceBuffer<u8>` arena) up front, so the ledger's capacity actually
+/// corresponds to memory the driver has allocated rather than being a pure
+/// host-side simulation. Ledger offsets index into that arena. When no GPU
+/// is present (or the reservation itself fails, e.g. the pool is larger
+/// than free device memory), the pool transparently falls back to
+/// host-side-only accounting -- see [`is_device_backed`](Self::is_device_backed).
 pub struct GpuMemoryPool {
     pool_size: usize,
     allocated_bytes: usize,
+    /// Real device-memory reservation backing this pool's capacity, when a
+    /// GPU is available. `None` on hosts without a detected GPU, or when
+    /// the `gpu` feature is disabled.
+    #[cfg(feature = "gpu")]
+    device_arena: Option<DeviceBuffer<u8>>,
 }
 
 impl GpuMemoryPool {
     pub fn new(pool_size: usize) -> Self {
+        #[cfg(feature = "gpu")]
+        let device_arena = Self::try_reserve_device_arena(pool_size);
         Self {
             pool_size,
             allocated_bytes: 0,
+            #[cfg(feature = "gpu")]
+            device_arena,
+        }
+    }
+
+    /// Attempts to reserve `pool_size` bytes of real device memory as this
+    /// pool's backing arena. Returns `None` (never an error) on any failure
+    /// -- no GPU detected, context-current failure, or the allocation
+    /// itself failing -- so construction always succeeds and callers
+    /// transparently get host-side-only accounting in that case.
+    #[cfg(feature = "gpu")]
+    fn try_reserve_device_arena(pool_size: usize) -> Option<DeviceBuffer<u8>> {
+        if pool_size == 0 {
+            return None;
+        }
+        let backend = match GpuBackend::detect() {
+            Ok(Some(backend)) => backend,
+            Ok(None) => return None,
+            Err(e) => {
+                log::warn!(
+                    "GpuMemoryPool: backend detection failed ({e}); using host-side accounting only"
+                );
+                return None;
+            }
+        };
+        if let Err(e) = backend.context().set_current() {
+            log::warn!(
+                "GpuMemoryPool: failed to set device context ({e}); using host-side accounting only"
+            );
+            return None;
+        }
+        match DeviceBuffer::<u8>::alloc(pool_size) {
+            Ok(arena) => Some(arena),
+            Err(e) => {
+                log::warn!(
+                    "GpuMemoryPool: device arena reservation of {pool_size} bytes failed ({e}); using host-side accounting only"
+                );
+                None
+            }
+        }
+    }
+
+    /// `true` when this pool's capacity is backed by a genuinely reserved
+    /// device-memory arena, as opposed to host-side accounting only (no GPU
+    /// detected, or reservation failed).
+    pub fn is_device_backed(&self) -> bool {
+        #[cfg(feature = "gpu")]
+        {
+            self.device_arena.is_some()
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            false
         }
     }
 
@@ -608,6 +781,15 @@ mod tests {
     }
 
     #[test]
+    fn test_memory_pool_device_backing_is_honest_without_a_gpu() {
+        // Regression test: on this host (no CUDA GPU), a `GpuMemoryPool`
+        // must report `is_device_backed() == false` rather than pretending
+        // to hold a device reservation it never actually made.
+        let pool = GpuMemoryPool::new(1024);
+        assert!(!pool.is_device_backed());
+    }
+
+    #[test]
     fn test_gpu_availability() {
         let gpu_ops = GpuLinearOps::default().expect("operation should succeed");
         assert!(!gpu_ops.is_gpu_available());
@@ -620,5 +802,31 @@ mod tests {
         assert_eq!(stats.total_operations, 0);
         assert_eq!(stats.gpu_operations, 0);
         assert_eq!(stats.cpu_fallback_operations, 0);
+    }
+
+    #[test]
+    fn test_performance_stats_track_real_cpu_fallback_operations() {
+        // Regression test: `get_performance_stats` must reflect genuinely
+        // executed operations, not a hardcoded all-zero snapshot. On this
+        // host (no GPU), every dispatch below takes the CPU fallback path.
+        let gpu_ops = GpuLinearOps::default().expect("operation should succeed");
+
+        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
+        let b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
+        gpu_ops
+            .matrix_multiply(&a, &b)
+            .expect("operation should succeed");
+
+        let x = Array1::from_vec(vec![1.0, 1.0, 1.0]);
+        let y = Array1::from_vec(vec![2.0, 2.0, 2.0]);
+        gpu_ops.vector_dot(&x, &y).expect("operation should succeed");
+
+        let stats = gpu_ops.get_performance_stats();
+        assert_eq!(stats.total_operations, 2);
+        assert_eq!(stats.gpu_operations, 0);
+        assert_eq!(stats.cpu_fallback_operations, 2);
+        assert!(stats.average_cpu_time_ms >= 0.0);
     }
 }

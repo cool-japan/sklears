@@ -68,10 +68,11 @@ let labels = model.fit_predict(&data)?;
 
 ### GPU-Accelerated Distances
 
-Enable the optional `gpu` feature to experiment with WebGPU-powered distance kernels. GPU-backed tests are ignored by default because device discovery can be slow; run them explicitly when a compatible GPU is available:
+Enable the optional `gpu` feature to accelerate distance kernels with OxiCUDA (Pure Rust CUDA) via `sklears_core::gpu`. On hosts without a CUDA-capable GPU, device detection honestly returns "no GPU" and every operation transparently falls back to the CPU implementation:
 
 ```bash
-cargo test -p sklears-clustering --features gpu -- --ignored gpu_distances::gpu::tests::test_gpu_distance_computation
+cargo test -p sklears-clustering --features gpu gpu_distances::gpu::tests::test_euclidean_distances
+cargo test -p sklears-clustering --features gpu gpu_distances::gpu::tests::test_manhattan_distances
 ```
 
 ## Metrics

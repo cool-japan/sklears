@@ -1,8 +1,13 @@
 //! Performance optimization for feature engineering operations
 //!
-//! This module provides comprehensive performance optimization implementations
-//! including SIMD acceleration, parallel processing, memory optimization,
-//! caching, and GPU acceleration. All implementations follow SciRS2 Policy.
+//! This module provides SIMD acceleration, parallel processing, memory
+//! optimization, caching, and batch-processing implementations for feature
+//! engineering pipelines. GPU-accelerated matrix multiply is available behind
+//! the `gpu` feature (see [`GpuOptimizer`]): it is backed by real
+//! `oxicuda-blas` GEMM via `sklears_core::gpu` for the `f32`/`f64` element
+//! types, and honestly falls back to a CPU implementation for every other
+//! element type and for GPU-disabled builds or GPU-less hosts (no fabricated
+//! availability -- `GpuBackend::detect()`'s `Ok(None)` contract is preserved).
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
@@ -11,6 +16,9 @@ use sklears_core::error::Result;
 use sklears_core::prelude::SklearsError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
+#[cfg(feature = "gpu")]
+use sklears_core::gpu::{GpuArray, GpuBackend, GpuMatrixOps};
 
 /// Performance optimization strategies
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -426,11 +434,28 @@ where
     }
 }
 
-/// GPU acceleration optimizer (placeholder for future GPU support)
+/// GPU-accelerated matrix-multiply optimizer.
+///
+/// Without the `gpu` feature (or on a host with no usable GPU/driver even
+/// when the feature is enabled), every call transparently falls back to a
+/// plain CPU triple loop -- `is_gpu_available` honestly reports `false` in
+/// that case rather than pretending a device is present.
+///
+/// With the `gpu` feature, [`Self::new`] calls
+/// [`GpuBackend::detect`](sklears_core::gpu::GpuBackend::detect) once and
+/// caches the result; `f32`/`f64` matrices are then uploaded via
+/// [`GpuArray`] and multiplied on-device through `oxicuda-blas` GEMM
+/// (`GpuMatrixOps::matmul`). Any other element type still uses the CPU path
+/// even when a GPU is present, since `oxicuda-blas`'s GEMM is only
+/// implemented for `f32`/`f64`.
 #[derive(Debug, Clone)]
 pub struct GpuOptimizer {
+    #[allow(dead_code)]
     config: OptimizationConfig,
-    gpu_available: bool,
+    /// Detected GPU backend, or `None` on GPU-less hosts / GPU-disabled
+    /// builds. Only present when the `gpu` feature is enabled.
+    #[cfg(feature = "gpu")]
+    backend: Option<GpuBackend>,
     performance_metrics: HashMap<String, f64>,
 }
 
@@ -438,12 +463,18 @@ impl GpuOptimizer {
     pub fn new(config: OptimizationConfig) -> Self {
         Self {
             config,
-            gpu_available: false, // Placeholder - would detect GPU availability
+            // `GpuBackend::detect()` honestly returns `Ok(None)` when there is
+            // no usable driver/device (e.g. this crate's own macOS CI/dev
+            // hosts), so `backend` stays `None` there instead of pretending a
+            // GPU exists.
+            #[cfg(feature = "gpu")]
+            backend: GpuBackend::detect().ok().flatten(),
             performance_metrics: HashMap::new(),
         }
     }
 
-    /// GPU-accelerated matrix operations (placeholder)
+    /// Matrix multiply, GPU-accelerated for `f32`/`f64` when a GPU is
+    /// available and the `gpu` feature is enabled; CPU fallback otherwise.
     pub fn gpu_matrix_multiply<T>(&self, a: &ArrayView2<T>, b: &ArrayView2<T>) -> Result<Array2<T>>
     where
         T: Clone
@@ -451,15 +482,70 @@ impl GpuOptimizer {
             + std::fmt::Debug
             + Default
             + std::ops::Add<Output = T>
-            + std::ops::Mul<Output = T>,
+            + std::ops::Mul<Output = T>
+            + 'static,
     {
-        if !self.gpu_available {
-            // Fallback to CPU
-            return self.cpu_matrix_multiply(a, b);
+        #[cfg(feature = "gpu")]
+        if let Some(backend) = &self.backend {
+            if let Some(result) = Self::try_gpu_matmul(backend, a, b)? {
+                return Ok(result);
+            }
         }
 
-        // Placeholder for GPU implementation
         self.cpu_matrix_multiply(a, b)
+    }
+
+    /// Attempts the GEMM on-device for `T = f32`/`f64`; returns `Ok(None)`
+    /// for every other element type so the caller falls back to the CPU
+    /// path. `T: 'static` plus the `TypeId` equality checks below are what
+    /// make the `transmute`s sound: a `TypeId` match proves `T` and the
+    /// target scalar type are the *same* type (Rust guarantees no two
+    /// distinct types ever share a `TypeId`), and `ArrayView2`/`Array2` are
+    /// `Vec`/pointer-backed containers whose layout does not depend on the
+    /// element type beyond its size, so reinterpreting the view reference
+    /// (thin pointer, same size for any `Sized` element type) and the
+    /// returned owned array (moved, not duplicated -- no double-free) between
+    /// `T` and the scalar type is sound once that identity is established.
+    #[cfg(feature = "gpu")]
+    fn try_gpu_matmul<T: Copy + 'static>(
+        backend: &GpuBackend,
+        a: &ArrayView2<T>,
+        b: &ArrayView2<T>,
+    ) -> Result<Option<Array2<T>>> {
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+            let a32: &ArrayView2<f32> = unsafe { std::mem::transmute(a) };
+            let b32: &ArrayView2<f32> = unsafe { std::mem::transmute(b) };
+            let result = Self::gpu_matmul_typed(backend, a32, b32)?;
+            let result: Array2<T> = unsafe { std::mem::transmute(result) };
+            return Ok(Some(result));
+        }
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f64>() {
+            let a64: &ArrayView2<f64> = unsafe { std::mem::transmute(a) };
+            let b64: &ArrayView2<f64> = unsafe { std::mem::transmute(b) };
+            let result = Self::gpu_matmul_typed(backend, a64, b64)?;
+            let result: Array2<T> = unsafe { std::mem::transmute(result) };
+            return Ok(Some(result));
+        }
+        Ok(None)
+    }
+
+    /// Real on-device GEMM: uploads `a`/`b`, multiplies via
+    /// `GpuMatrixOps::matmul` (`oxicuda-blas` GEMM), and downloads the
+    /// result.
+    #[cfg(feature = "gpu")]
+    fn gpu_matmul_typed<S>(
+        backend: &GpuBackend,
+        a: &ArrayView2<S>,
+        b: &ArrayView2<S>,
+    ) -> Result<Array2<S>>
+    where
+        S: Copy + Clone + Default,
+        GpuArray<S>: GpuMatrixOps,
+    {
+        let a_gpu = GpuArray::from_array2(backend, &a.to_owned())?;
+        let b_gpu = GpuArray::from_array2(backend, &b.to_owned())?;
+        let c_gpu = a_gpu.matmul(&b_gpu)?;
+        c_gpu.to_array2()
     }
 
     fn cpu_matrix_multiply<T>(&self, a: &ArrayView2<T>, b: &ArrayView2<T>) -> Result<Array2<T>>
@@ -494,8 +580,18 @@ impl GpuOptimizer {
         Ok(result)
     }
 
+    /// `true` only when the `gpu` feature is enabled *and*
+    /// [`GpuBackend::detect`](sklears_core::gpu::GpuBackend::detect) found a
+    /// real, usable device at construction time -- never fabricated.
     pub fn is_gpu_available(&self) -> bool {
-        self.gpu_available
+        #[cfg(feature = "gpu")]
+        {
+            self.backend.is_some()
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            false
+        }
     }
 
     pub fn performance_metrics(&self) -> &HashMap<String, f64> {
@@ -731,6 +827,43 @@ mod tests {
 
         let stats = optimizer.cache_statistics();
         assert!(stats["cache_hits"] > 0.0);
+    }
+
+    #[test]
+    fn test_gpu_optimizer_matrix_multiply_falls_back_to_cpu() {
+        let config = OptimizationConfig::default();
+        let optimizer = GpuOptimizer::new(config);
+
+        let a = Array2::from_shape_vec((2, 2), vec![1.0_f64, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
+        let b = Array2::from_shape_vec((2, 2), vec![1.0_f64, 0.0, 0.0, 1.0])
+            .expect("operation should succeed");
+
+        let result = optimizer
+            .gpu_matrix_multiply(&a.view(), &b.view())
+            .expect("operation should succeed");
+        assert_eq!(result, a);
+    }
+
+    #[test]
+    fn test_gpu_optimizer_reports_honest_availability() {
+        // No GPU/CUDA driver on this development/CI host: `GpuOptimizer` must
+        // never fabricate availability, whether the `gpu` feature is on or
+        // off.
+        let config = OptimizationConfig::default();
+        let optimizer = GpuOptimizer::new(config);
+        assert!(!optimizer.is_gpu_available());
+
+        // The result must still be correct via the CPU fallback path,
+        // including for non-f32/f64 element types.
+        let a = Array2::from_shape_vec((2, 3), vec![1_i64, 2, 3, 4, 5, 6])
+            .expect("operation should succeed");
+        let b = Array2::from_shape_vec((3, 2), vec![1_i64, 0, 0, 1, 1, 1])
+            .expect("operation should succeed");
+        let result = optimizer
+            .gpu_matrix_multiply(&a.view(), &b.view())
+            .expect("operation should succeed");
+        assert_eq!(result.dim(), (2, 2));
     }
 
     #[test]

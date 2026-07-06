@@ -1,6 +1,13 @@
 //! Auto-generated module
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
+//!
+//! # GPU-fields scope note (2026-07-06 oxicuda honesty audit)
+//!
+//! The `gpu_count`/`gpu_usage` values constructed/asserted in this module are
+//! plain scheduling/capacity metadata (test fixtures and default resource
+//! requests), not GPU driver/runtime calls -- see the matching note in
+//! `super::types`. Out of scope for the oxicuda-migration audit.
 
 use super::types::*;
 impl Default for AdvancedJobScheduler {

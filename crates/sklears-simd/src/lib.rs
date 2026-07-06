@@ -87,8 +87,6 @@ pub mod error_correction;
 pub mod external_integration;
 pub mod fluent;
 pub mod fpga;
-pub mod gpu;
-pub mod gpu_memory;
 pub mod half_precision;
 pub mod image_processing;
 pub mod intrinsics;
@@ -97,7 +95,6 @@ pub mod loss;
 pub mod matrix;
 pub mod memory;
 pub mod middleware;
-pub mod multi_gpu;
 pub mod neuromorphic;
 #[cfg(feature = "no-std")]
 pub mod no_std;

@@ -338,7 +338,11 @@ pub struct AvailableResources {
     pub gpu_info: Vec<GpuInfo>,
 }
 
-/// GPU information
+/// GPU information.
+///
+/// Populated by [`detect_gpu_info`] from real `oxicuda-driver` device
+/// queries via `sklears_core::gpu::GpuUtils` (honestly empty when no
+/// driver/device is present, e.g. this crate's default macOS build).
 #[derive(Debug, Clone)]
 pub struct GpuInfo {
     /// GPU identifier
@@ -353,7 +357,9 @@ pub struct GpuInfo {
     pub compute_capability: String,
     /// GPU vendor
     pub vendor: GpuVendor,
-    /// Device utilization percentage
+    /// Device utilization percentage. Not currently sampled from hardware
+    /// (`oxicuda-driver` has no utilization query wired up here yet); this
+    /// is always `0.0` rather than a live reading.
     pub utilization: f64,
 }
 
@@ -601,7 +607,14 @@ impl Default for NetworkMetrics {
     }
 }
 
-/// GPU metrics
+/// GPU metrics.
+///
+/// [`collect_gpu_metrics`] currently always returns an empty `Vec`: none of
+/// `oxicuda-driver`/`oxicuda-blas` expose a live utilization/temperature/
+/// power-draw sampling API to this crate yet, so rather than fabricate
+/// numbers this collector honestly reports nothing. Static device identity
+/// (name/memory/compute-capability/count) is separately real-sampled by
+/// [`detect_gpu_info`].
 #[derive(Debug, Clone)]
 pub struct GpuMetrics {
     /// GPU identifier
@@ -767,8 +780,36 @@ fn detect_network_bandwidth() -> u64 {
     100 * 1024 * 1024
 }
 
+/// Enumerates real GPU devices via `sklears_core::gpu::GpuUtils`, which
+/// resolves to genuine `oxicuda-driver` device queries when this crate's
+/// `gpu` feature (and therefore `sklears-core/gpu_support`) is enabled, and
+/// to an honest empty list on default builds or hosts with no working CUDA
+/// driver -- never fabricated hardware.
+#[cfg(feature = "gpu")]
 fn detect_gpu_info() -> Vec<GpuInfo> {
-    // Placeholder: Empty GPU info
+    let count = sklears_core::gpu::GpuUtils::device_count();
+    (0..count)
+        .filter_map(|device_id| sklears_core::gpu::GpuUtils::device_properties(device_id).ok())
+        .map(|props| GpuInfo {
+            id: props.device_id,
+            name: props.name,
+            total_memory: props.total_memory as u64,
+            available_memory: props.free_memory as u64,
+            compute_capability: format!(
+                "{}.{}",
+                props.compute_capability.0, props.compute_capability.1
+            ),
+            vendor: GpuVendor::Nvidia,
+            utilization: 0.0,
+        })
+        .collect()
+}
+
+/// Returns an empty GPU list (default build, no `gpu` feature): without it
+/// this crate has no way to query real devices, so it honestly reports
+/// none rather than fabricating hardware.
+#[cfg(not(feature = "gpu"))]
+fn detect_gpu_info() -> Vec<GpuInfo> {
     Vec::new()
 }
 

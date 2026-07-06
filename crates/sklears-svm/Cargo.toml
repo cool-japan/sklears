@@ -27,11 +27,8 @@ num_cpus = { workspace = true }
 memmap2 = { workspace = true }
 dashmap = { workspace = true }
 parking_lot = { workspace = true }
-oxicuda-backend = { workspace = true, optional = true }
 oxicuda-blas    = { workspace = true, optional = true }
 oxicuda-memory  = { workspace = true, optional = true }
-oxicuda-ptx     = { workspace = true, optional = true }
-bytemuck = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -49,7 +46,7 @@ default = ["std", "parallel"]
 std = ["sklears-core/std"]
 parallel = ["rayon"]
 serde = ["dep:serde", "sklears-core/serde"]
-gpu = ["dep:oxicuda-backend", "dep:oxicuda-blas", "dep:oxicuda-memory", "dep:oxicuda-ptx", "bytemuck", "sklears-core/gpu_support"]
+gpu = ["dep:oxicuda-blas", "dep:oxicuda-memory", "sklears-core/gpu_support"]
 visualization = ["serde_json"]
 
 [[example]]

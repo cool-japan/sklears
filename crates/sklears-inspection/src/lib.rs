@@ -31,6 +31,7 @@ pub mod fairness;
 pub mod federated;
 pub mod framework;
 pub mod gnn;
+#[cfg(feature = "gpu")]
 pub mod gpu;
 pub mod hooks;
 pub mod information_theoretic;
@@ -172,6 +173,7 @@ pub use framework::{
 pub use gnn::{
     GNNExplainer, GNNExplainerConfig, GNNExplanation, GNNTask, Graph, MessagePassingExplanation,
 };
+#[cfg(feature = "gpu")]
 pub use gpu::{
     utils as gpu_utils, GpuBackend, GpuBuffer, GpuConfig, GpuContext, GpuDevice,
     GpuExplanationComputer, GpuPerformanceStats,

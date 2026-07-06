@@ -115,8 +115,20 @@ pub fn get_hardware_info(py: Python<'_>) -> PyResult<Py<PyDict>> {
         info.set_item("simd_support", false)?;
     }
 
-    // GPU support (placeholder - would need actual detection)
+    // GPU support: real detection via sklears-core's oxicuda-backed `gpu`
+    // module when this crate is built with the `gpu` feature (which forwards
+    // to `sklears-core/gpu_support`). In the default Pure-Rust build (no
+    // `gpu` feature), honestly report `false` rather than probing for
+    // hardware we have no driver bindings for.
+    #[cfg(feature = "gpu")]
+    info.set_item(
+        "cuda_available",
+        sklears_core::gpu::GpuUtils::is_gpu_available(),
+    )?;
+    #[cfg(not(feature = "gpu"))]
     info.set_item("cuda_available", false)?;
+    // OpenCL is not supported by the oxicuda stack (CUDA-only), so this
+    // always honestly reports `false` regardless of the `gpu` feature.
     info.set_item("opencl_available", false)?;
 
     // Thread support

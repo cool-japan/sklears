@@ -82,16 +82,17 @@ Notes on log-likelihood implementation:
 
 ## OxiCUDA Migration (v0.2.0)
 
-Status: fully migrated to oxicuda-backed GPU support (Wave A2). Remaining work is Phase 5 hardening
-(dependency pruning) — optional for the 0.2.0 release.
+Status: fully migrated to oxicuda-backed GPU support (Wave A2). Phase 5 hardening
+(dependency pruning) complete for the unused-dep item below.
 
-- [ ] (S) Remove unused optional deps `oxicuda-blas` and `half` from the `gpu` feature — the `gpu`
-  feature (`Cargo.toml:48`) enables `dep:oxicuda-blas` and `half`, but neither is referenced in crate
-  code (rg for `oxicuda_blas` / `f16` / `bf16` / `half::` finds zero uses; the only "half" hit is the
-  English word at `src/hardware_acceleration.rs:475`). GEMM already routes through
-  `sklears_core::gpu`. Drop `oxicuda-blas` (`Cargo.toml:35`) and `half` (`Cargo.toml:33`) from
-  `[dependencies]` and the feature list, keeping `dep:oxicuda-solver`, `dep:oxicuda-memory`, and
-  `sklears-core/gpu_support`; re-verify with `cargo check --features gpu`.
+- [x] (S) Remove unused optional deps `oxicuda-blas` and `half` from the `gpu` feature — confirmed
+  via `rg` that neither `oxicuda_blas` nor `half::`/`f16`/`bf16` is referenced anywhere in crate code
+  (GEMM already routes through `sklears_core::gpu`). Dropped `oxicuda-blas` and `half` from
+  `[dependencies]` and from the `gpu` feature list, keeping `dep:oxicuda-solver`,
+  `dep:oxicuda-memory`, and `sklears-core/gpu_support`. Verified with `cargo check -p
+  sklears-decomposition` and `cargo check -p sklears-decomposition --features gpu` (both
+  warning-free), plus `cargo nextest run -p sklears-decomposition --features gpu
+  hardware_acceleration` (20/20 passed).
 
 Version watch: keep oxicuda-* pins at 0.4.0 (matches latest published on crates.io); bump to 0.4.1
 only when it ships (do NOT bump early per Latest-crates policy).

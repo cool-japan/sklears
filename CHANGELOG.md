@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+- `sklears-core`: dropped the public `scirs2-gpu-reporting` feature (`["scirs2-core/gpu"]`, API-visible in `--all-features` builds) as part of the oxicuda Phase 1 excision — GPU reporting now goes exclusively through the oxicuda-backed `gpu_support` feature (`sklears_core::gpu`); no sklears crate enables `scirs2-core`'s `gpu` feature directly anymore.
+
 ## [0.2.0] - 2026-07-04
 
 ### Added

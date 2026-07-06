@@ -588,8 +588,13 @@ pub mod validation;
 /// Visualization integration utilities
 pub mod visualization;
 
-/// GPU-accelerated methods for manifold learning
-#[cfg(feature = "gpu")]
+/// GPU-accelerated methods for manifold learning.
+///
+/// This module compiles in every build (not just under `gpu`): the CPU
+/// pairwise-distance/kNN/matrix-operation paths and `GpuTSNE`'s
+/// `MissingDependency` error path are self-contained and meaningful without
+/// the `gpu` feature. Only the `oxicuda-manifold`/`oxicuda-backend`-backed
+/// device paths inside it are `#[cfg(feature = "gpu")]`-gated.
 pub mod gpu_acceleration;
 
 /// Type-safe manifold abstractions with phantom types

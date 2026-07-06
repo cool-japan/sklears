@@ -30,9 +30,7 @@ thiserror = { workspace = true }
 rayon = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 memmap2 = { workspace = true }
-half = { workspace = true, optional = true }
 hdf5 = { workspace = true, optional = true }
-oxicuda-blas   = { workspace = true, optional = true }
 oxicuda-solver = { workspace = true, optional = true }
 oxicuda-memory = { workspace = true, optional = true }
 
@@ -45,7 +43,7 @@ proptest = { workspace = true }
 default = ["std", "serde"]
 std = ["sklears-core/std"]
 parallel = ["rayon"]
-gpu = ["dep:oxicuda-blas", "dep:oxicuda-solver", "dep:oxicuda-memory", "half", "sklears-core/gpu_support"]
+gpu = ["dep:oxicuda-solver", "dep:oxicuda-memory", "sklears-core/gpu_support"]
 hdf5-support = ["hdf5"]
 sparse = []  # Feature flag for sparse matrix support (sprs removed per SciRS2 Policy; use scirs2-sparse)
 serde = ["dep:serde", "sklears-core/serde"]

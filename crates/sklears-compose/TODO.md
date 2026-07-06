@@ -21,16 +21,19 @@ This crate is part of the sklears v0.2.0 release.
 - 782 tests passing.
 
 ## OxiCUDA Migration (v0.2.0)
-Status: simulated-gpu — this crate's GPU-flavored types are currently descriptors/placeholders that never touch a device. Goal: route real device discovery through the oxicuda-backed `sklears_core::gpu` module (Wave A2), and honestly document the remaining scheduling-metadata types. Part of workspace Phase 4 (honesty pass); not blocking the scirs2-GPU removal goal.
+Status: real device discovery wired, remaining GPU-flavored types documented as scheduling metadata. Part of workspace Phase 4 (honesty pass); not blocking the scirs2-GPU removal goal.
 
-- [ ] (M) Wire GPU device discovery and counting to oxicuda-driver behind a new `gpu` feature
-  - Add `gpu = ["sklears-core/gpu_support"]` to `Cargo.toml`.
-  - `GpuResourceManager::allocate_gpu` (`src/resource_management/gpu_manager.rs:47-54`) returns an empty `GpuAllocation` (empty devices/memory_pools/streams, `context: None`) — enumerate real devices via sklears-core's oxicuda-driver-backed context instead.
-  - `SystemResources::get_gpu_count` (`src/comprehensive_benchmarking/execution_engine.rs:1160-1162`, "No GPU placeholder" returning `Ok(0)`) should return the oxicuda device count under the feature, keeping `Ok(0)` for default builds.
-  - Reword `src/execution_metrics.rs:504/508` placeholders ("would integrate with CUDA/OpenCL APIs") to name oxicuda or state descriptor-only status.
-- [ ] (S) Document `GpuExecutionStrategy` and GPU telemetry fields as scheduling metadata, not GPU compute
-  - Local `GpuContext`/`GpuDevice`/`GpuKernel` types (`src/execution_strategies.rs:699-757`) and `gpu_utilization`/`gpu_usage`/`gpu_temperature` `Option` fields (`src/cv_pipelines/metrics_statistics.rs:355-373`, `src/resource_context/types.rs`, `src/execution/resources.rs`) never touch a GPU — add module-level docs stating they are descriptors so migration audits stop flagging them.
-  - Backing `GpuExecutionStrategy` with oxicuda-launch kernels is a separate future (L) item, not required for scirs2 removal.
+- [x] (M) Wire GPU device discovery and counting to oxicuda-driver behind a new `gpu` feature (2026-07-06)
+  - Added `gpu = ["sklears-core/gpu_support"]` to `Cargo.toml`.
+  - `GpuResourceManager::allocate_gpu` (`src/resource_management/gpu_manager.rs`) now has an `#[cfg(feature = "gpu")]` impl that enumerates real devices via `sklears_core::gpu::GpuUtils::device_count`/`device_properties` (oxicuda-driver-backed); the `#[cfg(not(feature = "gpu"))]` impl keeps returning an honest empty `GpuAllocation` for default builds.
+  - `SystemResources::get_gpu_count` (`src/comprehensive_benchmarking/execution_engine.rs`) now has a `gpu`-feature-gated variant returning the real oxicuda device count and a default variant returning `Ok(0)`.
+  - `execution::resources::detect_gpu_info` similarly gained a `gpu`-feature-gated real-device-enumeration path (previously an unconditional empty-`Vec` placeholder) alongside an honest empty-list default path; `GpuMetrics`/`collect_gpu_metrics` stay empty always (documented) since no oxicuda API here exposes live utilization/temperature sampling yet.
+  - Reworded `src/execution_metrics.rs` GPU-usage/GPU-memory placeholders to explain there is no oxicuda live-sampling API for these two fields yet (as opposed to the now-real device count/discovery), rather than naming "CUDA/OpenCL APIs" generically.
+  - Verified: `cargo check -p sklears-compose` and `--features gpu` both pass warning-free; `cargo clippy -p sklears-compose --features gpu` clean; relevant `execution`/`resource_management` nextest suites (98 + 5 tests) pass in both default and `gpu`-feature builds.
+- [x] (S) Document `GpuExecutionStrategy` and GPU telemetry fields as scheduling metadata, not GPU compute (2026-07-06)
+  - `src/execution_strategies.rs`: `GpuExecutionStrategy`, `GpuContext`, `GpuDevice`, `GpuKernel` all gained doc comments stating they are scheduler-input descriptors, not live device handles/measurements.
+  - `gpu_utilization`/`gpu_usage`/`gpu_temperature` `Option`/plain fields in `src/cv_pipelines/metrics_statistics.rs` (`PerformanceMetrics`, `ResourceUtilization`, `MetricsSummary`, `ThermalMetrics`), `src/resource_context/types.rs` (`ResourceUsage`, `ResourceUtilization`), and `src/execution/resources.rs` (`GpuInfo::utilization`, `GpuMetrics`) now document that they are scheduling metadata / not live-sampled readings.
+  - Backing `GpuExecutionStrategy` with oxicuda-launch kernels remains a separate future (L) item, not required for scirs2 removal.
 
 ## Future Enhancements
 - Performance optimizations

@@ -39,14 +39,8 @@ use sklears_core::gpu::GpuBackend;
 pub enum GpuKernelError {
     #[error("GPU device not available")]
     DeviceNotAvailable,
-    #[error("Insufficient GPU memory")]
-    InsufficientMemory,
     #[error("GPU computation failed: {0}")]
     ComputationFailed(String),
-    #[error("Shader compilation failed: {0}")]
-    ShaderCompilationFailed(String),
-    #[error("Buffer creation failed")]
-    BufferCreationFailed,
     #[error("GPU feature not supported: {0}")]
     FeatureNotSupported(String),
     #[error("Kernel matrix dimensions mismatch")]

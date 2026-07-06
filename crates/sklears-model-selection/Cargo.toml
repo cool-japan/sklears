@@ -48,3 +48,8 @@ std = ["sklears-core/std"]
 parallel = ["rayon"]
 serde = ["dep:serde", "dep:serde_json"]
 optimization = ["scirs2-optimize"]
+# Enables real oxicuda-backed GPU device detection (via sklears-core's
+# GpuBackend) for the `has_gpu`/`use_gpu` config defaults and validation.
+# Without this feature those default to `false` (no GPU code compiled in),
+# matching pre-migration behavior.
+gpu = ["sklears-core/gpu_support"]

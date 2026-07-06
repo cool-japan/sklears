@@ -26,6 +26,7 @@ pub mod error_bounded;
 pub mod fastfood;
 pub mod feature_generation;
 pub mod finance_kernels;
+#[cfg(feature = "gpu")]
 pub mod gpu_acceleration;
 pub mod gradient_kernel_learning;
 pub mod graph_kernels;
@@ -146,6 +147,7 @@ pub use finance_kernels::{
     EconometricKernel, FinancialKernel, PortfolioKernel, RiskKernel, VolatilityKernel,
     VolatilityModel,
 };
+#[cfg(feature = "gpu")]
 pub use gpu_acceleration::{
     FittedGpuNystroem, FittedGpuRBFSampler, GpuBackend, GpuConfig, GpuContext, GpuDevice,
     GpuNystroem, GpuProfiler, GpuRBFSampler, MemoryStrategy, Precision,

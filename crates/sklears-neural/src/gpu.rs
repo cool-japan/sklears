@@ -38,6 +38,14 @@ use std::collections::HashMap;
 #[cfg(feature = "gpu")]
 use oxicuda_blas::{GpuFloat, Layout, MatrixDesc, MatrixDescMut, Transpose};
 #[cfg(feature = "gpu")]
+use oxicuda_dnn::conv::api::conv_forward;
+#[cfg(feature = "gpu")]
+use oxicuda_dnn::error::DnnError;
+#[cfg(feature = "gpu")]
+use oxicuda_dnn::handle::DnnHandle;
+#[cfg(feature = "gpu")]
+use oxicuda_dnn::types::{ConvolutionDescriptor, TensorDesc, TensorDescMut};
+#[cfg(feature = "gpu")]
 use oxicuda_memory::DeviceBuffer;
 #[cfg(feature = "gpu")]
 use sklears_core::gpu::GpuContext as SklearsGpuContext;
@@ -385,13 +393,27 @@ impl GpuContext {
     }
 
     /// Returns `true` if the device has dedicated Tensor Core hardware.
+    ///
+    /// Tensor Cores were introduced with the Volta architecture (compute capability 7.0), so any
+    /// device reporting `major >= 7` via [`compute_capability`](Self::compute_capability) has
+    /// them. Returns `false` when the compute capability cannot be queried (e.g. an unusual
+    /// driver/device combination) rather than guessing.
     pub fn has_tensor_cores(&self) -> bool {
-        false
+        self.compute_capability()
+            .map(|(major, _minor)| major >= 7)
+            .unwrap_or(false)
     }
 
     /// Return the CUDA compute capability `(major, minor)` of the device, if known.
+    ///
+    /// Queries `CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_{MAJOR,MINOR}` via
+    /// `oxicuda_driver::Device::compute_capability` on the `Device` owned by this context's
+    /// `Context` (`sklears_core::gpu::GpuBackend::context`). Returns `None` only if the
+    /// underlying driver query fails, which should not happen for a `Context` that was
+    /// successfully created (`with_config` above already proved a real device is bound).
     pub fn compute_capability(&self) -> Option<(i32, i32)> {
-        None
+        let device: &oxicuda_driver::Device = self.inner.context().device();
+        device.compute_capability().ok()
     }
 
     /// Tensor-core-eligible f16 GEMM: `C = A * B`, fp16 in/out.
@@ -435,31 +457,142 @@ impl GpuContext {
         GpuTensor::from_host_data(self, &f32_data, &f16_result.shape)
     }
 
-    /// Tensor-core conv2d.
+    /// Tensor-core-eligible 2-D convolution: NCHW `input`, KCRS `kernel` (dilation fixed at 1,
+    /// groups fixed at 1), `fp16` in/out.
     ///
-    /// # Status: not yet implemented
-    ///
-    /// Wave B4 fixed the dishonest part of this stub -- it used to unconditionally claim
-    /// "requires a real CUDA device" even when one was present (again, `self` existing already
-    /// proves one is). Wiring a real forward pass through `oxicuda_dnn::conv::api::conv_forward`
-    /// needs substantially more plumbing than fits this pass: a `DnnHandle` (distinct from
-    /// `BlasHandle`), NCHW `TensorDesc`/`TensorDescMut` descriptors (distinct from the flat
-    /// `MatrixDesc` GEMM uses), a `ConvolutionDescriptor`, and a workspace-sizing retry loop
-    /// (`Im2colGemm`/`Winograd`/`FftConv` algorithms report their required workspace via
-    /// `DnnError::WorkspaceRequired(bytes)` instead of accepting a size up front). Left as an
-    /// honest "not implemented" rather than a rushed, under-tested wiring attempt.
+    /// Forward pass via `oxicuda_dnn::conv::api::conv_forward`, which picks the best algorithm
+    /// (`Direct`/`ImplicitGemm`/`Im2colGemm`/`Winograd`/`FftConv`) for the problem size and the
+    /// bound device's SM version internally (through its own `DnnHandle`). Algorithms that need
+    /// scratch space report it via `DnnError::WorkspaceRequired(bytes)` instead of accepting a
+    /// size up front, so this first attempts the call with no workspace and, only if asked,
+    /// allocates exactly the requested number of bytes and retries once -- no workspace is
+    /// allocated speculatively.
     pub fn tensor_core_conv2d(
         &self,
-        _input: &GpuTensor<half::f16>,
-        _kernel: &GpuTensor<half::f16>,
-        _stride: (usize, usize),
-        _padding: (usize, usize),
+        input: &GpuTensor<half::f16>,
+        kernel: &GpuTensor<half::f16>,
+        stride: (usize, usize),
+        padding: (usize, usize),
     ) -> NeuralResult<GpuTensor<half::f16>> {
-        Err(SklearsError::NotImplemented(
-            "Tensor core conv2d is not yet implemented (a real GPU device is bound; oxicuda_dnn \
-             conv2d wiring is pending)"
-                .to_string(),
-        ))
+        if input.shape.len() != 4 {
+            return Err(SklearsError::InvalidInput(format!(
+                "conv2d input must be a 4-D NCHW tensor, got shape {:?}",
+                input.shape
+            )));
+        }
+        if kernel.shape.len() != 4 {
+            return Err(SklearsError::InvalidInput(format!(
+                "conv2d kernel must be a 4-D KCRS tensor, got shape {:?}",
+                kernel.shape
+            )));
+        }
+        let (n, c_in, h, w) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
+        let (k_out, c_k, r, s) = (
+            kernel.shape[0],
+            kernel.shape[1],
+            kernel.shape[2],
+            kernel.shape[3],
+        );
+        if c_in != c_k {
+            return Err(SklearsError::InvalidInput(format!(
+                "conv2d channel mismatch: input has {} channels, kernel expects {}",
+                c_in, c_k
+            )));
+        }
+
+        ensure_current(&self.inner)?;
+
+        let dnn_handle = DnnHandle::new(self.inner.context()).map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to create DNN handle: {}", e))
+        })?;
+
+        let conv_desc = ConvolutionDescriptor::conv2d(
+            padding.0 as u32,
+            padding.1 as u32,
+            stride.0 as u32,
+            stride.1 as u32,
+            1,
+            1,
+            1,
+        )
+        .map_err(|e| SklearsError::InvalidInput(format!("Invalid conv2d descriptor: {}", e)))?;
+
+        let out_h = ConvolutionDescriptor::output_size(
+            h as u32,
+            r as u32,
+            padding.0 as u32,
+            stride.0 as u32,
+            1,
+        )
+        .map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to compute conv2d output height: {}", e))
+        })? as usize;
+        let out_w = ConvolutionDescriptor::output_size(
+            w as u32,
+            s as u32,
+            padding.1 as u32,
+            stride.1 as u32,
+            1,
+        )
+        .map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to compute conv2d output width: {}", e))
+        })? as usize;
+
+        let input_desc = TensorDesc::nchw(&input.buf, n as u32, c_in as u32, h as u32, w as u32)
+            .map_err(|e| SklearsError::InvalidInput(format!("Invalid conv2d input tensor: {}", e)))?;
+        let filter_desc =
+            TensorDesc::nchw(&kernel.buf, k_out as u32, c_k as u32, r as u32, s as u32).map_err(
+                |e| SklearsError::InvalidInput(format!("Invalid conv2d filter tensor: {}", e)),
+            )?;
+
+        let out_len = n * k_out * out_h * out_w;
+        let mut out_buf = DeviceBuffer::<half::f16>::zeroed(out_len)
+            .map_err(|e| SklearsError::InvalidInput(format!("Failed to allocate conv2d output: {}", e)))?;
+        let mut output_desc = TensorDescMut::nchw(
+            &mut out_buf,
+            n as u32,
+            k_out as u32,
+            out_h as u32,
+            out_w as u32,
+        )
+        .map_err(|e| SklearsError::InvalidInput(format!("Invalid conv2d output tensor: {}", e)))?;
+
+        match conv_forward(
+            &dnn_handle,
+            &input_desc,
+            &filter_desc,
+            &mut output_desc,
+            &conv_desc,
+            None,
+        ) {
+            Ok(()) => {}
+            Err(DnnError::WorkspaceRequired(bytes)) => {
+                let mut workspace = DeviceBuffer::<u8>::zeroed(bytes).map_err(|e| {
+                    SklearsError::InvalidInput(format!(
+                        "Failed to allocate conv2d workspace ({} bytes): {}",
+                        bytes, e
+                    ))
+                })?;
+                conv_forward(
+                    &dnn_handle,
+                    &input_desc,
+                    &filter_desc,
+                    &mut output_desc,
+                    &conv_desc,
+                    Some(&mut workspace),
+                )
+                .map_err(|e| SklearsError::InvalidInput(format!("GPU conv2d failed: {}", e)))?;
+            }
+            Err(e) => {
+                return Err(SklearsError::InvalidInput(format!("GPU conv2d failed: {}", e)));
+            }
+        }
+
+        Ok(GpuTensor {
+            shape: vec![n, k_out, out_h, out_w],
+            buf: out_buf,
+            ctx: self.inner.clone(),
+        })
     }
 }
 

@@ -24,11 +24,13 @@ use std::time::{Duration, Instant};
 #[cfg(feature = "gpu")]
 use half::f16;
 #[cfg(feature = "gpu")]
-use oxicuda_blas::{Layout, MatrixDesc, MatrixDescMut, Transpose};
+use oxicuda_blas::{BlasHandle, Layout, MatrixDesc, MatrixDescMut, Transpose};
+#[cfg(feature = "gpu")]
+use oxicuda_driver::{Event, Stream};
 #[cfg(feature = "gpu")]
 use oxicuda_memory::DeviceBuffer;
 #[cfg(feature = "gpu")]
-use sklears_core::gpu::{GpuArray, GpuBackend, GpuMatrixOps, GpuUtils};
+use sklears_core::gpu::{GpuArray, GpuBackend, GpuMatrixOps};
 
 /// Maps any GPU-stack error (`oxicuda-driver`/`oxicuda-blas`) to a
 /// `SklearsError`, without needing those crates as direct dependencies just
@@ -36,6 +38,21 @@ use sklears_core::gpu::{GpuArray, GpuBackend, GpuMatrixOps, GpuUtils};
 #[cfg(feature = "gpu")]
 fn gpu_err<E: std::fmt::Display>(e: E) -> SklearsError {
     SklearsError::NumericalError(format!("GPU error: {e}"))
+}
+
+/// Real effective memory bandwidth for a GEMM-family op: total bytes moved
+/// (inputs + output, host<->device plus any intermediate host copies)
+/// divided by wall-clock duration. This is what actually elapsed, not a
+/// theoretical peak -- unlike `occupancy_percentage` (still `0.0`
+/// everywhere in this module: computing real occupancy needs the launch's
+/// actual grid/block dimensions, which are internal to
+/// `oxicuda-blas::level3::gemm` and not surfaced to callers today).
+fn memory_bandwidth_gbps(memory_used_bytes: usize, duration: Duration) -> f64 {
+    let seconds = duration.as_secs_f64();
+    if seconds <= 0.0 {
+        return 0.0;
+    }
+    (memory_used_bytes as f64 / seconds) / 1e9
 }
 
 // ─── AdvancedGpuConfig ─────────────────────────────────────────────────────────
@@ -121,24 +138,102 @@ pub struct GpuPerformanceMetrics {
 
 // ─── GpuMemoryPool ─────────────────────────────────────────────────────────────
 
-/// Memory pool with best-fit allocation and coalesced free-block merging.
-#[derive(Debug)]
+/// Memory pool with best-fit allocation and coalesced free-block merging,
+/// backed by a real reserved device-memory arena when a GPU is available.
+///
+/// `allocate()`/`deallocate()` manage the same host-side (offset, size)
+/// ledger as before; what changed is that construction (when the `gpu`
+/// feature is enabled and [`GpuBackend::with_device_id`] finds this pool's
+/// device) also reserves `size` bytes of genuine device memory as one
+/// `DeviceBuffer<u8>` arena, so the ledger's capacity corresponds to memory
+/// the driver actually allocated. See
+/// [`is_device_backed`](Self::is_device_backed).
 pub struct GpuMemoryPool {
     device_id: usize,
     total_size: usize,
     used_size: usize,
     free_blocks: Vec<(usize, usize)>,
     allocated_blocks: HashMap<usize, usize>,
+    #[cfg(feature = "gpu")]
+    device_arena: Option<DeviceBuffer<u8>>,
+}
+
+impl std::fmt::Debug for GpuMemoryPool {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GpuMemoryPool")
+            .field("device_id", &self.device_id)
+            .field("total_size", &self.total_size)
+            .field("used_size", &self.used_size)
+            .field("free_blocks", &self.free_blocks)
+            .field("allocated_blocks", &self.allocated_blocks)
+            .field("is_device_backed", &self.is_device_backed())
+            .finish()
+    }
 }
 
 impl GpuMemoryPool {
     pub fn new(device_id: usize, size: usize) -> Self {
+        #[cfg(feature = "gpu")]
+        let device_arena = Self::try_reserve_device_arena(device_id, size);
         Self {
             device_id,
             total_size: size,
             used_size: 0,
             free_blocks: vec![(0, size)],
             allocated_blocks: HashMap::new(),
+            #[cfg(feature = "gpu")]
+            device_arena,
+        }
+    }
+
+    /// Attempts to reserve `size` bytes of real device memory on device
+    /// `device_id`. Returns `None` (never an error) on any failure -- no GPU
+    /// at that ordinal, context-current failure, or the allocation itself
+    /// failing -- so construction always succeeds and callers transparently
+    /// get host-side-only accounting in that case.
+    #[cfg(feature = "gpu")]
+    fn try_reserve_device_arena(device_id: usize, size: usize) -> Option<DeviceBuffer<u8>> {
+        if size == 0 {
+            return None;
+        }
+        let backend = match GpuBackend::with_device_id(device_id) {
+            Ok(Some(backend)) => backend,
+            Ok(None) => return None,
+            Err(e) => {
+                log::warn!(
+                    "GpuMemoryPool(device {device_id}): backend detection failed ({e}); using host-side accounting only"
+                );
+                return None;
+            }
+        };
+        if let Err(e) = backend.context().set_current() {
+            log::warn!(
+                "GpuMemoryPool(device {device_id}): failed to set device context ({e}); using host-side accounting only"
+            );
+            return None;
+        }
+        match DeviceBuffer::<u8>::alloc(size) {
+            Ok(arena) => Some(arena),
+            Err(e) => {
+                log::warn!(
+                    "GpuMemoryPool(device {device_id}): device arena reservation of {size} bytes failed ({e}); using host-side accounting only"
+                );
+                None
+            }
+        }
+    }
+
+    /// `true` when this pool's capacity is backed by a genuinely reserved
+    /// device-memory arena, as opposed to host-side accounting only (no GPU
+    /// at this ordinal, or reservation failed).
+    pub fn is_device_backed(&self) -> bool {
+        #[cfg(feature = "gpu")]
+        {
+            self.device_arena.is_some()
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            false
         }
     }
 
@@ -222,21 +317,61 @@ impl GpuMemoryPool {
 // ─── CudaStream ────────────────────────────────────────────────────────────────
 
 /// Compute stream handle for asynchronous operation scheduling.
-#[derive(Debug)]
+///
+/// When the `gpu` feature is enabled and a real GPU backend was detected at
+/// [`AdvancedGpuOps::new`] time, each `CudaStream` wraps its own genuine
+/// `oxicuda-driver` [`Stream`] (via its own `oxicuda-blas` [`BlasHandle`]),
+/// so GEMMs dispatched on it (see [`CudaStream::launch_matmul`]) truly run
+/// on an independent stream rather than blocking the caller. Falls back to
+/// bookkeeping-only (`is_busy` flag) when no GPU is present -- see
+/// [`is_real`](Self::is_real).
 pub struct CudaStream {
     #[allow(dead_code)]
     stream_id: usize,
     #[allow(dead_code)]
     device_id: usize,
     is_busy: bool,
+    #[cfg(feature = "gpu")]
+    blas: Option<BlasHandle>,
+}
+
+impl std::fmt::Debug for CudaStream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CudaStream")
+            .field("stream_id", &self.stream_id)
+            .field("device_id", &self.device_id)
+            .field("is_busy", &self.is_busy)
+            .field("is_real", &self.is_real())
+            .finish()
+    }
 }
 
 impl CudaStream {
+    /// Bookkeeping-only stream: no `gpu` feature, or no backend detected.
     pub fn new(device_id: usize, stream_id: usize) -> Self {
         Self {
             stream_id,
             device_id,
             is_busy: false,
+            #[cfg(feature = "gpu")]
+            blas: None,
+        }
+    }
+
+    /// Creates a stream genuinely backed by its own `oxicuda-driver` stream
+    /// and `oxicuda-blas` handle on `backend`'s context, falling back to
+    /// bookkeeping-only when stream/handle creation itself fails (e.g.
+    /// resource exhaustion).
+    #[cfg(feature = "gpu")]
+    fn with_backend(device_id: usize, stream_id: usize, backend: &GpuBackend) -> Self {
+        let blas = Stream::new(backend.context())
+            .ok()
+            .and_then(|stream| BlasHandle::with_stream(backend.context(), stream).ok());
+        Self {
+            stream_id,
+            device_id,
+            is_busy: false,
+            blas,
         }
     }
 
@@ -244,9 +379,137 @@ impl CudaStream {
         !self.is_busy
     }
 
+    /// `true` when this stream is backed by a real `oxicuda-driver` stream
+    /// (rather than bookkeeping only).
+    pub fn is_real(&self) -> bool {
+        #[cfg(feature = "gpu")]
+        {
+            self.blas.is_some()
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            false
+        }
+    }
+
     pub fn synchronize(&mut self) -> Result<()> {
+        #[cfg(feature = "gpu")]
+        if let Some(blas) = self.blas.as_ref() {
+            blas.stream().synchronize().map_err(gpu_err)?;
+        }
         self.is_busy = false;
         Ok(())
+    }
+
+    /// Launches `a x b` on this stream's own `oxicuda-blas` handle and
+    /// returns a [`PendingGpuMatmul`] tracking its (genuinely asynchronous)
+    /// completion. The device-to-host copy of the result is itself issued
+    /// asynchronously (`copy_to_host_async`); callers poll
+    /// [`PendingGpuMatmul::is_ready`] (a non-blocking `cuEventQuery`) rather
+    /// than blocking here.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if this stream has no real backing (`is_real()` is
+    /// `false`), the dimensions are incompatible, or any driver/BLAS call
+    /// fails.
+    #[cfg(feature = "gpu")]
+    fn launch_matmul(&self, a: &Array2<Float>, b: &Array2<Float>) -> Result<PendingGpuMatmul> {
+        let blas = self.blas.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput("CudaStream has no real GPU backing".to_string())
+        })?;
+
+        let (m, k) = a.dim();
+        let (k2, n) = b.dim();
+        if k != k2 {
+            return Err(SklearsError::InvalidInput(format!(
+                "launch_matmul: inner dimensions differ ({k} vs {k2})"
+            )));
+        }
+
+        blas.context().set_current().map_err(gpu_err)?;
+
+        // Row-major logical iteration order, matching `RowMajor` below --
+        // see the identical pattern in `fp16_matrix_multiply`.
+        let a_host: Vec<Float> = a.iter().copied().collect();
+        let b_host: Vec<Float> = b.iter().copied().collect();
+
+        let a_buf = DeviceBuffer::from_host(&a_host).map_err(gpu_err)?;
+        let b_buf = DeviceBuffer::from_host(&b_host).map_err(gpu_err)?;
+        let mut c_buf = DeviceBuffer::<Float>::zeroed(m * n).map_err(gpu_err)?;
+
+        let a_desc = MatrixDesc::from_buffer(&a_buf, m as u32, k as u32, Layout::RowMajor)
+            .map_err(gpu_err)?;
+        let b_desc = MatrixDesc::from_buffer(&b_buf, k as u32, n as u32, Layout::RowMajor)
+            .map_err(gpu_err)?;
+        let mut c_desc =
+            MatrixDescMut::from_buffer(&mut c_buf, m as u32, n as u32, Layout::RowMajor)
+                .map_err(gpu_err)?;
+
+        oxicuda_blas::level3::gemm(
+            blas,
+            Transpose::NoTrans,
+            Transpose::NoTrans,
+            1.0,
+            &a_desc,
+            &b_desc,
+            0.0,
+            &mut c_desc,
+        )
+        .map_err(gpu_err)?;
+
+        let mut host_result = vec![0.0; m * n];
+        c_buf
+            .copy_to_host_async(&mut host_result, blas.stream())
+            .map_err(gpu_err)?;
+
+        let event = Event::new().map_err(gpu_err)?;
+        event.record(blas.stream()).map_err(gpu_err)?;
+
+        Ok(PendingGpuMatmul {
+            _a: a_buf,
+            _b: b_buf,
+            _c: c_buf,
+            host_result,
+            shape: (m, n),
+            event,
+        })
+    }
+}
+
+/// A GEMM in flight on a real `oxicuda-driver` stream (see
+/// [`CudaStream::launch_matmul`]).
+///
+/// The three device buffers are kept alive here (rather than dropped right
+/// after the kernel launch) so the asynchronous kernel and device-to-host
+/// copy always have valid memory to operate on until [`is_ready`](Self::is_ready)
+/// (or [`into_result`](Self::into_result)) confirms completion.
+#[cfg(feature = "gpu")]
+struct PendingGpuMatmul {
+    _a: DeviceBuffer<Float>,
+    _b: DeviceBuffer<Float>,
+    _c: DeviceBuffer<Float>,
+    host_result: Vec<Float>,
+    shape: (usize, usize),
+    event: Event,
+}
+
+#[cfg(feature = "gpu")]
+impl PendingGpuMatmul {
+    /// Non-blocking poll (`cuEventQuery`) of whether the H2D-upload, GEMM
+    /// kernel, and D2H-download pipeline has finished.
+    fn is_ready(&self) -> Result<bool> {
+        self.event.query().map_err(gpu_err)
+    }
+
+    /// Consumes this pending operation, producing the realized result.
+    ///
+    /// Callers must only call this once [`is_ready`](Self::is_ready) has
+    /// returned `Ok(true)`; the host buffer is only guaranteed populated at
+    /// that point.
+    fn into_result(self) -> Result<Array2<Float>> {
+        Array2::from_shape_vec(self.shape, self.host_result)
+            .map_err(|e| SklearsError::InvalidOperation(format!("from_shape_vec: {e}")))
     }
 }
 
@@ -271,6 +534,13 @@ pub struct AdvancedGpuOps {
 impl AdvancedGpuOps {
     /// Create new advanced GPU operations manager.
     pub fn new(config: AdvancedGpuConfig) -> Result<Self> {
+        // Detected up front (rather than per-device below) so that, when a
+        // GPU is present, every device's streams can be constructed as real
+        // `oxicuda-driver` streams against it -- see
+        // [`CudaStream::with_backend`].
+        #[cfg(feature = "gpu")]
+        let gpu_backend = GpuBackend::detect()?;
+
         let mut devices = Vec::new();
         let mut memory_pools = Vec::new();
         let mut streams = Vec::new();
@@ -286,15 +556,18 @@ impl AdvancedGpuOps {
             memory_pools.push(pool);
 
             let device_streams: Vec<CudaStream> = (0..config.streams_per_gpu)
-                .map(|i| CudaStream::new(device_id, i))
+                .map(|i| {
+                    #[cfg(feature = "gpu")]
+                    if let Some(backend) = gpu_backend.as_ref() {
+                        return CudaStream::with_backend(device_id, i, backend);
+                    }
+                    CudaStream::new(device_id, i)
+                })
                 .collect();
             streams.push(device_streams);
         }
 
         let load_balancer = LoadBalancer::new(config.load_balancing, &devices);
-
-        #[cfg(feature = "gpu")]
-        let gpu_backend = GpuBackend::detect()?;
 
         Ok(Self {
             config,
@@ -308,35 +581,58 @@ impl AdvancedGpuOps {
         })
     }
 
-    /// Query device information from the backend, falling back to sensible defaults.
+    /// Query device information directly from `oxicuda-driver`'s attribute
+    /// API, falling back to labelled placeholder defaults when no GPU is
+    /// present (or the `gpu` feature is disabled).
+    ///
+    /// This queries `oxicuda_driver::Device` directly (rather than
+    /// `sklears_core::gpu::GpuUtils::device_properties`, whose
+    /// `GpuDeviceProperties` does not carry SM count / max threads per
+    /// block / shared memory) so that `multiprocessor_count`,
+    /// `max_threads_per_block`, and `max_shared_memory_per_block` below are
+    /// real driver-reported attributes (`cuDeviceGetAttribute`) rather than
+    /// hardcoded guesses, whenever a real GPU is available.
     fn get_device_info(device_id: usize) -> Result<GpuDeviceInfo> {
         #[cfg(feature = "gpu")]
-        {
-            if let Ok(props) = GpuUtils::device_properties(device_id) {
-                return Ok(GpuDeviceInfo {
-                    device_id,
-                    name: props.name.clone(),
-                    memory_total: props.total_memory,
-                    memory_free: props.free_memory,
-                    compute_capability: (
-                        props.compute_capability.0 as u32,
-                        props.compute_capability.1 as u32,
-                    ),
-                    multiprocessor_count: 1,
-                    max_threads_per_block: 1024,
-                    max_shared_memory_per_block: 49152,
-                });
-            }
+        if let Some(info) = Self::real_device_info(device_id) {
+            return Ok(info);
         }
         Ok(GpuDeviceInfo {
             device_id,
-            name: format!("GPU Device {}", device_id),
-            memory_total: 8 * 1024 * 1024 * 1024,
-            memory_free: 7 * 1024 * 1024 * 1024,
-            compute_capability: (8, 0),
-            multiprocessor_count: 68,
-            max_threads_per_block: 1024,
-            max_shared_memory_per_block: 49152,
+            name: format!("GPU Device {} (no GPU detected)", device_id),
+            memory_total: 0,
+            memory_free: 0,
+            compute_capability: (0, 0),
+            multiprocessor_count: 0,
+            max_threads_per_block: 0,
+            max_shared_memory_per_block: 0,
+        })
+    }
+
+    /// Attempts to gather real `oxicuda-driver` attributes for `device_id`.
+    /// Returns `None` on any failure (no driver, no such device, or the
+    /// fundamental name/total-memory queries failing) rather than
+    /// fabricating a value; [`get_device_info`](Self::get_device_info)
+    /// falls back to a clearly-labelled placeholder in that case.
+    #[cfg(feature = "gpu")]
+    fn real_device_info(device_id: usize) -> Option<GpuDeviceInfo> {
+        oxicuda_driver::init().ok()?;
+        let ordinal = i32::try_from(device_id).ok()?;
+        let device = oxicuda_driver::Device::get(ordinal).ok()?;
+        let info = device.info().ok()?;
+        let memory_free = oxicuda_driver::memory_info::device_memory_info()
+            .map(|(free, _total)| free)
+            .unwrap_or(info.total_memory_bytes);
+
+        Some(GpuDeviceInfo {
+            device_id,
+            name: info.name,
+            memory_total: info.total_memory_bytes,
+            memory_free,
+            compute_capability: (info.compute_capability.0 as u32, info.compute_capability.1 as u32),
+            multiprocessor_count: info.multiprocessor_count as u32,
+            max_threads_per_block: info.max_threads_per_block as u32,
+            max_shared_memory_per_block: info.max_shared_memory_per_block as usize,
         })
     }
 
@@ -416,13 +712,18 @@ impl AdvancedGpuOps {
             let duration = start_time.elapsed();
             let ops = 2.0 * m as f64 * n as f64 * k as f64;
             let throughput = ops / duration.as_secs_f64() / 1e9;
+            let memory_used = (m * k + k * n + m * n) * std::mem::size_of::<Float>();
             self.performance_metrics.push(GpuPerformanceMetrics {
                 device_id: 0,
                 operation_name: "multi_gpu_matrix_multiply".to_string(),
                 duration,
-                memory_used: (m * k + k * n + m * n) * std::mem::size_of::<Float>(),
+                memory_used,
                 throughput_gflops: throughput,
-                memory_bandwidth_gbps: 0.0,
+                memory_bandwidth_gbps: memory_bandwidth_gbps(memory_used, duration),
+                // Real per-kernel occupancy would require the launch's
+                // actual grid/block dimensions, which `single_gpu_matrix_multiply`
+                // does not surface (the kernel launch is internal to
+                // `oxicuda-blas::level3::gemm`) -- see module-level notes.
                 occupancy_percentage: 0.0,
             });
         }
@@ -460,13 +761,14 @@ impl AdvancedGpuOps {
             let duration = start_time.elapsed();
             let ops = 2.0 * m as f64 * n as f64 * k as f64 + m as f64 * n as f64;
             let throughput = ops / duration.as_secs_f64() / 1e9;
+            let memory_used = (m * k + k * n + 2 * m * n) * std::mem::size_of::<Float>();
             self.performance_metrics.push(GpuPerformanceMetrics {
                 device_id: 0,
                 operation_name: "fused_matrix_multiply_add".to_string(),
                 duration,
-                memory_used: (m * k + k * n + 2 * m * n) * std::mem::size_of::<Float>(),
+                memory_used,
                 throughput_gflops: throughput,
-                memory_bandwidth_gbps: 0.0,
+                memory_bandwidth_gbps: memory_bandwidth_gbps(memory_used, duration),
                 occupancy_percentage: 0.0,
             });
         }
@@ -541,13 +843,14 @@ impl AdvancedGpuOps {
         let (_, n) = b.dim();
         let ops = 2.0 * m as f64 * n as f64 * k as f64;
         let throughput = ops / duration.as_secs_f64() / 1e9;
+        let memory_used = (m * k + k * n + m * n) * std::mem::size_of::<Float>();
         self.performance_metrics.push(GpuPerformanceMetrics {
             device_id: 0,
             operation_name: operation_name.to_string(),
             duration,
-            memory_used: (m * k + k * n + m * n) * std::mem::size_of::<Float>(),
+            memory_used,
             throughput_gflops: throughput,
-            memory_bandwidth_gbps: 0.0,
+            memory_bandwidth_gbps: memory_bandwidth_gbps(memory_used, duration),
             occupancy_percentage: 0.0,
         });
     }
@@ -607,17 +910,18 @@ impl AdvancedGpuOps {
         Ok(Array2::from_shape_vec((m, n), c_flat)?)
     }
 
-    /// Submit a GEMM and return a handle carrying its (real) result.
+    /// Submit a GEMM on a stream and return a handle tracking its
+    /// completion.
     ///
-    /// There is no actual asynchronous GPU stream plumbing in this module:
-    /// `CudaStream::synchronize` is bookkeeping only, and
-    /// `single_gpu_matrix_multiply` is a blocking call. Rather than return a
-    /// handle that can never honestly report completion (or, worse, one
-    /// that fabricates a zeroed result once "complete"), the multiply is
-    /// executed eagerly here and the genuine computed array is stored on
-    /// the handle; [`AsyncGpuOperation::is_ready`] is `true` immediately
-    /// because the computation has, in fact, already finished by the time
-    /// this function returns. See [`AsyncGpuOperation::get_result`].
+    /// When the chosen stream is genuinely backed by an `oxicuda-driver`
+    /// stream (see [`CudaStream::is_real`]), this launches the GEMM via
+    /// [`CudaStream::launch_matmul`]: the kernel and its device-to-host
+    /// result copy are issued asynchronously, and the returned
+    /// [`AsyncGpuOperation`] tracks completion by polling a real
+    /// `cuEventQuery` (see [`AsyncGpuOperation::is_ready`]) rather than
+    /// assuming it. Falls back to the eager `single_gpu_matrix_multiply`
+    /// path (result known immediately, `is_ready()` trivially `true`) when
+    /// no GPU is present or the real-stream launch itself fails.
     pub fn async_matrix_multiply(
         &mut self,
         a: &Array2<Float>,
@@ -636,10 +940,34 @@ impl AdvancedGpuOps {
 
         let stream_id = self.find_available_stream(device_id)?;
         self.streams[device_id][stream_id].is_busy = true;
-
         let start_time = Instant::now();
+
+        #[cfg(feature = "gpu")]
+        if self.streams[device_id][stream_id].is_real() {
+            match self.streams[device_id][stream_id].launch_matmul(a, b) {
+                Ok(pending) => {
+                    // The kernel launch has returned control to the host;
+                    // this stream is free to accept new work while the
+                    // pending op finishes in the background.
+                    self.streams[device_id][stream_id].is_busy = false;
+                    return Ok(AsyncGpuOperation {
+                        operation_id: 0,
+                        device_id,
+                        stream_id,
+                        start_time,
+                        result_shape: (m, n),
+                        state: std::cell::RefCell::new(AsyncGpuState::Pending(pending)),
+                    });
+                }
+                Err(e) => {
+                    log::warn!(
+                        "Real async stream GEMM launch failed ({e}), falling back to eager synchronous compute"
+                    );
+                }
+            }
+        }
+
         let result = self.single_gpu_matrix_multiply(a, b, device_id)?;
-        // The (synchronous) work is done, so the stream is free again.
         self.streams[device_id][stream_id].is_busy = false;
 
         Ok(AsyncGpuOperation {
@@ -648,8 +976,7 @@ impl AdvancedGpuOps {
             stream_id,
             start_time,
             result_shape: (m, n),
-            is_complete: true,
-            result,
+            state: std::cell::RefCell::new(AsyncGpuState::Ready(result)),
         })
     }
 
@@ -750,13 +1077,14 @@ impl AdvancedGpuOps {
             let duration = start_time.elapsed();
             let ops = 2.0 * batch_size as f64 * m as f64 * n as f64 * k as f64;
             let throughput = ops / duration.as_secs_f64() / 1e9;
+            let memory_used = batch_size * (m * k + k * n + m * n) * std::mem::size_of::<Float>();
             self.performance_metrics.push(GpuPerformanceMetrics {
                 device_id: 0,
                 operation_name: "batch_matrix_multiply".to_string(),
                 duration,
-                memory_used: batch_size * (m * k + k * n + m * n) * std::mem::size_of::<Float>(),
+                memory_used,
                 throughput_gflops: throughput,
-                memory_bandwidth_gbps: 0.0,
+                memory_bandwidth_gbps: memory_bandwidth_gbps(memory_used, duration),
                 occupancy_percentage: 0.0,
             });
         }
@@ -894,24 +1222,91 @@ impl LoadBalancer {
 
 // ─── AsyncGpuOperation ─────────────────────────────────────────────────────────
 
+/// Internal completion state for an [`AsyncGpuOperation`].
+enum AsyncGpuState {
+    /// Result already known: either a real GEMM finished (event confirmed
+    /// completion, see [`AsyncGpuOperation::is_ready`]) or this operation
+    /// ran eagerly on the CPU/blocking-GPU path from the start.
+    Ready(Array2<Float>),
+    /// Genuinely in flight on a real `oxicuda-driver` stream.
+    #[cfg(feature = "gpu")]
+    Pending(PendingGpuMatmul),
+    /// The pending GEMM's event fired, but materializing the result failed
+    /// (should not happen in practice -- see
+    /// [`PendingGpuMatmul::into_result`] -- but this avoids ever silently
+    /// handing back a fabricated result if it somehow does). Only reachable
+    /// with the `gpu` feature enabled; kept unconditional so
+    /// [`AsyncGpuOperation::get_result`] can match it without `#[cfg]`.
+    #[allow(dead_code)]
+    Failed(String),
+}
+
 /// Handle for a submitted GPU operation.
 ///
-/// See [`AdvancedGpuOps::async_matrix_multiply`] for why `result` is the
-/// real, already-computed output rather than a promise resolved later.
-#[derive(Debug)]
+/// See [`AdvancedGpuOps::async_matrix_multiply`] for the two ways this can
+/// be constructed: a genuinely in-flight real-stream GEMM (state starts as
+/// `Pending`), or an already-computed eager result (state starts as
+/// `Ready`).
 pub struct AsyncGpuOperation {
     pub operation_id: usize,
     pub device_id: usize,
     pub stream_id: usize,
     pub start_time: Instant,
     pub result_shape: (usize, usize),
-    pub is_complete: bool,
-    result: Array2<Float>,
+    state: std::cell::RefCell<AsyncGpuState>,
+}
+
+impl std::fmt::Debug for AsyncGpuOperation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AsyncGpuOperation")
+            .field("operation_id", &self.operation_id)
+            .field("device_id", &self.device_id)
+            .field("stream_id", &self.stream_id)
+            .field("result_shape", &self.result_shape)
+            .field("is_ready", &self.is_ready())
+            .finish()
+    }
 }
 
 impl AsyncGpuOperation {
+    /// Polls whether the result is available.
+    ///
+    /// For an eager (CPU-fallback) operation this is always `true` -- the
+    /// computation had already finished by the time this handle was
+    /// constructed. For a genuinely in-flight real-stream operation, this
+    /// performs a non-blocking `cuEventQuery` on the recorded completion
+    /// event rather than assuming completion; once it observes completion
+    /// it materializes the result (from the already-populated host buffer)
+    /// so subsequent calls don't re-touch device resources.
     pub fn is_ready(&self) -> bool {
-        self.is_complete
+        #[cfg(feature = "gpu")]
+        {
+            let mut state = self.state.borrow_mut();
+            let is_pending = matches!(&*state, AsyncGpuState::Pending(_));
+            if is_pending {
+                let event_fired = matches!(&*state, AsyncGpuState::Pending(p) if matches!(p.is_ready(), Ok(true)));
+                if !event_fired {
+                    return false;
+                }
+                // Placeholder swapped in only for the duration of this
+                // block; overwritten below with the real outcome before the
+                // borrow is released, so it is never observable externally.
+                let previous =
+                    std::mem::replace(&mut *state, AsyncGpuState::Failed(String::new()));
+                let AsyncGpuState::Pending(pending) = previous else {
+                    unreachable!("checked above: state is AsyncGpuState::Pending");
+                };
+                *state = match pending.into_result() {
+                    Ok(result) => AsyncGpuState::Ready(result),
+                    Err(e) => AsyncGpuState::Failed(format!("{e}")),
+                };
+            }
+            matches!(&*state, AsyncGpuState::Ready(_))
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            matches!(&*self.state.borrow(), AsyncGpuState::Ready(_))
+        }
     }
 
     /// Returns the result of this operation.
@@ -919,14 +1314,21 @@ impl AsyncGpuOperation {
     /// # Errors
     ///
     /// Returns [`SklearsError::InvalidInput`] if the operation has not
-    /// completed yet (`is_ready()` is `false`).
+    /// completed yet (`is_ready()` would return `false`). Returns
+    /// [`SklearsError::NumericalError`] if the underlying GEMM failed.
     pub fn get_result(&self) -> Result<Array2<Float>> {
-        if !self.is_complete {
-            return Err(SklearsError::InvalidInput(
+        // Give a pending real-stream op a chance to resolve first.
+        self.is_ready();
+        match &*self.state.borrow() {
+            AsyncGpuState::Ready(result) => Ok(result.clone()),
+            AsyncGpuState::Failed(msg) => Err(SklearsError::NumericalError(format!(
+                "Async GPU operation failed: {msg}"
+            ))),
+            #[cfg(feature = "gpu")]
+            AsyncGpuState::Pending(_) => Err(SklearsError::InvalidInput(
                 "Operation not complete".to_string(),
-            ));
+            )),
         }
-        Ok(self.result.clone())
     }
 
     pub fn elapsed_time(&self) -> Duration {
@@ -965,6 +1367,15 @@ mod tests {
         let (used, total) = pool.memory_usage();
         assert_eq!(total, 1024);
         assert!(used > 0);
+    }
+
+    #[test]
+    fn test_memory_pool_device_backing_is_honest_without_a_gpu() {
+        // Regression test: on this host (no CUDA GPU), a `GpuMemoryPool`
+        // must report `is_device_backed() == false` rather than pretending
+        // to hold a device reservation it never actually made.
+        let pool = GpuMemoryPool::new(0, 1024);
+        assert!(!pool.is_device_backed());
     }
 
     #[test]
@@ -1063,6 +1474,9 @@ mod tests {
         let metrics = ops.get_performance_metrics();
         assert!(!metrics.is_empty());
         assert_eq!(metrics[0].operation_name, "multi_gpu_matrix_multiply");
+        // Regression test: bandwidth must be derived from real
+        // bytes-moved/duration, not a hardcoded `0.0`.
+        assert!(metrics[0].memory_bandwidth_gbps > 0.0);
     }
 
     #[test]

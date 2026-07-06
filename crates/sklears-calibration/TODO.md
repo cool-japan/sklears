@@ -12,12 +12,12 @@ This crate is part of the sklears v0.1.0 initial release.
 
 Migration status: stub-gpu — `src/gpu_calibration.rs` is a CPU-delegating shim; its module doc (lines 8-9) already anticipates a real backend behind a feature gate. Wire it to the oxicuda-backed `sklears_core::gpu` module (Wave A2) so GPU claims are honest. Part of workspace Phase 4 (parallelizable per crate, does not block the 0.2.0 scirs2-GPU excision goal).
 
-- [ ] (M) Slot oxicuda in behind a `gpu` feature as the real backend for the `gpu_calibration` wrappers:
-  - Add `gpu = ["sklears-core/gpu_support"]` to `Cargo.toml` and re-export/gate accordingly in `src/lib.rs`.
-  - Implement `GpuUtils::init_devices` / `get_device` / `get_best_device` (currently always `None`, `src/gpu_calibration.rs:65-72`) via oxicuda-driver device enumeration.
-  - Implement `get_memory_stats` via device memory queries, replacing the misleading `/proc/meminfo` host-RAM path (`src/gpu_calibration.rs:77-114`) when a device is present.
-  - Implement `get_utilization` (`src/gpu_calibration.rs:117-119`, hardcoded `0.0`) from real device queries.
-  - Accelerate temperature-scaling batched matrix work via oxicuda-blas under the `gpu` feature.
-  - Keep the default (non-`gpu`) build unchanged: `IsotonicCalibrator` / `TemperatureScalingCalibrator` continue to delegate to CPU paths.
+- [x] (M) Slot oxicuda in behind a `gpu` feature as the real backend for the `gpu_calibration` wrappers:
+  - [x] Added `gpu = ["dep:oxicuda-blas", "dep:oxicuda-memory", "sklears-core/gpu_support"]` to `Cargo.toml` (plus `oxicuda-blas`/`oxicuda-memory` as optional workspace deps); `src/gpu_calibration.rs` cfg-gates the real backend internally rather than needing a separate re-export in `src/lib.rs` (the module itself is unconditional; only its internals branch on `gpu`).
+  - [x] `GpuUtils::init_devices` / `get_device` / `get_best_device` now route through `sklears_core::gpu::GpuBackend::detect`/`device_id` under the `gpu` feature (real oxicuda-driver device enumeration); without the feature (or with it but no device detected) they still honestly report no device.
+  - [x] `get_memory_stats` now queries live device memory via `GpuBackend::memory_info` (`cuMemGetInfo`) under the `gpu` feature when a device is present, falling back to the `/proc/meminfo` host-RAM path (or zeros) otherwise.
+  - [x] `get_utilization` (deferred 2026-07-06: oxicuda-driver 0.4.0 wraps the CUDA *driver* API only; SM/compute-occupancy sampling is an NVML API (`nvmlDeviceGetUtilizationRates`) with no oxicuda-driver binding, so there is no real occupancy figure available. Left honestly at `0.0` with a doc comment explaining why, rather than fabricating a number or silently redefining "utilization" as device-memory occupancy.).
+  - [x] `GpuTemperatureScalingCalibrator::predict_proba` now takes a real device fast path under `gpu`: `sigmoid(logits / T)` runs as two genuine `oxicuda-blas` kernels (`elementwise::scale`, `elementwise::sigmoid`) once a device is detected and the batch is at/above `gpu_threshold`; verified bit-for-bit equivalent (within 1e-9) to the CPU path via `test_gpu_temperature_wrapper_matches_plain_cpu_calibrator`. Fitting (grid + line search over a handful of scalar temperature candidates) stays CPU-only as it isn't a GPU-shaped workload.
+  - [x] Default (non-`gpu`) build unchanged: `IsotonicCalibrator` / `TemperatureScalingCalibrator` wrappers continue to delegate to CPU paths; `cargo check -p sklears-calibration` and `--features gpu` both pass warning-free, and all 402 tests (8 gpu_calibration-specific) pass in both configurations on this GPU-less macOS host.
 
 See the main [workspace TODO](../../TODO.md) for overall project roadmap.

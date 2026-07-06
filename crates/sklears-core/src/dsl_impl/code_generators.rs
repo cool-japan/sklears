@@ -421,10 +421,13 @@ fn generate_performance_optimizations(config: &PerformanceConfig) -> TokenStream
 
     if config.gpu_acceleration {
         optimizations.push(quote! {
-            // Enable GPU acceleration if available
-            #[cfg(feature = "gpu")]
+            // Enable GPU acceleration if available. `GpuBackend::detect()`
+            // honestly returns `Ok(None)` (rather than an error) when no
+            // accelerator is present, so this only fails on a genuine
+            // driver/context error, never merely because there is no GPU.
+            #[cfg(feature = "gpu_support")]
             {
-                crate::gpu::initialize_gpu_context()?;
+                let _gpu = sklears_core::gpu::GpuBackend::detect()?;
             }
         });
     }

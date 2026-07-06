@@ -32,10 +32,6 @@ rayon = { workspace = true, optional = true }
 libm = { workspace = true, optional = true }
 spin = { workspace = true, optional = true }
 
-# GPU acceleration dependencies (optional) - Disabled for macOS compatibility
-# cudarc = { version = "0.11", optional = true }
-# opencl3 = { version = "0.9", optional = true }
-
 [features]
 default = []
 parallel = ["rayon"]
@@ -46,9 +42,6 @@ no-std = ["libm", "spin"]
 # Test with: cargo test --features parallel (for std mode with parallelism)
 # Test no-std: cargo test --no-default-features --features no-std
 # DO NOT use --all-features as it enables conflicting no-std and std modes simultaneously
-# cuda = ["cudarc"]  # Disabled for macOS compatibility
-# opencl = ["opencl3"]  # Disabled for macOS compatibility  
-# gpu = ["cuda", "opencl"]  # Disabled for macOS compatibility
 
 [dev-dependencies]
 criterion = { workspace = true }

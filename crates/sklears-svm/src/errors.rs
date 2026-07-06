@@ -621,23 +621,8 @@ impl From<crate::gpu_kernels::GpuKernelError> for SVMError {
                 device_info: None,
                 fallback_available: true,
             },
-            InsufficientMemory => SVMError::GpuError {
-                reason: "Insufficient GPU memory".to_string(),
-                device_info: None,
-                fallback_available: true,
-            },
             ComputationFailed(msg) => SVMError::GpuError {
                 reason: format!("GPU computation failed: {}", msg),
-                device_info: None,
-                fallback_available: true,
-            },
-            ShaderCompilationFailed(msg) => SVMError::GpuError {
-                reason: format!("Shader compilation failed: {}", msg),
-                device_info: None,
-                fallback_available: false,
-            },
-            BufferCreationFailed => SVMError::GpuError {
-                reason: "Buffer creation failed".to_string(),
                 device_info: None,
                 fallback_available: true,
             },

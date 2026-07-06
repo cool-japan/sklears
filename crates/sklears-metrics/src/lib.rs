@@ -451,7 +451,7 @@ pub mod distributed_metrics;
 pub mod fairness_metrics;
 pub mod federated_learning;
 pub mod fluent_api;
-#[cfg(feature = "cuda")]
+#[cfg(feature = "gpu")]
 pub mod gpu_acceleration;
 pub mod interpretability;
 #[cfg(feature = "latex")]

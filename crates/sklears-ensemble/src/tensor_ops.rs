@@ -34,8 +34,19 @@ pub struct TensorConfig {
 pub enum TensorDevice {
     /// CPU computation
     Cpu,
-    /// GPU computation
-    Gpu(usize), // GPU device ID
+    /// GPU computation. The `usize` is an `oxicuda-driver` device ordinal
+    /// (the same value returned by `oxicuda_driver::Device::ordinal()` /
+    /// `sklears_core::gpu::GpuBackend::device_id()`), *not* an arbitrary
+    /// tensor-ops-internal index.
+    ///
+    /// Without this crate's `gpu` feature, selecting `TensorDevice::Gpu(_)`
+    /// is metadata-only: [`DeviceManager`] has no code path that ever maps
+    /// it to a real device, so ops proceed on the CPU regardless of which
+    /// ordinal is stored here. With the `gpu` feature,
+    /// [`DeviceManager::refresh_gpu_devices`] populates
+    /// [`DeviceManager::available_devices`] with the real ordinal of any
+    /// detected CUDA device via `sklears_core::gpu::GpuBackend::detect`.
+    Gpu(usize),
     /// Automatic device selection
     Auto,
 }
@@ -877,6 +888,33 @@ impl DeviceManager {
     /// Get memory usage for device
     pub fn memory_usage(&self, device: TensorDevice) -> usize {
         self.memory_usage.get(&device).copied().unwrap_or(0)
+    }
+
+    /// Probes for a real CUDA device via
+    /// `sklears_core::gpu::GpuBackend::detect` and, if one is found, adds
+    /// `TensorDevice::Gpu(ordinal)` (the real `oxicuda-driver` device
+    /// ordinal) to [`available_devices`](Self::available_devices).
+    ///
+    /// A no-op without this crate's `gpu` feature (see [`TensorDevice::Gpu`]):
+    /// there is no driver compiled in to probe, so `available_devices`
+    /// always stays `[TensorDevice::Cpu]`.
+    #[cfg(feature = "gpu")]
+    pub fn refresh_gpu_devices(&mut self) -> Result<()> {
+        if let Some(backend) = sklears_core::gpu::GpuBackend::detect()? {
+            let device = TensorDevice::Gpu(backend.device_id());
+            if !self.available_devices.contains(&device) {
+                self.available_devices.push(device);
+            }
+        }
+        Ok(())
+    }
+
+    /// See the `gpu`-feature version of this method. Without the feature,
+    /// this is an honest no-op: no CUDA driver is compiled in, so there is
+    /// nothing to probe for.
+    #[cfg(not(feature = "gpu"))]
+    pub fn refresh_gpu_devices(&mut self) -> Result<()> {
+        Ok(())
     }
 }
 

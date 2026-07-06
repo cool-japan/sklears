@@ -9,8 +9,8 @@ Facade-level GPU feature cleanup for the workspace-wide scirs2-GPU removal. The
 `backend-cuda`/`backend-wgpu` features here are empty stubs; the migration
 direction is oxicuda-exclusive via the Wave A2 `sklears_core::gpu` module.
 
-- [ ] (S) Replace empty `backend-cuda`/`backend-wgpu` stub features with a real oxicuda-backed `gpu` feature — delete `backend-cuda = []` and `backend-wgpu = []` (`Cargo.toml:139-140`, both enable nothing) and add `gpu = ["sklears-core/gpu_support"]`, optionally forwarding subcrate gpu features (e.g. `sklears-linear/gpu`, `sklears-clustering/gpu`). Do not keep a wgpu alias.
-- [ ] (S) Fix `src/lib.rs` doc claims about GPU backends — `src/lib.rs:15` ("GPU acceleration with optional CUDA and WebGPU backends") and `src/lib.rs:64` ("`gpu` - GPU acceleration (CUDA/WebGPU)") describe features that do not exist in `Cargo.toml`; rewrite to describe the oxicuda-backed `gpu` feature (CUDA via OxiCUDA, Pure Rust default build).
+- [x] (S) Replace empty `backend-cuda`/`backend-wgpu` stub features with a real oxicuda-backed `gpu` feature — deleted `backend-cuda = []` and `backend-wgpu = []` and added `gpu = ["sklears-core/gpu_support", ...]`, forwarding to every algorithm subcrate that currently exposes its own `gpu` feature (via the weak-dependency `subcrate?/gpu` syntax so an optional subcrate is only pulled in if already enabled through its own facade feature; `sklears-utils/gpu` is forwarded directly since `sklears-utils` is a mandatory, non-optional facade dependency). No wgpu alias was kept.
+- [x] (S) Fixed `src/lib.rs` doc claims about GPU backends — `src/lib.rs:15` and `src/lib.rs:64` now describe the oxicuda-backed `gpu` feature (CUDA only via OxiCUDA, honest `GpuBackend::detect() -> Ok(None)` fallback to CPU, Pure Rust default build) instead of the fictitious CUDA/WebGPU claim.
 
 ## Future Enhancements
 - Performance optimizations

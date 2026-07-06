@@ -16,7 +16,7 @@
 - **Scalers**: StandardScaler, MinMaxScaler, RobustScaler, MaxAbsScaler, QuantileTransformer, PowerTransformer.
 - **Encoders**: OneHotEncoder, OrdinalEncoder, TargetEncoder, PolynomialFeatures, Binarizer.
 - **Feature Utilities**: Normalizer, FunctionTransformer, MissingIndicator, discretizers, and outlier filters.
-- **Hardware Acceleration**: SIMD, multi-threading, and optional GPU support for large tabular datasets.
+- **Hardware Acceleration**: SIMD, multi-threading, and optional OxiCUDA GPU backend detection (`gpu` feature) for large tabular datasets.
 
 ## Quick Start
 
@@ -39,4 +39,4 @@ let x_poly = poly.fit_transform(&x_scaled)?;
 
 - Extensively covered; 300 passing crate tests in `0.2.0` (97 stubs remaining).
 - Provides >99% parity with scikit-learn preprocessing APIs, including sparse support.
-- Future enhancements (GPU categorical encoders, streaming scalers) tracked in `TODO.md`.
+- Future enhancements (OxiCUDA-accelerated categorical encoders, streaming scalers) tracked in `TODO.md`.

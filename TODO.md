@@ -56,6 +56,8 @@ Create a production-ready machine learning library in Rust that:
 
 ### Current state
 
+**Implementation status (2026-07-06):** 25 crates migrated/wired/hardened onto the oxicuda-backed `sklears_core::gpu` foundation (2 honestly downscoped, 1 blocked on an upstream oxicuda-solver API gap) with roughly a dozen items explicitly deferred with dated notes (mixed-precision GEMM, SHAP GPU staging, NVML-based utilization, deeper kernel dispatch, etc.); final verification shows 13/13 acceptance criteria passing.
+
 **Already done (Wave A2, 2026-07-03/04):**
 - `crates/sklears-core/src/gpu.rs` is 100% oxicuda-backed (oxicuda-driver `Context` + oxicuda-blas `BlasHandle` + oxicuda-memory `DeviceBuffer`, honest `Ok(None)` detection) behind `gpu_support = [dep:oxicuda-backend, dep:oxicuda-memory, dep:oxicuda-blas, dep:oxicuda-driver]`.
 - Nine downstream crates wire real oxicuda `gpu` features: linear, neural, svm, clustering, neighbors, decomposition, manifold, discriminant-analysis; cross-decomposition routes via `sklears-core/gpu_support`.
@@ -80,39 +82,39 @@ Additionally, ~15 crates carry simulated/stub GPU layers (fake device lists, `gp
 
 | Crate | Status | Summary (max effort) | Tracker |
 |---|---|---|---|
-| sklears-core | partial | Remove `scirs2-gpu-reporting`, port trait-graph GPU reporting to `crate::gpu`, fix stale comments + DSL codegen snippet (M) | see `crates/sklears-core/TODO.md` |
-| sklears-preprocessing | scirs2-dependent | Swap `ScirGpuBackend` conversion layer to `sklears_core::gpu` + new `gpu` feature; scaler oxicuda kernels are an optional L follow-up (M/L) | see `crates/sklears-preprocessing/TODO.md` |
-| sklears-neighbors | partial | Replace mock device detection with real oxicuda-driver queries; collapse decorative Cuda/OpenCl/Metal enum; prune unused `dep:oxicuda-backend` (M) | see `crates/sklears-neighbors/TODO.md` |
-| sklears-multiclass | simulated-gpu | Rewire `src/gpu` onto `sklears-core/gpu_support` (`gpu = []` today); connect ECOC GPUMode to real GPU layer; delete "cudarc or opencl3" placeholder (M) | see `crates/sklears-multiclass/TODO.md` |
-| sklears-metrics | simulated-gpu | Fix `gpu = []` + broken cuda-vs-gpu gate (`full` silently skips the module); rewrite null-pointer GPU stubs onto oxicuda (L) | see `crates/sklears-metrics/TODO.md` |
-| sklears-inspection | simulated-gpu | Replace dead `gpu = ["dep:tokio"]` feature; rebuild placeholder GpuContext/GpuBuffer on `sklears_core::gpu`; optional SHAP GPU staging (L) | see `crates/sklears-inspection/TODO.md` |
-| sklears-kernel-approximation | simulated-gpu | Add real `gpu` feature + gate simulated module; rebuild on `sklears_core::gpu`; **fix fake-eigenvalue `eigendecomposition_cpu` bug (not deferable)** (L) | see `crates/sklears-kernel-approximation/TODO.md` |
-| sklears-ensemble | stub-gpu | Add oxicuda-backed `gpu` feature; rewire device detection/memory manager; implement or downscope NotImplemented GPU kernels (L) | see `crates/sklears-ensemble/TODO.md` |
-| sklears-utils | simulated-gpu | Replace fabricated device list ("RTX 3080") with real enumeration; back GpuArrayOps with oxicuda; record distributed GPU fields as out of scope (L) | see `crates/sklears-utils/TODO.md` |
-| sklears-simd | stub-gpu | Delete 2225 lines of always-erroring stub GPU modules + the workspace's only commented cudarc/opencl3 remnants (M) | see `crates/sklears-simd/TODO.md` |
-| sklears (facade) | stub-gpu | Replace empty `backend-cuda`/`backend-wgpu` stub features with a real oxicuda-backed `gpu` feature; fix lib.rs CUDA/WebGPU doc claims (S) | see `crates/sklears/TODO.md` |
-| sklears-compose | simulated-gpu | Wire device discovery/counting to oxicuda-driver behind a `gpu` feature; document GPU telemetry fields as scheduling metadata (M) | see `crates/sklears-compose/TODO.md` |
-| sklears-calibration | stub-gpu | Slot oxicuda in behind a `gpu` feature for gpu_calibration wrappers (device enumeration, memory stats, blas-backed scaling) (M) | see `crates/sklears-calibration/TODO.md` |
-| sklears-naive-bayes | stub-gpu | Back GpuOptimizer with oxicuda-blas gemm behind a `gpu` feature, or delete the placeholder + unreachable `OptimizationStrategy::Gpu` (M) | see `crates/sklears-naive-bayes/TODO.md` |
-| sklears-python | stub-gpu | Report real CUDA availability via oxicuda (currently hardcoded `cuda_available = false`) (S) | see `crates/sklears-python/TODO.md` |
-| sklears-model-selection | simulated-gpu | Optionally derive `has_gpu`/`use_gpu` config defaults from oxicuda detection (S) | see `crates/sklears-model-selection/TODO.md` |
-| sklears-impute | simulated-gpu | Make `DeepLearningConfig.device` honest: validate or wire to oxicuda (S) | see `crates/sklears-impute/TODO.md` |
-| sklears-linear | fully-oxicuda | Optional hardening: real device memory pools, real driver streams, real perf counters (L) | see `crates/sklears-linear/TODO.md` |
-| sklears-neural | fully-oxicuda | Implement conv2d via oxicuda-dnn (declared dep unused); real tensor-core/CC detection; resolve unused oxicuda-ptx/driver deps (L) | see `crates/sklears-neural/TODO.md` |
-| sklears-svm | fully-oxicuda | Optional hygiene: prune unused gpu-feature deps (oxicuda-ptx/backend/bytemuck); retire dead WGPU-era error variants (S) | see `crates/sklears-svm/TODO.md` |
-| sklears-clustering | fully-oxicuda | Prune or genuinely use direct oxicuda deps; delete dead/non-compiling `cfg(not(gpu))` stub; pollster → dev-deps; README WebGPU wording fix (M) | see `crates/sklears-clustering/TODO.md` |
-| sklears-decomposition | fully-oxicuda | Remove unused optional deps `oxicuda-blas` and `half` from the `gpu` feature (S) | see `crates/sklears-decomposition/TODO.md` |
-| sklears-manifold | fully-oxicuda | Resolve dead `cfg(not(feature = "gpu"))` branches vs lib.rs gating; fix `.unwrap()` in doc example (S) | see `crates/sklears-manifold/TODO.md` |
-| sklears-discriminant-analysis | fully-oxicuda | Adopt oxicuda-solver `sygvd` for the LDA generalized eigensolve when upstream ships it (S) | see `crates/sklears-discriminant-analysis/TODO.md` |
+| sklears-core | migrated | Removed `scirs2-gpu-reporting`, ported trait-graph GPU reporting to `crate::gpu`, fixed stale comments + DSL codegen snippet (M) | see `crates/sklears-core/TODO.md` |
+| sklears-preprocessing | migrated (deferred) | Swapped `ScirGpuBackend` conversion layer to `sklears_core::gpu` + new `gpu` feature; scaler oxicuda kernels (dispatch_compute_mean/variance etc.) left as documented CPU passthroughs (deferred, optional) (M/L) | see `crates/sklears-preprocessing/TODO.md` |
+| sklears-neighbors | migrated | Replaced mock device detection with real oxicuda-driver queries; collapsed decorative Cuda/OpenCl/Metal enum; pruned unused `dep:oxicuda-backend` (M) | see `crates/sklears-neighbors/TODO.md` |
+| sklears-multiclass | oxicuda-wired | Rewired `src/gpu` onto `sklears-core/gpu_support`; connected ECOC GPUMode to real GPU layer via `aggregate_votes_device` (M) | see `crates/sklears-multiclass/TODO.md` |
+| sklears-metrics | oxicuda-wired (deferred) | Fixed `gpu = []` + broken cuda-vs-gpu gate; rewrote null-pointer GPU stubs onto oxicuda; `supports_mixed_precision` wiring deferred (L) | see `crates/sklears-metrics/TODO.md` |
+| sklears-inspection | oxicuda-wired (deferred) | Replaced dead `gpu = ["dep:tokio"]` feature; rebuilt GpuContext/GpuBuffer on `sklears_core::gpu`; SHAP/permutation-importance GPU staging deferred (L) | see `crates/sklears-inspection/TODO.md` |
+| sklears-kernel-approximation | oxicuda-wired | Added real `gpu` feature + gated simulated module; rebuilt on `sklears_core::gpu`; **fixed fake-eigenvalue `eigendecomposition_cpu` bug** (L) | see `crates/sklears-kernel-approximation/TODO.md` |
+| sklears-ensemble | honestly-downscoped | Added oxicuda-backed `gpu` feature; rewired device detection/memory manager; matmul/elementwise_add dispatch to real oxicuda-blas, full GpuTensorOps/gradient-boosting kernels downscoped per mission (L) | see `crates/sklears-ensemble/TODO.md` |
+| sklears-utils | oxicuda-wired (deferred) | Replaced fabricated device list with real oxicuda-driver enumeration; GpuArrayOps routes through `sklears_core::gpu` when a device is present, deeper kernel execution deferred; distributed GPU fields recorded as out of scope (L) | see `crates/sklears-utils/TODO.md` |
+| sklears-simd | stubs-removed | Deleted 2225 lines of always-erroring stub GPU modules (gpu.rs, gpu_memory.rs, multi_gpu.rs) + the workspace's only commented cudarc/opencl3 remnants (M) | see `crates/sklears-simd/TODO.md` |
+| sklears (facade) | stubs-removed | Replaced empty `backend-cuda`/`backend-wgpu` stub features with a real oxicuda-backed `gpu` feature; fixed lib.rs CUDA/WebGPU doc claims (S) | see `crates/sklears/TODO.md` |
+| sklears-compose | oxicuda-wired | Wired device discovery/counting to oxicuda-driver behind a `gpu` feature; documented GPU telemetry fields as scheduling metadata (M) | see `crates/sklears-compose/TODO.md` |
+| sklears-calibration | oxicuda-wired (deferred) | Slotted oxicuda in behind a `gpu` feature (device enumeration, memory stats via `GpuBackend::memory_info()`, blas-backed temperature-scaling); `get_utilization` deferred (upstream oxicuda-driver lacks NVML) (M) | see `crates/sklears-calibration/TODO.md` |
+| sklears-naive-bayes | oxicuda-wired | Backed GpuOptimizer with oxicuda-blas gemm behind a `gpu` feature; trimmed false SciRS2-Policy module doc claim (M) | see `crates/sklears-naive-bayes/TODO.md` |
+| sklears-python | oxicuda-wired | Reports real CUDA availability via oxicuda instead of hardcoded `cuda_available = false` (S) | see `crates/sklears-python/TODO.md` |
+| sklears-model-selection | oxicuda-wired | Derived `has_gpu`/`use_gpu` config defaults from oxicuda detection behind a new `gpu` feature (S) | see `crates/sklears-model-selection/TODO.md` |
+| sklears-impute | honestly-downscoped | Made `DeepLearningConfig.device` honest: `validate_device()` accepts only "cpu" (case-insensitive), rejects "cuda" (S) | see `crates/sklears-impute/TODO.md` |
+| sklears-linear | hardened | Real device memory pools (oxicuda-memory DeviceBuffer arenas), real driver streams (CudaStream::with_backend), real perf counters (L) | see `crates/sklears-linear/TODO.md` |
+| sklears-neural | hardened (deferred) | Implemented conv2d via oxicuda-dnn; real tensor-core/CC detection; resolved unused oxicuda-ptx dep; memory-pool config honoring and mixed-precision GEMM host round-trip elimination deferred (upstream API gap) (L) | see `crates/sklears-neural/TODO.md` |
+| sklears-svm | hardened | Pruned unused gpu-feature deps (oxicuda-ptx/backend/bytemuck); retired dead WGPU-era error variants (S) | see `crates/sklears-svm/TODO.md` |
+| sklears-clustering | hardened | Pruned unused direct oxicuda deps; deleted dead/non-compiling `cfg(not(gpu))` stub; confirmed pollster already in dev-deps; fixed README WebGPU wording (M) | see `crates/sklears-clustering/TODO.md` |
+| sklears-decomposition | hardened | Removed unused optional deps `oxicuda-blas` and `half` from the `gpu` feature (S) | see `crates/sklears-decomposition/TODO.md` |
+| sklears-manifold | hardened | Resolved dead `cfg(not(feature = "gpu"))` branches vs lib.rs gating; fixed `.unwrap()` in doc example (S) | see `crates/sklears-manifold/TODO.md` |
+| sklears-discriminant-analysis | fully-oxicuda (blocked) | oxicuda-solver `sygvd` for the LDA generalized eigensolve verified not yet available in oxicuda-solver 0.4.0 (crates.io and local dev tree); no upstream API to adopt yet | see `crates/sklears-discriminant-analysis/TODO.md` |
 | sklears-cross-decomposition | fully-oxicuda | Offload GpuMatrixOps eig/svd to oxicuda-solver when a CUDA backend is live (preferably via new `sklears_core::gpu` eigh/svd wrappers) (M) | see `crates/sklears-cross-decomposition/TODO.md` |
 
 ### Workspace-level items
 
-- [ ] (S) Rewrite stale GPU policy in `SCIRS2_INTEGRATION_POLICY.md` — line 277 mandates "ALWAYS use scirs2-core::gpu module for GPU operations" and line 279 forbids direct GPU API calls outside SciRS2-core; both contradict the oxicuda migration. Rewrite the GPU Operations Policy section to mandate `sklears_core::gpu` (oxicuda-driver/oxicuda-blas/oxicuda-memory behind `gpu_support`) and direct oxicuda-* crates for kernels, with CPU scirs2-linalg fallbacks explicitly allowed.
-- [ ] (S) Correct root GPU migration records in `TODO.md` + add `CHANGELOG.md` entry — the "GPU Migration" Phase 1 line below claiming sklears-cross-decomposition's `gpu` feature became "oxicuda-backend" is inaccurate: `crates/sklears-cross-decomposition/Cargo.toml:40` actually reads `gpu = ["sklears-core/gpu_support"]` (oxicuda only indirectly); fix the wording. Mark the "✅ Stub-check backlog" line recording trait_explorer's use of "real `scirs2_core::gpu`" as superseded once the sklears-core Phase 1 excision removes that path. Add a `CHANGELOG.md` entry noting the removal of the public sklears-core feature `scirs2-gpu-reporting` (API-visible in `--all-features` builds).
-- [ ] (S) Document that `scirs2-core/gpu` stays force-enabled transitively (goal scoping) — `cargo tree -e features -i scirs2-core` shows scirs2-datasets/scirs2-fft/scirs2-optimize/scirs2-sparse 0.6.0 hard-enable scirs2-core's `gpu` feature regardless of the workspace `default-features = false` pin (`Cargo.toml:56`). Record in this migration section that the 0.2.0 goal is precisely "zero sklears-side USAGE of `scirs2_core::gpu`", and that full eviction requires upstream scirs2 0.7.x or dropping those deps. Files: `TODO.md`, `Cargo.toml`.
-- [ ] (S) Version watch: bump oxicuda-* 0.4.0 → 0.4.1 when published — the workspace pins nine oxicuda crates at 0.4.0 (`Cargo.toml:184-192`: backend, memory, blas, solver, manifold, dnn, driver, ptx, primitives); crates.io latest is 0.4.0, so the pin already satisfies the Latest-crates policy. The local oxicuda workspace is 0.4.1 but its CHANGELOG marks it Unreleased — do NOT bump early. When 0.4.1 publishes, bump all nine pins in one pass and re-run gpu-feature builds. Note: oxicuda-solver 0.4.0's syevd/QR/SVD device paths are documented exact-CPU host fallbacks — sklears docs (decomposition/linear/discriminant-analysis/cross-decomposition) must not claim on-device eigen/SVD until upstream restores them.
-- [ ] (S) Docs sweep after Phase 4 — no README/lib.rs may claim live wgpu/candle/WebGPU GPU backends or CUDA/OpenCL support that does not exist (known offenders: `crates/sklears-clustering/README.md:71` "WebGPU-powered", `crates/sklears/src/lib.rs:15,64` CUDA/WebGPU feature claims); every gpu-gated call site must preserve the `Ok(None)`/CPU-fallback contract so no-GPU hosts build and tests skip gracefully (model: sklears-svm `DeviceNotAvailable` skip pattern).
+- [x] (S) Rewrite stale GPU policy in `SCIRS2_INTEGRATION_POLICY.md` — line 277 mandates "ALWAYS use scirs2-core::gpu module for GPU operations" and line 279 forbids direct GPU API calls outside SciRS2-core; both contradict the oxicuda migration. Rewrite the GPU Operations Policy section to mandate `sklears_core::gpu` (oxicuda-driver/oxicuda-blas/oxicuda-memory behind `gpu_support`) and direct oxicuda-* crates for kernels, with CPU scirs2-linalg fallbacks explicitly allowed.
+- [x] (S) Correct root GPU migration records in `TODO.md` + add `CHANGELOG.md` entry — the "GPU Migration" Phase 1 line below claiming sklears-cross-decomposition's `gpu` feature became "oxicuda-backend" is inaccurate: `crates/sklears-cross-decomposition/Cargo.toml:40` actually reads `gpu = ["sklears-core/gpu_support"]` (oxicuda only indirectly); fix the wording. Mark the "✅ Stub-check backlog" line recording trait_explorer's use of "real `scirs2_core::gpu`" as superseded once the sklears-core Phase 1 excision removes that path. Add a `CHANGELOG.md` entry noting the removal of the public sklears-core feature `scirs2-gpu-reporting` (API-visible in `--all-features` builds).
+- [x] (S) Document that `scirs2-core/gpu` stays force-enabled transitively (goal scoping) — `cargo tree -e features -i scirs2-core` shows scirs2-datasets/scirs2-fft/scirs2-optimize/scirs2-sparse 0.6.0 hard-enable scirs2-core's `gpu` feature regardless of the workspace `default-features = false` pin (`Cargo.toml:56`). Record in this migration section that the 0.2.0 goal is precisely "zero sklears-side USAGE of `scirs2_core::gpu`", and that full eviction requires upstream scirs2 0.7.x or dropping those deps. Files: `TODO.md`, `Cargo.toml`.
+- [ ] (S) Version watch: bump oxicuda-* 0.4.0 → 0.4.1 when published — the workspace pins nine oxicuda crates at 0.4.0 (`Cargo.toml:184-192`: backend, memory, blas, solver, manifold, dnn, driver, ptx, primitives); crates.io latest is 0.4.0, so the pin already satisfies the Latest-crates policy. The local oxicuda workspace is 0.4.1 but its CHANGELOG marks it Unreleased — do NOT bump early. When 0.4.1 publishes, bump all nine pins in one pass and re-run gpu-feature builds. Note: oxicuda-solver 0.4.0's syevd/QR/SVD device paths are documented exact-CPU host fallbacks — sklears docs (decomposition/linear/discriminant-analysis/cross-decomposition) must not claim on-device eigen/SVD until upstream restores them. (2026-07-06: crates.io still 0.4.0 — pin correct)
+- [x] (S) Docs sweep after Phase 4 — no README/lib.rs may claim live wgpu/candle/WebGPU GPU backends or CUDA/OpenCL support that does not exist (known offenders: `crates/sklears-clustering/README.md:71` "WebGPU-powered", `crates/sklears/src/lib.rs:15,64` CUDA/WebGPU feature claims); every gpu-gated call site must preserve the `Ok(None)`/CPU-fallback contract so no-GPU hosts build and tests skip gracefully (model: sklears-svm `DeviceNotAvailable` skip pattern).
 
 **Behavior change to expect:** scirs2's `GpuBackend::preferred()` always returned Cpu in production builds, so `gpu_accelerated` flags could never be true; after the oxicuda port, real detection can report true on CUDA hosts — audit tests asserting always-false (e.g. graph_generator.rs:1677 asserts `!has_gpu_acceleration` in the no-feature build only).
 
@@ -120,19 +122,19 @@ Additionally, ~15 crates carry simulated/stub GPU layers (fake device lists, `gp
 
 ### Acceptance criteria
 
-- [ ] `rg -n "scirs2_core::gpu|ScirGpuBackend" crates/ -g '*.rs'` returns 0 hits (code AND comments; currently 35 hits across sklears-preprocessing and sklears-core)
-- [ ] `rg -n "scirs2-core/gpu|scirs2-gpu-reporting" -g 'Cargo.toml' .` returns 0 hits (currently 1: `crates/sklears-core/Cargo.toml:110`)
-- [ ] `cargo tree -e features -i scirs2-core | rg 'sklears'` shows no sklears crate enabling scirs2-core feature `gpu` (remaining activators are only upstream scirs2-datasets/scirs2-fft/scirs2-optimize/scirs2-sparse)
-- [ ] `cargo check -p sklears-preprocessing` and `cargo check -p sklears-preprocessing --features gpu` both succeed (proving no reliance on transitive scirs2-core/gpu feature unification)
-- [ ] `cargo check -p sklears-core --all-features` succeeds with zero warnings and no dangling `cfg(feature = "scirs2-gpu-reporting")` gates (`rg 'scirs2-gpu-reporting' crates/sklears-core/src` returns 0 hits)
-- [ ] For every crate with a `gpu` feature after Phase 4: `cargo check -p <crate> --features gpu` succeeds on a no-GPU host, and gpu-gated tests skip gracefully (no fabricated availability)
-- [ ] `rg -n '^gpu = \[\]' crates/*/Cargo.toml` returns 0 hits (no empty stub gpu features remain; currently sklears-multiclass:37 and sklears-metrics:79)
-- [ ] `rg -n 'backend-cuda|backend-wgpu' crates/sklears/Cargo.toml` returns 0 hits (empty facade stubs removed)
-- [ ] `rg -n -i 'cudarc|opencl3' crates/` returns 0 hits after Phase 4 (currently 13: sklears-simd commented deps/features + reserved-handle comments, sklears-multiclass placeholder comment)
-- [ ] `rg -n 'ALWAYS use .scirs2-core::gpu' SCIRS2_INTEGRATION_POLICY.md` returns 0 hits (policy rewritten to mandate `sklears_core::gpu` / oxicuda-*)
-- [ ] `cargo build --workspace` succeeds with zero warnings and `cargo nextest run --all-features --no-run` compiles after each phase lands
-- [ ] Workspace `Cargo.toml` oxicuda-* pins (lines 184-192) equal the latest published crates.io version at release time (0.4.0 today; all nine bumped together to 0.4.1 only after it is published)
-- [ ] `rg -n 'wgpu|candle|WebGPU-powered' crates/*/README.md crates/*/src/lib.rs` returns no hits claiming live wgpu/candle GPU backends
+- [x] `rg -n "scirs2_core::gpu|ScirGpuBackend" crates/ -g '*.rs'` returns 0 hits (code AND comments; currently 35 hits across sklears-preprocessing and sklears-core)
+- [x] `rg -n "scirs2-core/gpu|scirs2-gpu-reporting" -g 'Cargo.toml' .` returns 0 hits (currently 1: `crates/sklears-core/Cargo.toml:110`)
+- [x] `cargo tree -e features -i scirs2-core | rg 'sklears'` shows no sklears crate enabling scirs2-core feature `gpu` (remaining activators are only upstream scirs2-datasets/scirs2-fft/scirs2-optimize/scirs2-sparse)
+- [x] `cargo check -p sklears-preprocessing` and `cargo check -p sklears-preprocessing --features gpu` both succeed (proving no reliance on transitive scirs2-core/gpu feature unification)
+- [x] `cargo check -p sklears-core --all-features` succeeds with zero warnings and no dangling `cfg(feature = "scirs2-gpu-reporting")` gates (`rg 'scirs2-gpu-reporting' crates/sklears-core/src` returns 0 hits)
+- [x] For every crate with a `gpu` feature after Phase 4: `cargo check -p <crate> --features gpu` succeeds on a no-GPU host, and gpu-gated tests skip gracefully (no fabricated availability)
+- [x] `rg -n '^gpu = \[\]' crates/*/Cargo.toml` returns 0 hits (no empty stub gpu features remain; currently sklears-multiclass:37 and sklears-metrics:79)
+- [x] `rg -n 'backend-cuda|backend-wgpu' crates/sklears/Cargo.toml` returns 0 hits (empty facade stubs removed)
+- [x] `rg -n -i 'cudarc|opencl3' crates/` returns 0 hits after Phase 4 (currently 13: sklears-simd commented deps/features + reserved-handle comments, sklears-multiclass placeholder comment)
+- [x] `rg -n 'ALWAYS use .scirs2-core::gpu' SCIRS2_INTEGRATION_POLICY.md` returns 0 hits (policy rewritten to mandate `sklears_core::gpu` / oxicuda-*)
+- [x] `cargo build --workspace` succeeds with zero warnings and `cargo nextest run --all-features --no-run` compiles after each phase lands
+- [x] Workspace `Cargo.toml` oxicuda-* pins (lines 184-192) equal the latest published crates.io version at release time (0.4.0 today; all nine bumped together to 0.4.1 only after it is published)
+- [x] `rg -n 'wgpu|candle|WebGPU-powered' crates/*/README.md crates/*/src/lib.rs` returns no hits claiming live wgpu/candle GPU backends
 
 ---
 
@@ -249,7 +251,7 @@ reports **zero warnings**. Per-item outcome:
 - [x] `sklears-preprocessing`: BufferPool — premise was false; `scirs2_core::memory::BufferPool` exists and is used. Removed stale "doesn't exist" comments; re-enabled gpu_acceleration/lazy_evaluation/memory_management exports.
 - [x] `sklears-manifold`: real serde serialization for `RandomProjection` via new public accessors (`projection_matrix()` etc.) + lossless round-trip tests. ~~TSNE/Isomap return honest `Err` (internal state not publicly reachable).~~ **Correction (2026-07-05): false — see "🔎 Fabrication audit findings" below. `transform()` on new data always returns `Ok(stale_embedding)` (the cached training-time embedding), never `Err`.**
 - [x] `sklears-core`: DSL macros (`model_evaluation!`, `data_pipeline!`, `experiment_config!`) — full parse→generate implemented (dsl_types/parsers/code_generators wired).
-- [x] `sklears-core`: trait_explorer graph GPU-context init (real `scirs2_core::gpu` w/ honest CPU fallback) + where-clause extraction. ⚠️ See follow-up: `graph_visualization` module is currently disabled; logic verified in isolation.
+- [x] `sklears-core`: trait_explorer graph GPU-context init (real `scirs2_core::gpu` w/ honest CPU fallback) + where-clause extraction. ⚠️ See follow-up: `graph_visualization` module is currently disabled; logic verified in isolation. — **superseded (2026-07-06):** the "real `scirs2_core::gpu`" path was excised in the oxicuda Phase 1 migration; trait_explorer now uses the oxicuda-backed `crate::gpu` foundation instead.
 - [x] `sklears-svm`: conformal_prediction — fitted state restructured (`Option<SVC<Trained>>`), unfitted → honest `Err(NotTrained)`; wired into lib.rs.
 - [x] `sklears-svm`: nalgebra → scirs2-linalg migration — **fully migrated** (semi_supervised, property_tests, advanced_optimization); no nalgebra left in src/. Fixed 3 real bugs incl. a `// Simplified` fake decision_function.
 - [x] `sklears-compose`: time-series pipelines (LagFeatures, RollingWindow, Differencing, TemporalTrainTestSplit) — real, wired into lib.rs.
@@ -311,7 +313,7 @@ oxicuda-backend / oxicuda-blas / oxicuda-solver 等に一本化する。
 - [x] sklears-decomposition/Cargo.toml: feature `gpu` の `candle-core`/`cudarc` → `oxicuda-solver` + `oxicuda-blas` に変更
 - [x] sklears-manifold/Cargo.toml: feature `gpu` の `dep:wgpu` → `oxicuda-manifold` に変更
 - [x] sklears-neural/Cargo.toml: feature `gpu` (コメントアウト中) → `oxicuda-driver` + `oxicuda-blas` + `oxicuda-dnn` として復活
-- [x] sklears-cross-decomposition/Cargo.toml: feature `gpu` の `scirs2-core/gpu` → `oxicuda-backend` に変更
+- [x] sklears-cross-decomposition/Cargo.toml: feature `gpu` の `scirs2-core/gpu` → `oxicuda-backend` に変更 — **correction (2026-07-06):** inaccurate as originally written; `crates/sklears-cross-decomposition/Cargo.toml:40` actually reads `gpu = ["sklears-core/gpu_support"]` (oxicuda pulled in only indirectly via `sklears-core`'s `gpu_support` feature, not a direct `oxicuda-backend` dep on this crate).
 
 ### Phase 2: sklears-core GPU 抽象層の書き直し
 - [x] `sklears-core/src/gpu.rs` を全面書き直し

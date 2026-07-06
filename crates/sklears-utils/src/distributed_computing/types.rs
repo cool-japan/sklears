@@ -1,6 +1,17 @@
 //! Auto-generated module
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
+//!
+//! # GPU-fields scope note (2026-07-06 oxicuda honesty audit)
+//!
+//! The `gpu_count`/`gpu_usage`/`min_gpu_count`/`gpu_time`/`total_gpu_count`
+//! fields on [`NodeCapabilities`], [`LoadMetrics`], [`ResourceUsage`],
+//! [`ResourceRequirements`], [`ResourceAllocation`], and the cluster-summary
+//! type in this module are pure scheduling/capacity metadata (job requests,
+//! node advertised capacity, load-balancer bookkeeping): none of them call
+//! any GPU driver/runtime API, so they are out of scope for the
+//! scirs2-core-GPU-excision / oxicuda-migration audit and should not be
+//! re-flagged by future passes.
 
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;

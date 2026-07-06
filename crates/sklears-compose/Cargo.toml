@@ -47,6 +47,12 @@ criterion = { workspace = true, features = ["html_reports"] }
 default = ["workflow"]
 serde = ["dep:serde", "sklears-core/serde"]
 workflow = ["serde", "dep:serde_json", "dep:serde_yaml"]
+# Wires GPU device discovery/counting (resource_management::gpu_manager,
+# comprehensive_benchmarking::execution_engine) to real oxicuda-driver
+# queries via sklears-core's gpu_support feature. Without it, device counts
+# and allocations honestly report zero/empty rather than fabricating
+# hardware.
+gpu = ["sklears-core/gpu_support"]
 
 [[bench]]
 name = "simd_benchmarks"

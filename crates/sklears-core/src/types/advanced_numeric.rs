@@ -479,17 +479,37 @@ where
     T: FloatBounds + Send + Sync,
 {
     fn gpu_available() -> bool {
-        // NOTE: scirs2-core::gpu is not yet available; this correctly returns
-        // false in the current pure-CPU build.  When scirs2-core integrates GPU
-        // support, replace with `scirs2_core::gpu::is_available()`.
-        false
+        // Delegates to the crate's oxicuda-backed GPU abstraction. Under the
+        // `gpu_support` feature this performs a real driver/device probe via
+        // `crate::gpu::GpuBackend::is_available()`; without that feature (or
+        // on a host with no CUDA driver/device) it honestly reports `false`
+        // rather than fabricating GPU availability.
+        #[cfg(feature = "gpu_support")]
+        {
+            crate::gpu::GpuBackend::is_available()
+        }
+        #[cfg(not(feature = "gpu_support"))]
+        {
+            false
+        }
     }
 
     fn preferred_device() -> Option<usize> {
-        // NOTE: No GPU device to report in the pure-CPU fallback.  When
-        // scirs2-core::gpu is available, replace with
-        // `scirs2_core::gpu::preferred_device()`.
-        None
+        // Delegates to `crate::gpu::GpuBackend::detect()`. `detect()` is not
+        // expected to hard-error (see its own docs), so a `Result::Err` here
+        // is folded into `None` alongside the "no accelerator" `Ok(None)`
+        // case rather than panicking.
+        #[cfg(feature = "gpu_support")]
+        {
+            crate::gpu::GpuBackend::detect()
+                .ok()
+                .flatten()
+                .map(|backend| backend.device_id())
+        }
+        #[cfg(not(feature = "gpu_support"))]
+        {
+            None
+        }
     }
 
     fn gpu_elementwise_op<F>(data: &[T], op: F) -> Vec<T>
