@@ -23,7 +23,7 @@
 
 use crate::common::CovarianceType;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
-use scirs2_core::random::thread_rng;
+use scirs2_core::random::seeded_rng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -71,6 +71,7 @@ pub enum RegularizationType {
 /// ```
 #[derive(Debug, Clone)]
 pub struct L1RegularizedGMM<S = Untrained> {
+    pub(crate) state: S,
     n_components: usize,
     lambda: f64,
     covariance_type: CovarianceType,
@@ -78,7 +79,6 @@ pub struct L1RegularizedGMM<S = Untrained> {
     tol: f64,
     reg_covar: f64,
     random_state: Option<u64>,
-    _phantom: std::marker::PhantomData<S>,
 }
 
 /// Trained L1 Regularized GMM
@@ -88,13 +88,15 @@ pub struct L1RegularizedGMMTrained {
     pub weights: Array1<f64>,
     /// Component means
     pub means: Array2<f64>,
-    /// Component covariances
+    /// Component covariances (tied/shared diagonal, see module docs)
     pub covariances: Array2<f64>,
     /// Sparsity pattern (true = non-zero coefficient)
     pub sparsity_pattern: Vec<Vec<bool>>,
     /// Number of non-zero parameters
     pub n_nonzero: usize,
-    /// Log-likelihood history
+    /// Log-likelihood history: the real penalized log-likelihood
+    /// (log-sum-exp data log-likelihood minus the L1 penalty on the means)
+    /// at each iteration.
     pub log_likelihood_history: Vec<f64>,
     /// Number of iterations
     pub n_iter: usize,
@@ -173,6 +175,7 @@ impl L1RegularizedGMMBuilder {
     /// Build the model
     pub fn build(self) -> L1RegularizedGMM<Untrained> {
         L1RegularizedGMM {
+            state: Untrained,
             n_components: self.n_components,
             lambda: self.lambda,
             covariance_type: self.covariance_type,
@@ -180,7 +183,6 @@ impl L1RegularizedGMMBuilder {
             tol: self.tol,
             reg_covar: self.reg_covar,
             random_state: self.random_state,
-            _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -222,6 +224,8 @@ impl Estimator for L1RegularizedGMM<Untrained> {
 impl Fit<ArrayView2<'_, Float>, ()> for L1RegularizedGMM<Untrained> {
     type Fitted = L1RegularizedGMM<L1RegularizedGMMTrained>;
 
+    /// Fit a tied-diagonal-covariance Gaussian mixture via EM with an L1
+    /// (LASSO) penalty applied to the means through soft-thresholding.
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
         let X_owned = X.to_owned();
@@ -232,12 +236,18 @@ impl Fit<ArrayView2<'_, Float>, ()> for L1RegularizedGMM<Untrained> {
                 "Number of samples must be >= number of components".to_string(),
             ));
         }
-
-        // Initialize with simple k-means-like approach
-        let mut rng = thread_rng();
-        if let Some(_seed) = self.random_state {
-            // Use seeded RNG if needed - for now use thread_rng for simplicity
+        if self.n_components == 0 {
+            return Err(SklearsError::InvalidInput(
+                "Number of components must be positive".to_string(),
+            ));
         }
+
+        // Initialize with simple k-means-like approach. `random_state` is
+        // honored via `common::resolve_seed` + `seeded_rng` (previously the
+        // field was accepted but silently ignored in favor of
+        // non-reproducible `thread_rng()`).
+        let seed = crate::common::resolve_seed(self.random_state);
+        let mut rng = seeded_rng(seed);
 
         let mut means = Array2::zeros((self.n_components, n_features));
         let mut used_indices = Vec::new();
@@ -263,6 +273,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for L1RegularizedGMM<Untrained> {
         for iter in 0..self.max_iter {
             // E-step
             let mut responsibilities = Array2::zeros((n_samples, self.n_components));
+            let mut log_lik = 0.0;
 
             for i in 0..n_samples {
                 let x = X_owned.row(i);
@@ -293,6 +304,12 @@ impl Fit<ArrayView2<'_, Float>, ()> for L1RegularizedGMM<Untrained> {
 
                 let max_log = log_probs.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
                 let sum_exp: f64 = log_probs.iter().map(|&lp| (lp - max_log).exp()).sum();
+                // Real log-sum-exp data log-likelihood contribution
+                // (previously this was thrown away and replaced below by
+                // summing normalized responsibilities, which always sum to
+                // ~1.0 and therefore carried no information about fit
+                // quality).
+                log_lik += max_log + sum_exp.ln();
 
                 for k in 0..self.n_components {
                     responsibilities[[i, k]] =
@@ -332,19 +349,11 @@ impl Fit<ArrayView2<'_, Float>, ()> for L1RegularizedGMM<Untrained> {
 
             weights /= weights.sum();
 
-            // Compute log-likelihood
-            let mut log_lik = 0.0;
-            for i in 0..n_samples {
-                let mut ll = 0.0;
-                for k in 0..self.n_components {
-                    ll += responsibilities[[i, k]];
-                }
-                log_lik += ll.max(1e-10).ln();
-            }
-
-            // Add L1 penalty to objective
+            // Penalized objective: real data log-likelihood minus the L1
+            // penalty on the means (the standard penalized-likelihood
+            // formulation for LASSO-regularized MLE).
             let l1_penalty: f64 = means.iter().map(|&m| m.abs()).sum::<f64>() * self.lambda;
-            log_lik -= l1_penalty;
+            let log_lik = log_lik - l1_penalty;
 
             log_likelihood_history.push(log_lik);
 
@@ -385,6 +394,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for L1RegularizedGMM<Untrained> {
         };
 
         Ok(L1RegularizedGMM {
+            state: Untrained,
             n_components: self.n_components,
             lambda: self.lambda,
             covariance_type: self.covariance_type,
@@ -392,7 +402,6 @@ impl Fit<ArrayView2<'_, Float>, ()> for L1RegularizedGMM<Untrained> {
             tol: self.tol,
             reg_covar: self.reg_covar,
             random_state: self.random_state,
-            _phantom: std::marker::PhantomData,
         }
         .with_state(trained_state))
     }
@@ -401,9 +410,10 @@ impl Fit<ArrayView2<'_, Float>, ()> for L1RegularizedGMM<Untrained> {
 impl L1RegularizedGMM<Untrained> {
     fn with_state(
         self,
-        _state: L1RegularizedGMMTrained,
+        state: L1RegularizedGMMTrained,
     ) -> L1RegularizedGMM<L1RegularizedGMMTrained> {
         L1RegularizedGMM {
+            state,
             n_components: self.n_components,
             lambda: self.lambda,
             covariance_type: self.covariance_type,
@@ -411,7 +421,6 @@ impl L1RegularizedGMM<Untrained> {
             tol: self.tol,
             reg_covar: self.reg_covar,
             random_state: self.random_state,
-            _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -419,8 +428,14 @@ impl L1RegularizedGMM<Untrained> {
 impl Predict<ArrayView2<'_, Float>, Array1<usize>> for L1RegularizedGMM<L1RegularizedGMMTrained> {
     #[allow(non_snake_case)]
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array1<usize>> {
-        let (n_samples, _) = X.dim();
-        Ok(Array1::zeros(n_samples))
+        let X_owned = X.to_owned();
+        Ok(crate::common::predict_tied_diag_argmax(
+            &X_owned,
+            &self.state.weights,
+            &self.state.means,
+            &self.state.covariances,
+            self.reg_covar,
+        ))
     }
 }
 
@@ -695,6 +710,127 @@ mod tests {
 
         let result = model.fit(&X.view(), &());
         assert!(result.is_ok());
+    }
+
+    /// Regression test for the fabrication bug: `with_state` used to
+    /// discard the fitted parameters, so `predict` always returned
+    /// all-zeros regardless of input. A real fit on two well-separated
+    /// blobs must discriminate between them.
+    #[test]
+    #[allow(non_snake_case)] // standard ML notation
+    fn test_l1_regularized_gmm_predict_recovers_cluster_structure() {
+        let X = array![
+            [0.0, 0.0],
+            [0.1, 0.1],
+            [-0.1, 0.1],
+            [0.1, -0.1],
+            [10.0, 10.0],
+            [10.1, 10.1],
+            [9.9, 10.1],
+            [10.1, 9.9],
+        ];
+
+        let model = L1RegularizedGMM::builder()
+            .n_components(2)
+            .lambda(0.001)
+            .max_iter(50)
+            .random_state(42)
+            .build();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("L1RegularizedGMM fit should succeed on well-separated blobs");
+        let preds = fitted
+            .predict(&X.view())
+            .expect("L1RegularizedGMM predict should succeed");
+
+        let distinct: std::collections::HashSet<usize> = preds.iter().copied().collect();
+        assert!(
+            distinct.len() > 1,
+            "predictions collapsed onto a single label (the old all-zeros bug): {:?}",
+            preds
+        );
+
+        let label_a = preds[0];
+        for i in 0..4 {
+            assert_eq!(preds[i], label_a, "first blob should share one label");
+        }
+        let label_b = preds[4];
+        assert_ne!(
+            label_a, label_b,
+            "the two well-separated blobs must not collapse onto the same label"
+        );
+        for i in 4..8 {
+            assert_eq!(preds[i], label_b, "second blob should share one label");
+        }
+    }
+
+    /// The old `log_likelihood_history` summed *normalized* responsibilities
+    /// (which sum to ~1.0 per sample by construction), making it an
+    /// uninformative near-constant regardless of fit quality. The real
+    /// log-sum-exp log-likelihood must differ substantially between a good
+    /// fit (means placed at the true cluster centers) and a deliberately bad
+    /// one (means forced far away from all data).
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_l1_log_likelihood_is_not_the_old_constant_bug() {
+        let X = array![
+            [0.0, 0.0],
+            [0.2, -0.1],
+            [10.0, 10.0],
+            [10.1, 9.9],
+        ];
+
+        let fitted = L1RegularizedGMM::builder()
+            .n_components(2)
+            .lambda(0.0)
+            .max_iter(50)
+            .random_state(1)
+            .build()
+            .fit(&X.view(), &())
+            .expect("fit should succeed");
+
+        let final_ll = *fitted
+            .state
+            .log_likelihood_history
+            .last()
+            .expect("history should be non-empty");
+        assert!(final_ll.is_finite());
+        // The old bug summed *normalized* responsibilities, each ~1.0 by
+        // softmax construction, so `log_lik` always landed within floating
+        // rounding error of `n_samples * ln(1.0) == 0.0` (with lambda == 0.0
+        // here, no penalty to shift it away from that). A real per-sample
+        // Gaussian log-density on tight, well-separated 2D blobs is many
+        // orders of magnitude away from 0 (it can be positive when the
+        // fitted variance is small, since a continuous density can exceed
+        // 1), so this threshold safely distinguishes "real" from "the old
+        // near-zero placeholder" without having to predict the exact sign.
+        assert!(
+            final_ll.abs() > 1e-3,
+            "log-likelihood looks like the old near-zero placeholder bug: {final_ll}"
+        );
+
+        // Cross-check against an independent, deliberately bad set of
+        // parameters (single shared mean at the global centroid, huge
+        // variance): the fitted model must score the data at least as well
+        // under its own (real) log-likelihood definition.
+        let bad_mean = array![5.05_f64, 4.95];
+        let huge_cov = Array2::<f64>::eye(2) * 1.0e6;
+        let huge_cov_diag = huge_cov.diag().to_owned();
+        let mut bad_ll = 0.0;
+        for row in X.outer_iter() {
+            bad_ll += crate::common::tied_diag_weighted_log_prob(
+                &row,
+                &bad_mean.view(),
+                1.0,
+                &huge_cov_diag.view(),
+                1e-6,
+            );
+        }
+        assert!(
+            final_ll > bad_ll,
+            "a real fit ({final_ll}) should score the data better than an obviously bad \
+             single-blob model ({bad_ll})"
+        );
     }
 
     #[test]

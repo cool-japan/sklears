@@ -18,6 +18,17 @@
 
 - [x] Phase C-4: Removed all 26 blanket #![allow(...)] suppressors; 506 tests pass, 0 warnings
 
+## OxiCUDA Migration (v0.2.0)
+
+Status: fully migrated to the oxicuda-backed GPU stack (no scirs2-core GPU usage). Remaining item is a hardening/depth improvement (workspace Phase 5, optional for the 0.2.0 release).
+
+- [ ] (M) Offload `GpuMatrixOps::eig` and `svd` to oxicuda-solver when a CUDA backend is live — `src/gpu_acceleration.rs`, `Cargo.toml`
+  - `eig`/`svd` (`src/gpu_acceleration.rs:344-363`) always run on CPU via `scirs2_linalg::compat::{eigh, svd}`; module docs (lines 23-26) acknowledge this as the CPU-correct baseline pending oxicuda-solver wiring.
+  - Preferred: extend `sklears_core::gpu` with `eigh`/`svd` wrappers over `oxicuda_solver::dense` (syevd at `dense/eig.rs:70`, SVD at `dense/svd.rs:116`) and call those, keeping this crate free of direct oxicuda deps.
+  - Alternative: add optional `oxicuda-solver` + `oxicuda-memory` to the `gpu` feature mirroring sklears-discriminant-analysis (`Cargo.toml:46-48,61`), with column-major round-trips.
+  - Update module docs (lines 23-26, 44-45) and the `GpuMatrixOps` doc comment (lines 262-268) once wired.
+  - Caveat: oxicuda-solver 0.4.0's syevd/SVD device paths are documented CPU host fallbacks — do not claim on-device acceleration until upstream restores it.
+
 ---
 
 See also: [Workspace roadmap](../../TODO.md)

@@ -44,6 +44,98 @@ Create a production-ready machine learning library in Rust that:
 
 ---
 
+## 🚀 OxiCUDA Migration (v0.2.0) — scirs2-core GPU 完全撤去
+
+*(consolidated 2026-07-06 — supersedes the former "OxiCUDA Migration (v0.2.0) — workspace-root items" section; per-crate work is tracked in each crate's own TODO.md, linked below)*
+
+### Goal
+
+**Zero sklears-side usage of `scirs2_core::gpu` for 0.2.0; all GPU work routes exclusively through oxicuda-\* 0.4.x** (via the shared `sklears_core::gpu` abstraction behind `gpu_support`, or direct oxicuda-* deps for kernels).
+
+**Scope note:** `scirs2-core`'s `gpu` feature *cannot* be evicted from the build graph — upstream scirs2-datasets/scirs2-fft/scirs2-optimize/scirs2-sparse 0.6.0 force-enable it regardless of the workspace `default-features = false` pin (verified via `cargo tree -e features -i scirs2-core`). The release goal is therefore precisely "zero sklears-side *usage*", not zero compilation; full eviction requires upstream scirs2 0.7.x or dropping those deps.
+
+### Current state
+
+**Already done (Wave A2, 2026-07-03/04):**
+- `crates/sklears-core/src/gpu.rs` is 100% oxicuda-backed (oxicuda-driver `Context` + oxicuda-blas `BlasHandle` + oxicuda-memory `DeviceBuffer`, honest `Ok(None)` detection) behind `gpu_support = [dep:oxicuda-backend, dep:oxicuda-memory, dep:oxicuda-blas, dep:oxicuda-driver]`.
+- Nine downstream crates wire real oxicuda `gpu` features: linear, neural, svm, clustering, neighbors, decomposition, manifold, discriminant-analysis; cross-decomposition routes via `sklears-core/gpu_support`.
+- See "GPU Migration: oxicuda-* v0.3 への完全移行" below for the phase-by-phase history.
+
+**Only two code-real scirs2 GPU touchpoints remain (rg-verified):**
+1. `sklears-core` feature `scirs2-gpu-reporting = ["scirs2-core/gpu"]` (`crates/sklears-core/Cargo.toml:110`) + gated use in trait_explorer `graph_generator.rs:17` — dormant, enabled by no crate, compiles only under `--all-features`.
+2. `sklears-preprocessing` `gpu_acceleration.rs:51` — unconditional `ScirGpuBackend` import + conversion layer; a **latent build break** that compiles only because scirs2-optimize/scirs2-sparse transitively enable `scirs2-core/gpu`.
+
+Additionally, ~15 crates carry simulated/stub GPU layers (fake device lists, `gpu = []` features, null-pointer buffers) that must be wired to oxicuda or honestly downscoped.
+
+### Phased execution ordering
+
+1. **Phase 1 — sklears-core scirs2 excision (blocking):** delete `scirs2-gpu-reporting`; port trait-graph GPU reporting to `crate::gpu::GpuBackend::detect()` under `gpu_support`; rewrite stale `advanced_numeric.rs` comments (the recommended scirs2 free fns never existed); fix the DSL codegen snippet emitting nonexistent `crate::gpu::initialize_gpu_context()` under the wrong feature name. → `crates/sklears-core/TODO.md`
+2. **Phase 2 — sklears-preprocessing conversion-layer swap (blocking):** replace the `ScirGpuBackend` layer with `sklears_core::gpu` detection behind a new `gpu = ["sklears-core/gpu_support"]` feature; keep the serde-visible local enum variants (non-CUDA variants hard-wired unavailable). Reference pattern: the completed sklears-discriminant-analysis migration. → `crates/sklears-preprocessing/TODO.md`
+3. **Phase 3 — docs/policy corrections + excision verification:** SCIRS2_INTEGRATION_POLICY.md rewrite, root-TODO/CHANGELOG fixes, transitive-activation documentation; run the rg/cargo-tree acceptance checks — **the 0.2.0 headline goal is DONE at the end of this phase.**
+4. **Phase 4 — stub/simulated GPU honesty pass (parallelizable per crate, not blocking the scirs2 goal):** 15 crates wired to oxicuda or honestly downscoped (see table). S/M items first; L kernel-implementation items are deferable past 0.2.0 — **exception:** the sklears-kernel-approximation `eigendecomposition_cpu` fake-eigenvalue correctness bug must NOT be deferred.
+5. **Phase 5 — hardening of already-migrated oxicuda crates (optional for release):** unused-dep pruning, dead cfg branches, doc accuracy, deeper device paths (see table).
+6. **Phase 6 — version watch + final sweep:** keep oxicuda-* pins at 0.4.0; bump to 0.4.1 only when published; re-run full acceptance criteria and `cargo nextest run --all-features`.
+
+### Per-crate work (details in each crate's TODO.md)
+
+| Crate | Status | Summary (max effort) | Tracker |
+|---|---|---|---|
+| sklears-core | partial | Remove `scirs2-gpu-reporting`, port trait-graph GPU reporting to `crate::gpu`, fix stale comments + DSL codegen snippet (M) | see `crates/sklears-core/TODO.md` |
+| sklears-preprocessing | scirs2-dependent | Swap `ScirGpuBackend` conversion layer to `sklears_core::gpu` + new `gpu` feature; scaler oxicuda kernels are an optional L follow-up (M/L) | see `crates/sklears-preprocessing/TODO.md` |
+| sklears-neighbors | partial | Replace mock device detection with real oxicuda-driver queries; collapse decorative Cuda/OpenCl/Metal enum; prune unused `dep:oxicuda-backend` (M) | see `crates/sklears-neighbors/TODO.md` |
+| sklears-multiclass | simulated-gpu | Rewire `src/gpu` onto `sklears-core/gpu_support` (`gpu = []` today); connect ECOC GPUMode to real GPU layer; delete "cudarc or opencl3" placeholder (M) | see `crates/sklears-multiclass/TODO.md` |
+| sklears-metrics | simulated-gpu | Fix `gpu = []` + broken cuda-vs-gpu gate (`full` silently skips the module); rewrite null-pointer GPU stubs onto oxicuda (L) | see `crates/sklears-metrics/TODO.md` |
+| sklears-inspection | simulated-gpu | Replace dead `gpu = ["dep:tokio"]` feature; rebuild placeholder GpuContext/GpuBuffer on `sklears_core::gpu`; optional SHAP GPU staging (L) | see `crates/sklears-inspection/TODO.md` |
+| sklears-kernel-approximation | simulated-gpu | Add real `gpu` feature + gate simulated module; rebuild on `sklears_core::gpu`; **fix fake-eigenvalue `eigendecomposition_cpu` bug (not deferable)** (L) | see `crates/sklears-kernel-approximation/TODO.md` |
+| sklears-ensemble | stub-gpu | Add oxicuda-backed `gpu` feature; rewire device detection/memory manager; implement or downscope NotImplemented GPU kernels (L) | see `crates/sklears-ensemble/TODO.md` |
+| sklears-utils | simulated-gpu | Replace fabricated device list ("RTX 3080") with real enumeration; back GpuArrayOps with oxicuda; record distributed GPU fields as out of scope (L) | see `crates/sklears-utils/TODO.md` |
+| sklears-simd | stub-gpu | Delete 2225 lines of always-erroring stub GPU modules + the workspace's only commented cudarc/opencl3 remnants (M) | see `crates/sklears-simd/TODO.md` |
+| sklears (facade) | stub-gpu | Replace empty `backend-cuda`/`backend-wgpu` stub features with a real oxicuda-backed `gpu` feature; fix lib.rs CUDA/WebGPU doc claims (S) | see `crates/sklears/TODO.md` |
+| sklears-compose | simulated-gpu | Wire device discovery/counting to oxicuda-driver behind a `gpu` feature; document GPU telemetry fields as scheduling metadata (M) | see `crates/sklears-compose/TODO.md` |
+| sklears-calibration | stub-gpu | Slot oxicuda in behind a `gpu` feature for gpu_calibration wrappers (device enumeration, memory stats, blas-backed scaling) (M) | see `crates/sklears-calibration/TODO.md` |
+| sklears-naive-bayes | stub-gpu | Back GpuOptimizer with oxicuda-blas gemm behind a `gpu` feature, or delete the placeholder + unreachable `OptimizationStrategy::Gpu` (M) | see `crates/sklears-naive-bayes/TODO.md` |
+| sklears-python | stub-gpu | Report real CUDA availability via oxicuda (currently hardcoded `cuda_available = false`) (S) | see `crates/sklears-python/TODO.md` |
+| sklears-model-selection | simulated-gpu | Optionally derive `has_gpu`/`use_gpu` config defaults from oxicuda detection (S) | see `crates/sklears-model-selection/TODO.md` |
+| sklears-impute | simulated-gpu | Make `DeepLearningConfig.device` honest: validate or wire to oxicuda (S) | see `crates/sklears-impute/TODO.md` |
+| sklears-linear | fully-oxicuda | Optional hardening: real device memory pools, real driver streams, real perf counters (L) | see `crates/sklears-linear/TODO.md` |
+| sklears-neural | fully-oxicuda | Implement conv2d via oxicuda-dnn (declared dep unused); real tensor-core/CC detection; resolve unused oxicuda-ptx/driver deps (L) | see `crates/sklears-neural/TODO.md` |
+| sklears-svm | fully-oxicuda | Optional hygiene: prune unused gpu-feature deps (oxicuda-ptx/backend/bytemuck); retire dead WGPU-era error variants (S) | see `crates/sklears-svm/TODO.md` |
+| sklears-clustering | fully-oxicuda | Prune or genuinely use direct oxicuda deps; delete dead/non-compiling `cfg(not(gpu))` stub; pollster → dev-deps; README WebGPU wording fix (M) | see `crates/sklears-clustering/TODO.md` |
+| sklears-decomposition | fully-oxicuda | Remove unused optional deps `oxicuda-blas` and `half` from the `gpu` feature (S) | see `crates/sklears-decomposition/TODO.md` |
+| sklears-manifold | fully-oxicuda | Resolve dead `cfg(not(feature = "gpu"))` branches vs lib.rs gating; fix `.unwrap()` in doc example (S) | see `crates/sklears-manifold/TODO.md` |
+| sklears-discriminant-analysis | fully-oxicuda | Adopt oxicuda-solver `sygvd` for the LDA generalized eigensolve when upstream ships it (S) | see `crates/sklears-discriminant-analysis/TODO.md` |
+| sklears-cross-decomposition | fully-oxicuda | Offload GpuMatrixOps eig/svd to oxicuda-solver when a CUDA backend is live (preferably via new `sklears_core::gpu` eigh/svd wrappers) (M) | see `crates/sklears-cross-decomposition/TODO.md` |
+
+### Workspace-level items
+
+- [ ] (S) Rewrite stale GPU policy in `SCIRS2_INTEGRATION_POLICY.md` — line 277 mandates "ALWAYS use scirs2-core::gpu module for GPU operations" and line 279 forbids direct GPU API calls outside SciRS2-core; both contradict the oxicuda migration. Rewrite the GPU Operations Policy section to mandate `sklears_core::gpu` (oxicuda-driver/oxicuda-blas/oxicuda-memory behind `gpu_support`) and direct oxicuda-* crates for kernels, with CPU scirs2-linalg fallbacks explicitly allowed.
+- [ ] (S) Correct root GPU migration records in `TODO.md` + add `CHANGELOG.md` entry — the "GPU Migration" Phase 1 line below claiming sklears-cross-decomposition's `gpu` feature became "oxicuda-backend" is inaccurate: `crates/sklears-cross-decomposition/Cargo.toml:40` actually reads `gpu = ["sklears-core/gpu_support"]` (oxicuda only indirectly); fix the wording. Mark the "✅ Stub-check backlog" line recording trait_explorer's use of "real `scirs2_core::gpu`" as superseded once the sklears-core Phase 1 excision removes that path. Add a `CHANGELOG.md` entry noting the removal of the public sklears-core feature `scirs2-gpu-reporting` (API-visible in `--all-features` builds).
+- [ ] (S) Document that `scirs2-core/gpu` stays force-enabled transitively (goal scoping) — `cargo tree -e features -i scirs2-core` shows scirs2-datasets/scirs2-fft/scirs2-optimize/scirs2-sparse 0.6.0 hard-enable scirs2-core's `gpu` feature regardless of the workspace `default-features = false` pin (`Cargo.toml:56`). Record in this migration section that the 0.2.0 goal is precisely "zero sklears-side USAGE of `scirs2_core::gpu`", and that full eviction requires upstream scirs2 0.7.x or dropping those deps. Files: `TODO.md`, `Cargo.toml`.
+- [ ] (S) Version watch: bump oxicuda-* 0.4.0 → 0.4.1 when published — the workspace pins nine oxicuda crates at 0.4.0 (`Cargo.toml:184-192`: backend, memory, blas, solver, manifold, dnn, driver, ptx, primitives); crates.io latest is 0.4.0, so the pin already satisfies the Latest-crates policy. The local oxicuda workspace is 0.4.1 but its CHANGELOG marks it Unreleased — do NOT bump early. When 0.4.1 publishes, bump all nine pins in one pass and re-run gpu-feature builds. Note: oxicuda-solver 0.4.0's syevd/QR/SVD device paths are documented exact-CPU host fallbacks — sklears docs (decomposition/linear/discriminant-analysis/cross-decomposition) must not claim on-device eigen/SVD until upstream restores them.
+- [ ] (S) Docs sweep after Phase 4 — no README/lib.rs may claim live wgpu/candle/WebGPU GPU backends or CUDA/OpenCL support that does not exist (known offenders: `crates/sklears-clustering/README.md:71` "WebGPU-powered", `crates/sklears/src/lib.rs:15,64` CUDA/WebGPU feature claims); every gpu-gated call site must preserve the `Ok(None)`/CPU-fallback contract so no-GPU hosts build and tests skip gracefully (model: sklears-svm `DeviceNotAvailable` skip pattern).
+
+**Behavior change to expect:** scirs2's `GpuBackend::preferred()` always returned Cpu in production builds, so `gpu_accelerated` flags could never be true; after the oxicuda port, real detection can report true on CUDA hosts — audit tests asserting always-false (e.g. graph_generator.rs:1677 asserts `!has_gpu_acceleration` in the no-feature build only).
+
+**Out-of-scope (do not re-flag in future audits):** `scirs2_core::ndarray/random/linalg` CPU usage (workspace-approved non-GPU features); scirs2-linalg CPU fallbacks in GPU modules (intentional); descriptor-only GPU enums/telemetry (compose resource metadata, ensemble `TensorDevice::Gpu`, utils distributed_computing `gpu_count`/`gpu_usage`, neural `gpu_hours`, core platform-name strings like "cuda-gpu").
+
+### Acceptance criteria
+
+- [ ] `rg -n "scirs2_core::gpu|ScirGpuBackend" crates/ -g '*.rs'` returns 0 hits (code AND comments; currently 35 hits across sklears-preprocessing and sklears-core)
+- [ ] `rg -n "scirs2-core/gpu|scirs2-gpu-reporting" -g 'Cargo.toml' .` returns 0 hits (currently 1: `crates/sklears-core/Cargo.toml:110`)
+- [ ] `cargo tree -e features -i scirs2-core | rg 'sklears'` shows no sklears crate enabling scirs2-core feature `gpu` (remaining activators are only upstream scirs2-datasets/scirs2-fft/scirs2-optimize/scirs2-sparse)
+- [ ] `cargo check -p sklears-preprocessing` and `cargo check -p sklears-preprocessing --features gpu` both succeed (proving no reliance on transitive scirs2-core/gpu feature unification)
+- [ ] `cargo check -p sklears-core --all-features` succeeds with zero warnings and no dangling `cfg(feature = "scirs2-gpu-reporting")` gates (`rg 'scirs2-gpu-reporting' crates/sklears-core/src` returns 0 hits)
+- [ ] For every crate with a `gpu` feature after Phase 4: `cargo check -p <crate> --features gpu` succeeds on a no-GPU host, and gpu-gated tests skip gracefully (no fabricated availability)
+- [ ] `rg -n '^gpu = \[\]' crates/*/Cargo.toml` returns 0 hits (no empty stub gpu features remain; currently sklears-multiclass:37 and sklears-metrics:79)
+- [ ] `rg -n 'backend-cuda|backend-wgpu' crates/sklears/Cargo.toml` returns 0 hits (empty facade stubs removed)
+- [ ] `rg -n -i 'cudarc|opencl3' crates/` returns 0 hits after Phase 4 (currently 13: sklears-simd commented deps/features + reserved-handle comments, sklears-multiclass placeholder comment)
+- [ ] `rg -n 'ALWAYS use .scirs2-core::gpu' SCIRS2_INTEGRATION_POLICY.md` returns 0 hits (policy rewritten to mandate `sklears_core::gpu` / oxicuda-*)
+- [ ] `cargo build --workspace` succeeds with zero warnings and `cargo nextest run --all-features --no-run` compiles after each phase lands
+- [ ] Workspace `Cargo.toml` oxicuda-* pins (lines 184-192) equal the latest published crates.io version at release time (0.4.0 today; all nine bumped together to 0.4.1 only after it is published)
+- [ ] `rg -n 'wgpu|candle|WebGPU-powered' crates/*/README.md crates/*/src/lib.rs` returns no hits claiming live wgpu/candle GPU backends
+
+---
+
 ## 📊 Current Status (v0.2.0)
 
 **Overall API Coverage: >99%** 🎉
@@ -52,40 +144,40 @@ All major scikit-learn modules are implemented with production-ready quality:
 
 | Module | Coverage | Status | Advanced Features |
 |--------|----------|--------|--------------------|
-| linear_model | 100% | 🟢 Complete | GPU acceleration, distributed training |
-| tree | 100% | 🟢 Complete | SHAP integration, GPU acceleration |
-| ensemble | 100% | 🟢 Complete | Advanced stacking, isolation forest |
-| svm | 100% | 🟢 Complete | GPU kernels, parallel SMO |
-| neural_network | 100% | 🟢 Complete | Advanced layers, seq2seq, attention |
+| linear_model | 100% | 🟡 Partial (fabrication found) | GPU acceleration, distributed training |
+| tree | 100% | 🟢 Complete (fixed 2026-07-05 — real classifier/regressor restored) | SHAP integration, GPU acceleration |
+| ensemble | 100% | 🟢 Complete | Gradient boosting, bagging regression, advanced stacking, isolation forest |
+| svm | 100% | 🟡 Partial (fabrication found) | GPU kernels, parallel SMO |
+| neural_network | 100% | 🟡 Partial (fabrication found) | Advanced layers, seq2seq, attention |
 | cluster | 100% | 🟢 Complete | GPU acceleration, streaming |
-| decomposition | 100% | 🟢 Complete | Incremental variants, tensor methods |
-| preprocessing | 100% | 🟢 Complete | Text processing, GPU scaling |
-| metrics | 100% | 🟢 Complete | Statistical testing, visualization |
-| model_selection | 100% | 🟢 Complete | AutoML pipeline, advanced search |
-| neighbors | 100% | 🟢 Complete | Spatial trees, GPU acceleration |
-| feature_selection | 100% | 🟢 Complete | Stability selection, advanced tests |
-| datasets | 100% | 🟢 Complete | Real-world data, advanced generators |
-| naive_bayes | 100% | 🟢 Complete | All variants, ensemble methods |
-| gaussian_process | 100% | 🟢 Complete | Advanced kernels, Bayesian optimization |
-| discriminant_analysis | 100% | 🟢 Complete | GPU acceleration, robust variants |
-| manifold | 100% | 🟢 Complete | GPU support, advanced embeddings |
-| semi_supervised | 100% | 🟢 Complete | Graph methods, deep learning |
-| feature_extraction | 100% | 🟢 Complete | Text processing, image features |
-| covariance | 100% | 🟢 Complete | Robust estimators, sparse methods |
-| cross_decomposition | 100% | 🟢 Complete | Advanced PLS variants |
-| isotonic | 100% | 🟢 Complete | Multidimensional support |
-| kernel_approximation | 100% | 🟢 Complete | GPU acceleration, advanced methods |
+| decomposition | 100% | 🟡 Partial (fabrication found) | Incremental variants, tensor methods |
+| preprocessing | 100% | 🟡 Partial (fabrication found) | Text processing, GPU scaling |
+| metrics | 100% | 🟡 Partial (fabrication found) | Statistical testing, visualization |
+| model_selection | 100% | 🟡 Partial (fabrication found) | AutoML pipeline, advanced search |
+| neighbors | 100% | 🟡 Partial (fabrication found) | Spatial trees, GPU acceleration |
+| feature_selection | 100% | 🟡 Partial (fabrication found) | Stability selection, advanced tests |
+| datasets | 100% | 🔴 Needs audit | Real-world data, advanced generators |
+| naive_bayes | 100% | 🟡 Partial (fabrication found) | All variants, ensemble methods |
+| gaussian_process | 100% | 🟡 Partial (fabrication found) | Advanced kernels, Bayesian optimization |
+| discriminant_analysis | 100% | 🟡 Partial (fabrication found) | GPU acceleration, robust variants |
+| manifold | 100% | 🟢 Complete (fixed 2026-07-05 — honest-Err + real out-of-sample where defined) | GPU support, advanced embeddings |
+| semi_supervised | 100% | 🔴 Needs audit | Graph methods, deep learning |
+| feature_extraction | 100% | 🟡 Partial (fabrication found) | Text processing, image features |
+| covariance | 100% | 🟡 Partial (fabrication found) | Robust estimators, sparse methods |
+| cross_decomposition | 100% | 🟡 Partial (fabrication found) | Advanced PLS variants |
+| isotonic | 100% | 🟡 Partial (fabrication found) | Multidimensional support |
+| kernel_approximation | 100% | 🟡 Partial (fabrication found) | GPU acceleration, advanced methods |
 | dummy | 100% | 🟢 Complete | All baseline strategies |
-| calibration | 100% | 🟢 Complete | Neural calibration, conformal prediction |
-| multiclass | 100% | 🟢 Complete | Error-correcting codes |
-| multioutput | 100% | 🟢 Complete | All chaining methods |
-| impute | 100% | 🟢 Complete | Neural networks, ensemble imputation |
-| compose | 100% | 🟢 Complete | GPU pipelines, distributed processing |
-| inspection | 100% | 🟢 Complete | Causal analysis, dashboards |
-| mixture | 100% | 🟢 Complete | Bayesian variants, advanced EM |
+| calibration | 100% | 🟡 Partial (fabrication found) | Neural calibration, conformal prediction |
+| multiclass | 100% | 🟡 Partial (fabrication found) | Error-correcting codes |
+| multioutput | 100% | 🟡 Partial (fabrication found) | All chaining methods |
+| impute | 100% | 🟡 Partial (fabrication found) | Neural networks, ensemble imputation |
+| compose | 100% | 🟡 Partial (fabrication found) | GPU pipelines, distributed processing |
+| inspection | 100% | 🟡 Partial (fabrication found) | Causal analysis, dashboards |
+| mixture | 100% | 🟢 Complete (fixed 2026-07-05 — real EM math + state wiring) | Bayesian variants, advanced EM |
 | simd | 100% | 🟢 Complete | Advanced SIMD optimizations |
-| utils | 100% | 🟢 Complete | GPU utilities, distributed support |
-| core | 100% | 🟢 Complete | Type system, GPU, async traits |
+| utils | 100% | 🟡 Partial (fabrication found) | GPU utilities, distributed support |
+| core | 100% | 🟡 Partial (fabrication found) | Type system, GPU, async traits |
 
 ## 📊 Quality Metrics
 
@@ -155,7 +247,7 @@ reports **zero warnings**. Per-item outcome:
 - [x] `sklears-preprocessing`: SIMD paths re-enabled (real AVX kernels `simd_threshold_mask`, `simd_axpy`; routed `simd_mahalanobis` through `simd_dot_product`; honest scalar-only docs where `powf`/`ln` have no exact AVX intrinsic).
 - [x] `sklears-preprocessing`: scaling/imputation/encoding — **found ~12 exported empty-placeholder structs (silent fabrication), now implemented for real**: MinMaxScaler, MaxAbsScaler, UnitVectorScaler, FeatureWiseScaler, OutlierAwareScaler; SimpleImputer, KNNImputer (nan-aware), IterativeImputer (MICE ridge), MultipleImputer, GAINImputer (honest regression backend); OrdinalEncoder, TargetEncoder (category_encoders smoothing). Dead modular-refactor comment blocks removed.
 - [x] `sklears-preprocessing`: BufferPool — premise was false; `scirs2_core::memory::BufferPool` exists and is used. Removed stale "doesn't exist" comments; re-enabled gpu_acceleration/lazy_evaluation/memory_management exports.
-- [x] `sklears-manifold`: real serde serialization for `RandomProjection` via new public accessors (`projection_matrix()` etc.) + lossless round-trip tests. TSNE/Isomap return honest `Err` (internal state not publicly reachable).
+- [x] `sklears-manifold`: real serde serialization for `RandomProjection` via new public accessors (`projection_matrix()` etc.) + lossless round-trip tests. ~~TSNE/Isomap return honest `Err` (internal state not publicly reachable).~~ **Correction (2026-07-05): false — see "🔎 Fabrication audit findings" below. `transform()` on new data always returns `Ok(stale_embedding)` (the cached training-time embedding), never `Err`.**
 - [x] `sklears-core`: DSL macros (`model_evaluation!`, `data_pipeline!`, `experiment_config!`) — full parse→generate implemented (dsl_types/parsers/code_generators wired).
 - [x] `sklears-core`: trait_explorer graph GPU-context init (real `scirs2_core::gpu` w/ honest CPU fallback) + where-clause extraction. ⚠️ See follow-up: `graph_visualization` module is currently disabled; logic verified in isolation.
 - [x] `sklears-svm`: conformal_prediction — fitted state restructured (`Option<SVC<Trained>>`), unfitted → honest `Err(NotTrained)`; wired into lib.rs.
@@ -300,6 +392,8 @@ oxicuda-backend / oxicuda-blas / oxicuda-solver 等に一本化する。
 - ~~**`sklears-core trait_explorer/graph_visualization`** (disabled, mod.rs:112 commented out)~~ — RESOLVED (2026-07-03): re-enabled with a real `api_reference_generator` module and 5 new graph-analysis algorithms; see "🔎 Follow-up findings" above (this entry predated that fix and was left stale).
 - **`sklears-compose` `pipeline_visualization`** — `PipelineVisualizer`/`DefaultRenderingEngine` (`crates/sklears-compose/src/pipeline_visualization/core.rs`) are wired into `lib.rs` and publicly exposed, but need a real implementation across 4 sub-areas: **graph** (blocked on a trait/API design decision, not mechanical extraction — confirmed 2026-07-04: the `PipelineComponent` trait (`core.rs:466`) only exposes a single component's `name()`/`component_type()`/`inputs()`/`outputs()`/`parameters()`, with no method to enumerate child/sub-components or the connections between them; `extract_nodes`/`extract_edges` (`core.rs:439-462`) each take one `&dyn PipelineComponent` but must return plural `Vec<GraphNode>`/`Vec<GraphEdge>`, which is structurally impossible from a single opaque trait object. Zero types anywhere in the workspace implement `PipelineComponent` (`grep -rn "impl PipelineComponent for" crates/*/src/` → no hits), and the existing concrete `Pipeline` structs (`pipeline.rs:77`'s `steps: Vec<(String, Box<dyn PipelineStep>)>`; `modular_framework/pipeline_system.rs:191`'s `stages: Vec<PipelineStage>`) don't implement it either — so there is no existing multi-step structure wired up to walk yet. Two paths forward, needing a human decision before implementation can proceed: (a) give `PipelineComponent` a way to expose child components + their connections, e.g. `sub_components()`/`connections()` methods — an additive-but-consequential trait change; or (b) have `PipelineVisualizer::add_pipeline`/`extract_nodes`/`extract_edges` take a concrete `Pipeline<S>` type instead of `&dyn PipelineComponent`, which requires inspecting `Pipeline`'s actual step-storage shape first. Same "needs user input" category as `distributed_optimization` above and the FFI-quarantine split below), **rendering** (actual SVG/PNG/HTML generation — no rendering dependency currently exists in `sklears-compose`'s `Cargo.toml`; hand-rolled-vs-new-dependency is an open decision), **metrics** (per-node timing/resource stats, could pull from the crate's existing `execution`/`performance_profiler` modules), **interactive** (event-driven/JS-backed interactive output — there's an unused `interactive: bool` field on `VisualizationConfig` already waiting for this). `pipeline_visualization/mod.rs` already has commented-out `pub mod graph;`/`metrics;`/`rendering;`/`interactive;` lines anticipating this split. As of 2026-07-03: `DefaultRenderingEngine::render()` and `PipelineVisualizer::extract_nodes`/`extract_edges` now return an honest `Err(SklearsError::NotImplemented(_))` instead of silently succeeding with fake/empty output (previously: a hardcoded `<svg></svg>` and always-empty node/edge vecs with no error).
   - Priority: P3 | Scope: large
+- **`sklears-python` `PyDecisionTreeClassifier`/`PyDecisionTreeRegressor` wrap a still-degenerate type** (`crates/sklears-python/src/tree.rs:18-19,152-155`) — new finding surfaced 2026-07-05 by the `sklears-tree` Tranche 1 fix (see "🔎 Fabrication audit findings" Tier 2 RESOLVED note + new Tier 4 entry above): both wrapper structs hold `Option<sklears_tree::DecisionTree>`/`Option<DecisionTree<Trained>>` instead of the now-real `sklears_tree::classifier`/`regressor` types, so fit/predict stay degenerate through PyO3. Fix is mechanical (retarget the two structs to the real types), but inherits the same `Array1<i32>`-vs-`Array1<f64>` label-type breaking change already approved for the Rust-side fix, so it needs the same care at the Python-API boundary. Not started.
+  - Priority: P2 | Scope: medium
 
 ---
 
@@ -318,4 +412,65 @@ oxicuda-backend / oxicuda-blas / oxicuda-solver 等に一本化する。
   - **Files**: `crates/sklears-datasets/Cargo.toml`, `crates/sklears-decomposition/Cargo.toml`, `crates/sklears-feature-selection/Cargo.toml`, `crates/sklears-metrics/Cargo.toml`
   - **Scope: large, needs user input** — this is a genuine architecture decision (splitting crate boundaries, potentially breaking every existing call site using `--features hdf5`/`--features parquet`/`--features cloud-s3`/`--features cloud-gcs`/`--features visualization`/`--features hdf5-support`/`--features distributed` today). Warrants its own dedicated planning pass, not a quick mechanical fix — needs user decision on migration strategy and whether renaming/removing these feature flags as a breaking change is acceptable before implementation starts.
   - Priority: P2 | Scope: large
+
+---
+
+## 🔎 Fabrication audit findings (2026-07-05)
+
+**Trigger**: writing new benchmarks for `sklears-ensemble` found `GradientBoostingClassifier`/`GradientBoostingRegressor` and `BaggingRegressor` silently discarding real input and returning hardcoded/degenerate output (`predict()` always zeros, `fit()` ignoring `y`; `BaggingRegressor` had no `Fit` impl at all). Both are already fixed and verified earlier this session — mentioned here only once, as the origin/precedent for this audit, and are **not** re-listed as outstanding below.
+
+**What was done**: 9 parallel read-only triage agents re-ran the same detection signature (fit()/predict() discarding real input for hardcoded/degenerate output) across the other 35 workspace crates. **This was investigation only — nothing below has been fixed by this audit.** Remediation scope is an open decision pending user input; options considered: fix everything, fix the most severe tier only, or document-and-defer.
+
+**Headline result**: 32 of 36 workspace crates carry at least one instance of this bug class; ~90 individual instances total.
+
+**Tranche 1 (2026-07-05)**: 3 of the highest-severity findings below — `sklears-mixture` and `sklears-manifold` (both Tier 1), and `sklears-tree` (Tier 2) — have since been fixed and independently re-verified (implementing subagent + orchestrator both separately re-ran `cargo check`/`clippy -D warnings`/`nextest`, all clean). Each is marked **RESOLVED (2026-07-05)** in place below, with the original finding kept struck-through for the historical record. The `sklears-tree` fix also surfaced one brand-new, still-open finding (`sklears-python`'s `PyDecisionTreeClassifier`/`PyDecisionTreeRegressor`) — see the new Tier 4 entry and "Proposed follow-ups" below. Everything else in this section remains exactly as originally audited: investigation-only, unfixed, remediation scope still an open decision pending user input.
+
+### Tier 1 — Systemic (the crate's defining feature is non-functional)
+
+- `sklears-semi-supervised`: ~34 of ~47 files share a copy-pasted fake stub or an equally inert fake-training loop (entropy_methods/*, deep_learning/* — 2 distinct patterns, few_shot/*, contrastive_learning/*). Real and working: graph/label-propagation family, mixture discriminant analysis, optimal transport, self/co/tri-training, multi-armed bandits, semi-supervised GMM, stacked autoencoders, deep belief networks, ladder networks.
+- ~~`sklears-manifold`: nearly every algorithm's `Transform::transform()` on new data replays the stale training-time embedding instead of computing a real one — mds.rs:309, isomap.rs:357, tsne.rs:768, lle.rs:417, umap.rs:466, spectral_embedding.rs:183, laplacian_eigenmaps.rs:294, graph_neural_networks.rs:211, causal.rs:383, optimal_transport.rs:212, ~20 more. This falsifies this file's own "✅ Stub-check backlog" entry above claiming "TSNE/Isomap return honest `Err`" — that line has been struck through and corrected in place.~~
+  **RESOLVED (2026-07-05)**: recharacterized as NOT fake math but a broken out-of-sample `Transform` contract (`fit()` always computed genuine embeddings; only `transform()` on new data was wrong). Fixed across ~20 files, split into two groups: **(a) honest `Err`** for genuinely transductive algorithms with no real out-of-sample definition (matching scikit-learn, which also has no `transform` for these) — tsne.rs, minibatch_tsne.rs, sne.rs, symmetric_sne.rs, heavy_tailed_symmetric_sne.rs, spectral_embedding.rs, mds.rs, laplacian_eigenmaps.rs, diffusion_maps.rs, minibatch_umap.rs, optimal_transport.rs (2 sites), adversarial.rs (AdversarialTSNE only — AdversarialAutoencoder's real transform was already correct and untouched), graph_neural_networks.rs (3 sites: GCN/GraphSAGE/GAT), mvu.rs, information_theory/{max_mutual_information,fisher_information,natural_gradient}.rs (3 sites) — all now return `Err(SklearsError::NotImplemented(...))` pointing users to a new `.embedding()` accessor for the training-time embedding; **(b) real out-of-sample projection implemented** — Isomap (real Gower's-formula geodesic-distance projection, self-transform reproduces training embedding to <1e-6), LLE (real barycentric-weight projection — also fixed a pre-existing bug where `solve_linear_system` was a stub ignoring its inputs and always returning uniform 1/n weights, meaning training-time LLE weights were ALSO fake before this fix), and **UMAP got a full real implementation** (weighted-neighbor init + fixed-embedding SGD refinement reusing existing gradient formulas, with gradient clamping added to match real umap-learn behavior — not a fallback). Also deleted `src/lib.rs.backup`, a ~14k-line dead/untracked file superseded by the real lib.rs. Verified: `cargo check -p sklears-manifold --all-features` clean, `cargo clippy -p sklears-manifold --all-features --all-targets -- -D warnings` clean, `cargo nextest run -p sklears-manifold --all-features` → 422 passed (up from 386 before this fix, net +38 new tests, 0 removed), 2 skipped (pre-existing unrelated ignores) — independently re-run and confirmed. 25 files touched.
+- `sklears-datasets`: ~20 of 34 files (all 14 real-dataset loaders in loaders.rs — Iris/Wine/Digits/MNIST/CIFAR-10 — plus plugin/streaming/config/format subsystems) are never `mod`-declared in lib.rs, so they're dead code, not compiled in at all. Even if wired in, every loader is `#[deprecated]`, self-admitting it returns synthetic not real data. The status table's "Real-world data" advanced-features claim is false; only `generators/basic.rs`-style synthetic generation actually ships (and is real/correct). **Note (2026-07-05, Tranche 1 scoping)**: excluded from fabrication remediation by design — these loaders are honestly `#[deprecated]` + doc-warned stubs ("returns synthetic data, not real Iris... real data planned for v0.2.0"), not covert fabrication, so fixing them means *sourcing real dataset data* (a v0.2.0 feature), not a bug fix. Filed as a separate open feature/task item — still unfixed, not forgotten; **not** marked RESOLVED.
+- ~~`sklears-mixture`: 5 "advanced" GMM variants all have `predict()` unconditionally returning `Array1::zeros` — LaplaceGMM (approximation.rs:272), AcceleratedEM (optimization_enhancements.rs:446), AdaptiveStreamingGMM (adaptive_streaming.rs:384), L1RegularizedGMM (regularization.rs:421), MiniBatchGMM (large_scale.rs:421). LaplaceGMM's `fit()` (approximation.rs:193-251) is also fake (fixed identity covariances, uniform weights, hardcoded `log_marginal_likelihood=0.0`).~~
+  **RESOLVED (2026-07-05)**: root cause was a typestate bug — structs stored `PhantomData<S>` instead of a real `state: S` field, silently discarding fitted parameters. Fixed by adding real state storage + wiring genuine EM math (reusing/sharing logic with the crate's correct `gaussian.rs` GMM core) across all 5 variants: **LaplaceGMM** (was fully fake: random means, identity covariance, hardcoded `log_marginal_likelihood=0.0`) → real EM fit + real diagonal-Hessian-approximation Laplace marginal likelihood (honest gap: `full_hessian_posterior_covariance()` → `Err(NotImplemented)`, full cross-term Hessian out of scope); **AcceleratedEM** (fit was already real EM) → state now stored + predict real; `speedup_factor` was a hardcoded constant (1.0/1.5/2.0/2.5) → now a genuinely measured baseline-vs-accelerated iteration-count ratio (honest gap: SQUAREM/QuasiNewton acceleration types still run plain EM internally, unchanged); **AdaptiveStreamingGMM** (was the most fabricated: fit didn't run EM at all, partial_fit was a no-op, component add/delete were no-ops, drift detection always returned false, n_components() hardcoded to 1) → real EM fit, real online/stochastic partial_fit, real component creation/deletion criteria + array surgery, real Page-Hinkley + CUSUM drift detection (honest gap: `DriftDetectionMethod::ADWIN` → `Err(NotImplemented)`); **L1RegularizedGMM** (fit was real-ish) → state stored + predict real + log-likelihood bug fixed (was a near-constant from summing normalized responsibilities); **MiniBatchGMM** (updated weights/means but never covariances — frozen at init forever) → real covariance M-step added, plus per-epoch shuffling (a real latent bug the fix agent's own test caught: unshuffled cluster-sorted mini-batches made training unstable) and a real log-likelihood (was `ln(sum of weights)` ≈ constant). Verified: `cargo check -p sklears-mixture --all-features` clean, `cargo clippy -p sklears-mixture --all-features --all-targets -- -D warnings` clean, `cargo nextest run -p sklears-mixture --all-features` → 238 passed, 0 failed — independently re-run and confirmed. No `unwrap()` introduced. 6 files touched (adaptive_streaming.rs, approximation.rs, common.rs, large_scale.rs, optimization_enhancements.rs, regularization.rs), largest 1219 lines (no splitrs needed).
+
+### Tier 2 — Foundational (crate-root exports or widely depended-upon subsystems)
+
+- ~~`sklears-tree`: `DecisionTree` (decision_tree.rs:301-333) — aliased to BOTH `DecisionTreeClassifier`/`DecisionTreeRegressor` and re-exported from crate root/prelude — discards `y` and never builds a tree; `predict()` always returns zeros. A real, unwired 797-line SmartCore-backed classifier already exists in the same crate at classifier.rs (never `mod`-declared) — likely fixable by reconnecting it rather than writing new algorithm code. RandomForestClassifier/Regressor confirmed real/unaffected.~~
+  **RESOLVED (2026-07-05)**: fixed exactly as anticipated — `mod`-declared the existing real 797-line SmartCore-backed `classifier.rs` and the real `regressor.rs`, removed the degenerate type aliases (both previously pointed at the same broken `DecisionTree<Untrained>`), and rewired crate-root + prelude exports to the real implementations. **Approved breaking API change**: the real classifier takes `Array1<i32>` targets (correct for classification) vs. the old degenerate `Array1<f64>` — all in-crate and cross-crate call sites updated (one cross-crate site: `crates/sklears/tests/basic_functionality_test.rs`). Verified: `cargo check -p sklears-tree --all-features` clean, `cargo clippy` clean, `cargo nextest run -p sklears-tree --all-features` → 79 passed (1 pre-existing unrelated ignore), `cargo check --workspace --all-features` clean — independently re-run and confirmed. 9 files touched, +190/-68 lines.
+  **New open finding surfaced by this fix, NOT yet remediated**: `sklears-python`'s `PyDecisionTreeClassifier`/`PyDecisionTreeRegressor` PyO3 wrappers (`crates/sklears-python/src/tree.rs:18-19,152-155`) hold the crate's bare `sklears_tree::DecisionTree` type directly (not the now-fixed `classifier`/`regressor` modules), so they still have degenerate fit/predict — see new Tier 4 entry below. This corrects the original audit's "sklears-python confirmed clean" conclusion: it was clean by grep-signal within sklears-python's own source, but has a real bug via what it wraps from sklears-tree. Filed as a new open item for a future tranche, not fixed by this pass (see "Proposed follow-ups" below).
+- `sklears-core`: ensemble_improvements.rs:747-877's public `AdvancedParallelEnsemble` has the identical ensemble fabrication bug (RandomForest/GradientBoosting/AdaBoost/Voting/Stacking all ignore `y`), independently duplicated from sklears-ensemble. Also: compatibility.rs:266-336 (ScikitLearnModel hardcodes predictions), formal_verification.rs:217-399 (every check hardcodes Passed), validation.rs:133-137,358-401 (validators always return `Ok(true)`, currently dormant/no live callers).
+- `sklears-feature-selection`: automl/hyperparameter_optimizer.rs:524-566 — all 10 AutoML method types return hardcoded first-N columns regardless of data, powering the crate's flagship `comprehensive_automl`/`quick_automl`. Also ensemble_selectors.rs:1256 (uniform feature scores), ml_based.rs:544-656 (AttentionFeatureSelector never trains), statistical_tests/correlation_tests.rs:21 (p-values hardcoded 0.05), comprehensive_benchmark.rs:625 (stability hardcoded 0.85).
+- `sklears-model-selection`: bayes_search.rs:339,762 — BayesSearchCV/TPEOptimizer's `evaluate_params` ignores the real estimator, classifying via `sum(params) > 0.5*len(params)` instead of fit/predict, so hyperparameter search tunes against a nonsense proxy. meta_learning_advanced.rs:478,864,872,880 — TransferLearningOptimizer/FewShotOptimizer's feature mapping/loss/gradient/prototype functions are all no-ops (zeros, hardcoded 0.1, empty map).
+- `sklears-gaussian-process`: variational_deep_gp.rs/deep_gp.rs `predict()` always zeros/ones; structured_kernel_interpolation.rs/spatial.rs/temporal.rs kernel choice has no effect on output; classification.rs:404 Laplace-approximation probabilities mathematically wrong; lib.rs has temporal.rs/multi_objective.rs/both bayesian-optimization modules commented out of the module tree entirely (not compiled).
+
+### Tier 3 — Multiple confirmed instances (real, working code coexists with the fabrication; not the crate's core identity)
+
+- `sklears-compose` (6 areas): execution_strategies.rs:1311-1358,1596-1651 fabricated task completion; fault_isolation.rs:940-997 fake lifecycle; error_recovery.rs:638-641,809-813 rollback claims success while restoring nothing; failure_detection.rs:715,904-919 pattern predictor always empty; retry/context.rs:858-888 hardcoded performance predictor; retry/machine_learning.rs:455-483,594-611 DecisionTreeModel/NeuralNetworkModel never learn.
+- `sklears-covariance`: signal_processing.rs:1062-1119, meta_learning.rs:1022-1051 + fluent_api.rs:843-909 all methods silently = empirical covariance; model_selection.rs:1035-1059 CV ignores fold boundaries; nuclear_norm.rs:286 + frank_wolfe.rs:743 solvers ignore the real objective.
+- `sklears-cross-decomposition`: out_of_core.rs:599-635,892-926 streaming PLS/CCA discard covariance for identity weights; federated_learning.rs:559,739 always all-ones; hypergraph_methods.rs:546-577 + higher_order_statistics.rs:611-690 random noise; enhanced_pathway_analysis.rs:306-441 hardcoded fake pathway data.
+- `sklears-neighbors`: manifold_learning.rs:187-227,381-420,631-650 — LLE/Isomap/Laplacian-Eigenmaps compute real math then discard it for random noise; local_outlier_factor.rs:182 ignores new data.
+- `sklears-neural`: gradient_checking.rs:223-407 the gradient checker itself is fake; gnn.rs:720-725 Attention pooling = Mean; layers/transformer.rs:184-230,268 relative positional encoding is a no-op; gan.rs:229 honestly `Err` (lower severity).
+- `sklears-inspection`: rules.rs:214,249 confidence hardcoded 1.0; attention.rs:515 Grad-CAM ignores channel index; parallel.rs:762 fake CPU/memory readings drive "adaptive" batching; benchmarking.rs:687 p-value hardcoded 0.01.
+- `sklears-impute`: ensemble.rs GB/ExtraTrees imputers silently fall back to mean; timeseries.rs:896 ARIMA MA term is dead code; social_science.rs:1680 survey adjustments are no-ops.
+- `sklears-calibration`: continual_learning.rs:643-770 performs zero real calibration; binary.rs:448-563 multiclass adapters discard the calibrator and echo raw input.
+- `sklears-multiclass`: hierarchical.rs:244,286,609,642 two classifiers always predict `classes[0]`; one_vs_one.rs:833-847 consensus method is ignored.
+- `sklears-multioutput`: core.rs:426-469,619-648 flagship MultiOutputRegressor doesn't solve regression despite its own comment; compressed_sensing.rs:159-177 OMP = L2.
+- `sklears-naive-bayes`: hierarchical.rs:828-838,962-993 doesn't do NB math; feature_engineering_utilities.rs:446-452 `has_missing_values` always false.
+- `sklears-discriminant-analysis`: random_projection_discriminant_analysis.rs:623-712 QDA/RDA always predict `classes[0]`; bayesian_discriminant/core.rs:210 `log_marginal_likelihood` hardcoded 0.0.
+- `sklears-linear`: residual_analysis.rs:577 Breusch-Pagan `r_squared` hardcoded 0.1; modular_framework.rs:319 confidence variance hardcoded to ones; lasso_cv.rs KFold ignores `random_state` (lower severity).
+- `sklears-metrics`: fluent_api.rs:543,618-621 confidence intervals are fixed ±5%/10%; survival.rs:556 `log_rank_test` p-value hardcoded to zero.
+
+### Tier 4 — Isolated (single confirmed instance)
+
+- `sklears-svm`: topic_model_integration.rs:660-714 TopicSVM fakes a trained state via `unsafe transmute`, predict always zeros — also a memory-safety/UB concern, not just fabrication.
+- `sklears-feature-extraction`: text/mod.rs:1069 `LSA::fit` ignores input, returns zeros.
+- `sklears-decomposition`: type_safe.rs:434-481,525 TypeSafeDecompositionPipeline recomputes normalization stats from transform-time data instead of storing them from fit, breaking the fit/transform contract.
+- `sklears-isotonic`: ml_integration.rs:338-374 MonotonicDeepLearning never trains.
+- `sklears-kernel-approximation`: distributed_kernel.rs:563-573 eigendecomposition hardcoded to identity.
+- `sklears-utils`: gpu_computing.rs:410 Softmax is missing normalization and doesn't sum to 1 (likely a quick real fix).
+- `sklears-preprocessing`: automated_feature_engineering.rs:918-931 engineered feature columns left as zeros; temporal/trend.rs:176-180 polynomial trend silently = linear.
+- **`sklears-python`** (new finding, 2026-07-05, surfaced by the `sklears-tree` fix — see Tier 2 RESOLVED note above): `PyDecisionTreeClassifier`/`PyDecisionTreeRegressor` (`crates/sklears-python/src/tree.rs:18-19,152-155`) hold `Option<sklears_tree::DecisionTree>` / `Option<DecisionTree<Trained>>` — the crate's bare, still-degenerate type — rather than the now-fixed `sklears_tree::classifier`/`regressor` modules, so fit/predict remain degenerate through this wrapper. Not remediated by this pass; tracked as a new open item (see "Proposed follow-ups" below).
+
+**Confirmed clean**: `sklears` (meta-crate), `sklears-clustering`, ~~`sklears-python`~~, `sklears-simd` (grep-clean; sklears-simd is ~54k lines/70 files including exotic GPU/TPU/FPGA/quantum modules and wasn't exhaustively read beyond the grep signal — clean by signal, not exhaustively audited). **Correction (2026-07-05)**: `sklears-python` was clean by grep-signal within its own source (no fabrication pattern directly in sklears-python's code), but the `sklears-tree` fix above surfaced that it wraps a still-degenerate type from what it depends on — see new Tier 4 entry above. Same "confirmed clean → later found false" correction pattern as the TSNE/Isomap line in the "✅ Stub-check backlog" section earlier in this file.
 

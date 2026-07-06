@@ -32,7 +32,7 @@ use sklears_core::{
 ///
 /// ```
 /// use sklears_manifold::LaplacianEigenmaps;
-/// use sklears_core::traits::{Transform, Fit};
+/// use sklears_core::traits::Fit;
 /// use scirs2_core::ndarray::array;
 ///
 /// let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0], [10.0, 11.0, 12.0]];
@@ -41,7 +41,8 @@ use sklears_core::{
 ///     .n_neighbors(2)
 ///     .n_components(2);
 /// let fitted = laplacian.fit(&x.view(), &()).unwrap();
-/// let embedded = fitted.transform(&x.view()).unwrap();
+/// let embedded = fitted.embedding();
+/// assert_eq!(embedded.dim(), (4, 2));
 /// ```
 #[derive(Debug, Clone)]
 pub struct LaplacianEigenmaps<S = Untrained> {
@@ -292,8 +293,23 @@ impl LaplacianEigenmaps<Untrained> {
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for LaplacianEigenmaps<LaplacianTrained> {
     fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        // Laplacian Eigenmaps doesn't support transforming new data in this implementation
-        Ok(self.state.embedding.clone())
+        // Laplacian Eigenmaps is a genuinely transductive algorithm: the embedding
+        // coordinates are eigenvectors of the graph Laplacian built from the fixed
+        // training-set k-NN adjacency matrix. There is no closed-form mapping that
+        // projects a new, unseen point into that eigenspace, so returning the stale
+        // training embedding here would silently fabricate an answer. scikit-learn
+        // has no direct equivalent estimator with a transform() method either.
+        Err(SklearsError::NotImplemented(
+            "LaplacianEigenmaps::transform is not supported: the embedding coordinates \
+             are eigenvectors of the training-set graph Laplacian, which is only defined \
+             over the fixed collection of points seen during fit(). There is no closed-form \
+             way to project a new, unseen point into that eigenspace without rebuilding the \
+             k-NN graph and recomputing the decomposition. scikit-learn has no transform() \
+             method for this family of transductive spectral embeddings either. To embed \
+             new data, call fit() again on the combined (training + new) dataset. Use \
+             .embedding() to retrieve the training-time embedding computed by fit()."
+                .to_string(),
+        ))
     }
 }
 

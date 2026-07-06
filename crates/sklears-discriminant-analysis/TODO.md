@@ -28,6 +28,12 @@
 
 - [x] Phase C-4: Removed all 7 blanket #![allow(...)] suppressors; 300 tests pass, 0 warnings
 
+## OxiCUDA Migration (v0.2.0)
+
+Status: fully migrated — `gpu_acceleration` already runs on the oxicuda-backed `sklears_core::gpu` foundation (see 2026-07-03 entry above) and serves as the reference pattern for sklears-preprocessing. Remaining item is a forward-looking enhancement only.
+
+- [ ] Adopt oxicuda-solver `sygvd` for the LDA generalized eigensolve when it ships (S) — `solve_generalized_eigen_gpu` (src/gpu_acceleration.rs:554-598) hand-reduces `S_b w = lambda S_w w` via `dense::cholesky` + `dense::inverse` + two GEMMs + `dense::syevd` because oxicuda-solver 0.4.x lacks a symmetric generalized eigensolver. Track oxicuda-solver releases; when `sygvd` (or on-device `syevd`) lands, replace the 4-step reduction with a single call.
+
 ---
 
 See also: [Workspace roadmap](../../TODO.md)

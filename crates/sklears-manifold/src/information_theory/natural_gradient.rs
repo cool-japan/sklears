@@ -217,8 +217,68 @@ impl Transform<ArrayView2<'_, Float>, Array2<f64>>
     for NaturalGradientEmbedding<NaturalGradientTrained>
 {
     fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        // For fitted data, return the stored embedding
-        // For new data, would need out-of-sample extension
-        Ok(self.state.embedding.clone())
+        // The embedding is the fixed point of an iterative natural-gradient descent
+        // (Fisher-information-preconditioned stress minimization) run jointly over the
+        // entire training set. There is no per-point mapping function that could be
+        // evaluated on a new, unseen sample without rerunning that optimization.
+        Err(SklearsError::NotImplemented(
+            "NaturalGradientEmbedding::transform does not support new/unseen data: the \
+             embedding is produced by natural-gradient optimization over the entire \
+             training set jointly, with no defined mapping for points outside it. Refit \
+             on the combined dataset (existing data plus the new points) to obtain an \
+             embedding that includes them. Use .embedding() to retrieve the \
+             training-time embedding computed by fit()."
+                .to_string(),
+        ))
+    }
+}
+
+impl NaturalGradientEmbedding<NaturalGradientTrained> {
+    /// Get the embedding
+    pub fn embedding(&self) -> &Array2<f64> {
+        &self.state.embedding
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Small synthetic dataset: 6 samples x 3 features, deterministic values.
+    fn synthetic_data() -> Array2<f64> {
+        Array2::from_shape_fn((6, 3), |(i, j)| (i * 3 + j) as f64 * 0.1)
+    }
+
+    #[test]
+    fn test_natural_gradient_embedding_fit_produces_embedding_of_requested_shape() {
+        let x = synthetic_data();
+
+        let nge = NaturalGradientEmbedding::new()
+            .n_components(2)
+            .n_iter(3)
+            .random_state(42);
+
+        let fitted = nge.fit(&x.view(), &()).expect("operation should succeed");
+
+        assert_eq!(fitted.embedding().dim(), (6, 2));
+    }
+
+    #[test]
+    fn test_natural_gradient_embedding_transform_reports_not_implemented() {
+        let x = synthetic_data();
+
+        let nge = NaturalGradientEmbedding::new()
+            .n_components(2)
+            .n_iter(3)
+            .random_state(42);
+
+        let fitted = nge.fit(&x.view(), &()).expect("operation should succeed");
+
+        // transform() must honestly refuse rather than replay the stale training
+        // embedding regardless of the (ignored) input passed in.
+        assert!(matches!(
+            fitted.transform(&x.view()),
+            Err(SklearsError::NotImplemented(_))
+        ));
     }
 }

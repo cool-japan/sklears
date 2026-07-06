@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (6, 2),
         vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0, 6.0, 7.0],
     )?;
-    let y_class = Array1::from_vec(vec![0.0, 0.0, 1.0, 1.0, 0.0, 1.0]);
+    let y_class = Array1::from_vec(vec![0, 0, 1, 1, 0, 1]);
 
     // Test Twoing criterion
     println!("Testing Twoing criterion...");

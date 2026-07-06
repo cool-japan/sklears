@@ -176,14 +176,23 @@ fn test_basic_decision_tree() {
     // Simple linearly separable data
     let X = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0])
         .expect("shape and data length should match");
-    let y = array![0.0, 1.0, 1.0, 0.0]; // XOR pattern
+    let y = array![0, 1, 1, 0]; // XOR pattern
 
     let tree = DecisionTreeClassifier::new();
     let fitted_tree = tree.fit(&X, &y).expect("model fitting should succeed");
     let predictions = fitted_tree.predict(&X).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), y.len());
-    // Trees should be able to learn XOR with enough depth
+    // Note: this 4-corner XOR pattern is a classic adversarial case for greedy,
+    // single-feature-split CART trees: every candidate root split (feature 0
+    // or feature 1 at any threshold) yields exactly a 50/50 class split on
+    // both sides, i.e. zero impurity decrease, so a standard greedy tree never
+    // splits at all here and just predicts the majority class regardless of
+    // `max_depth`. This is therefore a smoke test (fit/predict run and return
+    // correctly-shaped output), not a correctness test; see
+    // `sklears_tree::classifier::tests::test_classifier_learns_separable_blobs`
+    // for an accuracy-based non-degeneracy check on data that greedy trees
+    // can actually separate.
 }
 
 // Property-based test for KNN

@@ -37,9 +37,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let fitted = tsne
                     .fit(&data.view(), &())
                     .expect("operation should succeed");
-                fitted
-                    .transform(&data.view())
-                    .expect("operation should succeed")
+                // t-SNE is transductive (like scikit-learn's TSNE, no transform()
+                // exists): use the training embedding directly instead of calling
+                // transform() on the same data.
+                fitted.embedding().clone()
             }
             "umap" => {
                 let umap = UMAP::new().n_components(2).n_neighbors(15).min_dist(0.1);
@@ -89,9 +90,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let fitted = tsne
             .fit(&test_data.view(), &())
             .expect("operation should succeed");
-        let _embedding = fitted
-            .transform(&test_data.view())
-            .expect("operation should succeed");
+        // t-SNE is transductive: use the training embedding directly instead of
+        // calling transform() (which now honestly errors for new/same data).
+        let _embedding = fitted.embedding().clone();
         let elapsed = start.elapsed();
 
         println!(

@@ -80,6 +80,22 @@ Notes on log-likelihood implementation:
 - Numerically verified against hand-computed values for q=1, p=2 case (test_log_likelihood_numerical)
 - `log|M|` computed via Leibniz cofactor expansion (q ≤ 4) or partial-pivot Gaussian elimination (q > 4)
 
+## OxiCUDA Migration (v0.2.0)
+
+Status: fully migrated to oxicuda-backed GPU support (Wave A2). Remaining work is Phase 5 hardening
+(dependency pruning) — optional for the 0.2.0 release.
+
+- [ ] (S) Remove unused optional deps `oxicuda-blas` and `half` from the `gpu` feature — the `gpu`
+  feature (`Cargo.toml:48`) enables `dep:oxicuda-blas` and `half`, but neither is referenced in crate
+  code (rg for `oxicuda_blas` / `f16` / `bf16` / `half::` finds zero uses; the only "half" hit is the
+  English word at `src/hardware_acceleration.rs:475`). GEMM already routes through
+  `sklears_core::gpu`. Drop `oxicuda-blas` (`Cargo.toml:35`) and `half` (`Cargo.toml:33`) from
+  `[dependencies]` and the feature list, keeping `dep:oxicuda-solver`, `dep:oxicuda-memory`, and
+  `sklears-core/gpu_support`; re-verify with `cargo check --features gpu`.
+
+Version watch: keep oxicuda-* pins at 0.4.0 (matches latest published on crates.io); bump to 0.4.1
+only when it ships (do NOT bump early per Latest-crates policy).
+
 ---
 
 See also: [Workspace roadmap](../../TODO.md)

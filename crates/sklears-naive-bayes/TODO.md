@@ -23,6 +23,17 @@
 - [x] `src/continual_learning.rs:16` — Migrated: added `random_state: Option<u64>` to `ContinualLearningConfig`; replaced `thread_rng()` with `seeded_rng(effective_seed)` for reproducibility. scirs2_core::random API is stable at 0.4.2.
 - [x] `src/temporal.rs:860` — Migrated: stale TODO comment removed; existing `CoreRandom::seed_from_u64` pattern was already correct. scirs2_core::random API is stable at 0.4.2.
 
+## OxiCUDA Migration (v0.2.0)
+
+Phase 4 of the workspace 0.2.0 GPU-honesty pass: this crate currently ships a stub GPU path — `GpuOptimizer` hardcodes `gpu_available = false` and always falls back to a naive CPU loop, so `OptimizationStrategy::Gpu` is unreachable. Wire it through the oxicuda-backed `sklears_core::gpu` module (Wave A2) or delete the placeholder.
+
+- [ ] (M) Back `GpuOptimizer` with oxicuda-blas gemm behind a `gpu` feature, or delete the placeholder. `GpuOptimizer` (`src/feature_engineering/performance_optimization.rs:429-499`) has `gpu_available` hardcoded `false` (line 441, "Placeholder - would detect GPU availability") and `gpu_matrix_multiply` (lines 447-462) always falls through to a naive O(n^3) CPU loop, making `OptimizationStrategy::Gpu` (lines 26-27) unreachable. Either:
+  - add `gpu = ["sklears-core/gpu_support"]` to `Cargo.toml`, detect availability via oxicuda-driver, and route f32/f64 through oxicuda-blas gemm via sklears-core's GPU context (CPU fallback for other `T` and for default builds), **or**
+  - remove `GpuOptimizer` and the `OptimizationStrategy::Gpu` variant entirely.
+  - **Files:** `Cargo.toml`, `src/feature_engineering/performance_optimization.rs`
+- [ ] (S) Trim the module doc at `src/feature_engineering/performance_optimization.rs:5`, which pairs a false "GPU acceleration" claim with "SciRS2 Policy"; reword to reflect the actual (oxicuda or CPU-only) implementation.
+  - **Files:** `src/feature_engineering/performance_optimization.rs`
+
 ---
 
 See also: [Workspace roadmap](../../TODO.md)

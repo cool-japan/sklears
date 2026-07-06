@@ -198,8 +198,74 @@ impl Fit<ArrayView2<'_, Float>, ()> for MaxMutualInformation<Untrained> {
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for MaxMutualInformation<MMITrained> {
     fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        // For fitted data, return the stored embedding
-        // For new data, this would require out-of-sample extension
-        Ok(self.state.embedding.clone())
+        // The embedding is the result of an iterative gradient-ascent optimization that
+        // maximizes mutual information between the *entire* training set and the
+        // embedding jointly; there is no per-point mapping function that could be
+        // evaluated on a new, unseen sample.
+        Err(SklearsError::NotImplemented(
+            "MaxMutualInformation::transform does not support new/unseen data: the \
+             embedding is optimized jointly via mutual-information maximization over \
+             the entire training set, with no defined mapping for points outside it. \
+             Refit on the combined dataset (existing data plus the new points) to \
+             obtain an embedding that includes them. Use .embedding() to retrieve the \
+             training-time embedding computed by fit()."
+                .to_string(),
+        ))
+    }
+}
+
+impl MaxMutualInformation<MMITrained> {
+    /// Get the embedding
+    pub fn embedding(&self) -> &Array2<f64> {
+        &self.state.embedding
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Small synthetic dataset: 8 samples x 4 features, deterministic values.
+    fn synthetic_data() -> Array2<f64> {
+        Array2::from_shape_fn((8, 4), |(i, j)| (i * 4 + j) as f64 * 0.1)
+    }
+
+    #[test]
+    fn test_max_mutual_information_fit_produces_embedding_of_requested_shape() {
+        let x = synthetic_data();
+
+        // Use the closed-form "kde" mutual-information estimate (rather than the
+        // default "knn" method) so the test is not sensitive to n_neighbors vs.
+        // sample-count edge cases; a handful of iterations is enough to confirm fit()
+        // produces a valid embedding.
+        let mmi = MaxMutualInformation::new()
+            .n_components(2)
+            .method("kde")
+            .n_iter(5)
+            .random_state(42);
+
+        let fitted = mmi.fit(&x.view(), &()).expect("operation should succeed");
+
+        assert_eq!(fitted.embedding().dim(), (8, 2));
+    }
+
+    #[test]
+    fn test_max_mutual_information_transform_reports_not_implemented() {
+        let x = synthetic_data();
+
+        let mmi = MaxMutualInformation::new()
+            .n_components(2)
+            .method("kde")
+            .n_iter(5)
+            .random_state(42);
+
+        let fitted = mmi.fit(&x.view(), &()).expect("operation should succeed");
+
+        // transform() must honestly refuse rather than replay the stale training
+        // embedding regardless of the (ignored) input passed in.
+        assert!(matches!(
+            fitted.transform(&x.view()),
+            Err(SklearsError::NotImplemented(_))
+        ));
     }
 }

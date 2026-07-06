@@ -31,7 +31,7 @@ use sklears_core::{
 ///
 /// ```
 /// use sklears_manifold::DiffusionMaps;
-/// use sklears_core::traits::{Transform, Fit};
+/// use sklears_core::traits::Fit;
 /// use scirs2_core::ndarray::array;
 ///
 /// let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0], [10.0, 11.0, 12.0]];
@@ -40,7 +40,8 @@ use sklears_core::{
 ///     .n_components(2)
 ///     .epsilon(1.0);
 /// let fitted = dm.fit(&x.view(), &()).unwrap();
-/// let embedded = fitted.transform(&x.view()).unwrap();
+/// let embedded = fitted.embedding();
+/// assert_eq!(embedded.dim(), (4, 2));
 /// ```
 #[derive(Debug, Clone)]
 pub struct DiffusionMaps<S = Untrained> {
@@ -329,8 +330,26 @@ impl DiffusionMaps<Untrained> {
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for DiffusionMaps<DiffusionMapsTrained> {
     fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        // Diffusion Maps doesn't support transforming new data in this implementation
-        Ok(self.state.embedding.clone())
+        // Diffusion Maps is a genuinely transductive algorithm: the diffusion
+        // coordinates are eigenvectors of the training-set diffusion operator
+        // (the normalized affinity/transition matrix). There is no closed-form
+        // mapping that extends a new, unseen point into that eigenspace, so
+        // returning the stale training embedding here would silently fabricate
+        // an answer. scikit-learn has no `DiffusionMaps`-style estimator with a
+        // transform() method either.
+        Err(SklearsError::NotImplemented(
+            "DiffusionMaps::transform is not supported: the diffusion coordinates are \
+             eigenvectors of the training-set diffusion operator, which is only defined \
+             over the fixed collection of points seen during fit(). There is no closed-form \
+             way to extend a new, unseen point into that eigenspace without rebuilding the \
+             affinity matrix and recomputing the decomposition (the geometric-harmonics / \
+             Nystrom extension used in the diffusion-maps literature is not implemented \
+             here). scikit-learn has no transform() method for this family of transductive \
+             spectral embeddings either. To embed new data, call fit() again on the \
+             combined (training + new) dataset. Use .embedding() to retrieve the \
+             training-time embedding computed by fit()."
+                .to_string(),
+        ))
     }
 }
 

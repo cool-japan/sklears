@@ -169,8 +169,68 @@ impl Fit<ArrayView2<'_, Float>, ()> for FisherInformationEmbedding<Untrained> {
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for FisherInformationEmbedding<FIETrained> {
     fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        // For fitted data, return the stored embedding
-        // For new data, would need to compute projection
-        Ok(self.state.embedding.clone())
+        // The Fisher information matrix (local or global) is estimated from the
+        // geometry of the entire training set, and the embedding is the projection of
+        // that same training set onto its top eigenvectors. There is no mapping defined
+        // for a new, unseen point that was not part of the Fisher information estimate.
+        Err(SklearsError::NotImplemented(
+            "FisherInformationEmbedding::transform does not support new/unseen data: \
+             the embedding is computed jointly from the Fisher information geometry \
+             estimated over the entire training set, with no defined mapping for points \
+             outside it. Refit on the combined dataset (existing data plus the new \
+             points) to obtain an embedding that includes them. Use .embedding() to \
+             retrieve the training-time embedding computed by fit()."
+                .to_string(),
+        ))
+    }
+}
+
+impl FisherInformationEmbedding<FIETrained> {
+    /// Get the embedding
+    pub fn embedding(&self) -> &Array2<f64> {
+        &self.state.embedding
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Small synthetic dataset: 8 samples x 4 features, deterministic values.
+    fn synthetic_data() -> Array2<f64> {
+        Array2::from_shape_fn((8, 4), |(i, j)| (i * 4 + j) as f64 * 0.1)
+    }
+
+    #[test]
+    fn test_fisher_information_embedding_fit_produces_embedding_of_requested_shape() {
+        let x = synthetic_data();
+
+        let fie = FisherInformationEmbedding::new()
+            .n_components(2)
+            .n_neighbors(3)
+            .random_state(42);
+
+        let fitted = fie.fit(&x.view(), &()).expect("operation should succeed");
+
+        assert_eq!(fitted.embedding().dim(), (8, 2));
+    }
+
+    #[test]
+    fn test_fisher_information_embedding_transform_reports_not_implemented() {
+        let x = synthetic_data();
+
+        let fie = FisherInformationEmbedding::new()
+            .n_components(2)
+            .n_neighbors(3)
+            .random_state(42);
+
+        let fitted = fie.fit(&x.view(), &()).expect("operation should succeed");
+
+        // transform() must honestly refuse rather than replay the stale training
+        // embedding regardless of the (ignored) input passed in.
+        assert!(matches!(
+            fitted.transform(&x.view()),
+            Err(SklearsError::NotImplemented(_))
+        ));
     }
 }

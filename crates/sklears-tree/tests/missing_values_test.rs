@@ -17,7 +17,7 @@ fn test_decision_tree_classifier_skip_missing() {
         [5.0, 6.0],
         [6.0, 7.0],
     ];
-    let y = array![0.0, 0.0, 1.0, 1.0, 1.0, 1.0];
+    let y = array![0, 0, 1, 1, 1, 1];
 
     // Test Skip strategy - should remove rows with missing values
     let model = DecisionTreeClassifier::new()
@@ -44,7 +44,7 @@ fn test_decision_tree_classifier_majority_imputation() {
         [4.0, f64::NAN], // Missing value in second feature
         [5.0, 6.0],
     ];
-    let y = array![0.0, 0.0, 1.0, 1.0, 1.0];
+    let y = array![0, 0, 1, 1, 1];
 
     // Test Majority strategy - should impute with column means
     let model = DecisionTreeClassifier::new()
@@ -122,7 +122,7 @@ fn test_decision_tree_regressor_majority_imputation() {
 fn test_no_missing_values() {
     // Test that data without missing values works normally
     let x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0],];
-    let y = array![0.0, 0.0, 1.0, 1.0];
+    let y = array![0, 0, 1, 1];
 
     // Test with different missing value strategies - should all work the same
     for strategy in [
@@ -148,7 +148,7 @@ fn test_no_missing_values() {
 fn test_all_samples_missing_error() {
     // Test error when all samples have missing values with Skip strategy
     let x = array![[f64::NAN, 2.0], [1.0, f64::NAN], [f64::NAN, f64::NAN],];
-    let y = array![0.0, 1.0, 0.0];
+    let y = array![0, 1, 0];
 
     // Skip strategy should fail when all samples have missing values
     let result = DecisionTreeClassifier::new()
@@ -170,7 +170,7 @@ fn test_column_all_missing() {
         [3.0, f64::NAN],
         [4.0, f64::NAN],
     ];
-    let y = array![0.0, 0.0, 1.0, 1.0];
+    let y = array![0, 0, 1, 1];
 
     // Majority strategy should handle this by using 0.0 for the missing column
     let model = DecisionTreeClassifier::new()
@@ -196,7 +196,7 @@ fn test_mixed_missing_patterns() {
         [f64::NAN, f64::NAN, 3.0], // Missing first two features
         [4.0, 5.0, 6.0],           // No missing values
     ];
-    let y = array![0.0, 0.0, 1.0, 1.0, 0.0, 1.0];
+    let y = array![0, 0, 1, 1, 0, 1];
 
     // Test Skip strategy
     let model_skip = DecisionTreeClassifier::new()
@@ -234,7 +234,7 @@ fn test_mixed_missing_patterns() {
 fn test_surrogate_fallback() {
     // Surrogate strategy on small data: verifies fit + predict succeed.
     let x = array![[1.0, 2.0], [f64::NAN, 3.0], [3.0, 4.0],];
-    let y = array![0.0, 0.0, 1.0];
+    let y = array![0, 0, 1];
 
     let model = DecisionTreeClassifier::new()
         .missing_values(MissingValueStrategy::Surrogate)
@@ -273,7 +273,7 @@ fn test_surrogate_imputation_uses_correlated_column() {
         [8.0, 7.9],
         [f64::NAN, 9.0], // Missing col_0; col_1 = 9.0 → surrogate should push imputed value high
     ];
-    let y_labels = array![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+    let y_labels = array![0, 0, 0, 0, 1, 1, 1, 1, 1];
 
     // Call handle_missing_values directly to inspect the imputed matrix.
     let (x_surr, _) = handle_missing_values(&x, &y_labels, MissingValueStrategy::Surrogate)
@@ -316,7 +316,7 @@ fn test_surrogate_multiple_missing_columns() {
         [9.0, 90.0, 900.0],
         [10.0, 100.0, 1000.0],
     ];
-    let y = array![0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+    let y = array![0, 0, 0, 0, 0, 1, 1, 1, 1, 1];
 
     let model = DecisionTreeClassifier::new()
         .missing_values(MissingValueStrategy::Surrogate)
@@ -364,7 +364,7 @@ fn test_missing_values_mean_calculation() {
         [3.0, f64::NAN],  // Should be imputed with mean of [10.0, 20.0, 40.0] = 23.33...
         [5.0, 40.0],
     ];
-    let y = array![0.0, 0.0, 1.0, 1.0];
+    let y = array![0, 0, 1, 1];
 
     let model = DecisionTreeClassifier::new()
         .missing_values(MissingValueStrategy::Majority)

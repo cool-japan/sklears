@@ -209,7 +209,27 @@ impl Fit<ArrayView2<'_, f64>, ()> for GraphConvolutionalNetwork<Untrained> {
 
 impl Transform<ArrayView2<'_, f64>, Array2<f64>> for GraphConvolutionalNetwork<GCNTrained> {
     fn transform(&self, _x: &ArrayView2<'_, f64>) -> SklResult<Array2<f64>> {
-        Ok(self.state.embedding.clone())
+        // This implementation performs graph convolution over the fixed, normalized
+        // adjacency matrix built from the training nodes at fit time -- the layers
+        // were never trained to produce a reusable feature-space mapping, only a
+        // one-shot propagation across that specific graph. There is therefore no way
+        // to place new/unseen nodes into the embedding without rebuilding the graph.
+        Err(SklearsError::NotImplemented(
+            "GraphConvolutionalNetwork::transform does not support new/unseen graph \
+             nodes: this implementation's convolution is computed over the fixed \
+             adjacency matrix built at fit time. Call fit() again with the combined \
+             node set (original nodes plus the new ones) to obtain embeddings that \
+             include them. Use .embedding() to retrieve the training-time embedding \
+             computed by fit()."
+                .to_string(),
+        ))
+    }
+}
+
+impl GraphConvolutionalNetwork<GCNTrained> {
+    /// Get the embedding
+    pub fn embedding(&self) -> &Array2<f64> {
+        &self.state.embedding
     }
 }
 
@@ -424,7 +444,30 @@ impl Fit<ArrayView2<'_, f64>, ()> for GraphSAGE<Untrained> {
 
 impl Transform<ArrayView2<'_, f64>, Array2<f64>> for GraphSAGE<GraphSAGETrained> {
     fn transform(&self, _x: &ArrayView2<'_, f64>) -> SklResult<Array2<f64>> {
-        Ok(self.state.embedding.clone())
+        // NOTE: GraphSAGE the *algorithm* is famously inductive -- it is designed to
+        // generalize to unseen nodes by sampling and aggregating over a node's local
+        // neighborhood rather than memorizing a fixed per-node table. However, *this*
+        // implementation does not (yet) expose that inductive aggregation step through
+        // transform(); it only replays the embedding matrix produced during fit(). Be
+        // honest about the implementation gap without mischaracterizing the algorithm.
+        Err(SklearsError::NotImplemented(
+            "GraphSAGE::transform does not yet support computing embeddings for \
+             new/unseen graph nodes in this implementation. The GraphSAGE algorithm is \
+             designed to be inductive via neighborhood sampling/aggregation, but that \
+             inductive step is not implemented here -- transform() would otherwise just \
+             replay the stored training embedding. Call fit() again with the combined \
+             node set (original nodes plus the new ones) until inductive aggregation \
+             for new nodes is implemented. Use .embedding() to retrieve the \
+             training-time embedding computed by fit()."
+                .to_string(),
+        ))
+    }
+}
+
+impl GraphSAGE<GraphSAGETrained> {
+    /// Get the embedding
+    pub fn embedding(&self) -> &Array2<f64> {
+        &self.state.embedding
     }
 }
 
@@ -689,7 +732,27 @@ impl Fit<ArrayView2<'_, f64>, ()> for GraphAttentionNetwork<Untrained> {
 
 impl Transform<ArrayView2<'_, f64>, Array2<f64>> for GraphAttentionNetwork<GATTrained> {
     fn transform(&self, _x: &ArrayView2<'_, f64>) -> SklResult<Array2<f64>> {
-        Ok(self.state.embedding.clone())
+        // This implementation computes multi-head attention coefficients over the
+        // fixed adjacency matrix built from the training nodes at fit time -- attention
+        // scores are defined only between pairs of nodes that exist in that graph, so
+        // there is no way to place a new/unseen node into the attention computation
+        // without rebuilding the graph.
+        Err(SklearsError::NotImplemented(
+            "GraphAttentionNetwork::transform does not support new/unseen graph nodes: \
+             this implementation's multi-head attention is computed over the fixed \
+             adjacency matrix built at fit time. Call fit() again with the combined \
+             node set (original nodes plus the new ones) to obtain embeddings that \
+             include them. Use .embedding() to retrieve the training-time embedding \
+             computed by fit()."
+                .to_string(),
+        ))
+    }
+}
+
+impl GraphAttentionNetwork<GATTrained> {
+    /// Get the embedding
+    pub fn embedding(&self) -> &Array2<f64> {
+        &self.state.embedding
     }
 }
 
@@ -793,5 +856,106 @@ impl GraphAttentionNetwork<Untrained> {
         let output = attention_scores.dot(&transformed);
 
         Ok(output)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Small synthetic node-feature matrix: 6 "nodes" x 4 features, deterministic
+    /// values so fit() is reproducible without pulling in `rand`.
+    fn synthetic_node_features() -> Array2<f64> {
+        Array2::from_shape_fn((6, 4), |(i, j)| (i * 4 + j) as f64 * 0.1)
+    }
+
+    #[test]
+    fn test_gcn_fit_produces_embedding_of_requested_shape() {
+        let x = synthetic_node_features();
+
+        let gcn = GraphConvolutionalNetwork::new()
+            .layers(vec![5, 3])
+            .random_state(42);
+
+        let fitted = gcn.fit(&x.view(), &()).expect("operation should succeed");
+
+        assert_eq!(fitted.embedding().dim(), (6, 3));
+    }
+
+    #[test]
+    fn test_gcn_transform_reports_not_implemented() {
+        let x = synthetic_node_features();
+
+        let gcn = GraphConvolutionalNetwork::new()
+            .layers(vec![5, 3])
+            .random_state(42);
+
+        let fitted = gcn.fit(&x.view(), &()).expect("operation should succeed");
+
+        // transform() must honestly refuse rather than replay the stale training
+        // embedding regardless of the (ignored) input passed in.
+        assert!(matches!(
+            fitted.transform(&x.view()),
+            Err(SklearsError::NotImplemented(_))
+        ));
+    }
+
+    #[test]
+    fn test_graphsage_fit_produces_embedding_of_requested_shape() {
+        let x = synthetic_node_features();
+
+        let sage = GraphSAGE::new()
+            .n_components(3)
+            .n_layers(2)
+            .sample_size(4);
+
+        let fitted = sage.fit(&x.view(), &()).expect("operation should succeed");
+
+        assert_eq!(fitted.embedding().dim(), (6, 3));
+    }
+
+    #[test]
+    fn test_graphsage_transform_reports_not_implemented() {
+        let x = synthetic_node_features();
+
+        let sage = GraphSAGE::new()
+            .n_components(3)
+            .n_layers(2)
+            .sample_size(4);
+
+        let fitted = sage.fit(&x.view(), &()).expect("operation should succeed");
+
+        // Even though GraphSAGE the algorithm is inductive in principle, this
+        // implementation does not yet compute embeddings for unseen nodes, so
+        // transform() must honestly refuse instead of replaying the stored embedding.
+        assert!(matches!(
+            fitted.transform(&x.view()),
+            Err(SklearsError::NotImplemented(_))
+        ));
+    }
+
+    #[test]
+    fn test_gat_fit_produces_embedding_of_requested_shape() {
+        let x = synthetic_node_features();
+
+        let gat = GraphAttentionNetwork::new().n_components(3).n_heads(2);
+
+        let fitted = gat.fit(&x.view(), &()).expect("operation should succeed");
+
+        assert_eq!(fitted.embedding().dim(), (6, 3));
+    }
+
+    #[test]
+    fn test_gat_transform_reports_not_implemented() {
+        let x = synthetic_node_features();
+
+        let gat = GraphAttentionNetwork::new().n_components(3).n_heads(2);
+
+        let fitted = gat.fit(&x.view(), &()).expect("operation should succeed");
+
+        assert!(matches!(
+            fitted.transform(&x.view()),
+            Err(SklearsError::NotImplemented(_))
+        ));
     }
 }

@@ -52,6 +52,21 @@ This crate provides PyO3-based Python bindings for the sklears workspace.
       each present in both the `tests/lib.rs` aggregate target and its own standalone integration
       binary) plus 11 new unit tests across `clustering.rs`/`model_selection.rs`.
 
+## OxiCUDA Migration (v0.2.0)
+Part of the workspace-wide scirs2-core GPU removal: all GPU claims must either route through
+the oxicuda-backed `sklears_core::gpu` module (behind `gpu_support`) or honestly report absence.
+This crate currently hardcodes GPU availability in its system-info reporting.
+
+- [ ] (S) Report real CUDA availability via oxicuda when the bindings are built with GPU
+      support. `src/utils.rs:118-120` hardcodes `cuda_available = false` /
+      `opencl_available = false` in the system-info dict ("placeholder - would need actual
+      detection"). Add a `gpu` feature in `Cargo.toml` forwarding to
+      `sklears-core/gpu_support`, and behind it set `cuda_available` from sklears-core's
+      oxicuda-driver detection (`GpuUtils::is_gpu_available`). Keep the hardcoded `false` for
+      the default Pure-Rust build, and document that OpenCL is not supported by the oxicuda
+      stack (so `opencl_available` stays honestly `false`).
+      Files: `src/utils.rs`, `Cargo.toml`
+
 ## Remaining / Future Enhancements
 - Tree-based models (`RandomForestClassifier`, `DecisionTreeClassifier`, etc.) are implemented in
   `src/tree.rs` but still commented out of the `#[pymodule]` init function ("Temporarily disabled

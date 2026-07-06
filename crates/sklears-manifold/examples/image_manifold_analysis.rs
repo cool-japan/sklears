@@ -220,9 +220,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let fitted = tsne
                     .fit(&image_patches.view(), &())
                     .expect("operation should succeed");
-                fitted
-                    .transform(&image_patches.view())
-                    .expect("operation should succeed")
+                // t-SNE is transductive (like scikit-learn's TSNE, no transform()
+                // exists): use the training embedding directly.
+                fitted.embedding().clone()
             }
             "umap" => {
                 let umap = UMAP::new().n_components(2).n_neighbors(15).min_dist(0.1);
@@ -273,9 +273,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let fitted = tsne
                     .fit(&time_series.view(), &())
                     .expect("operation should succeed");
-                fitted
-                    .transform(&time_series.view())
-                    .expect("operation should succeed")
+                // t-SNE is transductive (like scikit-learn's TSNE, no transform()
+                // exists): use the training embedding directly.
+                fitted.embedding().clone()
             }
             "umap" => {
                 let umap = UMAP::new().n_components(2).n_neighbors(10).min_dist(0.05);
@@ -331,18 +331,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let fitted = tsne
                     .fit(&swiss_data.view(), &())
                     .expect("operation should succeed");
-                fitted
-                    .transform(&swiss_data.view())
-                    .expect("operation should succeed")
+                // t-SNE is transductive (like scikit-learn's TSNE, no transform()
+                // exists): use the training embedding directly.
+                fitted.embedding().clone()
             }
             "tsne_quality" => {
                 let tsne = TSNE::new().n_components(2).perplexity(50.0).n_iter(1000);
                 let fitted = tsne
                     .fit(&swiss_data.view(), &())
                     .expect("operation should succeed");
-                fitted
-                    .transform(&swiss_data.view())
-                    .expect("operation should succeed")
+                fitted.embedding().clone()
             }
             "umap" => {
                 let umap = UMAP::new().n_components(2).n_neighbors(15).min_dist(0.1);

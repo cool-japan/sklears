@@ -45,6 +45,17 @@
 - [x] `src/sparse.rs:319` — Implement sparse LASSO solving
 - [x] `src/sparse.rs:334` — Implement sparse Elastic Net solving
 
+## OxiCUDA Migration (v0.2.0)
+
+Status: fully migrated to oxicuda-* (no scirs2-core GPU usage remains). Remaining items are optional hardening — the GPU plumbing is real, but several bookkeeping/telemetry layers are still CPU-side simulators.
+
+- [ ] (M) Back `GpuMemoryPool` bookkeeping with oxicuda-memory device pools — both pool types are CPU-side accounting simulators (`src/gpu_acceleration.rs:487-520`, documented "CPU-side memory-pool simulator"; `src/advanced_gpu_acceleration.rs:122-220` best-fit offset bookkeeping with no `DeviceBuffer` behind it). Replace the (offset, size) ledger with real oxicuda-memory pool/arena allocations so `allocate()`/`deallocate()` reserve device memory, and report actual driver numbers via `GpuBackend::memory_info()` instead of the ledger.
+  - **Files:** `src/gpu_acceleration.rs`, `src/advanced_gpu_acceleration.rs`
+- [ ] (L) Real oxicuda-driver streams for `CudaStream`/`async_matrix_multiply` — `CudaStream` (`src/advanced_gpu_acceleration.rs:224-251`) is a bool-flag struct; `async_matrix_multiply` (`src/advanced_gpu_acceleration.rs:610-654`) is honestly documented as eager/synchronous. Create real streams via oxicuda-driver, launch GEMMs on per-stream oxicuda-blas handles, and make `AsyncGpuOperation::is_ready` query stream completion. Purely additive.
+  - **Files:** `src/advanced_gpu_acceleration.rs`
+- [ ] (S) Real counters in `GpuPerformanceStats` and device-info fields — `get_performance_stats` (`src/gpu_acceleration.rs:459-469`) returns all-zero stats; `get_device_info` (`src/advanced_gpu_acceleration.rs:331-340`) fabricates 8GB/CC 8.0/68 SMs without a GPU and hardcodes multiprocessor_count/max_threads/shared-memory on the real branch (lines 325-327); `GpuPerformanceMetrics` always records 0.0 bandwidth/occupancy (lines 425-426, 469-470, 550-551, 758-759). Track op/fallback counts and transfer bytes in `GpuLinearOps`; extend sklears-core `GpuUtils::device_properties` (oxicuda-driver attribute queries) to surface SM count, max threads/block, and shared memory.
+  - **Files:** `src/gpu_acceleration.rs`, `src/advanced_gpu_acceleration.rs`
+
 ---
 
 See also: [Workspace roadmap](../../TODO.md)
