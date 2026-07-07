@@ -6,7 +6,7 @@
 
 use scirs2_core::ndarray::{s, Array2, ArrayView2, NdFloat};
 use scirs2_core::Distribution;
-use scirs2_linalg::compat::ArrayLinalgExt;
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::error::{Result as SklResult, SklearsError};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -797,58 +797,142 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
         Ok(-error) // Negative because lower is better
     }
 
-    /// Compute condition number
+    /// Compute the condition number of a (symmetric PSD) covariance/precision
+    /// matrix via eigendecomposition: `κ(Σ) = λ_max / max(λ_min, 1e-15)`.
+    ///
+    /// The previous "simplified" version used `‖Σ‖_F / tr(Σ)`, which is not a
+    /// condition number at all -- it is not even scale-invariant in the
+    /// right way and bears no fixed relationship to `λ_max / λ_min` except
+    /// for very special matrices (e.g. it is exactly `1/sqrt(p)` for any
+    /// multiple of the identity, never `1`). `Σ` is expected to be symmetric
+    /// PSD, so `eigvalsh` is the right tool here; eigenvalues are NOT
+    /// guaranteed sorted by this API, so the max/min are found via `fold`
+    /// (mirroring `testing_quality.rs::condition_number`), and the
+    /// denominator is clamped to `1e-15` to avoid dividing by (near) zero
+    /// for a near-singular matrix.
     fn compute_condition_number(&self, matrix: &Array2<F>) -> f64 {
-        // Simplified condition number computation
-        // In practice, would use proper eigenvalue decomposition
-        let trace = (0..matrix.nrows())
-            .map(|i| matrix[[i, i]].to_f64().expect("operation should succeed"))
-            .sum::<f64>();
-        let norm = matrix
-            .iter()
-            .map(|x| x.to_f64().expect("operation should succeed").powi(2))
-            .sum::<f64>()
-            .sqrt();
-
-        if trace > 0.0 {
-            norm / trace
-        } else {
-            f64::INFINITY
+        let matrix_f64 = matrix.mapv(|value| value.to_f64().unwrap_or(0.0));
+        match matrix_f64.eigvalsh(UPLO::Lower) {
+            Ok(eigenvalues) => {
+                let max_eigenvalue = eigenvalues.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+                let min_eigenvalue = eigenvalues
+                    .iter()
+                    .fold(f64::INFINITY, |a, &b| a.min(b.max(1e-15)));
+                max_eigenvalue / min_eigenvalue
+            }
+            Err(_) => f64::INFINITY,
         }
     }
 
-    /// Compute Stein's loss
+    /// Compute Stein's loss of `estimated` (`Σ̂`) relative to `true_cov`
+    /// (`Σ`): `L(Σ̂, Σ) = tr(Σ̂⁻¹Σ) - log det(Σ̂⁻¹Σ) - p`.
+    ///
+    /// The previous "simplified" version only compared per-feature variances
+    /// (`estimated[i,i] / true_cov[i,i]`), ignoring all covariance structure
+    /// entirely (any two matrices with the same diagonal scored identically,
+    /// regardless of off-diagonal correlation). This computes the real
+    /// matrix quantities:
+    /// - `tr(Σ̂⁻¹Σ)` via the existing `trace_of_product` helper, which
+    ///   avoids materializing the full `p x p` product `Σ̂⁻¹Σ` since only
+    ///   its trace is needed;
+    /// - `log det(Σ̂⁻¹Σ) = log det(Σ) - log det(Σ̂)` (since
+    ///   `det(AB) = det(A)det(B)`), which avoids forming `Σ̂⁻¹Σ` at all for
+    ///   the log-det term and reuses `ArrayLinalgExt::det()`.
+    ///
+    /// On a non-invertible/ill-conditioned `estimated` matrix, or a
+    /// non-positive determinant on either side (both indicate a
+    /// degenerate/invalid covariance), this returns a large-but-*finite*
+    /// negative penalty rather than `f64::NEG_INFINITY`: `cross_validate`
+    /// averages fold scores and then computes `(score - mean).powi(2)` for
+    /// the standard deviation, and mixing a `NEG_INFINITY` fold score with
+    /// finite ones there produces `(-inf) - (-inf) = NaN`, silently
+    /// poisoning the CV summary. A large finite sentinel keeps the failure
+    /// mode "very bad score" instead of "corrupt score".
+    ///
+    /// Returns `Ok(-stein_loss)`: `compute_score`'s `SteinLoss` branch does
+    /// not itself negate the result (unlike `ConditionNumber`), so the sign
+    /// flip -- matching the file's "negative because lower [raw loss] is
+    /// better" convention, same as `compute_frobenius_error` -- has to
+    /// happen here.
     fn compute_stein_loss(
         &self,
         estimated: &Array2<F>,
         true_cov: &ArrayView2<F>,
     ) -> SklResult<f64> {
-        // Simplified Stein's loss: tr(Σ^-1 S) - log|Σ^-1 S| - p
-        // where Σ is true covariance and S is estimated covariance
+        /// Large finite penalty for a degenerate/non-invertible input.
+        /// Finite (rather than `NEG_INFINITY`) so it can safely participate
+        /// in mean/variance arithmetic downstream without producing NaN.
+        const DEGENERATE_PENALTY: f64 = -1.0e6;
+
         let p = estimated.nrows() as f64;
 
-        // This is a simplified version - in practice would need proper matrix inversion
-        let trace_ratio = (0..estimated.nrows())
-            .map(|i| {
-                estimated[[i, i]]
-                    .to_f64()
-                    .expect("operation should succeed")
-                    / true_cov[[i, i]].to_f64().expect("operation should succeed")
-            })
-            .sum::<f64>();
+        let estimated_f64 = estimated.mapv(|value| value.to_f64().unwrap_or(0.0));
+        let true_cov_f64 = true_cov.mapv(|value| value.to_f64().unwrap_or(0.0));
 
-        let stein_loss = trace_ratio - p;
-        Ok(-stein_loss) // Negative because lower is better
+        let precision_f64 = match estimated_f64.inv() {
+            Ok(inv) => inv,
+            Err(_) => return Ok(DEGENERATE_PENALTY),
+        };
+
+        let det_estimated = match estimated_f64.det() {
+            Ok(d) if d > 0.0 => d,
+            _ => return Ok(DEGENERATE_PENALTY),
+        };
+        let det_true_cov = match true_cov_f64.det() {
+            Ok(d) if d > 0.0 => d,
+            _ => return Ok(DEGENERATE_PENALTY),
+        };
+
+        let trace_term = trace_of_product(&precision_f64, &true_cov_f64);
+        let log_det_a = det_true_cov.ln() - det_estimated.ln();
+
+        let stein_loss = trace_term - log_det_a - p;
+        Ok(-stein_loss)
     }
 
-    /// Compute spectral norm error
+    /// Compute the spectral-norm error between `estimated` and `true_cov`:
+    /// `‖Σ̂ - Σ‖₂`.
+    ///
+    /// The previous "simplified" version just called
+    /// `compute_frobenius_error` outright, i.e. it never computed a
+    /// spectral norm at all. Since both `estimated` and `true_cov` are real
+    /// symmetric covariance matrices, so is their difference
+    /// `D = Σ̂ - Σ`, and for a real symmetric matrix the spectral (operator
+    /// 2-)norm equals the largest-magnitude eigenvalue:
+    /// `‖D‖₂ = max_i |λ_i(D)|`.
+    ///
+    /// If the eigendecomposition of `D` fails, this falls back to the
+    /// (always-computable) Frobenius error as a degraded-but-safe estimate:
+    /// `‖D‖_F` is a valid upper bound on `‖D‖₂` (`‖D‖₂ <= ‖D‖_F`), so it
+    /// still gives a sensible, correctly-signed, finite score rather than
+    /// aborting the whole scoring pass.
+    ///
+    /// Returns `Ok(-spectral_norm)`: `compute_score`'s `SpectralError`
+    /// branch does not itself negate the result, so -- exactly as with
+    /// `compute_frobenius_error` -- the "negative because lower is better"
+    /// sign flip has to happen inside this function.
     fn compute_spectral_error(
         &self,
         estimated: &Array2<F>,
         true_cov: &ArrayView2<F>,
     ) -> SklResult<f64> {
-        // Simplified spectral norm (largest singular value)
-        self.compute_frobenius_error(estimated, true_cov) // Placeholder
+        if estimated.dim() != true_cov.dim() {
+            return Err(SklearsError::InvalidInput(
+                "Covariance matrices must have same dimensions".to_string(),
+            ));
+        }
+
+        let estimated_f64 = estimated.mapv(|value| value.to_f64().unwrap_or(0.0));
+        let true_cov_f64 = true_cov.mapv(|value| value.to_f64().unwrap_or(0.0));
+        let diff = &estimated_f64 - &true_cov_f64;
+
+        match diff.eigvalsh(UPLO::Lower) {
+            Ok(eigenvalues) => {
+                let spectral_norm = eigenvalues.iter().map(|v| v.abs()).fold(0.0_f64, f64::max);
+                Ok(-spectral_norm)
+            }
+            Err(_) => self.compute_frobenius_error(estimated, true_cov),
+        }
     }
 
     /// Compute predictive likelihood
@@ -1350,5 +1434,197 @@ mod tests {
 
         assert_eq!(result.mean_score, 0.85);
         assert_eq!(result.fold_scores.len(), 3);
+    }
+
+    /// A `CovarianceHyperparameterTuner<f64>` with an empty parameter grid,
+    /// used purely as a `self` receiver for exercising the private
+    /// `compute_condition_number` / `compute_stein_loss` /
+    /// `compute_spectral_error` scoring methods directly. The concrete
+    /// `TuningConfig` contents (search strategy, scoring metric, ...) are
+    /// irrelevant to those methods -- only `&self` is needed to call them.
+    fn make_test_tuner() -> CovarianceHyperparameterTuner<f64> {
+        CovarianceHyperparameterTuner::new(
+            Vec::new(),
+            TuningConfig {
+                cv_config: CrossValidationConfig {
+                    n_folds: 5,
+                    shuffle: true,
+                    random_seed: Some(42),
+                    stratify: false,
+                },
+                search_strategy: SearchStrategy::GridSearch,
+                scoring: ScoringMetric::LogLikelihood,
+                max_evaluations: 10,
+                random_seed: Some(42),
+                n_jobs: None,
+                early_stopping: None,
+            },
+        )
+    }
+
+    // -- compute_condition_number -------------------------------------------
+
+    #[test]
+    fn test_condition_number_identity_is_one() {
+        let tuner = make_test_tuner();
+        let identity = Array2::<f64>::eye(3);
+
+        let kappa = tuner.compute_condition_number(&identity);
+
+        assert!(
+            (kappa - 1.0).abs() < 1e-6,
+            "condition number of the identity matrix must be exactly 1.0, got {kappa}"
+        );
+    }
+
+    #[test]
+    fn test_condition_number_diagonal_matches_eigenvalue_ratio() {
+        let tuner = make_test_tuner();
+        // diag(1, 100): eigenvalues are trivially 1 and 100, so
+        // kappa = lambda_max / lambda_min = 100.
+        let diagonal =
+            Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 100.0]).expect("2x2 shape matches");
+
+        let kappa = tuner.compute_condition_number(&diagonal);
+
+        assert!(
+            (kappa - 100.0).abs() < 1e-6,
+            "condition number of diag(1, 100) must be 100.0, got {kappa}"
+        );
+    }
+
+    // -- compute_stein_loss ---------------------------------------------------
+
+    #[test]
+    fn test_stein_loss_zero_at_identical_covariances() {
+        let tuner = make_test_tuner();
+        // A non-diagonal SPD matrix: exercises the full tr(.)/det(.) formula
+        // rather than only the diagonal special case.
+        let cov = Array2::from_shape_vec((2, 2), vec![2.0, 0.5, 0.5, 1.0]).expect("2x2 shape matches");
+
+        let score = tuner
+            .compute_stein_loss(&cov, &cov.view())
+            .expect("stein loss should succeed for an SPD matrix");
+
+        // A = Sigma_hat^-1 * Sigma = I when estimated == true_cov, so
+        // stein_loss = tr(I) - log(det(I)) - p = p - 0 - p = 0.
+        assert!(
+            score.abs() < 1e-6,
+            "Stein loss score must be ~0 when estimated == true_cov, got {score}"
+        );
+    }
+
+    #[test]
+    fn test_stein_loss_matches_hand_computed_value_diagonal() {
+        let tuner = make_test_tuner();
+        let estimated = Array2::from_shape_vec((2, 2), vec![2.0, 0.0, 0.0, 2.0]).expect("shape");
+        let true_cov = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0]).expect("shape");
+
+        let score = tuner
+            .compute_stein_loss(&estimated, &true_cov.view())
+            .expect("stein loss should succeed for SPD diagonal matrices");
+
+        // A = diag(2,2)^-1 * diag(1,1) = diag(0.5, 0.5).
+        // tr(A) = 1.0, det(A) = 0.25, p = 2.
+        // stein_loss = 1.0 - ln(0.25) - 2 = 1.0 + 1.3862943611198906 - 2
+        //            = 0.3862943611198906
+        // score = -stein_loss.
+        let expected_stein_loss = 1.0 - 0.25_f64.ln() - 2.0;
+        let expected_score = -expected_stein_loss;
+
+        assert!(
+            (score - expected_score).abs() < 1e-9,
+            "expected Stein-loss score {expected_score}, got {score}"
+        );
+    }
+
+    #[test]
+    fn test_stein_loss_matches_hand_computed_value_off_diagonal() {
+        let tuner = make_test_tuner();
+        // estimated has real off-diagonal correlation; true_cov = I.
+        // A = estimated^-1 (since true_cov = I).
+        let estimated = Array2::from_shape_vec((2, 2), vec![2.0, 1.0, 1.0, 2.0]).expect("shape");
+        let true_cov = Array2::<f64>::eye(2);
+
+        let score = tuner
+            .compute_stein_loss(&estimated, &true_cov.view())
+            .expect("stein loss should succeed for an SPD matrix with off-diagonal terms");
+
+        // det(estimated) = 2*2 - 1*1 = 3.
+        // estimated^-1 = (1/3) * [[2, -1], [-1, 2]], trace = 4/3.
+        // det(A) = det(estimated^-1) * det(I) = 1/3.
+        // stein_loss = 4/3 - ln(1/3) - 2.
+        let expected_stein_loss = 4.0 / 3.0 - (1.0_f64 / 3.0).ln() - 2.0;
+        let expected_score = -expected_stein_loss;
+
+        assert!(
+            (score - expected_score).abs() < 1e-9,
+            "expected Stein-loss score {expected_score}, got {score}"
+        );
+    }
+
+    #[test]
+    fn test_stein_loss_is_monotonically_worse_as_estimate_drifts() {
+        let tuner = make_test_tuner();
+        let true_cov = Array2::<f64>::eye(2);
+
+        let score_close = tuner
+            .compute_stein_loss(&(&true_cov * 1.5), &true_cov.view())
+            .expect("stein loss should succeed");
+        let score_far = tuner
+            .compute_stein_loss(&(&true_cov * 3.0), &true_cov.view())
+            .expect("stein loss should succeed");
+        let score_exact = tuner
+            .compute_stein_loss(&true_cov, &true_cov.view())
+            .expect("stein loss should succeed");
+
+        assert!(
+            score_exact > score_close,
+            "an exact match ({score_exact}) must score strictly better than a 1.5x-scaled \
+             estimate ({score_close})"
+        );
+        assert!(
+            score_close > score_far,
+            "a 1.5x-scaled estimate ({score_close}) must score strictly better than a \
+             3x-scaled estimate ({score_far}) as it drifts further from true_cov"
+        );
+    }
+
+    // -- compute_spectral_error ------------------------------------------------
+
+    #[test]
+    fn test_spectral_error_diagonal_difference_matrix() {
+        let tuner = make_test_tuner();
+        // true_cov = diag(2, 3), estimated = diag(7, 1)
+        // => diff = diag(5, -2), eigenvalues {5, -2}, spectral norm = 5.
+        let true_cov = Array2::from_shape_vec((2, 2), vec![2.0, 0.0, 0.0, 3.0]).expect("shape");
+        let estimated = Array2::from_shape_vec((2, 2), vec![7.0, 0.0, 0.0, 1.0]).expect("shape");
+
+        let score = tuner
+            .compute_spectral_error(&estimated, &true_cov.view())
+            .expect("spectral error should succeed");
+
+        assert!(
+            (score - (-5.0)).abs() < 1e-6,
+            "expected spectral-error score -5.0 (spectral norm 5.0), got {score}"
+        );
+    }
+
+    #[test]
+    fn test_spectral_error_off_diagonal_difference_matrix() {
+        let tuner = make_test_tuner();
+        // true_cov = I, estimated = [[1,3],[3,1]]
+        // => diff = [[0,3],[3,0]], eigenvalues {3, -3}, spectral norm = 3.
+        let true_cov = Array2::<f64>::eye(2);
+        let estimated = Array2::from_shape_vec((2, 2), vec![1.0, 3.0, 3.0, 1.0]).expect("shape");
+
+        let score = tuner
+            .compute_spectral_error(&estimated, &true_cov.view())
+            .expect("spectral error should succeed");
+
+        assert!(
+            (score - (-3.0)).abs() < 1e-6,
+            "expected spectral-error score -3.0 (spectral norm 3.0), got {score}"
+        );
     }
 }

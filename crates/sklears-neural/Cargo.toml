@@ -38,7 +38,7 @@ rayon = { workspace = true, optional = true }
 oxicuda-driver = { workspace = true, optional = true }
 oxicuda-blas   = { workspace = true, optional = true, features = ["f16"] }
 oxicuda-dnn    = { workspace = true, optional = true }
-oxicuda-memory = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true, features = ["pool"] }
 bytemuck = { workspace = true, optional = true }
 memmap2 = { workspace = true, optional = true }
 half = { workspace = true, optional = true }

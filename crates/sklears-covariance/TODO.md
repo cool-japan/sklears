@@ -11,7 +11,16 @@ This crate is part of the sklears v0.1.0 initial release.
 - 285 tests passing.
 
 ## Known Gaps
-- [ ] `CovarianceHyperparameterTuner`'s `compute_condition_number`, `compute_stein_loss`, and `compute_spectral_error` scoring functions remain simplified/placeholder implementations (documented as such in-source) — not addressed this session.
+- [x] `CovarianceHyperparameterTuner`'s `compute_condition_number`, `compute_stein_loss`, and `compute_spectral_error` scoring functions: replaced all three placeholders with real eigen/determinant-based implementations (`compute_condition_number` via `eigvalsh` fold-based `λ_max/λ_min`; `compute_stein_loss` via the full `tr(Σ̂⁻¹Σ) − log det(Σ̂⁻¹Σ) − p` formula using `trace_of_product` + `det()` ratio, with a finite `-1e6` penalty instead of `NEG_INFINITY` to avoid poisoning CV mean/variance with NaN; `compute_spectral_error` via `‖Σ̂−Σ‖₂ = max|λ_i(Σ̂−Σ)|` with a Frobenius-error fallback on decomposition failure), each backed by a hand-computed unit test at a known optimum. (2026-07-07)
+  - **Goal:** Replace all three placeholder scoring methods in `src/hyperparameter_tuning.rs` with mathematically correct implementations, each with a direct unit test proving correctness at a known optimum.
+  - **Design:** Reuse the established f64-convert + `scirs2_linalg::compat` pattern already used by `compute_log_likelihood`/`compute_determinant` in this file. Add `use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};`.
+    - `compute_condition_number(matrix)` → `matrix.eigvalsh(UPLO::Lower)`, `κ = λ_max / max(λ_min, 1e-15)` (template already in-crate at `testing_quality.rs:588`). Return `f64::INFINITY` on decomposition error.
+    - `compute_stein_loss(estimated, true_cov)` → full formula `tr(A) − log det(A) − p` where `A = Σ̂⁻¹·Σ` (convert both to f64; `.inv()` on estimated; matrix-multiply; `.det()` for log det; trace via existing `trace_of_product`/diagonal sum). Keep the current `Ok(-stein_loss)` sign convention. Handle non-invertible/`det≤0` via a large penalty (mirrors `compute_log_likelihood`'s `NEG_INFINITY` guard style).
+    - `compute_spectral_error(estimated, true_cov)` → spectral norm of the difference: `D = estimated − true_cov`, `‖D‖₂ = max|λ_i(D)|` via `D.eigvalsh(UPLO::Lower)`. Replaces the current pure delegate to `compute_frobenius_error`.
+  - **Files:** `src/hyperparameter_tuning.rs`.
+  - **Prerequisites:** none.
+  - **Tests:** condition number on `I₃ → ≈1.0` and `diag(1,100) → ≈100`; Stein loss `estimated == true_cov ⇒ score ≈ 0`, mismatched pair ⇒ strictly negative, monotone-worse as estimate drifts; spectral error on a hand-built pair with a known largest-eigenvalue gap ⇒ exact value.
+  - **Risk:** `eigvalsh` ignores `UPLO` in this scirs2 version (harmless); eigenvalues unsorted → use `fold` max/min, clamp tiny/negative to `1e-15`. No `unwrap()` — all via `?`/`ok_or_else`.
 
 ## Future Enhancements
 - Performance optimizations

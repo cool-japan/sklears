@@ -51,6 +51,8 @@ pub mod experiment_tracking;
 pub mod gan;
 pub mod gnn;
 pub mod gpu;
+#[cfg(feature = "gpu")]
+mod gpu_pool;
 /// Numerical gradient checking for verifying analytic gradients
 pub mod gradient_checking;
 pub mod interpretation;

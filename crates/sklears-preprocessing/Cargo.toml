@@ -30,6 +30,14 @@ serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 approx = { workspace = true }
 num_cpus = { workspace = true }
+log = { workspace = true }
+
+# GPU acceleration (OxiCUDA): direct deps so `gpu_acceleration.rs` can call
+# `oxicuda_blas::{reduction, elementwise}` and `oxicuda_memory::DeviceBuffer`
+# directly, mirroring sklears-linear's `gpu_acceleration.rs`.
+oxicuda-blas   = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true }
+oxicuda-driver = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
@@ -40,4 +48,4 @@ default = ["std"]
 std = ["sklears-core/std"]
 parallel = ["rayon"]
 serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]
-gpu = ["sklears-core/gpu_support"]
+gpu = ["sklears-core/gpu_support", "dep:oxicuda-blas", "dep:oxicuda-memory", "dep:oxicuda-driver"]

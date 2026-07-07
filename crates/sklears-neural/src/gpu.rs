@@ -36,6 +36,8 @@ use sklears_core::error::SklearsError;
 use std::collections::HashMap;
 
 #[cfg(feature = "gpu")]
+use crate::gpu_pool;
+#[cfg(feature = "gpu")]
 use oxicuda_blas::{GpuFloat, Layout, MatrixDesc, MatrixDescMut, Transpose};
 #[cfg(feature = "gpu")]
 use oxicuda_dnn::conv::api::conv_forward;
@@ -241,8 +243,15 @@ fn gpu_gemm<T: GpuFloat>(
 #[cfg(feature = "gpu")]
 pub struct GpuContext {
     inner: SklearsGpuContext,
-    #[allow(dead_code)]
     config: GpuConfig,
+    /// Real pooled allocator sized by `config.memory_pool_size`, backing
+    /// [`memory_pool_stats`](Self::memory_pool_stats) with genuine hit/miss
+    /// telemetry instead of fabricated numbers. See `crate::gpu_pool` for the
+    /// implementation.
+    memory_pool: gpu_pool::GpuMemoryPool,
+    /// `config.max_streams` real CUDA streams, round-robin-accessible via
+    /// [`stream`](Self::stream).
+    streams: Vec<oxicuda_driver::Stream>,
 }
 
 #[cfg(feature = "gpu")]
@@ -261,6 +270,11 @@ impl GpuContext {
     /// `sklears_neural::gpu::GpuContext` -- unlike `GpuBackend` -- has always been a "real GPU or
     /// nothing" type. Automatic GPU-then-CPU fallback for callers that want it already happens
     /// one level up, in `GpuAcceleratedOps::with_config`, via `.ok()`.
+    ///
+    /// Also builds the real infrastructure `config` describes: a
+    /// [`gpu_pool::GpuMemoryPool`] sized by `config.memory_pool_size`, and
+    /// `config.max_streams` real CUDA streams (see [`stream`](Self::stream)).
+    /// Both are genuinely read here, not merely stored.
     pub fn with_config(config: GpuConfig) -> NeuralResult<Self> {
         let inner = match config.device_id {
             Some(device_id) => SklearsGpuContext::with_device_id(device_id)
@@ -282,7 +296,63 @@ impl GpuContext {
                 })?
                 .ok_or_else(|| SklearsError::InvalidInput("No GPU device available".to_string()))?,
         };
-        Ok(Self { inner, config })
+
+        let memory_pool =
+            gpu_pool::GpuMemoryPool::new(inner.device_id() as i32, config.memory_pool_size)?;
+
+        let stream_count = config.max_streams.max(1);
+        let mut streams = Vec::with_capacity(stream_count);
+        for _ in 0..stream_count {
+            let stream = oxicuda_driver::Stream::new(inner.context()).map_err(|e| {
+                SklearsError::InvalidInput(format!("Failed to create CUDA stream: {}", e))
+            })?;
+            streams.push(stream);
+        }
+
+        let ctx = Self {
+            inner,
+            config,
+            memory_pool,
+            streams,
+        };
+        // Real, minimal warm-up: proves the pool + stream wiring above
+        // actually works (fail fast on a broken device rather than silently
+        // on first real workload) and gives `GpuMemoryPool::acquire` /
+        // `PooledHandle` a genuine production caller, not just tests.
+        ctx.warm_memory_pool()?;
+        Ok(ctx)
+    }
+
+    /// Returns one of this context's `config.max_streams` CUDA streams,
+    /// round-robin by `index`. There is always at least one stream (`0`
+    /// streams is rounded up to `1` in [`with_config`](Self::with_config)),
+    /// so this never divides by zero.
+    pub fn stream(&self, index: usize) -> &oxicuda_driver::Stream {
+        &self.streams[index % self.streams.len()]
+    }
+
+    /// Acquires and immediately releases a single-element `f32` pooled
+    /// buffer on stream `0`.
+    ///
+    /// This is the "genuinely read" proof for `memory_pool`/`streams`: every
+    /// real [`GpuContext`] construction exercises `GpuMemoryPool::acquire`
+    /// and `PooledHandle`'s reuse-on-drop path at least once, so a broken
+    /// pool/stream surfaces immediately as a construction error instead of
+    /// silently on first real use.
+    fn warm_memory_pool(&self) -> NeuralResult<()> {
+        let handle = self.memory_pool.acquire::<f32>(1, self.stream(0))?;
+        if handle.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "GPU memory pool warm-up returned an empty buffer".to_string(),
+            ));
+        }
+        log::trace!(
+            "GPU memory pool warm-up: {} elements ({} bytes) at {:#x} on stream 0",
+            handle.len(),
+            handle.byte_size(),
+            handle.as_device_ptr()
+        );
+        Ok(())
     }
 
     /// Block until all pending GPU operations have completed.
@@ -387,9 +457,15 @@ impl GpuContext {
         Ok((info.free, info.total))
     }
 
-    /// Return memory pool utilization `(used_fraction, hit_rate)` — always `(0, 0)` without a pool.
+    /// Return real memory pool utilization `(used_fraction, hit_rate)`.
+    ///
+    /// Backed by `self.memory_pool`'s own [`gpu_pool::PoolTelemetry`]: `used_fraction` is
+    /// currently-allocated bytes over `config.memory_pool_size`, and `hit_rate` is the fraction of
+    /// `GpuMemoryPool::acquire` calls served from the pool's own free-list without a fresh device
+    /// allocation. Both are real counters updated by every `acquire`/drop cycle (including the
+    /// warm-up performed in [`with_config`](Self::with_config)) -- never fabricated zeros.
     pub fn memory_pool_stats(&self) -> (f64, f64) {
-        (0.0, 0.0)
+        self.memory_pool.telemetry_stats()
     }
 
     /// Returns `true` if the device has dedicated Tensor Core hardware.
@@ -402,6 +478,17 @@ impl GpuContext {
         self.compute_capability()
             .map(|(major, _minor)| major >= 7)
             .unwrap_or(false)
+    }
+
+    /// Returns `true` if this context should use its mixed-precision GEMM path.
+    ///
+    /// Reads `config.mixed_precision` (genuinely, not merely storing it) and additionally
+    /// requires real Tensor Core hardware ([`has_tensor_cores`](Self::has_tensor_cores)): a
+    /// caller that asked for mixed precision on a device without Tensor Cores would get no
+    /// benefit from `tensor_core_gemm_f16`'s fp16 kernel, so this honestly reports `false` in
+    /// that case rather than claiming a mode the hardware cannot accelerate.
+    pub fn use_mixed_precision(&self) -> bool {
+        self.config.mixed_precision && self.has_tensor_cores()
     }
 
     /// Return the CUDA compute capability `(major, minor)` of the device, if known.
@@ -930,14 +1017,27 @@ impl GpuAcceleratedOps {
         #[cfg(feature = "gpu")]
         {
             if let Some(ref ctx) = self.context {
-                let (f32_hit_rate, f64_hit_rate) = ctx.memory_pool_stats();
-                stats.insert("f32_pool_hit_rate".to_string(), f32_hit_rate);
-                stats.insert("f64_pool_hit_rate".to_string(), f64_hit_rate);
+                // Real telemetry from `ctx.memory_pool`'s `PoolTelemetry` (see
+                // `gpu_pool.rs`), matching `memory_pool_stats`'s own
+                // `(used_fraction, hit_rate)` doc-comment ordering -- these
+                // used to be labelled `f32_pool_hit_rate`/`f64_pool_hit_rate`
+                // while actually always reporting fabricated `(0.0, 0.0)`, an
+                // ordering/type mismatch as well as a fabrication; renamed
+                // here since no other crate in this workspace reads these
+                // particular `HashMap` keys (`GpuConfig`/`memory_pool_stats`
+                // are crate-local elsewhere too).
+                let (pool_used_fraction, pool_hit_rate) = ctx.memory_pool_stats();
+                stats.insert("pool_used_fraction".to_string(), pool_used_fraction);
+                stats.insert("pool_hit_rate".to_string(), pool_hit_rate);
 
                 // Add tensor core availability
                 stats.insert(
                     "tensor_cores_available".to_string(),
                     if ctx.has_tensor_cores() { 1.0 } else { 0.0 },
+                );
+                stats.insert(
+                    "mixed_precision_active".to_string(),
+                    if ctx.use_mixed_precision() { 1.0 } else { 0.0 },
                 );
             }
         }
