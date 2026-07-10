@@ -40,10 +40,30 @@
 use crate::error::Result;
 use crate::traits::{Estimator, Fit, Predict, PredictProba, Transform};
 // SciRS2 Policy: Using scirs2_core::ndarray for unified access (COMPLIANT)
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{
+    Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Ix1, Ix2, OwnedRepr,
+};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::time::{Duration, Instant};
+
+/// `ArrayBase`'s owned-matrix/vector element types with the (ndarray 0.17+)
+/// third `ArrayBase` type parameter (`A`, defaulted to `<S as
+/// RawData>::Elem`) spelled out explicitly, rather than relying on the
+/// `Array2<f64>` / `Array1<f64>` alias sugar.
+///
+/// When a generic function's `where` clause bounds a type parameter with a
+/// trait that itself has a defaulted generic parameter (e.g. `Fit<X, Y,
+/// State = Untrained>` or `Transform<X, Output = X>`) instantiated via the
+/// *aliased* `Array2<f64>` / `Array1<f64>` form, rustc's associated-type
+/// projection default for `ArrayBase`'s third parameter fails to normalize
+/// consistently with concrete `impl` blocks (e.g. those in
+/// `crate::mock_objects`), spuriously reporting the bound as unsatisfied.
+/// `OwnedMatrix`/`OwnedVector` name the exact same concrete types as
+/// `Array2<f64>`/`Array1<f64>`; spelling out the third parameter explicitly
+/// sidesteps the normalization mismatch.
+type OwnedMatrix = ArrayBase<OwnedRepr<f64>, Ix2, f64>;
+type OwnedVector = ArrayBase<OwnedRepr<f64>, Ix1, f64>;
 
 /// Main contract testing framework
 #[derive(Debug)]
@@ -97,8 +117,8 @@ impl ContractTester {
     pub fn test_estimator_contract<E>(&mut self, estimator: &E) -> Result<()>
     where
         E: Estimator + Clone + std::fmt::Debug,
-        E: Fit<Array2<f64>, Array1<f64>>,
-        <E as Fit<Array2<f64>, Array1<f64>>>::Fitted: Predict<Array2<f64>, Array1<f64>>,
+        E: Fit<OwnedMatrix, OwnedVector>,
+        <E as Fit<OwnedMatrix, OwnedVector>>::Fitted: Predict<OwnedMatrix, OwnedVector>,
     {
         let mut test_result = ContractTestResult::new("Estimator".to_string());
 
@@ -130,9 +150,9 @@ impl ContractTester {
     pub fn test_transform_contract<T>(&mut self, transformer: &T) -> Result<()>
     where
         T: Clone + std::fmt::Debug,
-        T: Transform<Array2<f64>, Array2<f64>>,
-        T: Fit<Array2<f64>, Array1<f64>>,
-        <T as Fit<Array2<f64>, Array1<f64>>>::Fitted: Transform<Array2<f64>, Array2<f64>>,
+        T: Transform<OwnedMatrix, OwnedMatrix>,
+        T: Fit<OwnedMatrix, OwnedVector>,
+        <T as Fit<OwnedMatrix, OwnedVector>>::Fitted: Transform<OwnedMatrix, OwnedMatrix>,
     {
         let mut test_result = ContractTestResult::new("Transform".to_string());
 
@@ -156,7 +176,7 @@ impl ContractTester {
     pub fn test_predict_proba_contract<P>(&mut self, predictor: &P) -> Result<()>
     where
         P: Clone + std::fmt::Debug,
-        P: PredictProba<Array2<f64>, Array2<f64>>,
+        P: PredictProba<OwnedMatrix, OwnedMatrix>,
     {
         let mut test_result = ContractTestResult::new("PredictProba".to_string());
 
@@ -293,8 +313,8 @@ impl ContractTester {
     fn test_fit_consistency<E>(&self, estimator: &E, result: &mut ContractTestResult) -> Result<()>
     where
         E: Estimator + Clone,
-        E: Fit<Array2<f64>, Array1<f64>>,
-        <E as Fit<Array2<f64>, Array1<f64>>>::Fitted: Predict<Array2<f64>, Array1<f64>>,
+        E: Fit<OwnedMatrix, OwnedVector>,
+        <E as Fit<OwnedMatrix, OwnedVector>>::Fitted: Predict<OwnedMatrix, OwnedVector>,
     {
         let start_time = Instant::now();
         let mut passed = true;
@@ -337,8 +357,8 @@ impl ContractTester {
     ) -> Result<()>
     where
         E: Estimator + Clone,
-        E: Fit<Array2<f64>, Array1<f64>>,
-        <E as Fit<Array2<f64>, Array1<f64>>>::Fitted: Predict<Array2<f64>, Array1<f64>>,
+        E: Fit<OwnedMatrix, OwnedVector>,
+        <E as Fit<OwnedMatrix, OwnedVector>>::Fitted: Predict<OwnedMatrix, OwnedVector>,
     {
         let start_time = Instant::now();
         let mut passed = true;
@@ -400,8 +420,8 @@ impl ContractTester {
     ) -> Result<()>
     where
         E: Estimator + Clone,
-        E: Fit<Array2<f64>, Array1<f64>>,
-        <E as Fit<Array2<f64>, Array1<f64>>>::Fitted: Predict<Array2<f64>, Array1<f64>>,
+        E: Fit<OwnedMatrix, OwnedVector>,
+        <E as Fit<OwnedMatrix, OwnedVector>>::Fitted: Predict<OwnedMatrix, OwnedVector>,
     {
         let start_time = Instant::now();
         let mut passed = true;
@@ -469,8 +489,8 @@ impl ContractTester {
     ) -> Result<()>
     where
         E: Estimator + Clone,
-        E: Fit<Array2<f64>, Array1<f64>>,
-        <E as Fit<Array2<f64>, Array1<f64>>>::Fitted: Predict<Array2<f64>, Array1<f64>>,
+        E: Fit<OwnedMatrix, OwnedVector>,
+        <E as Fit<OwnedMatrix, OwnedVector>>::Fitted: Predict<OwnedMatrix, OwnedVector>,
     {
         let start_time = Instant::now();
         let mut passed = true;
@@ -528,9 +548,9 @@ impl ContractTester {
     ) -> Result<()>
     where
         T: Clone,
-        T: Transform<Array2<f64>, Array2<f64>>,
-        T: Fit<Array2<f64>, Array1<f64>>,
-        <T as Fit<Array2<f64>, Array1<f64>>>::Fitted: Transform<Array2<f64>, Array2<f64>>,
+        T: Transform<OwnedMatrix, OwnedMatrix>,
+        T: Fit<OwnedMatrix, OwnedVector>,
+        <T as Fit<OwnedMatrix, OwnedVector>>::Fitted: Transform<OwnedMatrix, OwnedMatrix>,
     {
         let start_time = Instant::now();
         let mut passed = true;
@@ -576,7 +596,7 @@ impl ContractTester {
     ) -> Result<()>
     where
         T: Clone,
-        T: Transform<Array2<f64>, Array2<f64>>,
+        T: Transform<OwnedMatrix, OwnedMatrix>,
     {
         let start_time = Instant::now();
         let passed = true;
@@ -612,9 +632,9 @@ impl ContractTester {
     ) -> Result<()>
     where
         T: Clone,
-        T: Transform<Array2<f64>, Array2<f64>>,
-        T: Fit<Array2<f64>, Array1<f64>>,
-        <T as Fit<Array2<f64>, Array1<f64>>>::Fitted: Transform<Array2<f64>, Array2<f64>>,
+        T: Transform<OwnedMatrix, OwnedMatrix>,
+        T: Fit<OwnedMatrix, OwnedVector>,
+        <T as Fit<OwnedMatrix, OwnedVector>>::Fitted: Transform<OwnedMatrix, OwnedMatrix>,
     {
         let start_time = Instant::now();
         let mut passed = true;
@@ -653,7 +673,7 @@ impl ContractTester {
     ) -> Result<()>
     where
         T: Clone,
-        T: Transform<Array2<f64>, Array2<f64>>,
+        T: Transform<OwnedMatrix, OwnedMatrix>,
     {
         let start_time = Instant::now();
         let passed = true; // Placeholder - not all transformers have inverse
@@ -677,7 +697,7 @@ impl ContractTester {
         result: &mut ContractTestResult,
     ) -> Result<()>
     where
-        P: PredictProba<Array2<f64>, Array2<f64>>,
+        P: PredictProba<OwnedMatrix, OwnedMatrix>,
     {
         let start_time = Instant::now();
         let mut passed = true;
@@ -714,7 +734,7 @@ impl ContractTester {
         result: &mut ContractTestResult,
     ) -> Result<()>
     where
-        P: PredictProba<Array2<f64>, Array2<f64>>,
+        P: PredictProba<OwnedMatrix, OwnedMatrix>,
     {
         let start_time = Instant::now();
         let mut passed = true;
@@ -750,7 +770,7 @@ impl ContractTester {
         result: &mut ContractTestResult,
     ) -> Result<()>
     where
-        P: PredictProba<Array2<f64>, Array2<f64>>,
+        P: PredictProba<OwnedMatrix, OwnedMatrix>,
     {
         let start_time = Instant::now();
         let passed = true; // Placeholder - would need Predict trait too
@@ -843,7 +863,7 @@ impl TraitLaws {
     pub fn test_functor_laws<T>(_transformer: &T) -> Result<bool>
     where
         T: Clone,
-        T: Transform<Array2<f64>, Array2<f64>>,
+        T: Transform<OwnedMatrix, OwnedMatrix>,
         for<'a> T: Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>,
     {
         // Law 1: Identity law - transform(identity) should be close to identity
@@ -869,8 +889,7 @@ impl TraitLaws {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // Mock objects module is temporarily disabled
-    // use crate::mock_objects::{MockBehavior, MockEstimator, MockTransformer};
+    use crate::mock_objects::{MockBehavior, MockEstimator, MockTransformer};
 
     #[test]
     fn test_contract_tester_creation() {
@@ -879,52 +898,48 @@ mod tests {
         assert!(tester.results.is_empty());
     }
 
-    // Temporarily disabled due to mock_objects module being disabled
-    // #[test]
-    // fn test_estimator_contract_basic() {
-    //     let mut tester = ContractTester::new();
-    //     let estimator = MockEstimator::builder()
-    //         .with_behavior(MockBehavior::ConstantPrediction(1.0))
-    //         .build();
-    //
-    //     let result = tester.test_estimator_contract(&estimator);
-    //     assert!(result.is_ok());
-    //     assert_eq!(tester.results.len(), 1);
-    // }
+    #[test]
+    fn test_estimator_contract_basic() {
+        let mut tester = ContractTester::new();
+        let estimator = MockEstimator::builder()
+            .with_behavior(MockBehavior::ConstantPrediction(1.0))
+            .build();
 
-    // Temporarily disabled due to mock_objects module being disabled
-    // #[test]
-    // fn test_contract_test_summary() {
-    //     let mut tester = ContractTester::new();
-    //     let estimator = MockEstimator::new();
-    //
-    //     let _ = tester.test_estimator_contract(&estimator);
-    //     let summary = tester.get_summary();
-    //
-    //     assert_eq!(summary.total_traits, 1);
-    //     assert!(summary.total_tests > 0);
-    // }
+        let result = tester.test_estimator_contract(&estimator);
+        assert!(result.is_ok());
+        assert_eq!(tester.results.len(), 1);
+    }
 
-    // Temporarily disabled due to mock_objects module being disabled
-    // #[test]
-    // fn test_contract_test_report() {
-    //     let mut tester = ContractTester::new();
-    //     let estimator = MockEstimator::new();
-    //
-    //     let _ = tester.test_estimator_contract(&estimator);
-    //     let report = tester.generate_report();
-    //
-    //     assert!(report.contains("Contract Testing Report"));
-    //     assert!(report.contains("Estimator Contract"));
-    // }
+    #[test]
+    fn test_contract_test_summary() {
+        let mut tester = ContractTester::new();
+        let estimator = MockEstimator::new();
 
-    // Temporarily disabled due to mock_objects module being disabled
-    // #[test]
-    // fn test_transformer_contract() {
-    //     let mut tester = ContractTester::new();
-    //     let transformer = MockTransformer::new(crate::mock_objects::MockTransformType::Identity);
-    //
-    //     let result = tester.test_transform_contract(&transformer);
-    //     assert!(result.is_ok());
-    // }
+        let _ = tester.test_estimator_contract(&estimator);
+        let summary = tester.get_summary();
+
+        assert_eq!(summary.total_traits, 1);
+        assert!(summary.total_tests > 0);
+    }
+
+    #[test]
+    fn test_contract_test_report() {
+        let mut tester = ContractTester::new();
+        let estimator = MockEstimator::new();
+
+        let _ = tester.test_estimator_contract(&estimator);
+        let report = tester.generate_report();
+
+        assert!(report.contains("Contract Testing Report"));
+        assert!(report.contains("Estimator Contract"));
+    }
+
+    #[test]
+    fn test_transformer_contract() {
+        let mut tester = ContractTester::new();
+        let transformer = MockTransformer::new(crate::mock_objects::MockTransformType::Identity);
+
+        let result = tester.test_transform_contract(&transformer);
+        assert!(result.is_ok());
+    }
 }

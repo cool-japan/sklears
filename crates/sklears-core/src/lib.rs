@@ -183,8 +183,7 @@ pub mod benchmarking;
 pub mod compatibility;
 pub mod compile_time_macros;
 pub mod compile_time_validation;
-// TODO: Complex generic testing - needs blanket trait implementations
-// pub mod contract_testing;
+pub mod contract_testing;
 pub mod contribution;
 pub mod dependent_types;
 pub mod derive_macros;
@@ -438,11 +437,11 @@ pub mod prelude {
         MockTransformerBuilder, TrainedMockEstimator, VotingStrategy,
     };
 
-    // Contract testing framework - temporarily disabled until ndarray 0.17 migration is complete
-    // pub use crate::contract_testing::{
-    //     ContractTestConfig, ContractTestResult, ContractTestSummary, ContractTester,
-    //     PropertyTestStats, TestCase, TraitLaws,
-    // };
+    // Contract testing framework
+    pub use crate::contract_testing::{
+        ContractTestConfig, ContractTestResult, ContractTestSummary, ContractTester,
+        PropertyTestStats, TestCase, TraitLaws,
+    };
 
     // Compatibility layers for popular ML libraries - stable
     pub use crate::compatibility::{

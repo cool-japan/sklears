@@ -114,11 +114,26 @@ impl<T: Default + Clone> MemoryPool<T> {
     }
 
     fn add_block(&mut self) {
-        let mut block = vec![T::default(); self.block_size].into_boxed_slice();
-        for item in block.iter_mut() {
+        let block = vec![T::default(); self.block_size].into_boxed_slice();
+        // Move the block into its final resting place *before* handing out any
+        // raw pointers into its heap buffer. Passing a `Box<[T]>` by value into
+        // `Vec::push` counts, under Stacked Borrows, as forming a fresh Unique
+        // reborrow over the box's *entire* pointee (a `Box` is treated as
+        // `noalias`, much like `&mut T`). If pointers into the buffer were
+        // taken beforehand (as the old code did via `block.iter_mut()`), that
+        // move retroactively invalidates them, which is genuine UB (confirmed
+        // by Miri). Growing the outer `Vec<Box<[T]>>` itself later on is fine:
+        // that only memcpy's the 16-byte fat pointers, never the box's
+        // contents, so pointers derived here remain valid for the pool's
+        // lifetime.
+        self.blocks.push(block);
+        let stored_block = self
+            .blocks
+            .last_mut()
+            .expect("block was just pushed above");
+        for item in stored_block.iter_mut() {
             self.free_list.push(item as *mut T);
         }
-        self.blocks.push(block);
         self.stats.total_allocated += (self.block_size * std::mem::size_of::<T>()) as u64;
     }
 

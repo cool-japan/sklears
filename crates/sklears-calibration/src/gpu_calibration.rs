@@ -713,7 +713,7 @@ mod tests {
         };
         let result = GpuTemperatureScalingCalibrator::new(config);
         assert!(result.is_err());
-        let msg = format!("{:?}", result.err().expect("result must be an error"));
+        let msg = format!("{:?}", result.expect_err("result must be an error"));
         assert!(msg.contains("not found"));
     }
 
