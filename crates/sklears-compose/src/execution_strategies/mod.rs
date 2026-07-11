@@ -178,24 +178,24 @@
 //! };
 //! ```
 
-pub mod core;
-pub mod sequential;
 pub mod batch;
-pub mod streaming;
-pub mod gpu;
+pub mod core;
 pub mod distributed;
 pub mod event_driven;
+pub mod gpu;
 pub mod registry;
+pub mod sequential;
+pub mod streaming;
 
 // Re-export all types
-pub use core::*;
-pub use sequential::*;
 pub use batch::*;
-pub use streaming::*;
-pub use gpu::*;
+pub use core::*;
 pub use distributed::*;
 pub use event_driven::*;
+pub use gpu::*;
 pub use registry::*;
+pub use sequential::*;
+pub use streaming::*;
 
 #[cfg(test)]
 mod tests;

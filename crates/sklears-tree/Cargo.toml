@@ -37,7 +37,7 @@ smartcore = { workspace = true }  # Third-party ML library for specific algorith
 
 [dev-dependencies]
 criterion = { workspace = true }
-sklears-metrics = { path = "../sklears-metrics" }
+sklears-metrics = { workspace = true }
 approx = { workspace = true }
 tempfile = { workspace = true }
 proptest = { workspace = true }

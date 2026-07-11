@@ -165,7 +165,7 @@ enum MemoryManagerKind {
 }
 
 /// GPU memory block (host-side bookkeeping variant only; see
-/// [`MemoryManagerKind::Host`]).
+/// `MemoryManagerKind::Host`).
 #[derive(Debug)]
 pub struct GpuMemoryBlock {
     pub ptr: usize,

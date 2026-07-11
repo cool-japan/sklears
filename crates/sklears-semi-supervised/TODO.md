@@ -1,7 +1,10 @@
-# TODO - v0.1.0
+# TODO - v0.2.0
 
 ## Current Status
-This crate is part of the sklears v0.1.0 initial release.
+This crate is part of the sklears v0.2.0 release line (initially shipped in v0.1.0).
+No GPU/OxiCUDA code paths exist in this crate (graph algorithms are CPU-parallelized
+via Rayon and SIMD-accelerated instead), so it required no changes for the
+workspace-wide 0.2.0 GPU-honesty pass.
 
 ## Future Enhancements
 - Performance optimizations

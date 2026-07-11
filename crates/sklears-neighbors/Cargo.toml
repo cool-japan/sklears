@@ -37,7 +37,7 @@ oxicuda-manifold = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
-sklears-metrics = { path = "../sklears-metrics" }
+sklears-metrics = { workspace = true }
 approx = { workspace = true }
 proptest = { workspace = true }
 tempfile = { workspace = true }

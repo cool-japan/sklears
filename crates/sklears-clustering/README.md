@@ -7,7 +7,7 @@
 
 Clustering algorithms for the sklears machine learning library.
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 11, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -23,7 +23,7 @@ This crate provides implementations of clustering algorithms including:
 
 ```toml
 [dependencies]
-sklears = { version = "0.2.0", features = ["clustering"] }
+sklears-clustering = "0.2.0"
 ```
 
 ## Examples
@@ -31,31 +31,38 @@ sklears = { version = "0.2.0", features = ["clustering"] }
 ### K-Means Clustering
 
 ```rust
-use sklears::cluster::KMeans;
-use sklears::cluster::InitMethod;
+use sklears_clustering::{KMeans, KMeansConfig, KMeansInit};
+use sklears_core::traits::{Fit, Predict};
+use scirs2_core::ndarray::Array1;
 
-let model = KMeans::new(3)
-    .init_method(InitMethod::KMeansPlusPlus)
-    .max_iter(300)
-    .n_init(10)
-    .random_state(42);
+let config = KMeansConfig {
+    n_clusters: 3,
+    init: KMeansInit::KMeansPlusPlus,
+    max_iter: 300,
+    random_seed: Some(42),
+    ..Default::default()
+};
+let model = KMeans::new(config);
 
-let fitted = model.fit(&data)?;
-let labels = fitted.predict(&new_data)?;
-let centers = fitted.cluster_centers();
+// The `y` argument is currently unused by KMeans::fit (unsupervised algorithm)
+let y_dummy = Array1::zeros(data.nrows());
+let fitted = model.fit(&data, &y_dummy)?;
+
+let labels = &fitted.labels;      // training-set cluster assignments
+let centers = &fitted.centroids;  // Array2<f64> of cluster centroids
+let new_labels = fitted.predict(&new_data)?;
 ```
 
 ### DBSCAN
 
 ```rust
-use sklears::cluster::DBSCAN;
+use sklears_clustering::DBSCAN;
+use sklears_core::traits::Fit;
 
-let model = DBSCAN::new()
-    .eps(0.5)
-    .min_samples(5)
-    .metric(Distance::Euclidean);
+let model = DBSCAN::new().eps(0.5).min_samples(5);
 
-let labels = model.fit_predict(&data)?;
+let fitted = model.fit(&data, &())?;
+let labels = fitted.labels();
 // -1 indicates noise points
 ```
 
@@ -82,6 +89,10 @@ The crate includes clustering metrics:
 - Calinski-Harabasz Index
 - Davies-Bouldin Index
 - Inertia
+
+## Status
+
+- **Tests**: 417 passing crate tests for `0.2.0` (7 skipped)
 
 ## License
 

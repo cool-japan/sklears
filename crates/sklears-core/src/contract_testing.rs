@@ -431,11 +431,7 @@ impl ContractTester {
         let x_mismatch = Array2::zeros((10, 5));
         let y_mismatch = Array1::zeros(15); // Wrong size
 
-        if estimator
-            .clone()
-            .fit(&x_mismatch, &y_mismatch)
-            .is_ok()
-        {
+        if estimator.clone().fit(&x_mismatch, &y_mismatch).is_ok() {
             passed = false;
             error_message = Some("Should fail with mismatched dimensions".to_string());
         }

@@ -7,7 +7,7 @@ A comprehensive machine learning library in Rust, inspired by scikit-learn's int
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.89+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.2.0` (2026-07-04) — 12,598 tests passing across 36 crates. See the [CHANGELOG.md](CHANGELOG.md) for details.
+> **Latest release:** `0.2.0` (2026-07-11) — 12,721 tests passing across 36 crates. See the [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## Overview
 
@@ -209,7 +209,7 @@ sklears = { version = "0.2.0", features = ["linear", "clustering", "parallel"] }
 | sklears-svm | 273 | 16 | Alpha |
 | sklears-tree | 71 | 8 | Alpha |
 | sklears-utils | 494 | 2 | Stable |
-| **Total** | **~12,598** | **~1,123** | |
+| **Total** | **~12,721** | **~1,123** | |
 
 Legend: **Stable** = <20 stubs, >50 tests · **Alpha** = functional, some stubs · **Partial** = core works, significant stubs remain
 
@@ -856,12 +856,12 @@ cargo test -p sklears-linear
 
 See [TODO.md](TODO.md) for detailed implementation plans.
 
-### Current Release Snapshot (0.2.0 — 2026-07-04)
+### Current Release Snapshot (0.2.0 — 2026-07-11)
 
 | Area | Status | Notes |
 |------|--------|-------|
 | API Coverage | ✅ >99% | End-to-end parity with scikit-learn's v1.5 feature set across 36 crates |
-| Testing | ✅ 12,598/12,598 passing (100%) | 161 skipped, comprehensive unit/integration/property tests |
+| Testing | ✅ 12,721/12,721 passing (100%) | 161 skipped, comprehensive unit/integration/property tests |
 | Performance | 🔄 Optimization In Progress | Correct results validated, performance optimization ongoing (see benchmarks) |
 | GPU Foundation | ✅ CUDA via oxicuda | Real GEMM/solve kernels across 9 crates behind opt-in `gpu` features; WebGPU planned |
 | Pure Rust Stack | ✅ 100% (default features) | OxiBLAS + Oxicode via SciRS2, zero system dependencies by default |

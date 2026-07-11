@@ -5,9 +5,8 @@ use std::collections::HashMap;
 use std::time::SystemTime;
 
 use super::batch::BatchExecutionStrategy;
-use super::sequential::SequentialExecutionStrategy;
 use super::core::{ExecutionStrategy, StrategyConfig};
-
+use super::sequential::SequentialExecutionStrategy;
 
 /// Strategy builder for creating strategies with configuration
 #[allow(dead_code)]
@@ -34,21 +33,21 @@ impl StrategyFactory {
                 strategy.config = config;
                 Ok(Box::new(strategy))
             }
-            _ => {
-                Err(
-                    SklearsError::NotImplemented(
-                        "Strategy type not implemented".to_string(),
-                    ),
-                )
-            }
+            _ => Err(SklearsError::NotImplemented(
+                "Strategy type not implemented".to_string(),
+            )),
         }
     }
     /// Get available strategy types
     #[must_use]
     pub fn available_strategies() -> Vec<StrategyType> {
         vec![
-            StrategyType::Sequential, StrategyType::Batch, StrategyType::Streaming,
-            StrategyType::Gpu, StrategyType::Distributed, StrategyType::EventDriven,
+            StrategyType::Sequential,
+            StrategyType::Batch,
+            StrategyType::Streaming,
+            StrategyType::Gpu,
+            StrategyType::Distributed,
+            StrategyType::EventDriven,
         ]
     }
 }
@@ -95,18 +94,17 @@ impl StrategyRegistry {
         strategy: Box<dyn ExecutionStrategy>,
     ) -> SklResult<()> {
         self.strategies.insert(name.clone(), strategy);
-        self.metadata
-            .insert(
-                name.clone(),
-                StrategyMetadata {
-                    name: name.clone(),
-                    description: format!("Strategy: {name}"),
-                    version: "1.0.0".to_string(),
-                    author: "SkleaRS".to_string(),
-                    created_at: SystemTime::now(),
-                    tags: Vec::new(),
-                },
-            );
+        self.metadata.insert(
+            name.clone(),
+            StrategyMetadata {
+                name: name.clone(),
+                description: format!("Strategy: {name}"),
+                version: "1.0.0".to_string(),
+                author: "SkleaRS".to_string(),
+                created_at: SystemTime::now(),
+                tags: Vec::new(),
+            },
+        );
         Ok(())
     }
     /// Get a strategy by name
@@ -125,7 +123,9 @@ impl StrategyRegistry {
             self.default_strategy = Some(name);
             Ok(())
         } else {
-            Err(SklearsError::InvalidInput(format!("Strategy {name} not found")))
+            Err(SklearsError::InvalidInput(format!(
+                "Strategy {name} not found"
+            )))
         }
     }
     /// Get default strategy name

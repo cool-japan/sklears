@@ -1,5 +1,26 @@
 # sklears-decomposition TODO
 
+## Current Status (updated 2026-07-11)
+This crate is part of the sklears v0.2.0 release. 380 tests passing (`cargo nextest run -p sklears-decomposition --all-features`; previously recorded as 344/349).
+
+## README accuracy pass (2026-07-11)
+- [x] Verified README code examples against real source and rewrote fabricated content:
+  `TruncatedSVD`, `RandomizedSVD`, `RandomizedPCA`, `OutOfCorePCA`, `TensorPCA`, `Tucker`,
+  `PARAFAC`, `SignalICA`, `EMD`, `VMD`, `MemoryEfficientNMF` do not exist as public types (real
+  equivalents: `CPDecomposition`/`TuckerDecomposition` for tensor work, `EmpiricalModeDecomposition`
+  for EMD, `FastICA` for blind source separation — see corrected `README.md`).
+- [ ] `RobustPCA`, `SparsePCA`, `ProbabilisticPCA` in `src/pca.rs` are empty placeholder marker
+  structs (`pub struct SparsePCA;` etc., no fields or methods) kept only for name compatibility —
+  `pub use pca::*;` re-exports them at the crate root with no working functionality behind the
+  name. `LowRankMatrixRecovery` (`matrix_completion.rs`, `RecoveryAlgorithm::RPCA`/`PCP`) is the
+  real robust/low-rank-plus-sparse recovery implementation. Either implement real
+  `RobustPCA`/`SparsePCA`/`ProbabilisticPCA` types or remove the placeholders so they stop shadowing
+  the real names via the glob re-export.
+- [ ] `PcaConfig::svd_solver: String` is set (default `"auto"`) but never read anywhere in the fit
+  path — no working randomized-SVD option currently exists despite the config field suggesting one.
+- [ ] `PCA`/`PcaTrained` does not implement `inverse_transform` (confirmed via
+  `property_tests.rs`'s own comment: "PCA inverse_transform not yet implemented").
+
 ## Disabled modules (re-enable per empirical protocol)
 
 - [x] Re-enable `pub mod cca` — Phase D-1 complete (banners were stale)

@@ -9,29 +9,28 @@
 
 ## Overview
 
-`sklears-multioutput` implements multi-output regression and classification wrappers that allow any estimator to generalize to multi-label and multi-output settings, mirroring scikit-learn’s multioutput module.
+`sklears-multioutput` implements meta-estimators for multi-target regression and classification — independent per-target prediction (`MultiOutputRegressor`/`MultiOutputClassifier`), classifier/regressor chains, and multi-label utilities — mirroring scikit-learn's multioutput module.
 
 ## Key Features
 
-- **Wrappers**: MultiOutputRegressor, MultiOutputClassifier, ClassifierChain, RegressorChain.
-- **Parallelism**: Multi-threaded fitting of per-target estimators with shared caching.
+- **Estimators**: MultiOutputRegressor, MultiOutputClassifier, ClassifierChain, RegressorChain, and `EnsembleOfChains`.
+- **Parallelism**: Multi-threaded fitting of per-target models via `n_jobs`.
 - **Integration**: Works with pipelines, model selection, and calibration components out of the box.
-- **Advanced Modes**: Supports probabilistic chaining, custom meta-estimators, and GPU-enabled base learners.
+- **Advanced Modes**: Probabilistic (Bayesian-inference) classifier chains and configurable chain ordering/cross-validation.
 
 ## Quick Start
 
 ```rust
 use sklears_multioutput::MultiOutputRegressor;
-use sklears_linear::Ridge;
+use sklears_core::traits::{Fit, Predict};
+use scirs2_core::ndarray::array;
 
-let base_estimator = Ridge::builder()
-    .alpha(1.0)
-    .fit_intercept(true)
-    .build();
+let x_train = array![[1.0, 2.0], [2.0, 3.0], [3.0, 1.0], [4.0, 5.0]];
+let y_train = array![[1.5, 2.5], [2.5, 3.5], [2.0, 1.5], [3.0, 4.0]];
 
-let wrapper = MultiOutputRegressor::new(base_estimator);
-let fitted = wrapper.fit(&x_train, &y_train)?;
-let predictions = fitted.predict(&x_test)?;
+let wrapper = MultiOutputRegressor::new().n_jobs(Some(4));
+let fitted = wrapper.fit(&x_train.view(), &y_train)?;
+let predictions = fitted.predict(&x_train.view())?;
 ```
 
 ## Status

@@ -5,7 +5,9 @@
 
 use proptest::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
-use sklears_core::traits::{Fit, Predict, Transform};
+#[cfg(feature = "preprocessing")]
+use sklears_core::traits::Transform;
+use sklears_core::traits::{Fit, Predict};
 use sklears_metrics::classification::accuracy_score;
 use sklears_metrics::regression::{mean_absolute_error, mean_squared_error, r2_score};
 use sklears_neighbors::{KNeighborsClassifier, KNeighborsRegressor};

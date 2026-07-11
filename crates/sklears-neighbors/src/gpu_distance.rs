@@ -155,7 +155,7 @@ impl GpuDistanceCalculator {
     /// Detect available GPU devices.
     ///
     /// For [`GpuBackend::Cuda`] this performs a *real* `oxicuda-driver` query
-    /// (via [`Self::detect_cuda_device`]) -- no fabricated device names,
+    /// (via `Self::detect_cuda_device`) -- no fabricated device names,
     /// memory sizes, or compute-unit counts. On a host with no CUDA driver
     /// (or when the `gpu` feature isn't compiled in), this honestly returns
     /// `Ok(None)` rather than inventing a mock device.

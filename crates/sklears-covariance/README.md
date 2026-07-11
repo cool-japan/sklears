@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 11, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -27,8 +27,7 @@
 - **Advanced**: Quantum-inspired, Differential Privacy, Meta-Learning, Federated Learning
 
 ### 🚀 **Production-Ready Features**
-- **DataFrame Integration**: Seamless Polars DataFrame support with metadata and automatic type conversion
-- **Hyperparameter Tuning**: Multiple search strategies (Grid, Random, Bayesian, TPE, Evolutionary, Successive Halving)
+- **Hyperparameter Tuning**: Multiple search strategies (Grid, Random, Bayesian, Evolutionary, TPE, Successive Halving)
 - **Automatic Model Selection**: Intelligent model selection with data characterization and multi-objective optimization
 - **Cross-Validation**: Comprehensive CV framework with multiple scoring metrics and early stopping
 - **Performance Tools**: Built-in benchmarking, profiling, and optimization utilities
@@ -69,56 +68,32 @@ let shrunk_cov = fitted_lw.get_covariance();
 let shrinkage = fitted_lw.get_shrinkage();
 ```
 
-### DataFrame Integration
-
-```rust
-use sklears_covariance::{CovarianceDataFrame, DataFrameEstimator, LedoitWolf};
-
-// Create DataFrame with metadata
-let df = CovarianceDataFrame::new(
-    data,
-    vec!["feature1".to_string(), "feature2".to_string()],
-    None
-)?;
-
-// Fit estimator with DataFrame
-let estimator = LedoitWolf::new();
-let result = estimator.fit_dataframe(&df)?;
-
-// Rich result with feature names and metadata
-println!("Covariance shape: {:?}", result.covariance.shape());
-println!("Feature names: {:?}", result.feature_names);
-println!("Estimator: {}", result.estimator_info.name);
-```
-
 ### Automatic Hyperparameter Tuning
 
 ```rust
 use sklears_covariance::{
-    CovarianceHyperparameterTuner, ParameterSpec, ScoringMethod,
-    SearchStrategy, TuningConfig
-};
-
-// Configure hyperparameter tuning
-let config = TuningConfig {
-    n_cv_folds: 5,
-    scoring: ScoringMethod::LogLikelihood,
-    search_strategy: SearchStrategy::BayesianOptimization { n_initial: 10, n_iter: 50 },
-    ..Default::default()
+    CovarianceHyperparameterTuner, CrossValidationConfig, ParameterSpec, ParameterType,
+    ScoringMetric, SearchStrategy, TuningConfig,
 };
 
 // Define parameter space
-let params = vec![
-    ParameterSpec::Continuous {
-        name: "alpha".to_string(),
-        low: 0.01,
-        high: 1.0,
-    },
-];
+let params = vec![ParameterSpec {
+    name: "alpha".to_string(),
+    param_type: ParameterType::Continuous { min: 0.01, max: 1.0 },
+    log_scale: false,
+}];
 
-// Run tuning
-let tuner = CovarianceHyperparameterTuner::new(config);
-let result = tuner.tune(&X, params)?;
+// Configure hyperparameter tuning
+let config = TuningConfig {
+    cv_config: CrossValidationConfig { n_folds: 5, ..Default::default() },
+    scoring: ScoringMetric::LogLikelihood,
+    search_strategy: SearchStrategy::RandomSearch { n_iter: 50 },
+    ..Default::default()
+};
+
+// Run tuning against a factory that builds a boxed estimator from sampled params
+let tuner = CovarianceHyperparameterTuner::new(params, config);
+let result = tuner.tune(estimator_factory, &x.view(), None)?;
 println!("Best parameters: {:?}", result.best_params);
 println!("Best score: {}", result.best_score);
 ```
@@ -128,20 +103,18 @@ println!("Best score: {}", result.best_score);
 ```rust
 use sklears_covariance::{AutoCovarianceSelector, model_selection_presets};
 
-// Use preset selector for high-dimensional data
+// Use preset selector for high-dimensional data (Ledoit-Wolf via cross-validation)
 let selector = model_selection_presets::high_dimensional_selector();
 
-// Or create custom selector
-let selector = AutoCovarianceSelector::builder()
-    .add_estimator("EmpiricalCovariance", |data| { /* factory fn */ })
-    .add_estimator("LedoitWolf", |data| { /* factory fn */ })
-    .add_estimator("GraphicalLasso", |data| { /* factory fn */ })
-    .build();
+// Or build a custom selector from named candidate factories
+let selector = AutoCovarianceSelector::new()
+    .add_candidate("EmpiricalCovariance".to_string(), empirical_factory, characteristics, complexity)
+    .add_candidate("LedoitWolf".to_string(), ledoit_wolf_factory, characteristics, complexity);
 
-// Select best model
-let result = selector.select(&X)?;
-println!("Selected: {}", result.best_estimator);
-println!("Reason: {}", result.selection_reason);
+// Select the best model for this data
+let result = selector.select_best(&x.view())?;
+println!("Selected: {}", result.best_estimator.name);
+println!("Reasons: {:?}", result.best_estimator.selection_reasons);
 ```
 
 ## Advanced Examples
@@ -149,9 +122,9 @@ println!("Reason: {}", result.selection_reason);
 Check out the comprehensive examples in the `examples/` directory:
 
 - **`advanced_covariance_analysis.rs`**: Complete pipeline with matrix analysis, benchmarking, and cross-validation
-- **`polars_dataframe_demo.rs`**: DataFrame integration with financial data analysis
 - **`covariance_hyperparameter_tuning_demo.rs`**: Advanced hyperparameter optimization strategies
-- **`automatic_model_selection_demo.rs`**: Intelligent model selection with data characterization
+- **`sparse_precision_estimation_demo.rs`**: Sparse precision matrix estimation (Graphical Lasso and related methods)
+- **`robust_estimation_comparison.rs`**: Comparing robust estimators against classic ones under contamination
 - **`comprehensive_cookbook.rs`**: 6 complete recipes from quick start to production deployment
 
 ## Algorithm Categories
@@ -198,7 +171,7 @@ Differential Privacy, Information Theory, Meta-Learning, Quantum-inspired, Feder
 - 🟡 **Implementation**: All 90+ algorithms have working implementations; not all have been independently correctness-audited (see below).
 - ✅ **Compilation**: Clean compilation with zero warnings
 - ✅ **Tests**: 285 tests passing
-- 🟡 **Quality**: This session's audit found and fixed a silent correctness bug in `GraphicalLasso`'s coordinate-descent solver that made it degenerate to the identity matrix at the crate's own default settings (100 iterations), a `get_covariance()` bug that ignored `alpha` regularization entirely, and two broken `CovarianceHyperparameterTuner` scoring functions (`compute_determinant`, `compute_log_likelihood`) that were nearly insensitive to hyperparameters — all fixed, see `TODO.md`. Treat less-exercised algorithms with corresponding caution until similarly audited; the tuner's `compute_condition_number`/`compute_stein_loss`/`compute_spectral_error` remain simplified/placeholder implementations.
+- 🟡 **Quality**: A prior audit found and fixed a silent correctness bug in `GraphicalLasso`'s coordinate-descent solver that made it degenerate to the identity matrix at the crate's own default settings (100 iterations), a `get_covariance()` bug that ignored `alpha` regularization entirely, and several broken `CovarianceHyperparameterTuner` scoring functions (`compute_determinant`, `compute_log_likelihood`, `compute_condition_number`, `compute_stein_loss`, `compute_spectral_error`) that were nearly insensitive to hyperparameters or outright placeholders — all fixed with real eigen/determinant-based math and regression tests, see `TODO.md`. Treat less-exercised algorithms with corresponding caution until similarly audited.
 - ✅ **Documentation**: Full rustdoc with examples and mathematical context
 
 ## Contributing

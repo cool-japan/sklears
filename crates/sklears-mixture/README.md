@@ -13,34 +13,32 @@
 
 ## Key Features
 
-- **Algorithms**: GaussianMixture, BayesianGaussianMixture, DirichletProcessGaussianMixture, and spherical/covariance options.
-- **Inference**: Expectation-Maximization, variational inference, and online updates for streaming data.
-- **Accelerated Kernels**: SIMD and GPU-accelerated responsibilities, log-likelihood evaluation, and sampling.
+- **Algorithms**: GaussianMixture, BayesianGaussianMixture (variational), Dirichlet-process / nonparametric mixtures, and full/diagonal/tied/spherical covariance options.
+- **Inference**: Expectation-Maximization, variational inference (mean-field, stochastic, structured), NUTS/ADVI, and online/streaming updates.
+- **Time Series**: Hidden Markov Models, regime-switching models, switching state-space models, and temporal/dynamic Gaussian mixtures.
 - **Integration**: Compatible with preprocessing, model selection, and inspection crates for pipeline workflows.
 
 ## Quick Start
 
 ```rust
-use sklears_mixture::GaussianMixture;
+use sklears_mixture::{GaussianMixture, CovarianceType};
+use sklears_core::traits::{Fit, Predict};
 use scirs2_core::ndarray::Array2;
 
-let x: Array2<f64> = // load or generate data
-    Array2::zeros((1000, 5));
+let x: Array2<f64> = Array2::zeros((1000, 5));
 
 let gmm = GaussianMixture::builder()
     .n_components(4)
-    .covariance_type("full")
+    .covariance_type(CovarianceType::Full)
     .max_iter(200)
     .tol(1e-3)
-    .random_state(Some(42))
-    .build();
+    .random_state(42);
 
-let fitted = gmm.fit(&x)?;
-let labels = fitted.predict(&x)?;
+let fitted = gmm.fit(&x.view(), &())?;
+let labels = fitted.predict(&x.view())?;
 ```
 
 ## Status
 
-- 200 crate tests for `0.2.0` (28 stubs remaining; HMM/time-series unimplemented, gaussian_log_pdf correctness issue pending).
-- Achieves 5–15× speedups over scikit-learn on medium-sized datasets.
-- Planned features (GPU variational inference, streaming DPGMM) tracked in `TODO.md`.
+- 238 crate tests pass for `0.2.0`, 0 skipped.
+- Planned features (GPU-accelerated inference, streaming DPGMM) tracked in `TODO.md`.

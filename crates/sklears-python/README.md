@@ -18,6 +18,12 @@ Python bindings for the sklears machine learning library, providing a high-perfo
 - **Memory-safe operations** with automatic reference counting
 - **Scikit-learn compatible API** for easy migration
 
+## Status
+
+- **Partial**: covers linear models, ensembles, MLP, naive Bayes, clustering (KMeans/DBSCAN), core preprocessing, `train_test_split`/`KFold`, and the common classification/regression metrics — all genuinely wired to their underlying `sklears-*` implementations (no stub bindings).
+- Covered by 55 passing crate tests for `0.2.0`.
+- Tree-based models (`RandomForestClassifier`, `DecisionTreeClassifier`) are implemented in `src/tree.rs` but still commented out of the Python module registration; `StratifiedKFold` and `cross_val_score` are not implemented yet. See `TODO.md` for details.
+
 ## Supported Algorithms
 
 ### Linear Models

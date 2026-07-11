@@ -21,7 +21,8 @@ mod tests_2 {
         let strategy = SequentialExecutionStrategy::new();
         assert_eq!(strategy.name(), "sequential");
         assert_eq!(
-            strategy.description(), "Sequential single-threaded execution strategy"
+            strategy.description(),
+            "Sequential single-threaded execution strategy"
         );
     }
     #[test]
@@ -54,8 +55,8 @@ mod tests_2 {
         let result = StrategyFactory::create_strategy(StrategyType::Sequential, config);
         assert!(result.is_ok());
         let available = StrategyFactory::available_strategies();
-        assert!(! available.is_empty());
-        assert!(available.contains(& StrategyType::Sequential));
+        assert!(!available.is_empty());
+        assert!(available.contains(&StrategyType::Sequential));
     }
     #[test]
     fn test_strategy_registry() {
@@ -67,7 +68,7 @@ mod tests_2 {
         assert_eq!(registry.list().len(), 1);
         let result = registry.set_default("seq".to_string());
         assert!(result.is_ok());
-        assert_eq!(registry.get_default(), Some(& "seq".to_string()));
+        assert_eq!(registry.get_default(), Some(&"seq".to_string()));
     }
     #[test]
     fn test_strategy_health() {

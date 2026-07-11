@@ -321,7 +321,7 @@ impl GpuMemoryPool {
 /// When the `gpu` feature is enabled and a real GPU backend was detected at
 /// [`AdvancedGpuOps::new`] time, each `CudaStream` wraps its own genuine
 /// `oxicuda-driver` [`Stream`] (via its own `oxicuda-blas` [`BlasHandle`]),
-/// so GEMMs dispatched on it (see [`CudaStream::launch_matmul`]) truly run
+/// so GEMMs dispatched on it (see `CudaStream::launch_matmul`) truly run
 /// on an independent stream rather than blocking the caller. Falls back to
 /// bookkeeping-only (`is_busy` flag) when no GPU is present -- see
 /// [`is_real`](Self::is_real).
@@ -918,7 +918,7 @@ impl AdvancedGpuOps {
     ///
     /// When the chosen stream is genuinely backed by an `oxicuda-driver`
     /// stream (see [`CudaStream::is_real`]), this launches the GEMM via
-    /// [`CudaStream::launch_matmul`]: the kernel and its device-to-host
+    /// `CudaStream::launch_matmul`: the kernel and its device-to-host
     /// result copy are issued asynchronously, and the returned
     /// [`AsyncGpuOperation`] tracks completion by polling a real
     /// `cuEventQuery` (see [`AsyncGpuOperation::is_ready`]) rather than

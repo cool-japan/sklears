@@ -34,6 +34,10 @@ Status: fully migrated — `gpu_acceleration` already runs on the oxicuda-backed
 
 - [ ] Adopt oxicuda-solver `sygvd` for the LDA generalized eigensolve when it ships (S) — `solve_generalized_eigen_gpu` (src/gpu_acceleration.rs:554-598) hand-reduces `S_b w = lambda S_w w` via `dense::cholesky` + `dense::inverse` + two GEMMs + `dense::syevd` because oxicuda-solver 0.4.x lacks a symmetric generalized eigensolver. Track oxicuda-solver releases; when `sygvd` (or on-device `syevd`) lands, replace the 4-step reduction with a single call. (blocked upstream 2026-07-06: oxicuda-solver 0.4.0 lacks sygvd — verified by inspecting both the crates.io 0.4.0 source cache and the ~/work/oxicuda dev tree (workspace version 0.4.1): `rg -rni "sygvd|generalized"` across `oxicuda-solver/src` finds only `dense/qz.rs`'s non-symmetric QZ solver (`qz_host`, an explicit CPU host fallback), no symmetric-definite generalized eigensolver and no on-device kernel. Re-check when oxicuda-solver cuts a release past 0.4.1.)
 
+## Known Gaps (found during 2026-07-11 README audit)
+
+- [x] README previously advertised "Probability Calibration: Built-in support for Platt scaling and isotonic calibration for multiclass scenarios" — there is no Platt/isotonic calibration logic anywhere in this crate (`rg -i "platt|isotonic"` finds zero hits). The only nearby field, `CostSensitiveDiscriminantAnalysis`'s `calibration_method: String` (defaults to `"platt"`), is set in the config but never read/applied anywhere in `cost_sensitive_discriminant_analysis.rs` — it is a dead config knob, not a working feature. Removed the fabricated bullet from README.md; kept the accurate `predict_proba` claim.
+
 ---
 
 See also: [Workspace roadmap](../../TODO.md)

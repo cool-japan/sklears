@@ -127,10 +127,7 @@ impl<T: Default + Clone> MemoryPool<T> {
         // contents, so pointers derived here remain valid for the pool's
         // lifetime.
         self.blocks.push(block);
-        let stored_block = self
-            .blocks
-            .last_mut()
-            .expect("block was just pushed above");
+        let stored_block = self.blocks.last_mut().expect("block was just pushed above");
         for item in stored_block.iter_mut() {
             self.free_list.push(item as *mut T);
         }

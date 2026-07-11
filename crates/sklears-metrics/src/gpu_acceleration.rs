@@ -245,7 +245,7 @@ pub struct GpuMetricsConfig {
     /// Device ordinal to bind to, passed to [`GpuBackend::with_device_id`].
     pub device_id: i32,
     /// Enable mixed precision (f32) computation. See
-    /// [`GpuMetricsContext::supports_mixed_precision`].
+    /// `GpuMetricsContext::supports_mixed_precision`.
     pub mixed_precision: bool,
     /// Enable metric result caching (see [`MetricCache`]).
     pub enable_caching: bool,

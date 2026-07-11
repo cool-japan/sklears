@@ -21,92 +21,92 @@
 //!
 //! ## Experimental Subsystems
 //!
-//! The following modules are experimental in v0.1.0. Their APIs may change
+//! The following modules are experimental. Their APIs may change
 //! significantly in future releases. They are included to provide early access
 //! to advanced capabilities but should not be relied upon for production use.
 //!
 //! ### Infrastructure and Resilience
 //!
 //! - [`circuit_breaker`] - Circuit breaker pattern for fault-tolerant pipelines.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`fault_core`] - Core fault tolerance primitives.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`middleware`] - Authentication, caching, and monitoring middleware chains.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`resource_management`] - Resource monitoring and optimization.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`scheduling`] - Task scheduling and workflow management.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`state_management`] - Pipeline state checkpointing and version control.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`external_integration`] - REST API and database integration adapters.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //!
 //! ### Distributed and Parallel Computing
 //!
 //! - [`distributed`] - Distributed map-reduce pipelines and cluster management.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`distributed_tracing`] - Distributed tracing and span-based diagnostics.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`parallel_execution`] - Parallel pipeline execution with load balancing.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //!
 //! ### Advanced ML Paradigms
 //!
 //! - [`automl`] - AutoML optimization and neural architecture search.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`continual_learning`] - Continual/lifelong learning with memory buffers.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`differentiable`] - Differentiable pipelines with automatic differentiation.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`few_shot`] - Few-shot learning (MAML, Prototypical Networks).
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`meta_learning`] - Meta-learning pipelines with experience replay.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`transfer_learning`] - Transfer learning and domain adaptation pipelines.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`quantum`] - Quantum computing pipeline primitives.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //!
 //! ### Domain-Specific Pipelines
 //!
 //! - [`nlp_pipelines`] - NLP pipelines (tokenization, sentiment, NER, summarization).
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`cv_pipelines`] - Computer vision pipelines (detection, feature extraction).
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`time_series_pipelines`] - Time series and IoT data pipelines.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //!
 //! ### WebAssembly and Compilation Targets
 //!
 //! - [`wasm_integration`] - WebAssembly compilation and deployment.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`enhanced_wasm_integration`] - Advanced WASM features (JS bindings, worker threads).
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //!
 //! ### Extensibility and Tooling
 //!
 //! - [`modular_framework`] - Pluggable component registry and dependency graphs.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`plugin_architecture`] - Plugin loading and component schemas.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`workflow_language`] - Pipeline DSL and visual builder (requires `workflow` feature).
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`zero_cost`] - Zero-cost abstraction primitives (arenas, lock-free queues).
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //!
 //! ### Performance and Diagnostics
 //!
 //! - [`profile_guided_optimization`] - Profile-guided optimization with ML performance prediction.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`simd_optimizations`] - SIMD-accelerated data layout and feature operations.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`advanced_debugging`] - Interactive debugger with breakpoints and profiling.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`performance_profiler`] - Stage-level performance profiling and bottleneck detection.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //! - [`stress_testing`] - Stress testing and edge-case generation.
-//!   Experimental in v0.1.0. API may change.
+//!   Experimental. API may change.
 //!
 //! ## Notes
 //!

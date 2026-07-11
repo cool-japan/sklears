@@ -27,4 +27,8 @@ This crate is part of the sklears v0.1.0 initial release.
 - Additional scikit-learn API coverage
 - Enhanced documentation and examples
 
+## Known Gaps (found during 2026-07-11 README audit)
+
+- [x] README previously advertised a "DataFrame Integration" feature (`CovarianceDataFrame`, `DataFrameEstimator`, a `polars_dataframe_demo.rs` example, `fit_dataframe()`) that does not exist anywhere in `src/` — there is no `polars` dependency in `Cargo.toml` and zero occurrences of `DataFrame` in the crate. Removed the fabricated section, its code example, and its example-file reference from README.md. The "Automatic Hyperparameter Tuning" and "Automatic Model Selection" examples also used wrong type/field names (`ScoringMethod` vs. real `ScoringMetric`, a flat `n_cv_folds` vs. real nested `cv_config: CrossValidationConfig`, `CovarianceHyperparameterTuner::new(config)` vs. real `new(parameter_specs, config)`, `AutoCovarianceSelector::builder()/.add_estimator()/.select()` vs. real `::new()/.add_candidate()/.select_best()`); corrected to match `src/hyperparameter_tuning.rs` and `src/model_selection.rs`.
+
 See the main [workspace TODO](../../TODO.md) for overall project roadmap.

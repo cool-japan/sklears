@@ -13,16 +13,16 @@
 
 ## Key Features
 
-- **Models**: MLPClassifier, MLPRegressor, RBMs, autoencoders, and incremental learning variants.
-- **Optimizers**: SGD, Adam, LBFGS, RMSProp, and adaptive learning-rate schedules.
-- **Hardware Acceleration**: SIMD kernels, CUDA/WebGPU execution, and mixed-precision training.
+- **Models**: MLPClassifier, MLPRegressor, RBMs, autoencoders (including self-supervised/contrastive variants).
+- **Optimizers**: SGD, Adam, AdamW, Nadam, RMSprop, L-BFGS, and adaptive learning-rate schedules.
+- **Hardware Acceleration**: SIMD kernels and CUDA execution (oxicuda-backed `gpu` feature), with mixed-precision training support.
 - **Integration**: Works with sklears pipelines, calibration, inspection, and export utilities.
 
 ## Quick Start
 
 ```rust
-use sklears_neural::MLPClassifier;
-use scirs2_core::ndarray::{array, Array1};
+use sklears_neural::{Activation, MLPClassifier, Solver};
+use scirs2_core::ndarray::array;
 
 let x = array![
     [0.0, 0.0],
@@ -30,15 +30,14 @@ let x = array![
     [1.0, 0.0],
     [1.0, 1.0],
 ];
-let y = Array1::from(vec![0, 1, 1, 0]);
+let y: Vec<usize> = vec![0, 1, 1, 0];
 
-let mlp = MLPClassifier::builder()
-    .hidden_layer_sizes(vec![16, 16])
-    .activation("relu")
-    .solver("adam")
+let mlp = MLPClassifier::new()
+    .hidden_layer_sizes(&[16, 16])
+    .activation(Activation::Relu)
+    .solver(Solver::Adam)
     .max_iter(1000)
-    .random_state(Some(42))
-    .build();
+    .random_state(42);
 
 let fitted = mlp.fit(&x, &y)?;
 let probs = fitted.predict_proba(&x)?;
@@ -46,6 +45,6 @@ let probs = fitted.predict_proba(&x)?;
 
 ## Status
 
-- Exercised via 432 passing crate tests in `0.2.0` (86 skipped).
+- Exercised via 449 passing crate tests in `0.2.0` (86 skipped).
 - Verified against scikit-learn parity tests for convergence and scoring APIs.
 - Roadmap items (ONNX export, distillation helpers) documented in this crate’s `TODO.md`.

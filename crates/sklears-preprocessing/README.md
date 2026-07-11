@@ -15,7 +15,7 @@
 
 - **Scalers**: StandardScaler, MinMaxScaler, RobustScaler, MaxAbsScaler, QuantileTransformer, PowerTransformer.
 - **Encoders**: OneHotEncoder, OrdinalEncoder, TargetEncoder, PolynomialFeatures, Binarizer.
-- **Feature Utilities**: Normalizer, FunctionTransformer, MissingIndicator, discretizers, and outlier filters.
+- **Feature Utilities**: Normalizer, FunctionTransformer, SimpleImputer/KNNImputer/IterativeImputer, discretizers, and outlier filters.
 - **Hardware Acceleration**: SIMD, multi-threading, and optional OxiCUDA GPU backend detection (`gpu` feature) for large tabular datasets.
 
 ## Quick Start
@@ -23,20 +23,20 @@
 ```rust
 use sklears_preprocessing::{StandardScaler, PolynomialFeatures};
 
-let scaler = StandardScaler::default().fit(&x_train)?;
+let scaler = StandardScaler::default().fit(&x_train, &())?;
 let x_scaled = scaler.transform(&x_train)?;
 
-let poly = PolynomialFeatures::builder()
+let poly = PolynomialFeatures::new()
     .degree(3)
     .include_bias(false)
-    .interaction_only(false)
-    .build();
+    .interaction_only(false);
 
-let x_poly = poly.fit_transform(&x_scaled)?;
+let fitted_poly = poly.fit(&x_scaled, &())?;
+let x_poly = fitted_poly.transform(&x_scaled)?;
 ```
 
 ## Status
 
-- Extensively covered; 300 passing crate tests in `0.2.0` (97 stubs remaining).
+- Extensively covered; 377 passing crate tests in `0.2.0` (0 skipped).
 - Provides >99% parity with scikit-learn preprocessing APIs, including sparse support.
 - Future enhancements (OxiCUDA-accelerated categorical encoders, streaming scalers) tracked in `TODO.md`.

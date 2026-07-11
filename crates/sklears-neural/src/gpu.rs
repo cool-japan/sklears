@@ -272,7 +272,7 @@ impl GpuContext {
     /// one level up, in `GpuAcceleratedOps::with_config`, via `.ok()`.
     ///
     /// Also builds the real infrastructure `config` describes: a
-    /// [`gpu_pool::GpuMemoryPool`] sized by `config.memory_pool_size`, and
+    /// `gpu_pool::GpuMemoryPool` sized by `config.memory_pool_size`, and
     /// `config.max_streams` real CUDA streams (see [`stream`](Self::stream)).
     /// Both are genuinely read here, not merely stored.
     pub fn with_config(config: GpuConfig) -> NeuralResult<Self> {
@@ -459,7 +459,7 @@ impl GpuContext {
 
     /// Return real memory pool utilization `(used_fraction, hit_rate)`.
     ///
-    /// Backed by `self.memory_pool`'s own [`gpu_pool::PoolTelemetry`]: `used_fraction` is
+    /// Backed by `self.memory_pool`'s own `gpu_pool::PoolTelemetry`: `used_fraction` is
     /// currently-allocated bytes over `config.memory_pool_size`, and `hit_rate` is the fraction of
     /// `GpuMemoryPool::acquire` calls served from the pool's own free-list without a fresh device
     /// allocation. Both are real counters updated by every `acquire`/drop cycle (including the

@@ -83,7 +83,7 @@ Additionally, ~15 crates carry simulated/stub GPU layers (fake device lists, `gp
 | Crate | Status | Summary (max effort) | Tracker |
 |---|---|---|---|
 | sklears-core | migrated | Removed `scirs2-gpu-reporting`, ported trait-graph GPU reporting to `crate::gpu`, fixed stale comments + DSL codegen snippet (M) | see `crates/sklears-core/TODO.md` |
-| sklears-preprocessing | migrated (deferred) | Swapped `ScirGpuBackend` conversion layer to `sklears_core::gpu` + new `gpu` feature; scaler oxicuda kernels (dispatch_compute_mean/variance etc.) left as documented CPU passthroughs (deferred, optional) (M/L) | see `crates/sklears-preprocessing/TODO.md` |
+| sklears-preprocessing | migrated | Swapped `ScirGpuBackend` conversion layer to `sklears_core::gpu` + new `gpu` feature; scaler oxicuda kernels (`dispatch_compute_mean`/`dispatch_compute_variance`/`dispatch_compute_min`/`dispatch_compute_max`) now genuinely dispatch to on-device `oxicuda-blas` reduction kernels (`reduce_axis`/`elementwise::mul` via real `DeviceBuffer`s), with honest CPU fallback on GPU failure — no longer documented CPU passthroughs; previously-deferred item now resolved (M) | see `crates/sklears-preprocessing/TODO.md` |
 | sklears-neighbors | migrated | Replaced mock device detection with real oxicuda-driver queries; collapsed decorative Cuda/OpenCl/Metal enum; pruned unused `dep:oxicuda-backend` (M) | see `crates/sklears-neighbors/TODO.md` |
 | sklears-multiclass | oxicuda-wired | Rewired `src/gpu` onto `sklears-core/gpu_support`; connected ECOC GPUMode to real GPU layer via `aggregate_votes_device` (M) | see `crates/sklears-multiclass/TODO.md` |
 | sklears-metrics | oxicuda-wired (deferred) | Fixed `gpu = []` + broken cuda-vs-gpu gate; rewrote null-pointer GPU stubs onto oxicuda; `supports_mixed_precision` wiring deferred (L) | see `crates/sklears-metrics/TODO.md` |
@@ -100,7 +100,7 @@ Additionally, ~15 crates carry simulated/stub GPU layers (fake device lists, `gp
 | sklears-model-selection | oxicuda-wired | Derived `has_gpu`/`use_gpu` config defaults from oxicuda detection behind a new `gpu` feature (S) | see `crates/sklears-model-selection/TODO.md` |
 | sklears-impute | honestly-downscoped | Made `DeepLearningConfig.device` honest: `validate_device()` accepts only "cpu" (case-insensitive), rejects "cuda" (S) | see `crates/sklears-impute/TODO.md` |
 | sklears-linear | hardened | Real device memory pools (oxicuda-memory DeviceBuffer arenas), real driver streams (CudaStream::with_backend), real perf counters (L) | see `crates/sklears-linear/TODO.md` |
-| sklears-neural | hardened (deferred) | Implemented conv2d via oxicuda-dnn; real tensor-core/CC detection; resolved unused oxicuda-ptx dep; memory-pool config honoring and mixed-precision GEMM host round-trip elimination deferred (upstream API gap) (L) | see `crates/sklears-neural/TODO.md` |
+| sklears-neural | hardened (deferred) | Implemented conv2d via oxicuda-dnn; real tensor-core/CC detection; resolved unused oxicuda-ptx dep; memory-pool config now genuinely honored via a real `GpuMemoryPool`/`PoolTelemetry` (oxicuda-memory-backed, real hit/miss tracking, no fabricated telemetry) — no longer deferred; mixed-precision GEMM host round-trip elimination still deferred (upstream API gap: `oxicuda-blas` has no fp16-in/fp32-out kernel entry point) (L) | see `crates/sklears-neural/TODO.md` |
 | sklears-svm | hardened | Pruned unused gpu-feature deps (oxicuda-ptx/backend/bytemuck); retired dead WGPU-era error variants (S) | see `crates/sklears-svm/TODO.md` |
 | sklears-clustering | hardened | Pruned unused direct oxicuda deps; deleted dead/non-compiling `cfg(not(gpu))` stub; confirmed pollster already in dev-deps; fixed README WebGPU wording (M) | see `crates/sklears-clustering/TODO.md` |
 | sklears-decomposition | hardened | Removed unused optional deps `oxicuda-blas` and `half` from the `gpu` feature (S) | see `crates/sklears-decomposition/TODO.md` |
@@ -189,7 +189,7 @@ All major scikit-learn modules are implemented with production-ready quality:
 
 ## 📊 Quality Metrics
 
-- **Test Suite**: 12,598 tests (12,598 passing, 0 failed, 161 skipped, 100% pass rate)
+- **Test Suite**: 12,721 tests (12,721 passing, 0 failed, 161 skipped, 100% pass rate)
 - **Code Quality**: 100% warning-free compilation
 - **Performance**: Pure Rust implementation with ongoing performance optimization
 - **Dependencies**: Pure Rust stack (OxiBLAS v0.1.2, Oxicode v0.1.1)
@@ -242,8 +242,8 @@ All major scikit-learn modules are implemented with production-ready quality:
 
 ---
 
-*Version: 0.2.0 — 2026-07-04*
-*Last Release: v0.2.0 — 2026-07-04*
+*Version: 0.2.0 — 2026-07-11*
+*Last Release: v0.2.0 — 2026-07-11*
 *Next Milestone: TBD*
 
 ## ✅ Stub-check backlog — COMPLETED (2026-06-21, v0.1.2)

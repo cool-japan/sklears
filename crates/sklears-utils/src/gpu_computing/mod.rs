@@ -129,7 +129,7 @@ impl GpuUtils {
     /// Behind the `gpu` feature, this walks the real `oxicuda-driver` device
     /// list. On a host with no CUDA driver installed, or with the `gpu`
     /// feature disabled, this always yields an empty device list -- never a
-    /// fabricated device. See [`enumerate_real_devices`].
+    /// fabricated device. See `enumerate_real_devices`.
     pub fn init_devices(&mut self) -> Result<(), GpuError> {
         self.devices = enumerate_real_devices();
         Ok(())

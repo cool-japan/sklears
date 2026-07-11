@@ -970,12 +970,9 @@ mod tests {
 
         // Exercise the owned-array `Fit`/`Predict` impls directly (no `.view()`
         // calls at the call site).
-        let trained: TrainedMockEstimator = Fit::<Array2<f64>, Array1<f64>>::fit(
-            mock,
-            &features,
-            &targets,
-        )
-        .expect("owned-array fit should succeed");
+        let trained: TrainedMockEstimator =
+            Fit::<Array2<f64>, Array1<f64>>::fit(mock, &features, &targets)
+                .expect("owned-array fit should succeed");
         let predictions: Array1<f64> =
             Predict::<Array2<f64>, Array1<f64>>::predict(&trained, &features)
                 .expect("owned-array predict should succeed");
@@ -1010,8 +1007,8 @@ mod tests {
     #[test]
     fn test_mock_transformer_owned_array_fit_transform_round_trip() {
         let transformer = MockTransformer::new(MockTransformType::Scale(2.0));
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
-            .expect("valid array shape");
+        let data =
+            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("valid array shape");
         let targets = Array1::zeros(2);
 
         let fitted: MockTransformer =
@@ -1021,8 +1018,8 @@ mod tests {
             Transform::<Array2<f64>, Array2<f64>>::transform(&fitted, &data)
                 .expect("owned-array transform should succeed");
 
-        let expected = Array2::from_shape_vec((2, 2), vec![2.0, 4.0, 6.0, 8.0])
-            .expect("valid array shape");
+        let expected =
+            Array2::from_shape_vec((2, 2), vec![2.0, 4.0, 6.0, 8.0]).expect("valid array shape");
         assert_eq!(transformed, expected);
     }
 

@@ -40,7 +40,7 @@ num_cpus = { workspace = true }
 [dev-dependencies]
 criterion = { workspace = true }
 proptest = { workspace = true }
-sklears-metrics = { path = "../sklears-metrics" }
+sklears-metrics = { workspace = true }
 pollster = { workspace = true }
 # rand_distr usage replaced with scirs2-core random module per SciRS2 policy
 

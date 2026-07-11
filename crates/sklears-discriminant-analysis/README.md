@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 11, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -15,8 +15,7 @@
 
 - **Comprehensive Algorithms**: LDA, QDA, shrinkage estimators, regularized discriminant analysis, and Bayesian variants.
 - **Performance Optimizations**: SIMD-enabled linear algebra, batched matrix factorizations, and a real `sklears_core::gpu`-backed GPU path (GEMM-based class-statistics, an LDA generalized-eigenvalue solve via Cholesky reduction verified against SciPy to ~1e-15, and QDA via `oxicuda-solver`).
-- **Pipeline Support**: Works with sklears pipelines, calibration, and model selection utilities.
-- **Probability Calibration**: Built-in support for Platt scaling and isotonic calibration for multiclass scenarios.
+- **Pipeline Support**: Works with sklears pipelines and model selection utilities; `predict_proba` is available on the fitted estimators.
 
 ## Quick Start
 

@@ -15,7 +15,7 @@
 
 - **Estimators**: GaussianProcessRegressor, GaussianProcessClassifier, multi-output variants, and sparse approximations.
 - **Kernel Library**: RBF, Matern, RationalQuadratic, DotProduct, ExpSineSquared, White, Constant, and custom combinators.
-- **Performance**: Hierarchical matrix factorizations, GPU-accelerated covariance operations, and stochastic approximations for big data.
+- **Performance**: Hierarchical GP composition (`HierarchicalGaussianProcessRegressor`) and sparse/stochastic approximations for big data (Nystrom, FITC, sparse-spectrum, random Fourier features). CPU-only in this release — no GPU/CUDA backend.
 - **Uncertainty Quantification**: Predictive variance, confidence intervals, and Bayesian optimization primitives.
 - **Deep & Multi-Output GPs**: `deep_gp` (composable Deep Gaussian Process layers) and `convolution_processes` (an Álvarez & Lawrence-style Convolution Process / dependent multi-output GP) that provably collapses to a standard single-output GP in the degenerate case and demonstrably shares information across correlated outputs.
 

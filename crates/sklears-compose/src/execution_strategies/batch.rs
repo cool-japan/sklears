@@ -1,8 +1,8 @@
 //! Batch execution strategy for high-throughput processing.
 
 use crate::task_definitions::{
-    ExecutionTask, TaskExecutionMetrics, TaskPerformanceMetrics, TaskPriority,
-    TaskRequirements, TaskResourceUsage, TaskResult, TaskStatus,
+    ExecutionTask, TaskExecutionMetrics, TaskPerformanceMetrics, TaskPriority, TaskRequirements,
+    TaskResourceUsage, TaskResult, TaskStatus,
 };
 use sklears_core::error::Result as SklResult;
 use std::future::Future;
@@ -10,8 +10,10 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, SystemTime};
 
-use super::core::{ExecutionStrategy, HealthStatus, PerformanceSummary, ResourceUtilization, StrategyConfig, StrategyHealth, StrategyMetrics, StrategyState};
-
+use super::core::{
+    ExecutionStrategy, HealthStatus, PerformanceSummary, ResourceUtilization, StrategyConfig,
+    StrategyHealth, StrategyMetrics, StrategyState,
+};
 
 /// Batch of tasks for processing
 #[derive(Debug, Clone)]
@@ -96,9 +98,7 @@ impl ExecutionStrategy for BatchExecutionStrategy {
             Ok(())
         })
     }
-    fn initialize(
-        &mut self,
-    ) -> Pin<Box<dyn Future<Output = SklResult<()>> + Send + '_>> {
+    fn initialize(&mut self) -> Pin<Box<dyn Future<Output = SklResult<()>> + Send + '_>> {
         Box::pin(async move { Ok(()) })
     }
     fn execute_task(
@@ -175,7 +175,10 @@ impl ExecutionStrategy for BatchExecutionStrategy {
         }
     }
     fn metrics(&self) -> StrategyMetrics {
-        self.metrics.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.metrics
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
     fn shutdown(&mut self) -> Pin<Box<dyn Future<Output = SklResult<()>> + Send + '_>> {
         Box::pin(async move { Ok(()) })

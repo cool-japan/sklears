@@ -1,14 +1,32 @@
-# TODO - v0.1.0
+# TODO - v0.2.0
 
-## Current Status
-This crate is part of the sklears v0.1.0 initial release.
+## Current Status (updated 2026-07-11)
+This crate is part of the sklears v0.2.0 release. 863 tests passing (`cargo nextest run -p sklears-core --all-features`).
+
+## README accuracy pass (2026-07-11)
+- [x] Verified README code examples against real source and fixed several fabricated
+  imports/APIs that would not compile: `sklears_core::phantom::{Classification, Regression}`
+  (module does not exist — the crate's phantom-type pattern is applied per-type via `Estimator<State>`,
+  not a shared marker module), `#[derive(ValidatedConfig)]` + `RangeValidator { min, max }`
+  (real API is `ValidatedConfig::new(cfg).validate()` and const-generic
+  `RangeValidator<const MIN: i64, const MAX: i64>`), `SklearnEstimator::from_sklearn` /
+  `array.to_numpy()` / `array.to_torch_tensor()` / `Dataset::from_polars()` (none exist; real
+  interop is `compatibility::{serialization::CrossPlatformModel, numpy::NumpyArray,
+  pytorch::ndarray_to_pytorch_tensor, pandas::DataFrame}`), `sklears_core::testing::{properties,
+  MockEstimator}` (no `testing` module; real path is `mock_objects::MockEstimator` with a
+  behavior-simulation builder, not an `.expect_fit().returning(...)` mock), `SimdOps::
+  euclidean_distance_matrix` (real name `euclidean_distances_simd`), `sklears_core::memory::
+  {MemoryPool, CacheOptimized}` (real path `types::memory_pool::MemoryPool`, no `CacheOptimized`/
+  `CacheOptimizedAccumulator` anywhere), and the `quick_dataset!`/`define_ml_float_bounds!`/
+  `estimator_test_suite!` macro invocations (real macros exist and work, but with different field
+  names/arities than shown — see corrected `README.md`).
 
 ## Completed This Session
 - [x] GPU backend foundation — DONE: added `sklears_core::gpu::{GpuBackend, GpuArray, GpuMatrixOps}`, wired directly to `oxicuda-driver` / `oxicuda-blas`, replacing the previous CPU-only stubs; `GpuBackend::detect()` gracefully returns `Ok(None)` when no GPU is present instead of faking a backend.
 - [x] Re-enable `trait_explorer::graph_visualization` — DONE: module previously never compiled due to a raw-string-literal bug; now provides real graph algorithms (hub/bridge/bottleneck node detection, Newman modularity calculation, small-world coefficient).
 - [x] `api_reference_generator` module — DONE: new module added.
 - [x] Fix `trait_explorer::security_analysis` doc examples — DONE: examples were using incorrect `crate::` paths, now correctly use `sklears_core::` external paths.
-- [x] 855 tests passing in this crate.
+- [x] 863 tests passing in this crate (`cargo nextest run -p sklears-core --all-features`, verified 2026-07-11; previously recorded as 855).
 
 ## OxiCUDA Migration (v0.2.0)
 

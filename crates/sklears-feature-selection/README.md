@@ -15,26 +15,21 @@
 
 - **Filter Methods**: VarianceThreshold, mutual information, ANOVA F-tests, chi-square tests, and more.
 - **Wrapper Methods**: RFE/RFECV, SequentialFeatureSelector, model-based selectors with parallel evaluation.
-- **Embedded Techniques**: L1-based selection, tree-based importance, stability selection, and feature importance scoring.
-- **Streaming & GPU Support**: Optional streaming evaluators and CUDA/WebGPU acceleration for heavy scoring tasks.
+- **Embedded Techniques**: L1-based selection (Lasso/ElasticNet/Ridge selectors), tree-based importance, stability selection, and feature importance scoring.
+- **Streaming Support**: Online and concept-drift-aware selectors (`streaming` module: `OnlineFeatureSelector`, `ConceptDriftAwareSelector`) for evolving data; heavy scoring workloads parallelize via the `parallel` module. There is no CUDA/WebGPU backend in this crate.
 
 ## Quick Start
 
 ```rust
-use sklears_feature_selection::{SequentialFeatureSelector, Strategy};
+use sklears_feature_selection::SequentialFeatureSelector;
 use sklears_linear::LogisticRegression;
 
-let estimator = LogisticRegression::builder()
-    .max_iter(200)
-    .multi_class("auto")
-    .build();
+let estimator = LogisticRegression::new().max_iter(200);
 
-let selector = SequentialFeatureSelector::builder()
-    .estimator(estimator)
-    .strategy(Strategy::Forward)
+let selector = SequentialFeatureSelector::new(estimator)
     .n_features_to_select(5)
-    .n_jobs(4)
-    .build();
+    .direction("forward")?
+    .cv(5);
 
 let fitted = selector.fit(&x_train, &y_train)?;
 let x_selected = fitted.transform(&x_train)?;
@@ -42,6 +37,6 @@ let x_selected = fitted.transform(&x_train)?;
 
 ## Status
 
-- Validated by 238 passing crate tests in `0.2.0`.
+- Validated by 290 passing crate tests in `0.2.0`.
 - Supports >99% of scikit-learn’s feature selection API surface.
 - Additional milestones (distributed scoring, SHAP-guided selection) tracked in this crate’s `TODO.md`.

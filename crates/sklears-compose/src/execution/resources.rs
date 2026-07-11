@@ -340,7 +340,7 @@ pub struct AvailableResources {
 
 /// GPU information.
 ///
-/// Populated by [`detect_gpu_info`] from real `oxicuda-driver` device
+/// Populated by `detect_gpu_info` from real `oxicuda-driver` device
 /// queries via `sklears_core::gpu::GpuUtils` (honestly empty when no
 /// driver/device is present, e.g. this crate's default macOS build).
 #[derive(Debug, Clone)]
@@ -609,12 +609,12 @@ impl Default for NetworkMetrics {
 
 /// GPU metrics.
 ///
-/// [`collect_gpu_metrics`] currently always returns an empty `Vec`: none of
+/// `collect_gpu_metrics` currently always returns an empty `Vec`: none of
 /// `oxicuda-driver`/`oxicuda-blas` expose a live utilization/temperature/
 /// power-draw sampling API to this crate yet, so rather than fabricate
 /// numbers this collector honestly reports nothing. Static device identity
 /// (name/memory/compute-capability/count) is separately real-sampled by
-/// [`detect_gpu_info`].
+/// `detect_gpu_info`.
 #[derive(Debug, Clone)]
 pub struct GpuMetrics {
     /// GPU identifier

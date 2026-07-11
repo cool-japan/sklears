@@ -38,8 +38,8 @@
 
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 
 use oxicuda_memory::{MemoryPool, PooledBuffer};
 
@@ -96,11 +96,11 @@ impl PoolTelemetry {
         // `fetch_update` (rather than `fetch_sub`) so a free that reports
         // more bytes than are currently tracked saturates at zero instead of
         // wrapping around; `AtomicU64` has no built-in saturating-subtract.
-        let _ = self
-            .allocated_bytes
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
-                Some(current.saturating_sub(bytes as u64))
-            });
+        let _ =
+            self.allocated_bytes
+                .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+                    Some(current.saturating_sub(bytes as u64))
+                });
     }
 
     /// Fraction of recorded acquisitions served from the free-list without a
@@ -111,7 +111,11 @@ impl PoolTelemetry {
         let hits = self.hits.load(Ordering::Relaxed) as f64;
         let misses = self.misses.load(Ordering::Relaxed) as f64;
         let total = hits + misses;
-        if total == 0.0 { 0.0 } else { hits / total }
+        if total == 0.0 {
+            0.0
+        } else {
+            hits / total
+        }
     }
 
     /// Currently-allocated bytes as a fraction of `capacity_bytes`.
@@ -228,8 +232,8 @@ impl GpuMemoryPool {
             .ok_or_else(|| {
                 SklearsError::InvalidInput("pooled allocation size overflow".to_string())
             })?;
-        let buf = PooledBuffer::<T>::alloc_async(&self.inner_pool, size_class, stream)
-            .map_err(|e| {
+        let buf =
+            PooledBuffer::<T>::alloc_async(&self.inner_pool, size_class, stream).map_err(|e| {
                 SklearsError::InvalidInput(format!("GPU pooled allocation failed: {}", e))
             })?;
         self.telemetry.record_miss(bytes);

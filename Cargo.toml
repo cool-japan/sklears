@@ -223,7 +223,13 @@ parking_lot = { version = "0.12" }
 
 # Cloud storage (optional)
 aws-config = { version = "1.8" }
-aws-sdk-s3 = { version = "1.137" }
+# Default features are disabled to drop the "rustls" feature, which pulls in
+# aws-smithy-runtime's legacy hyper-0.14 connector stack (rustls 0.21.x /
+# rustls-webpki 0.101.x, RUSTSEC-2026-0104/0098/0099). The modern connector
+# used by aws_config::defaults()/aws_sdk_s3::Client is already provided via
+# "default-https-client" (rustls 0.23.x / rustls-webpki 0.103.x), so nothing
+# functional is lost.
+aws-sdk-s3 = { version = "1.137", default-features = false, features = ["sigv4a", "http-1x", "default-https-client", "rt-tokio"] }
 google-cloud-storage = { version = "1.15" }
 
 # Third-party ML libraries (evaluated for specific algorithms)

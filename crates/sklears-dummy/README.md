@@ -21,7 +21,7 @@
 ## Quick Start
 
 ```rust
-use sklears_dummy::DummyClassifier;
+use sklears_dummy::{ClassifierConfig, ClassifierStrategy};
 use scirs2_core::ndarray::{array, Array1};
 
 let x = array![
@@ -31,9 +31,9 @@ let x = array![
 ];
 let y = Array1::from(vec![0, 1, 1]);
 
-let dummy = DummyClassifier::builder()
-    .strategy("most_frequent")
-    .random_state(Some(42))
+let dummy = ClassifierConfig::new()
+    .strategy(ClassifierStrategy::MostFrequent)
+    .random_state(42)
     .build();
 
 let fitted = dummy.fit(&x, &y)?;

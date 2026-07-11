@@ -9,41 +9,42 @@
 
 ## Overview
 
-`sklears-ensemble` delivers bagging, boosting, stacking, voting, and random forest implementations with scikit-learn parity and Rust-first performance.
+`sklears-ensemble` delivers bagging, gradient boosting, AdaBoost, stacking, and voting implementations with scikit-learn parity and Rust-first performance. (Tree-based ensembles such as RandomForest live in the separate `sklears-tree` crate.)
 
 ## Key Features
 
-- **Tree Ensembles**: RandomForest, ExtraTrees, GradientBoosting, Histogram-based boosting, IsolationForest.
-- **Linear/Stochastic Ensembles**: Bagging, AdaBoost, Stacking, Voting, Snapshot ensembles, warm-starting.
-- **GPU + SIMD**: Accelerated split finding, batched inference, and quantized histograms.
-- **AutoML Integration**: Works with feature selection, model selection, and inspection crates for end-to-end workflows.
+- **Ensemble Methods**: Bagging, AdaBoost, Gradient Boosting (binary classification + regression), single- and multi-layer Stacking, Voting classifiers. (`sklears-tree`'s RandomForest/ExtraTrees are a separate crate — this crate does not re-export them, and there is no IsolationForest or histogram-based boosting here; `GradientBoostingConfig::tree_type` currently accepts a `HistogramTree` variant but it has no effect on training.)
+- **Model Selection & Analysis**: Bias-variance decomposition, ensemble diversity metrics, and cross-validation via the `model_selection` module (`BiasVarianceAnalyzer`, `DiversityAnalyzer`, `EnsembleCrossValidator`).
+- **GPU Acceleration** (optional `gpu` feature, CUDA via `oxicuda-*`): real device detection, memory management, and GEMM/elementwise tensor ops (`GpuTensorOps`) backing ensemble prediction; default builds stay 100% Pure Rust CPU. There is no GPU-side split-finding/histogram/tree-update training path — those kernels were removed this session because they only ever returned `NotImplemented`.
+- **CPU Optimization**: Cache-optimized matrix ops, vectorized ensemble scoring, and SIMD kernels via `scirs2_core::simd_ops`.
 
 ## Quick Start
 
 ```rust
-use sklears_ensemble::RandomForestClassifier;
+use sklears_ensemble::GradientBoostingClassifier;
 use scirs2_core::ndarray::{array, Array1};
 
 let x = array![
     [0.0, 1.0, 2.0],
     [1.0, 0.5, 2.1],
     [0.5, 2.0, 1.5],
+    [2.0, 0.2, 0.1],
 ];
-let y = Array1::from(vec![0, 1, 0]);
+let y = Array1::from(vec![0.0, 1.0, 0.0, 1.0]);
 
-let forest = RandomForestClassifier::builder()
-    .n_estimators(500)
-    .max_depth(Some(10))
-    .n_jobs(-1)
-    .bootstrap(true)
+let gbc = GradientBoostingClassifier::builder()
+    .n_estimators(100)
+    .learning_rate(0.1)
+    .max_depth(3)
+    .random_state(42)
     .build();
 
-let fitted = forest.fit(&x, &y)?;
+let fitted = gbc.fit(&x, &y)?;
 let predictions = fitted.predict(&x)?;
 ```
 
 ## Status
 
-- Validated by 258 passing crate tests for `0.2.0`.
+- Validated by 291 passing crate tests for `0.2.0` (1 skipped).
 - Benchmarks demonstrate 5–30× faster training versus scikit-learn on medium to large datasets.
-- Roadmap items (GPU GradientBoosting, federated ensembles) live in this crate’s `TODO.md`.
+- Roadmap items (GPU-side gradient-boosting training kernels, federated ensembles) live in this crate’s `TODO.md`.

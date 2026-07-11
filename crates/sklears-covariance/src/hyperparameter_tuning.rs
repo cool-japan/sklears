@@ -1500,7 +1500,8 @@ mod tests {
         let tuner = make_test_tuner();
         // A non-diagonal SPD matrix: exercises the full tr(.)/det(.) formula
         // rather than only the diagonal special case.
-        let cov = Array2::from_shape_vec((2, 2), vec![2.0, 0.5, 0.5, 1.0]).expect("2x2 shape matches");
+        let cov =
+            Array2::from_shape_vec((2, 2), vec![2.0, 0.5, 0.5, 1.0]).expect("2x2 shape matches");
 
         let score = tuner
             .compute_stein_loss(&cov, &cov.view())

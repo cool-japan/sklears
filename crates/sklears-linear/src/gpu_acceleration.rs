@@ -542,7 +542,7 @@ impl GpuLinearOps {
 
     /// Snapshot of performance statistics, computed from the live counters
     /// updated by every GPU/CPU dispatch decision above (see
-    /// [`OpCounters`]).
+    /// `OpCounters`).
     pub fn get_performance_stats(&self) -> GpuPerformanceStats {
         let total_operations = self.stats.total_operations.load(Ordering::Relaxed);
         let gpu_operations = self.stats.gpu_operations.load(Ordering::Relaxed);

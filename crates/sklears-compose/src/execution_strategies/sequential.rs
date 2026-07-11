@@ -8,8 +8,10 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, SystemTime};
 
-use super::core::{ExecutionStrategy, HealthStatus, PerformanceSummary, ResourceUtilization, StrategyConfig, StrategyHealth, StrategyMetrics, StrategyState};
-
+use super::core::{
+    ExecutionStrategy, HealthStatus, PerformanceSummary, ResourceUtilization, StrategyConfig,
+    StrategyHealth, StrategyMetrics, StrategyState,
+};
 
 /// Sequential execution strategy for deterministic, single-threaded execution
 #[derive(Debug)]
@@ -74,9 +76,7 @@ impl ExecutionStrategy for SequentialExecutionStrategy {
             Ok(())
         })
     }
-    fn initialize(
-        &mut self,
-    ) -> Pin<Box<dyn Future<Output = SklResult<()>> + Send + '_>> {
+    fn initialize(&mut self) -> Pin<Box<dyn Future<Output = SklResult<()>> + Send + '_>> {
         Box::pin(async move {
             let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.initialized = true;
@@ -177,7 +177,10 @@ impl ExecutionStrategy for SequentialExecutionStrategy {
         }
     }
     fn metrics(&self) -> StrategyMetrics {
-        self.metrics.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.metrics
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
     fn shutdown(&mut self) -> Pin<Box<dyn Future<Output = SklResult<()>> + Send + '_>> {
         Box::pin(async move {
@@ -202,11 +205,9 @@ impl ExecutionStrategy for SequentialExecutionStrategy {
         _scale_factor: f64,
     ) -> Pin<Box<dyn Future<Output = SklResult<()>> + Send + '_>> {
         Box::pin(async move {
-            Err(
-                SklearsError::InvalidOperation(
-                    "Sequential strategy does not support scaling".to_string(),
-                ),
-            )
+            Err(SklearsError::InvalidOperation(
+                "Sequential strategy does not support scaling".to_string(),
+            ))
         })
     }
     fn get_resource_requirements(&self, task: &ExecutionTask) -> TaskRequirements {
@@ -214,9 +215,9 @@ impl ExecutionStrategy for SequentialExecutionStrategy {
     }
     fn validate_task(&self, task: &ExecutionTask) -> SklResult<()> {
         if task.metadata.name.is_empty() {
-            return Err(
-                SklearsError::InvalidInput("Task name cannot be empty".to_string()),
-            );
+            return Err(SklearsError::InvalidInput(
+                "Task name cannot be empty".to_string(),
+            ));
         }
         Ok(())
     }

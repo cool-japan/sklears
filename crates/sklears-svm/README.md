@@ -7,119 +7,117 @@
 
 High-performance Support Vector Machine implementations for Rust with advanced kernels and optimization algorithms, delivering 5-15x speedup over scikit-learn.
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 11, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
 `sklears-svm` provides comprehensive SVM implementations:
 
-- **Core Algorithms**: SVC, SVR, LinearSVC, NuSVC, NuSVR
-- **Kernel Functions**: Linear, RBF, Polynomial, Sigmoid, Custom kernels
+- **Core Algorithms**: SVC, SVR, LinearSVC, NuSVC, NuSVR, SparseSVM
+- **Kernel Functions**: Linear, RBF, Polynomial, Sigmoid, Cosine, Chi-Squared, Intersection, custom `Kernel` trait implementations
 - **Optimization**: SMO, coordinate descent, stochastic gradient descent
-- **Advanced Features**: Multi-class strategies, probability calibration, online learning
-- **Performance**: SIMD optimization, sparse data support, optional CUDA/WebGPU acceleration
+- **Advanced Features**: Multi-class strategies (One-vs-Rest, One-vs-One, ECOC, hierarchical), probability calibration (Platt scaling, isotonic), online/incremental learning
+- **Performance**: SIMD optimization, sparse data support, optional CUDA acceleration via `oxicuda-blas` (feature-gated)
 
 ## Quick Start
 
 ```rust
-use sklears_svm::{SVC, SVR, Kernel};
-use ndarray::array;
+use sklears_svm::{SVC, SVR, LinearSVC};
+use sklears_core::traits::{Fit, Predict};
+use scirs2_core::ndarray::array;
 
 // Classification with RBF kernel
-let svc = SVC::builder()
-    .kernel(Kernel::RBF { gamma: 0.1 })
-    .C(1.0)
-    .probability(true)
-    .build();
+let svc = SVC::new()
+    .rbf(Some(0.1))
+    .c(1.0)
+    .probability(true);
 
 // Regression with polynomial kernel
-let svr = SVR::builder()
-    .kernel(Kernel::Polynomial { degree: 3, coef0: 1.0 })
-    .epsilon(0.1)
-    .build();
+let svr = SVR::new()
+    .poly(3, None, 1.0)
+    .epsilon(0.1);
 
 // Linear SVM for large-scale problems
-let linear_svc = LinearSVC::builder()
-    .penalty(Penalty::L2)
-    .loss(Loss::Hinge)
-    .dual(false)  // Primal optimization for n_samples >> n_features
-    .build();
+let linear_svc = LinearSVC::new()
+    .with_penalty("l2")
+    .with_loss("hinge")
+    .with_dual(false); // Primal optimization for n_samples >> n_features
 
 // Train and predict
-let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-let y = array![0, 1, 0];
-let fitted = svc.fit(&X, &y)?;
-let predictions = fitted.predict(&X)?;
-let probabilities = fitted.predict_proba(&X)?;
+let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
+let y = array![0.0, 1.0, 0.0];
+let fitted = svc.fit(&x, &y)?;
+let predictions = fitted.predict(&x)?;
+let probabilities = fitted.predict_proba(&x)?;
 ```
 
 ## Advanced Features
 
 ### Custom Kernels
 
+Implement the `Kernel` trait for a custom kernel function, or select any of the
+built-in kernels through `KernelType`:
+
 ```rust
-use sklears_svm::{CustomKernel, KernelFunction};
+use sklears_svm::{Kernel, KernelType, SVC};
+use scirs2_core::ndarray::ArrayView1;
+use std::collections::HashMap;
 
-// Define custom kernel function
-let custom_kernel = CustomKernel::new(|x1, x2| {
-    let diff = x1 - x2;
-    (-0.5 * diff.dot(&diff)).exp()  // Gaussian-like
-});
+#[derive(Debug, Clone)]
+struct WaveKernel { period: f64, sigma: f64 }
 
-let svc = SVC::builder()
-    .kernel(Kernel::Custom(custom_kernel))
-    .build();
+impl Kernel for WaveKernel {
+    fn compute(&self, x1: ArrayView1<f64>, x2: ArrayView1<f64>) -> f64 {
+        let d = x1.iter().zip(x2.iter()).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt();
+        (std::f64::consts::PI * d / self.period).cos()
+            * (-d * d / (2.0 * self.sigma * self.sigma)).exp()
+    }
+    fn parameters(&self) -> HashMap<String, f64> {
+        HashMap::from([("period".to_string(), self.period), ("sigma".to_string(), self.sigma)])
+    }
+}
+
+// Built-in kernels are selected through `KernelType`
+let svc = SVC::new().kernel(KernelType::Cosine).c(1.0);
 ```
 
 ### Multi-class Strategies
 
 ```rust
-use sklears_svm::{MultiClassStrategy};
+use sklears_svm::{MultiClassSVC, MultiClassStrategy};
 
-// One-vs-Rest strategy
-let svc_ovr = SVC::builder()
-    .multi_class(MultiClassStrategy::OneVsRest)
-    .build();
+// One-vs-Rest strategy (default)
+let svc_ovr = MultiClassSVC::new().strategy(MultiClassStrategy::OneVsRest);
 
-// One-vs-One strategy (default for SVC)
-let svc_ovo = SVC::builder()
-    .multi_class(MultiClassStrategy::OneVsOne)
-    .build();
+// One-vs-One strategy with majority voting
+let svc_ovo = MultiClassSVC::new().strategy(MultiClassStrategy::OneVsOne);
 
-// Crammer-Singer multi-class
-let svc_cs = LinearSVC::builder()
-    .multi_class(MultiClassStrategy::CrammerSinger)
-    .build();
+// Error-Correcting Output Codes
+let svc_ecoc = MultiClassSVC::new().strategy(MultiClassStrategy::Ecoc);
 ```
 
 ### Online Learning
 
 ```rust
-use sklears_svm::SGDClassifier;
+use sklears_svm::{OnlineSvm, kernels::LinearKernel};
 
-let mut sgd = SGDClassifier::builder()
-    .loss(Loss::Hinge)
-    .learning_rate(LearningRate::Optimal)
-    .build();
+let mut online_svm = OnlineSvm::new(LinearKernel::new(), Default::default());
 
-// Incremental learning
-for batch in data_stream {
-    sgd.partial_fit(&batch.X, &batch.y)?;
+// Incremental learning, one sample at a time
+for (x, y) in data_stream {
+    online_svm.partial_fit(&x, y)?;
 }
 ```
 
 ### Probability Calibration
 
 ```rust
-use sklears_svm::{SVC, CalibrationMethod};
+use sklears_svm::SVC;
 
-let svc = SVC::builder()
-    .probability(true)
-    .calibration_method(CalibrationMethod::Sigmoid)
-    .build();
+let svc = SVC::new().rbf(Some(0.1)).probability(true); // fits Platt scaling internally
 
-let fitted = svc.fit(&X, &y)?;
-let calibrated_probs = fitted.predict_proba(&X_test)?;
+let fitted = svc.fit(&x, &y)?;
+let calibrated_probs = fitted.predict_proba(&x_test)?;
 ```
 
 ## Performance Features
@@ -127,48 +125,40 @@ let calibrated_probs = fitted.predict_proba(&X_test)?;
 ### Sparse Data Support
 
 ```rust
-use sklears_svm::SparseSVC;
-use sprs::CsMat;
+use sklears_svm::SparseSVM;
 
-let sparse_X = CsMat::from_dense(&X);
-let sparse_svc = SparseSVC::builder()
-    .kernel(Kernel::Linear)
-    .build();
+let sparse_svc = SparseSVM::new()
+    .with_c(1.0)
+    .with_loss("hinge");
 
-let fitted = sparse_svc.fit(&sparse_X, &y)?;
+let fitted = sparse_svc.fit(&x, &y)?; // y: Array1<i32> class labels
 ```
 
 ### Parallel Training
 
+Enable the `parallel` feature (on by default) to parallelize kernel-matrix and
+gradient computations internally via `rayon`. Kernel-cache size is tunable per
+estimator:
+
 ```rust
-let svc = SVC::builder()
-    .kernel(Kernel::RBF { gamma: 0.1 })
-    .n_jobs(4)  // Use 4 threads
-    .cache_size(500)  // MB for kernel cache
-    .build();
+let svc = SVC::new()
+    .rbf(Some(0.1))
+    .cache_size(500); // MB for kernel cache
 ```
 
 ### Optimization Strategies
 
 ```rust
-use sklears_svm::{Solver, ShrinkingHeuristics};
+use sklears_svm::{SVC, LinearSVC, SGDClassifier};
 
-// SMO with shrinking heuristics
-let svc_smo = SVC::builder()
-    .solver(Solver::SMO)
-    .shrinking(true)
-    .build();
+// SMO with shrinking heuristics (SVC's built-in solver)
+let svc_smo = SVC::new().rbf(Some(0.1)).shrinking(true);
 
-// Coordinate descent for linear SVM
-let linear_svc_cd = LinearSVC::builder()
-    .solver(Solver::CoordinateDescent)
-    .build();
+// Coordinate descent for linear SVM ('dual_cd', 'primal_cd', 'enhanced_cd')
+let linear_svc_cd = LinearSVC::new().with_solver("primal_cd");
 
 // Stochastic gradient descent
-let sgd_svm = SGDClassifier::builder()
-    .alpha(0.0001)
-    .max_iter(1000)
-    .build();
+let sgd_svm = SGDClassifier::new().with_alpha(0.0001).with_max_iter(1000);
 ```
 
 ## Advanced Algorithms
@@ -176,57 +166,17 @@ let sgd_svm = SGDClassifier::builder()
 ### Nu-Support Vector Machines
 
 ```rust
-use sklears_svm::{NuSVC, NuSVR};
+use sklears_svm::{KernelType, NuSVC, NuSVR};
 
 // Nu-SVC with automatic margin
-let nu_svc = NuSVC::builder()
-    .nu(0.5)  // Upper bound on fraction of margin errors
-    .kernel(Kernel::RBF { gamma: 0.1 })
-    .build();
+let nu_svc = NuSVC::new()
+    .nu(0.5)? // Upper bound on fraction of margin errors
+    .kernel(KernelType::Rbf { gamma: 0.1 });
 
 // Nu-SVR for regression
-let nu_svr = NuSVR::builder()
-    .nu(0.5)
-    .kernel(Kernel::Polynomial { degree: 2, coef0: 0.0 })
-    .build();
-```
-
-### One-Class SVM
-
-```rust
-use sklears_svm::OneClassSVM;
-
-// Anomaly detection
-let oc_svm = OneClassSVM::builder()
-    .nu(0.1)  // Expected fraction of outliers
-    .kernel(Kernel::RBF { gamma: 0.1 })
-    .build();
-
-let fitted = oc_svm.fit(&X_normal)?;
-let anomaly_scores = fitted.decision_function(&X_test)?;
-```
-
-## Kernel Approximation
-
-```rust
-use sklears_svm::{Nystroem, RBFSampler};
-
-// Nystroem approximation for large-scale kernels
-let nystroem = Nystroem::builder()
-    .kernel(Kernel::RBF { gamma: 0.1 })
-    .n_components(100)
-    .build();
-
-// Random Fourier features
-let rbf_sampler = RBFSampler::builder()
-    .gamma(0.1)
-    .n_components(1000)
-    .build();
-
-// Use with linear SVM for speed
-let X_transformed = nystroem.fit_transform(&X)?;
-let linear_svc = LinearSVC::default();
-let fitted = linear_svc.fit(&X_transformed, &y)?;
+let nu_svr = NuSVR::new()
+    .nu(0.5)?
+    .kernel(KernelType::Polynomial { gamma: 1.0, coef0: 0.0, degree: 2.0 });
 ```
 
 ## Benchmarks
@@ -250,21 +200,20 @@ sklears-svm/
 ├── multiclass/     # Multi-class strategies
 ├── online/         # Incremental learning
 ├── sparse/         # Sparse data support
-└── gpu/           # GPU acceleration (WIP)
+└── gpu/           # GPU acceleration (feature-gated, oxicuda-blas)
 ```
 
 ## Status
 
-- **Tests**: 273 passing crate tests for `0.2.0` (38 skipped)
+- **Tests**: 302 passing crate tests for `0.2.0` (38 skipped)
 - **Core Algorithms**: 90% complete
 - **Kernel Functions**: All major kernels implemented
 - **Optimization**: SMO, CD, SGD implemented
-- **GPU Support**: In development
+- **GPU Support**: Implemented behind the `gpu` feature — `oxicuda-blas` GEMM drives the inner-product term for Linear/RBF/Polynomial/Sigmoid kernels, with the RBF/Sigmoid non-linear transform also running on-device
 
 ## Contributing
 
 Priority areas for contribution:
-- GPU kernel computations
 - Additional kernel functions
 - Performance optimizations
 - Cross-validation utilities

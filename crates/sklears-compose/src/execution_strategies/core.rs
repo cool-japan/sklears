@@ -1,8 +1,6 @@
 //! Shared strategy trait, configuration, health, and metrics types.
 
-use crate::execution_config::{
-    FaultToleranceConfig, PerformanceGoals, ResourceConstraints,
-};
+use crate::execution_config::{FaultToleranceConfig, PerformanceGoals, ResourceConstraints};
 use crate::task_definitions::{ExecutionTask, TaskRequirements, TaskResult};
 use sklears_core::error::Result as SklResult;
 use std::collections::HashMap;
@@ -10,7 +8,6 @@ use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
 use std::time::{Duration, SystemTime};
-
 
 /// Error record for tracking
 #[derive(Debug, Clone)]
@@ -352,4 +349,3 @@ pub trait ExecutionStrategy: Send + Sync + fmt::Debug {
     /// Validate task compatibility
     fn validate_task(&self, task: &ExecutionTask) -> SklResult<()>;
 }
-

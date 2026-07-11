@@ -1,7 +1,7 @@
-# TODO - v0.1.0
+# TODO - v0.2.0
 
-## Current Status
-This crate is part of the sklears v0.1.0 initial release.
+## Current Status (updated 2026-07-11)
+This crate is part of the sklears v0.2.0 release. 406 tests passing (`cargo nextest run -p sklears-calibration --all-features`).
 
 ## Future Enhancements
 - Performance optimizations

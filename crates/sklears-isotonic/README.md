@@ -14,24 +14,24 @@
 ## Key Features
 
 - **Isotonic Regression**: Fit monotonic functions for regression, probability calibration, and ranking tasks.
-- **Sparse + Dense Support**: Optimized for both dense `ndarray` inputs and sparse CSR matrices.
-- **GPU-Ready Kernels**: Optional CUDA/WebGPU acceleration for large calibration workloads.
+- **Sparse Solution Detection**: `SparseIsotonicRegression` and structured-sparsity solvers (group, hierarchical, total-variation) alongside the dense `ndarray`-based core algorithms.
+- **Extensive Algorithm Suite**: Convex-optimization solvers (ADMM, interior point, active set, dual decomposition, QP), differential-equation-constrained fitting, Bayesian/GP-based isotonic models, and graph-constrained regression.
 - **Pipeline Integration**: Seamlessly composes with `sklears` preprocessing, model selection, and calibration APIs.
 
 ## Quick Start
 
 ```rust
 use sklears_isotonic::IsotonicRegression;
+use sklears_core::traits::{Fit, Predict};
 use scirs2_core::ndarray::{array, Array1};
 
 let x = array![0.0, 1.0, 2.0, 3.0, 4.0];
 let y = Array1::from(vec![0.1, 0.4, 0.3, 0.8, 0.9]);
 
-let model = IsotonicRegression::builder()
+let model = IsotonicRegression::new()
     .increasing(true)
     .y_min(0.0)
-    .y_max(1.0)
-    .build();
+    .y_max(1.0);
 
 let fitted = model.fit(&x, &y)?;
 let predictions = fitted.predict(&x)?;

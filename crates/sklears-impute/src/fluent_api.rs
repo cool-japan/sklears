@@ -173,7 +173,7 @@ pub struct DeepLearningConfig {
     /// Requested compute device. Only `"cpu"` (case-insensitive) is honest
     /// today: sklears-impute's deep-learning imputers do not dispatch any
     /// computation through `sklears_core::gpu`/oxicuda yet, so any other
-    /// value is rejected at build time by [`DeepLearningConfig::validate_device`]
+    /// value is rejected at build time by `DeepLearningConfig::validate_device`
     /// rather than silently ignored. A future release may accept `"cuda"`
     /// once a real oxicuda-backed deep-learning imputer exists and routes
     /// through `sklears-core`'s `gpu_support` feature.

@@ -1,7 +1,20 @@
-# TODO - v0.1.0
+# TODO - v0.2.0
 
-## Current Status
-This crate is part of the sklears v0.1.0 initial release.
+## Current Status (updated 2026-07-11)
+This crate is part of the sklears v0.2.0 release. 426 tests passing (`cargo nextest run -p sklears-metrics --all-features`; previously recorded as 411).
+
+## README accuracy pass (2026-07-11)
+- [x] Verified README code examples against real source: fixed several fabricated module
+  paths/function names/signatures (`vision`→`computer_vision`, `iou_score`→`iou_boxes`/`iou_masks`,
+  `rouge_scores`→`rouge_n_score`/`rouge_l_score`, a fictional `timeseries` module→
+  `regression::{mean_absolute_scaled_error, mean_directional_accuracy,
+  symmetric_mean_absolute_percentage_error}`, `privacy_preserving_metrics`→
+  `federated_learning::privacy_preserving_aggregation`, a fictional `calibration` module→
+  `probabilistic_metrics::{reliability_diagram, expected_calibration_error}`, `gpu_accuracy`→
+  `GpuMetricsContext::compute_metric(GpuMetricType::Accuracy, ...)`, `StreamingMetrics::update`→
+  `add_samples`/`finalize`, and `MetricsBuilder::with_confidence_intervals` argument count/order).
+  None of the underlying functionality was missing — only the documented paths/signatures were
+  wrong; see `README.md` for the corrected examples.
 
 ## Future Enhancements
 - Performance optimizations

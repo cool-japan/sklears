@@ -6,7 +6,6 @@ use std::time::Duration;
 
 use super::core::{HealthStatus, StrategyConfig, StrategyMetrics, StrategyState};
 
-
 /// Available resources on a node
 #[derive(Debug, Clone)]
 pub struct AvailableResources {

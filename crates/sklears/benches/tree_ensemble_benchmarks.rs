@@ -447,9 +447,7 @@ fn bench_tree_memory_patterns(c: &mut Criterion) {
     group.bench_function("repeated_decision_tree_fits", |b| {
         b.iter(|| {
             for _ in 0..10 {
-                let tree = DecisionTreeClassifier::new()
-                    .max_depth(10)
-                    .random_state(42);
+                let tree = DecisionTreeClassifier::new().max_depth(10).random_state(42);
                 let fitted = tree.fit(&x, &y_i32).expect("model fitting should succeed");
                 black_box(fitted.predict(&x).expect("prediction should succeed"));
             }

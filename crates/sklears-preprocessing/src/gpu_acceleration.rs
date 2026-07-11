@@ -355,12 +355,23 @@ fn gpu_minmax_transform(
     .map_err(gpu_err)?;
 
     let mut d_scaled = DeviceBuffer::<Float>::zeroed(total).map_err(gpu_err)?;
-    elementwise::mul::<Float>(blas, total as u32, &d_centered, &d_scale_full, &mut d_scaled)
-        .map_err(gpu_err)?;
+    elementwise::mul::<Float>(
+        blas,
+        total as u32,
+        &d_centered,
+        &d_scale_full,
+        &mut d_scaled,
+    )
+    .map_err(gpu_err)?;
 
     let mut d_range_bias = DeviceBuffer::<Float>::zeroed(n_features).map_err(gpu_err)?;
-    elementwise::fill::<Float>(blas, &mut d_range_bias, feature_range_min, n_features as u32)
-        .map_err(gpu_err)?;
+    elementwise::fill::<Float>(
+        blas,
+        &mut d_range_bias,
+        feature_range_min,
+        n_features as u32,
+    )
+    .map_err(gpu_err)?;
 
     let mut d_out = DeviceBuffer::<Float>::zeroed(total).map_err(gpu_err)?;
     elementwise::bias_add::<Float>(
@@ -611,7 +622,7 @@ impl GpuContextManager {
     }
 
     /// Snapshot of the real GPU/CPU dispatch statistics accumulated so far
-    /// through this context (see [`Self::record_gpu`]/[`Self::record_cpu_fallback`]).
+    /// through this context (see `Self::record_gpu`/`Self::record_cpu_fallback`).
     pub fn performance_stats(&self) -> GpuPerformanceStats {
         self.stats
             .lock()
@@ -872,8 +883,8 @@ impl GpuStandardScalerFitted {
                 let start = std::time::Instant::now();
                 match gpu_standard_transform(backend, x, &self.mean, &self.std) {
                     Ok(result) => {
-                        let bytes = (2 * x.len() + 2 * self.mean.ncols())
-                            * std::mem::size_of::<Float>();
+                        let bytes =
+                            (2 * x.len() + 2 * self.mean.ncols()) * std::mem::size_of::<Float>();
                         ctx.record_gpu(start.elapsed(), bytes);
                         return Ok(result);
                     }
@@ -1085,9 +1096,10 @@ impl GpuMinMaxScaler<Untrained> {
                 "Cannot process empty array".to_string(),
             ));
         }
-        Ok(x
-            .fold_axis(Axis(0), Float::INFINITY, |&acc, &val| acc.min(val))
-            .insert_axis(Axis(0)))
+        Ok(
+            x.fold_axis(Axis(0), Float::INFINITY, |&acc, &val| acc.min(val))
+                .insert_axis(Axis(0)),
+        )
     }
 
     /// Per-feature maximum (CPU reference).
@@ -1097,9 +1109,10 @@ impl GpuMinMaxScaler<Untrained> {
                 "Cannot process empty array".to_string(),
             ));
         }
-        Ok(x
-            .fold_axis(Axis(0), Float::NEG_INFINITY, |&acc, &val| acc.max(val))
-            .insert_axis(Axis(0)))
+        Ok(
+            x.fold_axis(Axis(0), Float::NEG_INFINITY, |&acc, &val| acc.max(val))
+                .insert_axis(Axis(0)),
+        )
     }
 }
 

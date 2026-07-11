@@ -14,30 +14,29 @@
 ## Key Features
 
 - **Random Feature Maps**: RBFSampler, Nystroem, AdditiveChi2Sampler, SkewedChi2Sampler, and more.
-- **GPU Acceleration**: Optional CUDA/WebGPU backends for massive random feature expansions.
-- **Pipeline Ready**: Builders integrate with `sklears` pipelines, grid search, and calibration stages.
+- **GPU Acceleration**: Optional CUDA backend (`gpu` feature, via `sklears-core`'s oxicuda-backed `gpu` module) for on-device GEMM in `GpuNystroem`/`GpuRBFSampler`.
+- **Pipeline Ready**: Estimators integrate with `sklears` pipelines, grid search, and calibration stages.
 - **Deterministic Testing**: Extensive property-based and integration tests ensure reproducible embeddings.
 
 ## Quick Start
 
 ```rust
 use sklears_kernel_approximation::RBFSampler;
+use sklears_core::traits::{Fit, Transform};
 use scirs2_core::ndarray::Array2;
 
-let features: Array2<f64> = // load your data
-    Array2::zeros((1024, 32));
+let features: Array2<f64> = Array2::zeros((1024, 32));
 
-let transformer = RBFSampler::builder()
+let rbf = RBFSampler::new(4096)
     .gamma(0.5)
-    .n_components(4096)
-    .random_state(Some(42))
-    .build();
+    .random_state(42);
 
-let mapped = transformer.fit_transform(&features)?;
+let fitted = rbf.fit(&features, &())?;
+let mapped = fitted.transform(&features)?;
 ```
 
 ## Status
 
-- Verified by 531 passing tests in `0.2.0` (Stable).
+- Verified by 532 passing tests in `0.2.0` (Stable).
 - Benchmarked against scikit-learn to provide 10–30× faster random feature generation.
 - Further roadmap tasks (e.g., online updates, streaming sampling) tracked in `TODO.md`.

@@ -1,7 +1,7 @@
 # TODO - v0.2.0
 
-## Current Status
-This crate is part of the sklears v0.2.0 release.
+## Current Status (updated 2026-07-11)
+This crate is part of the sklears v0.2.0 release. 782 tests passing (`cargo nextest run -p sklears-compose --all-features`, re-verified 2026-07-11 — matches the count already recorded below).
 
 ## Completed in v0.1.1
 - [x] Re-enable `cross_validation` — HRTB eliminated via `FitCV`/`PredictCV` adapter traits;
@@ -41,5 +41,16 @@ Status: real device discovery wired, remaining GPU-flavored types documented as 
 - Enhanced documentation and examples
 - Blanket `FitCV` impl for non-pipeline estimators (currently only `Pipeline<Untrained>` covered)
 - `pipeline_visualization`: real graph node/edge extraction, an actual SVG/PNG/HTML rendering backend, per-node metrics, and interactive output — tracked in detail in the [workspace TODO](../../TODO.md).
+- [ ] `ColumnTransformer` (`src/column_transformer.rs`): the builder's `.transformer(name, columns)`
+  only supports name-based dispatch to `"passthrough"`/`"drop"` (`build_transformer`); any other
+  name silently falls back to a passthrough transformer at `fit()` time. `add_transformer_step`
+  takes a real `Box<dyn PipelineStep>` parameter but currently discards it (only `name`/`columns`
+  are stored) — the error message pointing callers at `add_transformer_step` as the escape hatch
+  ("For other transformers use `add_transformer_step` and supply the concrete `Box<dyn
+  PipelineStep>` directly") is therefore not actually honored yet. Needs the fitted-transformer
+  list to be wired to the caller-supplied transformer instances instead of the name-keyed lookup.
+  Verified 2026-07-11 (`fit()` in `column_transformer.rs` calls `build_transformer(name)`, never
+  consulting any transformer instance the caller passed in). `FeatureUnion::transformer(name, Box<dyn
+  PipelineStep>)` does not have this bug — it genuinely stores and uses the supplied transformer.
 
 See the main [workspace TODO](../../TODO.md) for overall project roadmap.

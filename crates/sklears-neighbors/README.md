@@ -13,30 +13,29 @@ Efficient nearest neighbor algorithms for Rust with advanced indexing structures
 
 `sklears-neighbors` provides comprehensive nearest neighbor functionality:
 
-- **Core Algorithms**: KNN Classifier/Regressor, Radius Neighbors
-- **Tree Structures**: KD-Tree, Ball Tree, Cover Tree (planned)
-- **Approximate Methods**: LSH, Annoy, HNSW (planned)
-- **Distance Metrics**: Euclidean, Manhattan, Minkowski, custom metrics
-- **Advanced Features**: GPU acceleration (planned), distributed search (planned)
+- **Core Algorithms**: KNN Classifier/Regressor, Radius Neighbors, Nearest Centroid
+- **Tree Structures**: KD-Tree, Ball Tree, Cover Tree, VP-Tree (all implemented, selectable via `Algorithm`)
+- **Approximate Methods**: LSH (`LshIndex`/`LshKNeighborsClassifier`), plus GPU-backed HNSW search behind the optional `gpu` feature (via `oxicuda-manifold`)
+- **Distance Metrics**: Euclidean, Manhattan, Chebyshev, Minkowski, Cosine, Hamming, Mahalanobis, RBF/Polynomial/Sigmoid/Laplacian kernels, and custom closures
+- **Advanced Features**: OxiCUDA-backed GPU distance/ANN search (optional `gpu` feature, honest CPU fallback), distributed and MapReduce-style search, incremental/streaming indices
 
 ## Status ✅
 
-- **Implementation**: Fully featured KNN, radius, and approximate search APIs aligned with scikit-learn 1.5.
-- **Validation**: Covered by 403 passing crate tests from the 0.2.0 release.
-- **Performance**: SIMD-accelerated distance kernels, multi-threaded queries, and optional GPU offload.
+- **Implementation**: KNN, radius-neighbors, tree-based (KD/Ball/Cover/VP), LSH, and GPU-accelerated search, alongside a broad set of specialized modules (outlier detection, metric learning, bioinformatics, computer vision, NLP, time-series, graph methods).
+- **Validation**: Covered by 405 passing crate tests (2 skipped) from the 0.2.0 release.
+- **Performance**: SIMD-accelerated distance kernels (`simd_distance`), multi-threaded queries (`parallel` feature via Rayon), and optional OxiCUDA GPU offload (`gpu` feature).
 
 ## Quick Start
 
 ```rust
-use sklears_neighbors::{KNeighborsClassifier, KNeighborsRegressor};
-use scirs2_autograd::ndarray::array;
+use sklears_neighbors::{Algorithm, KNeighborsClassifier, KNeighborsRegressor, WeightStrategy};
+use sklears_core::traits::{Fit, Predict};
+use scirs2_core::ndarray::array;
 
 // K-Nearest Neighbors Classifier
-let knn = KNeighborsClassifier::builder()
-    .n_neighbors(5)
-    .weights(Weights::Distance)
-    .algorithm(Algorithm::Auto)
-    .build();
+let knn = KNeighborsClassifier::new(5)
+    .with_weights(WeightStrategy::Distance)
+    .with_algorithm(Algorithm::Brute);
 
 // Train and predict
 let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
@@ -45,10 +44,8 @@ let fitted = knn.fit(&X, &y)?;
 let predictions = fitted.predict(&X_test)?;
 
 // K-Nearest Neighbors Regressor
-let knn_reg = KNeighborsRegressor::builder()
-    .n_neighbors(3)
-    .weights(Weights::Uniform)
-    .build();
+let knn_reg = KNeighborsRegressor::new(3)
+    .with_weights(WeightStrategy::Uniform);
 ```
 
 ## Advanced Features
@@ -56,116 +53,83 @@ let knn_reg = KNeighborsRegressor::builder()
 ### Tree-Based Algorithms
 
 ```rust
+use sklears_neighbors::{Algorithm, KNeighborsClassifier};
+
 // KD-Tree for low-dimensional data
-let knn_kd = KNeighborsClassifier::builder()
-    .algorithm(Algorithm::KDTree)
-    .leaf_size(30)
-    .build();
+let knn_kd = KNeighborsClassifier::new(5).with_algorithm(Algorithm::KdTree);
 
 // Ball Tree for high-dimensional data
-let knn_ball = KNeighborsClassifier::builder()
-    .algorithm(Algorithm::BallTree)
-    .metric(Metric::Haversine)  // For geographical data
-    .build();
+let knn_ball = KNeighborsClassifier::new(5).with_algorithm(Algorithm::BallTree);
 
-// Cover Tree for metric spaces
-let knn_cover = KNeighborsClassifier::builder()
-    .algorithm(Algorithm::CoverTree)
-    .build();
+// Cover Tree with theoretical search guarantees
+let knn_cover = KNeighborsClassifier::new(5).with_algorithm(Algorithm::CoverTree);
+
+// Vantage-Point Tree for general metric spaces
+let knn_vp = KNeighborsClassifier::new(5).with_algorithm(Algorithm::VpTree);
 ```
 
 ### Radius Neighbors
 
 ```rust
-use sklears_neighbors::{RadiusNeighborsClassifier, OutlierDetection};
+use sklears_neighbors::{RadiusNeighborsClassifier, WeightStrategy};
 
-// Fixed radius search
-let radius_nn = RadiusNeighborsClassifier::builder()
-    .radius(1.0)
-    .weights(Weights::Distance)
-    .outlier_label(Some(-1))
-    .build();
-
-// Outlier detection
-let outlier_detector = OutlierDetection::builder()
-    .contamination(0.1)
-    .algorithm(Algorithm::LSH)
-    .build();
+// Fixed radius search, with a fallback label for points with no neighbors
+let radius_nn = RadiusNeighborsClassifier::new(1.0)
+    .with_weights(WeightStrategy::Distance)
+    .with_outlier_label(-1);
 ```
 
 ### Approximate Nearest Neighbors
 
 ```rust
-use sklears_neighbors::{LSH, Annoy, HNSW};
+use sklears_neighbors::LshKNeighborsClassifier;
 
-// Locality Sensitive Hashing
-let lsh = LSH::builder()
-    .n_hash_tables(10)
-    .hash_width(4.0)
-    .build();
+// LSH with random projection (cosine similarity): k, num_tables, num_hashes, dimension
+let lsh = LshKNeighborsClassifier::new_random_projection(5, 10, 8, 128);
 
-// Annoy (Approximate Nearest Neighbors Oh Yeah)
-let annoy = Annoy::builder()
-    .n_trees(10)
-    .search_k(100)
-    .build();
-
-// Hierarchical Navigable Small World
-let hnsw = HNSW::builder()
-    .M(16)
-    .ef_construction(200)
-    .build();
+// LSH with MinHash (Jaccard similarity): k, num_tables, num_hashes
+let lsh_minhash = LshKNeighborsClassifier::new_minhash(5, 10, 8);
 ```
 
 ### Custom Distance Metrics
 
 ```rust
-use sklears_neighbors::{CustomMetric, DistanceMetric};
+use sklears_neighbors::{Distance, KNeighborsClassifier};
 
-// Define custom distance
-let custom_metric = CustomMetric::new(|a, b| {
-    // Custom distance computation
-    a.iter().zip(b.iter())
+// Define a custom distance via the `Distance::Custom` closure variant
+let custom_metric = Distance::Custom(Box::new(|a, b| {
+    a.iter()
+        .zip(b.iter())
         .map(|(x, y)| (x - y).abs().powf(3.0))
         .sum::<f64>()
-        .powf(1.0/3.0)
-});
+        .powf(1.0 / 3.0)
+}));
 
-let knn = KNeighborsClassifier::builder()
-    .metric(Metric::Custom(custom_metric))
-    .build();
+let knn = KNeighborsClassifier::new(5).with_metric(custom_metric);
 ```
 
-### GPU Acceleration
+### GPU Acceleration (`gpu` feature)
 
 ```rust
-use sklears_neighbors::gpu::{GpuKNN, GpuBruteForce};
+use sklears_neighbors::{GpuConfig, GpuDistanceCalculator, GpuKNeighborsSearch};
 
-// GPU-accelerated brute force
-let gpu_knn = GpuKNN::builder()
-    .n_neighbors(100)
-    .batch_size(10000)
-    .build();
+// OxiCUDA-backed pairwise distances; honestly falls back to CPU compute
+// when the `gpu` feature is off or no device is detected.
+let calculator = GpuDistanceCalculator::with_config(GpuConfig::default());
 
-// Handles millions of points efficiently
-let neighbors = gpu_knn.query(&query_points)?;
+// GPU k-nearest neighbors, optionally backed by an HNSW approximate index
+// (falls back to the exact brute-force path without the `gpu` feature).
+let gpu_knn = GpuKNeighborsSearch::new(10, GpuConfig::default()).with_ann(true);
 ```
 
 ### Streaming and Dynamic Updates
 
 ```rust
-use sklears_neighbors::{DynamicKDTree, StreamingKNN};
+use sklears_neighbors::{IncrementalKNeighborsClassifier, MemoryStrategy};
 
-// Dynamic KD-Tree with insertions/deletions
-let mut dynamic_tree = DynamicKDTree::new();
-dynamic_tree.insert(&point, label)?;
-dynamic_tree.delete(&point)?;
-
-// Streaming KNN for evolving data
-let mut streaming_knn = StreamingKNN::builder()
-    .window_size(10000)
-    .update_frequency(100)
-    .build();
+// Incremental KNN classifier: k neighbors, capped at max_samples in memory
+let mut streaming_knn = IncrementalKNeighborsClassifier::new(5, 10_000)
+    .with_memory_strategy(MemoryStrategy::KeepRecent);
 ```
 
 ## Performance
@@ -183,49 +147,45 @@ Representative benchmarks on an AMD Ryzen 9 7950X (release profile):
 
 ```
 sklears-neighbors/
-├── core/           # Base neighbor algorithms
-├── trees/          # KD-Tree, Ball Tree, etc.
-├── approximate/    # LSH, Annoy, HNSW
-├── metrics/        # Distance computations
-├── gpu/            # GPU acceleration
-└── distributed/    # Distributed search
+├── knn.rs, radius_neighbors.rs    # Core KNN / radius-neighbor estimators
+├── tree/                          # KD-Tree, Ball Tree, Cover Tree, VP-Tree
+├── lsh.rs                         # LSH approximate search
+├── gpu_distance.rs                # OxiCUDA GPU distances + HNSW ANN (feature `gpu`)
+├── distance.rs, simd_distance.rs  # Distance metrics + SIMD kernels
+├── distributed_neighbors.rs, mapreduce_neighbors.rs, federated_neighbors.rs
+└── ...                            # outlier detection, metric learning, bioinformatics,
+                                    # computer vision, NLP, time-series, streaming, validation
 ```
 
 ## Roadmap
 
-### Toward 0.2.0
+### Delivered in 0.2.0
+- [x] KD-Tree, Ball Tree, Cover Tree, and VP-Tree implementations
+- [x] Radius neighbors (fixed and adaptive)
+- [x] LSH approximate search
+- [x] OxiCUDA-backed GPU distance computation and HNSW-based ANN search (`gpu` feature)
+
+### Future
 - [ ] Extend ANN benchmarks to cover billion-scale datasets
 - [ ] Document distributed query patterns with end-to-end examples
 - [ ] Stabilize the custom metric plugin API
-
-### Phase 2 (Next)
-- [ ] KD-Tree implementation
-- [ ] Ball Tree implementation
-- [ ] Radius neighbors
-
-### Phase 3 (Future)
-- [ ] LSH approximate search
-- [ ] GPU acceleration
-- [ ] Distributed algorithms
+- [ ] Standalone Annoy-style random-projection-forest ANN index
 
 ## Contributing
 
 This crate needs your help! Priority contributions:
-- Tree structure implementations (KD-Tree, Ball Tree)
-- Distance metric optimizations
-- Approximate NN algorithms
-- GPU kernels
+- Additional distance metric optimizations
+- Billion-scale ANN benchmarking
+- Distributed/federated search end-to-end examples
 - Documentation and examples
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for guidelines.
 
 ## Current Limitations
 
-- Only brute force search implemented
-- Limited distance metrics
-- No tree structures yet
-- No GPU support
-- No approximate methods
+- Approximate search covers LSH plus GPU-backed HNSW (behind the `gpu` feature); there is no standalone Annoy-style index yet.
+- Distributed and federated search modules are implemented but not yet benchmarked at very large scale.
+- GPU support (`gpu` feature) targets OxiCUDA (CUDA) only; there is no OpenCL/Metal backend.
 
 ## License
 

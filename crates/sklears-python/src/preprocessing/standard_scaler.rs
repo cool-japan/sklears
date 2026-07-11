@@ -20,7 +20,9 @@ struct StandardScalerState {
 ///
 /// The standard score of a sample `x` is calculated as:
 ///
-///     z = (x - u) / s
+/// ```text
+/// z = (x - u) / s
+/// ```
 ///
 /// where `u` is the mean of the training samples or zero if `with_mean=False`,
 /// and `s` is the standard deviation of the training samples or one if

@@ -10,7 +10,6 @@ use std::time::{Duration, SystemTime};
 
 use super::core::{StrategyConfig, StrategyMetrics, StrategyState};
 
-
 /// Delivery guarantee levels
 #[derive(Debug, Clone)]
 pub enum DeliveryGuarantees {
@@ -94,7 +93,8 @@ impl std::fmt::Debug for EventDrivenExecutionStrategy {
             .field(
                 "handlers",
                 &format!(
-                    "<{} handlers>", self.handlers.lock().map(| h | h.len()).unwrap_or(0)
+                    "<{} handlers>",
+                    self.handlers.lock().map(|h| h.len()).unwrap_or(0)
                 ),
             )
             .field("event_queue", &self.event_queue)
@@ -106,4 +106,3 @@ impl std::fmt::Debug for EventDrivenExecutionStrategy {
 /// Event handler for processing events
 pub type EventHandler =
     Arc<dyn Fn(Event) -> Pin<Box<dyn Future<Output = SklResult<()>> + Send>> + Send + Sync>;
-
