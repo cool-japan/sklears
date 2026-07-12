@@ -186,16 +186,19 @@ parquet = { version = "59.0" }
 pyo3 = { version = "0.29", features = ["chrono", "indexmap"] }
 numpy = { version = "0.29" }
 
-# GPU and performance — oxicuda-* v0.4 (replaces wgpu/cudarc/candle-core direct deps)
-oxicuda-backend    = { version = "0.4.1" }
-oxicuda-memory     = { version = "0.4.1" }
-oxicuda-blas       = { version = "0.4.1" }
-oxicuda-solver     = { version = "0.4.1" }
-oxicuda-manifold   = { version = "0.4.1" }
-oxicuda-dnn        = { version = "0.4.1" }
-oxicuda-driver     = { version = "0.4.1" }
-oxicuda-ptx        = { version = "0.4.1" }
-oxicuda-primitives = { version = "0.4.1" }
+# GPU and performance — oxicuda-* v0.5 (replaces wgpu/cudarc/candle-core direct deps).
+# Pinned to 0.5 and overridden to the local workspace via [patch.crates-io] below:
+# 0.4.1's PTX codegen emits invalid f64 elementwise/reduction kernels (32-bit
+# value registers for 64-bit ops), which ptxas rejects on real hardware. The fix
+# lives in the local oxicuda 0.5.0 tree until it is published to crates.io.
+oxicuda-backend    = { version = "0.5" }
+oxicuda-memory     = { version = "0.5" }
+oxicuda-blas       = { version = "0.5" }
+oxicuda-solver     = { version = "0.5" }
+oxicuda-manifold   = { version = "0.5" }
+oxicuda-dnn        = { version = "0.5" }
+oxicuda-driver     = { version = "0.5" }
+oxicuda-ptx        = { version = "0.5" }
 wide = { version = "1.5" }
 half = { version = "2.7", features = ["bytemuck"] }
 # Blocks on async GPU-init futures from sync `#[test]`s (see sklears-svm, sklears-clustering)
@@ -322,6 +325,22 @@ large_stack_arrays = "warn"
 
 # Documentation (encourage but don't enforce strictly)
 missing_docs_in_private_items = "allow"
+
+# Local override of the oxicuda-* GPU crates to the fixed 0.5.0 workspace.
+# crates.io oxicuda-* 0.4.1 (and the not-yet-published 0.5.0) generate invalid
+# PTX for f64 elementwise/reduction kernels; the local tree carries the fix
+# (width-correct value registers + f64-safe reductions + honest precision
+# gating for the f32-only SFU activations). Remove this block once a fixed
+# oxicuda 0.5.x is published to crates.io.
+[patch.crates-io]
+oxicuda-backend    = { path = "/notebooks/oxicuda/crates/oxicuda-backend" }
+oxicuda-memory     = { path = "/notebooks/oxicuda/crates/oxicuda-memory" }
+oxicuda-blas       = { path = "/notebooks/oxicuda/crates/oxicuda-blas" }
+oxicuda-solver     = { path = "/notebooks/oxicuda/crates/oxicuda-solver" }
+oxicuda-manifold   = { path = "/notebooks/oxicuda/crates/oxicuda-manifold" }
+oxicuda-dnn        = { path = "/notebooks/oxicuda/crates/oxicuda-dnn" }
+oxicuda-driver     = { path = "/notebooks/oxicuda/crates/oxicuda-driver" }
+oxicuda-ptx        = { path = "/notebooks/oxicuda/crates/oxicuda-ptx" }
 
 # Development profile optimizations for faster builds
 [profile.dev]
