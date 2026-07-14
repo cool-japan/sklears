@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -15,7 +15,7 @@
 
 - **Ensemble Methods**: Bagging, AdaBoost, Gradient Boosting (binary classification + regression), single- and multi-layer Stacking, Voting classifiers. (`sklears-tree`'s RandomForest/ExtraTrees are a separate crate — this crate does not re-export them, and there is no IsolationForest or histogram-based boosting here; `GradientBoostingConfig::tree_type` currently accepts a `HistogramTree` variant but it has no effect on training.)
 - **Model Selection & Analysis**: Bias-variance decomposition, ensemble diversity metrics, and cross-validation via the `model_selection` module (`BiasVarianceAnalyzer`, `DiversityAnalyzer`, `EnsembleCrossValidator`).
-- **GPU Acceleration** (optional `gpu` feature, CUDA via `oxicuda-*`): real device detection, memory management, and GEMM/elementwise tensor ops (`GpuTensorOps`) backing ensemble prediction; default builds stay 100% Pure Rust CPU. There is no GPU-side split-finding/histogram/tree-update training path — those kernels were removed this session because they only ever returned `NotImplemented`.
+- **GPU Acceleration** (optional `gpu` feature, CUDA via `oxicuda-*`): real device detection, memory management, and GEMM/elementwise tensor ops (`GpuTensorOps`) backing ensemble prediction; default builds stay 100% Pure Rust CPU. There is no GPU-side split-finding/histogram/tree-update training path — those kernels were removed in the 0.2.0 release because they only ever returned `NotImplemented`.
 - **CPU Optimization**: Cache-optimized matrix ops, vectorized ensemble scoring, and SIMD kernels via `scirs2_core::simd_ops`.
 
 ## Quick Start

@@ -1,7 +1,27 @@
 # TODO - v0.2.0
 
-## Current Status (updated 2026-07-11)
+## Current Status (updated 2026-07-14)
 This crate is part of the sklears v0.2.0 release. 863 tests passing (`cargo nextest run -p sklears-core --all-features`).
+
+## Completed in 0.2.0 (2026-07-14)
+- [x] `trait_explorer::security_analysis` fully re-enabled — previously excluded from the build
+  entirely (`// pub mod security_analysis; // Temporarily disabled due to compilation issues`),
+  with `compliance_framework.rs`/`security_metrics.rs` calling methods on 22 types that had no
+  implementation anywhere in the repository. Now implemented and compiling
+  (`pub mod security_analysis;` in `src/trait_explorer/mod.rs`), including data-backed
+  constructors for common regulatory frameworks and standards (GDPR, HIPAA, CCPA, SOX, FERPA, ISO
+  27001, NIST CSF, COBIT, ITIL, CIS Controls) and a new dashboard-management layer.
+  `compliance_framework.rs` (975 lines) and `security_metrics.rs` (1380 lines) were each split
+  into a submodule directory via `splitrs` per the workspace's file-size policy
+  (`src/trait_explorer/security_analysis/{compliance_framework,security_metrics}/`); all
+  pre-existing public items carry forward unchanged. This is internal trait-analysis dev-tooling
+  (not part of the public ML API), so it is not re-exported at the crate root.
+- [x] `contract_testing` module re-enabled — previously disabled pending an ndarray-0.17
+  associated-type-projection normalization mismatch between generic `where`-clause bounds and
+  concrete impls; now `pub mod contract_testing;` in `src/lib.rs` (re-exported from the crate
+  `prelude`). New `mock_objects` owned-array (`Array2<f64>`/`Array1<f64>`) `Fit`/`Predict`/
+  `PredictProba`/`Transform` impls for `MockEstimator`/`TrainedMockEstimator`/`MockTransformer`
+  (delegating to the existing view-based impls) so contract tests can exercise them directly.
 
 ## README accuracy pass (2026-07-11)
 - [x] Verified README code examples against real source and fixed several fabricated

@@ -25,4 +25,13 @@ sklears-utils` and `--features gpu` both pass warning-free, and all 491 tests
   - (deferred 2026-07-06: `apply_activation`/`reduce_sum`/`reduce_max` stay CPU-only -- there is no `oxicuda-primitives` elementwise/reduction kernel to wire them to yet, and building one is a materially larger task than this pass. `execute_kernel`'s `thread::sleep(1ms)` timing mock, the "optimized executor" variant, and the rest of the scheduling scaffolding (`MultiGpuCoordinator`, `AsyncGpuOps`, `GpuOptimizationAdvisor`, `GpuMemoryPool`) are unchanged: they have no real kernel payload attached anywhere in this abstraction (kernels are identified only by a name string + grid/block metadata, with no dispatch table), so there is nothing concrete to back with a device launch without a larger redesign. Doc comments were updated to say plainly that these remain CPU-side bookkeeping rather than implying real device execution.) The new doc comments/helpers pushed the file to 2110 lines, over the 2000-line policy limit, so it was split with `splitrs --split-test-modules` into `src/gpu_computing/mod.rs` (1323 lines, production code) and `src/gpu_computing/tests.rs` (455 lines); `src/gpu_computing.rs` no longer exists as a single file. `pub mod gpu_computing;` in `src/lib.rs` needed no change (directory modules resolve the same way).
 - [x] (S) Record `distributed_computing` GPU fields as out of scope. Added module-doc notes (2026-07-06) to `src/distributed_computing/types.rs` and `src/distributed_computing/functions.rs` stating that `gpu_count`/`gpu_usage`/`min_gpu_count`/`gpu_time`/`total_gpu_count` are pure scheduling/capacity metadata with no GPU API calls, so future GPU audits don't re-flag them. Files: `src/distributed_computing/types.rs`, `src/distributed_computing/functions.rs`, `TODO.md`.
 
+## Correctness Fixes (v0.2.0)
+
+- [x] (S) Fixed a Miri-detected Stacked-Borrows violation in `memory::MemoryPool::add_block`.
+      Raw pointers into a freshly-allocated block were taken via `block.iter_mut()` *before*
+      the block was moved into `self.blocks`, but passing a `Box<[T]>` by value into
+      `Vec::push` forms a fresh `noalias` reborrow over the box's entire pointee, retroactively
+      invalidating any pointers taken beforehand. The block is now pushed into its final
+      storage first, and pointers are derived from the stored copy instead. Files: `src/memory.rs`.
+
 See the main [workspace TODO](../../TODO.md) for overall project roadmap.

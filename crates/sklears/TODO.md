@@ -1,7 +1,21 @@
 # TODO - v0.2.0
 
-## Current Status
+## Current Status (updated 2026-07-14)
 This crate is part of the sklears v0.2.0 release line (initially shipped in v0.1.0).
+
+## Completed in 0.2.0 (2026-07-14)
+- [x] Restored the `preprocessing` Cargo feature and its `sklears-preprocessing` optional
+  dependency, previously commented out workspace-wide (`# Temporarily disabled`). This had
+  cascaded into disabling 8 algorithm-showcase examples and a benchmark target that all require
+  it; all are re-enabled now that `preprocessing` is back: `linear_models_showcase`,
+  `lasso_regression`, `kmeans_clustering`, `dbscan_clustering`, `hierarchical_clustering`,
+  `mean_shift_clustering`, `spectral_clustering`, `gmm_clustering`, plus
+  `performance_comparison_comprehensive` and the `tree_ensemble_benchmarks` bench target.
+- [x] Fixed `E0308` mismatched-type compile errors in `benches/comprehensive_benchmarks.rs`,
+  `benches/continuous_benchmarks.rs`, and `benches/tree_ensemble_benchmarks.rs` — these benches
+  converted integer classification labels to `f64` and wrapped `random_state` in `Some(..)` to
+  match a tree API that actually takes integer labels and a bare `u64` seed directly; call sites
+  now pass the integer label array and unwrapped seed so the bench targets compile again.
 
 ## OxiCUDA Migration (v0.2.0)
 

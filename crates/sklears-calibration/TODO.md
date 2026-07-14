@@ -1,7 +1,19 @@
 # TODO - v0.2.0
 
-## Current Status (updated 2026-07-11)
+## Current Status (updated 2026-07-14)
 This crate is part of the sklears v0.2.0 release. 406 tests passing (`cargo nextest run -p sklears-calibration --all-features`).
+
+## Fixed in 0.2.0 (2026-07-14)
+- [x] `GpuTemperatureScalingCalibrator`: the device-accelerated prediction path previously ran the
+  wrapper's native f64 logits through a device sigmoid kernel that only exists in f32 PTX (built
+  from the `ex2.approx` special-function unit, which has no faithful f64 form in the oxicuda
+  stack) — a latent precision mismatch. The device fast path is now taken only under an explicit
+  `use_mixed_precision` opt-in (`GpuCalibrationConfig::use_mixed_precision`, default `false`) and
+  runs genuine f32 kernels (`elementwise::scale`/`elementwise::sigmoid`); without that opt-in — or
+  with no device/small batch — prediction correctly falls back to the exact CPU f64 path. This
+  supersedes the looser framing of the same code path in the 2026-07-06 entry below (which did not
+  yet require the explicit opt-in). Verified in `src/gpu_calibration.rs`
+  (`GpuTemperatureScalingCalibrator::try_gpu_predict`/`GpuCalibrationConfig`).
 
 ## Future Enhancements
 - Performance optimizations

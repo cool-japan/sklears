@@ -10,9 +10,10 @@ This crate is part of the sklears v0.2.0 release line (initially shipped in v0.1
 
 ## OxiCUDA Migration (v0.2.0)
 
-Migration status: partial. GPU compute already routes through `sklears_core::gpu`
-(OxiCUDA GEMM) and `oxicuda-manifold` (HNSW build/search), but device detection is
-still mocked and the backend surface pretends to be multi-backend.
+Migration status: complete. GPU compute routes through `sklears_core::gpu`
+(OxiCUDA GEMM) and `oxicuda-manifold` (HNSW build/search); device detection now
+queries real oxicuda-driver device info and the backend surface is a real
+`{Cuda, CpuFallback}` split (the decorative multi-backend pretense is gone).
 
 - [x] (M) Replace mock GPU device detection with real oxicuda-driver queries —
   `detect_gpu_devices` now dispatches to `detect_cuda_device`, which uses

@@ -1,7 +1,7 @@
-# TODO - v0.1.0
+# TODO - v0.2.0
 
-## Current Status
-This crate is part of the sklears v0.1.0 initial release.
+## Current Status (updated 2026-07-14)
+This crate is part of the sklears v0.2.0 release line (initially shipped in v0.1.0).
 
 ## Completed (2026-07-04 session)
 - [x] `GraphicalLasso`: fixed an even/odd `max_iter` parity bug in the coordinate-descent solver. The old update rule was an exact period-2 cycle from a zero seed, so every off-diagonal entry landed back at exactly `0` at the end of any even `max_iter` — including the crate's own default of 100 — silently degenerating every fit to the identity matrix regardless of `alpha` or the input data. Replaced with a proper Friedman/Hastie/Tibshirani (2008) block coordinate-descent implementation, with an explicit even-vs-odd regression test.

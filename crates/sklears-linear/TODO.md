@@ -55,6 +55,19 @@ Status: fully migrated to oxicuda-* (no scirs2-core GPU usage remains). Remainin
   - **Files:** `src/advanced_gpu_acceleration.rs`
 - [x] (S) Real counters in `GpuPerformanceStats` and device-info fields — `GpuLinearOps` now carries atomic `OpCounters` updated by every GPU/CPU dispatch decision (`matrix_multiply`, `matrix_vector_multiply`, `vector_dot`, `solve_linear_system`, `qr_decomposition`), and `get_performance_stats()` computes real averages/totals/transfer-MB from them instead of returning all-zero. `get_device_info` in `advanced_gpu_acceleration.rs` now queries `oxicuda_driver::Device::{get, info}` directly for `multiprocessor_count`/`max_threads_per_block`/`max_shared_memory_per_block` (real `cuDeviceGetAttribute` values) rather than hardcoding `68`/`1024`/`49152`, and its no-GPU fallback now honestly reports all-zero/labelled-placeholder values instead of a fabricated 8GB/CC-8.0 device. `GpuPerformanceMetrics.memory_bandwidth_gbps` is now real bytes-moved/duration (`memory_bandwidth_gbps` helper) at every call site. `occupancy_percentage` stays `0.0` (deferred 2026-07-06: computing real occupancy needs the launch's actual grid/block dimensions, which are internal to `oxicuda_blas::level3::gemm` and not surfaced to callers; would require a lower-level launch API or wiring `oxicuda-driver`'s `occupancy`/`occupancy_ext` modules through a kernel-launch path this crate does not have). Deliberately did *not* extend `sklears_core::gpu::GpuUtils::device_properties` (deferred 2026-07-06: that's a shared file other in-flight per-crate hardening passes reference too; querying `oxicuda_driver::Device` directly from this crate achieves the same real values without a cross-crate edit race).
   - **Files:** `src/gpu_acceleration.rs`, `src/advanced_gpu_acceleration.rs`
+- [x] (M) Real GPU LU-solve and Householder QR paths — `GpuLinearOps::solve_linear_system` now tries a GPU LU solve (`oxicuda_solver::dense::{lu_factorize, lu_solve}`) against the normal-equations system before falling back to the CPU path; `qr_decomposition` now tries a GPU Householder QR (`oxicuda_solver::dense::{qr_factorize, qr_generate_q}`) before falling back to the CPU `qr`. Both fall back honestly on GPU error or when no backend is bound.
+  - **Files:** `src/gpu_acceleration.rs`
+- [x] (M) `AdvancedGpuOps::mixed_precision_matrix_multiply` now honors `enable_mixed_precision` — previously the flag was read but ignored and the method always ran full-precision GEMM; it now dispatches a real FP16 GEMM (`fp16_matrix_multiply` via `oxicuda-blas`/`oxicuda-memory`) when the flag is set and a GPU backend is present, falling back to `single_gpu_matrix_multiply` on GPU error or when the flag is unset/no backend is bound.
+  - **Files:** `src/advanced_gpu_acceleration.rs`
+
+## Bug fixes (v0.2.0)
+
+- [x] `src/multi_output_regression.rs` — `target_correlations` was only ever populated by the `Joint` fitting strategy's inline computation; requesting `model_correlations: true` with any other strategy (`Independent`/`Chain`/`ReducedRank`) silently produced `None`. Correlations are now computed whenever requested, regardless of strategy.
+  - **Files:** `src/multi_output_regression.rs`
+- [x] `src/multi_output_regression.rs` — the module's entire test suite was dead code, gated behind `#[cfg(all(test, feature = "nalgebra-tests"))]` where `nalgebra-tests` was never declared in `Cargo.toml`; none of these tests had ever compiled or run. Migrated to real `scirs2_core::ndarray`-based tests under plain `#[cfg(test)]`.
+  - **Files:** `src/multi_output_regression.rs`
+- [x] GPU test-suite honesty sweep — several tests hardcoded a "no CUDA device present" assumption (e.g. `assert!(!is_gpu_available())`); these now assert against real `GpuBackend`/device detection instead, so they no longer fail outright on a CUDA-equipped host.
+  - **Files:** `src/gpu_acceleration.rs`, `src/advanced_gpu_acceleration.rs`
 
 ---
 

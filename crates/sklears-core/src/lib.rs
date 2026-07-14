@@ -248,12 +248,12 @@ pub mod code_coverage;
 // Input sanitization for untrusted data
 pub mod input_sanitization;
 
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.1.
 // #[allow(non_snake_case)]
 // #[cfg(test)]
 // pub mod property_tests;
 
-// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.1.
 // #[allow(non_snake_case)]
 // #[cfg(test)]
 // pub mod test_utilities;

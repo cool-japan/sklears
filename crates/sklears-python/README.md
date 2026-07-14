@@ -7,7 +7,7 @@
 
 Python bindings for the sklears machine learning library, providing a high-performance, scikit-learn compatible interface through PyO3.
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Features
 

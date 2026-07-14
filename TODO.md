@@ -197,10 +197,11 @@ All major scikit-learn modules are implemented with production-ready quality:
 
 ## 🚀 Future Roadmap
 
-### v0.1.0 Stable (Q2 2026)
-- [ ] API surface freeze and stabilization
-- [ ] Comprehensive benchmark suite expansion
-- [ ] Enhanced documentation and cookbooks
+### Ongoing Stabilization
+*(retitled 2026-07-14 — formerly labeled "v0.1.0 Stable (Q2 2026)", which was stale: the project has already shipped v0.1.1, v0.1.2, and now v0.2.0 past that milestone. Re-scoped under a version-agnostic heading since these are continuous efforts, not a one-time gate tied to a past version.)*
+- [ ] API surface freeze and stabilization — not yet: v0.2.0 alone shipped six explicitly-tagged breaking changes (`sklears-core::gpu`, `sklears-core::trait_explorer::graph_visualization`, `sklears-cross-decomposition`, `sklears-discriminant-analysis`, `sklears-compose`, `sklears-python` — per CHANGELOG `### Changed`), so the public API surface is still actively moving.
+- [x] Comprehensive benchmark suite expansion — DONE: all 36 workspace crates now have a dedicated `benches/` directory (`find crates -iname "*bench*"`), e.g. `sklears/benches/{comprehensive_benchmarks,advanced_performance_benchmarks,tree_ensemble_benchmarks,continuous_benchmarks}.rs` plus per-crate `benchmarking.rs`/`benchmark.rs` source modules in sklears-core, sklears-isotonic, sklears-kernel-approximation, sklears-metrics, sklears-feature-selection, sklears-dummy, sklears-impute, and sklears-datasets; the v0.2.0 CHANGELOG additionally re-enabled the `tree_ensemble_benchmarks` bench target and added `performance_comparison_comprehensive` now that the `preprocessing` feature is restored.
+- [ ] Enhanced documentation and cookbooks — partial progress only: `sklears-covariance`'s `examples/comprehensive_cookbook.rs` and `examples/covariance_hyperparameter_tuning_demo.rs` were converted from "under development" placeholder `main()`s to real working recipes in v0.2.0 (CHANGELOG `### Fixed`), but `find . -iname "*cookbook*"` still turns up only that one file workspace-wide — not comprehensive yet.
 - [ ] Production case studies
 - [ ] Community feedback integration
 
@@ -211,7 +212,7 @@ All major scikit-learn modules are implemented with production-ready quality:
 - [ ] Advanced AutoML capabilities
 - [ ] ONNX/PMML model interchange
 - [ ] WebAssembly compilation support
-- [ ] Embedded/no-std support for microcontrollers
+- [ ] Embedded/no-std support for microcontrollers — `sklears-simd`'s `no-std` feature is explicitly commented "temporarily disabled until implementation is complete" (`crates/sklears-simd/src/lib.rs:10`); confirmed not done.
 
 ## 🔧 Development Guidelines
 
@@ -242,8 +243,8 @@ All major scikit-learn modules are implemented with production-ready quality:
 
 ---
 
-*Version: 0.2.0 — 2026-07-11*
-*Last Release: v0.2.0 — 2026-07-11*
+*Version: 0.2.0 — 2026-07-14*
+*Last Release: v0.2.0 — 2026-07-14*
 *Next Milestone: TBD*
 
 ## ✅ Stub-check backlog — COMPLETED (2026-06-21, v0.1.2)
@@ -402,6 +403,8 @@ oxicuda-backend / oxicuda-blas / oxicuda-solver 等に一本化する。
   - Priority: P3 | Scope: large
 - **`sklears-python` `PyDecisionTreeClassifier`/`PyDecisionTreeRegressor` wrap a still-degenerate type** (`crates/sklears-python/src/tree.rs:18-19,152-155`) — new finding surfaced 2026-07-05 by the `sklears-tree` Tranche 1 fix (see "🔎 Fabrication audit findings" Tier 2 RESOLVED note + new Tier 4 entry above): both wrapper structs hold `Option<sklears_tree::DecisionTree>`/`Option<DecisionTree<Trained>>` instead of the now-real `sklears_tree::classifier`/`regressor` types, so fit/predict stay degenerate through PyO3. Fix is mechanical (retarget the two structs to the real types), but inherits the same `Array1<i32>`-vs-`Array1<f64>` label-type breaking change already approved for the Rust-side fix, so it needs the same care at the Python-API boundary. Not started.
   - Priority: P2 | Scope: medium
+- **`sklears-core`: `property_tests`/`test_utilities` modules still disabled — deferred to v0.2.1 (user decision, 2026-07-14)** (`crates/sklears-core/src/lib.rs:251-259`) — both modules are commented out with "KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.1." (the comment previously said "Planned for v0.2.0."; that target was missed, and this entry originally flagged it as an unfulfilled v0.2.0 promise). The user has now explicitly deferred re-enabling these modules to v0.2.1 rather than leaving it as an open-ended "someday before v0.3.0" note — this is a scheduled v0.2.1 item. The same underlying ndarray-0.17 HRTB issue has already been solved twice elsewhere in this exact codebase, both in v0.1.1: `sklears-compose`'s `cross_validation` module was re-enabled via `FitCV`/`PredictCV` adapter traits that use owned arrays to eliminate HRTB (`crates/sklears-compose/src/lib.rs:114-117`), and `sklears-multiclass` resolved the same class of issue by adding explicit `Fitted = F` associated-type bounds to its `Fit` trait constraints (`crates/sklears-multiclass/src/lib.rs:7-9`). Either pattern is a plausible template for re-enabling `property_tests`/`test_utilities`; not attempted here.
+  - Priority: P2 | Scope: medium | Target: v0.2.1
 
 ---
 

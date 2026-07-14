@@ -1,6 +1,6 @@
 # sklears-decomposition TODO
 
-## Current Status (updated 2026-07-11)
+## Current Status (updated 2026-07-14)
 This crate is part of the sklears v0.2.0 release. 380 tests passing (`cargo nextest run -p sklears-decomposition --all-features`; previously recorded as 344/349).
 
 ## README accuracy pass (2026-07-11)
@@ -115,8 +115,11 @@ Status: fully migrated to oxicuda-backed GPU support (Wave A2). Phase 5 hardenin
   warning-free), plus `cargo nextest run -p sklears-decomposition --features gpu
   hardware_acceleration` (20/20 passed).
 
-Version watch: keep oxicuda-* pins at 0.4.0 (matches latest published on crates.io); bump to 0.4.1
-only when it ships (do NOT bump early per Latest-crates policy).
+Version watch: oxicuda-* pins are now 0.5.0 workspace-wide (bumped 0.4.0 → 0.4.1 → 0.5.0 during the
+0.2.0 cycle). 0.5.0 is a hard floor, not a preference — 0.4.1's PTX codegen emitted invalid f64
+elementwise/reduction kernels (32-bit value registers for 64-bit ops) that `ptxas` rejects on real
+hardware; 0.5.0 carries the fix. This crate's `gpu` feature deps (`oxicuda-solver`,
+`oxicuda-memory`) follow the same workspace pin.
 
 ---
 

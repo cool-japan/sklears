@@ -7,7 +7,7 @@
 
 Comprehensive evaluation metrics for machine learning in Rust, with SIMD/GPU-accelerated kernels available behind optional features.
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -195,7 +195,7 @@ let results = MetricsBuilder::new()
 
 ## Status
 
-- Covered by 426 passing tests (`cargo nextest run -p sklears-metrics --all-features`, verified 2026-07-11).
+- Covered by 426 passing tests (`cargo nextest run -p sklears-metrics --all-features`, verified 2026-07-14).
 - Broad scikit-learn-style metric coverage across classification, regression, clustering, ranking, calibration, and specialized domains.
 - Only `scoring::*` and select `classification` display types are re-exported at the crate root — everything else is reached through its owning module (see the examples above).
 - Future work (additional GPU-accelerated metric kernels, richer conformal prediction, distributed metrics on non-macOS/MPI targets) tracked in this crate’s `TODO.md`.

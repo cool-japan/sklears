@@ -7,7 +7,7 @@
 
 The foundational crate for sklears, providing core traits, types, and utilities that power the entire machine learning ecosystem. Actively evolving (Partial) — core traits and error handling are stable, while some advanced modules are still maturing; see [Status](#status).
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -18,7 +18,7 @@ The foundational crate for sklears, providing core traits, types, and utilities 
 - **Performance Infrastructure**: SIMD, an oxicuda-backed GPU backend (`gpu::{GpuBackend, GpuArray, GpuMatrixOps}`) that gracefully reports "no GPU" instead of faking a CPU fallback, memory pooling, parallel processing
 - **Error Handling**: Rich error types with context propagation and recovery
 - **Integration**: scikit-learn compatibility, format I/O, cross-framework support
-- **Trait Explorer Tooling**: Graph-based analysis of the crate's own trait relationships (hub/bridge/bottleneck node detection, Newman modularity, small-world coefficient), plus API reference generation
+- **Trait Explorer Tooling**: Graph-based analysis of the crate's own trait relationships (hub/bridge/bottleneck node detection, Newman modularity, small-world coefficient), plus API reference generation. Also includes `trait_explorer::security_analysis`, an internal dev-tooling module (not part of the public ML API) for compliance/security-metrics assessment of trait usage, with data-backed constructors for common regulatory frameworks (GDPR, HIPAA, CCPA, SOX, FERPA, ISO 27001, NIST CSF, COBIT, ITIL, CIS Controls).
 
 ## Status
 

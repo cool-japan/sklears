@@ -7,7 +7,7 @@
 
 Efficient nearest neighbor algorithms for Rust with advanced indexing structures, GPU acceleration, and production-ready tooling.
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -117,8 +117,10 @@ use sklears_neighbors::{GpuConfig, GpuDistanceCalculator, GpuKNeighborsSearch};
 // when the `gpu` feature is off or no device is detected.
 let calculator = GpuDistanceCalculator::with_config(GpuConfig::default());
 
-// GPU k-nearest neighbors, optionally backed by an HNSW approximate index
-// (falls back to the exact brute-force path without the `gpu` feature).
+// GPU k-nearest neighbors: `kneighbors()` prefers an HNSW approximate index
+// when `with_ann(true)` and the metric is Euclidean/Cosine, transparently
+// falling back to the exact brute-force path otherwise (or without the `gpu`
+// feature). `kneighbors_exact()` always takes the exact path directly.
 let gpu_knn = GpuKNeighborsSearch::new(10, GpuConfig::default()).with_ann(true);
 ```
 

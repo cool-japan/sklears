@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -40,5 +40,5 @@ let tfidf = vectorizer.fit_transform(&docs)?;
 
 - Extensively tested; 416 passing crate tests in `0.2.0`.
 - Offers >99% parity with scikit-learn’s feature extraction module, with SIMD-accelerated hot paths (no GPU backend).
-- This session fixed `image::simd_accelerated`: 9 functions previously labeled "SIMD-accelerated" (with fabricated speedup figures in their own doc comments) were plain scalar loops; they now genuinely delegate to `scirs2_core::simd_ops::SimdUnifiedOps`, verified numerically equivalent to the prior behavior to 1e-9 tolerance.
+- This session fixed `image::simd_accelerated`: 7 of its 9 public functions were labeled "SIMD-accelerated" (with fabricated speedup figures up to "8.7x" in their own doc comments) despite being plain scalar loops — e.g. `simd_array_subtraction` was literally `a - b`; all 7 now genuinely delegate to `scirs2_core::simd_ops::SimdUnifiedOps`, verified numerically equivalent to the prior behavior to 1e-9 tolerance. This audit was scoped to that one module — other `image::` files (`patch_extraction`, `wavelet_features`, `surf_features`) still carry legacy "SIMD-accelerated"/speedup doc comments that were not verified against their implementations in this pass.
 - Additional work (streaming text ingestion, audio-specific transforms) documented in `TODO.md`.

@@ -7,7 +7,7 @@
 
 High-performance matrix decomposition and dimensionality reduction algorithms for Rust, featuring streaming capabilities and SIMD/GPU-accelerated kernels.
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -230,7 +230,7 @@ sklears-decomposition/
 
 ## Status
 
-- **Tests**: 380 passing crate tests (`cargo nextest run -p sklears-decomposition --all-features`, verified 2026-07-11).
+- **Tests**: 380 passing crate tests (`cargo nextest run -p sklears-decomposition --all-features`, verified 2026-07-14).
 - **Core Algorithms**: PCA, NMF, FastICA/JADE/InfoMax, Kernel PCA, Factor Analysis, Dictionary Learning (+ mini-batch), Incremental PCA, Online NMF, CP/Tucker tensor decomposition, CCA, PLS, low-rank matrix recovery (PCP/RPCA-style) are real, tested implementations.
 - **Known gaps**: `RobustPCA`, `SparsePCA`, and `ProbabilisticPCA` in `pca.rs` are currently empty placeholder marker structs (no fields, no methods) kept only for name compatibility — use `LowRankMatrixRecovery` for robust/sparse-plus-low-rank recovery instead. `PcaConfig::svd_solver` is a `String` field that is not yet read anywhere in the fit path (no working randomized-SVD path).
 - **Streaming Support**: Fully implemented (`IncrementalPCA`, `OnlineNMF`, `StreamingPCA`, `StreamingICA`).

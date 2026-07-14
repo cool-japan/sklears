@@ -7,7 +7,7 @@
 
 Clustering algorithms for the sklears machine learning library.
 
-> **Latest release:** `0.2.0` (July 11, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 

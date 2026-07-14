@@ -1,6 +1,6 @@
 # TODO - v0.2.0
 
-## Current Status (updated 2026-07-11)
+## Current Status (updated 2026-07-14)
 This crate is part of the sklears v0.2.0 release. The compiled public API (`src/lib.rs`) currently
 exposes only: `generators` (basic + adversarial/causal/domain_specific/experimental/manifold/
 multimodal/privacy/simd/spatial/statistical/time_series/type_safe/performance submodules),
@@ -11,7 +11,7 @@ multimodal/privacy/simd/spatial/statistical/time_series/type_safe/performance su
 
 `MIGRATION_STATUS.md` (dated 2026-03-20) documents ~400K lines of previously-implemented code that
 is present in `src/` but not declared as a `mod` anywhere reachable from the current `lib.rs`, so it
-does not compile into the crate at all. Verified still true as of 2026-07-11 (`src/lib.rs` is 48
+does not compile into the crate at all. Verified still true as of 2026-07-14 (`src/lib.rs` is 48
 lines; none of these files are referenced by any `mod` declaration reachable from it):
 
 - [ ] `src/loaders.rs` — classic dataset loaders (`load_iris`, `load_wine`, `load_digits`,

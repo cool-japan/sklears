@@ -7,7 +7,7 @@ A comprehensive machine learning library in Rust, inspired by scikit-learn's int
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.89+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.2.0` (2026-07-11) — 12,721 tests passing across 36 crates. See the [CHANGELOG.md](CHANGELOG.md) for details.
+> **Latest release:** `0.2.0` (2026-07-14) — 12,721 tests passing across 36 crates. See the [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## Overview
 
@@ -856,7 +856,7 @@ cargo test -p sklears-linear
 
 See [TODO.md](TODO.md) for detailed implementation plans.
 
-### Current Release Snapshot (0.2.0 — 2026-07-11)
+### Current Release Snapshot (0.2.0 — 2026-07-14)
 
 | Area | Status | Notes |
 |------|--------|-------|

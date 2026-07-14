@@ -1,7 +1,9 @@
-# TODO - v0.1.0
+# TODO - v0.2.0
 
 ## Current Status
-This crate is part of the sklears v0.1.0 initial release.
+This crate is part of the sklears v0.2.0 release. No source changes to this crate were needed for
+0.2.0 (not mentioned in the [0.2.0] CHANGELOG entry); the baseline estimator API and strategies
+below are carried forward unchanged from v0.1.0.
 
 ## Future Enhancements
 - Performance optimizations

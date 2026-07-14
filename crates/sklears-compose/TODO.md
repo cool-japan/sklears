@@ -1,6 +1,6 @@
 # TODO - v0.2.0
 
-## Current Status (updated 2026-07-11)
+## Current Status (updated 2026-07-14)
 This crate is part of the sklears v0.2.0 release. 782 tests passing (`cargo nextest run -p sklears-compose --all-features`, re-verified 2026-07-11 — matches the count already recorded below).
 
 ## Completed in v0.1.1

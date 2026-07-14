@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -54,5 +54,6 @@ module for the algorithms you enabled.
 - Serves as the umbrella facade crate, re-exporting `sklears-core`/`sklears-utils` plus one module per optional algorithm-category feature (`linear`, `clustering`, `ensemble`, `tree`, `neighbors`, `naive-bayes`, `multiclass`, `semi-supervised`, and more — see `Cargo.toml`'s `[features]` for the full list).
 - GPU acceleration is available behind the `gpu` feature (OxiCUDA/CUDA-backed via `sklears-core::gpu`), forwarding to each enabled subcrate's own `gpu` feature with an honest CPU fallback when no device is detected.
 - This crate's own integration/property tests: 32 passing (13 skipped) with `--all-features` for `0.2.0`; each subcrate carries its own, much larger, unit-test suite documented in its own README.
+- The `preprocessing` feature and its `sklears-preprocessing` optional dependency (previously commented out workspace-wide) are restored in `0.2.0`, along with the 8 algorithm-showcase examples and the `tree_ensemble_benchmarks` bench target that require it (`linear_models_showcase`, `lasso_regression`, `kmeans_clustering`, `dbscan_clustering`, `hierarchical_clustering`, `mean_shift_clustering`, `spectral_clustering`, `gmm_clustering`, plus `performance_comparison_comprehensive`).
 - Re-export map kept in sync with individual module READMEs and documentation.
 - Further enhancements (module-level doc consolidation, feature flag audits) tracked in `TODO.md`.

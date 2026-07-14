@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -15,7 +15,7 @@
 
 - **Models**: MLPClassifier, MLPRegressor, RBMs, autoencoders (including self-supervised/contrastive variants).
 - **Optimizers**: SGD, Adam, AdamW, Nadam, RMSprop, L-BFGS, and adaptive learning-rate schedules.
-- **Hardware Acceleration**: SIMD kernels and CUDA execution (oxicuda-backed `gpu` feature), with mixed-precision training support.
+- **Hardware Acceleration**: SIMD kernels and CUDA execution (oxicuda-backed `gpu` feature) — real on-device FP16 tensor-core GEMM (`tensor_core_gemm_f16`/`mixed_precision_gemm`) and a real `oxicuda-dnn` conv2d forward pass (`tensor_core_conv2d`), plus a pooled GPU memory allocator (`gpu_pool` module) with real hit/miss/allocation telemetry.
 - **Integration**: Works with sklears pipelines, calibration, inspection, and export utilities.
 
 ## Quick Start
@@ -47,4 +47,4 @@ let probs = fitted.predict_proba(&x)?;
 
 - Exercised via 449 passing crate tests in `0.2.0` (86 skipped).
 - Verified against scikit-learn parity tests for convergence and scoring APIs.
-- Roadmap items (ONNX export, distillation helpers) documented in this crate’s `TODO.md`.
+- Knowledge distillation ships today (`knowledge_distillation` module); ONNX export is not yet implemented.

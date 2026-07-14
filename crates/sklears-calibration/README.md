@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -16,7 +16,7 @@
 - **CalibratedClassifierCV**: Platt scaling, isotonic regression, and temperature scaling strategies.
 - **Probability Tools**: Reliability diagrams, Brier score decomposition, and calibration curve generation.
 - **Integration**: Works with sklears pipelines, model selection, and inspection modules.
-- **GPU Support**: Optional oxicuda-backed acceleration (`gpu` feature) for device enumeration, memory queries, and temperature-scaling calibration on large-scale workloads; honestly reports "no device" when the feature is off or no GPU is present.
+- **GPU Support**: Optional oxicuda-backed acceleration (`gpu` feature) for device enumeration, memory queries, and temperature-scaling calibration on large-scale workloads; honestly reports "no device" when the feature is off or no GPU is present. `GpuTemperatureScalingCalibrator`'s device sigmoid path only exists as an f32 kernel (no faithful f64 form in the oxicuda stack), so the device fast path is only taken under an explicit `use_mixed_precision` opt-in; without it — or with no device present or a small batch — prediction runs the exact CPU f64 path instead of risking a precision mismatch.
 
 ## Quick Start
 

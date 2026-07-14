@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.2.0` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -14,7 +14,7 @@
 ## Key Features
 
 - **Algorithms**: t-SNE, UMAP, Isomap, Locally Linear Embedding, Spectral Embedding, MDS.
-- **Performance**: Barnes-Hut t-SNE, GPU-accelerated pairwise distances and kNN search (`gpu` feature, via `oxicuda-manifold`), and parallel kNN search (rayon).
+- **Performance**: Barnes-Hut t-SNE, GPU-accelerated pairwise distances, HNSW-backed approximate kNN search for Euclidean/Cosine metrics (`gpu` feature, via `oxicuda-manifold`), and parallel exact kNN search (rayon).
 - **Visualization**: Embedding utilities that integrate with `sklears-inspection` and Python plotting stacks.
 - **Pipeline Support**: Works seamlessly with preprocessing, decomposition, and clustering crates.
 
