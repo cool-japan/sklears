@@ -344,10 +344,10 @@ impl CalibrationAwareTrainer {
 
         // Normalize distributions
         let total_samples = n_samples as Float;
-        for (_, count) in pred_dist.iter_mut() {
+        for count in pred_dist.values_mut() {
             *count /= total_samples;
         }
-        for (_, count) in true_dist.iter_mut() {
+        for count in true_dist.values_mut() {
             *count /= total_samples;
         }
 

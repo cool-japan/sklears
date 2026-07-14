@@ -63,18 +63,24 @@ impl From<PyElasticNetConfig> for LinearRegressionConfig {
 ///
 /// Minimizes the objective function:
 ///
-///     1 / (2 * n_samples) * ||y - Xw||^2_2
-///     + alpha * l1_ratio * ||w||_1
-///     + 0.5 * alpha * (1 - l1_ratio) * ||w||^2_2
+/// ```text
+/// 1 / (2 * n_samples) * ||y - Xw||^2_2
+/// + alpha * l1_ratio * ||w||_1
+/// + 0.5 * alpha * (1 - l1_ratio) * ||w||^2_2
+/// ```
 ///
 /// If you are interested in controlling the L1 and L2 penalty
 /// separately, keep in mind that this is equivalent to:
 ///
-///     a * L1 + b * L2
+/// ```text
+/// a * L1 + b * L2
+/// ```
 ///
 /// where:
 ///
-///     alpha = a + b and l1_ratio = a / (a + b)
+/// ```text
+/// alpha = a + b and l1_ratio = a / (a + b)
+/// ```
 ///
 /// The parameter l1_ratio corresponds to alpha in the glmnet R package
 /// while alpha corresponds to the lambda parameter in glmnet.

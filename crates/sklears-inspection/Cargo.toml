@@ -32,7 +32,6 @@ uuid = { workspace = true }
 rayon = { workspace = true, optional = true }
 num_cpus = { workspace = true, optional = true }
 memmap2 = { workspace = true, optional = true }
-tokio = { workspace = true, optional = true }
 # WebAssembly dependencies
 wasm-bindgen = { workspace = true, optional = true }
 js-sys = { workspace = true, optional = true }
@@ -44,6 +43,11 @@ approx = { workspace = true }
 proptest = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "inspection_benchmarks"
+harness = false
 
 [features]
 default = ["serde", "parallel", "mmap"]
@@ -51,5 +55,5 @@ serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]
 simd = ["dep:sklears-simd"]
 parallel = ["dep:rayon", "dep:num_cpus"]
 mmap = ["dep:memmap2"]
-gpu = ["dep:tokio"]
+gpu = ["sklears-core/gpu_support"]
 wasm = ["dep:wasm-bindgen", "dep:js-sys", "dep:web-sys", "dep:console_error_panic_hook"]

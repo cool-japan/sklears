@@ -366,6 +366,17 @@ impl<'a> Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>> for MockEstimator {
     }
 }
 
+/// Owned-array variant of `Fit` for contexts (e.g. contract testing) that
+/// operate on owned `Array2`/`Array1` values rather than borrowed views.
+/// Delegates to the view-based implementation above.
+impl Fit<Array2<f64>, Array1<f64>> for MockEstimator {
+    type Fitted = TrainedMockEstimator;
+
+    fn fit(self, x: &Array2<f64>, y: &Array1<f64>) -> Result<Self::Fitted> {
+        Fit::fit(self, &x.view(), &y.view())
+    }
+}
+
 impl<'a> Predict<ArrayView2<'a, f64>, Array1<f64>> for TrainedMockEstimator {
     fn predict(&self, x: &ArrayView2<'a, f64>) -> Result<Array1<f64>> {
         let mut state = self
@@ -472,6 +483,14 @@ impl<'a> Predict<ArrayView2<'a, f64>, Array1<f64>> for TrainedMockEstimator {
     }
 }
 
+/// Owned-array variant of `Predict`, delegating to the view-based
+/// implementation above.
+impl Predict<Array2<f64>, Array1<f64>> for TrainedMockEstimator {
+    fn predict(&self, x: &Array2<f64>) -> Result<Array1<f64>> {
+        Predict::predict(self, &x.view())
+    }
+}
+
 impl<'a> PredictProba<ArrayView2<'a, f64>, Array2<f64>> for TrainedMockEstimator {
     fn predict_proba(&self, x: &ArrayView2<'a, f64>) -> Result<Array2<f64>> {
         // Convert predictions to probabilities (simplified for binary classification)
@@ -485,6 +504,14 @@ impl<'a> PredictProba<ArrayView2<'a, f64>, Array2<f64>> for TrainedMockEstimator
         }
 
         Ok(probabilities)
+    }
+}
+
+/// Owned-array variant of `PredictProba`, delegating to the view-based
+/// implementation above.
+impl PredictProba<Array2<f64>, Array2<f64>> for TrainedMockEstimator {
+    fn predict_proba(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
+        PredictProba::predict_proba(self, &x.view())
     }
 }
 
@@ -636,6 +663,16 @@ impl<'a> Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>> for MockTransformer {
     }
 }
 
+/// Owned-array variant of `Fit` for `MockTransformer`, delegating to the
+/// view-based implementation above.
+impl Fit<Array2<f64>, Array1<f64>> for MockTransformer {
+    type Fitted = MockTransformer;
+
+    fn fit(self, x: &Array2<f64>, y: &Array1<f64>) -> Result<Self::Fitted> {
+        Fit::fit(self, &x.view(), &y.view())
+    }
+}
+
 impl<'a> Transform<ArrayView2<'a, f64>, Array2<f64>> for MockTransformer {
     fn transform(&self, x: &ArrayView2<'a, f64>) -> Result<Array2<f64>> {
         if !self.fitted {
@@ -681,6 +718,14 @@ impl<'a> Transform<ArrayView2<'a, f64>, Array2<f64>> for MockTransformer {
                 }
             }
         }
+    }
+}
+
+/// Owned-array variant of `Transform` for `MockTransformer`, delegating to
+/// the view-based implementation above.
+impl Transform<Array2<f64>, Array2<f64>> for MockTransformer {
+    fn transform(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
+        Transform::transform(self, &x.view())
     }
 }
 
@@ -912,6 +957,70 @@ mod tests {
             let sum: f64 = row.sum();
             assert!((sum - 1.0).abs() < 1e-10);
         }
+    }
+
+    #[test]
+    fn test_mock_estimator_owned_array_fit_predict_round_trip() {
+        let mock = MockEstimator::builder()
+            .with_behavior(MockBehavior::ConstantPrediction(3.0))
+            .build();
+
+        let features = Array2::zeros((6, 4));
+        let targets = Array1::zeros(6);
+
+        // Exercise the owned-array `Fit`/`Predict` impls directly (no `.view()`
+        // calls at the call site).
+        let trained: TrainedMockEstimator =
+            Fit::<Array2<f64>, Array1<f64>>::fit(mock, &features, &targets)
+                .expect("owned-array fit should succeed");
+        let predictions: Array1<f64> =
+            Predict::<Array2<f64>, Array1<f64>>::predict(&trained, &features)
+                .expect("owned-array predict should succeed");
+
+        assert_eq!(predictions.len(), 6);
+        assert!(predictions.iter().all(|&p| p == 3.0));
+    }
+
+    #[test]
+    fn test_mock_estimator_owned_array_predict_proba() {
+        let mock = MockEstimator::builder()
+            .with_behavior(MockBehavior::ConstantPrediction(0.0))
+            .build();
+
+        let features = Array2::zeros((4, 2));
+        let targets = Array1::zeros(4);
+
+        let trained: TrainedMockEstimator =
+            Fit::<Array2<f64>, Array1<f64>>::fit(mock, &features, &targets)
+                .expect("owned-array fit should succeed");
+        let probabilities: Array2<f64> =
+            PredictProba::<Array2<f64>, Array2<f64>>::predict_proba(&trained, &features)
+                .expect("owned-array predict_proba should succeed");
+
+        assert_eq!(probabilities.shape(), &[4, 2]);
+        for row in probabilities.rows() {
+            let sum: f64 = row.sum();
+            assert!((sum - 1.0).abs() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_mock_transformer_owned_array_fit_transform_round_trip() {
+        let transformer = MockTransformer::new(MockTransformType::Scale(2.0));
+        let data =
+            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("valid array shape");
+        let targets = Array1::zeros(2);
+
+        let fitted: MockTransformer =
+            Fit::<Array2<f64>, Array1<f64>>::fit(transformer, &data, &targets)
+                .expect("owned-array fit should succeed");
+        let transformed: Array2<f64> =
+            Transform::<Array2<f64>, Array2<f64>>::transform(&fitted, &data)
+                .expect("owned-array transform should succeed");
+
+        let expected =
+            Array2::from_shape_vec((2, 2), vec![2.0, 4.0, 6.0, 8.0]).expect("valid array shape");
+        assert_eq!(transformed, expected);
     }
 
     #[test]

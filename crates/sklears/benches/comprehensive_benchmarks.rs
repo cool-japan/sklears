@@ -110,14 +110,13 @@ fn bench_decision_trees(c: &mut Criterion) {
     for &n_samples in &[100, 500, 1000] {
         for &n_features in &[5, 10, 15] {
             let (X, y_i32) = generate_classification_data(n_samples, n_features);
-            let y = y_i32.mapv(|x| x as f64);
 
             group.throughput(Throughput::Elements(n_samples as u64));
 
             // Decision Tree
             group.bench_with_input(
                 BenchmarkId::new("decision_tree_fit", format!("{}x{}", n_samples, n_features)),
-                &(&X, &y),
+                &(&X, &y_i32),
                 |b, (X, y)| {
                     b.iter(|| {
                         let tree = DecisionTreeClassifier::new();

@@ -812,8 +812,17 @@ impl Fit<ArrayView2<'_, Float>, ()> for AdversarialTSNE<Untrained> {
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for AdversarialTSNE<AdversarialTSNETrained> {
     fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        // t-SNE is not out-of-sample, so return the fitted embedding
-        Ok(self.state.embedding.clone())
+        // Adversarial t-SNE is built on t-SNE, which is transductive: the
+        // embedding is optimized jointly over the fixed training set and there is
+        // no learned mapping that can project new points into that space. Report
+        // this honestly rather than silently returning the stale training-time
+        // embedding regardless of input.
+        Err(SklearsError::NotImplemented(
+            "AdversarialTSNE does not support out-of-sample transform (t-SNE-based, \
+             transductive method); use `embedding()` to retrieve the training-time \
+             embedding instead of calling `transform()`."
+                .to_string(),
+        ))
     }
 }
 
@@ -831,5 +840,52 @@ impl AdversarialTSNE<AdversarialTSNETrained> {
     /// Get the number of iterations run
     pub fn n_iter_run(&self) -> usize {
         self.state.n_iter_run
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    #[test]
+    fn test_adversarial_tsne_fit_works() {
+        let x = array![
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
+            [10.0, 11.0, 12.0]
+        ];
+
+        let tsne = AdversarialTSNE::new()
+            .n_components(2)
+            .n_iter(5)
+            .random_state(42);
+
+        let fitted = tsne.fit(&x.view(), &()).expect("fit should succeed");
+        assert_eq!(fitted.embedding().dim(), (4, 2));
+    }
+
+    #[test]
+    fn test_adversarial_tsne_transform_errors() {
+        let x = array![
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
+            [10.0, 11.0, 12.0]
+        ];
+
+        let tsne = AdversarialTSNE::new()
+            .n_components(2)
+            .n_iter(5)
+            .random_state(42);
+
+        let fitted = tsne.fit(&x.view(), &()).expect("fit should succeed");
+        let result = fitted.transform(&x.view());
+
+        // AdversarialTSNE is transductive (t-SNE-based); transform() must
+        // honestly report NotImplemented rather than silently returning the
+        // stale training-time embedding regardless of input.
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
     }
 }

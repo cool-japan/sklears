@@ -1376,7 +1376,7 @@ mod tests {
             resources: ResourceConfig {
                 max_memory_mb: 1024,
                 max_cpu_cores: 4,
-                temp_directory: "/tmp".to_string(),
+                temp_directory: std::env::temp_dir().display().to_string(),
                 cache_enabled: true,
             },
             logging: LoggingConfig {

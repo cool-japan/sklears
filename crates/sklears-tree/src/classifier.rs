@@ -5,8 +5,7 @@
 
 use crate::builder::*;
 use crate::config::*;
-use crate::node::*;
-use scirs2_core::ndarray::{Array1, Array2, s};
+use scirs2_core::ndarray::{s, Array1, Array2};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Predict, Trained, Untrained},
@@ -43,6 +42,11 @@ impl DecisionTreeClassifier<Untrained> {
             n_features_: None,
             max_depth_: None,
         }
+    }
+
+    /// Check if the classifier has been fitted (always false for untrained classifiers)
+    pub fn is_fitted(&self) -> bool {
+        false
     }
 
     /// Set the split criterion
@@ -433,6 +437,11 @@ impl DecisionTreeClassifier<Untrained> {
 }
 
 impl DecisionTreeClassifier<Trained> {
+    /// Check if the classifier has been fitted (always true for trained classifiers)
+    pub fn is_fitted(&self) -> bool {
+        true
+    }
+
     /// Get the classes
     pub fn classes(&self) -> &Array1<i32> {
         self.classes_.as_ref().expect("Model should be fitted")
@@ -641,7 +650,11 @@ pub fn handle_missing_values(
 
             for j in 0..x.ncols() {
                 let column = x.column(j);
-                let valid_values: Vec<f64> = column.iter().filter(|&&val| !val.is_nan()).cloned().collect();
+                let valid_values: Vec<f64> = column
+                    .iter()
+                    .filter(|&&val| !val.is_nan())
+                    .cloned()
+                    .collect();
 
                 if !valid_values.is_empty() {
                     let mean = valid_values.iter().sum::<f64>() / valid_values.len() as f64;
@@ -783,7 +796,9 @@ mod tests {
             .fit(&x, &y)
             .expect("fit should succeed");
 
-        let importances = model.feature_importances().expect("importances should compute");
+        let importances = model
+            .feature_importances()
+            .expect("importances should compute");
 
         assert_eq!(importances.len(), 3, "one importance per feature");
         for &imp in importances.iter() {
@@ -793,6 +808,61 @@ mod tests {
         assert!(
             (total - 1.0).abs() < 1e-9,
             "importances must sum to 1.0, got {total}"
+        );
+    }
+
+    /// Non-degeneracy check: the classifier must actually learn from `y`, not
+    /// just return a shape-correct constant. Two tight, well-separated blobs
+    /// with distinct integer labels are trivially tree-separable, so a real
+    /// implementation should classify them with high accuracy; the old
+    /// degenerate stub (which discarded `y` and always predicted zeros) would
+    /// score at best ~50% here since half the labels are `1`.
+    #[test]
+    fn test_classifier_learns_separable_blobs() {
+        use scirs2_core::random::seeded_rng;
+
+        let mut rng = seeded_rng(42);
+        let n_per_class = 25;
+        let mut x_data = Vec::with_capacity(n_per_class * 2 * 2);
+        let mut y_data = Vec::with_capacity(n_per_class * 2);
+
+        // Class 0 clustered tightly around (-5, -5); class 1 around (5, 5).
+        // The clusters are far apart relative to their spread, so they are
+        // cleanly separable by axis-aligned splits.
+        for _ in 0..n_per_class {
+            x_data.push(-5.0 + rng.gen_range(-1.0..1.0));
+            x_data.push(-5.0 + rng.gen_range(-1.0..1.0));
+            y_data.push(0i32);
+        }
+        for _ in 0..n_per_class {
+            x_data.push(5.0 + rng.gen_range(-1.0..1.0));
+            x_data.push(5.0 + rng.gen_range(-1.0..1.0));
+            y_data.push(1i32);
+        }
+
+        let x = Array2::from_shape_vec((n_per_class * 2, 2), x_data)
+            .expect("shape should match data length");
+        let y = Array1::from_vec(y_data);
+
+        let model = DecisionTreeClassifier::new()
+            .fit(&x, &y)
+            .expect("fit should succeed on separable blobs");
+
+        assert_eq!(model.n_classes(), 2, "should discover exactly 2 classes");
+
+        let predictions = model.predict(&x).expect("predict should succeed");
+
+        let correct = predictions
+            .iter()
+            .zip(y.iter())
+            .filter(|(pred, actual)| pred == actual)
+            .count();
+        let accuracy = correct as f64 / y.len() as f64;
+
+        assert!(
+            accuracy > 0.9,
+            "expected >0.9 accuracy on well-separated blobs, got {accuracy} ({correct}/{})",
+            y.len()
         );
     }
 }

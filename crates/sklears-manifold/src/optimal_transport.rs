@@ -210,9 +210,27 @@ impl Fit<ArrayView2<'_, Float>, ()> for WassersteinEmbedding<Untrained> {
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for WassersteinEmbedding<WETrained> {
     fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        // For fitted data, return the stored embedding
-        // For new data, this would require out-of-sample extension
-        Ok(self.state.embedding.clone())
+        // This embedding is computed jointly: every point's coordinates come from an
+        // eigendecomposition of the pairwise Wasserstein/Sinkhorn optimal-transport
+        // couplings across the *entire* training set. There is no per-point mapping
+        // function that could be applied to a new, unseen sample, so honestly report
+        // that this is unsupported rather than silently replaying the training embedding.
+        Err(SklearsError::NotImplemented(
+            "WassersteinEmbedding::transform does not support new/unseen data: the \
+             embedding is computed jointly from optimal-transport (Sinkhorn) couplings \
+             over the entire training set, with no defined mapping for points outside \
+             it. Refit on the combined dataset (existing data plus the new points) to \
+             obtain an embedding that includes them. Use .embedding() to retrieve the \
+             training-time embedding computed by fit()."
+                .to_string(),
+        ))
+    }
+}
+
+impl WassersteinEmbedding<WETrained> {
+    /// Get the embedding
+    pub fn embedding(&self) -> &Array2<f64> {
+        &self.state.embedding
     }
 }
 
@@ -361,8 +379,27 @@ impl Fit<ArrayView2<'_, Float>, ()> for GromovWassersteinEmbedding<Untrained> {
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for GromovWassersteinEmbedding<GWETrained> {
     fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        // For fitted data, return the stored embedding
-        Ok(self.state.embedding.clone())
+        // Same joint-computation limitation as WassersteinEmbedding: the embedding comes
+        // from an eigendecomposition of pairwise Gromov-Wasserstein couplings between
+        // neighborhood distance structures across the entire training set, so there is
+        // no defined mapping for a new, unseen point.
+        Err(SklearsError::NotImplemented(
+            "GromovWassersteinEmbedding::transform does not support new/unseen data: the \
+             embedding is computed jointly from Gromov-Wasserstein couplings between \
+             neighborhood distance structures over the entire training set, with no \
+             defined mapping for points outside it. Refit on the combined dataset \
+             (existing data plus the new points) to obtain an embedding that includes \
+             them. Use .embedding() to retrieve the training-time embedding computed by \
+             fit()."
+                .to_string(),
+        ))
+    }
+}
+
+impl GromovWassersteinEmbedding<GWETrained> {
+    /// Get the embedding
+    pub fn embedding(&self) -> &Array2<f64> {
+        &self.state.embedding
     }
 }
 
@@ -917,12 +954,17 @@ mod tests {
             .random_state(42);
 
         let fitted = we.fit(&x.view(), &()).expect("operation should succeed");
-        let transformed = fitted
-            .transform(&x.view())
-            .expect("operation should succeed");
 
-        assert_eq!(transformed.dim(), (10, 2));
+        // The fit path still produces a valid embedding of the requested shape.
+        assert_eq!(fitted.embedding().dim(), (10, 2));
         assert!(fitted.state.eigenvalues.iter().all(|&x| x.is_finite()));
+
+        // transform() is transductive-only: it must honestly report that it cannot
+        // map new/unseen points instead of silently replaying the training embedding.
+        assert!(matches!(
+            fitted.transform(&x.view()),
+            Err(SklearsError::NotImplemented(_))
+        ));
     }
 
     #[test]
@@ -937,12 +979,17 @@ mod tests {
             .random_state(42);
 
         let fitted = gwe.fit(&x.view(), &()).expect("operation should succeed");
-        let transformed = fitted
-            .transform(&x.view())
-            .expect("operation should succeed");
 
-        assert_eq!(transformed.dim(), (8, 2));
+        // The fit path still produces a valid embedding of the requested shape.
+        assert_eq!(fitted.embedding().dim(), (8, 2));
         assert!(fitted.state.eigenvalues.iter().all(|&x| x.is_finite()));
+
+        // transform() is transductive-only: it must honestly report that it cannot
+        // map new/unseen points instead of silently replaying the training embedding.
+        assert!(matches!(
+            fitted.transform(&x.view()),
+            Err(SklearsError::NotImplemented(_))
+        ));
     }
 
     #[test]

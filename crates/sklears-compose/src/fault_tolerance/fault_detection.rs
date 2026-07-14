@@ -1021,6 +1021,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_threshold_detection() {
         let system = FaultDetectionSystem::with_defaults("test_system".to_string());
 
@@ -1039,6 +1040,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_statistical_anomaly_detection() {
         let system = FaultDetectionSystem::with_defaults("test_system".to_string());
 
@@ -1070,6 +1072,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_fault_classification() {
         let system = FaultDetectionSystem::with_defaults("test_system".to_string());
 
@@ -1081,6 +1084,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_resource_utilization_detection() {
         let mut config = FaultDetectionConfig::default();
         config.algorithms = vec![
@@ -1110,6 +1114,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_health_score_calculation() {
         let system = FaultDetectionSystem::with_defaults("test_system".to_string());
 
@@ -1145,6 +1150,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_pattern_condition_evaluation() {
         let system = FaultDetectionSystem::with_defaults("test_system".to_string());
 

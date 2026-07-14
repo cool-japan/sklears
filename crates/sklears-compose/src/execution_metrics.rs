@@ -500,12 +500,19 @@ impl ResourceTracker {
         Ok(0) // Fallback for unsupported platforms
     }
 
+    // GPU utilization/memory sampling is not wired up here: unlike device
+    // discovery/counting (see `resource_management::gpu_manager` and
+    // `comprehensive_benchmarking::execution_engine`, which route through
+    // `sklears_core::gpu::GpuUtils` / oxicuda-driver), live per-process GPU
+    // utilization and memory-usage sampling has no oxicuda API surface in
+    // this workspace yet, so these two fields are always reported as
+    // `None` rather than fabricated.
     fn get_gpu_usage() -> SklResult<Option<f64>> {
-        Ok(None) // Placeholder - would integrate with CUDA/OpenCL APIs
+        Ok(None)
     }
 
     fn get_gpu_memory() -> SklResult<Option<u64>> {
-        Ok(None) // Placeholder - would integrate with CUDA/OpenCL APIs
+        Ok(None)
     }
 
     fn get_network_bytes_sent() -> SklResult<u64> {

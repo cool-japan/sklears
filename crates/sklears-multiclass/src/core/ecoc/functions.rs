@@ -96,18 +96,38 @@ where
             .collect();
         results
     }
-    /// GPU-accelerated voting aggregation for multiple predictions
+    /// Voting aggregation for multiple predictions.
+    ///
+    /// `GPUMode::DistanceOps` / `GPUMode::Full` first try
+    /// [`aggregate_votes_device`](Self::aggregate_votes_device), which routes
+    /// through the real oxicuda-backed `compute_distances_gpu` (squared
+    /// Euclidean, which ranks identically to Hamming distance for +/-1 ECOC
+    /// codes since `||a-b||^2 == 4 * hamming(a,b)`) whenever the `gpu`
+    /// feature is compiled in and `GpuBackend::detect()` finds a real
+    /// device. When the feature is off, or a device isn't available (e.g.
+    /// this crate's own macOS dev/CI environment), this falls back to the
+    /// rayon-parallel CPU path below -- there is no fabricated "GPU" compute
+    /// path here.
     fn aggregate_votes_gpu(
         &self,
         predictions: &Array2<Float>,
         code_matrix: &CodeMatrix,
     ) -> SklResult<Array1<i32>> {
-        let (n_samples, _) = predictions.dim();
-        let n_classes = code_matrix.nrows();
-        let _result = Array1::<i32>::zeros(n_samples);
         if self.config.gpu_mode == GPUMode::Disabled {
             return self.aggregate_votes_cpu(predictions, code_matrix);
         }
+
+        #[cfg(feature = "gpu")]
+        {
+            if matches!(self.config.gpu_mode, GPUMode::DistanceOps | GPUMode::Full) {
+                if let Some(result) = self.aggregate_votes_device(predictions, code_matrix)? {
+                    return Ok(result);
+                }
+            }
+        }
+
+        let (n_samples, _) = predictions.dim();
+        let n_classes = code_matrix.nrows();
         let results: Vec<i32> = (0..n_samples)
             .into_par_iter()
             .map(|sample_idx| {
@@ -129,6 +149,56 @@ where
             })
             .collect();
         Ok(Array1::from(results))
+    }
+    /// Real device path for [`aggregate_votes_gpu`](Self::aggregate_votes_gpu).
+    ///
+    /// Returns `Ok(None)` (not an error) when no GPU is available, so the
+    /// caller falls back to the CPU path -- this preserves
+    /// `GpuBackend::detect()`'s honest `Ok(None)`-on-no-device contract all
+    /// the way up through this crate; it never fabricates GPU availability.
+    #[cfg(feature = "gpu")]
+    fn aggregate_votes_device(
+        &self,
+        predictions: &Array2<Float>,
+        code_matrix: &CodeMatrix,
+    ) -> SklResult<Option<Array1<i32>>> {
+        use crate::gpu::{
+            detect_context, GpuMatrixOps as MulticlassGpuMatrixOps, OxiCudaMatrixOps,
+        };
+
+        let Some(ctx) = detect_context()? else {
+            return Ok(None);
+        };
+
+        let (n_samples, code_length) = predictions.dim();
+        let n_classes = code_matrix.nrows();
+
+        let binary_predictions: Array2<f64> =
+            predictions.mapv(|p| if p > 0.5 { 1.0 } else { -1.0 });
+
+        let mut code_i8 = Array2::<i8>::zeros((n_classes, code_length));
+        for class_idx in 0..n_classes {
+            let row = code_matrix.get_row(class_idx);
+            for (bit_idx, &value) in row.iter().enumerate() {
+                code_i8[[class_idx, bit_idx]] = value as i8;
+            }
+        }
+
+        let ops = OxiCudaMatrixOps;
+        let distances = ops.compute_distances_gpu(&binary_predictions, &code_i8, &ctx)?;
+
+        let mut results = Vec::with_capacity(n_samples);
+        for sample_idx in 0..n_samples {
+            let row = distances.row(sample_idx);
+            let best_class = row
+                .iter()
+                .enumerate()
+                .min_by(|(_, a), (_, b)| a.total_cmp(b))
+                .map(|(idx, _)| idx)
+                .unwrap_or(0);
+            results.push(best_class as i32);
+        }
+        Ok(Some(Array1::from(results)))
     }
     /// CPU fallback for voting aggregation
     fn aggregate_votes_cpu(

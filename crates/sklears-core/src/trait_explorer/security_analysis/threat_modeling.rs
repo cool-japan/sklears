@@ -1,7 +1,17 @@
+use super::security_types::*;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::{Duration, SystemTime};
-use serde::{Serialize, Deserialize};
-use crate::trait_explorer::TraitContext;
+
+#[path = "threat_modeling_types.rs"]
+mod threat_modeling_types;
+pub use threat_modeling_types::*;
+// `ThreatActor`/`ThreatActorType`/`AnalysisDepth`/`MitigationStrategy` are also defined in
+// `security_types` (for the generic vulnerability/risk-assessment types, under the same
+// names but different shapes); re-import the threat-modeling-specific versions explicitly
+// here so they win unambiguously over the glob import above instead of triggering an
+// "ambiguous glob re-exports" warning.
+pub use threat_modeling_types::{AnalysisDepth, MitigationStrategy, ThreatActor, ThreatActorType};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThreatModelingEngine {
@@ -27,16 +37,6 @@ pub struct StrideAnalyzer {
     contextual_analyzers: HashMap<String, ContextualStrideAnalyzer>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub enum StrideCategory {
-    Spoofing,
-    Tampering,
-    Repudiation,
-    InformationDisclosure,
-    DenialOfService,
-    ElevationOfPrivilege,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttackTreeGenerator {
     attack_patterns: HashMap<String, AttackPattern>,
@@ -45,22 +45,6 @@ pub struct AttackTreeGenerator {
     tree_optimization: AttackTreeOptimization,
     probability_calculators: Vec<ProbabilityCalculator>,
     cost_benefit_analyzers: Vec<CostBenefitAnalyzer>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ThreatScenario {
-    pub scenario_id: String,
-    pub name: String,
-    pub description: String,
-    pub attack_vectors: Vec<String>,
-    pub threat_actors: Vec<ThreatActor>,
-    pub assets_at_risk: Vec<String>,
-    pub impact_assessment: ImpactAssessment,
-    pub likelihood: f64,
-    pub detection_methods: Vec<DetectionMethod>,
-    pub mitigation_strategies: Vec<MitigationStrategy>,
-    pub timeline: ThreatTimeline,
-    pub scenario_variants: Vec<ScenarioVariant>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,22 +60,6 @@ pub struct ThreatIntelligenceManager {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AttackVector {
-    pub vector_id: String,
-    pub name: String,
-    pub description: String,
-    pub attack_surface: AttackSurface,
-    pub entry_points: Vec<EntryPoint>,
-    pub prerequisites: Vec<String>,
-    pub attack_steps: Vec<AttackStep>,
-    pub success_probability: f64,
-    pub detection_difficulty: f64,
-    pub impact_potential: f64,
-    pub mitigation_complexity: f64,
-    pub vector_variants: Vec<VectorVariant>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThreatLandscapeAssessment {
     threat_environment: ThreatEnvironment,
     emerging_threats: Vec<EmergingThreat>,
@@ -101,211 +69,6 @@ pub struct ThreatLandscapeAssessment {
     technology_threats: HashMap<String, Vec<TechnologyThreat>>,
     threat_evolution_models: Vec<ThreatEvolutionModel>,
     landscape_metrics: LandscapeMetrics,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpoofingDetector {
-    pub name: String,
-    pub detection_patterns: Vec<String>,
-    pub trait_specific_checks: HashMap<String, Vec<String>>,
-    pub identity_verification_requirements: Vec<String>,
-    pub authentication_bypass_patterns: Vec<String>,
-    pub spoofing_indicators: Vec<SpoofingIndicator>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TamperingDetector {
-    pub name: String,
-    pub integrity_checks: Vec<IntegrityCheck>,
-    pub modification_patterns: Vec<String>,
-    pub data_tampering_vectors: Vec<String>,
-    pub code_injection_patterns: Vec<String>,
-    pub tampering_indicators: Vec<TamperingIndicator>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RepudiationDetector {
-    pub name: String,
-    pub audit_trail_requirements: Vec<String>,
-    pub non_repudiation_mechanisms: Vec<String>,
-    pub logging_patterns: Vec<String>,
-    pub evidence_collection_methods: Vec<String>,
-    pub repudiation_risks: Vec<RepudiationRisk>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InformationDisclosureDetector {
-    pub name: String,
-    pub data_leakage_patterns: Vec<String>,
-    pub privacy_violations: Vec<String>,
-    pub information_exposure_vectors: Vec<String>,
-    pub data_classification_requirements: Vec<String>,
-    pub disclosure_indicators: Vec<DisclosureIndicator>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DenialOfServiceDetector {
-    pub name: String,
-    pub resource_exhaustion_patterns: Vec<String>,
-    pub availability_requirements: Vec<String>,
-    pub dos_vectors: Vec<String>,
-    pub rate_limiting_requirements: Vec<String>,
-    pub dos_indicators: Vec<DosIndicator>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ElevationOfPrivilegeDetector {
-    pub name: String,
-    pub privilege_escalation_patterns: Vec<String>,
-    pub access_control_requirements: Vec<String>,
-    pub authorization_bypass_patterns: Vec<String>,
-    pub privilege_boundaries: Vec<String>,
-    pub escalation_indicators: Vec<EscalationIndicator>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AttackPattern {
-    pub pattern_id: String,
-    pub name: String,
-    pub description: String,
-    pub attack_phases: Vec<AttackPhase>,
-    pub required_capabilities: Vec<String>,
-    pub indicators: Vec<String>,
-    pub countermeasures: Vec<String>,
-    pub pattern_variations: Vec<PatternVariation>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AttackTreeTemplate {
-    pub template_id: String,
-    pub name: String,
-    pub root_goal: String,
-    pub node_templates: Vec<NodeTemplate>,
-    pub connection_rules: Vec<ConnectionRule>,
-    pub template_parameters: HashMap<String, String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ThreatActor {
-    pub actor_id: String,
-    pub name: String,
-    pub actor_type: ThreatActorType,
-    pub motivation: Vec<String>,
-    pub capabilities: ThreatCapabilities,
-    pub resources: ThreatResources,
-    pub target_preferences: Vec<String>,
-    pub attack_patterns: Vec<String>,
-    pub geographic_focus: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ThreatActorType {
-    NationState,
-    CriminalOrganization,
-    Hacktivist,
-    InsiderThreat,
-    ScriptKiddie,
-    Competitor,
-    Terrorist,
-    Unknown,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ThreatCapabilities {
-    pub technical_sophistication: f64,
-    pub resource_availability: f64,
-    pub stealth_capability: f64,
-    pub persistence_capability: f64,
-    pub social_engineering_skills: f64,
-    pub zero_day_access: bool,
-    pub insider_access: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ThreatTimeline {
-    pub reconnaissance_phase: Duration,
-    pub initial_access_phase: Duration,
-    pub persistence_phase: Duration,
-    pub privilege_escalation_phase: Duration,
-    pub lateral_movement_phase: Duration,
-    pub data_collection_phase: Duration,
-    pub exfiltration_phase: Duration,
-    pub cleanup_phase: Duration,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ThreatModelingResult {
-    pub model_id: String,
-    pub analysis_timestamp: SystemTime,
-    pub stride_analysis: StrideAnalysisResult,
-    pub attack_trees: Vec<AttackTree>,
-    pub threat_scenarios: Vec<ThreatScenario>,
-    pub attack_vectors: Vec<AttackVector>,
-    pub threat_landscape: ThreatLandscapeAssessment,
-    pub intelligence_insights: Vec<IntelligenceInsight>,
-    pub risk_prioritization: Vec<ThreatRiskPriority>,
-    pub mitigation_recommendations: Vec<MitigationRecommendation>,
-    pub model_confidence: f64,
-    pub model_metadata: HashMap<String, String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StrideAnalysisResult {
-    pub analysis_id: String,
-    pub spoofing_threats: Vec<SpoofingThreat>,
-    pub tampering_threats: Vec<TamperingThreat>,
-    pub repudiation_threats: Vec<RepudiationThreat>,
-    pub information_disclosure_threats: Vec<InformationDisclosureThreat>,
-    pub denial_of_service_threats: Vec<DenialOfServiceThreat>,
-    pub elevation_of_privilege_threats: Vec<ElevationOfPrivilegeThreat>,
-    pub composite_threats: Vec<CompositeThreat>,
-    pub stride_scores: HashMap<StrideCategory, f64>,
-    pub overall_stride_rating: f64,
-    pub confidence_intervals: HashMap<StrideCategory, (f64, f64)>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AttackTree {
-    pub tree_id: String,
-    pub root_node: AttackNode,
-    pub attack_paths: Vec<AttackPath>,
-    pub critical_paths: Vec<CriticalPath>,
-    pub success_probability: f64,
-    pub attack_cost: f64,
-    pub detection_probability: f64,
-    pub tree_metrics: AttackTreeMetrics,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AttackNode {
-    pub node_id: String,
-    pub node_type: AttackNodeType,
-    pub description: String,
-    pub children: Vec<AttackNode>,
-    pub gate_type: Option<LogicGate>,
-    pub success_probability: f64,
-    pub attack_cost: f64,
-    pub skill_required: f64,
-    pub detection_probability: f64,
-    pub impact_level: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum AttackNodeType {
-    Goal,
-    Subgoal,
-    Action,
-    Condition,
-    Defense,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum LogicGate {
-    And,
-    Or,
-    Not,
-    Xor,
-    KOfN(usize, usize),
 }
 
 impl ThreatModelingEngine {
@@ -322,7 +85,10 @@ impl ThreatModelingEngine {
         }
     }
 
-    pub fn analyze_threats(&mut self, context: &TraitUsageContext) -> Result<ThreatModelingResult, ThreatModelingError> {
+    pub fn analyze_threats(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<ThreatModelingResult, ThreatModelingError> {
         let model_id = self.generate_model_id(context);
 
         if let Some(cached_result) = self.get_cached_result(&model_id) {
@@ -338,7 +104,11 @@ impl ThreatModelingEngine {
         let threat_landscape = self.assess_threat_landscape(context)?;
         let intelligence_insights = self.gather_intelligence_insights(context)?;
         let risk_prioritization = self.prioritize_threats(&stride_analysis, &attack_trees)?;
-        let mitigation_recommendations = self.generate_mitigation_recommendations(&stride_analysis, &attack_trees)?;
+        let mitigation_recommendations =
+            self.generate_mitigation_recommendations(&stride_analysis, &attack_trees)?;
+        let identified_threats = self.extract_identified_threats(&stride_analysis, &attack_vectors);
+        let overall_risk_score =
+            self.calculate_overall_risk_score(&stride_analysis, &attack_vectors);
 
         let result = ThreatModelingResult {
             model_id: model_id.clone(),
@@ -353,20 +123,24 @@ impl ThreatModelingEngine {
             mitigation_recommendations,
             model_confidence: self.calculate_model_confidence()?,
             model_metadata: self.generate_metadata(context),
+            identified_threats,
+            overall_risk_score,
         };
 
         self.cache_result(model_id, &result);
         Ok(result)
     }
 
-    fn perform_stride_analysis(&mut self, context: &TraitUsageContext) -> Result<StrideAnalysisResult, ThreatModelingError> {
+    fn perform_stride_analysis(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<StrideAnalysisResult, ThreatModelingError> {
         let mut spoofing_threats = Vec::new();
         let mut tampering_threats = Vec::new();
         let mut repudiation_threats = Vec::new();
         let mut information_disclosure_threats = Vec::new();
         let mut denial_of_service_threats = Vec::new();
         let mut elevation_of_privilege_threats = Vec::new();
-        let mut composite_threats = Vec::new();
 
         for detector in &self.stride_analyzer.spoofing_detectors {
             spoofing_threats.extend(detector.detect_spoofing_threats(context)?);
@@ -392,7 +166,7 @@ impl ThreatModelingEngine {
             elevation_of_privilege_threats.extend(detector.detect_escalation_threats(context)?);
         }
 
-        composite_threats = self.identify_composite_threats(
+        let composite_threats = self.identify_composite_threats(
             &spoofing_threats,
             &tampering_threats,
             &repudiation_threats,
@@ -414,7 +188,13 @@ impl ThreatModelingEngine {
         let confidence_intervals = self.calculate_confidence_intervals(&stride_scores)?;
 
         Ok(StrideAnalysisResult {
-            analysis_id: format!("stride_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("duration_since should succeed").as_secs()),
+            analysis_id: format!(
+                "stride_{}",
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .expect("duration_since should succeed")
+                    .as_secs()
+            ),
             spoofing_threats,
             tampering_threats,
             repudiation_threats,
@@ -428,19 +208,25 @@ impl ThreatModelingEngine {
         })
     }
 
-    fn generate_attack_trees(&mut self, context: &TraitUsageContext, stride_analysis: &StrideAnalysisResult) -> Result<Vec<AttackTree>, ThreatModelingError> {
+    fn generate_attack_trees(
+        &mut self,
+        context: &TraitUsageContext,
+        stride_analysis: &StrideAnalysisResult,
+    ) -> Result<Vec<AttackTree>, ThreatModelingError> {
         let mut attack_trees = Vec::new();
 
         for pattern in self.attack_tree_generator.attack_patterns.values() {
             if self.is_pattern_applicable(pattern, context)? {
-                let tree = self.build_attack_tree_from_pattern(pattern, context, stride_analysis)?;
+                let tree =
+                    self.build_attack_tree_from_pattern(pattern, context, stride_analysis)?;
                 attack_trees.push(tree);
             }
         }
 
         for template in &self.attack_tree_generator.tree_templates {
             if self.is_template_applicable(template, context)? {
-                let tree = self.build_attack_tree_from_template(template, context, stride_analysis)?;
+                let tree =
+                    self.build_attack_tree_from_template(template, context, stride_analysis)?;
                 attack_trees.push(tree);
             }
         }
@@ -456,7 +242,11 @@ impl ThreatModelingEngine {
         Ok(attack_trees)
     }
 
-    fn generate_threat_scenarios(&mut self, context: &TraitUsageContext, stride_analysis: &StrideAnalysisResult) -> Result<Vec<ThreatScenario>, ThreatModelingError> {
+    fn generate_threat_scenarios(
+        &mut self,
+        context: &TraitUsageContext,
+        stride_analysis: &StrideAnalysisResult,
+    ) -> Result<Vec<ThreatScenario>, ThreatModelingError> {
         let mut scenarios = Vec::new();
 
         let base_scenarios = self.generate_base_threat_scenarios(context, stride_analysis)?;
@@ -483,7 +273,10 @@ impl ThreatModelingEngine {
         Ok(scenarios)
     }
 
-    fn identify_attack_vectors(&mut self, context: &TraitUsageContext) -> Result<Vec<AttackVector>, ThreatModelingError> {
+    fn identify_attack_vectors(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<Vec<AttackVector>, ThreatModelingError> {
         let mut vectors = Vec::new();
 
         let network_vectors = self.identify_network_attack_vectors(context)?;
@@ -510,7 +303,10 @@ impl ThreatModelingEngine {
         Ok(vectors)
     }
 
-    fn assess_threat_landscape(&mut self, context: &TraitUsageContext) -> Result<ThreatLandscapeAssessment, ThreatModelingError> {
+    fn assess_threat_landscape(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<ThreatLandscapeAssessment, ThreatModelingError> {
         let threat_environment = self.analyze_threat_environment(context)?;
         let emerging_threats = self.identify_emerging_threats(context)?;
         let threat_trends = self.analyze_threat_trends(context)?;
@@ -532,7 +328,10 @@ impl ThreatModelingEngine {
         })
     }
 
-    fn gather_intelligence_insights(&mut self, context: &TraitUsageContext) -> Result<Vec<IntelligenceInsight>, ThreatModelingError> {
+    fn gather_intelligence_insights(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<Vec<IntelligenceInsight>, ThreatModelingError> {
         let mut insights = Vec::new();
 
         for source in &self.threat_intelligence.intelligence_sources {
@@ -549,7 +348,11 @@ impl ThreatModelingEngine {
         Ok(insights)
     }
 
-    fn prioritize_threats(&self, stride_analysis: &StrideAnalysisResult, attack_trees: &[AttackTree]) -> Result<Vec<ThreatRiskPriority>, ThreatModelingError> {
+    fn prioritize_threats(
+        &self,
+        stride_analysis: &StrideAnalysisResult,
+        attack_trees: &[AttackTree],
+    ) -> Result<Vec<ThreatRiskPriority>, ThreatModelingError> {
         let mut priorities = Vec::new();
 
         for (category, score) in &stride_analysis.stride_scores {
@@ -576,20 +379,46 @@ impl ThreatModelingEngine {
             }
         }
 
-        priorities.sort_by(|a, b| b.risk_score.partial_cmp(&a.risk_score).unwrap_or(std::cmp::Ordering::Equal));
+        priorities.sort_by(|a, b| {
+            b.risk_score
+                .partial_cmp(&a.risk_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         Ok(priorities)
     }
 
-    fn generate_mitigation_recommendations(&self, stride_analysis: &StrideAnalysisResult, attack_trees: &[AttackTree]) -> Result<Vec<MitigationRecommendation>, ThreatModelingError> {
+    fn generate_mitigation_recommendations(
+        &self,
+        stride_analysis: &StrideAnalysisResult,
+        attack_trees: &[AttackTree],
+    ) -> Result<Vec<MitigationRecommendation>, ThreatModelingError> {
         let mut recommendations = Vec::new();
 
-        for (category, threats) in [
-            (StrideCategory::Spoofing, &stride_analysis.spoofing_threats as &dyn std::any::Any),
-            (StrideCategory::Tampering, &stride_analysis.tampering_threats as &dyn std::any::Any),
-            (StrideCategory::Repudiation, &stride_analysis.repudiation_threats as &dyn std::any::Any),
-            (StrideCategory::InformationDisclosure, &stride_analysis.information_disclosure_threats as &dyn std::any::Any),
-            (StrideCategory::DenialOfService, &stride_analysis.denial_of_service_threats as &dyn std::any::Any),
-            (StrideCategory::ElevationOfPrivilege, &stride_analysis.elevation_of_privilege_threats as &dyn std::any::Any),
+        for (category, _threats) in [
+            (
+                StrideCategory::Spoofing,
+                &stride_analysis.spoofing_threats as &dyn std::any::Any,
+            ),
+            (
+                StrideCategory::Tampering,
+                &stride_analysis.tampering_threats as &dyn std::any::Any,
+            ),
+            (
+                StrideCategory::Repudiation,
+                &stride_analysis.repudiation_threats as &dyn std::any::Any,
+            ),
+            (
+                StrideCategory::InformationDisclosure,
+                &stride_analysis.information_disclosure_threats as &dyn std::any::Any,
+            ),
+            (
+                StrideCategory::DenialOfService,
+                &stride_analysis.denial_of_service_threats as &dyn std::any::Any,
+            ),
+            (
+                StrideCategory::ElevationOfPrivilege,
+                &stride_analysis.elevation_of_privilege_threats as &dyn std::any::Any,
+            ),
         ] {
             let category_recommendations = self.generate_category_mitigations(&category)?;
             recommendations.extend(category_recommendations);
@@ -604,15 +433,1189 @@ impl ThreatModelingEngine {
     }
 
     fn calculate_model_confidence(&self) -> Result<f64, ThreatModelingError> {
-        let mut confidence_factors = Vec::new();
+        let confidence_factors = [
+            self.calculate_data_quality_confidence()?,
+            self.calculate_intelligence_confidence()?,
+            self.calculate_model_completeness_confidence()?,
+            self.calculate_temporal_confidence()?,
+        ];
 
-        confidence_factors.push(self.calculate_data_quality_confidence()?);
-        confidence_factors.push(self.calculate_intelligence_confidence()?);
-        confidence_factors.push(self.calculate_model_completeness_confidence()?);
-        confidence_factors.push(self.calculate_temporal_confidence()?);
+        let weighted_confidence =
+            confidence_factors.iter().sum::<f64>() / confidence_factors.len() as f64;
+        Ok(weighted_confidence.clamp(0.0, 1.0))
+    }
+}
 
-        let weighted_confidence = confidence_factors.iter().sum::<f64>() / confidence_factors.len() as f64;
-        Ok(weighted_confidence.min(1.0).max(0.0))
+impl Default for ThreatModelingEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Private heuristic and support methods backing [`ThreatModelingEngine::analyze_threats`].
+///
+/// These implement the actual context-driven analysis: each method reads one or more
+/// [`TraitUsageContext`] flags (or the engine's own configuration/collections) and derives
+/// a plausible, internally-consistent result that varies with the input, in the same
+/// shallow-but-genuine heuristic style as `core_analyzer.rs`.
+impl ThreatModelingEngine {
+    fn generate_model_id(&self, context: &TraitUsageContext) -> String {
+        format!(
+            "threat_model_{}_{}",
+            context.trait_name,
+            context.traits.len()
+        )
+    }
+
+    fn get_cached_result(&self, model_id: &str) -> Option<CachedThreatModel> {
+        self.threat_cache.get(model_id).cloned()
+    }
+
+    fn is_cache_valid(&self, cached: &CachedThreatModel) -> bool {
+        cached
+            .cache_timestamp
+            .elapsed()
+            .map(|elapsed| elapsed < cached.cache_ttl)
+            .unwrap_or(false)
+    }
+
+    fn generate_metadata(&self, context: &TraitUsageContext) -> HashMap<String, String> {
+        let mut metadata = HashMap::new();
+        metadata.insert("trait_name".to_string(), context.trait_name.clone());
+        metadata.insert("trait_count".to_string(), context.traits.len().to_string());
+        metadata.insert(
+            "analysis_depth".to_string(),
+            format!("{:?}", self.modeling_config.analysis_depth),
+        );
+        metadata
+    }
+
+    fn cache_result(&mut self, model_id: String, result: &ThreatModelingResult) {
+        let cache_ttl = self.modeling_config.cache_duration;
+        self.threat_cache.insert(
+            model_id,
+            CachedThreatModel {
+                result: result.clone(),
+                cache_timestamp: SystemTime::now(),
+                cache_ttl,
+            },
+        );
+    }
+
+    fn identify_composite_threats(
+        &self,
+        spoofing: &[SpoofingThreat],
+        tampering: &[TamperingThreat],
+        repudiation: &[RepudiationThreat],
+        disclosure: &[InformationDisclosureThreat],
+        dos: &[DenialOfServiceThreat],
+        elevation: &[ElevationOfPrivilegeThreat],
+    ) -> Result<Vec<CompositeThreat>, ThreatModelingError> {
+        let mut composites = Vec::new();
+        if !spoofing.is_empty() && !elevation.is_empty() {
+            composites.push(CompositeThreat {
+                composite_id: "COMPOSITE-SPOOF-ELEVATE".to_string(),
+                contributing_categories: vec![
+                    StrideCategory::Spoofing,
+                    StrideCategory::ElevationOfPrivilege,
+                ],
+                description: "Identity spoofing combined with privilege escalation".to_string(),
+                combined_severity: ThreatSeverity::Critical,
+                amplification_factor: 1.5,
+            });
+        }
+        if !tampering.is_empty() && !disclosure.is_empty() {
+            composites.push(CompositeThreat {
+                composite_id: "COMPOSITE-TAMPER-DISCLOSE".to_string(),
+                contributing_categories: vec![
+                    StrideCategory::Tampering,
+                    StrideCategory::InformationDisclosure,
+                ],
+                description: "Data tampering combined with information disclosure".to_string(),
+                combined_severity: ThreatSeverity::High,
+                amplification_factor: 1.3,
+            });
+        }
+        if !dos.is_empty() && !repudiation.is_empty() {
+            composites.push(CompositeThreat {
+                composite_id: "COMPOSITE-DOS-REPUDIATE".to_string(),
+                contributing_categories: vec![
+                    StrideCategory::DenialOfService,
+                    StrideCategory::Repudiation,
+                ],
+                description: "Denial of service enabling repudiation of availability failures"
+                    .to_string(),
+                combined_severity: ThreatSeverity::Medium,
+                amplification_factor: 1.1,
+            });
+        }
+        Ok(composites)
+    }
+
+    fn calculate_stride_scores(
+        &self,
+        spoofing: &[SpoofingThreat],
+        tampering: &[TamperingThreat],
+        repudiation: &[RepudiationThreat],
+        disclosure: &[InformationDisclosureThreat],
+        dos: &[DenialOfServiceThreat],
+        elevation: &[ElevationOfPrivilegeThreat],
+    ) -> Result<HashMap<StrideCategory, f64>, ThreatModelingError> {
+        let weight = |c: &StrideCategory| {
+            self.stride_analyzer
+                .stride_weights
+                .get(c)
+                .copied()
+                .unwrap_or(1.0)
+        };
+        let mut scores = HashMap::new();
+        scores.insert(
+            StrideCategory::Spoofing,
+            spoofing.len() as f64 * weight(&StrideCategory::Spoofing),
+        );
+        scores.insert(
+            StrideCategory::Tampering,
+            tampering.len() as f64 * weight(&StrideCategory::Tampering),
+        );
+        scores.insert(
+            StrideCategory::Repudiation,
+            repudiation.len() as f64 * weight(&StrideCategory::Repudiation),
+        );
+        scores.insert(
+            StrideCategory::InformationDisclosure,
+            disclosure.len() as f64 * weight(&StrideCategory::InformationDisclosure),
+        );
+        scores.insert(
+            StrideCategory::DenialOfService,
+            dos.len() as f64 * weight(&StrideCategory::DenialOfService),
+        );
+        scores.insert(
+            StrideCategory::ElevationOfPrivilege,
+            elevation.len() as f64 * weight(&StrideCategory::ElevationOfPrivilege),
+        );
+        Ok(scores)
+    }
+
+    fn calculate_overall_stride_rating(
+        &self,
+        scores: &HashMap<StrideCategory, f64>,
+    ) -> Result<f64, ThreatModelingError> {
+        if scores.is_empty() {
+            return Ok(0.0);
+        }
+        let total: f64 = scores.values().sum();
+        Ok((total / scores.len() as f64).min(10.0))
+    }
+
+    fn calculate_confidence_intervals(
+        &self,
+        scores: &HashMap<StrideCategory, f64>,
+    ) -> Result<HashMap<StrideCategory, (f64, f64)>, ThreatModelingError> {
+        Ok(scores
+            .iter()
+            .map(|(category, score)| {
+                let margin = (*score * 0.15).max(0.1);
+                (
+                    category.clone(),
+                    ((*score - margin).max(0.0), *score + margin),
+                )
+            })
+            .collect())
+    }
+
+    fn is_pattern_applicable(
+        &self,
+        pattern: &AttackPattern,
+        context: &TraitUsageContext,
+    ) -> Result<bool, ThreatModelingError> {
+        Ok(pattern
+            .required_capabilities
+            .iter()
+            .any(|cap| context.traits.contains(cap))
+            || context.has_unsafe_operations)
+    }
+
+    fn build_attack_tree_from_pattern(
+        &self,
+        pattern: &AttackPattern,
+        _context: &TraitUsageContext,
+        stride_analysis: &StrideAnalysisResult,
+    ) -> Result<AttackTree, ThreatModelingError> {
+        let root = AttackNode {
+            node_id: format!("root_{}", pattern.pattern_id),
+            node_type: AttackNodeType::Goal,
+            description: pattern.description.clone(),
+            children: Vec::new(),
+            gate_type: None,
+            success_probability: 0.5,
+            attack_cost: 1.0,
+            skill_required: 0.5,
+            detection_probability: 0.5,
+            impact_level: (stride_analysis.overall_stride_rating / 10.0).clamp(0.0, 1.0),
+        };
+        Ok(AttackTree {
+            tree_id: format!("tree_pattern_{}", pattern.pattern_id),
+            success_probability: root.success_probability,
+            attack_cost: root.attack_cost,
+            detection_probability: root.detection_probability,
+            root_node: root,
+            attack_paths: Vec::new(),
+            critical_paths: Vec::new(),
+            tree_metrics: AttackTreeMetrics {
+                total_nodes: 1,
+                max_depth: 1,
+                average_branching_factor: 0.0,
+                complexity_score: 1.0,
+            },
+        })
+    }
+
+    fn is_template_applicable(
+        &self,
+        template: &AttackTreeTemplate,
+        context: &TraitUsageContext,
+    ) -> Result<bool, ThreatModelingError> {
+        Ok(!template.node_templates.is_empty() && context.has_unsafe_operations)
+    }
+
+    fn build_attack_tree_from_template(
+        &self,
+        template: &AttackTreeTemplate,
+        _context: &TraitUsageContext,
+        stride_analysis: &StrideAnalysisResult,
+    ) -> Result<AttackTree, ThreatModelingError> {
+        let root = AttackNode {
+            node_id: format!("root_{}", template.template_id),
+            node_type: AttackNodeType::Goal,
+            description: template.root_goal.clone(),
+            children: Vec::new(),
+            gate_type: None,
+            success_probability: 0.5,
+            attack_cost: template.node_templates.len() as f64,
+            skill_required: 0.5,
+            detection_probability: 0.5,
+            impact_level: (stride_analysis.overall_stride_rating / 10.0).clamp(0.0, 1.0),
+        };
+        Ok(AttackTree {
+            tree_id: format!("tree_template_{}", template.template_id),
+            success_probability: root.success_probability,
+            attack_cost: root.attack_cost,
+            detection_probability: root.detection_probability,
+            root_node: root,
+            attack_paths: Vec::new(),
+            critical_paths: Vec::new(),
+            tree_metrics: AttackTreeMetrics {
+                total_nodes: 1,
+                max_depth: 1,
+                average_branching_factor: 0.0,
+                complexity_score: template.node_templates.len() as f64,
+            },
+        })
+    }
+
+    fn generate_custom_attack_trees(
+        &self,
+        context: &TraitUsageContext,
+        stride_analysis: &StrideAnalysisResult,
+    ) -> Result<Vec<AttackTree>, ThreatModelingError> {
+        let mut trees = Vec::new();
+        if context.has_unsafe_operations || context.requires_elevated_privileges {
+            let access_probability = if context.has_bounds_checking {
+                0.3
+            } else {
+                0.6
+            };
+            let access_detection = if context.has_audit_logging { 0.7 } else { 0.3 };
+            let impact_probability = access_probability * 0.8;
+
+            let steps = vec![
+                AttackStep {
+                    step_id: "step_access".to_string(),
+                    description: "Reach the unsafe or privileged code path".to_string(),
+                    required_skills: vec!["memory_exploitation".to_string()],
+                    success_probability: access_probability,
+                    detection_probability: access_detection,
+                },
+                AttackStep {
+                    step_id: "step_impact".to_string(),
+                    description: "Leverage access to achieve the attacker's goal".to_string(),
+                    required_skills: vec!["privilege_escalation".to_string()],
+                    success_probability: impact_probability,
+                    detection_probability: access_detection,
+                },
+            ];
+            let path_success = access_probability * impact_probability;
+            let impact_level = (stride_analysis.overall_stride_rating / 10.0).max(0.4);
+            let risk_score = (path_success * 10.0 * impact_level.max(0.3)).min(10.0);
+
+            let leaf = AttackNode {
+                node_id: "custom_access".to_string(),
+                node_type: AttackNodeType::Action,
+                description: "Reach the unsafe or privileged code path".to_string(),
+                children: Vec::new(),
+                gate_type: None,
+                success_probability: access_probability,
+                attack_cost: 2.0,
+                skill_required: 0.6,
+                detection_probability: access_detection,
+                impact_level,
+            };
+            let root = AttackNode {
+                node_id: "custom_root".to_string(),
+                node_type: AttackNodeType::Goal,
+                description: format!("Compromise {}", context.trait_name),
+                children: vec![leaf.clone()],
+                gate_type: Some(LogicGate::And),
+                success_probability: path_success,
+                attack_cost: leaf.attack_cost + 1.0,
+                skill_required: leaf.skill_required,
+                detection_probability: leaf.detection_probability,
+                impact_level: leaf.impact_level,
+            };
+
+            trees.push(AttackTree {
+                tree_id: format!("tree_custom_{}", context.trait_name),
+                success_probability: root.success_probability,
+                attack_cost: root.attack_cost,
+                detection_probability: root.detection_probability,
+                attack_paths: vec![AttackPath {
+                    path_id: format!("path_{}", context.trait_name),
+                    steps: steps.clone(),
+                    success_probability: path_success,
+                    total_cost: root.attack_cost,
+                }],
+                critical_paths: if risk_score >= 5.0 {
+                    vec![CriticalPath {
+                        path_id: format!("critical_{}", context.trait_name),
+                        risk_score,
+                        steps,
+                    }]
+                } else {
+                    Vec::new()
+                },
+                root_node: root,
+                tree_metrics: AttackTreeMetrics {
+                    total_nodes: 2,
+                    max_depth: 2,
+                    average_branching_factor: 0.5,
+                    complexity_score: 2.0,
+                },
+            });
+        }
+        Ok(trees)
+    }
+
+    fn optimize_attack_tree(&self, tree: &mut AttackTree) -> Result<(), ThreatModelingError> {
+        let threshold = self
+            .attack_tree_generator
+            .tree_optimization
+            .pruning_threshold;
+        tree.root_node
+            .children
+            .retain(|child| child.success_probability > threshold);
+        Ok(())
+    }
+
+    fn calculate_tree_metrics(&self, tree: &mut AttackTree) -> Result<(), ThreatModelingError> {
+        let mut queue: VecDeque<(&AttackNode, usize)> = VecDeque::new();
+        queue.push_back((&tree.root_node, 1));
+        let mut total_nodes = 0usize;
+        let mut max_depth = 0usize;
+        while let Some((node, depth)) = queue.pop_front() {
+            total_nodes += 1;
+            max_depth = max_depth.max(depth);
+            for child in &node.children {
+                queue.push_back((child, depth + 1));
+            }
+        }
+        let branching = if total_nodes > 1 {
+            (total_nodes - 1) as f64 / total_nodes as f64
+        } else {
+            0.0
+        };
+        tree.tree_metrics = AttackTreeMetrics {
+            total_nodes,
+            max_depth,
+            average_branching_factor: branching,
+            complexity_score: total_nodes as f64 * max_depth as f64,
+        };
+        Ok(())
+    }
+
+    fn generate_base_threat_scenarios(
+        &self,
+        context: &TraitUsageContext,
+        stride_analysis: &StrideAnalysisResult,
+    ) -> Result<Vec<ThreatScenario>, ThreatModelingError> {
+        let mut scenarios = Vec::new();
+        if context.handles_sensitive_data {
+            scenarios.push(ThreatScenario {
+                scenario_id: "SCEN-BASE-DATA".to_string(),
+                name: "Sensitive data compromise".to_string(),
+                description: format!(
+                    "Attacker targets sensitive data exposed via {}",
+                    context.trait_name
+                ),
+                attack_vectors: vec!["data_exfiltration".to_string()],
+                threat_actors: Vec::new(),
+                assets_at_risk: context.traits.clone(),
+                impact_assessment: ImpactAssessment {
+                    confidentiality_impact: if context.has_encryption { 0.3 } else { 0.8 },
+                    integrity_impact: 0.4,
+                    availability_impact: 0.2,
+                    financial_impact: 0.5,
+                    reputational_impact: 0.6,
+                },
+                likelihood: (stride_analysis.overall_stride_rating / 10.0).clamp(0.0, 1.0),
+                detection_methods: Vec::new(),
+                mitigation_strategies: Vec::new(),
+                timeline: Self::build_timeline(1.0),
+                scenario_variants: Vec::new(),
+            });
+        }
+        Ok(scenarios)
+    }
+
+    fn generate_advanced_persistent_threat_scenarios(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<Vec<ThreatScenario>, ThreatModelingError> {
+        let mut scenarios = Vec::new();
+        if context.requires_elevated_privileges && context.has_unsafe_operations {
+            scenarios.push(ThreatScenario {
+                scenario_id: "SCEN-APT".to_string(),
+                name: "Advanced persistent threat".to_string(),
+                description: "A well-resourced actor establishes long-term persistence through elevated, unsafe code paths".to_string(),
+                attack_vectors: vec!["privilege_escalation".to_string(), "persistence".to_string()],
+                threat_actors: vec![Self::build_actor(ThreatActorType::NationState, 0.9)],
+                assets_at_risk: context.traits.clone(),
+                impact_assessment: ImpactAssessment {
+                    confidentiality_impact: 0.8,
+                    integrity_impact: 0.7,
+                    availability_impact: 0.4,
+                    financial_impact: 0.7,
+                    reputational_impact: 0.8,
+                },
+                likelihood: if context.has_privilege_separation { 0.2 } else { 0.5 },
+                detection_methods: Vec::new(),
+                mitigation_strategies: Vec::new(),
+                timeline: Self::build_timeline(4.0),
+                scenario_variants: Vec::new(),
+            });
+        }
+        Ok(scenarios)
+    }
+
+    fn generate_insider_threat_scenarios(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<Vec<ThreatScenario>, ThreatModelingError> {
+        let mut scenarios = Vec::new();
+        if context.requires_elevated_privileges && !context.has_privilege_separation {
+            scenarios.push(ThreatScenario {
+                scenario_id: "SCEN-INSIDER".to_string(),
+                name: "Insider threat".to_string(),
+                description:
+                    "A trusted insider abuses elevated privileges absent separation of duties"
+                        .to_string(),
+                attack_vectors: vec!["credential_abuse".to_string()],
+                threat_actors: vec![Self::build_actor(ThreatActorType::InsiderThreat, 0.5)],
+                assets_at_risk: context.traits.clone(),
+                impact_assessment: ImpactAssessment {
+                    confidentiality_impact: 0.7,
+                    integrity_impact: 0.6,
+                    availability_impact: 0.3,
+                    financial_impact: 0.5,
+                    reputational_impact: 0.5,
+                },
+                likelihood: if context.has_audit_logging { 0.3 } else { 0.6 },
+                detection_methods: Vec::new(),
+                mitigation_strategies: Vec::new(),
+                timeline: Self::build_timeline(0.7),
+                scenario_variants: Vec::new(),
+            });
+        }
+        Ok(scenarios)
+    }
+
+    fn generate_supply_chain_attack_scenarios(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<Vec<ThreatScenario>, ThreatModelingError> {
+        let mut scenarios = Vec::new();
+        if context.has_dynamic_dispatch || context.has_serialization {
+            scenarios.push(ThreatScenario {
+                scenario_id: "SCEN-SUPPLY-CHAIN".to_string(),
+                name: "Supply chain compromise".to_string(),
+                description: "A dependency or plugin loaded through dynamic dispatch or deserialization is compromised".to_string(),
+                attack_vectors: vec!["malicious_dependency".to_string()],
+                threat_actors: vec![Self::build_actor(ThreatActorType::CriminalOrganization, 0.7)],
+                assets_at_risk: context.traits.clone(),
+                impact_assessment: ImpactAssessment {
+                    confidentiality_impact: 0.6,
+                    integrity_impact: 0.8,
+                    availability_impact: 0.5,
+                    financial_impact: 0.6,
+                    reputational_impact: 0.7,
+                },
+                likelihood: if context.has_type_safety_checks { 0.25 } else { 0.55 },
+                detection_methods: Vec::new(),
+                mitigation_strategies: Vec::new(),
+                timeline: Self::build_timeline(2.5),
+                scenario_variants: Vec::new(),
+            });
+        }
+        Ok(scenarios)
+    }
+
+    fn generate_zero_day_scenarios(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<Vec<ThreatScenario>, ThreatModelingError> {
+        let mut scenarios = Vec::new();
+        if context.has_unsafe_operations && !context.has_bounds_checking {
+            scenarios.push(ThreatScenario {
+                scenario_id: "SCEN-ZERO-DAY".to_string(),
+                name: "Zero-day memory safety exploit".to_string(),
+                description: "An unknown memory-safety flaw in unsafe, unchecked code is exploited before a patch exists".to_string(),
+                attack_vectors: vec!["memory_corruption".to_string()],
+                threat_actors: vec![Self::build_actor(ThreatActorType::Unknown, 0.95)],
+                assets_at_risk: context.traits.clone(),
+                impact_assessment: ImpactAssessment {
+                    confidentiality_impact: 0.9,
+                    integrity_impact: 0.9,
+                    availability_impact: 0.6,
+                    financial_impact: 0.8,
+                    reputational_impact: 0.8,
+                },
+                likelihood: 0.15,
+                detection_methods: Vec::new(),
+                mitigation_strategies: Vec::new(),
+                timeline: Self::build_timeline(0.5),
+                scenario_variants: Vec::new(),
+            });
+        }
+        Ok(scenarios)
+    }
+
+    fn enrich_scenario_with_intelligence(
+        &self,
+        scenario: &mut ThreatScenario,
+    ) -> Result<(), ThreatModelingError> {
+        if !self.threat_intelligence.attack_campaigns.is_empty() {
+            scenario.detection_methods.push(DetectionMethod {
+                method_name: "threat_intelligence_correlation".to_string(),
+                detection_probability: 0.6,
+                false_positive_rate: 0.1,
+            });
+        }
+        Ok(())
+    }
+
+    fn calculate_scenario_likelihood(
+        &self,
+        scenario: &mut ThreatScenario,
+        context: &TraitUsageContext,
+    ) -> Result<(), ThreatModelingError> {
+        let mut likelihood = scenario.likelihood;
+        if context.has_rate_limiting {
+            likelihood *= 0.8;
+        }
+        if context.has_access_controls {
+            likelihood *= 0.8;
+        }
+        scenario.likelihood = likelihood.clamp(0.0, 1.0);
+        Ok(())
+    }
+
+    fn generate_scenario_variants(
+        &self,
+        scenario: &mut ThreatScenario,
+        context: &TraitUsageContext,
+    ) -> Result<(), ThreatModelingError> {
+        if context.has_user_input {
+            scenario.scenario_variants.push(ScenarioVariant {
+                variant_id: format!("{}-input-triggered", scenario.scenario_id),
+                description: "Variant triggered directly through untrusted user input".to_string(),
+                probability_modifier: 1.2,
+            });
+        }
+        Ok(())
+    }
+
+    fn identify_network_attack_vectors(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<Vec<AttackVector>, ThreatModelingError> {
+        let mut vectors = Vec::new();
+        if context.has_user_input && !context.has_input_validation {
+            vectors.push(Self::build_vector(
+                "network_unvalidated_input",
+                "Network-delivered unvalidated input",
+                0.6,
+                0.4,
+            ));
+        }
+        Ok(vectors)
+    }
+
+    fn identify_application_attack_vectors(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<Vec<AttackVector>, ThreatModelingError> {
+        let mut vectors = Vec::new();
+        if context.has_sql_operations && !context.has_parameterized_queries {
+            vectors.push(Self::build_vector(
+                "app_sql_injection",
+                "SQL injection via non-parameterized queries",
+                0.7,
+                0.3,
+            ));
+        }
+        if context.has_serialization && !context.has_input_validation {
+            vectors.push(Self::build_vector(
+                "app_deserialization",
+                "Insecure deserialization",
+                0.6,
+                0.4,
+            ));
+        }
+        Ok(vectors)
+    }
+
+    fn identify_social_engineering_vectors(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<Vec<AttackVector>, ThreatModelingError> {
+        let mut vectors = Vec::new();
+        if context.requires_elevated_privileges {
+            vectors.push(Self::build_vector(
+                "social_privileged_phishing",
+                "Phishing targeting privileged operators",
+                0.5,
+                0.5,
+            ));
+        }
+        Ok(vectors)
+    }
+
+    fn identify_physical_attack_vectors(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<Vec<AttackVector>, ThreatModelingError> {
+        let mut vectors = Vec::new();
+        if context.has_cryptographic_operations && !context.has_secure_key_management {
+            vectors.push(Self::build_vector(
+                "physical_key_extraction",
+                "Physical extraction of insecurely managed keys",
+                0.3,
+                0.7,
+            ));
+        }
+        Ok(vectors)
+    }
+
+    fn identify_supply_chain_vectors(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<Vec<AttackVector>, ThreatModelingError> {
+        let mut vectors = Vec::new();
+        if context.has_dynamic_dispatch {
+            vectors.push(Self::build_vector(
+                "supply_chain_trait_object",
+                "Malicious implementation injected via dynamic dispatch",
+                0.4,
+                0.6,
+            ));
+        }
+        Ok(vectors)
+    }
+
+    fn analyze_vector_effectiveness(
+        &self,
+        vector: &mut AttackVector,
+        context: &TraitUsageContext,
+    ) -> Result<(), ThreatModelingError> {
+        if context.has_rate_limiting {
+            vector.success_probability *= 0.7;
+        }
+        if context.has_audit_logging {
+            vector.detection_difficulty *= 0.8;
+        }
+        Ok(())
+    }
+
+    fn identify_vector_dependencies(
+        &self,
+        vector: &mut AttackVector,
+    ) -> Result<(), ThreatModelingError> {
+        let mut deps: HashSet<String> = vector.prerequisites.iter().cloned().collect();
+        if vector.success_probability > 0.5 {
+            deps.insert("network_access".to_string());
+        }
+        vector.prerequisites = deps.into_iter().collect();
+        Ok(())
+    }
+
+    fn generate_vector_variants(
+        &self,
+        vector: &mut AttackVector,
+        context: &TraitUsageContext,
+    ) -> Result<(), ThreatModelingError> {
+        if context.has_resource_intensive_operations {
+            vector.vector_variants.push(VectorVariant {
+                variant_id: format!("{}-resource-exhaustion", vector.vector_id),
+                modifications: vec!["amplified via resource-intensive operations".to_string()],
+                effectiveness_change: 0.1,
+            });
+        }
+        Ok(())
+    }
+
+    fn analyze_threat_environment(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<ThreatEnvironment, ThreatModelingError> {
+        let flags = [
+            context.has_unsafe_operations,
+            context.has_user_input,
+            context.requires_elevated_privileges,
+            context.has_sql_operations,
+            context.has_dynamic_dispatch,
+        ];
+        let density = flags.iter().filter(|b| **b).count() as f64 / flags.len() as f64;
+        Ok(ThreatEnvironment {
+            environment_type: if context.requires_elevated_privileges {
+                "privileged".to_string()
+            } else {
+                "standard".to_string()
+            },
+            threat_density: density,
+            maturity_level: if context.has_audit_logging && context.has_access_controls {
+                "mature".to_string()
+            } else {
+                "developing".to_string()
+            },
+        })
+    }
+
+    fn identify_emerging_threats(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<Vec<EmergingThreat>, ThreatModelingError> {
+        let mut threats = Vec::new();
+        if context.has_cryptographic_operations && !context.has_constant_time_operations {
+            threats.push(EmergingThreat {
+                threat_name: "Side-channel key recovery".to_string(),
+                description: "Non-constant-time cryptographic operations are increasingly targeted by automated side-channel tooling"
+                    .to_string(),
+                growth_rate: 0.3,
+                first_observed: SystemTime::now(),
+            });
+        }
+        Ok(threats)
+    }
+
+    fn analyze_threat_trends(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<Vec<ThreatTrend>, ThreatModelingError> {
+        Ok(vec![ThreatTrend {
+            trend_name: "Automated exploitation tooling".to_string(),
+            direction: if context.has_input_validation {
+                TrendDirection::Stable
+            } else {
+                TrendDirection::Deteriorating
+            },
+            magnitude: if context.has_input_validation {
+                0.2
+            } else {
+                0.6
+            },
+        }])
+    }
+
+    fn assess_geographic_threat_factors(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<HashMap<String, GeographicThreatFactor>, ThreatModelingError> {
+        let mut factors = HashMap::new();
+        factors.insert(
+            "global".to_string(),
+            GeographicThreatFactor {
+                region: "global".to_string(),
+                risk_multiplier: if context.handles_personal_data {
+                    1.3
+                } else {
+                    1.0
+                },
+            },
+        );
+        Ok(factors)
+    }
+
+    fn assess_industry_specific_threats(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<HashMap<String, Vec<IndustryThreat>>, ThreatModelingError> {
+        let mut threats = HashMap::new();
+        if context.handles_sensitive_data {
+            threats.insert(
+                "general".to_string(),
+                vec![IndustryThreat {
+                    industry: "general".to_string(),
+                    threat_description: "Targeted data theft from software handling sensitive data"
+                        .to_string(),
+                    prevalence: 0.5,
+                }],
+            );
+        }
+        Ok(threats)
+    }
+
+    fn assess_technology_threats(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<HashMap<String, Vec<TechnologyThreat>>, ThreatModelingError> {
+        let mut threats = HashMap::new();
+        if context.has_unsafe_operations {
+            threats.insert(
+                "memory_safety".to_string(),
+                vec![TechnologyThreat {
+                    technology: "unsafe_rust".to_string(),
+                    vulnerability_class: "memory_corruption".to_string(),
+                    exposure: if context.has_bounds_checking {
+                        0.3
+                    } else {
+                        0.7
+                    },
+                }],
+            );
+        }
+        Ok(threats)
+    }
+
+    fn build_threat_evolution_models(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<Vec<ThreatEvolutionModel>, ThreatModelingError> {
+        Ok(vec![ThreatEvolutionModel {
+            model_name: "linear_capability_growth".to_string(),
+            projected_growth: if context.has_resource_limits {
+                0.1
+            } else {
+                0.25
+            },
+            time_horizon: Duration::from_secs(86400 * 365),
+        }])
+    }
+
+    fn calculate_landscape_metrics(&self) -> Result<LandscapeMetrics, ThreatModelingError> {
+        Ok(LandscapeMetrics {
+            total_threats_tracked: self.threat_intelligence.indicators_of_compromise.len() as u32,
+            average_severity: 5.0,
+            trend_score: 0.5,
+        })
+    }
+
+    fn calculate_priority_level(
+        &self,
+        score: f64,
+    ) -> Result<MitigationPriority, ThreatModelingError> {
+        Ok(match score {
+            s if s >= 7.5 => MitigationPriority::Critical,
+            s if s >= 5.0 => MitigationPriority::High,
+            s if s >= 2.5 => MitigationPriority::Medium,
+            _ => MitigationPriority::Low,
+        })
+    }
+
+    fn generate_priority_justification(
+        &self,
+        category: &StrideCategory,
+        score: f64,
+    ) -> Result<String, ThreatModelingError> {
+        let weight = self
+            .stride_analyzer
+            .stride_weights
+            .get(category)
+            .copied()
+            .unwrap_or(1.0);
+        Ok(format!("{category:?} threats scored {score:.2}/10, weighted by configured STRIDE weight {weight:.1}"))
+    }
+
+    fn calculate_response_timeline(&self, score: f64) -> Result<Duration, ThreatModelingError> {
+        Ok(match score {
+            s if s >= 7.5 => Duration::from_secs(86400),
+            s if s >= 5.0 => Duration::from_secs(86400 * 7),
+            s if s >= 2.5 => Duration::from_secs(86400 * 30),
+            _ => Duration::from_secs(86400 * 90),
+        })
+    }
+
+    fn generate_category_mitigations(
+        &self,
+        category: &StrideCategory,
+    ) -> Result<Vec<MitigationRecommendation>, ThreatModelingError> {
+        let (title, effort) = match category {
+            StrideCategory::Spoofing => (
+                "Strengthen identity verification",
+                ImplementationEffort::Medium,
+            ),
+            StrideCategory::Tampering => ("Add integrity checks", ImplementationEffort::Medium),
+            StrideCategory::Repudiation => ("Expand audit logging", ImplementationEffort::Low),
+            StrideCategory::InformationDisclosure => (
+                "Classify and encrypt sensitive data",
+                ImplementationEffort::High,
+            ),
+            StrideCategory::DenialOfService => (
+                "Add rate limiting and resource quotas",
+                ImplementationEffort::Medium,
+            ),
+            StrideCategory::ElevationOfPrivilege => (
+                "Enforce least privilege and separation of duties",
+                ImplementationEffort::High,
+            ),
+        };
+        Ok(vec![MitigationRecommendation {
+            recommendation_id: format!("MIT-{category:?}"),
+            title: title.to_string(),
+            description: format!("Mitigation for {category:?} threats: {title}"),
+            priority: MitigationPriority::High,
+            estimated_effort: effort,
+        }])
+    }
+
+    fn generate_attack_tree_mitigations(
+        &self,
+        tree: &AttackTree,
+    ) -> Result<Vec<MitigationRecommendation>, ThreatModelingError> {
+        let mut recs = Vec::new();
+        if tree.success_probability > 0.5 {
+            recs.push(MitigationRecommendation {
+                recommendation_id: format!("MIT-TREE-{}", tree.tree_id),
+                title: "Reduce attack tree success probability".to_string(),
+                description: format!(
+                    "Attack tree '{}' has a high success probability ({:.2}); add compensating controls at high-probability nodes",
+                    tree.tree_id, tree.success_probability
+                ),
+                priority: MitigationPriority::High,
+                estimated_effort: ImplementationEffort::Medium,
+            });
+        }
+        if tree.detection_probability < 0.4 {
+            recs.push(MitigationRecommendation {
+                recommendation_id: format!("MIT-TREE-DETECT-{}", tree.tree_id),
+                title: "Improve attack detection coverage".to_string(),
+                description: format!(
+                    "Attack tree '{}' has low detection probability ({:.2}); add monitoring at key nodes",
+                    tree.tree_id, tree.detection_probability
+                ),
+                priority: MitigationPriority::Medium,
+                estimated_effort: ImplementationEffort::Low,
+            });
+        }
+        Ok(recs)
+    }
+
+    fn calculate_data_quality_confidence(&self) -> Result<f64, ThreatModelingError> {
+        let detector_count = self.stride_analyzer.spoofing_detectors.len()
+            + self.stride_analyzer.tampering_detectors.len()
+            + self.stride_analyzer.repudiation_detectors.len()
+            + self.stride_analyzer.information_disclosure_detectors.len()
+            + self.stride_analyzer.denial_of_service_detectors.len()
+            + self.stride_analyzer.elevation_of_privilege_detectors.len();
+        Ok(if detector_count >= 6 {
+            0.85
+        } else {
+            0.4 + detector_count as f64 * 0.05
+        })
+    }
+
+    fn calculate_intelligence_confidence(&self) -> Result<f64, ThreatModelingError> {
+        let source_count = self.threat_intelligence.intelligence_sources.len();
+        Ok(if source_count == 0 {
+            0.3
+        } else {
+            0.5 + 0.1 * source_count.min(5) as f64
+        })
+    }
+
+    fn calculate_model_completeness_confidence(&self) -> Result<f64, ThreatModelingError> {
+        Ok(if self.attack_tree_generator.attack_patterns.is_empty() {
+            0.5
+        } else {
+            0.9
+        })
+    }
+
+    fn calculate_temporal_confidence(&self) -> Result<f64, ThreatModelingError> {
+        let staleness = self.modeling_config.cache_duration.as_secs_f64() / (86400.0 * 30.0);
+        Ok((1.0 - staleness.min(1.0)).max(0.1))
+    }
+
+    fn score_to_threat_severity(score: f64) -> ThreatSeverity {
+        match score {
+            s if s >= 7.5 => ThreatSeverity::Critical,
+            s if s >= 5.0 => ThreatSeverity::High,
+            s if s >= 2.5 => ThreatSeverity::Medium,
+            _ => ThreatSeverity::Low,
+        }
+    }
+
+    /// Distill the STRIDE analysis and attack vector assessment into a flat list of
+    /// concrete, actionable threats. One entry is produced per STRIDE category that scored
+    /// above zero, plus one per attack vector whose combined success/impact exceeds a
+    /// notability threshold.
+    fn extract_identified_threats(
+        &self,
+        stride_analysis: &StrideAnalysisResult,
+        attack_vectors: &[AttackVector],
+    ) -> Vec<IdentifiedThreat> {
+        let mut threats = Vec::new();
+        for (category, score) in &stride_analysis.stride_scores {
+            if *score <= 0.0 {
+                continue;
+            }
+            let (strategy, complexity) = match category {
+                StrideCategory::Spoofing => (
+                    "Strengthen identity verification and authentication",
+                    ImplementationEffort::Medium,
+                ),
+                StrideCategory::Tampering => (
+                    "Add integrity checks and input validation",
+                    ImplementationEffort::Medium,
+                ),
+                StrideCategory::Repudiation => (
+                    "Implement comprehensive audit logging",
+                    ImplementationEffort::Low,
+                ),
+                StrideCategory::InformationDisclosure => (
+                    "Encrypt sensitive data and classify access",
+                    ImplementationEffort::High,
+                ),
+                StrideCategory::DenialOfService => (
+                    "Add rate limiting and resource quotas",
+                    ImplementationEffort::Medium,
+                ),
+                StrideCategory::ElevationOfPrivilege => (
+                    "Enforce least privilege and privilege separation",
+                    ImplementationEffort::High,
+                ),
+            };
+            threats.push(IdentifiedThreat {
+                id: format!("THREAT-{category:?}"),
+                name: format!("{category:?} risk"),
+                severity: Self::score_to_threat_severity(*score),
+                mitigation_strategy: strategy.to_string(),
+                mitigation_complexity: complexity,
+                mitigation_dependencies: Vec::new(),
+            });
+        }
+        for vector in attack_vectors {
+            if vector.success_probability * vector.impact_potential > 0.3 {
+                threats.push(IdentifiedThreat {
+                    id: format!("THREAT-VECTOR-{}", vector.vector_id),
+                    name: vector.name.clone(),
+                    severity: Self::score_to_threat_severity(vector.success_probability * 10.0),
+                    mitigation_strategy: format!("Mitigate attack vector: {}", vector.description),
+                    mitigation_complexity: if vector.mitigation_complexity > 0.6 {
+                        ImplementationEffort::High
+                    } else {
+                        ImplementationEffort::Medium
+                    },
+                    mitigation_dependencies: vector.prerequisites.clone(),
+                });
+            }
+        }
+        threats
+    }
+
+    /// Weighted combination of the overall STRIDE rating and the mean attack-vector risk
+    /// contribution (success probability times impact potential), scaled to a 0.0-10.0 range.
+    fn calculate_overall_risk_score(
+        &self,
+        stride_analysis: &StrideAnalysisResult,
+        attack_vectors: &[AttackVector],
+    ) -> f64 {
+        let vector_component = if attack_vectors.is_empty() {
+            0.0
+        } else {
+            attack_vectors
+                .iter()
+                .map(|v| v.success_probability * v.impact_potential)
+                .sum::<f64>()
+                / attack_vectors.len() as f64
+                * 10.0
+        };
+        (stride_analysis.overall_stride_rating * 0.6 + vector_component * 0.4).clamp(0.0, 10.0)
+    }
+
+    fn build_timeline(scale: f64) -> ThreatTimeline {
+        ThreatTimeline {
+            reconnaissance_phase: Duration::from_secs((3600.0 * scale) as u64),
+            initial_access_phase: Duration::from_secs((1800.0 * scale) as u64),
+            persistence_phase: Duration::from_secs((7200.0 * scale) as u64),
+            privilege_escalation_phase: Duration::from_secs((3600.0 * scale) as u64),
+            lateral_movement_phase: Duration::from_secs((5400.0 * scale) as u64),
+            data_collection_phase: Duration::from_secs((3600.0 * scale) as u64),
+            exfiltration_phase: Duration::from_secs((1800.0 * scale) as u64),
+            cleanup_phase: Duration::from_secs((900.0 * scale) as u64),
+        }
+    }
+
+    fn build_actor(actor_type: ThreatActorType, sophistication: f64) -> ThreatActor {
+        ThreatActor {
+            actor_id: format!("actor_{actor_type:?}"),
+            name: format!("{actor_type:?} adversary"),
+            actor_type,
+            motivation: vec!["financial_gain".to_string()],
+            capabilities: ThreatCapabilities {
+                technical_sophistication: sophistication,
+                resource_availability: sophistication,
+                stealth_capability: sophistication * 0.8,
+                persistence_capability: sophistication * 0.9,
+                social_engineering_skills: sophistication * 0.6,
+                zero_day_access: sophistication > 0.8,
+                insider_access: false,
+            },
+            resources: ThreatResources {
+                financial_resources: sophistication * 100.0,
+                technical_resources: sophistication * 100.0,
+                human_resources: sophistication * 10.0,
+                time_resources: sophistication * 1000.0,
+            },
+            target_preferences: Vec::new(),
+            attack_patterns: Vec::new(),
+            geographic_focus: Vec::new(),
+        }
+    }
+
+    fn build_vector(
+        id: &str,
+        description: &str,
+        success_probability: f64,
+        detection_difficulty: f64,
+    ) -> AttackVector {
+        AttackVector {
+            vector_id: id.to_string(),
+            name: description.to_string(),
+            description: description.to_string(),
+            attack_surface: AttackSurface {
+                network_surface: Vec::new(),
+                application_surface: Vec::new(),
+                physical_surface: Vec::new(),
+                human_surface: Vec::new(),
+            },
+            entry_points: Vec::new(),
+            prerequisites: Vec::new(),
+            attack_steps: Vec::new(),
+            success_probability,
+            detection_difficulty,
+            impact_potential: success_probability,
+            mitigation_complexity: 0.5,
+            vector_variants: Vec::new(),
+        }
     }
 }
 
@@ -631,175 +1634,161 @@ impl StrideAnalyzer {
     }
 
     fn initialize_spoofing_detectors() -> Vec<SpoofingDetector> {
-        vec![
-            SpoofingDetector {
-                name: "Identity Spoofing Detector".to_string(),
-                detection_patterns: vec![
-                    "weak_authentication".to_string(),
-                    "missing_identity_verification".to_string(),
-                    "user_impersonation_risk".to_string(),
-                ],
-                trait_specific_checks: HashMap::new(),
-                identity_verification_requirements: vec![
-                    "multi_factor_authentication".to_string(),
-                    "digital_certificates".to_string(),
-                    "biometric_verification".to_string(),
-                ],
-                authentication_bypass_patterns: vec![
-                    "default_credentials".to_string(),
-                    "credential_stuffing".to_string(),
-                    "session_hijacking".to_string(),
-                ],
-                spoofing_indicators: Vec::new(),
-            },
-        ]
+        vec![SpoofingDetector {
+            name: "Identity Spoofing Detector".to_string(),
+            detection_patterns: vec![
+                "weak_authentication".to_string(),
+                "missing_identity_verification".to_string(),
+                "user_impersonation_risk".to_string(),
+            ],
+            trait_specific_checks: HashMap::new(),
+            identity_verification_requirements: vec![
+                "multi_factor_authentication".to_string(),
+                "digital_certificates".to_string(),
+                "biometric_verification".to_string(),
+            ],
+            authentication_bypass_patterns: vec![
+                "default_credentials".to_string(),
+                "credential_stuffing".to_string(),
+                "session_hijacking".to_string(),
+            ],
+            spoofing_indicators: Vec::new(),
+        }]
     }
 
     fn initialize_tampering_detectors() -> Vec<TamperingDetector> {
-        vec![
-            TamperingDetector {
-                name: "Data Integrity Detector".to_string(),
-                integrity_checks: vec![
-                    IntegrityCheck {
-                        check_type: "checksum_verification".to_string(),
-                        algorithm: "sha256".to_string(),
-                        scope: "data_in_transit".to_string(),
-                    },
-                ],
-                modification_patterns: vec![
-                    "unauthorized_data_modification".to_string(),
-                    "code_injection".to_string(),
-                    "parameter_tampering".to_string(),
-                ],
-                data_tampering_vectors: vec![
-                    "man_in_the_middle".to_string(),
-                    "database_manipulation".to_string(),
-                    "file_system_modification".to_string(),
-                ],
-                code_injection_patterns: vec![
-                    "sql_injection".to_string(),
-                    "xss_injection".to_string(),
-                    "command_injection".to_string(),
-                ],
-                tampering_indicators: Vec::new(),
-            },
-        ]
+        vec![TamperingDetector {
+            name: "Data Integrity Detector".to_string(),
+            integrity_checks: vec![IntegrityCheck {
+                check_type: "checksum_verification".to_string(),
+                algorithm: "sha256".to_string(),
+                scope: "data_in_transit".to_string(),
+            }],
+            modification_patterns: vec![
+                "unauthorized_data_modification".to_string(),
+                "code_injection".to_string(),
+                "parameter_tampering".to_string(),
+            ],
+            data_tampering_vectors: vec![
+                "man_in_the_middle".to_string(),
+                "database_manipulation".to_string(),
+                "file_system_modification".to_string(),
+            ],
+            code_injection_patterns: vec![
+                "sql_injection".to_string(),
+                "xss_injection".to_string(),
+                "command_injection".to_string(),
+            ],
+            tampering_indicators: Vec::new(),
+        }]
     }
 
     fn initialize_repudiation_detectors() -> Vec<RepudiationDetector> {
-        vec![
-            RepudiationDetector {
-                name: "Non-Repudiation Detector".to_string(),
-                audit_trail_requirements: vec![
-                    "comprehensive_logging".to_string(),
-                    "tamper_evident_logs".to_string(),
-                    "digital_signatures".to_string(),
-                ],
-                non_repudiation_mechanisms: vec![
-                    "digital_signatures".to_string(),
-                    "timestamping_services".to_string(),
-                    "audit_trails".to_string(),
-                ],
-                logging_patterns: vec![
-                    "transaction_logging".to_string(),
-                    "access_logging".to_string(),
-                    "error_logging".to_string(),
-                ],
-                evidence_collection_methods: vec![
-                    "forensic_imaging".to_string(),
-                    "chain_of_custody".to_string(),
-                    "witness_testimony".to_string(),
-                ],
-                repudiation_risks: Vec::new(),
-            },
-        ]
+        vec![RepudiationDetector {
+            name: "Non-Repudiation Detector".to_string(),
+            audit_trail_requirements: vec![
+                "comprehensive_logging".to_string(),
+                "tamper_evident_logs".to_string(),
+                "digital_signatures".to_string(),
+            ],
+            non_repudiation_mechanisms: vec![
+                "digital_signatures".to_string(),
+                "timestamping_services".to_string(),
+                "audit_trails".to_string(),
+            ],
+            logging_patterns: vec![
+                "transaction_logging".to_string(),
+                "access_logging".to_string(),
+                "error_logging".to_string(),
+            ],
+            evidence_collection_methods: vec![
+                "forensic_imaging".to_string(),
+                "chain_of_custody".to_string(),
+                "witness_testimony".to_string(),
+            ],
+            repudiation_risks: Vec::new(),
+        }]
     }
 
     fn initialize_information_disclosure_detectors() -> Vec<InformationDisclosureDetector> {
-        vec![
-            InformationDisclosureDetector {
-                name: "Data Leakage Detector".to_string(),
-                data_leakage_patterns: vec![
-                    "sensitive_data_exposure".to_string(),
-                    "information_disclosure".to_string(),
-                    "data_exfiltration".to_string(),
-                ],
-                privacy_violations: vec![
-                    "personal_data_exposure".to_string(),
-                    "unauthorized_access".to_string(),
-                    "privacy_breach".to_string(),
-                ],
-                information_exposure_vectors: vec![
-                    "error_messages".to_string(),
-                    "debug_information".to_string(),
-                    "configuration_files".to_string(),
-                ],
-                data_classification_requirements: vec![
-                    "confidential".to_string(),
-                    "restricted".to_string(),
-                    "public".to_string(),
-                ],
-                disclosure_indicators: Vec::new(),
-            },
-        ]
+        vec![InformationDisclosureDetector {
+            name: "Data Leakage Detector".to_string(),
+            data_leakage_patterns: vec![
+                "sensitive_data_exposure".to_string(),
+                "information_disclosure".to_string(),
+                "data_exfiltration".to_string(),
+            ],
+            privacy_violations: vec![
+                "personal_data_exposure".to_string(),
+                "unauthorized_access".to_string(),
+                "privacy_breach".to_string(),
+            ],
+            information_exposure_vectors: vec![
+                "error_messages".to_string(),
+                "debug_information".to_string(),
+                "configuration_files".to_string(),
+            ],
+            data_classification_requirements: vec![
+                "confidential".to_string(),
+                "restricted".to_string(),
+                "public".to_string(),
+            ],
+            disclosure_indicators: Vec::new(),
+        }]
     }
 
     fn initialize_denial_of_service_detectors() -> Vec<DenialOfServiceDetector> {
-        vec![
-            DenialOfServiceDetector {
-                name: "Resource Exhaustion Detector".to_string(),
-                resource_exhaustion_patterns: vec![
-                    "cpu_exhaustion".to_string(),
-                    "memory_exhaustion".to_string(),
-                    "network_flooding".to_string(),
-                ],
-                availability_requirements: vec![
-                    "99.9_percent_uptime".to_string(),
-                    "load_balancing".to_string(),
-                    "failover_mechanisms".to_string(),
-                ],
-                dos_vectors: vec![
-                    "distributed_dos".to_string(),
-                    "amplification_attacks".to_string(),
-                    "resource_consumption".to_string(),
-                ],
-                rate_limiting_requirements: vec![
-                    "request_throttling".to_string(),
-                    "connection_limits".to_string(),
-                    "bandwidth_limits".to_string(),
-                ],
-                dos_indicators: Vec::new(),
-            },
-        ]
+        vec![DenialOfServiceDetector {
+            name: "Resource Exhaustion Detector".to_string(),
+            resource_exhaustion_patterns: vec![
+                "cpu_exhaustion".to_string(),
+                "memory_exhaustion".to_string(),
+                "network_flooding".to_string(),
+            ],
+            availability_requirements: vec![
+                "99.9_percent_uptime".to_string(),
+                "load_balancing".to_string(),
+                "failover_mechanisms".to_string(),
+            ],
+            dos_vectors: vec![
+                "distributed_dos".to_string(),
+                "amplification_attacks".to_string(),
+                "resource_consumption".to_string(),
+            ],
+            rate_limiting_requirements: vec![
+                "request_throttling".to_string(),
+                "connection_limits".to_string(),
+                "bandwidth_limits".to_string(),
+            ],
+            dos_indicators: Vec::new(),
+        }]
     }
 
     fn initialize_elevation_of_privilege_detectors() -> Vec<ElevationOfPrivilegeDetector> {
-        vec![
-            ElevationOfPrivilegeDetector {
-                name: "Privilege Escalation Detector".to_string(),
-                privilege_escalation_patterns: vec![
-                    "vertical_escalation".to_string(),
-                    "horizontal_escalation".to_string(),
-                    "role_confusion".to_string(),
-                ],
-                access_control_requirements: vec![
-                    "role_based_access".to_string(),
-                    "principle_of_least_privilege".to_string(),
-                    "mandatory_access_control".to_string(),
-                ],
-                authorization_bypass_patterns: vec![
-                    "direct_object_reference".to_string(),
-                    "path_traversal".to_string(),
-                    "privilege_escalation".to_string(),
-                ],
-                privilege_boundaries: vec![
-                    "user_space".to_string(),
-                    "kernel_space".to_string(),
-                    "administrative_space".to_string(),
-                ],
-                escalation_indicators: Vec::new(),
-            },
-        ]
+        vec![ElevationOfPrivilegeDetector {
+            name: "Privilege Escalation Detector".to_string(),
+            privilege_escalation_patterns: vec![
+                "vertical_escalation".to_string(),
+                "horizontal_escalation".to_string(),
+                "role_confusion".to_string(),
+            ],
+            access_control_requirements: vec![
+                "role_based_access".to_string(),
+                "principle_of_least_privilege".to_string(),
+                "mandatory_access_control".to_string(),
+            ],
+            authorization_bypass_patterns: vec![
+                "direct_object_reference".to_string(),
+                "path_traversal".to_string(),
+                "privilege_escalation".to_string(),
+            ],
+            privilege_boundaries: vec![
+                "user_space".to_string(),
+                "kernel_space".to_string(),
+                "administrative_space".to_string(),
+            ],
+            escalation_indicators: Vec::new(),
+        }]
     }
 
     fn initialize_stride_weights() -> HashMap<StrideCategory, f64> {
@@ -811,6 +1800,12 @@ impl StrideAnalyzer {
         weights.insert(StrideCategory::DenialOfService, 1.0);
         weights.insert(StrideCategory::ElevationOfPrivilege, 1.0);
         weights
+    }
+}
+
+impl Default for StrideAnalyzer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -827,10 +1822,16 @@ impl AttackTreeGenerator {
     }
 }
 
+impl Default for AttackTreeGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ThreatIntelligenceManager {
     pub fn new() -> Self {
         Self {
-            intelligence_sources: Vec::new(),
+            intelligence_sources: Self::initialize_default_sources(),
             threat_feeds: HashMap::new(),
             indicators_of_compromise: Vec::new(),
             attack_campaigns: Vec::new(),
@@ -839,6 +1840,68 @@ impl ThreatIntelligenceManager {
             feed_aggregator: FeedAggregator::new(),
             intelligence_scoring: IntelligenceScoring::new(),
         }
+    }
+
+    fn initialize_default_sources() -> Vec<ThreatIntelligenceSource> {
+        vec![ThreatIntelligenceSource {
+            source_id: "internal-heuristics".to_string(),
+            name: "Internal Heuristic Feed".to_string(),
+            reliability: 0.6,
+            source_type: "heuristic".to_string(),
+        }]
+    }
+
+    /// Combine independently-gathered insights into a single, higher-confidence correlated
+    /// signal. Returns no additional insights when there is nothing to correlate.
+    pub fn correlate_intelligence(
+        &self,
+        insights: &[IntelligenceInsight],
+    ) -> Result<Vec<IntelligenceInsight>, ThreatModelingError> {
+        if insights.len() < 2 {
+            return Ok(Vec::new());
+        }
+        let average_confidence =
+            insights.iter().map(|i| i.confidence).sum::<f64>() / insights.len() as f64;
+        Ok(vec![IntelligenceInsight {
+            insight_id: "correlated-0".to_string(),
+            description: format!(
+                "Correlated {} independent insight(s) into a single elevated-confidence signal",
+                insights.len()
+            ),
+            confidence: (average_confidence * 1.1).min(1.0),
+            relevance: insights.iter().map(|i| i.relevance).fold(0.0_f64, f64::max),
+            source_ids: insights.iter().flat_map(|i| i.source_ids.clone()).collect(),
+        }])
+    }
+
+    /// Summarize how many gathered insights clear the manager's configured confidence bar.
+    pub fn score_intelligence(
+        &self,
+        insights: &[IntelligenceInsight],
+    ) -> Result<Vec<IntelligenceInsight>, ThreatModelingError> {
+        let threshold = self.intelligence_scoring.min_confidence_threshold;
+        let high_confidence = insights
+            .iter()
+            .filter(|i| i.confidence >= threshold)
+            .count();
+        if high_confidence == 0 {
+            return Ok(Vec::new());
+        }
+        Ok(vec![IntelligenceInsight {
+            insight_id: "scoring-summary".to_string(),
+            description: format!(
+                "{high_confidence} insight(s) exceed the configured confidence threshold"
+            ),
+            confidence: threshold,
+            relevance: 0.5,
+            source_ids: Vec::new(),
+        }])
+    }
+}
+
+impl Default for ThreatIntelligenceManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -857,231 +1920,19 @@ impl ThreatLandscapeAssessment {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ThreatModelingError {
-    AnalysisError(String),
-    DataError(String),
-    ModelingError(String),
-    IntelligenceError(String),
-    ConfigurationError(String),
-}
-
-impl std::fmt::Display for ThreatModelingError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ThreatModelingError::AnalysisError(msg) => write!(f, "Analysis error: {}", msg),
-            ThreatModelingError::DataError(msg) => write!(f, "Data error: {}", msg),
-            ThreatModelingError::ModelingError(msg) => write!(f, "Modeling error: {}", msg),
-            ThreatModelingError::IntelligenceError(msg) => write!(f, "Intelligence error: {}", msg),
-            ThreatModelingError::ConfigurationError(msg) => write!(f, "Configuration error: {}", msg),
-        }
-    }
-}
-
-impl std::error::Error for ThreatModelingError {}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ThreatModelingConfig {
-    pub stride_weights: HashMap<StrideCategory, f64>,
-    pub intelligence_sources: Vec<String>,
-    pub model_confidence_threshold: f64,
-    pub cache_duration: Duration,
-    pub analysis_depth: AnalysisDepth,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum AnalysisDepth {
-    Surface,
-    Moderate,
-    Deep,
-    Comprehensive,
-}
-
-impl Default for ThreatModelingConfig {
+impl Default for ThreatLandscapeAssessment {
     fn default() -> Self {
-        let mut stride_weights = HashMap::new();
-        stride_weights.insert(StrideCategory::Spoofing, 1.0);
-        stride_weights.insert(StrideCategory::Tampering, 1.0);
-        stride_weights.insert(StrideCategory::Repudiation, 1.0);
-        stride_weights.insert(StrideCategory::InformationDisclosure, 1.0);
-        stride_weights.insert(StrideCategory::DenialOfService, 1.0);
-        stride_weights.insert(StrideCategory::ElevationOfPrivilege, 1.0);
-
-        Self {
-            stride_weights,
-            intelligence_sources: vec!["mitre_att&ck".to_string(), "nist_nvd".to_string()],
-            model_confidence_threshold: 0.8,
-            cache_duration: Duration::from_secs(3600),
-            analysis_depth: AnalysisDepth::Moderate,
-        }
+        Self::new()
     }
-}
-
-macro_rules! define_supporting_types {
-    () => {
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct SpoofingIndicator {
-            pub indicator_type: String,
-            pub pattern: String,
-            pub confidence: f64,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct TamperingIndicator {
-            pub indicator_type: String,
-            pub modification_type: String,
-            pub detection_method: String,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct IntegrityCheck {
-            pub check_type: String,
-            pub algorithm: String,
-            pub scope: String,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct RepudiationRisk {
-            pub risk_type: String,
-            pub likelihood: f64,
-            pub impact: String,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct DisclosureIndicator {
-            pub data_type: String,
-            pub exposure_method: String,
-            pub sensitivity_level: String,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct DosIndicator {
-            pub attack_type: String,
-            pub resource_target: String,
-            pub impact_level: String,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct EscalationIndicator {
-            pub escalation_type: String,
-            pub target_privilege: String,
-            pub method: String,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct AttackPhase {
-            pub phase_name: String,
-            pub description: String,
-            pub techniques: Vec<String>,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct PatternVariation {
-            pub variation_name: String,
-            pub differences: Vec<String>,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct NodeTemplate {
-            pub template_id: String,
-            pub node_type: AttackNodeType,
-            pub description_template: String,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct ConnectionRule {
-            pub from_template: String,
-            pub to_template: String,
-            pub gate_type: LogicGate,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct ThreatResources {
-            pub financial_resources: f64,
-            pub technical_resources: f64,
-            pub human_resources: f64,
-            pub time_resources: f64,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct ImpactAssessment {
-            pub confidentiality_impact: f64,
-            pub integrity_impact: f64,
-            pub availability_impact: f64,
-            pub financial_impact: f64,
-            pub reputational_impact: f64,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct DetectionMethod {
-            pub method_name: String,
-            pub detection_probability: f64,
-            pub false_positive_rate: f64,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct MitigationStrategy {
-            pub strategy_name: String,
-            pub effectiveness: f64,
-            pub implementation_cost: f64,
-            pub implementation_time: Duration,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct ScenarioVariant {
-            pub variant_id: String,
-            pub description: String,
-            pub probability_modifier: f64,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct AttackSurface {
-            pub network_surface: Vec<String>,
-            pub application_surface: Vec<String>,
-            pub physical_surface: Vec<String>,
-            pub human_surface: Vec<String>,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct EntryPoint {
-            pub entry_id: String,
-            pub entry_type: String,
-            pub accessibility: f64,
-            pub security_controls: Vec<String>,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct AttackStep {
-            pub step_id: String,
-            pub description: String,
-            pub required_skills: Vec<String>,
-            pub success_probability: f64,
-            pub detection_probability: f64,
-        }
-
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct VectorVariant {
-            pub variant_id: String,
-            pub modifications: Vec<String>,
-            pub effectiveness_change: f64,
-        }
-    };
-}
-
-define_supporting_types!();
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CachedThreatModel {
-    pub result: ThreatModelingResult,
-    pub cache_timestamp: SystemTime,
-    pub cache_ttl: Duration,
 }
 
 pub fn create_threat_modeling_engine() -> ThreatModelingEngine {
     ThreatModelingEngine::new()
 }
 
-pub fn create_comprehensive_threat_model(context: &TraitUsageContext) -> Result<ThreatModelingResult, ThreatModelingError> {
+pub fn create_comprehensive_threat_model(
+    context: &TraitUsageContext,
+) -> Result<ThreatModelingResult, ThreatModelingError> {
     let mut engine = ThreatModelingEngine::new();
     engine.analyze_threats(context)
 }

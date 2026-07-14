@@ -204,9 +204,9 @@ fn test_tsne_neighborhood_preservation() {
         .random_state(Some(42));
 
     let fitted = tsne.fit(&x.view(), &()).expect("operation should succeed");
-    let embedding = fitted
-        .transform(&x.view())
-        .expect("operation should succeed");
+    // t-SNE is transductive and has no out-of-sample transform(); assess the
+    // quality of the training embedding produced by fit() instead.
+    let embedding = fitted.embedding();
 
     let report = quality_report(&x.view(), &embedding.view(), Some(2));
 
@@ -360,9 +360,9 @@ fn test_mds_distance_preservation() {
 
     let mds = MDS::new().n_components(2);
     let fitted = mds.fit(&x.view(), &()).expect("operation should succeed");
-    let embedding = fitted
-        .transform(&x.view())
-        .expect("operation should succeed");
+    // MDS is transductive and has no out-of-sample transform(); assess the
+    // quality of the training embedding produced by fit() instead.
+    let embedding = fitted.embedding();
 
     let report = quality_report(&x.view(), &embedding.view(), Some(2));
 

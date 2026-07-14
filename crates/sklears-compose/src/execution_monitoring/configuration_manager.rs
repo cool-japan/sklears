@@ -1094,6 +1094,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_configuration_validator() {
         let config = ConfigurationManagerConfig::default();
         let validator = ConfigurationValidator::new(&config);

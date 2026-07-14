@@ -1250,7 +1250,7 @@ impl<T: Float + Default + Display + Debug + std::iter::Sum> ClientModel<T> {
         }
 
         // Calculate local feature statistics
-        for (&class_id, _) in class_counts.iter() {
+        for &class_id in class_counts.keys() {
             let class_indices: Vec<usize> = labels
                 .iter()
                 .enumerate()

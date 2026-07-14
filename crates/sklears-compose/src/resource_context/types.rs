@@ -386,7 +386,13 @@ pub enum AllocationPolicy {
     /// Fair share allocation
     FairShare,
 }
-/// Resource usage
+/// Resource usage.
+///
+/// `gpu_usage` is scheduling/reporting metadata a caller populates, not a
+/// live utilization reading -- this crate does not itself sample GPU
+/// utilization. Real GPU *device discovery/counting* is separately wired
+/// to `sklears_core::gpu` (oxicuda-driver) behind the `gpu` feature; see
+/// `resource_management::gpu_manager`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ResourceUsage {
     /// CPU usage in cores
@@ -399,7 +405,7 @@ pub struct ResourceUsage {
     pub network_ingress: u64,
     /// Network egress bytes per second
     pub network_egress: u64,
-    /// GPU usage percentage
+    /// GPU usage percentage (scheduling metadata, not a live reading)
     pub gpu_usage: f32,
     /// Custom resource usage
     pub custom_usage: HashMap<String, f64>,
@@ -620,7 +626,10 @@ pub enum TrafficShapingAlgorithm {
     /// Fair queuing
     FairQueuing,
 }
-/// Resource utilization
+/// Resource utilization.
+///
+/// `gpu_utilization` is scheduling metadata, not a live-sampled reading --
+/// this crate does not itself query GPU utilization.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ResourceUtilization {
     /// CPU utilization percentage
@@ -631,7 +640,7 @@ pub struct ResourceUtilization {
     pub storage_utilization: f32,
     /// Network utilization percentage
     pub network_utilization: f32,
-    /// GPU utilization percentage
+    /// GPU utilization percentage (scheduling metadata, not a live reading)
     pub gpu_utilization: f32,
     /// Custom resource utilization
     pub custom_utilization: HashMap<String, f32>,

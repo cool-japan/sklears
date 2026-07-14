@@ -155,20 +155,18 @@ fn test_sparse_random_projection_sparsity() {
     let fitted = srp.fit(&x.view(), &()).expect("operation should succeed");
 
     // Check that the projection matrix is indeed sparse
-    // Note: projection_matrix is private, need to access through public API
-    // TODO: Add public getter method to access projection matrix for testing
-    // let projection_matrix = &fitted.state.projection_matrix;
-    // let zero_count = projection_matrix
-    //     .iter()
-    //     .filter(|&&x| x.abs() < 1e-10)
-    //     .count();
-    // let total_elements = projection_matrix.len();
-    // let sparsity = zero_count as f64 / total_elements as f64;
-    //
-    // // Should be approximately (1 - density) sparse
-    // assert!(sparsity > 0.7); // Allow some flexibility
+    let projection_matrix = fitted.projection_matrix();
+    let zero_count = projection_matrix
+        .iter()
+        .filter(|&&x| x.abs() < 1e-10)
+        .count();
+    let total_elements = projection_matrix.len();
+    let sparsity = zero_count as f64 / total_elements as f64;
 
-    // For now, just check that we can transform data successfully
+    // Should be approximately (1 - density) sparse
+    assert!(sparsity > 0.7); // Allow some flexibility
+
+    // Also check that we can transform data successfully
     let result = fitted
         .transform(&x.view())
         .expect("operation should succeed");

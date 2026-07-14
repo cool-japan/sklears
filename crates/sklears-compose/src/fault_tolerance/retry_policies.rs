@@ -717,6 +717,7 @@ mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_retry_policy_basic_functionality() {
         let config = RetryPolicyConfig {
             policy_id: "test".to_string(),
@@ -738,6 +739,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_retry_with_failures() {
         let config = RetryPolicyConfig {
             policy_id: "test".to_string(),
@@ -773,6 +775,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_max_attempts_exceeded() {
         let config = RetryPolicyConfig {
             policy_id: "test".to_string(),
@@ -798,6 +801,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_exponential_backoff() {
         let config = RetryPolicyConfig {
             policy_id: "test".to_string(),
@@ -841,6 +845,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_retry_condition_evaluation() {
         let config = RetryPolicyConfig {
             policy_id: "test".to_string(),
@@ -881,6 +886,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_retry_metrics() {
         let policy = RetryPolicy::with_defaults("test_metrics".to_string());
 
@@ -897,6 +903,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_retry_policies_manager() {
         let manager = RetryPoliciesManager::with_defaults("test_manager".to_string());
 
@@ -918,6 +925,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_concurrent_retries() {
         let policy = Arc::new(RetryPolicy::with_defaults("concurrent_test".to_string()));
         let mut handles = vec![];

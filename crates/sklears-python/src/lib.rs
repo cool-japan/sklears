@@ -40,7 +40,12 @@ mod metrics;
 mod model_selection;
 mod naive_bayes;
 mod neural_network;
-// mod preprocessing; // Temporarily disabled to test ensemble
+// `preprocessing::common::PreprocessingResult` is an unused convenience alias
+// (the transformers use `PyResult` directly); allowed here rather than
+// editing the preprocessing submodule files, which are out of scope for
+// this change.
+#[allow(dead_code)]
+mod preprocessing;
 mod tree;
 mod utils;
 
@@ -52,7 +57,7 @@ pub use metrics::*;
 pub use model_selection::*;
 pub use naive_bayes::*;
 pub use neural_network::*;
-// pub use preprocessing::*; // Temporarily disabled to test ensemble
+pub use preprocessing::*;
 pub use tree::*;
 pub use utils::*;
 
@@ -60,7 +65,7 @@ pub use utils::*;
 #[pymodule]
 fn _sklears(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Set module metadata
-    m.add("__version__", "0.1.0")?;
+    m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add(
         "__doc__",
         "High-performance machine learning library with scikit-learn compatibility",
@@ -102,10 +107,10 @@ fn _sklears(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<clustering::PyKMeans>()?;
     m.add_class::<clustering::PyDBSCAN>()?;
 
-    // Preprocessing - Temporarily disabled to test ensemble
-    // m.add_class::<preprocessing::PyStandardScaler>()?;
-    // m.add_class::<preprocessing::PyMinMaxScaler>()?;
-    // m.add_class::<preprocessing::PyLabelEncoder>()?;
+    // Preprocessing
+    m.add_class::<preprocessing::PyStandardScaler>()?;
+    m.add_class::<preprocessing::PyMinMaxScaler>()?;
+    m.add_class::<preprocessing::PyLabelEncoder>()?;
 
     // Metrics - Regression
     m.add_function(wrap_pyfunction!(metrics::mean_squared_error, m)?)?;
@@ -132,6 +137,8 @@ fn _sklears(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Utility functions
     m.add_function(wrap_pyfunction!(utils::get_version, m)?)?;
     m.add_function(wrap_pyfunction!(utils::get_build_info, m)?)?;
+    m.add_function(wrap_pyfunction!(utils::get_hardware_info, m)?)?;
+    m.add_function(wrap_pyfunction!(utils::benchmark_basic_operations, m)?)?;
 
     Ok(())
 }

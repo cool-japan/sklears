@@ -710,7 +710,19 @@ impl<C> ECOCClassifier<C, Untrained> {
         let actual_min_distance = self.calculate_minimum_distance_code_matrix(code_matrix);
         actual_min_distance >= min_distance
     }
-    /// GPU-accelerated matrix operations for code generation
+    /// Batched random code-matrix generation for `GPUMode::MatrixOps` /
+    /// `GPUMode::Full`.
+    ///
+    /// Despite the name (kept for API stability), this always runs on the
+    /// CPU: the RNG itself is inherently sequential host-side state, so
+    /// there is no on-device kernel to dispatch here -- only the
+    /// batch-chunking loop below, which does not touch
+    /// `sklears_core::gpu` at all. A genuine device path would need to
+    /// generate randomness on-device (or upload the finished CPU-generated
+    /// matrix once) and is deferred (2026-07-06: no clear benefit over the
+    /// CPU path for this workload -- code-matrix generation is `O(n_classes
+    /// * code_length)`, dominated by RNG calls rather than arithmetic, and
+    /// runs once per `fit()` rather than per prediction).
     pub(crate) fn generate_code_matrix_gpu(
         &self,
         n_classes: usize,
@@ -908,17 +920,40 @@ impl<C> ECOCBuilder<C> {
         self.config.sparse_threshold = threshold.clamp(0.0, 1.0);
         self
     }
-    /// Enable GPU acceleration for matrix operations
+    /// Opt in to the parallel (rayon) code-generation batching path used by
+    /// `generate_code_matrix_gpu`.
+    ///
+    /// This does not by itself route any computation onto a GPU: it only
+    /// unlocks the `GPUMode::MatrixOps` / `GPUMode::Full` branch of code
+    /// generation. Distance-based prediction (voting/decoding) is
+    /// controlled separately by [`gpu_distance_ops`](Self::gpu_distance_ops)
+    /// / [`gpu_full`](Self::gpu_full), and only actually runs on a real
+    /// device when this crate is built with the `gpu` feature *and*
+    /// `sklears_core::gpu::GpuBackend::detect()` finds real hardware at
+    /// runtime; otherwise it transparently falls back to the CPU path.
     pub fn gpu_matrix_ops(mut self) -> Self {
         self.config.gpu_mode = GPUMode::MatrixOps;
         self
     }
-    /// Enable GPU acceleration for distance calculations
+    /// Enable the device-accelerated distance path for ECOC decoding
+    /// (`aggregate_votes_gpu` / `batch_hamming_distances`).
+    ///
+    /// When this crate is built with the `gpu` feature *and*
+    /// `sklears_core::gpu::GpuBackend::detect()` finds a real GPU at
+    /// runtime, distance computation for voting runs as a single on-device
+    /// GEMM (`compute_distances_gpu`, squared-Euclidean expansion). If
+    /// either condition doesn't hold -- feature not compiled in, or no
+    /// device present (e.g. this crate's own macOS dev/CI environment) --
+    /// this setting transparently falls back to the rayon-parallel CPU
+    /// path; it never fabricates GPU availability or fake results.
     pub fn gpu_distance_ops(mut self) -> Self {
         self.config.gpu_mode = GPUMode::DistanceOps;
         self
     }
-    /// Enable full GPU acceleration
+    /// Enable both the code-generation batching path
+    /// ([`gpu_matrix_ops`](Self::gpu_matrix_ops)) and the device-accelerated
+    /// distance path ([`gpu_distance_ops`](Self::gpu_distance_ops)). Same
+    /// honest fallback behavior applies to both.
     pub fn gpu_full(mut self) -> Self {
         self.config.gpu_mode = GPUMode::Full;
         self

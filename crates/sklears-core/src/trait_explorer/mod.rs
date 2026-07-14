@@ -109,11 +109,11 @@
 //! ```
 
 pub mod dependency_analysis;
-// pub mod graph_visualization; // Temporarily disabled due to JavaScript syntax conflicts
+pub mod graph_visualization;
 // pub mod ml_recommendations;  // Temporarily disabled due to extensive compilation issues
 pub mod performance_analysis;
 // pub mod platform_compatibility; // Temporarily disabled - file missing
-// pub mod security_analysis;  // Temporarily disabled due to compilation issues
+pub mod security_analysis;
 pub mod trait_explorer_core;
 pub mod trait_registry;
 
@@ -168,18 +168,18 @@ pub use performance_analysis::{
     TraitPerformanceAnalyzer as AdvancedTraitPerformanceAnalyzer,
 };
 
-// Re-export graph visualization functionality - TEMPORARILY DISABLED
-// pub use graph_visualization::{
-//     CentralityMeasure, CentralityMeasures, CircularLayout, Community, CommunityDetection,
-//     CustomLayoutParams, EdgeMetadata, FilterConfig, ForceDirectedLayout, GraphAnalyzer,
-//     GraphConfig, GraphExportFormat as AdvancedGraphExportFormat, GraphPath, GridLayout,
-//     HierarchicalLayout, LayoutAlgorithm, LayoutAlgorithmImpl, LayoutQualityMetrics, LayoutResult,
-//     NodeMetadata, OptimizationLevel as GraphOptimizationLevel, RadialLayout, SpringEmbedderLayout,
-//     StabilityLevel, ThreeDConfig, ThreeDConfigBuilder, TraitGraph as AdvancedTraitGraph,
-//     TraitGraphEdge as AdvancedTraitGraphEdge, TraitGraphGenerator as AdvancedTraitGraphGenerator,
-//     TraitGraphMetadata as AdvancedTraitGraphMetadata, TraitGraphNode as AdvancedTraitGraphNode,
-//     TraitNodeType as AdvancedTraitNodeType, TreeLayout, VisualizationTheme,
-// };
+// Re-export graph visualization functionality
+pub use graph_visualization::{
+    CentralityMeasure, CentralityMeasures, CircularLayout, Community, CommunityDetection,
+    CustomLayoutParams, EdgeMetadata, FilterConfig, ForceDirectedLayout, GraphAnalyzer,
+    GraphConfig, GraphExportFormat as AdvancedGraphExportFormat, GraphPath, GridLayout,
+    HierarchicalLayout, LayoutAlgorithm, LayoutAlgorithmImpl, LayoutQualityMetrics, LayoutResult,
+    NodeMetadata, OptimizationLevel as GraphOptimizationLevel, RadialLayout, SpringEmbedderLayout,
+    StabilityLevel, ThreeDConfig, ThreeDConfigBuilder, TraitGraph as AdvancedTraitGraph,
+    TraitGraphEdge as AdvancedTraitGraphEdge, TraitGraphGenerator as AdvancedTraitGraphGenerator,
+    TraitGraphMetadata as AdvancedTraitGraphMetadata, TraitGraphNode as AdvancedTraitGraphNode,
+    TraitNodeType as AdvancedTraitNodeType, TreeLayout, VisualizationTheme,
+};
 
 // Re-export ML recommendations functionality - Temporarily disabled
 // pub use ml_recommendations::{

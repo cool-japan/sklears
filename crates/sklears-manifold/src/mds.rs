@@ -32,7 +32,7 @@ use sklears_core::{
 ///
 /// ```
 /// use sklears_manifold::MDS;
-/// use sklears_core::traits::{Transform, Fit};
+/// use sklears_core::traits::Fit;
 /// use scirs2_core::ndarray::array;
 ///
 /// let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0], [10.0, 11.0, 12.0]];
@@ -40,7 +40,8 @@ use sklears_core::{
 /// let mds = MDS::new()
 ///     .n_components(2);
 /// let fitted = mds.fit(&x.view(), &()).unwrap();
-/// let embedded = fitted.transform(&x.view()).unwrap();
+/// let embedded = fitted.embedding();
+/// assert_eq!(embedded.dim(), (4, 2));
 /// ```
 #[derive(Debug, Clone)]
 pub struct MDS<S = Untrained> {
@@ -307,8 +308,24 @@ impl MDS<Untrained> {
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for MDS<MdsTrained> {
     fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        // Classical MDS doesn't support transforming new data in this implementation
-        Ok(self.state.embedding.clone())
+        // Classical MDS is a genuinely transductive algorithm: the embedding is
+        // solved jointly for every point via double-centering and eigendecomposition
+        // of the *full* pairwise distance matrix computed over the training set.
+        // There is no way to place a new point into that embedding without
+        // recomputing the whole decomposition on the combined data, so returning
+        // the stale training embedding here would silently fabricate an answer.
+        // scikit-learn's `MDS` has no `transform()` method either, for the same reason.
+        Err(SklearsError::NotImplemented(
+            "MDS::transform is not supported: classical MDS solves for the embedding of \
+             every point jointly, via double-centering and eigendecomposition of the full \
+             pairwise distance matrix computed over the training set. There is no \
+             closed-form way to place a new, unseen point into that embedding without \
+             recomputing the decomposition over the combined data. scikit-learn's MDS \
+             has no transform() method either, for the same reason. To embed new data, \
+             call fit() again on the combined (training + new) dataset. Use .embedding() \
+             to retrieve the training-time embedding computed by fit()."
+                .to_string(),
+        ))
     }
 }
 

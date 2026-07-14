@@ -555,7 +555,7 @@ impl<T> AutomatedOptimization<T> {
             let current_score = self.evaluate_solution(&current_solution)?;
 
             // Simplified gradient computation
-            for (_param, value) in current_solution.iter_mut() {
+            for value in current_solution.values_mut() {
                 *value -= learning_rate * 0.1; // Placeholder gradient
             }
 

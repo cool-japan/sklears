@@ -104,7 +104,7 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
         }
 
         // Calculate feature statistics for each class
-        for (&fraud_label, _) in class_counts.iter() {
+        for &fraud_label in class_counts.keys() {
             let class_data: Vec<&TransactionData<T>> = fraud_labels
                 .iter()
                 .enumerate()

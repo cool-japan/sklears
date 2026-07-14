@@ -181,9 +181,25 @@ impl Fit<ArrayView2<'_, f64>, ()> for SpectralEmbedding<Untrained> {
 
 impl Transform<ArrayView2<'_, f64>, Array2<f64>> for SpectralEmbedding<SpectralEmbeddingTrained> {
     fn transform(&self, _x: &ArrayView2<'_, f64>) -> SklResult<Array2<f64>> {
-        // For spectral embedding, the embedding is computed during fitting
-        // and cannot be extended to new points directly
-        Ok(self.state.embedding.clone())
+        // Spectral embedding is a genuinely transductive algorithm: the embedding
+        // coordinates are the eigenvectors of the graph Laplacian built from the
+        // fixed training-set affinity matrix. There is no closed-form mapping that
+        // projects a new, unseen point into that eigenspace, so returning the
+        // stale training embedding here would silently fabricate an answer.
+        // scikit-learn's `SpectralEmbedding` has no `transform()` method either,
+        // for the same reason.
+        Err(SklearsError::NotImplemented(
+            "SpectralEmbedding::transform is not supported: the embedding coordinates \
+             are eigenvectors of the training-set graph Laplacian, which is only defined \
+             over the fixed collection of points seen during fit(). There is no closed-form \
+             way to project a new, unseen point into that eigenspace. scikit-learn's \
+             SpectralEmbedding has no transform() method either, for the same reason. \
+             To embed new data, call fit() again on the combined (training + new) dataset; \
+             genuine out-of-sample support would require a Nystrom-style approximation, \
+             which is not implemented here. Use .embedding() to retrieve the training-time \
+             embedding computed by fit()."
+                .to_string(),
+        ))
     }
 }
 
@@ -338,5 +354,55 @@ impl SpectralEmbedding<SpectralEmbeddingTrained> {
     /// Get the affinity matrix
     pub fn affinity_matrix(&self) -> &Array2<f64> {
         &self.state.affinity_matrix
+    }
+}
+
+#[allow(non_snake_case)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    #[test]
+    fn test_spectral_embedding_fit_shape() {
+        let x = array![
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [0.5, 0.5],
+            [2.0, 2.0],
+        ];
+
+        let model = SpectralEmbedding::new().n_components(2).n_neighbors(3);
+        let fitted = model
+            .fit(&x.view(), &())
+            .expect("fit should succeed on synthetic data");
+
+        assert_eq!(fitted.embedding().dim(), (6, 2));
+        assert_eq!(fitted.eigenvalues().len(), 2);
+        assert_eq!(fitted.affinity_matrix().dim(), (6, 6));
+    }
+
+    #[test]
+    fn test_spectral_embedding_transform_is_not_implemented() {
+        // Spectral embedding is transductive: transform() on new data must be an
+        // honest error, not the stale training-time embedding.
+        let x = array![
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [0.5, 0.5],
+            [2.0, 2.0],
+        ];
+
+        let model = SpectralEmbedding::new().n_components(2).n_neighbors(3);
+        let fitted = model
+            .fit(&x.view(), &())
+            .expect("fit should succeed on synthetic data");
+
+        let result = fitted.transform(&x.view());
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
     }
 }

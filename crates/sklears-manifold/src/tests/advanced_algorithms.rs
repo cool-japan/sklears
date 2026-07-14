@@ -218,7 +218,7 @@ fn test_mvu_basic() {
 }
 
 #[test]
-fn test_mvu_transform() {
+fn test_mvu_transform_not_implemented() {
     let x = array![
         [1.0, 2.0, 3.0],
         [4.0, 5.0, 6.0],
@@ -230,11 +230,16 @@ fn test_mvu_transform() {
     let mvu = MVU::new().n_components(2).n_neighbors(2).max_iter(10);
 
     let fitted = mvu.fit(&x.view(), &()).expect("operation should succeed");
-    let transformed = fitted
-        .transform(&x.view())
-        .expect("operation should succeed");
 
-    assert_eq!(transformed.dim(), (5, 2));
+    // MVU is transductive: transforming new data is not supported and must
+    // return an explicit error.
+    assert!(matches!(
+        fitted.transform(&x.view()),
+        Err(SklearsError::NotImplemented(_))
+    ));
+
+    // The fit path itself still produces a valid training embedding.
+    assert_eq!(fitted.embedding().dim(), (5, 2));
 }
 
 #[test]
@@ -293,7 +298,7 @@ fn test_sne_basic() {
 }
 
 #[test]
-fn test_sne_transform() {
+fn test_sne_transform_not_implemented() {
     let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
     let sne = SNE::new()
@@ -303,11 +308,16 @@ fn test_sne_transform() {
         .random_state(Some(42));
 
     let fitted = sne.fit(&x.view(), &()).expect("operation should succeed");
-    let transformed = fitted
-        .transform(&x.view())
-        .expect("operation should succeed");
 
-    assert_eq!(transformed.dim(), (4, 2));
+    // SNE is transductive: transforming new data is not supported and must
+    // return an explicit error.
+    assert!(matches!(
+        fitted.transform(&x.view()),
+        Err(SklearsError::NotImplemented(_))
+    ));
+
+    // The fit path itself still produces a valid training embedding.
+    assert_eq!(fitted.embedding().dim(), (4, 2));
 }
 
 #[test]
@@ -363,7 +373,7 @@ fn test_symmetric_sne_basic() {
 }
 
 #[test]
-fn test_symmetric_sne_transform() {
+fn test_symmetric_sne_transform_not_implemented() {
     let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
     let ssne = SymmetricSNE::new()
@@ -373,11 +383,16 @@ fn test_symmetric_sne_transform() {
         .random_state(Some(42));
 
     let fitted = ssne.fit(&x.view(), &()).expect("operation should succeed");
-    let transformed = fitted
-        .transform(&x.view())
-        .expect("operation should succeed");
 
-    assert_eq!(transformed.dim(), (4, 2));
+    // Symmetric SNE is transductive: transforming new data is not supported
+    // and must return an explicit error.
+    assert!(matches!(
+        fitted.transform(&x.view()),
+        Err(SklearsError::NotImplemented(_))
+    ));
+
+    // The fit path itself still produces a valid training embedding.
+    assert_eq!(fitted.embedding().dim(), (4, 2));
 }
 
 #[test]

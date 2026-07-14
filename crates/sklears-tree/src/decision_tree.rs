@@ -1,7 +1,18 @@
-//! Decision Tree implementation
+//! Generic, state-typed decision tree building block
 //!
-//! This module provides comprehensive Decision Tree Classifier and Regressor implementations
-//! using advanced CART algorithms, complying with SciRS2 Policy.
+//! This module provides `DecisionTree<State>`, a low-level generic struct used as a
+//! shared building block (e.g. by the Python bindings in `sklears-python`) and by
+//! basic construction/builder tests in this crate.
+//!
+//! For fully-featured, SmartCore-backed classification and regression estimators
+//! that actually learn from data, use [`crate::classifier::DecisionTreeClassifier`]
+//! and [`crate::regressor::DecisionTreeRegressor`] instead — those are the types
+//! re-exported at the crate root as `DecisionTreeClassifier`/`DecisionTreeRegressor`.
+//!
+//! `DecisionTree<State>`'s own [`Fit`]/[`Predict`] implementations below are
+//! intentionally minimal: `fit` does not build a real tree and `predict` always
+//! returns zeros. Do not use `DecisionTree` directly when you need real
+//! predictions.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::error::{Result, SklearsError};
@@ -24,12 +35,6 @@ pub struct DecisionTree<State = Untrained> {
     n_samples: usize,
     state: PhantomData<State>,
 }
-
-/// Type alias for Decision Tree Classifier (untrained)
-pub type DecisionTreeClassifier = DecisionTree<Untrained>;
-
-/// Type alias for Decision Tree Regressor (untrained)
-pub type DecisionTreeRegressor = DecisionTree<Untrained>;
 
 impl<State> Default for DecisionTree<State> {
     fn default() -> Self {
@@ -305,11 +310,14 @@ impl Fit<Array2<f64>, Array1<f64>, Untrained> for DecisionTree<Untrained> {
         // Validate input
         TreeValidator::validate_input(&x.view(), &y.view())?;
 
-        // Basic fitting implementation (simplified for now)
-        // In a full implementation, this would build the actual tree
+        // Intentionally minimal: `DecisionTree<State>` is a low-level shared
+        // building block, not a real estimator. It does not construct a tree
+        // from `y` at all. For a real, learning implementation use
+        // `crate::classifier::DecisionTreeClassifier` or
+        // `crate::regressor::DecisionTreeRegressor` instead.
         let fitted_tree = DecisionTree::<Trained> {
             config: self.config,
-            root: None, // Would contain the actual tree structure
+            root: None,
             feature_importances: None,
             n_features: x.ncols(),
             n_samples: x.nrows(),
@@ -324,8 +332,9 @@ impl Predict<Array2<f64>, Array1<f64>> for DecisionTree<Trained> {
     fn predict(&self, x: &Array2<f64>) -> Result<Array1<f64>> {
         TreeValidator::validate_prediction_input(self, &x.view())?;
 
-        // Basic prediction implementation (simplified for now)
-        // In a full implementation, this would traverse the tree
+        // Intentionally minimal: there is no tree to traverse (see `fit` above),
+        // so this always returns zeros. Use `crate::classifier::DecisionTreeClassifier`
+        // or `crate::regressor::DecisionTreeRegressor` for real predictions.
         let predictions = Array1::zeros(x.nrows());
 
         Ok(predictions)
@@ -338,10 +347,11 @@ impl DecisionTree<Trained> {
         true
     }
 
-    /// Get the number of classes (for classification trees)
+    /// Get the number of classes (always 2; `DecisionTree<State>` never learns
+    /// real class information from training data). For a real class count use
+    /// `crate::classifier::DecisionTreeClassifier::n_classes`, which computes
+    /// it from the actual training labels.
     pub fn n_classes(&self) -> usize {
-        // This should be determined from the training data
-        // For now, default to binary classification
         2
     }
 }

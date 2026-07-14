@@ -38,7 +38,7 @@ use sklears_core::{
 ///     .n_components(2)
 ///     .n_neighbors(2);
 /// let fitted = mvu.fit(&x.view(), &()).unwrap();
-/// let embedded = fitted.transform(&x.view()).unwrap();
+/// let embedding = fitted.embedding();
 /// ```
 #[derive(Debug, Clone)]
 pub struct MVU<S = Untrained> {
@@ -289,19 +289,21 @@ impl MVU<Untrained> {
 }
 
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for MVU<MvuTrained> {
-    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let (n_samples, _) = x.dim();
-
-        // For MVU, we can only transform the original training data
-        // Out-of-sample extension is not directly supported in standard MVU
-        if n_samples != self.state.embedding.nrows() {
-            return Err(SklearsError::InvalidParameter {
-                name: "input_data".to_string(),
-                reason: "MVU does not support out-of-sample extensions. Input must be the same as training data.".to_string()
-            });
-        }
-
-        Ok(self.state.embedding.clone())
+    fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
+        // MVU (Maximum Variance Unfolding) is a transductive method: the embedding
+        // is the output of a semidefinite program solved jointly over the entire
+        // training set, and there is no learned mapping that can place new points
+        // into that space -- not even the exact training points re-submitted,
+        // since there is no function to evaluate at all. This matches the
+        // scikit-learn-equivalent transductive behavior of having no transform()
+        // method; callers must use `embedding()` to retrieve the training-time
+        // embedding instead of calling `transform()`.
+        Err(SklearsError::NotImplemented(
+            "MVU does not support out-of-sample extensions (transductive method); \
+             use `embedding()` to retrieve the training-time embedding instead of \
+             calling `transform()`."
+                .to_string(),
+        ))
     }
 }
 

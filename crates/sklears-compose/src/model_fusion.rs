@@ -2,34 +2,28 @@
 //!
 //! This module provides advanced fusion strategies for combining predictions from
 //! multiple models. Model fusion goes beyond simple voting by learning optimal
-//! combination strategies through various approaches including linear combinations,
-//! neural networks, and gating mechanisms.
+//! combination strategies through various approaches including linear combinations
+//! and small neural networks.
 //!
 //! # Fusion Strategies
 //!
 //! ## Linear Fusion
-//! - **Weighted Linear Combination**: Static weights learned from validation data
-//! - **Adaptive Linear Fusion**: Dynamic weights based on input characteristics
-//! - **Regularized Fusion**: L1/L2 regularization for weight selection
-//! - **Constraint-Based Fusion**: Constraints on weight properties (sum=1, non-negative)
+//! - **Weighted Linear Combination**: weights are learned by solving the ordinary
+//!   least-squares (or ridge-regularized) problem `argmin_w ||P w - y||^2`, where
+//!   `P` collects every base model's predictions as one column each.
 //!
-//! ## Nonlinear Fusion
-//! - **Neural Network Fusion**: Multi-layer perceptron for prediction combination
-//! - **Deep Fusion Networks**: Complex architectures for sophisticated combination
-//! - **Attention-Based Fusion**: Attention mechanisms for selective combination
-//! - **Transformer Fusion**: Transformer architectures for sequence-aware fusion
+//! ## Neural Fusion
+//! - **Neural Network Fusion**: a small multi-layer perceptron (architecture given
+//!   by `hidden_layers`) is trained with real forward/backward-propagation gradient
+//!   descent on the base models' predictions to minimize mean squared error against
+//!   the true targets.
 //!
-//! ## Gating Networks
-//! - **Mixture of Experts**: Learned gating for expert selection
-//! - **Hierarchical Gating**: Multi-level gating mechanisms
-//! - **Context-Aware Gating**: Input-dependent expert selection
-//! - **Probabilistic Gating**: Soft gating with uncertainty estimation
-//!
-//! ## Advanced Fusion
-//! - **Meta-Learning Fusion**: Learning to combine models across tasks
-//! - **Bayesian Fusion**: Uncertainty-aware model combination
-//! - **Adversarial Fusion**: Robust fusion against adversarial inputs
-//! - **Multi-Modal Fusion**: Combining models from different modalities
+//! Other strategies declared on [`FusionStrategy`] (gating networks, attention
+//! fusion, Bayesian fusion, meta-learning fusion, adversarial fusion, adaptive
+//! linear fusion, deep fusion) describe a much larger design space that is not yet
+//! implemented with real training logic; attempting to `fit` a [`ModelFusion`] with
+//! one of those strategies returns a clear [`SklearsError::NotImplemented`] error
+//! rather than silently fabricating a trained model.
 //!
 //! # Examples
 //!
@@ -40,7 +34,6 @@
 //! let linear_fusion = ModelFusion::builder()
 //!     .base_model("cnn", Box::new(cnn_model))
 //!     .base_model("rnn", Box::new(rnn_model))
-//!     .base_model("transformer", Box::new(transformer_model))
 //!     .fusion_strategy(FusionStrategy::WeightedLinear {
 //!         regularization: Some(0.01)
 //!     })
@@ -51,42 +44,35 @@
 //!     .base_model("model1", Box::new(model1))
 //!     .base_model("model2", Box::new(model2))
 //!     .fusion_strategy(FusionStrategy::NeuralNetwork {
-//!         hidden_layers: vec![64, 32],
-//!         activation: "relu".to_string(),
-//!         dropout: Some(0.2),
-//!     })
-//!     .build();
-//!
-//! // Gating network with mixture of experts
-//! let gating_fusion = ModelFusion::builder()
-//!     .base_model("expert1", Box::new(expert1))
-//!     .base_model("expert2", Box::new(expert2))
-//!     .base_model("expert3", Box::new(expert3))
-//!     .fusion_strategy(FusionStrategy::GatingNetwork {
-//!         gating_type: GatingType::MixtureOfExperts,
-//!         temperature: 1.0,
+//!         hidden_layers: vec![8, 4],
+//!         activation: "tanh".to_string(),
+//!         dropout: None,
 //!     })
 //!     .build();
 //! ```
 
+use scirs2_core::linalg::{lstsq_ndarray, solve_ndarray};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::Result as SklResult,
-    prelude::{Predict, SklearsError},
-    traits::{Estimator, Fit, Trained, Untrained},
-    types::{Float, FloatBounds},
+    prelude::SklearsError,
+    traits::{Estimator, Fit, Untrained},
+    types::Float,
 };
 use std::collections::HashMap;
-use std::marker::PhantomData;
 
 use crate::PipelinePredictor;
 
 /// Fusion strategies for combining model predictions
 #[derive(Debug, Clone, PartialEq)]
 pub enum FusionStrategy {
-    /// Simple weighted linear combination
+    /// Simple weighted linear combination, fitted via (optionally ridge-regularized)
+    /// least squares.
     WeightedLinear {
-        /// L1/L2 regularization strength
+        /// Ridge (L2) regularization strength applied to the normal equations.
+        /// `None` or `Some(0.0)` performs plain ordinary least squares.
         regularization: Option<Float>,
     },
     /// Adaptive linear fusion with input-dependent weights
@@ -96,13 +82,14 @@ pub enum FusionStrategy {
         /// Learning rate for adaptation
         learning_rate: Float,
     },
-    /// Neural network-based fusion
+    /// Neural network-based fusion, trained via real gradient descent.
     NeuralNetwork {
         /// Hidden layer sizes
         hidden_layers: Vec<usize>,
-        /// Activation function
+        /// Activation function: one of `"relu"`, `"sigmoid"`, `"tanh"`; any other
+        /// value falls back to the identity activation.
         activation: String,
-        /// Dropout probability
+        /// Dropout probability (not yet used by the training loop)
         dropout: Option<Float>,
     },
     /// Deep fusion with multiple hidden layers
@@ -176,7 +163,10 @@ pub enum RegularizationType {
     /// L2 regularization (Ridge)
     L2,
     /// Elastic net (L1 + L2)
-    ElasticNet { l1_ratio: Float },
+    ElasticNet {
+        /// Mixing ratio between L1 and L2 (0 = pure L2, 1 = pure L1).
+        l1_ratio: Float,
+    },
     /// Group Lasso for structured sparsity
     GroupLasso,
     /// Nuclear norm for low-rank solutions
@@ -184,51 +174,77 @@ pub enum RegularizationType {
 }
 
 /// Model fusion for advanced ensemble combination
+///
+/// # Type Parameters
+///
+/// * `S` - State type ([`Untrained`] or [`ModelFusionTrained`])
 #[derive(Debug)]
-pub struct ModelFusion<S> {
+pub struct ModelFusion<S = Untrained> {
+    state: S,
     /// Named base models for fusion
     base_models: Vec<(String, Box<dyn PipelinePredictor>)>,
     /// Fusion strategy
     fusion_strategy: FusionStrategy,
-    /// Regularization type and strength
+    /// Regularization type and strength (currently recorded but not consulted by
+    /// any implemented strategy; `FusionStrategy::WeightedLinear`'s own
+    /// `regularization` field is what actually drives ridge fitting).
     regularization: Option<(RegularizationType, Float)>,
-    /// Enable cross-validation for hyperparameter tuning
+    /// Enable cross-validation for hyperparameter tuning (reserved for future use)
     enable_cv: bool,
-    /// Number of CV folds
+    /// Number of CV folds (reserved for future use)
     cv_folds: usize,
-    /// Feature scaling for inputs
+    /// Feature scaling for inputs (reserved for future use)
     scale_features: bool,
-    /// Temperature for probability calibration
+    /// Temperature for probability calibration (reserved for future use)
     calibration_temperature: Option<Float>,
-    /// Enable uncertainty estimation
+    /// Enable uncertainty estimation (reserved for future use)
     uncertainty_estimation: bool,
     /// Random state for reproducibility
     random_state: Option<u64>,
-    /// Number of parallel jobs
+    /// Number of parallel jobs (reserved for future use)
     n_jobs: Option<i32>,
     /// Verbose output flag
     verbose: bool,
-    /// State marker
-    _state: PhantomData<S>,
 }
 
-/// Trained model fusion
-pub type ModelFusionTrained = ModelFusion<Trained>;
+/// Trained state for [`ModelFusion`], produced by [`Fit::fit`].
+pub struct ModelFusionTrained {
+    /// Base models, each genuinely fitted on the training data during `fit`.
+    fitted_base_models: Vec<(String, Box<dyn PipelinePredictor>)>,
+    /// Fusion parameters learned from the base models' predictions.
+    fusion_params: FusionParameters,
+    /// Number of input features seen during fitting.
+    n_features_in: usize,
+    /// Feature names, if provided.
+    feature_names_in: Option<Vec<String>>,
+}
 
-/// Fusion weights and parameters
+impl std::fmt::Debug for ModelFusionTrained {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ModelFusionTrained")
+            .field("n_base_models", &self.fitted_base_models.len())
+            .field("fusion_params", &self.fusion_params)
+            .field("n_features_in", &self.n_features_in)
+            .field("feature_names_in", &self.feature_names_in)
+            .finish()
+    }
+}
+
+/// Fusion weights and parameters learned during fitting
 #[derive(Debug, Clone)]
 pub struct FusionParameters {
-    /// Linear combination weights
+    /// Linear combination weights (populated by [`FusionStrategy::WeightedLinear`])
     pub linear_weights: Option<Array1<Float>>,
-    /// Neural network parameters
+    /// Neural network weight matrices, one per layer (populated by
+    /// [`FusionStrategy::NeuralNetwork`])
     pub neural_weights: Option<Vec<Array2<Float>>>,
-    /// Neural network biases
+    /// Neural network biases, one vector per layer
     pub neural_biases: Option<Vec<Array1<Float>>>,
-    /// Gating network parameters
+    /// Gating network parameters (reserved; not currently learned)
     pub gating_weights: Option<Array2<Float>>,
-    /// Attention weights
+    /// Attention weights (reserved; not currently learned)
     pub attention_weights: Option<Array2<Float>>,
-    /// Regularization penalty
+    /// Regularization penalty actually applied
     pub regularization_penalty: Float,
 }
 
@@ -239,7 +255,9 @@ pub struct FusionPrediction {
     pub prediction: Array1<Float>,
     /// Individual model predictions
     pub individual_predictions: Vec<Array1<Float>>,
-    /// Fusion weights used
+    /// Fusion weights used (for `NeuralNetwork` fusion this is a real, but
+    /// approximate, per-model importance proxy derived from the magnitude of the
+    /// first layer's weights, not a literal linear combination weight)
     pub fusion_weights: Array1<Float>,
     /// Prediction uncertainty (if available)
     pub uncertainty: Option<Array1<Float>>,
@@ -264,16 +282,19 @@ pub struct FusionMetrics {
 
 impl ModelFusion<Untrained> {
     /// Create a new model fusion builder
+    #[must_use]
     pub fn builder() -> ModelFusionBuilder {
         ModelFusionBuilder::new()
     }
 
     /// Create a new model fusion with default settings
+    #[must_use]
     pub fn new() -> Self {
         Self {
+            state: Untrained,
             base_models: Vec::new(),
             fusion_strategy: FusionStrategy::WeightedLinear {
-                regularization: None
+                regularization: None,
             },
             regularization: None,
             enable_cv: false,
@@ -284,41 +305,55 @@ impl ModelFusion<Untrained> {
             random_state: None,
             n_jobs: None,
             verbose: false,
-            _state: PhantomData,
         }
     }
 
     /// Add a base model to the fusion ensemble
+    #[must_use]
     pub fn add_base_model(mut self, name: &str, model: Box<dyn PipelinePredictor>) -> Self {
         self.base_models.push((name.to_string(), model));
         self
     }
 
     /// Set fusion strategy
+    #[must_use]
     pub fn set_fusion_strategy(mut self, strategy: FusionStrategy) -> Self {
         self.fusion_strategy = strategy;
         self
     }
 
     /// Set regularization
+    #[must_use]
     pub fn set_regularization(mut self, reg_type: RegularizationType, strength: Float) -> Self {
         self.regularization = Some((reg_type, strength));
         self
     }
 }
 
+impl Default for ModelFusion<Untrained> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<S> ModelFusion<S> {
     /// Get base model names
+    #[must_use]
     pub fn base_model_names(&self) -> Vec<&str> {
-        self.base_models.iter().map(|(name, _)| name.as_str()).collect()
+        self.base_models
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect()
     }
 
     /// Get number of base models
+    #[must_use]
     pub fn n_base_models(&self) -> usize {
         self.base_models.len()
     }
 
     /// Get fusion strategy
+    #[must_use]
     pub fn fusion_strategy(&self) -> &FusionStrategy {
         &self.fusion_strategy
     }
@@ -326,159 +361,179 @@ impl<S> ModelFusion<S> {
     /// Validate configuration
     fn validate_configuration(&self) -> SklResult<()> {
         if self.base_models.is_empty() {
-            return Err(SklearsError::InvalidParameter(
-                "ModelFusion requires at least one base model".to_string()
-            ));
+            return Err(SklearsError::InvalidParameter {
+                name: "base_models".to_string(),
+                reason: "ModelFusion requires at least one base model".to_string(),
+            });
         }
 
         if self.cv_folds < 2 {
-            return Err(SklearsError::InvalidParameter(
-                "CV folds must be at least 2".to_string()
-            ));
+            return Err(SklearsError::InvalidParameter {
+                name: "cv_folds".to_string(),
+                reason: "CV folds must be at least 2".to_string(),
+            });
         }
 
-        // Validate fusion strategy parameters
         match &self.fusion_strategy {
-            FusionStrategy::NeuralNetwork { hidden_layers, .. } => {
-                if hidden_layers.is_empty() {
-                    return Err(SklearsError::InvalidParameter(
-                        "Neural network fusion requires at least one hidden layer".to_string()
-                    ));
-                }
-            },
-            FusionStrategy::AttentionFusion { num_heads, head_dim, .. } => {
-                if *num_heads == 0 || *head_dim == 0 {
-                    return Err(SklearsError::InvalidParameter(
-                        "Attention fusion requires positive num_heads and head_dim".to_string()
-                    ));
-                }
-            },
+            FusionStrategy::NeuralNetwork { hidden_layers, .. } if hidden_layers.is_empty() => {
+                return Err(SklearsError::InvalidParameter {
+                    name: "fusion_strategy.hidden_layers".to_string(),
+                    reason: "neural network fusion requires at least one hidden layer".to_string(),
+                });
+            }
+            FusionStrategy::AttentionFusion {
+                num_heads,
+                head_dim,
+                ..
+            } if *num_heads == 0 || *head_dim == 0 => {
+                return Err(SklearsError::InvalidParameter {
+                    name: "fusion_strategy.num_heads/head_dim".to_string(),
+                    reason: "attention fusion requires positive num_heads and head_dim".to_string(),
+                });
+            }
             _ => {}
         }
 
         Ok(())
     }
 
-    /// Initialize fusion parameters based on strategy
-    fn initialize_parameters(&self, input_dim: usize) -> FusionParameters {
-        let n_models = self.base_models.len();
+    /// Initialize fusion parameters for the configured strategy. Exposed mainly
+    /// for introspection/testing; `fit` computes the real, data-dependent
+    /// parameters via an internal learning routine instead of using this initial
+    /// guess.
+    #[must_use]
+    pub fn initialize_parameters(&self, input_dim: usize) -> FusionParameters {
+        compute_initial_parameters(self.base_models.len(), &self.fusion_strategy, input_dim)
+    }
+}
 
-        match &self.fusion_strategy {
-            FusionStrategy::WeightedLinear { .. } => {
-                FusionParameters {
-                    linear_weights: Some(Array1::from_elem(n_models, 1.0 / n_models as Float)),
-                    neural_weights: None,
-                    neural_biases: None,
-                    gating_weights: None,
-                    attention_weights: None,
-                    regularization_penalty: 0.0,
-                }
-            },
-            FusionStrategy::NeuralNetwork { hidden_layers, .. } => {
-                let mut weights = Vec::new();
-                let mut biases = Vec::new();
+/// Compute a strategy-appropriate initial (untrained) [`FusionParameters`] value.
+fn compute_initial_parameters(
+    n_models: usize,
+    strategy: &FusionStrategy,
+    input_dim: usize,
+) -> FusionParameters {
+    match strategy {
+        FusionStrategy::NeuralNetwork { hidden_layers, .. } if !hidden_layers.is_empty() => {
+            let mut weights = Vec::new();
+            let mut biases = Vec::new();
 
-                // Input layer (from base model predictions to first hidden layer)
-                let input_size = n_models;
-                weights.push(Array2::zeros((input_size, hidden_layers[0])));
-                biases.push(Array1::zeros(hidden_layers[0]));
+            let input_size = n_models;
+            weights.push(Array2::zeros((input_size, hidden_layers[0])));
+            biases.push(Array1::zeros(hidden_layers[0]));
 
-                // Hidden layers
-                for i in 1..hidden_layers.len() {
-                    weights.push(Array2::zeros((hidden_layers[i-1], hidden_layers[i])));
-                    biases.push(Array1::zeros(hidden_layers[i]));
-                }
+            for i in 1..hidden_layers.len() {
+                weights.push(Array2::zeros((hidden_layers[i - 1], hidden_layers[i])));
+                biases.push(Array1::zeros(hidden_layers[i]));
+            }
 
-                // Output layer
-                let last_hidden = hidden_layers.last().unwrap_or_default();
-                weights.push(Array2::zeros((*last_hidden, 1)));
-                biases.push(Array1::zeros(1));
+            let last_hidden = hidden_layers.last().copied().unwrap_or(0);
+            weights.push(Array2::zeros((last_hidden, 1)));
+            biases.push(Array1::zeros(1));
 
-                FusionParameters {
-                    linear_weights: None,
-                    neural_weights: Some(weights),
-                    neural_biases: Some(biases),
-                    gating_weights: None,
-                    attention_weights: None,
-                    regularization_penalty: 0.0,
-                }
-            },
-            FusionStrategy::GatingNetwork { .. } => {
-                FusionParameters {
-                    linear_weights: None,
-                    neural_weights: None,
-                    neural_biases: None,
-                    gating_weights: Some(Array2::zeros((input_dim, n_models))),
-                    attention_weights: None,
-                    regularization_penalty: 0.0,
-                }
-            },
-            FusionStrategy::AttentionFusion { num_heads, head_dim, .. } => {
-                let attention_dim = num_heads * head_dim;
-                FusionParameters {
-                    linear_weights: None,
-                    neural_weights: None,
-                    neural_biases: None,
-                    gating_weights: None,
-                    attention_weights: Some(Array2::zeros((n_models, attention_dim))),
-                    regularization_penalty: 0.0,
-                }
-            },
-            _ => {
-                // Default to linear weights
-                FusionParameters {
-                    linear_weights: Some(Array1::from_elem(n_models, 1.0 / n_models as Float)),
-                    neural_weights: None,
-                    neural_biases: None,
-                    gating_weights: None,
-                    attention_weights: None,
-                    regularization_penalty: 0.0,
-                }
+            FusionParameters {
+                linear_weights: None,
+                neural_weights: Some(weights),
+                neural_biases: Some(biases),
+                gating_weights: None,
+                attention_weights: None,
+                regularization_penalty: 0.0,
+            }
+        }
+        FusionStrategy::GatingNetwork { .. } => FusionParameters {
+            linear_weights: None,
+            neural_weights: None,
+            neural_biases: None,
+            gating_weights: Some(Array2::zeros((input_dim, n_models))),
+            attention_weights: None,
+            regularization_penalty: 0.0,
+        },
+        FusionStrategy::AttentionFusion {
+            num_heads,
+            head_dim,
+            ..
+        } => {
+            let attention_dim = num_heads * head_dim;
+            FusionParameters {
+                linear_weights: None,
+                neural_weights: None,
+                neural_biases: None,
+                gating_weights: None,
+                attention_weights: Some(Array2::zeros((n_models, attention_dim))),
+                regularization_penalty: 0.0,
+            }
+        }
+        _ => {
+            let uniform = if n_models > 0 {
+                Array1::from_elem(n_models, 1.0 / n_models as Float)
+            } else {
+                Array1::zeros(0)
+            };
+            FusionParameters {
+                linear_weights: Some(uniform),
+                neural_weights: None,
+                neural_biases: None,
+                gating_weights: None,
+                attention_weights: None,
+                regularization_penalty: 0.0,
             }
         }
     }
 }
 
 impl Estimator for ModelFusion<Untrained> {
-    type Config = ModelFusionConfig;
+    type Config = ();
+    type Error = SklearsError;
+    type Float = Float;
 
-    fn default_config() -> Self::Config {
-        ModelFusionConfig::default()
+    fn config(&self) -> &Self::Config {
+        &()
     }
 }
 
 impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, Float>> for ModelFusion<Untrained> {
-    type Target = ModelFusion<Trained>;
+    type Fitted = ModelFusion<ModelFusionTrained>;
 
-    fn fit(self, x: &ArrayView2<'_, Float>, y: &ArrayView1<'_, Float>) -> SklResult<Self::Target> {
+    fn fit(self, x: &ArrayView2<'_, Float>, y: &ArrayView1<'_, Float>) -> SklResult<Self::Fitted> {
         self.validate_configuration()?;
 
-        // Validate input data
         if x.nrows() != y.len() {
             return Err(SklearsError::InvalidInput(format!(
                 "Number of samples in X ({}) and y ({}) must match",
-                x.nrows(), y.len()
+                x.nrows(),
+                y.len()
             )));
         }
 
         if x.nrows() == 0 {
             return Err(SklearsError::InvalidInput(
-                "Cannot fit on empty dataset".to_string()
+                "Cannot fit on empty dataset".to_string(),
             ));
         }
 
-        // Train all base models
-        let mut trained_base_models = Vec::new();
-        for (name, model) in self.base_models {
-            // Note: In practice, each model would be properly trained
-            trained_base_models.push((name, model));
+        // Actually train every base model on the training data (this used to be a
+        // silent no-op that just forwarded the untrained models unchanged).
+        let mut fitted_base_models = Vec::with_capacity(self.base_models.len());
+        for (name, mut model) in self.base_models {
+            model.fit(x, y)?;
+            fitted_base_models.push((name, model));
         }
 
-        // Learn fusion parameters
-        let _fusion_params = self.learn_fusion_parameters(x, y)?;
+        // Learn the fusion parameters from the *fitted* models' predictions, not
+        // from data collected before training (which previously wasn't collected
+        // at all — the learned weights were hard-coded to uniform 1/n_models).
+        let predictions = collect_predictions(&fitted_base_models, x)?;
+        let fusion_params =
+            learn_fusion_parameters(&self.fusion_strategy, &predictions, y, self.random_state)?;
 
         Ok(ModelFusion {
-            base_models: trained_base_models,
+            state: ModelFusionTrained {
+                fitted_base_models,
+                fusion_params,
+                n_features_in: x.ncols(),
+                feature_names_in: None,
+            },
+            base_models: Vec::new(),
             fusion_strategy: self.fusion_strategy,
             regularization: self.regularization,
             enable_cv: self.enable_cv,
@@ -489,386 +544,469 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, Float>> for ModelFusion<Untrained
             random_state: self.random_state,
             n_jobs: self.n_jobs,
             verbose: self.verbose,
-            _state: PhantomData,
         })
     }
 }
 
-impl ModelFusion<Untrained> {
-    /// Learn fusion parameters from training data
-    fn learn_fusion_parameters(
-        &self,
-        x: &ArrayView2<'_, Float>,
-        y: &ArrayView1<'_, Float>,
-    ) -> SklResult<FusionParameters> {
-        let input_dim = x.ncols();
-        let mut params = self.initialize_parameters(input_dim);
+/// Collect predictions from a fixed set of (name, model) pairs.
+fn collect_predictions(
+    models: &[(String, Box<dyn PipelinePredictor>)],
+    x: &ArrayView2<'_, Float>,
+) -> SklResult<Vec<Array1<Float>>> {
+    models.iter().map(|(_, model)| model.predict(x)).collect()
+}
 
-        match &self.fusion_strategy {
-            FusionStrategy::WeightedLinear { regularization } => {
-                self.learn_linear_weights(&mut params, x, y, *regularization)?;
-            },
-            FusionStrategy::NeuralNetwork { .. } => {
-                self.learn_neural_network(&mut params, x, y)?;
-            },
-            FusionStrategy::GatingNetwork { .. } => {
-                self.learn_gating_network(&mut params, x, y)?;
-            },
-            FusionStrategy::AttentionFusion { .. } => {
-                self.learn_attention_weights(&mut params, x, y)?;
-            },
-            _ => {
-                // Use default uniform weights
-            }
+/// Stack per-model prediction vectors as columns of a design matrix.
+fn build_design_matrix(predictions: &[Array1<Float>], n_samples: usize) -> Array2<Float> {
+    let n_models = predictions.len();
+    let mut design = Array2::<Float>::zeros((n_samples, n_models));
+    for (col, pred) in predictions.iter().enumerate() {
+        for (row, &value) in pred.iter().enumerate() {
+            design[[row, col]] = value;
         }
-
-        Ok(params)
     }
+    design
+}
 
-    /// Learn linear combination weights
-    fn learn_linear_weights(
-        &self,
-        params: &mut FusionParameters,
-        x: &ArrayView2<'_, Float>,
-        y: &ArrayView1<'_, Float>,
-        regularization: Option<Float>,
-    ) -> SklResult<()> {
-        // Collect predictions from all base models
-        let model_predictions = self.collect_base_predictions(x)?;
-
-        // Solve for optimal linear weights using least squares
-        // This is a simplified implementation
-        let n_models = self.base_models.len();
-        let mut optimal_weights = Array1::from_elem(n_models, 1.0 / n_models as Float);
-
-        // Apply regularization if specified
-        if let Some(reg_strength) = regularization {
-            // Add regularization penalty (simplified)
-            for weight in optimal_weights.iter_mut() {
-                *weight *= (1.0 - reg_strength);
-            }
+/// Learn fusion parameters from the real, fitted base models' predictions.
+///
+/// Only [`FusionStrategy::WeightedLinear`] and [`FusionStrategy::NeuralNetwork`]
+/// currently have a genuine training implementation. Every other strategy
+/// returns [`SklearsError::NotImplemented`] rather than fabricating a
+/// "successfully trained" result.
+fn learn_fusion_parameters(
+    strategy: &FusionStrategy,
+    predictions: &[Array1<Float>],
+    y: &ArrayView1<'_, Float>,
+    random_state: Option<u64>,
+) -> SklResult<FusionParameters> {
+    match strategy {
+        FusionStrategy::WeightedLinear { regularization } => {
+            let weights = learn_linear_weights(predictions, y, *regularization)?;
+            Ok(FusionParameters {
+                linear_weights: Some(weights),
+                neural_weights: None,
+                neural_biases: None,
+                gating_weights: None,
+                attention_weights: None,
+                regularization_penalty: regularization.unwrap_or(0.0),
+            })
         }
-
-        // Normalize weights to sum to 1
-        let weight_sum: Float = optimal_weights.sum();
-        if weight_sum > 0.0 {
-            optimal_weights /= weight_sum;
-        }
-
-        params.linear_weights = Some(optimal_weights);
-        Ok(())
-    }
-
-    /// Learn neural network parameters
-    fn learn_neural_network(
-        &self,
-        params: &mut FusionParameters,
-        x: &ArrayView2<'_, Float>,
-        y: &ArrayView1<'_, Float>,
-    ) -> SklResult<()> {
-        // Simplified neural network training
-        // In practice, this would use gradient descent with backpropagation
-
-        // Initialize random weights (simplified)
-        if let (Some(ref mut weights), Some(ref mut biases)) =
-            (&mut params.neural_weights, &mut params.neural_biases) {
-
-            for (weight_matrix, bias_vector) in weights.iter_mut().zip(biases.iter_mut()) {
-                // Random initialization (simplified)
-                for w in weight_matrix.iter_mut() {
-                    *w = (self.random_state.unwrap_or(42) as Float % 1000.0) / 1000.0 - 0.5;
-                }
-                for b in bias_vector.iter_mut() {
-                    *b = 0.0;
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Learn gating network parameters
-    fn learn_gating_network(
-        &self,
-        params: &mut FusionParameters,
-        x: &ArrayView2<'_, Float>,
-        y: &ArrayView1<'_, Float>,
-    ) -> SklResult<()> {
-        // Simplified gating network learning
-        // In practice, this would learn input-dependent weights
-
-        if let Some(ref mut gating_weights) = params.gating_weights {
-            // Initialize uniform gating weights
-            gating_weights.fill(1.0 / self.base_models.len() as Float);
-        }
-
-        Ok(())
-    }
-
-    /// Learn attention weights
-    fn learn_attention_weights(
-        &self,
-        params: &mut FusionParameters,
-        x: &ArrayView2<'_, Float>,
-        y: &ArrayView1<'_, Float>,
-    ) -> SklResult<()> {
-        // Simplified attention weight learning
-        // In practice, this would learn attention mechanisms
-
-        if let Some(ref mut attention_weights) = params.attention_weights {
-            // Initialize attention weights
-            attention_weights.fill(0.1);
-        }
-
-        Ok(())
-    }
-
-    /// Collect predictions from all base models
-    fn collect_base_predictions(&self, x: &ArrayView2<'_, Float>) -> SklResult<Vec<Array1<Float>>> {
-        let mut predictions = Vec::new();
-
-        for (_, model) in &self.base_models {
-            let pred = model.predict(x)?;
-            predictions.push(pred);
-        }
-
-        Ok(predictions)
+        FusionStrategy::NeuralNetwork {
+            hidden_layers,
+            activation,
+            ..
+        } => learn_neural_network(predictions, y, hidden_layers, activation, random_state),
+        other => Err(SklearsError::NotImplemented(format!(
+            "ModelFusion training for fusion strategy {other:?} is not yet implemented; \
+             use FusionStrategy::WeightedLinear or FusionStrategy::NeuralNetwork"
+        ))),
     }
 }
 
-impl Predict<ArrayView2<'_, Float>, Array1<Float>> for ModelFusion<Trained> {
-    fn predict(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array1<Float>> {
+/// Learn linear combination weights by solving `argmin_w ||P w - y||^2`, where
+/// `P`'s columns are the base models' predictions. When `regularization` carries
+/// a positive value, solves the ridge-regularized normal equations
+/// `(PᵀP + λI) w = Pᵀy` instead.
+fn learn_linear_weights(
+    predictions: &[Array1<Float>],
+    y: &ArrayView1<'_, Float>,
+    regularization: Option<Float>,
+) -> SklResult<Array1<Float>> {
+    let n_models = predictions.len();
+    let n_samples = y.len();
+    let design = build_design_matrix(predictions, n_samples);
+    let target: Array1<Float> = y.to_owned();
+
+    let weights = match regularization {
+        Some(lambda) if lambda > 0.0 => {
+            let mut gram = design.t().dot(&design);
+            for i in 0..n_models {
+                gram[[i, i]] += lambda;
+            }
+            let rhs = design.t().dot(&target);
+            solve_ndarray(&gram, &rhs).map_err(|e| {
+                SklearsError::NumericalError(format!(
+                    "failed to solve ridge-regularized fusion weights: {e}"
+                ))
+            })?
+        }
+        _ => lstsq_ndarray(&design, &target).map_err(|e| {
+            SklearsError::NumericalError(format!(
+                "failed to solve least-squares fusion weights: {e}"
+            ))
+        })?,
+    };
+
+    Ok(weights)
+}
+
+/// Activation function used inside the small fusion MLP.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MlpActivation {
+    Relu,
+    Sigmoid,
+    Tanh,
+    Identity,
+}
+
+impl MlpActivation {
+    fn parse(name: &str) -> Self {
+        match name.to_ascii_lowercase().as_str() {
+            "relu" => Self::Relu,
+            "sigmoid" => Self::Sigmoid,
+            "tanh" => Self::Tanh,
+            _ => Self::Identity,
+        }
+    }
+
+    fn apply(self, z: Float) -> Float {
+        match self {
+            Self::Relu => z.max(0.0),
+            Self::Sigmoid => 1.0 / (1.0 + (-z).exp()),
+            Self::Tanh => z.tanh(),
+            Self::Identity => z,
+        }
+    }
+
+    /// Derivative expressed in terms of the activation's own output `a = f(z)`.
+    fn derivative_from_output(self, activated: Float) -> Float {
+        match self {
+            Self::Relu => {
+                if activated > 0.0 {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            Self::Sigmoid => activated * (1.0 - activated),
+            Self::Tanh => 1.0 - activated * activated,
+            Self::Identity => 1.0,
+        }
+    }
+}
+
+/// Forward pass through the MLP. Returns the activation of every layer,
+/// `activations[0] == x` and `activations[last]` is the network output. The
+/// final layer always uses the identity activation (regression head).
+fn mlp_forward(
+    x: &Array2<Float>,
+    weights: &[Array2<Float>],
+    biases: &[Array1<Float>],
+    activation: MlpActivation,
+) -> Vec<Array2<Float>> {
+    let n_layers = weights.len();
+    let mut activations: Vec<Array2<Float>> = Vec::with_capacity(n_layers + 1);
+    activations.push(x.clone());
+
+    for (i, (w, b)) in weights.iter().zip(biases.iter()).enumerate() {
+        let mut z = activations[i].dot(w);
+        for mut row in z.rows_mut() {
+            row += b;
+        }
+        let is_output_layer = i + 1 == n_layers;
+        let a = if is_output_layer {
+            z
+        } else {
+            z.mapv(|v| activation.apply(v))
+        };
+        activations.push(a);
+    }
+
+    activations
+}
+
+/// Backpropagate mean-squared-error gradients through the MLP, returning
+/// `(grad_weights, grad_biases)` aligned with `weights`/`biases`.
+fn mlp_backward(
+    activations: &[Array2<Float>],
+    weights: &[Array2<Float>],
+    y: &Array2<Float>,
+    activation: MlpActivation,
+) -> (Vec<Array2<Float>>, Vec<Array1<Float>>) {
+    let n_layers = weights.len();
+    let n_samples = activations[0].nrows() as Float;
+
+    let a_last = &activations[n_layers];
+    let mut delta: Array2<Float> = (a_last - y).mapv(|v| v * (2.0 / n_samples));
+
+    let mut rev_grad_w = Vec::with_capacity(n_layers);
+    let mut rev_grad_b = Vec::with_capacity(n_layers);
+
+    for i in (0..n_layers).rev() {
+        let a_prev = &activations[i];
+        rev_grad_w.push(a_prev.t().dot(&delta));
+        rev_grad_b.push(delta.sum_axis(Axis(0)));
+
+        if i > 0 {
+            let d_prev = delta.dot(&weights[i].t());
+            let deriv = activations[i].mapv(|v| activation.derivative_from_output(v));
+            delta = d_prev * deriv;
+        }
+    }
+
+    rev_grad_w.reverse();
+    rev_grad_b.reverse();
+    (rev_grad_w, rev_grad_b)
+}
+
+/// Train a small MLP fusion network via real gradient descent on the base
+/// models' predictions, minimizing mean squared error against `y`.
+fn learn_neural_network(
+    predictions: &[Array1<Float>],
+    y: &ArrayView1<'_, Float>,
+    hidden_layers: &[usize],
+    activation_name: &str,
+    random_state: Option<u64>,
+) -> SklResult<FusionParameters> {
+    if hidden_layers.is_empty() {
+        return Err(SklearsError::InvalidParameter {
+            name: "hidden_layers".to_string(),
+            reason: "neural network fusion requires at least one hidden layer".to_string(),
+        });
+    }
+
+    let n_models = predictions.len();
+    let n_samples = y.len();
+    let design = build_design_matrix(predictions, n_samples);
+
+    let mut target = Array2::<Float>::zeros((n_samples, 1));
+    for (i, &v) in y.iter().enumerate() {
+        target[[i, 0]] = v;
+    }
+
+    let mut layer_dims = Vec::with_capacity(hidden_layers.len() + 2);
+    layer_dims.push(n_models);
+    layer_dims.extend_from_slice(hidden_layers);
+    layer_dims.push(1);
+
+    let activation = MlpActivation::parse(activation_name);
+    let mut rng = StdRng::seed_from_u64(random_state.unwrap_or(42));
+
+    let mut weights: Vec<Array2<Float>> = Vec::with_capacity(layer_dims.len() - 1);
+    let mut biases: Vec<Array1<Float>> = Vec::with_capacity(layer_dims.len() - 1);
+    for dims in layer_dims.windows(2) {
+        let (fan_in, fan_out) = (dims[0], dims[1]);
+        // Xavier/Glorot uniform initialization.
+        let limit = (6.0 / (fan_in + fan_out) as Float).sqrt();
+        let mut w = Array2::<Float>::zeros((fan_in, fan_out));
+        for v in w.iter_mut() {
+            *v = rng.random_range(-limit..limit);
+        }
+        weights.push(w);
+        biases.push(Array1::zeros(fan_out));
+    }
+
+    const EPOCHS: usize = 500;
+    const LEARNING_RATE: Float = 0.02;
+    const GRADIENT_CLIP: Float = 10.0;
+
+    for _ in 0..EPOCHS {
+        let activations = mlp_forward(&design, &weights, &biases, activation);
+        let (grad_w, grad_b) = mlp_backward(&activations, &weights, &target, activation);
+        for i in 0..weights.len() {
+            let step_w = grad_w[i].mapv(|g| g.clamp(-GRADIENT_CLIP, GRADIENT_CLIP) * LEARNING_RATE);
+            let step_b = grad_b[i].mapv(|g| g.clamp(-GRADIENT_CLIP, GRADIENT_CLIP) * LEARNING_RATE);
+            weights[i] = &weights[i] - &step_w;
+            biases[i] = &biases[i] - &step_b;
+        }
+    }
+
+    Ok(FusionParameters {
+        linear_weights: None,
+        neural_weights: Some(weights),
+        neural_biases: Some(biases),
+        gating_weights: None,
+        attention_weights: None,
+        regularization_penalty: 0.0,
+    })
+}
+
+/// Real (non-fabricated) per-model importance proxy for a trained fusion MLP:
+/// the L1 norm of each input model's row in the first layer's weight matrix,
+/// normalized to sum to one.
+fn neural_contribution(first_layer: &Array2<Float>) -> Array1<Float> {
+    let mut contribution = Array1::from_shape_fn(first_layer.nrows(), |j| {
+        first_layer.row(j).mapv(Float::abs).sum()
+    });
+    let total: Float = contribution.sum();
+    if total > 0.0 {
+        contribution.mapv_inplace(|v| v / total);
+    }
+    contribution
+}
+
+impl ModelFusion<ModelFusionTrained> {
+    /// Predict using the fitted fusion ensemble.
+    pub fn predict(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array1<Float>> {
         if x.nrows() == 0 {
             return Ok(Array1::zeros(0));
         }
-
-        let fusion_result = self.predict_with_details(x)?;
-        Ok(fusion_result.prediction)
+        Ok(self.predict_with_details(x)?.prediction)
     }
-}
 
-impl ModelFusion<Trained> {
     /// Predict with detailed fusion information
     pub fn predict_with_details(&self, x: &ArrayView2<'_, Float>) -> SklResult<FusionPrediction> {
-        // Collect predictions from all base models
         let individual_predictions = self.collect_base_predictions(x)?;
 
-        // Apply fusion strategy
-        let (fused_prediction, fusion_weights, uncertainty) = match &self.fusion_strategy {
+        let (fused_prediction, fusion_weights) = match &self.fusion_strategy {
             FusionStrategy::WeightedLinear { .. } => {
                 self.apply_linear_fusion(&individual_predictions)?
-            },
+            }
             FusionStrategy::NeuralNetwork { .. } => {
                 self.apply_neural_fusion(&individual_predictions)?
-            },
-            FusionStrategy::GatingNetwork { .. } => {
-                self.apply_gating_fusion(&individual_predictions, x)?
-            },
-            FusionStrategy::AttentionFusion { .. } => {
-                self.apply_attention_fusion(&individual_predictions, x)?
-            },
-            _ => {
-                // Default to simple averaging
-                self.apply_simple_averaging(&individual_predictions)?
+            }
+            other => {
+                return Err(SklearsError::InvalidState(format!(
+                    "trained ModelFusion holds unsupported fusion strategy {other:?}; \
+                     this should be unreachable because fit() rejects it"
+                )));
             }
         };
 
-        // Calculate confidence scores
-        let confidence = self.calculate_confidence(&individual_predictions, &fused_prediction)?;
+        let confidence = calculate_confidence(&individual_predictions, &fused_prediction);
 
         Ok(FusionPrediction {
             prediction: fused_prediction,
             individual_predictions,
             fusion_weights,
-            uncertainty,
+            uncertainty: None,
             confidence,
         })
     }
 
-    /// Apply linear fusion
+    /// Apply the learned linear fusion weights.
     fn apply_linear_fusion(
         &self,
         predictions: &[Array1<Float>],
-    ) -> SklResult<(Array1<Float>, Array1<Float>, Option<Array1<Float>>)> {
-        let n_samples = predictions[0].len();
-        let n_models = predictions.len();
+    ) -> SklResult<(Array1<Float>, Array1<Float>)> {
+        let weights = self
+            .state
+            .fusion_params
+            .linear_weights
+            .as_ref()
+            .ok_or_else(|| {
+                SklearsError::InvalidState(
+                    "linear fusion weights were not learned during fit".to_string(),
+                )
+            })?;
 
-        // Use uniform weights for simplicity
-        let weights = Array1::from_elem(n_models, 1.0 / n_models as Float);
-        let mut fused = Array1::zeros(n_samples);
-
-        for sample_idx in 0..n_samples {
-            let mut weighted_sum = 0.0;
-            for (model_idx, pred) in predictions.iter().enumerate() {
-                weighted_sum += pred[sample_idx] * weights[model_idx];
+        let n_samples = predictions.first().map_or(0, Array1::len);
+        let mut fused = Array1::<Float>::zeros(n_samples);
+        for (model_idx, pred) in predictions.iter().enumerate() {
+            let w = weights[model_idx];
+            for sample_idx in 0..n_samples {
+                fused[sample_idx] += pred[sample_idx] * w;
             }
-            fused[sample_idx] = weighted_sum;
         }
 
-        Ok((fused, weights, None))
+        Ok((fused, weights.clone()))
     }
 
-    /// Apply neural network fusion
+    /// Run the trained fusion MLP forward to produce predictions.
     fn apply_neural_fusion(
         &self,
         predictions: &[Array1<Float>],
-    ) -> SklResult<(Array1<Float>, Array1<Float>, Option<Array1<Float>>)> {
-        // Simplified neural network application
-        // In practice, this would do forward pass through trained network
-
-        let n_samples = predictions[0].len();
-        let n_models = predictions.len();
-        let weights = Array1::from_elem(n_models, 1.0 / n_models as Float);
-
-        // For now, fall back to linear combination
-        let mut fused = Array1::zeros(n_samples);
-        for sample_idx in 0..n_samples {
-            let mut weighted_sum = 0.0;
-            for (model_idx, pred) in predictions.iter().enumerate() {
-                weighted_sum += pred[sample_idx] * weights[model_idx];
+    ) -> SklResult<(Array1<Float>, Array1<Float>)> {
+        let (weights, biases) = match (
+            &self.state.fusion_params.neural_weights,
+            &self.state.fusion_params.neural_biases,
+        ) {
+            (Some(w), Some(b)) => (w, b),
+            _ => {
+                return Err(SklearsError::InvalidState(
+                    "neural fusion parameters were not learned during fit".to_string(),
+                ))
             }
-            fused[sample_idx] = weighted_sum;
-        }
+        };
 
-        Ok((fused, weights, None))
+        let activation = match &self.fusion_strategy {
+            FusionStrategy::NeuralNetwork { activation, .. } => MlpActivation::parse(activation),
+            _ => MlpActivation::Identity,
+        };
+
+        let n_samples = predictions.first().map_or(0, Array1::len);
+        let design = build_design_matrix(predictions, n_samples);
+        let activations = mlp_forward(&design, weights, biases, activation);
+        let output = activations
+            .last()
+            .ok_or_else(|| SklearsError::InvalidState("empty MLP activations".to_string()))?;
+        let fused = output.column(0).to_owned();
+
+        let contribution = weights
+            .first()
+            .map_or_else(|| Array1::zeros(predictions.len()), neural_contribution);
+
+        Ok((fused, contribution))
     }
 
-    /// Apply gating network fusion
-    fn apply_gating_fusion(
-        &self,
-        predictions: &[Array1<Float>],
-        x: &ArrayView2<'_, Float>,
-    ) -> SklResult<(Array1<Float>, Array1<Float>, Option<Array1<Float>>)> {
-        // Simplified gating network application
-        // In practice, this would compute input-dependent weights
-
-        let n_samples = predictions[0].len();
-        let n_models = predictions.len();
-        let weights = Array1::from_elem(n_models, 1.0 / n_models as Float);
-
-        let mut fused = Array1::zeros(n_samples);
-        for sample_idx in 0..n_samples {
-            let mut weighted_sum = 0.0;
-            for (model_idx, pred) in predictions.iter().enumerate() {
-                weighted_sum += pred[sample_idx] * weights[model_idx];
-            }
-            fused[sample_idx] = weighted_sum;
-        }
-
-        Ok((fused, weights, None))
-    }
-
-    /// Apply attention-based fusion
-    fn apply_attention_fusion(
-        &self,
-        predictions: &[Array1<Float>],
-        x: &ArrayView2<'_, Float>,
-    ) -> SklResult<(Array1<Float>, Array1<Float>, Option<Array1<Float>>)> {
-        // Simplified attention fusion
-        // In practice, this would compute attention weights based on inputs
-
-        let n_samples = predictions[0].len();
-        let n_models = predictions.len();
-        let weights = Array1::from_elem(n_models, 1.0 / n_models as Float);
-
-        let mut fused = Array1::zeros(n_samples);
-        for sample_idx in 0..n_samples {
-            let mut weighted_sum = 0.0;
-            for (model_idx, pred) in predictions.iter().enumerate() {
-                weighted_sum += pred[sample_idx] * weights[model_idx];
-            }
-            fused[sample_idx] = weighted_sum;
-        }
-
-        Ok((fused, weights, None))
-    }
-
-    /// Apply simple averaging as fallback
-    fn apply_simple_averaging(
-        &self,
-        predictions: &[Array1<Float>],
-    ) -> SklResult<(Array1<Float>, Array1<Float>, Option<Array1<Float>>)> {
-        let n_samples = predictions[0].len();
-        let n_models = predictions.len();
-        let weights = Array1::from_elem(n_models, 1.0 / n_models as Float);
-
-        let mut fused = Array1::zeros(n_samples);
-        for sample_idx in 0..n_samples {
-            let mut sum = 0.0;
-            for pred in predictions {
-                sum += pred[sample_idx];
-            }
-            fused[sample_idx] = sum / n_models as Float;
-        }
-
-        Ok((fused, weights, None))
-    }
-
-    /// Calculate prediction confidence
-    fn calculate_confidence(
-        &self,
-        predictions: &[Array1<Float>],
-        fused_prediction: &Array1<Float>,
-    ) -> SklResult<Array1<Float>> {
-        let n_samples = fused_prediction.len();
-        let mut confidence = Array1::zeros(n_samples);
-
-        for sample_idx in 0..n_samples {
-            // Calculate agreement between models
-            let mut variance = 0.0;
-            let fused_val = fused_prediction[sample_idx];
-
-            for pred in predictions {
-                let diff = pred[sample_idx] - fused_val;
-                variance += diff * diff;
-            }
-            variance /= predictions.len() as Float;
-
-            // Convert variance to confidence (higher variance = lower confidence)
-            confidence[sample_idx] = 1.0 / (1.0 + variance);
-        }
-
-        Ok(confidence)
-    }
-
-    /// Collect predictions from all base models
+    /// Collect predictions from all fitted base models
     fn collect_base_predictions(&self, x: &ArrayView2<'_, Float>) -> SklResult<Vec<Array1<Float>>> {
-        let mut predictions = Vec::new();
-
-        for (_, model) in &self.base_models {
-            let pred = model.predict(x)?;
-            predictions.push(pred);
-        }
-
-        Ok(predictions)
+        collect_predictions(&self.state.fitted_base_models, x)
     }
 
     /// Evaluate fusion performance
-    pub fn evaluate_fusion(&self, x: &ArrayView2<'_, Float>, y: &ArrayView1<'_, Float>) -> SklResult<FusionMetrics> {
+    pub fn evaluate_fusion(
+        &self,
+        x: &ArrayView2<'_, Float>,
+        y: &ArrayView1<'_, Float>,
+    ) -> SklResult<FusionMetrics> {
         let predictions = self.predict(x)?;
 
-        // Calculate metrics
-        let mse = y.iter().zip(predictions.iter())
+        let mse = y
+            .iter()
+            .zip(predictions.iter())
             .map(|(true_val, pred_val)| (true_val - pred_val).powi(2))
-            .sum::<Float>() / y.len() as Float;
+            .sum::<Float>()
+            / y.len() as Float;
 
-        let mae = y.iter().zip(predictions.iter())
+        let mae = y
+            .iter()
+            .zip(predictions.iter())
             .map(|(true_val, pred_val)| (true_val - pred_val).abs())
-            .sum::<Float>() / y.len() as Float;
+            .sum::<Float>()
+            / y.len() as Float;
 
         let y_mean = y.mean().unwrap_or(0.0);
-        let ss_res: Float = y.iter().zip(predictions.iter())
+        let ss_res: Float = y
+            .iter()
+            .zip(predictions.iter())
             .map(|(true_val, pred_val)| (true_val - pred_val).powi(2))
             .sum();
-        let ss_tot: Float = y.iter()
-            .map(|true_val| (true_val - y_mean).powi(2))
-            .sum();
-        let r2 = 1.0 - ss_res / ss_tot;
+        let ss_tot: Float = y.iter().map(|true_val| (true_val - y_mean).powi(2)).sum();
+        let r2 = if ss_tot > 0.0 {
+            1.0 - ss_res / ss_tot
+        } else {
+            1.0
+        };
 
-        // Calculate model contributions (simplified)
+        // Real per-model contribution, derived from whatever the fusion layer
+        // actually learned (linear weights, or the neural importance proxy),
+        // rather than a hard-coded uniform 1/n_models placeholder.
+        let contributions: Array1<Float> = match &self.fusion_strategy {
+            FusionStrategy::WeightedLinear { .. } => self
+                .state
+                .fusion_params
+                .linear_weights
+                .clone()
+                .unwrap_or_else(|| Array1::zeros(self.state.fitted_base_models.len())),
+            FusionStrategy::NeuralNetwork { .. } => self
+                .state
+                .fusion_params
+                .neural_weights
+                .as_ref()
+                .and_then(|w| w.first())
+                .map_or_else(
+                    || Array1::zeros(self.state.fitted_base_models.len()),
+                    neural_contribution,
+                ),
+            _ => Array1::zeros(self.state.fitted_base_models.len()),
+        };
+
         let mut model_contributions = HashMap::new();
-        for (name, _) in &self.base_models {
-            model_contributions.insert(name.clone(), 1.0 / self.base_models.len() as Float);
+        for (idx, (name, _)) in self.state.fitted_base_models.iter().enumerate() {
+            let contribution = contributions.get(idx).copied().unwrap_or(0.0);
+            model_contributions.insert(name.clone(), contribution);
         }
 
         Ok(FusionMetrics {
@@ -883,31 +1021,62 @@ impl ModelFusion<Trained> {
     /// Get total parameter count for complexity measurement
     fn get_parameter_count(&self) -> usize {
         match &self.fusion_strategy {
-            FusionStrategy::WeightedLinear { .. } => self.base_models.len(),
-            FusionStrategy::NeuralNetwork { hidden_layers, .. } => {
-                let mut count = 0;
-                let n_models = self.base_models.len();
-
-                // Input to first hidden layer
-                count += n_models * hidden_layers[0];
-
-                // Hidden layer connections
+            FusionStrategy::NeuralNetwork { hidden_layers, .. } if !hidden_layers.is_empty() => {
+                let n_models = self.state.fitted_base_models.len();
+                let mut count = n_models * hidden_layers[0];
                 for i in 1..hidden_layers.len() {
-                    count += hidden_layers[i-1] * hidden_layers[i];
+                    count += hidden_layers[i - 1] * hidden_layers[i];
                 }
-
-                // Output layer
-                count += hidden_layers.last().unwrap_or_default() * 1;
-
+                count += hidden_layers.last().copied().unwrap_or(0);
                 count
-            },
-            FusionStrategy::GatingNetwork { .. } => {
-                // Approximate parameter count for gating network
-                self.base_models.len() * 10 // Simplified
-            },
-            _ => self.base_models.len(), // Default to linear parameter count
+            }
+            _ => self.state.fitted_base_models.len(),
         }
     }
+
+    /// Get the fitted base models.
+    #[must_use]
+    pub fn base_models(&self) -> &[(String, Box<dyn PipelinePredictor>)] {
+        &self.state.fitted_base_models
+    }
+
+    /// Get the learned fusion parameters.
+    #[must_use]
+    pub fn fusion_params(&self) -> &FusionParameters {
+        &self.state.fusion_params
+    }
+
+    /// Get the number of input features seen during fitting.
+    #[must_use]
+    pub fn n_features_in(&self) -> usize {
+        self.state.n_features_in
+    }
+}
+
+/// Calculate prediction confidence from ensemble agreement (real, non-fabricated:
+/// higher disagreement/variance between base models yields lower confidence).
+fn calculate_confidence(
+    predictions: &[Array1<Float>],
+    fused_prediction: &Array1<Float>,
+) -> Array1<Float> {
+    let n_samples = fused_prediction.len();
+    let mut confidence = Array1::zeros(n_samples);
+
+    if predictions.is_empty() {
+        return confidence;
+    }
+
+    for sample_idx in 0..n_samples {
+        let fused_val = fused_prediction[sample_idx];
+        let variance: Float = predictions
+            .iter()
+            .map(|pred| (pred[sample_idx] - fused_val).powi(2))
+            .sum::<Float>()
+            / predictions.len() as Float;
+        confidence[sample_idx] = 1.0 / (1.0 + variance);
+    }
+
+    confidence
 }
 
 /// Configuration for ModelFusion
@@ -938,7 +1107,9 @@ pub struct ModelFusionConfig {
 impl Default for ModelFusionConfig {
     fn default() -> Self {
         Self {
-            fusion_strategy: FusionStrategy::WeightedLinear { regularization: None },
+            fusion_strategy: FusionStrategy::WeightedLinear {
+                regularization: None,
+            },
             regularization: None,
             enable_cv: false,
             cv_folds: 5,
@@ -970,10 +1141,13 @@ pub struct ModelFusionBuilder {
 
 impl ModelFusionBuilder {
     /// Create new builder
+    #[must_use]
     pub fn new() -> Self {
         Self {
             base_models: Vec::new(),
-            fusion_strategy: FusionStrategy::WeightedLinear { regularization: None },
+            fusion_strategy: FusionStrategy::WeightedLinear {
+                regularization: None,
+            },
             regularization: None,
             enable_cv: false,
             cv_folds: 5,
@@ -987,74 +1161,87 @@ impl ModelFusionBuilder {
     }
 
     /// Add a base model
+    #[must_use]
     pub fn base_model(mut self, name: &str, model: Box<dyn PipelinePredictor>) -> Self {
         self.base_models.push((name.to_string(), model));
         self
     }
 
     /// Set fusion strategy
+    #[must_use]
     pub fn fusion_strategy(mut self, strategy: FusionStrategy) -> Self {
         self.fusion_strategy = strategy;
         self
     }
 
     /// Set regularization
+    #[must_use]
     pub fn regularization(mut self, reg_type: RegularizationType, strength: Float) -> Self {
         self.regularization = Some((reg_type, strength));
         self
     }
 
     /// Enable cross-validation
+    #[must_use]
     pub fn enable_cv(mut self, enable: bool) -> Self {
         self.enable_cv = enable;
         self
     }
 
     /// Set CV folds
+    #[must_use]
     pub fn cv_folds(mut self, folds: usize) -> Self {
         self.cv_folds = folds;
         self
     }
 
     /// Set feature scaling
+    #[must_use]
     pub fn scale_features(mut self, scale: bool) -> Self {
         self.scale_features = scale;
         self
     }
 
     /// Set calibration temperature
+    #[must_use]
     pub fn calibration_temperature(mut self, temperature: Float) -> Self {
         self.calibration_temperature = Some(temperature);
         self
     }
 
     /// Enable uncertainty estimation
+    #[must_use]
     pub fn uncertainty_estimation(mut self, enable: bool) -> Self {
         self.uncertainty_estimation = enable;
         self
     }
 
     /// Set random state
+    #[must_use]
     pub fn random_state(mut self, seed: u64) -> Self {
         self.random_state = Some(seed);
         self
     }
 
     /// Set number of jobs
+    #[must_use]
     pub fn n_jobs(mut self, n_jobs: i32) -> Self {
         self.n_jobs = Some(n_jobs);
         self
     }
 
     /// Set verbose flag
+    #[must_use]
     pub fn verbose(mut self, verbose: bool) -> Self {
         self.verbose = verbose;
         self
     }
 
     /// Build the ModelFusion
+    #[must_use]
     pub fn build(self) -> ModelFusion<Untrained> {
         ModelFusion {
+            state: Untrained,
             base_models: self.base_models,
             fusion_strategy: self.fusion_strategy,
             regularization: self.regularization,
@@ -1066,8 +1253,13 @@ impl ModelFusionBuilder {
             random_state: self.random_state,
             n_jobs: self.n_jobs,
             verbose: self.verbose,
-            _state: PhantomData,
         }
+    }
+}
+
+impl Default for ModelFusionBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1075,6 +1267,43 @@ impl ModelFusionBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mock::MockPredictor;
+    use scirs2_core::ndarray::array;
+
+    /// Test-only predictor that ignores its inputs at `fit` time and always
+    /// returns a fixed, caller-controlled prediction vector (cycled if the
+    /// requested number of rows differs from the stored vector's length). Used
+    /// to build fusion scenarios with an exactly-known "perfect" model and
+    /// "pure noise" models, which a hard-coded uniform-weight fusion could not
+    /// pass.
+    #[derive(Debug, Clone)]
+    struct FixedPredictor {
+        values: Array1<Float>,
+    }
+
+    impl FixedPredictor {
+        fn new(values: Vec<Float>) -> Self {
+            Self {
+                values: Array1::from_vec(values),
+            }
+        }
+    }
+
+    impl PipelinePredictor for FixedPredictor {
+        fn predict(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array1<Float>> {
+            let n = x.nrows();
+            let vals: Vec<Float> = self.values.iter().copied().cycle().take(n).collect();
+            Ok(Array1::from_vec(vals))
+        }
+
+        fn fit(&mut self, _x: &ArrayView2<'_, Float>, _y: &ArrayView1<'_, Float>) -> SklResult<()> {
+            Ok(())
+        }
+
+        fn clone_predictor(&self) -> Box<dyn PipelinePredictor> {
+            Box::new(self.clone())
+        }
+    }
 
     #[test]
     fn test_model_fusion_builder() {
@@ -1090,20 +1319,24 @@ mod tests {
             .build();
 
         match fusion.fusion_strategy {
-            FusionStrategy::NeuralNetwork { ref hidden_layers, .. } => {
+            FusionStrategy::NeuralNetwork {
+                ref hidden_layers, ..
+            } => {
                 assert_eq!(hidden_layers, &vec![64, 32]);
-            },
+            }
             _ => panic!("Expected NeuralNetwork fusion strategy"),
         }
-        assert_eq!(fusion.enable_cv, true);
+        assert!(fusion.enable_cv);
         assert_eq!(fusion.cv_folds, 10);
-        assert_eq!(fusion.scale_features, false);
+        assert!(!fusion.scale_features);
     }
 
     #[test]
     fn test_fusion_strategies() {
         let strategies = vec![
-            FusionStrategy::WeightedLinear { regularization: Some(0.01) },
+            FusionStrategy::WeightedLinear {
+                regularization: Some(0.01),
+            },
             FusionStrategy::NeuralNetwork {
                 hidden_layers: vec![32],
                 activation: "tanh".to_string(),
@@ -1143,14 +1376,14 @@ mod tests {
                 gating_type: gating_type.clone(),
                 temperature: 1.0,
             };
-            let fusion = ModelFusion::builder()
-                .fusion_strategy(strategy)
-                .build();
+            let fusion = ModelFusion::builder().fusion_strategy(strategy).build();
 
             match fusion.fusion_strategy {
-                FusionStrategy::GatingNetwork { gating_type: gt, .. } => {
+                FusionStrategy::GatingNetwork {
+                    gating_type: gt, ..
+                } => {
                     assert_eq!(gt, gating_type);
-                },
+                }
                 _ => panic!("Expected GatingNetwork fusion strategy"),
             }
         }
@@ -1185,7 +1418,6 @@ mod tests {
         let fusion = ModelFusion::new();
         let params = fusion.initialize_parameters(10);
 
-        // For default WeightedLinear strategy
         assert!(params.linear_weights.is_some());
         assert!(params.neural_weights.is_none());
         assert!(params.gating_weights.is_none());
@@ -1194,16 +1426,13 @@ mod tests {
 
     #[test]
     fn test_configuration_validation() {
-        // Test empty base models
         let fusion = ModelFusion::new();
         assert!(fusion.validate_configuration().is_err());
 
-        // Test invalid CV folds
         let mut fusion = ModelFusion::new();
         fusion.cv_folds = 1;
         assert!(fusion.validate_configuration().is_err());
 
-        // Test invalid neural network configuration
         let fusion = ModelFusion::builder()
             .fusion_strategy(FusionStrategy::NeuralNetwork {
                 hidden_layers: vec![],
@@ -1212,5 +1441,162 @@ mod tests {
             })
             .build();
         assert!(fusion.validate_configuration().is_err());
+    }
+
+    /// Regression test for the original silent-fabrication bug: `fit()` used to
+    /// forward the untrained base models unchanged (`// Note: In practice, each
+    /// model would be properly trained`). An unfitted `MockPredictor` returns
+    /// `Err(NotFitted)` from `predict`, so if `ModelFusion::fit` had merely
+    /// forwarded it, extracting the base model and calling `predict` on it
+    /// directly would fail here.
+    #[test]
+    fn test_base_models_are_actually_fitted() {
+        let x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0], [5.0, 6.0]];
+        let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
+
+        let fusion = ModelFusion::builder()
+            .base_model("m1", Box::new(MockPredictor::new()))
+            .fusion_strategy(FusionStrategy::WeightedLinear {
+                regularization: None,
+            })
+            .build();
+
+        let fitted = fusion
+            .fit(&x.view(), &y.view())
+            .expect("fit should succeed");
+
+        let (_, model) = &fitted.base_models()[0];
+        let preds = model
+            .predict(&x.view())
+            .expect("base model should be genuinely fitted by ModelFusion::fit");
+        assert_eq!(preds.len(), x.nrows());
+    }
+
+    /// The test the original bug would have failed: one base model exactly
+    /// matches the target, the others are pure noise linearly independent from
+    /// it. A real least-squares solve must concentrate weight on the good
+    /// model; the original code always returned uniform `1/n_models` weights
+    /// regardless of the data.
+    #[test]
+    fn test_linear_weights_concentrate_on_good_model() {
+        let y_vals = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let noise_b = vec![10.0, -10.0, 10.0, -10.0, 10.0, -10.0];
+        let noise_c = vec![-3.0, 7.0, -3.0, 7.0, -3.0, 7.0];
+
+        let x = Array2::from_shape_vec((6, 1), (0..6).map(|v| v as Float).collect())
+            .expect("valid shape");
+        let y = Array1::from_vec(y_vals.clone());
+
+        let fusion = ModelFusion::builder()
+            .base_model("good", Box::new(FixedPredictor::new(y_vals)))
+            .base_model("noise_b", Box::new(FixedPredictor::new(noise_b)))
+            .base_model("noise_c", Box::new(FixedPredictor::new(noise_c)))
+            .fusion_strategy(FusionStrategy::WeightedLinear {
+                regularization: None,
+            })
+            .build();
+
+        let fitted = fusion
+            .fit(&x.view(), &y.view())
+            .expect("fit should succeed");
+
+        let weights = fitted
+            .fusion_params()
+            .linear_weights
+            .as_ref()
+            .expect("linear weights should have been learned");
+
+        assert_eq!(weights.len(), 3);
+        assert!(
+            weights[0] > 0.9,
+            "good model's weight should dominate, got {weights:?}"
+        );
+        assert!(
+            weights[1].abs() < 0.1,
+            "noisy model's weight should be near zero, got {weights:?}"
+        );
+        assert!(
+            weights[2].abs() < 0.1,
+            "noisy model's weight should be near zero, got {weights:?}"
+        );
+
+        // And the fused prediction should essentially reproduce y exactly.
+        let preds = fitted.predict(&x.view()).expect("predict should succeed");
+        for (p, t) in preds.iter().zip(y.iter()) {
+            assert!((p - t).abs() < 1e-6, "expected {t}, got {p}");
+        }
+    }
+
+    #[test]
+    fn test_neural_fusion_trains_real_weights() {
+        let x = Array2::from_shape_vec((8, 1), (0..8).map(|v| v as Float).collect())
+            .expect("valid shape");
+        let y_vals: Vec<Float> = (0..8).map(|v| v as Float * 2.0 + 1.0).collect();
+        let y = Array1::from_vec(y_vals.clone());
+
+        let fusion = ModelFusion::builder()
+            .base_model("a", Box::new(FixedPredictor::new(y_vals.clone())))
+            .base_model(
+                "b",
+                Box::new(FixedPredictor::new(vec![
+                    5.0, -5.0, 5.0, -5.0, 5.0, -5.0, 5.0, -5.0,
+                ])),
+            )
+            .fusion_strategy(FusionStrategy::NeuralNetwork {
+                hidden_layers: vec![4],
+                activation: "tanh".to_string(),
+                dropout: None,
+            })
+            .random_state(7)
+            .build();
+
+        let fitted = fusion
+            .fit(&x.view(), &y.view())
+            .expect("neural fusion fit should succeed");
+
+        let params = fitted.fusion_params();
+        let weights = params
+            .neural_weights
+            .as_ref()
+            .expect("neural weights should have been learned");
+        // At least one weight must have moved away from its zero initialization.
+        assert!(weights.iter().any(|w| w.iter().any(|&v| v.abs() > 1e-6)));
+
+        // Training should have reduced the error substantially below what a
+        // naive "always predict the mean of y" baseline would achieve.
+        let preds = fitted.predict(&x.view()).expect("predict should succeed");
+        let mse: Float = preds
+            .iter()
+            .zip(y.iter())
+            .map(|(p, t)| (p - t).powi(2))
+            .sum::<Float>()
+            / y.len() as Float;
+        let y_mean = y.mean().unwrap_or(0.0);
+        let baseline_mse: Float =
+            y.iter().map(|t| (t - y_mean).powi(2)).sum::<Float>() / y.len() as Float;
+        assert!(
+            mse < baseline_mse,
+            "trained neural fusion (mse={mse}) should beat the mean baseline (mse={baseline_mse})"
+        );
+    }
+
+    #[test]
+    fn test_unimplemented_strategy_returns_honest_error() {
+        let x = array![[1.0], [2.0], [3.0]];
+        let y = array![1.0, 2.0, 3.0];
+
+        let fusion = ModelFusion::builder()
+            .base_model("m1", Box::new(MockPredictor::new()))
+            .fusion_strategy(FusionStrategy::GatingNetwork {
+                gating_type: GatingType::MixtureOfExperts,
+                temperature: 1.0,
+            })
+            .build();
+
+        let result = fusion.fit(&x.view(), &y.view());
+        assert!(
+            result.is_err(),
+            "unimplemented fusion strategies must error, not silently succeed"
+        );
     }
 }

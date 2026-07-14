@@ -3,8 +3,7 @@ use crate::error::{Result, SklearsError};
 use super::security_types::*;
 
 // SciRS2 compliance - use scirs2-autograd for ndarray
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::ndarray_ext::{matrix, stats};
+use scirs2_core::ndarray::Array2;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -12,6 +11,140 @@ use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::time::Duration;
+
+/// Errors that can occur while performing security risk assessment.
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum RiskAssessmentError {
+    /// No risk assessment models are registered on the assessor.
+    #[error("no risk assessment models are configured")]
+    NoModelsConfigured,
+
+    /// A named risk model could not be found.
+    #[error("risk model '{0}' not found")]
+    ModelNotFound(String),
+
+    /// The risk assessment configuration is invalid (e.g. contradictory thresholds).
+    #[error("invalid risk assessment configuration: {0}")]
+    InvalidConfiguration(String),
+
+    /// Wraps an underlying crate-wide error.
+    #[error(transparent)]
+    Other(#[from] SklearsError),
+}
+
+/// A single risk factor identified as contributing to the overall risk score, together
+/// with its measured impact and a suggested mitigation priority.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct RiskFactor {
+    pub name: String,
+    pub factor_type: RiskFactorType,
+    pub current_value: String,
+    pub impact_score: f64,
+    pub risk_contribution: f64,
+    pub mitigation_priority: MitigationPriority,
+    pub description: String,
+}
+
+/// The category of a [`RiskFactor`]: whether it stems from a single boolean context
+/// flag, the presence of a specific trait, or a risky combination of traits.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum RiskFactorType {
+    Boolean,
+    Trait,
+    Combination,
+}
+
+/// Confidence interval bounds (95% and 99%) around an ensemble risk score.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ConfidenceIntervals {
+    pub lower_95: f64,
+    pub upper_95: f64,
+    pub lower_99: f64,
+    pub upper_99: f64,
+}
+
+/// Result of a Monte Carlo risk simulation across many perturbed contexts.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct MonteCarloResults {
+    pub mean_score: f64,
+    pub std_deviation: f64,
+    pub percentile_5: f64,
+    pub percentile_95: f64,
+    pub num_simulations: usize,
+    pub risk_distribution: Option<Vec<f64>>,
+}
+
+/// Direction of change in a risk score across successive historical assessments.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum RiskTrendDirection {
+    Increasing,
+    Decreasing,
+    Stable,
+}
+
+/// Result of analyzing risk score trends from historical assessment data.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct RiskTrendAnalysis {
+    pub trend_direction: RiskTrendDirection,
+    pub trend_strength: f64,
+    pub confidence: f64,
+    pub forecast: Option<f64>,
+}
+
+/// Full result of a comprehensive, multi-model risk assessment for a single
+/// [`TraitUsageContext`].
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct RiskAssessmentResult {
+    pub overall_risk_score: f64,
+    pub risk_level: RiskLevel,
+    pub model_results: HashMap<String, f64>,
+    pub confidence_intervals: ConfidenceIntervals,
+    pub risk_factors: Vec<RiskFactor>,
+    pub recommendations: Vec<String>,
+    pub monte_carlo_results: Option<MonteCarloResults>,
+    pub trend_analysis: Option<RiskTrendAnalysis>,
+    pub assessment_timestamp: DateTime<Utc>,
+    /// Confidence in this assessment (0.0 - 1.0), derived from the width of the 95%
+    /// confidence interval relative to the overall score: a narrower interval (models
+    /// agree) yields higher confidence than a wide one (models disagree).
+    pub assessment_confidence: f64,
+}
+
+/// A lightweight, human-readable summary view of a [`RiskAssessmentResult`], suitable
+/// for dashboards or contexts that don't need the full model-by-model breakdown.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct RiskAnalysis {
+    pub risk_score: f64,
+    pub risk_level: RiskLevel,
+    pub top_factors: Vec<RiskFactor>,
+    pub summary: String,
+}
+
+impl From<&RiskAssessmentResult> for RiskAnalysis {
+    fn from(result: &RiskAssessmentResult) -> Self {
+        let top_factors: Vec<RiskFactor> = result.risk_factors.iter().take(5).cloned().collect();
+        let summary = format!(
+            "Overall risk score {:.1}/10.0 ({:?}), driven by {} factor(s)",
+            result.overall_risk_score,
+            result.risk_level,
+            result.risk_factors.len()
+        );
+        Self {
+            risk_score: result.overall_risk_score,
+            risk_level: result.risk_level.clone(),
+            top_factors,
+            summary,
+        }
+    }
+}
 
 /// Advanced security risk assessor with multiple risk models and sophisticated
 /// risk calculation algorithms.
@@ -31,8 +164,24 @@ use std::time::Duration;
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust,no_run
 /// use sklears_core::trait_explorer::security_analysis::{
+///     create_security_risk_assessor, TraitUsageContext,
+/// };
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let assessor = create_security_risk_assessor();
+/// let context = TraitUsageContext {
+///     trait_name: "MyTrait".to_string(),
+///     ..Default::default()
+/// };
+/// let assessment = assessor.assess_comprehensive_risk(&context)?;
+/// println!("Overall risk score: {}", assessment.overall_risk_score);
+/// println!("Risk level: {:?}", assessment.risk_level);
+/// println!("Risk factors: {}", assessment.risk_factors.len());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SecurityRiskAssessor {
@@ -139,6 +288,11 @@ impl SecurityRiskAssessor {
             None
         };
 
+        // Confidence is highest when the 95% interval is tight relative to the score
+        // itself, and lowest when the interval is very wide (models disagree a lot).
+        let interval_width = confidence_intervals.upper_95 - confidence_intervals.lower_95;
+        let assessment_confidence = (1.0 - (interval_width / 10.0)).clamp(0.1, 1.0);
+
         Ok(RiskAssessmentResult {
             overall_risk_score: bayesian_adjusted_score,
             risk_level,
@@ -149,6 +303,7 @@ impl SecurityRiskAssessor {
             monte_carlo_results,
             trend_analysis,
             assessment_timestamp: Utc::now(),
+            assessment_confidence,
         })
     }
 
@@ -170,11 +325,12 @@ impl SecurityRiskAssessor {
         // Keep only recent data based on configuration
         if let Some(retention_period) = self.config.historical_data_retention {
             let cutoff_date = Utc::now() - retention_period;
-            self.historical_data.retain(|data| data.timestamp > cutoff_date);
+            self.historical_data
+                .retain(|data| data.timestamp > cutoff_date);
         }
 
         // Sort by timestamp
-        self.historical_data.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+        self.historical_data.sort_by_key(|data| data.timestamp);
     }
 
     /// Update risk factor weights.
@@ -218,16 +374,23 @@ impl SecurityRiskAssessor {
 
     /// Initialize default factor weights.
     fn initialize_default_weights(&mut self) {
-        self.factor_weights.insert("sensitive_data".to_string(), 2.0);
-        self.factor_weights.insert("elevated_privileges".to_string(), 1.8);
-        self.factor_weights.insert("input_validation".to_string(), 2.5);
-        self.factor_weights.insert("access_controls".to_string(), 2.0);
+        self.factor_weights
+            .insert("sensitive_data".to_string(), 2.0);
+        self.factor_weights
+            .insert("elevated_privileges".to_string(), 1.8);
+        self.factor_weights
+            .insert("input_validation".to_string(), 2.5);
+        self.factor_weights
+            .insert("access_controls".to_string(), 2.0);
         self.factor_weights.insert("encryption".to_string(), 1.5);
         self.factor_weights.insert("audit_logging".to_string(), 1.2);
         self.factor_weights.insert("rate_limiting".to_string(), 1.3);
-        self.factor_weights.insert("timing_dependencies".to_string(), 1.6);
-        self.factor_weights.insert("cryptographic_operations".to_string(), 1.7);
-        self.factor_weights.insert("unsafe_operations".to_string(), 2.2);
+        self.factor_weights
+            .insert("timing_dependencies".to_string(), 1.6);
+        self.factor_weights
+            .insert("cryptographic_operations".to_string(), 1.7);
+        self.factor_weights
+            .insert("unsafe_operations".to_string(), 2.2);
     }
 
     /// Combine results from multiple risk models using ensemble methods.
@@ -261,18 +424,14 @@ impl SecurityRiskAssessor {
                 let mut scores: Vec<f64> = results.values().cloned().collect();
                 scores.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 let len = scores.len();
-                if len % 2 == 0 {
+                if len.is_multiple_of(2) {
                     Ok((scores[len / 2 - 1] + scores[len / 2]) / 2.0)
                 } else {
                     Ok(scores[len / 2])
                 }
             }
-            EnsembleMethod::Maximum => {
-                Ok(results.values().cloned().fold(0.0f64, f64::max))
-            }
-            EnsembleMethod::Minimum => {
-                Ok(results.values().cloned().fold(10.0f64, f64::min))
-            }
+            EnsembleMethod::Maximum => Ok(results.values().cloned().fold(0.0f64, f64::max)),
+            EnsembleMethod::Minimum => Ok(results.values().cloned().fold(10.0f64, f64::min)),
         }
     }
 
@@ -299,7 +458,8 @@ impl SecurityRiskAssessor {
 
         // Apply historical data influence if available
         let historical_influence = self.calculate_historical_influence(context)?;
-        let final_score = posterior_mean * (1.0 - historical_influence) + initial_score * historical_influence;
+        let final_score =
+            posterior_mean * (1.0 - historical_influence) + initial_score * historical_influence;
 
         Ok(final_score.clamp(0.0, 10.0))
     }
@@ -322,7 +482,11 @@ impl SecurityRiskAssessor {
             let time_weight = (-age.num_days() as f64 / 30.0).exp(); // Decay over 30 days
 
             // Calculate similarity weight (simplified)
-            let similarity = if data.context_hash == context_hash { 1.0 } else { 0.3 };
+            let similarity = if data.context_hash == context_hash {
+                1.0
+            } else {
+                0.3
+            };
 
             let weight = time_weight * similarity;
             similarity_weights += weight;
@@ -366,7 +530,10 @@ impl SecurityRiskAssessor {
     }
 
     /// Perform Monte Carlo simulation for risk assessment.
-    fn perform_monte_carlo_simulation(&self, context: &TraitUsageContext) -> Result<MonteCarloResults> {
+    fn perform_monte_carlo_simulation(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<MonteCarloResults> {
         let mut results = Vec::new();
         let num_simulations = self.monte_carlo_config.num_simulations;
 
@@ -382,7 +549,8 @@ impl SecurityRiskAssessor {
         // Calculate statistics
         results.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let mean = results.iter().sum::<f64>() / results.len() as f64;
-        let variance = results.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / results.len() as f64;
+        let variance =
+            results.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / results.len() as f64;
         let std_dev = variance.sqrt();
 
         let percentile_5 = results[(0.05 * results.len() as f64) as usize];
@@ -434,7 +602,11 @@ impl SecurityRiskAssessor {
         factors.extend(self.analyze_combination_factors(context, base_score)?);
 
         // Sort by impact (highest first)
-        factors.sort_by(|a, b| b.impact_score.partial_cmp(&a.impact_score).unwrap_or(std::cmp::Ordering::Equal));
+        factors.sort_by(|a, b| {
+            b.impact_score
+                .partial_cmp(&a.impact_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Keep only significant factors
         factors.retain(|f| f.impact_score > self.config.risk_factor_threshold);
@@ -443,20 +615,30 @@ impl SecurityRiskAssessor {
     }
 
     /// Analyze boolean risk factors.
-    fn analyze_boolean_factors(&self, context: &TraitUsageContext, base_score: f64) -> Result<Vec<RiskFactor>> {
+    fn analyze_boolean_factors(
+        &self,
+        context: &TraitUsageContext,
+        base_score: f64,
+    ) -> Result<Vec<RiskFactor>> {
         let mut factors = Vec::new();
 
         // Test each boolean property
         let boolean_tests = vec![
             ("handles_sensitive_data", context.handles_sensitive_data),
-            ("requires_elevated_privileges", context.requires_elevated_privileges),
+            (
+                "requires_elevated_privileges",
+                context.requires_elevated_privileges,
+            ),
             ("has_input_validation", context.has_input_validation),
             ("has_access_controls", context.has_access_controls),
             ("has_encryption", context.has_encryption),
             ("has_audit_logging", context.has_audit_logging),
             ("has_rate_limiting", context.has_rate_limiting),
             ("has_timing_dependencies", context.has_timing_dependencies),
-            ("has_cryptographic_operations", context.has_cryptographic_operations),
+            (
+                "has_cryptographic_operations",
+                context.has_cryptographic_operations,
+            ),
             ("has_unsafe_operations", context.has_unsafe_operations),
         ];
 
@@ -466,14 +648,18 @@ impl SecurityRiskAssessor {
             // Toggle the value and test impact
             match factor_name {
                 "handles_sensitive_data" => test_context.handles_sensitive_data = !current_value,
-                "requires_elevated_privileges" => test_context.requires_elevated_privileges = !current_value,
+                "requires_elevated_privileges" => {
+                    test_context.requires_elevated_privileges = !current_value
+                }
                 "has_input_validation" => test_context.has_input_validation = !current_value,
                 "has_access_controls" => test_context.has_access_controls = !current_value,
                 "has_encryption" => test_context.has_encryption = !current_value,
                 "has_audit_logging" => test_context.has_audit_logging = !current_value,
                 "has_rate_limiting" => test_context.has_rate_limiting = !current_value,
                 "has_timing_dependencies" => test_context.has_timing_dependencies = !current_value,
-                "has_cryptographic_operations" => test_context.has_cryptographic_operations = !current_value,
+                "has_cryptographic_operations" => {
+                    test_context.has_cryptographic_operations = !current_value
+                }
                 "has_unsafe_operations" => test_context.has_unsafe_operations = !current_value,
                 _ => continue,
             }
@@ -498,7 +684,11 @@ impl SecurityRiskAssessor {
     }
 
     /// Analyze trait-based risk factors.
-    fn analyze_trait_factors(&self, context: &TraitUsageContext, base_score: f64) -> Result<Vec<RiskFactor>> {
+    fn analyze_trait_factors(
+        &self,
+        context: &TraitUsageContext,
+        base_score: f64,
+    ) -> Result<Vec<RiskFactor>> {
         let mut factors = Vec::new();
 
         for trait_name in &context.traits {
@@ -525,20 +715,28 @@ impl SecurityRiskAssessor {
     }
 
     /// Analyze combination risk factors.
-    fn analyze_combination_factors(&self, context: &TraitUsageContext, _base_score: f64) -> Result<Vec<RiskFactor>> {
+    fn analyze_combination_factors(
+        &self,
+        context: &TraitUsageContext,
+        _base_score: f64,
+    ) -> Result<Vec<RiskFactor>> {
         let mut factors = Vec::new();
 
         // Check for known risky trait combinations
         let risky_combinations = vec![
             (vec!["Serialize", "Clone"], "Serialization with cloning"),
             (vec!["Send", "Sync", "Clone"], "Concurrent cloning"),
-            (vec!["Serialize", "Debug"], "Serialization with debug output"),
+            (
+                vec!["Serialize", "Debug"],
+                "Serialization with debug output",
+            ),
         ];
 
         for (combination, description) in risky_combinations {
-            if combination.iter().all(|trait_name| {
-                context.traits.contains(&trait_name.to_string())
-            }) {
+            if combination
+                .iter()
+                .all(|trait_name| context.traits.contains(&trait_name.to_string()))
+            {
                 let impact = self.calculate_combination_impact(&combination, context)?;
 
                 factors.push(RiskFactor {
@@ -557,11 +755,21 @@ impl SecurityRiskAssessor {
     }
 
     /// Calculate combination impact.
-    fn calculate_combination_impact(&self, combination: &[&str], _context: &TraitUsageContext) -> Result<f64> {
+    fn calculate_combination_impact(
+        &self,
+        combination: &[&str],
+        _context: &TraitUsageContext,
+    ) -> Result<f64> {
         // Simplified combination impact calculation
         match combination {
             combo if combo.contains(&"Serialize") && combo.contains(&"Clone") => Ok(1.5),
-            combo if combo.contains(&"Send") && combo.contains(&"Sync") && combo.contains(&"Clone") => Ok(1.2),
+            combo
+                if combo.contains(&"Send")
+                    && combo.contains(&"Sync")
+                    && combo.contains(&"Clone") =>
+            {
+                Ok(1.2)
+            }
             combo if combo.contains(&"Serialize") && combo.contains(&"Debug") => Ok(0.8),
             _ => Ok(0.5),
         }
@@ -571,7 +779,7 @@ impl SecurityRiskAssessor {
     fn analyze_risk_trends(&self, context: &TraitUsageContext) -> Result<RiskTrendAnalysis> {
         if self.historical_data.len() < 2 {
             return Ok(RiskTrendAnalysis {
-                trend_direction: TrendDirection::Stable,
+                trend_direction: RiskTrendDirection::Stable,
                 trend_strength: 0.0,
                 confidence: 0.0,
                 forecast: None,
@@ -579,7 +787,8 @@ impl SecurityRiskAssessor {
         }
 
         let context_hash = self.generate_context_hash(context);
-        let relevant_data: Vec<&HistoricalRiskData> = self.historical_data
+        let relevant_data: Vec<&HistoricalRiskData> = self
+            .historical_data
             .iter()
             .filter(|data| data.context_hash == context_hash)
             .collect();
@@ -596,19 +805,23 @@ impl SecurityRiskAssessor {
         let x_mean = x_values.iter().sum::<f64>() / n;
         let y_mean = y_values.iter().sum::<f64>() / n;
 
-        let numerator: f64 = x_values.iter().zip(y_values.iter())
+        let numerator: f64 = x_values
+            .iter()
+            .zip(y_values.iter())
             .map(|(x, y)| (x - x_mean) * (y - y_mean))
             .sum();
-        let denominator: f64 = x_values.iter()
-            .map(|x| (x - x_mean).powi(2))
-            .sum();
+        let denominator: f64 = x_values.iter().map(|x| (x - x_mean).powi(2)).sum();
 
-        let slope = if denominator != 0.0 { numerator / denominator } else { 0.0 };
+        let slope = if denominator != 0.0 {
+            numerator / denominator
+        } else {
+            0.0
+        };
 
         let trend_direction = match slope {
-            s if s > 0.1 => TrendDirection::Increasing,
-            s if s < -0.1 => TrendDirection::Decreasing,
-            _ => TrendDirection::Stable,
+            s if s > 0.1 => RiskTrendDirection::Increasing,
+            s if s < -0.1 => RiskTrendDirection::Decreasing,
+            _ => RiskTrendDirection::Stable,
         };
 
         let trend_strength = slope.abs();
@@ -616,7 +829,10 @@ impl SecurityRiskAssessor {
 
         // Simple forecast for next period
         let forecast = if relevant_data.len() >= 3 {
-            let last_score = relevant_data.last().expect("last should succeed").risk_score;
+            let last_score = relevant_data
+                .last()
+                .expect("last should succeed")
+                .risk_score;
             Some(last_score + slope)
         } else {
             None
@@ -634,7 +850,7 @@ impl SecurityRiskAssessor {
     fn analyze_general_trends(&self) -> Result<RiskTrendAnalysis> {
         if self.historical_data.len() < 3 {
             return Ok(RiskTrendAnalysis {
-                trend_direction: TrendDirection::Stable,
+                trend_direction: RiskTrendDirection::Stable,
                 trend_strength: 0.0,
                 confidence: 0.0,
                 forecast: None,
@@ -642,7 +858,8 @@ impl SecurityRiskAssessor {
         }
 
         // Simple analysis of overall trend
-        let recent_scores: Vec<f64> = self.historical_data
+        let recent_scores: Vec<f64> = self
+            .historical_data
             .iter()
             .rev()
             .take(5)
@@ -650,7 +867,8 @@ impl SecurityRiskAssessor {
             .collect();
 
         let avg_recent = recent_scores.iter().sum::<f64>() / recent_scores.len() as f64;
-        let older_scores: Vec<f64> = self.historical_data
+        let older_scores: Vec<f64> = self
+            .historical_data
             .iter()
             .take(5)
             .map(|data| data.risk_score)
@@ -660,9 +878,9 @@ impl SecurityRiskAssessor {
         let trend_change = avg_recent - avg_older;
 
         let trend_direction = match trend_change {
-            c if c > 0.2 => TrendDirection::Increasing,
-            c if c < -0.2 => TrendDirection::Decreasing,
-            _ => TrendDirection::Stable,
+            c if c > 0.2 => RiskTrendDirection::Increasing,
+            c if c < -0.2 => RiskTrendDirection::Decreasing,
+            _ => RiskTrendDirection::Stable,
         };
 
         Ok(RiskTrendAnalysis {
@@ -692,21 +910,27 @@ impl SecurityRiskAssessor {
 
         match self.calculate_risk_level(risk_score) {
             RiskLevel::Critical => {
-                recommendations.push("CRITICAL: Immediate security review and remediation required".to_string());
+                recommendations.push(
+                    "CRITICAL: Immediate security review and remediation required".to_string(),
+                );
                 recommendations.push("Consider alternative implementation approaches".to_string());
-                recommendations.push("Implement comprehensive security controls before deployment".to_string());
+                recommendations.push(
+                    "Implement comprehensive security controls before deployment".to_string(),
+                );
                 recommendations.push("Conduct thorough penetration testing".to_string());
                 recommendations.push("Establish continuous security monitoring".to_string());
             }
             RiskLevel::High => {
                 recommendations.push("Enhanced security measures strongly recommended".to_string());
-                recommendations.push("Implement additional access controls and validation".to_string());
+                recommendations
+                    .push("Implement additional access controls and validation".to_string());
                 recommendations.push("Regular security assessments required".to_string());
                 recommendations.push("Consider security architecture review".to_string());
             }
             RiskLevel::Medium => {
                 recommendations.push("Standard security practices recommended".to_string());
-                recommendations.push("Implement basic security controls and monitoring".to_string());
+                recommendations
+                    .push("Implement basic security controls and monitoring".to_string());
                 recommendations.push("Periodic security reviews recommended".to_string());
                 recommendations.push("Consider security best practices training".to_string());
             }
@@ -797,7 +1021,9 @@ impl SecurityRiskAssessor {
     fn get_factor_description(&self, factor_name: &str) -> String {
         match factor_name {
             "handles_sensitive_data" => "Trait handles sensitive or confidential data".to_string(),
-            "requires_elevated_privileges" => "Trait requires elevated system privileges".to_string(),
+            "requires_elevated_privileges" => {
+                "Trait requires elevated system privileges".to_string()
+            }
             "has_input_validation" => "Presence of input validation mechanisms".to_string(),
             "has_access_controls" => "Presence of access control mechanisms".to_string(),
             "has_encryption" => "Presence of encryption for data protection".to_string(),
@@ -848,7 +1074,11 @@ impl SecurityRiskAssessor {
         let model_count = self.risk_models.len();
         let historical_count = self.historical_data.len();
         let avg_historical_score = if !self.historical_data.is_empty() {
-            self.historical_data.iter().map(|d| d.risk_score).sum::<f64>() / historical_count as f64
+            self.historical_data
+                .iter()
+                .map(|d| d.risk_score)
+                .sum::<f64>()
+                / historical_count as f64
         } else {
             0.0
         };
@@ -892,7 +1122,7 @@ impl RiskAssessmentModel {
 }
 
 /// Quantitative risk model using numerical scoring.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct QuantitativeRiskModel {
     /// Model parameters
@@ -938,7 +1168,7 @@ impl QuantitativeRiskModel {
         let trait_risk = self.calculate_trait_risk(&context.traits);
         risk_score += trait_risk;
 
-        Ok(risk_score.max(0.0).min(10.0))
+        Ok(risk_score.clamp(0.0, 10.0))
     }
 
     fn calculate_trait_risk(&self, traits: &[String]) -> f64 {
@@ -956,14 +1186,6 @@ impl QuantitativeRiskModel {
         }
 
         trait_risk
-    }
-}
-
-impl Default for QuantitativeRiskModel {
-    fn default() -> Self {
-        Self {
-            parameters: HashMap::new(),
-        }
     }
 }
 
@@ -998,7 +1220,7 @@ impl QualitativeRiskModel {
             risk_score += 0.5; // Complexity factor
         }
 
-        Ok(risk_score.max(0.0).min(10.0))
+        Ok(risk_score.clamp(0.0, 10.0))
     }
 }
 
@@ -1101,7 +1323,7 @@ pub struct PatternBasedModel {
 
 impl PatternBasedModel {
     pub fn assess(&self, context: &TraitUsageContext) -> Result<f64> {
-        let mut max_risk = 0.0;
+        let mut max_risk: f64 = 0.0;
 
         for pattern in &self.patterns {
             if pattern.matches(context) {
@@ -1119,15 +1341,15 @@ impl Default for PatternBasedModel {
             RiskPattern {
                 name: "Unsafe serialization".to_string(),
                 trait_requirements: vec!["Serialize".to_string()],
-                context_requirements: vec![("has_input_validation", false)],
+                context_requirements: vec![("has_input_validation".to_string(), false)],
                 risk_score: 6.5,
             },
             RiskPattern {
                 name: "Privileged operations without controls".to_string(),
                 trait_requirements: vec![],
                 context_requirements: vec![
-                    ("requires_elevated_privileges", true),
-                    ("has_access_controls", false),
+                    ("requires_elevated_privileges".to_string(), true),
+                    ("has_access_controls".to_string(), false),
                 ],
                 risk_score: 7.0,
             },
@@ -1317,6 +1539,29 @@ pub struct RiskAssessmentStatistics {
     pub factor_weight_count: usize,
 }
 
+/// Create a new [`SecurityRiskAssessor`] pre-populated with the default risk models
+/// (quantitative, qualitative, hybrid, severity-weighted, pattern-based) and factor
+/// weights.
+///
+/// Thin constructor wrapper kept for API-surface consistency with the other `create_*`
+/// factory functions in `trait_explorer` (e.g.
+/// [`super::core_analyzer::create_trait_security_analyzer`],
+/// [`super::vulnerability_database::create_vulnerability_database`]).
+pub fn create_security_risk_assessor() -> SecurityRiskAssessor {
+    SecurityRiskAssessor::new()
+}
+
+/// Perform a comprehensive, multi-model risk assessment of a [`TraitUsageContext`] using
+/// a freshly-constructed [`SecurityRiskAssessor`] with default configuration.
+pub fn assess_comprehensive_risk(
+    context: &TraitUsageContext,
+) -> std::result::Result<RiskAssessmentResult, RiskAssessmentError> {
+    let assessor = create_security_risk_assessor();
+    assessor
+        .assess_comprehensive_risk(context)
+        .map_err(RiskAssessmentError::from)
+}
+
 // Add the rand dependency simulation for compilation
 mod rand {
     pub fn random<T>() -> T
@@ -1379,7 +1624,7 @@ mod tests {
         let pattern = RiskPattern {
             name: "Test pattern".to_string(),
             trait_requirements: vec!["Serialize".to_string()],
-            context_requirements: vec![("has_input_validation", false)],
+            context_requirements: vec![("has_input_validation".to_string(), false)],
             risk_score: 5.0,
         };
 

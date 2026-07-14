@@ -5,7 +5,7 @@
 //!
 //! # Examples
 //!
-//! ```rust
+//! ```rust,no_run
 //! use sklears_metrics::latex_export::{LatexReportBuilder, ReportTemplate};
 //! use scirs2_core::ndarray::array;
 //!
@@ -15,14 +15,15 @@
 //! let report = LatexReportBuilder::new()
 //!     .template(ReportTemplate::Classification)
 //!     .title("Model Performance Report")
-//!     .add_classification_metrics(&y_true, &y_pred)
+//!     .add_classification_metrics(&y_true.view(), &y_pred.view())
+//!     .unwrap()
 //!     .build()
 //!     .unwrap();
 //!
 //! // Export to LaTeX
 //! let latex_code = report.to_latex().unwrap();
 //!
-//! // Export to PDF
+//! // Export to PDF (requires a `pdflatex` installation on PATH, hence `no_run` above)
 //! report.to_pdf("report.pdf").unwrap();
 //! ```
 

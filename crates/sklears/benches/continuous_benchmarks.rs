@@ -141,12 +141,11 @@ fn benchmark_tree_models(c: &mut Criterion) {
 
     for size in &[config.small_size, config.medium_size] {
         let (x, y_i32) = generate_multiclass_data(*size, config.n_features, 3);
-        let y = y_i32.mapv(|v| v as f64);
 
         // DecisionTree
         group.bench_with_input(
             BenchmarkId::new("DecisionTreeClassifier/fit", size),
-            &(&x, &y),
+            &(&x, &y_i32),
             |b, (x, y)| {
                 b.iter(|| {
                     let model = DecisionTreeClassifier::new()

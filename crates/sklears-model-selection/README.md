@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -16,31 +16,38 @@
 - **Search Strategies**: `GridSearchCV`, `RandomizedSearchCV`, `HalvingGridSearch`, `HalvingRandomSearch`, Bayesian/Adaptive search prototypes.
 - **Cross-Validation**: K-fold, stratified, grouped, time-series splits, repeated strategies, and custom splitter APIs.
 - **Scoring & Metrics**: `make_scorer`, scorer registry, multi-metric evaluation, and custom scorer plugins.
-- **Parallel Execution**: Rayon-powered evaluators with cancellation hooks and result caching.
+- **Parallel Execution**: Rayon-powered parallel hyperparameter evaluation (`n_jobs`) for grid/randomized/halving search.
 
 ## Quick Start
 
 ```rust
-use sklears_model_selection::{GridSearchCV, ParamGrid};
-use sklears_linear::LogisticRegression;
+use sklears_linear::{LogisticRegression, Penalty};
+use sklears_model_selection::{GridSearchCV, KFold, ParameterGrid, ParameterValue, Scoring};
+use std::collections::HashMap;
 
-let estimator = LogisticRegression::builder()
-    .max_iter(200)
-    .multi_class("auto")
-    .build();
+let estimator = LogisticRegression::new().max_iter(200);
 
-let param_grid = ParamGrid::builder()
-    .add("C", vec![0.1, 1.0, 10.0])
-    .add("penalty", vec!["l2".into()])
-    .build();
+let mut param_grid: ParameterGrid = HashMap::new();
+param_grid.insert(
+    "C".to_string(),
+    vec![
+        ParameterValue::Float(0.1),
+        ParameterValue::Float(1.0),
+        ParameterValue::Float(10.0),
+    ],
+);
 
-let grid_search = GridSearchCV::builder()
-    .estimator(estimator)
-    .param_grid(param_grid)
-    .cv(5)
-    .n_jobs(8)
-    .scoring("f1_macro")
-    .build();
+// `config_fn` applies one parameter combination to a fresh estimator clone
+let grid_search = GridSearchCV::new(estimator, param_grid, |est, params| {
+    if let Some(ParameterValue::Float(c)) = params.get("C") {
+        Ok(est.penalty(Penalty::L2(*c)))
+    } else {
+        Ok(est)
+    }
+})
+.cv(KFold::new(5))
+.n_jobs(Some(8))
+.scoring(Scoring::EstimatorScore);
 
 let fitted = grid_search.fit(&x_train, &y_train)?;
 let best_params = fitted.best_params();
@@ -48,6 +55,6 @@ let best_params = fitted.best_params();
 
 ## Status
 
-- Validated by 331 passing crate tests for `0.1.2`.
+- Validated by 351 passing crate tests for `0.2.0` (6 skipped).
 - Supports >99% of scikit-learn’s model selection API (including paired scoring functions and CV splitters).
 - Upcoming improvements (asynchronous evaluators, distributed tuning) documented in `TODO.md`.

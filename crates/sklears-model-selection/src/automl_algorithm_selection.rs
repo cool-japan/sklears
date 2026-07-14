@@ -7,8 +7,25 @@
 use crate::scoring::TaskType;
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::error::{Result, SklearsError};
+#[cfg(feature = "gpu")]
+use sklears_core::gpu::GpuBackend;
 use std::collections::HashMap;
 use std::fmt;
+
+/// Real oxicuda-backed GPU availability check, used to derive
+/// [`ComputationalConstraints::has_gpu`]'s default instead of a hardcoded
+/// value. Without the `gpu` feature (which enables `sklears-core`'s
+/// `gpu_support`) no GPU code is compiled into this crate at all, so this
+/// honestly reports `false` rather than fabricating availability.
+#[cfg(feature = "gpu")]
+fn detect_gpu_available() -> bool {
+    GpuBackend::is_available()
+}
+
+#[cfg(not(feature = "gpu"))]
+fn detect_gpu_available() -> bool {
+    false
+}
 // use serde::{Deserialize, Serialize};
 
 /// Algorithm family categories for classification and regression
@@ -123,7 +140,7 @@ pub struct TargetStatistics {
 }
 
 /// Computational constraints for algorithm selection
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ComputationalConstraints {
     /// Maximum training time in seconds
     pub max_training_time: Option<f64>,
@@ -135,8 +152,25 @@ pub struct ComputationalConstraints {
     pub max_inference_time_ms: Option<f64>,
     /// Available CPU cores
     pub n_cores: Option<usize>,
-    /// GPU availability
+    /// GPU availability. Defaults to a real oxicuda-backed detection
+    /// (`sklears_core::gpu::GpuBackend::is_available()`) rather than a
+    /// hardcoded value: `false` on hosts/builds without a usable GPU
+    /// (including non-`gpu_support` builds, which always report `false`),
+    /// `true` only when an actual CUDA device was detected.
     pub has_gpu: bool,
+}
+
+impl Default for ComputationalConstraints {
+    fn default() -> Self {
+        Self {
+            max_training_time: None,
+            max_memory_gb: None,
+            max_model_size_mb: None,
+            max_inference_time_ms: None,
+            n_cores: None,
+            has_gpu: detect_gpu_available(),
+        }
+    }
 }
 
 /// Configuration for automated algorithm selection

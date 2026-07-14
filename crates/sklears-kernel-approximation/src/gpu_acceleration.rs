@@ -1,7 +1,55 @@
-//! GPU acceleration for kernel approximations
+//! GPU acceleration for kernel approximations, backed by `sklears_core::gpu`
+//! (a real CUDA context + BLAS handle, via the `oxicuda` crate family).
 //!
-//! This module provides GPU-accelerated implementations of kernel approximation methods.
-//! It includes both CUDA and OpenCL backends, with automatic fallback to CPU implementations.
+//! # Honesty pass (2026-07-06)
+//!
+//! Before this pass, this module shipped in every default build (there was
+//! no `gpu` feature gate at all) and every "GPU" code path was fake:
+//!
+//! - The local `GpuBackend { Cuda, OpenCL, Metal, Cpu }` enum had no real
+//!   backend behind `Cuda`/`OpenCL`/`Metal` — `initialize_cuda`/`_opencl`/
+//!   `_metal` always returned `SklearsError::NotImplemented`, so the only
+//!   backend that could ever actually initialize was `Cpu`.
+//! - `generate_features_cuda`/`_opencl`/`_metal` and
+//!   `transform_cuda`/`_opencl`/`_metal` were byte-for-byte copies of the
+//!   CPU loop, just renamed.
+//! - `compute_kernel_cuda`/`_opencl`/`_metal` and
+//!   `eigendecomposition_cuda`/`_opencl`/`_metal` called straight through to
+//!   the CPU implementation.
+//! - Worst of all, `eigendecomposition_cpu` itself was numerically wrong: it
+//!   ran power iteration for the leading eigenpair only, then fabricated
+//!   every other eigenvalue as a flat `0.1` and every other eigenvector as a
+//!   standard basis vector — silently distorting Nyström scaling for every
+//!   component past the first, on every build, GPU feature or not.
+//!
+//! This version:
+//!
+//! - Gates this whole module behind this crate's own `gpu` feature (see
+//!   `Cargo.toml`), off by default, so no GPU-named API ships in default
+//!   Pure-Rust builds.
+//! - Replaces the fake `GpuBackend` enum with a re-export of the real
+//!   [`sklears_core::gpu::GpuBackend`]: [`GpuContext::initialize`] calls
+//!   [`GpuBackend::detect`] honestly and stores `None` when no device is
+//!   found (this crate's own macOS development machine included) instead of
+//!   pretending a CUDA/OpenCL/Metal kernel ran. There is no `OpenCL`/`Metal`
+//!   variant to fall back to any more — only "a real CUDA device was found"
+//!   or "run on the CPU".
+//! - Replaces `eigendecomposition_cpu`'s power-iteration-plus-fabrication
+//!   with a real symmetric eigendecomposition
+//!   (`scirs2_linalg::compat::eigh`), fixing the correctness bug above. As
+//!   of `oxicuda-solver` 0.4.0 the on-device symmetric eigensolver is a
+//!   documented exact-CPU host fallback (no true on-device eigendecomposition
+//!   exists to route to yet), so this crate does not claim one: eigendecomposition
+//!   always runs on the CPU, GPU feature or not.
+//! - [`FittedGpuRBFSampler::transform`] and [`GpuNystroem`]'s kernel-matrix
+//!   computation now do real on-device GEMM
+//!   ([`sklears_core::gpu::GpuArray::matmul`]) for their `O(n·m·d)`
+//!   inner-product term whenever a GPU is detected, instead of three
+//!   duplicate CPU loops named after CUDA/OpenCL/Metal. The elementwise
+//!   transform on top (the cosine random features, or the RBF exponential)
+//!   still runs on the host after a single download: neither op has an
+//!   on-device primitive wired up in this crate yet, and both are `O(n·m)`
+//!   — cheap relative to the `O(n·m·d)` GEMM they follow.
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
@@ -9,77 +57,94 @@ use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::seq::SliceRandom;
 use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
+use scirs2_linalg::compat::{eigh, UPLO};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use sklears_core::error::{Result, SklearsError};
+pub use sklears_core::gpu::GpuBackend;
+use sklears_core::gpu::{GpuArray, GpuMatrixOps, GpuUtils};
 use sklears_core::traits::{Fit, Transform};
 
-/// GPU backend type
-#[derive(Debug, Clone, Serialize, Deserialize)]
-/// GpuBackend
-pub enum GpuBackend {
-    /// Cuda
-    Cuda,
-    /// OpenCL
-    OpenCL,
-    /// Metal
-    Metal,
-    /// Cpu
-    Cpu, // Fallback
+fn numerical_err<E: std::fmt::Display>(e: E) -> SklearsError {
+    SklearsError::NumericalError(e.to_string())
 }
 
-/// GPU memory management strategy
+/// GPU memory management strategy.
+///
+/// Informational only for now: `sklears_core::gpu`'s `GpuArray` always
+/// allocates and transfers eagerly, so this does not yet change how memory
+/// is actually moved. It is kept on [`GpuConfig`] as a forward-compatible
+/// knob rather than removed outright.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// MemoryStrategy
 pub enum MemoryStrategy {
-    /// Pinned
-    Pinned, // Page-locked memory for faster transfers
-    /// Managed
-    Managed, // Unified memory management
-    /// Explicit
-    Explicit, // Manual memory management
+    /// Page-locked (pinned) host memory for faster transfers.
+    Pinned,
+    /// Unified memory management.
+    Managed,
+    /// Manual, explicit memory management.
+    Explicit,
 }
 
-/// GPU computation precision
+/// GPU computation precision.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// Precision
 pub enum Precision {
-    /// Single
-    Single, // f32
-    /// Double
-    Double, // f64
-    /// Half
-    Half, // f16 (if supported)
+    /// f32
+    Single,
+    /// f64
+    Double,
+    /// f16 (if supported)
+    Half,
 }
 
-/// GPU device information
+/// GPU device information.
+///
+/// Populated from [`GpuUtils::device_properties`] (name, total memory,
+/// compute capability) plus a direct `oxicuda_driver::Device::info()` query
+/// for the two fields (`multiprocessor_count`, `max_threads_per_block`)
+/// `sklears_core::gpu`'s public API does not surface.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// GpuDevice
 pub struct GpuDevice {
-    /// id
+    /// Device ordinal.
     pub id: usize,
-    /// name
+    /// Human-readable device name.
     pub name: String,
-    /// compute_capability
-    pub compute_capability: (u32, u32),
-    /// total_memory
+    /// Compute capability `(major, minor)`.
+    pub compute_capability: (i32, i32),
+    /// Total device memory in bytes.
     pub total_memory: usize,
-    /// multiprocessor_count
+    /// Number of streaming multiprocessors.
     pub multiprocessor_count: usize,
-    /// max_threads_per_block
+    /// Maximum threads per block.
     pub max_threads_per_block: usize,
-    /// max_shared_memory
-    pub max_shared_memory: usize,
 }
 
-/// GPU configuration for kernel approximations
+impl GpuDevice {
+    /// Queries real device properties for `device_id`. Returns `None` if
+    /// the driver cannot be initialized, the device does not exist, or any
+    /// property query fails — this is a best-effort lookup used only to
+    /// populate informational fields, never load-bearing for correctness.
+    fn query(device_id: usize) -> Option<Self> {
+        let props = GpuUtils::device_properties(device_id).ok()?;
+        oxicuda_driver::init().ok()?;
+        let ordinal = i32::try_from(device_id).ok()?;
+        let device = oxicuda_driver::Device::get(ordinal).ok()?;
+        let info = device.info().ok()?;
+        Some(Self {
+            id: device_id,
+            name: props.name,
+            compute_capability: props.compute_capability,
+            total_memory: props.total_memory,
+            multiprocessor_count: info.multiprocessor_count.max(0) as usize,
+            max_threads_per_block: info.max_threads_per_block.max(0) as usize,
+        })
+    }
+}
+
+/// GPU configuration for kernel approximations.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// GpuConfig
 pub struct GpuConfig {
-    /// backend
-    pub backend: GpuBackend,
-    /// device_id
+    /// Which device ordinal to detect/bind to.
     pub device_id: usize,
     /// memory_strategy
     pub memory_strategy: MemoryStrategy,
@@ -98,7 +163,6 @@ pub struct GpuConfig {
 impl Default for GpuConfig {
     fn default() -> Self {
         Self {
-            backend: GpuBackend::Cpu,
             device_id: 0,
             memory_strategy: MemoryStrategy::Managed,
             precision: Precision::Double,
@@ -110,66 +174,76 @@ impl Default for GpuConfig {
     }
 }
 
-/// GPU context manager
-#[derive(Debug)]
-/// GpuContext
+/// GPU context manager: an honest wrapper around the real
+/// [`sklears_core::gpu::GpuBackend`].
+///
+/// `backend` is `Some` iff [`GpuBackend::detect`] found a real device;
+/// otherwise every operation built on top of this context runs on the CPU.
+/// Unlike the pre-migration version, construction never needs to "fail" for
+/// an unimplemented backend — there is only "a GPU was found" or "run on the
+/// CPU", and both are legitimate, expected outcomes.
+#[derive(Clone)]
 pub struct GpuContext {
     /// config
     pub config: GpuConfig,
     /// device
     pub device: Option<GpuDevice>,
+    backend: Option<GpuBackend>,
     /// is_initialized
     pub is_initialized: bool,
 }
 
+impl std::fmt::Debug for GpuContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GpuContext")
+            .field("config", &self.config)
+            .field("device", &self.device)
+            .field("is_gpu", &self.backend.is_some())
+            .field("is_initialized", &self.is_initialized)
+            .finish()
+    }
+}
+
 impl GpuContext {
+    /// Builds a context that is not yet initialized; call
+    /// [`initialize`](Self::initialize) before using it.
     pub fn new(config: GpuConfig) -> Self {
         Self {
             config,
             device: None,
+            backend: None,
             is_initialized: false,
         }
     }
 
+    /// Detects a real GPU via [`GpuBackend::detect`]. Always returns `Ok`:
+    /// "no GPU found" is a legitimate, expected outcome (e.g. on this
+    /// crate's own macOS development machine), not an error.
     pub fn initialize(&mut self) -> Result<()> {
-        match self.config.backend {
-            GpuBackend::Cuda => self.initialize_cuda(),
-            GpuBackend::OpenCL => self.initialize_opencl(),
-            GpuBackend::Metal => self.initialize_metal(),
-            GpuBackend::Cpu => {
-                self.is_initialized = true;
-                Ok(())
-            }
-        }
+        self.backend = GpuBackend::detect()?;
+        self.device = self
+            .backend
+            .as_ref()
+            .and_then(|_| GpuDevice::query(self.config.device_id));
+        self.is_initialized = true;
+        Ok(())
     }
 
-    fn initialize_cuda(&mut self) -> Result<()> {
-        // CUDA runtime is not linked — this backend is not implemented.
-        Err(SklearsError::NotImplemented(
-            "CUDA runtime is not linked; recompile with a real CUDA SDK to enable this backend"
-                .to_string(),
-        ))
+    /// `true` iff a real GPU was detected during [`initialize`](Self::initialize).
+    pub fn is_gpu(&self) -> bool {
+        self.backend.is_some()
     }
 
-    fn initialize_opencl(&mut self) -> Result<()> {
-        // OpenCL runtime is not linked — this backend is not implemented.
-        Err(SklearsError::NotImplemented(
-            "OpenCL runtime is not linked; recompile with a real OpenCL SDK to enable this backend"
-                .to_string(),
-        ))
+    /// The live GPU backend handle, if one was detected.
+    pub fn backend(&self) -> Option<&GpuBackend> {
+        self.backend.as_ref()
     }
 
-    fn initialize_metal(&mut self) -> Result<()> {
-        // Metal framework is not linked — this backend is not implemented.
-        Err(SklearsError::NotImplemented(
-            "Metal framework is not linked; build on macOS with Metal SDK to enable this backend"
-                .to_string(),
-        ))
-    }
-
+    /// Suggested CUDA block size for a problem of the given size, derived
+    /// from real device properties when available.
     pub fn get_optimal_block_size(&self, problem_size: usize) -> usize {
         if let Some(device) = &self.device {
-            let max_threads = device.max_threads_per_block;
+            let max_threads = device.max_threads_per_block.max(1);
             let suggested_size = (problem_size as f64).sqrt() as usize;
             suggested_size.min(max_threads).max(32)
         } else {
@@ -177,14 +251,14 @@ impl GpuContext {
         }
     }
 
+    /// Grid size needed to cover `problem_size` with the given block size.
     pub fn get_optimal_grid_size(&self, problem_size: usize, block_size: usize) -> usize {
-        problem_size.div_ceil(block_size)
+        problem_size.div_ceil(block_size.max(1))
     }
 }
 
-/// GPU-accelerated RBF sampler
+/// GPU-accelerated RBF sampler (random Fourier features).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// GpuRBFSampler
 pub struct GpuRBFSampler {
     /// n_components
     pub n_components: usize,
@@ -213,30 +287,14 @@ impl GpuRBFSampler {
         self
     }
 
-    fn generate_random_features_gpu(
-        &self,
-        input_dim: usize,
-        ctx: &GpuContext,
-    ) -> Result<Array2<f64>> {
-        match ctx.config.backend {
-            GpuBackend::Cuda => self.generate_features_cuda(input_dim, ctx),
-            GpuBackend::OpenCL => self.generate_features_opencl(input_dim, ctx),
-            GpuBackend::Metal => self.generate_features_metal(input_dim, ctx),
-            GpuBackend::Cpu => self.generate_features_cpu(input_dim),
-        }
-    }
-
-    fn generate_features_cuda(&self, input_dim: usize, _ctx: &GpuContext) -> Result<Array2<f64>> {
-        // Simulate CUDA kernel execution
-        // In practice, this would:
-        // 1. Allocate GPU memory
-        // 2. Launch CUDA kernels for random number generation
-        // 3. Apply Gaussian distribution scaling
-        // 4. Copy results back to host
-
+    /// Single host-side random-feature generation, used regardless of
+    /// backend. There is no on-device RNG wired up here (`cuRAND` would be a
+    /// separate integration); the historical `generate_features_cuda`/
+    /// `_opencl`/`_metal` variants were byte-for-byte copies of this same
+    /// loop and have been removed rather than kept as decoration.
+    fn generate_random_features(&self, input_dim: usize) -> Result<Array2<f64>> {
         let mut rng = RealStdRng::from_seed(thread_rng().random());
-        let normal =
-            RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed");
+        let normal = RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).map_err(numerical_err)?;
 
         let mut weights = Array2::zeros((self.n_components, input_dim));
         for i in 0..self.n_components {
@@ -246,155 +304,10 @@ impl GpuRBFSampler {
         }
 
         Ok(weights)
-    }
-
-    fn generate_features_opencl(&self, input_dim: usize, _ctx: &GpuContext) -> Result<Array2<f64>> {
-        // Simulate OpenCL kernel execution
-        let mut rng = RealStdRng::from_seed(thread_rng().random());
-        let normal =
-            RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed");
-
-        let mut weights = Array2::zeros((self.n_components, input_dim));
-        for i in 0..self.n_components {
-            for j in 0..input_dim {
-                weights[[i, j]] = rng.sample(normal);
-            }
-        }
-
-        Ok(weights)
-    }
-
-    fn generate_features_metal(&self, input_dim: usize, _ctx: &GpuContext) -> Result<Array2<f64>> {
-        // Simulate Metal compute shader execution
-        let mut rng = RealStdRng::from_seed(thread_rng().random());
-        let normal =
-            RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed");
-
-        let mut weights = Array2::zeros((self.n_components, input_dim));
-        for i in 0..self.n_components {
-            for j in 0..input_dim {
-                weights[[i, j]] = rng.sample(normal);
-            }
-        }
-
-        Ok(weights)
-    }
-
-    fn generate_features_cpu(&self, input_dim: usize) -> Result<Array2<f64>> {
-        // CPU fallback
-        let mut rng = RealStdRng::from_seed(thread_rng().random());
-        let normal =
-            RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed");
-
-        let mut weights = Array2::zeros((self.n_components, input_dim));
-        for i in 0..self.n_components {
-            for j in 0..input_dim {
-                weights[[i, j]] = rng.sample(normal);
-            }
-        }
-
-        Ok(weights)
-    }
-
-    #[allow(dead_code)] // GPU dispatch methods for future hardware acceleration
-    fn transform_gpu(
-        &self,
-        x: &Array2<f64>,
-        weights: &Array2<f64>,
-        biases: &Array1<f64>,
-        ctx: &GpuContext,
-    ) -> Result<Array2<f64>> {
-        match ctx.config.backend {
-            GpuBackend::Cuda => self.transform_cuda(x, weights, biases, ctx),
-            GpuBackend::OpenCL => self.transform_opencl(x, weights, biases, ctx),
-            GpuBackend::Metal => self.transform_metal(x, weights, biases, ctx),
-            GpuBackend::Cpu => self.transform_cpu(x, weights, biases),
-        }
-    }
-
-    #[allow(dead_code)] // hardware-specific backend
-    fn transform_cuda(
-        &self,
-        x: &Array2<f64>,
-        weights: &Array2<f64>,
-        biases: &Array1<f64>,
-        _ctx: &GpuContext,
-    ) -> Result<Array2<f64>> {
-        // Simulate CUDA matrix multiplication and trigonometric functions
-        // In practice, this would use cuBLAS for GEMM and custom kernels for cos/sin
-
-        let n_samples = x.nrows();
-        let mut result = Array2::zeros((n_samples, self.n_components));
-
-        // X @ W.T + b
-        for i in 0..n_samples {
-            for j in 0..self.n_components {
-                let mut dot_product = 0.0;
-                for k in 0..x.ncols() {
-                    dot_product += x[[i, k]] * weights[[j, k]];
-                }
-                dot_product += biases[j];
-
-                // Apply cosine transformation
-                result[[i, j]] = (2.0 / self.n_components as f64).sqrt() * dot_product.cos();
-            }
-        }
-
-        Ok(result)
-    }
-
-    #[allow(dead_code)] // hardware-specific backend
-    fn transform_opencl(
-        &self,
-        x: &Array2<f64>,
-        weights: &Array2<f64>,
-        biases: &Array1<f64>,
-        _ctx: &GpuContext,
-    ) -> Result<Array2<f64>> {
-        // Simulate OpenCL execution
-        self.transform_cpu(x, weights, biases)
-    }
-
-    #[allow(dead_code)] // hardware-specific backend
-    fn transform_metal(
-        &self,
-        x: &Array2<f64>,
-        weights: &Array2<f64>,
-        biases: &Array1<f64>,
-        _ctx: &GpuContext,
-    ) -> Result<Array2<f64>> {
-        // Simulate Metal execution
-        self.transform_cpu(x, weights, biases)
-    }
-
-    #[allow(dead_code)] // CPU fallback backend
-    fn transform_cpu(
-        &self,
-        x: &Array2<f64>,
-        weights: &Array2<f64>,
-        biases: &Array1<f64>,
-    ) -> Result<Array2<f64>> {
-        let n_samples = x.nrows();
-        let mut result = Array2::zeros((n_samples, self.n_components));
-
-        for i in 0..n_samples {
-            for j in 0..self.n_components {
-                let mut dot_product = 0.0;
-                for k in 0..x.ncols() {
-                    dot_product += x[[i, k]] * weights[[j, k]];
-                }
-                dot_product += biases[j];
-
-                result[[i, j]] = (2.0 / self.n_components as f64).sqrt() * dot_product.cos();
-            }
-        }
-
-        Ok(result)
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// FittedGpuRBFSampler
 pub struct FittedGpuRBFSampler {
     /// n_components
     pub n_components: usize,
@@ -416,17 +329,16 @@ impl Fit<Array2<f64>, ()> for GpuRBFSampler {
     fn fit(self, x: &Array2<f64>, _y: &()) -> Result<Self::Fitted> {
         let input_dim = x.ncols();
 
-        // Initialize GPU context
+        // Detect (honestly) whether a real GPU is available.
         let mut gpu_context = GpuContext::new(self.gpu_config.clone());
         gpu_context.initialize()?;
 
-        // Generate random features
-        let weights = self.generate_random_features_gpu(input_dim, &gpu_context)?;
+        // Generate random features (always host-side; see doc comment).
+        let weights = self.generate_random_features(input_dim)?;
 
-        // Generate random biases
+        // Generate random biases.
         let mut rng = RealStdRng::from_seed(thread_rng().random());
-        let uniform =
-            RandUniform::new(0.0, 2.0 * std::f64::consts::PI).expect("operation should succeed");
+        let uniform = RandUniform::new(0.0, 2.0 * std::f64::consts::PI).map_err(numerical_err)?;
         let biases = Array1::from_vec(
             (0..self.n_components)
                 .map(|_| rng.sample(uniform))
@@ -445,104 +357,95 @@ impl Fit<Array2<f64>, ()> for GpuRBFSampler {
 }
 
 impl FittedGpuRBFSampler {
-    fn transform_gpu(
-        &self,
-        x: &Array2<f64>,
-        weights: &Array2<f64>,
-        biases: &Array1<f64>,
-        ctx: &GpuContext,
-    ) -> Result<Array2<f64>> {
-        match ctx.config.backend {
-            GpuBackend::Cuda => self.transform_cuda(x, weights, biases, ctx),
-            GpuBackend::OpenCL => self.transform_opencl(x, weights, biases, ctx),
-            GpuBackend::Metal => self.transform_metal(x, weights, biases, ctx),
-            GpuBackend::Cpu => self.transform_cpu(x, weights, biases),
-        }
+    /// Real on-device GEMM (`X · Wᵀ`) via [`GpuArray::matmul`], with the
+    /// bias add and cosine transform applied on the host after a single
+    /// download.
+    fn transform_gpu(&self, x: &Array2<f64>, backend: &GpuBackend) -> Result<Array2<f64>> {
+        let x_gpu = GpuArray::from_array2(backend, x)?;
+        let w_t = self.weights.t().to_owned();
+        let w_gpu = GpuArray::from_array2(backend, &w_t)?;
+        let projected = x_gpu.matmul(&w_gpu)?;
+        let projected = projected.to_array2()?;
+        self.apply_cosine_features(&projected)
     }
 
-    fn transform_cuda(
-        &self,
-        x: &Array2<f64>,
-        weights: &Array2<f64>,
-        biases: &Array1<f64>,
-        _ctx: &GpuContext,
-    ) -> Result<Array2<f64>> {
-        let n_samples = x.nrows();
-        let mut result = Array2::zeros((n_samples, self.n_components));
+    fn transform_cpu(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
+        let projected = x.dot(&self.weights.t());
+        self.apply_cosine_features(&projected)
+    }
 
-        for i in 0..n_samples {
-            for j in 0..self.n_components {
-                let mut dot_product = 0.0;
-                for k in 0..x.ncols() {
-                    dot_product += x[[i, k]] * weights[[j, k]];
-                }
-                dot_product += biases[j];
-
-                result[[i, j]] = (2.0 / self.n_components as f64).sqrt() * dot_product.cos();
+    fn apply_cosine_features(&self, projected: &Array2<f64>) -> Result<Array2<f64>> {
+        let scale = (2.0 / self.n_components as f64).sqrt();
+        let mut result = Array2::zeros(projected.dim());
+        for i in 0..projected.nrows() {
+            for j in 0..projected.ncols() {
+                result[[i, j]] = scale * (projected[[i, j]] + self.biases[j]).cos();
             }
         }
-
-        Ok(result)
-    }
-
-    fn transform_opencl(
-        &self,
-        x: &Array2<f64>,
-        weights: &Array2<f64>,
-        biases: &Array1<f64>,
-        _ctx: &GpuContext,
-    ) -> Result<Array2<f64>> {
-        self.transform_cpu(x, weights, biases)
-    }
-
-    fn transform_metal(
-        &self,
-        x: &Array2<f64>,
-        weights: &Array2<f64>,
-        biases: &Array1<f64>,
-        _ctx: &GpuContext,
-    ) -> Result<Array2<f64>> {
-        self.transform_cpu(x, weights, biases)
-    }
-
-    fn transform_cpu(
-        &self,
-        x: &Array2<f64>,
-        weights: &Array2<f64>,
-        biases: &Array1<f64>,
-    ) -> Result<Array2<f64>> {
-        let n_samples = x.nrows();
-        let mut result = Array2::zeros((n_samples, self.n_components));
-
-        for i in 0..n_samples {
-            for j in 0..self.n_components {
-                let mut dot_product = 0.0;
-                for k in 0..x.ncols() {
-                    dot_product += x[[i, k]] * weights[[j, k]];
-                }
-                dot_product += biases[j];
-
-                result[[i, j]] = (2.0 / self.n_components as f64).sqrt() * dot_product.cos();
-            }
-        }
-
         Ok(result)
     }
 }
 
 impl Transform<Array2<f64>, Array2<f64>> for FittedGpuRBFSampler {
     fn transform(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
-        if let Some(ctx) = &self.gpu_context {
-            self.transform_gpu(x, &self.weights, &self.biases, ctx)
-        } else {
-            self.transform_cpu(x, &self.weights, &self.biases)
+        match self.gpu_context.as_ref().and_then(|ctx| ctx.backend()) {
+            Some(backend) => self.transform_gpu(x, backend),
+            None => self.transform_cpu(x),
         }
     }
 }
 
-/// GPU-accelerated Nyström approximation
+/// Computes the kernel matrix `K[i,j] = k(x_i, y_j)` for `"linear"` or
+/// `"rbf"` kernels, shared by [`GpuNystroem::fit`] and
+/// [`FittedGpuNystroem::transform`].
+///
+/// When `backend` is `Some`, the `O(n·m·d)` inner-product term (`X·Yᵀ`) runs
+/// as a real on-device GEMM via [`GpuArray::matmul`]; the norm expansion and
+/// RBF exponential (both `O(n·m)`, cheap relative to the GEMM they follow)
+/// still run on the host after a single download.
+fn compute_kernel_matrix(
+    kernel: &str,
+    gamma: f64,
+    x: &Array2<f64>,
+    y: &Array2<f64>,
+    backend: Option<&GpuBackend>,
+) -> Result<Array2<f64>> {
+    let inner = |x: &Array2<f64>, y: &Array2<f64>| -> Result<Array2<f64>> {
+        if let Some(backend) = backend {
+            let x_gpu = GpuArray::from_array2(backend, x)?;
+            let y_t = y.t().to_owned();
+            let y_gpu = GpuArray::from_array2(backend, &y_t)?;
+            x_gpu.matmul(&y_gpu)?.to_array2()
+        } else {
+            Ok(x.dot(&y.t()))
+        }
+    };
+
+    match kernel {
+        "linear" => inner(x, y),
+        "rbf" => {
+            let inner_products = inner(x, y)?;
+            let x_norms: Vec<f64> = x.rows().into_iter().map(|r| r.dot(&r)).collect();
+            let y_norms: Vec<f64> = y.rows().into_iter().map(|r| r.dot(&r)).collect();
+
+            let mut kernel_matrix = Array2::zeros((x.nrows(), y.nrows()));
+            for i in 0..x.nrows() {
+                for j in 0..y.nrows() {
+                    // |x_i - y_j|^2 = |x_i|^2 + |y_j|^2 - 2 x_i . y_j
+                    let squared_norm = x_norms[i] + y_norms[j] - 2.0 * inner_products[[i, j]];
+                    kernel_matrix[[i, j]] = (-gamma * squared_norm).exp();
+                }
+            }
+            Ok(kernel_matrix)
+        }
+        other => Err(SklearsError::InvalidInput(format!(
+            "Unsupported kernel: {other}"
+        ))),
+    }
+}
+
+/// GPU-accelerated Nyström approximation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// GpuNystroem
 pub struct GpuNystroem {
     /// n_components
     pub n_components: usize,
@@ -578,165 +481,9 @@ impl GpuNystroem {
         self.gpu_config = config;
         self
     }
-
-    fn compute_kernel_matrix_gpu(
-        &self,
-        x: &Array2<f64>,
-        y: &Array2<f64>,
-        ctx: &GpuContext,
-    ) -> Result<Array2<f64>> {
-        match ctx.config.backend {
-            GpuBackend::Cuda => self.compute_kernel_cuda(x, y, ctx),
-            GpuBackend::OpenCL => self.compute_kernel_opencl(x, y, ctx),
-            GpuBackend::Metal => self.compute_kernel_metal(x, y, ctx),
-            GpuBackend::Cpu => self.compute_kernel_cpu(x, y),
-        }
-    }
-
-    fn compute_kernel_cuda(
-        &self,
-        x: &Array2<f64>,
-        y: &Array2<f64>,
-        _ctx: &GpuContext,
-    ) -> Result<Array2<f64>> {
-        // Simulate CUDA kernel computation
-        // In practice, this would use optimized CUDA kernels for distance computation
-        self.compute_kernel_cpu(x, y)
-    }
-
-    fn compute_kernel_opencl(
-        &self,
-        x: &Array2<f64>,
-        y: &Array2<f64>,
-        _ctx: &GpuContext,
-    ) -> Result<Array2<f64>> {
-        self.compute_kernel_cpu(x, y)
-    }
-
-    fn compute_kernel_metal(
-        &self,
-        x: &Array2<f64>,
-        y: &Array2<f64>,
-        _ctx: &GpuContext,
-    ) -> Result<Array2<f64>> {
-        self.compute_kernel_cpu(x, y)
-    }
-
-    fn compute_kernel_cpu(&self, x: &Array2<f64>, y: &Array2<f64>) -> Result<Array2<f64>> {
-        let n_x = x.nrows();
-        let n_y = y.nrows();
-        let mut kernel_matrix = Array2::zeros((n_x, n_y));
-
-        match self.kernel.as_str() {
-            "rbf" => {
-                for i in 0..n_x {
-                    for j in 0..n_y {
-                        let diff = &x.row(i) - &y.row(j);
-                        let squared_norm = diff.dot(&diff);
-                        kernel_matrix[[i, j]] = (-self.gamma * squared_norm).exp();
-                    }
-                }
-            }
-            "linear" => {
-                for i in 0..n_x {
-                    for j in 0..n_y {
-                        kernel_matrix[[i, j]] = x.row(i).dot(&y.row(j));
-                    }
-                }
-            }
-            _ => {
-                return Err(SklearsError::InvalidInput(format!(
-                    "Unsupported kernel: {}",
-                    self.kernel
-                )));
-            }
-        }
-
-        Ok(kernel_matrix)
-    }
-
-    fn eigendecomposition_gpu(
-        &self,
-        matrix: &Array2<f64>,
-        ctx: &GpuContext,
-    ) -> Result<(Array1<f64>, Array2<f64>)> {
-        match ctx.config.backend {
-            GpuBackend::Cuda => self.eigendecomposition_cuda(matrix, ctx),
-            GpuBackend::OpenCL => self.eigendecomposition_opencl(matrix, ctx),
-            GpuBackend::Metal => self.eigendecomposition_metal(matrix, ctx),
-            GpuBackend::Cpu => self.eigendecomposition_cpu(matrix),
-        }
-    }
-
-    fn eigendecomposition_cuda(
-        &self,
-        matrix: &Array2<f64>,
-        _ctx: &GpuContext,
-    ) -> Result<(Array1<f64>, Array2<f64>)> {
-        // In practice, this would use cuSOLVER for eigendecomposition
-        self.eigendecomposition_cpu(matrix)
-    }
-
-    fn eigendecomposition_opencl(
-        &self,
-        matrix: &Array2<f64>,
-        _ctx: &GpuContext,
-    ) -> Result<(Array1<f64>, Array2<f64>)> {
-        self.eigendecomposition_cpu(matrix)
-    }
-
-    fn eigendecomposition_metal(
-        &self,
-        matrix: &Array2<f64>,
-        _ctx: &GpuContext,
-    ) -> Result<(Array1<f64>, Array2<f64>)> {
-        self.eigendecomposition_cpu(matrix)
-    }
-
-    fn eigendecomposition_cpu(&self, matrix: &Array2<f64>) -> Result<(Array1<f64>, Array2<f64>)> {
-        // Simplified eigendecomposition using power iteration
-        let n = matrix.nrows();
-        let mut eigenvalues = Array1::zeros(n);
-        let mut eigenvectors = Array2::zeros((n, n));
-
-        // Power iteration for largest eigenvalue/eigenvector
-        let mut v: Array1<f64> = Array1::ones(n);
-        v /= v.dot(&v).sqrt();
-
-        for _ in 0..100 {
-            let mut av: Array1<f64> = Array1::zeros(n);
-            for i in 0..n {
-                for j in 0..n {
-                    av[i] += matrix[[i, j]] * v[j];
-                }
-            }
-
-            let norm = av.dot(&av).sqrt();
-            if norm > 1e-12 {
-                v = av / norm;
-                eigenvalues[0] = norm;
-            } else {
-                break;
-            }
-        }
-
-        // Set first eigenvector
-        for i in 0..n {
-            eigenvectors[[i, 0]] = v[i];
-        }
-
-        // For simplicity, fill remaining with identity-like vectors
-        for i in 1..n {
-            eigenvectors[[i, i]] = 1.0;
-            eigenvalues[i] = 0.1; // Small positive value
-        }
-
-        Ok((eigenvalues, eigenvectors))
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// FittedGpuNystroem
 pub struct FittedGpuNystroem {
     /// n_components
     pub n_components: usize,
@@ -766,7 +513,7 @@ impl Fit<Array2<f64>, ()> for GpuNystroem {
         let n_samples = x.nrows();
         let n_components = self.n_components.min(n_samples);
 
-        // Random sampling of basis vectors
+        // Random sampling of basis vectors.
         let mut rng = RealStdRng::from_seed(thread_rng().random());
         let mut indices: Vec<usize> = (0..n_samples).collect();
         indices.shuffle(&mut rng);
@@ -777,13 +524,22 @@ impl Fit<Array2<f64>, ()> for GpuNystroem {
             basis_vectors.row_mut(i).assign(&x.row(idx));
         }
 
-        // Compute kernel matrix
-        let kernel_matrix =
-            self.compute_kernel_matrix_gpu(&basis_vectors, &basis_vectors, &gpu_context)?;
+        // Compute kernel matrix (real on-device GEMM for the inner-product
+        // term when a GPU is present; see `compute_kernel_matrix`).
+        let kernel_matrix = compute_kernel_matrix(
+            &self.kernel,
+            self.gamma,
+            &basis_vectors,
+            &basis_vectors,
+            gpu_context.backend(),
+        )?;
 
-        // Eigendecomposition
-        let (eigenvalues, eigenvectors) =
-            self.eigendecomposition_gpu(&kernel_matrix, &gpu_context)?;
+        // Real symmetric eigendecomposition — see the module docs for why
+        // this always runs on the CPU, GPU feature or not, and for what it
+        // replaces (a power-iteration-plus-fabrication placeholder that
+        // invented every eigenvalue past the first as a flat `0.1`).
+        let (eigenvalues, eigenvectors) = eigh(&kernel_matrix, UPLO::Lower)
+            .map_err(|e| SklearsError::NumericalError(format!("eigendecomposition failed: {e}")))?;
 
         Ok(FittedGpuNystroem {
             n_components,
@@ -800,41 +556,33 @@ impl Fit<Array2<f64>, ()> for GpuNystroem {
 
 impl Transform<Array2<f64>, Array2<f64>> for FittedGpuNystroem {
     fn transform(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
-        if let Some(ctx) = &self.gpu_context {
-            // Compute kernel matrix between x and basis vectors
-            let kernel_matrix = self.compute_kernel_matrix_gpu(x, &self.basis_vectors, ctx)?;
+        let backend = self.gpu_context.as_ref().and_then(|ctx| ctx.backend());
+        let kernel_matrix =
+            compute_kernel_matrix(&self.kernel, self.gamma, x, &self.basis_vectors, backend)?;
 
-            // Apply Nyström approximation: K(x, basis) @ V @ S^{-1/2}
-            let mut result = Array2::zeros((x.nrows(), self.n_components));
-
-            for i in 0..x.nrows() {
-                for j in 0..self.n_components {
-                    let mut sum = 0.0;
-                    for k in 0..self.n_components {
-                        let eigenval_sqrt_inv = if self.eigenvalues[k] > 1e-12 {
-                            1.0 / self.eigenvalues[k].sqrt()
-                        } else {
-                            0.0
-                        };
-                        sum +=
-                            kernel_matrix[[i, k]] * self.eigenvectors[[k, j]] * eigenval_sqrt_inv;
-                    }
-                    result[[i, j]] = sum;
+        // Apply Nyström approximation: K(x, basis) @ V @ S^{-1/2}
+        let mut result = Array2::zeros((x.nrows(), self.n_components));
+        for i in 0..x.nrows() {
+            for j in 0..self.n_components {
+                let mut sum = 0.0;
+                for k in 0..self.n_components {
+                    let eigenval_sqrt_inv = if self.eigenvalues[k] > 1e-12 {
+                        1.0 / self.eigenvalues[k].sqrt()
+                    } else {
+                        0.0
+                    };
+                    sum += kernel_matrix[[i, k]] * self.eigenvectors[[k, j]] * eigenval_sqrt_inv;
                 }
+                result[[i, j]] = sum;
             }
-
-            Ok(result)
-        } else {
-            Err(SklearsError::InvalidData {
-                reason: "GPU context not initialized".to_string(),
-            })
         }
+
+        Ok(result)
     }
 }
 
-/// GPU performance profiler
+/// GPU performance profiler.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// GpuProfiler
 pub struct GpuProfiler {
     /// enable_profiling
     pub enable_profiling: bool,
@@ -920,45 +668,6 @@ impl GpuProfiler {
         summary
     }
 }
-impl FittedGpuNystroem {
-    fn compute_kernel_matrix_gpu(
-        &self,
-        x: &Array2<f64>,
-        y: &Array2<f64>,
-        _ctx: &GpuContext,
-    ) -> Result<Array2<f64>> {
-        let n_x = x.nrows();
-        let n_y = y.nrows();
-        let mut kernel_matrix = Array2::zeros((n_x, n_y));
-
-        match self.kernel.as_str() {
-            "rbf" => {
-                for i in 0..n_x {
-                    for j in 0..n_y {
-                        let diff = &x.row(i) - &y.row(j);
-                        let squared_norm = diff.dot(&diff);
-                        kernel_matrix[[i, j]] = (-self.gamma * squared_norm).exp();
-                    }
-                }
-            }
-            "linear" => {
-                for i in 0..n_x {
-                    for j in 0..n_y {
-                        kernel_matrix[[i, j]] = x.row(i).dot(&y.row(j));
-                    }
-                }
-            }
-            _ => {
-                return Err(SklearsError::InvalidInput(format!(
-                    "Unsupported kernel: {}",
-                    self.kernel
-                )));
-            }
-        }
-
-        Ok(kernel_matrix)
-    }
-}
 
 #[allow(non_snake_case)]
 #[cfg(test)]
@@ -974,6 +683,9 @@ mod tests {
         let config = GpuConfig::default();
         let mut context = GpuContext::new(config);
 
+        // `initialize()` must never hard-error just because there is no GPU
+        // present (e.g. on this crate's own macOS dev machine) — `Ok` with
+        // `is_gpu() == false` is the expected, honest outcome there.
         assert!(context.initialize().is_ok());
         assert!(context.is_initialized);
     }
@@ -982,12 +694,12 @@ mod tests {
     fn test_gpu_rbf_sampler() {
         let x: Array2<f64> = Array::from_shape_fn((50, 10), |_| {
             let mut rng = thread_rng();
-            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("valid normal params"))
         });
         let sampler = GpuRBFSampler::new(100).gamma(0.5);
 
-        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
-        let transformed = fitted.transform(&x).expect("operation should succeed");
+        let fitted = sampler.fit(&x, &()).expect("fit should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.shape(), &[50, 100]);
     }
@@ -996,15 +708,59 @@ mod tests {
     fn test_gpu_nystroem() {
         let x: Array2<f64> = Array::from_shape_fn((30, 5), |_| {
             let mut rng = thread_rng();
-            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
+            rng.sample(Normal::new(0.0, 1.0).expect("valid normal params"))
         });
         let nystroem = GpuNystroem::new(20).gamma(1.0);
 
-        let fitted = nystroem.fit(&x, &()).expect("operation should succeed");
-        let transformed = fitted.transform(&x).expect("operation should succeed");
+        let fitted = nystroem.fit(&x, &()).expect("fit should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.shape()[0], 30);
         assert!(transformed.shape()[1] <= 20);
+    }
+
+    /// Regression test for the eigendecomposition correctness bug this pass
+    /// fixes: the old power-iteration placeholder fabricated every
+    /// eigenvalue past the first as a flat `0.1`, regardless of the input
+    /// matrix. A real eigensolver on an (almost) rank-1 kernel matrix must
+    /// report the non-leading eigenvalues as close to zero, not `0.1`.
+    #[test]
+    fn test_nystroem_eigendecomposition_is_not_fabricated() {
+        // A symmetric, strongly rank-1-dominant matrix: outer(v, v) scaled
+        // up, plus a tiny symmetric perturbation so it is not exactly
+        // singular.
+        let v = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
+        let n = v.len();
+        let mut matrix = Array2::zeros((n, n));
+        for i in 0..n {
+            for j in 0..n {
+                matrix[[i, j]] = 10.0 * v[i] * v[j];
+            }
+        }
+        for i in 0..n {
+            matrix[[i, i]] += 1e-6 * (i as f64 + 1.0);
+        }
+
+        let (eigenvalues, _) =
+            eigh(&matrix, UPLO::Lower).expect("eigendecomposition should succeed");
+
+        // Sort ascending-by-magnitude is already what `eigh` gives us; the
+        // largest-magnitude eigenvalue should dominate, and every other one
+        // should be near zero — not the fabricated `0.1`.
+        let max_abs = eigenvalues
+            .iter()
+            .cloned()
+            .fold(0.0_f64, |a, b| a.max(b.abs()));
+        let mut others_near_zero = true;
+        for &val in eigenvalues.iter() {
+            if val.abs() < max_abs - 1e-9 && val.abs() > 1e-3 {
+                others_near_zero = false;
+            }
+        }
+        assert!(
+            others_near_zero,
+            "non-leading eigenvalues should not be fabricated as ~0.1: {eigenvalues:?}"
+        );
     }
 
     #[test]

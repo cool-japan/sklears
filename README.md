@@ -7,13 +7,13 @@ A comprehensive machine learning library in Rust, inspired by scikit-learn's int
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.89+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.2` (June 30, 2026) — 12,242 tests passing across 36 crates. See the [CHANGELOG.md](CHANGELOG.md) for details.
+> **Latest release:** `0.2.0` (2026-07-14) — 12,721 tests passing across 36 crates. See the [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## Overview
 
 sklears brings the familiar scikit-learn API to Rust, aiming for comprehensive compatibility while leveraging Rust's unique advantages:
 
-- **>99% scikit-learn API coverage** validated for `0.1.2`
+- **>99% scikit-learn API coverage** validated for `0.2.0`
 - **Pure Rust implementation** with zero C/Fortran dependencies
 - **Memory safety** without garbage collection
 - **Type-safe APIs** that catch errors at compile time
@@ -41,6 +41,7 @@ sklears brings the familiar scikit-learn API to Rust, aiming for comprehensive c
 - **Comprehensive Error Handling**: Detailed error messages and recovery options
 - **Zero-Cost Abstractions**: High-level ML APIs with zero runtime overhead
 - **Ownership System**: Memory safety without garbage collection overhead
+- **Python Bindings**: PyO3-based `sklears-python` with working `StandardScaler`/`MinMaxScaler`/`LabelEncoder` preprocessing, `KMeans`/`DBSCAN` clustering, and `train_test_split`/`KFold` model-selection utilities
 
 ### Rust-Specific Advantages
 - **Compile-Time Guarantees**: Catch data shape mismatches, uninitialized models, and type errors at compile time
@@ -51,12 +52,12 @@ sklears brings the familiar scikit-learn API to Rust, aiming for comprehensive c
 - **RAII Pattern**: Automatic resource cleanup and deterministic destructors
 
 ### Performance Features
-- **SIMD Optimizations**: Hardware-accelerated operations using std::simd
+- **SIMD Optimizations**: Hardware-accelerated operations using std::simd; `sklears-feature-extraction`'s image/statistical kernels are now genuinely vectorized via `scirs2_core::simd_ops` (previously several carried "SIMD" doc comments over plain scalar code)
 - **Parallel Processing**: Multi-threaded algorithms via Rayon with work-stealing
 - **Memory Efficiency**: In-place operations and view-based computations
 - **Cache-Friendly Layouts**: Data structures optimized for CPU cache performance
 - **Lock-Free Algorithms**: Wait-free data structures for high-performance concurrent operations
-- **GPU Support**: CPU-only today; CUDA/WebGPU not implemented. The `gpu_support` feature provides CPU fallbacks and honest errors.
+- **GPU Support**: Real CUDA backend via [oxicuda](https://github.com/cool-japan/oxicuda) — `sklears_core::gpu::{GpuBackend, GpuArray, GpuMatrixOps}` dispatches genuine on-device GEMM/solve/elementwise kernels, consumed by 9 downstream crates (clustering, cross-decomposition, decomposition, discriminant-analysis, linear, manifold, neighbors, neural, svm) behind opt-in `gpu`/`gpu_support` features. Falls back to CPU/Rayon transparently when no CUDA driver is detected. WebGPU is not implemented.
 - **Profile-Guided Optimization**: Compiler optimizations based on actual usage patterns
 
 ### Algorithm Coverage
@@ -161,10 +162,10 @@ Add sklears to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-sklears = "0.1.2"
+sklears = "0.2.0"
 
 # Or with specific features
-sklears = { version = "0.1.2", features = ["linear", "clustering", "parallel"] }
+sklears = { version = "0.2.0", features = ["linear", "clustering", "parallel"] }
 ```
 
 ## 🎯 Current Implementation Status
@@ -175,7 +176,7 @@ sklears = { version = "0.1.2", features = ["linear", "clustering", "parallel"] }
 |-------|-------|-------|--------|
 | sklears-calibration | 395 | 12 | Stable |
 | sklears-clustering | 248 | 12 | Alpha |
-| sklears-compose | 654 | 406 | Partial |
+| sklears-compose | 654 | 406 | Alpha¹ |
 | sklears-core | 697 | 141 | Alpha |
 | sklears-covariance | 265 | 10 | Alpha |
 | sklears-cross-decomposition | 506 | 15 | Stable |
@@ -208,9 +209,11 @@ sklears = { version = "0.1.2", features = ["linear", "clustering", "parallel"] }
 | sklears-svm | 273 | 16 | Alpha |
 | sklears-tree | 71 | 8 | Alpha |
 | sklears-utils | 494 | 2 | Stable |
-| **Total** | **~12,242** | **~1,123** | |
+| **Total** | **~12,721** | **~1,123** | |
 
 Legend: **Stable** = <20 stubs, >50 tests · **Alpha** = functional, some stubs · **Partial** = core works, significant stubs remain
+
+¹ `sklears-compose` bumped Partial → Alpha this release: ensemble training (`ModelFusion`, `HierarchicalComposition`, new `StackingEnsemble`) now genuinely fits base models instead of silently faking it, and `pipeline_visualization` returns honest `NotImplemented` errors instead of fabricated empty output. A large legacy stub surface remains (the orphaned `distributed_optimization` tree, deferred `pipeline_visualization` rendering).
 
 ### ✅ Fully Implemented Algorithms
 
@@ -253,11 +256,20 @@ Legend: **Stable** = <20 stubs, >50 tests · **Alpha** = functional, some stubs 
 - FactorAnalysis
 - DictionaryLearning
 
+**Gaussian Processes**
+- GaussianProcessRegressor, GaussianProcessClassifier
+- ConvolutionProcess (multi-output GP via convolved latent processes, Boyle & Frean / Álvarez & Lawrence)
+- FitcGaussianProcessRegressor (sparse GP via inducing points, Snelson & Ghahramani)
+- VariationalGaussianProcessClassifier (sparse variational GP classification)
+- KernelSelector (AIC/BIC/log-marginal-likelihood/CV kernel selection)
+
 **Ensemble Methods**
 - VotingClassifier/Regressor
 - StackingClassifier/Regressor
 - AdaBoostClassifier/Regressor
 - GradientBoostingClassifier/Regressor
+- StackingEnsemble (`sklears-compose`: real out-of-fold stacked generalization, leak-free meta-features)
+- ModelFusion / HierarchicalComposition (`sklears-compose`: genuinely trains base models, no longer a silent no-op)
 
 **Preprocessing**
 - Scalers: StandardScaler, MinMaxScaler, RobustScaler, MaxAbsScaler, Normalizer
@@ -293,7 +305,8 @@ serde = ["serde"]                        # Serialization support
 # Backends
 backend-cpu = []                         # Default CPU backend
 backend-blas = []                        # BLAS acceleration
-backend-cuda = []                        # NOT IMPLEMENTED — placeholder flag; no CUDA SDK linked
+backend-cuda = []                        # Facade flag not yet wired — real CUDA backend lives behind
+                                          # sklears-core's `gpu_support` + each sub-crate's `gpu` feature
 backend-wgpu = []                        # NOT IMPLEMENTED — placeholder flag; no WebGPU SDK linked
 ```
 
@@ -763,12 +776,20 @@ fn embedded_inference(features: &[f32; 10]) -> f32 {
 
 ### GPU Acceleration
 
-GPU backends (CUDA, WebGPU) are not yet implemented. All computation uses CPU via Rayon
-and SIMD. The `gpu_support` feature flag enables the CPU-fallback GPU API surface and
-returns honest `NotImplemented` errors when CUDA/WebGPU APIs are called.
+A real CUDA backend now exists, built on [oxicuda](https://github.com/cool-japan/oxicuda):
+`sklears_core::gpu::{GpuBackend, GpuArray, GpuMatrixOps}` dispatches genuine on-device
+GEMM/solve/elementwise kernels, consumed by 9 downstream crates (`sklears-clustering`,
+`sklears-cross-decomposition`, `sklears-decomposition`, `sklears-discriminant-analysis`,
+`sklears-linear`, `sklears-manifold`, `sklears-neighbors`, `sklears-neural`, `sklears-svm`)
+behind their own opt-in `gpu`/`gpu_support` Cargo features (not enabled by default). When no
+CUDA driver is detected, `GpuBackend::detect()` returns `Ok(None)` and callers fall back to
+CPU/Rayon transparently — never a fabricated result. WebGPU is not implemented. Note: this
+GPU support is not yet wired through the top-level `sklears` facade crate's own `backend-cuda`
+flag (see Feature Flags above) — depend on the sub-crates directly (e.g. `sklears-linear`,
+`sklears-neural`) with their `gpu` feature to reach it today.
 
 ```rust
-// CPU-based parallel computation (available now):
+// CPU-based parallel computation (always available, default path):
 use sklears::prelude::*;
 
 // All models use CPU automatically — no backend selection needed.
@@ -835,18 +856,19 @@ cargo test -p sklears-linear
 
 See [TODO.md](TODO.md) for detailed implementation plans.
 
-### Current Release Snapshot (0.1.2 — June 30, 2026)
+### Current Release Snapshot (0.2.0 — 2026-07-14)
 
 | Area | Status | Notes |
 |------|--------|-------|
 | API Coverage | ✅ >99% | End-to-end parity with scikit-learn's v1.5 feature set across 36 crates |
-| Testing | ✅ 12,242/12,242 passing (100%) | 166 skipped, comprehensive unit/integration/property tests |
+| Testing | ✅ 12,721/12,721 passing (100%) | 161 skipped, comprehensive unit/integration/property tests |
 | Performance | 🔄 Optimization In Progress | Correct results validated, performance optimization ongoing (see benchmarks) |
-| Pure Rust Stack | ✅ 100% | OxiBLAS v0.1.2 + Oxicode v0.1.1, zero system dependencies |
-| SciRS2 Integration | ✅ Complete | v0.5.1 stable, full workspace migration complete |
+| GPU Foundation | ✅ CUDA via oxicuda | Real GEMM/solve kernels across 9 crates behind opt-in `gpu` features; WebGPU planned |
+| Pure Rust Stack | ✅ 100% (default features) | OxiBLAS + Oxicode via SciRS2, zero system dependencies by default |
+| SciRS2 Integration | ✅ Complete | v0.6.0 stable, full workspace migration complete |
 | Tooling | ✅ Ready | AutoML pipeline, benchmarking harnesses, Polars integration |
 
-### Performance Status (v0.1.2)
+### Performance Status (v0.2.0)
 
 **Current Status**: Correctness validated, performance optimization in progress
 
@@ -872,18 +894,19 @@ See [TODO.md](TODO.md) for detailed implementation plans.
 **Performance Roadmap**:
 - **v0.1.1**: Profiling and algorithmic improvements ✅ Done
 - **v0.1.2**: GPU-acceleration stubs (oxicuda-*), SIMD hardening, preprocessing completions ✅ Done
-- **v0.2.0**: Performance parity with scikit-learn
-- **v0.3.0**: Exceed scikit-learn with Rust-specific optimizations (SIMD, parallelization)
+- **v0.2.0**: Real CUDA backend foundation (oxicuda) across 9 crates ✅ Done; scikit-learn performance parity still ongoing
+- **v0.3.0**: Exceed scikit-learn with Rust-specific optimizations (SIMD, parallelization, broader GPU coverage)
 
-### Next Up (toward 0.2.0)
+### Next Up (toward 0.3.0)
 1. **Stabilize Public APIs** — finalize breaking-change policy and document RFC process
 2. **Docs & Guides** — expand cookbook coverage, polish Python bridge documentation
 3. **Release Automation** — wire up crates.io + PyPI publishing pipelines
 4. **Ecosystem Outreach** — prepare announcement blog, sample projects, and migration guides
+5. **Broaden GPU Coverage** — extend the new oxicuda foundation's algorithm coverage and wire it through the top-level `sklears` facade's `backend-cuda` feature
 
 ### Long-term Vision
 - **100% scikit-learn compatibility**
-- **CPU-accelerated** via SIMD and Rayon; CUDA/WebGPU planned
+- **CPU-accelerated** via SIMD and Rayon; **CUDA** foundation shipped via oxicuda (broader algorithm coverage ongoing), WebGPU planned
 - **Distributed computing** support
 - **Advanced AutoML** capabilities
 - **ONNX/PMML** model interchange

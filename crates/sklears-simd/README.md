@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -13,9 +13,9 @@
 
 ## Key Features
 
-- **Vector Abstractions**: Portable SIMD types (f32x4, f32x8, f32x16) with architecture-specific intrinsics.
+- **Vector Abstractions**: Portable SIMD types (F32x4, F32x8, F32x16) with architecture-specific intrinsics (SSE2, AVX2, AVX512, NEON) and scalar fallbacks.
 - **Alignment & Memory**: Alignment helpers, prefetching hints, cache-aware allocation strategies.
-- **GPU Bridges**: CUDA/WebGPU adapters, Tensor Core pathways, and multi-GPU orchestration helpers.
+- **Accelerator Scaffolding**: Experimental FPGA/TPU/quantum/neuromorphic interface abstractions with CPU SIMD fallback (no vendor hardware backend). Real GPU dispatch lives in `sklears-core`'s oxicuda-backed `gpu` module, not in this crate.
 - **Benchmark Harnesses**: Criterion-based benchmarks and profiling utilities for micro-optimizations.
 
 ## Quick Peek
@@ -31,6 +31,6 @@ assert_eq!(result.horizontal_sum(), 20.0);
 
 ## Status
 
-- Core building block for `0.1.2`; 0 crate-level tests (test authoring needed).
-- Powers SIMD/GPU acceleration in linear models, neighbors, metrics, and more.
+- Core building block for `0.2.0`; 518 passing crate tests (4 skipped, `--features parallel`).
+- Powers CPU SIMD acceleration in linear models, neighbors, metrics, and more; GPU dispatch is handled by `sklears-core`.
 - Contributor roadmap (new architectures, auto-vectorization tooling) maintained in `TODO.md`.

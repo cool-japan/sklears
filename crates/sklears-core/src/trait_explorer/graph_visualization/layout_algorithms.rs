@@ -4,8 +4,7 @@
 //! including force-directed, hierarchical, circular, and other specialized layouts.
 
 use crate::trait_explorer::graph_visualization::{
-    graph_config::*,
-    graph_structures::*,
+    graph_config::*, graph_generator::LayoutResult, graph_structures::*,
 };
 use scirs2_core::random::Random;
 use std::collections::HashMap;
@@ -17,7 +16,11 @@ use std::time::Instant;
 /// interfaces for graph positioning and quality assessment.
 pub trait LayoutAlgorithmImpl: Send + Sync {
     /// Compute the layout for a given graph
-    fn compute_layout(&self, graph: &TraitGraph, config: &GraphConfig) -> Result<LayoutResult, Box<dyn std::error::Error>>;
+    fn compute_layout(
+        &self,
+        graph: &TraitGraph,
+        config: &GraphConfig,
+    ) -> Result<LayoutResult, Box<dyn std::error::Error>>;
 
     /// Get the name of the layout algorithm
     fn name(&self) -> &str;
@@ -99,17 +102,21 @@ impl ForceDirectedLayout {
 
                 let dx = pos1_2d.0 - pos2_2d.0;
                 let dy = pos1_2d.1 - pos2_2d.1;
-                let distance_2d = ((dx * dx + dy * dy) as f64).sqrt().max(0.01f64);
+                let distance_2d = (dx * dx + dy * dy).sqrt().max(0.01f64);
 
                 let repulsive_force = self.repulsive_strength * k * k / distance_2d;
                 let fx = (dx / distance_2d) * repulsive_force;
                 let fy = (dy / distance_2d) * repulsive_force;
 
-                let f1 = forces_2d.get_mut(&node1.id).expect("get_mut should succeed");
+                let f1 = forces_2d
+                    .get_mut(&node1.id)
+                    .expect("get_mut should succeed");
                 f1.0 += fx;
                 f1.1 += fy;
 
-                let f2 = forces_2d.get_mut(&node2.id).expect("get_mut should succeed");
+                let f2 = forces_2d
+                    .get_mut(&node2.id)
+                    .expect("get_mut should succeed");
                 f2.0 -= fx;
                 f2.1 -= fy;
             }
@@ -124,11 +131,14 @@ impl ForceDirectedLayout {
             let dy = pos1_2d.1 - pos2_2d.1;
             let distance_2d = (dx * dx + dy * dy).sqrt().max(0.01);
 
-            let attractive_force = self.attractive_strength * distance_2d * distance_2d / k * edge.weight;
+            let attractive_force =
+                self.attractive_strength * distance_2d * distance_2d / k * edge.weight;
             let fx = (dx / distance_2d) * attractive_force;
             let fy = (dy / distance_2d) * attractive_force;
 
-            let f1 = forces_2d.get_mut(&edge.from).expect("get_mut should succeed");
+            let f1 = forces_2d
+                .get_mut(&edge.from)
+                .expect("get_mut should succeed");
             f1.0 -= fx;
             f1.1 -= fy;
 
@@ -170,12 +180,16 @@ impl ForceDirectedLayout {
                 let fy = (dy / distance_3d) * repulsive_force;
                 let fz = (dz / distance_3d) * repulsive_force;
 
-                let f1_3d = forces_3d.get_mut(&node1.id).expect("get_mut should succeed");
+                let f1_3d = forces_3d
+                    .get_mut(&node1.id)
+                    .expect("get_mut should succeed");
                 f1_3d.0 += fx;
                 f1_3d.1 += fy;
                 f1_3d.2 += fz;
 
-                let f2_3d = forces_3d.get_mut(&node2.id).expect("get_mut should succeed");
+                let f2_3d = forces_3d
+                    .get_mut(&node2.id)
+                    .expect("get_mut should succeed");
                 f2_3d.0 -= fx;
                 f2_3d.1 -= fy;
                 f2_3d.2 -= fz;
@@ -192,12 +206,15 @@ impl ForceDirectedLayout {
             let dz = pos1_3d.2 - pos2_3d.2;
             let distance_3d = (dx * dx + dy * dy + dz * dz).sqrt().max(0.01);
 
-            let attractive_force = self.attractive_strength * distance_3d * distance_3d / k * edge.weight;
+            let attractive_force =
+                self.attractive_strength * distance_3d * distance_3d / k * edge.weight;
             let fx = (dx / distance_3d) * attractive_force;
             let fy = (dy / distance_3d) * attractive_force;
             let fz = (dz / distance_3d) * attractive_force;
 
-            let f1_3d = forces_3d.get_mut(&edge.from).expect("get_mut should succeed");
+            let f1_3d = forces_3d
+                .get_mut(&edge.from)
+                .expect("get_mut should succeed");
             f1_3d.0 -= fx;
             f1_3d.1 -= fy;
             f1_3d.2 -= fz;
@@ -228,7 +245,9 @@ impl ForceDirectedLayout {
 
             if force_magnitude > 0.0 {
                 let displacement = force_magnitude.min(temperature) * self.damping_factor;
-                let pos = positions_2d.get_mut(&node.id).expect("get_mut should succeed");
+                let pos = positions_2d
+                    .get_mut(&node.id)
+                    .expect("get_mut should succeed");
                 let dx = (force_2d.0 / force_magnitude) * displacement;
                 let dy = (force_2d.1 / force_magnitude) * displacement;
 
@@ -238,13 +257,22 @@ impl ForceDirectedLayout {
                 total_displacement += (dx * dx + dy * dy).sqrt();
             }
 
-            // Update 3D positions if enabled
-            if let (Some(ref mut pos_3d_map), Some(force_3d)) = (positions_3d, forces_3d.get(&node.id)) {
-                let force_magnitude_3d = (force_3d.0 * force_3d.0 + force_3d.1 * force_3d.1 + force_3d.2 * force_3d.2).sqrt();
+            // Update 3D positions if enabled. `positions_3d.as_mut()`
+            // reborrows through the `&mut Option<_>` each iteration instead
+            // of moving it, which would only be possible on the loop's
+            // first iteration.
+            if let (Some(pos_3d_map), Some(force_3d)) =
+                (positions_3d.as_mut(), forces_3d.get(&node.id))
+            {
+                let force_magnitude_3d =
+                    (force_3d.0 * force_3d.0 + force_3d.1 * force_3d.1 + force_3d.2 * force_3d.2)
+                        .sqrt();
 
                 if force_magnitude_3d > 0.0 {
                     let displacement_3d = force_magnitude_3d.min(temperature) * self.damping_factor;
-                    let pos_3d = pos_3d_map.get_mut(&node.id).expect("get_mut should succeed");
+                    let pos_3d = pos_3d_map
+                        .get_mut(&node.id)
+                        .expect("get_mut should succeed");
 
                     let dx = (force_3d.0 / force_magnitude_3d) * displacement_3d;
                     let dy = (force_3d.1 / force_magnitude_3d) * displacement_3d;
@@ -273,7 +301,11 @@ impl Default for ForceDirectedLayout {
 }
 
 impl LayoutAlgorithmImpl for ForceDirectedLayout {
-    fn compute_layout(&self, graph: &TraitGraph, config: &GraphConfig) -> Result<LayoutResult, Box<dyn std::error::Error>> {
+    fn compute_layout(
+        &self,
+        graph: &TraitGraph,
+        config: &GraphConfig,
+    ) -> Result<LayoutResult, Box<dyn std::error::Error>> {
         let start_time = Instant::now();
         let n = graph.nodes.len();
 
@@ -741,7 +773,10 @@ fn radial_layout_fn(layout: &RadialLayout, graph: &TraitGraph) -> HashMap<String
     positions
 }
 
-fn hierarchical_layout_fn(layout: &HierarchicalLayout, graph: &TraitGraph) -> HashMap<String, (f64, f64)> {
+fn hierarchical_layout_fn(
+    layout: &HierarchicalLayout,
+    graph: &TraitGraph,
+) -> HashMap<String, (f64, f64)> {
     let mut positions = HashMap::new();
     let n = graph.nodes.len();
 
@@ -779,7 +814,7 @@ fn hierarchical_layout_fn(layout: &HierarchicalLayout, graph: &TraitGraph) -> Ha
             break;
         }
 
-        let mut next_level = Vec::new();
+        let mut next_level: Vec<&TraitGraphNode> = Vec::new();
         for node in current_level {
             processed.insert(&node.id);
 
@@ -787,7 +822,9 @@ fn hierarchical_layout_fn(layout: &HierarchicalLayout, graph: &TraitGraph) -> Ha
             for edge in &graph.edges {
                 if edge.from == node.id {
                     if let Some(child) = graph.nodes.iter().find(|n| n.id == edge.to) {
-                        if !processed.contains(&child.id) && !next_level.iter().any(|n| n.id == child.id) {
+                        if !processed.contains(&child.id)
+                            && !next_level.iter().any(|n| n.id == child.id)
+                        {
                             next_level.push(child);
                         }
                     }
@@ -818,11 +855,23 @@ fn hierarchical_layout_fn(layout: &HierarchicalLayout, graph: &TraitGraph) -> Ha
 }
 
 fn tree_layout_fn(layout: &TreeLayout, graph: &TraitGraph) -> HashMap<String, (f64, f64)> {
-    // For now, use hierarchical layout as tree layout
-    hierarchical_layout_fn(layout, graph)
+    // For now, use hierarchical layout as tree layout. `TreeLayout` and
+    // `HierarchicalLayout` are distinct types generated by the
+    // `simple_layout_impl!` macro (same shape, different nominal types), so
+    // the shared parameters are copied into a temporary `HierarchicalLayout`
+    // rather than passing `layout` directly.
+    let hierarchical = HierarchicalLayout {
+        seed: layout.seed,
+        spacing: layout.spacing,
+        center: layout.center,
+    };
+    hierarchical_layout_fn(&hierarchical, graph)
 }
 
-fn spring_embedder_layout_fn(layout: &SpringEmbedderLayout, graph: &TraitGraph) -> HashMap<String, (f64, f64)> {
+fn spring_embedder_layout_fn(
+    layout: &SpringEmbedderLayout,
+    graph: &TraitGraph,
+) -> HashMap<String, (f64, f64)> {
     let mut positions = HashMap::new();
     let mut rng = Random::seed(layout.seed);
 
@@ -844,7 +893,8 @@ fn spring_embedder_layout_fn(layout: &SpringEmbedderLayout, graph: &TraitGraph) 
 
         // Spring forces between connected nodes
         for edge in &graph.edges {
-            if let (Some(&pos1), Some(&pos2)) = (positions.get(&edge.from), positions.get(&edge.to)) {
+            if let (Some(&pos1), Some(&pos2)) = (positions.get(&edge.from), positions.get(&edge.to))
+            {
                 let dx = pos2.0 - pos1.0;
                 let dy = pos2.1 - pos1.1;
                 let distance = (dx * dx + dy * dy).sqrt().max(0.01);
@@ -879,11 +929,23 @@ fn spring_embedder_layout_fn(layout: &SpringEmbedderLayout, graph: &TraitGraph) 
 }
 
 // Generate layout implementations using the macro
-simple_layout_impl!(HierarchicalLayout, "Hierarchical", false, false, hierarchical_layout_fn);
+simple_layout_impl!(
+    HierarchicalLayout,
+    "Hierarchical",
+    false,
+    false,
+    hierarchical_layout_fn
+);
 simple_layout_impl!(CircularLayout, "Circular", false, false, circular_layout_fn);
 simple_layout_impl!(GridLayout, "Grid", false, false, grid_layout_fn);
 simple_layout_impl!(RadialLayout, "Radial", false, false, radial_layout_fn);
-simple_layout_impl!(SpringEmbedderLayout, "Spring Embedder", true, false, spring_embedder_layout_fn);
+simple_layout_impl!(
+    SpringEmbedderLayout,
+    "Spring Embedder",
+    true,
+    false,
+    spring_embedder_layout_fn
+);
 simple_layout_impl!(TreeLayout, "Tree", false, false, tree_layout_fn);
 
 /// Factory for creating layout algorithm instances
@@ -900,6 +962,29 @@ impl LayoutAlgorithmFactory {
             LayoutAlgorithm::Radial => Box::new(RadialLayout::new()),
             LayoutAlgorithm::SpringEmbedder => Box::new(SpringEmbedderLayout::new()),
             LayoutAlgorithm::Tree => Box::new(TreeLayout::new()),
+            LayoutAlgorithm::Custom(params) => {
+                // There is no generic "custom" layout implementation, so a
+                // `Custom` request is realized as a force-directed layout
+                // configured from whichever of its well-known parameter
+                // names were supplied (falling back to
+                // `ForceDirectedLayout::new()`'s defaults for the rest),
+                // rather than silently ignoring the caller's parameters.
+                let iterations = params
+                    .get_parameter("iterations")
+                    .map(|value| value.max(0.0) as usize)
+                    .unwrap_or(500);
+                let temperature_factor =
+                    params.get_parameter("temperature_factor").unwrap_or(100.0);
+                let repulsive_strength = params.get_parameter("repulsive_strength").unwrap_or(1.0);
+                let attractive_strength =
+                    params.get_parameter("attractive_strength").unwrap_or(1.0);
+                Box::new(ForceDirectedLayout::with_parameters(
+                    iterations,
+                    temperature_factor,
+                    repulsive_strength,
+                    attractive_strength,
+                ))
+            }
         }
     }
 
@@ -948,56 +1033,29 @@ impl LayoutAlgorithmFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::trait_explorer::graph_visualization::graph_structures::*;
 
     fn create_test_graph() -> TraitGraph {
-        let nodes = vec![
-            TraitGraphNode {
-                id: "Node1".to_string(),
-                label: "Node1".to_string(),
-                node_type: TraitNodeType::Trait,
-                position_2d: None,
-                position_3d: None,
-                size: 10.0,
-                complexity: 0.5,
-                color: Some("#ff0000".to_string()),
-                shape: Some("circle".to_string()),
-                visible: true,
-                metadata: NodeMetadata::default(),
-            },
-            TraitGraphNode {
-                id: "Node2".to_string(),
-                label: "Node2".to_string(),
-                node_type: TraitNodeType::Implementation,
-                position_2d: None,
-                position_3d: None,
-                size: 8.0,
-                complexity: 0.3,
-                color: Some("#00ff00".to_string()),
-                shape: Some("circle".to_string()),
-                visible: true,
-                metadata: NodeMetadata::default(),
-            },
-        ];
+        let mut graph = TraitGraph::new();
 
-        let edges = vec![TraitGraphEdge {
-            from: "Node1".to_string(),
-            to: "Node2".to_string(),
-            edge_type: EdgeType::Implementation,
-            weight: 1.0,
-            directed: true,
-            color: Some("#0000ff".to_string()),
-            style: Some("solid".to_string()),
-            visible: true,
-            metadata: EdgeMetadata::default(),
-        }];
+        let node1 = TraitGraphNode::new_trait("Node1".to_string(), "Node1".to_string())
+            .with_size(10.0)
+            .with_color("#ff0000".to_string());
+        let node2 = TraitGraphNode::new_implementation(
+            "Node2".to_string(),
+            "Node2".to_string(),
+            "Node1".to_string(),
+        )
+        .with_size(8.0)
+        .with_color("#00ff00".to_string());
 
-        TraitGraph {
-            nodes,
-            edges,
-            metadata: GraphMetadata::default(),
-            adjacency_matrix: None,
-        }
+        graph.add_node(node1);
+        graph.add_node(node2);
+
+        let edge = TraitGraphEdge::new_implementation("Node1".to_string(), "Node2".to_string())
+            .with_thickness(1.0);
+        graph.add_edge(edge);
+
+        graph
     }
 
     fn create_test_config() -> GraphConfig {
@@ -1059,12 +1117,7 @@ mod tests {
     #[test]
     fn test_layout_with_empty_graph() {
         let layout = ForceDirectedLayout::new();
-        let empty_graph = TraitGraph {
-            nodes: Vec::new(),
-            edges: Vec::new(),
-            metadata: GraphMetadata::default(),
-            adjacency_matrix: None,
-        };
+        let empty_graph = TraitGraph::new();
         let config = create_test_config();
 
         let result = layout.compute_layout(&empty_graph, &config);

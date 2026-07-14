@@ -1157,9 +1157,21 @@ impl SystemResources {
         Ok(8 * 1024) // 8GB placeholder
     }
 
+    /// Reports the real GPU device count via `sklears_core::gpu::GpuUtils`,
+    /// which resolves to genuine `oxicuda-driver` device enumeration when
+    /// this crate's `gpu` feature is enabled, and honestly to `0` on default
+    /// builds or hosts with no working CUDA driver -- never fabricated.
+    #[cfg(feature = "gpu")]
     fn get_gpu_count() -> Result<u32, ExecutionEngineError> {
-        // In a real implementation, this would query GPU information
-        Ok(0) // No GPU placeholder
+        Ok(sklears_core::gpu::GpuUtils::device_count() as u32)
+    }
+
+    /// Reports `0` (default build, no `gpu` feature): without it this crate
+    /// has no way to query real GPU devices, so it honestly reports none
+    /// rather than fabricating a count.
+    #[cfg(not(feature = "gpu"))]
+    fn get_gpu_count() -> Result<u32, ExecutionEngineError> {
+        Ok(0)
     }
 
     fn get_available_storage() -> Result<u64, ExecutionEngineError> {

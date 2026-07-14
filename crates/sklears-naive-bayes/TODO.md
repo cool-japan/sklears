@@ -23,6 +23,15 @@
 - [x] `src/continual_learning.rs:16` — Migrated: added `random_state: Option<u64>` to `ContinualLearningConfig`; replaced `thread_rng()` with `seeded_rng(effective_seed)` for reproducibility. scirs2_core::random API is stable at 0.4.2.
 - [x] `src/temporal.rs:860` — Migrated: stale TODO comment removed; existing `CoreRandom::seed_from_u64` pattern was already correct. scirs2_core::random API is stable at 0.4.2.
 
+## OxiCUDA Migration (v0.2.0)
+
+Phase 4 of the workspace 0.2.0 GPU-honesty pass: this crate currently ships a stub GPU path — `GpuOptimizer` hardcodes `gpu_available = false` and always falls back to a naive CPU loop, so `OptimizationStrategy::Gpu` is unreachable. Wire it through the oxicuda-backed `sklears_core::gpu` module (Wave A2) or delete the placeholder.
+
+- [x] (M) Back `GpuOptimizer` with oxicuda-blas gemm behind a `gpu` feature, or delete the placeholder. DONE: added `gpu = ["sklears-core/gpu_support"]` to `Cargo.toml`; `GpuOptimizer::new` now calls `sklears_core::gpu::GpuBackend::detect()` once and caches the `Option<GpuBackend>` (honestly `None` on this GPU-less host, no fabricated availability); `gpu_matrix_multiply` dispatches `f32`/`f64` to a real on-device GEMM (`GpuArray::from_array2` + `GpuMatrixOps::matmul` + `to_array2`, via a `TypeId`-checked-then-`transmute` monomorphization dispatch) when a backend is present, and falls back to the existing CPU triple loop for every other element type / GPU-disabled builds / GPU-less hosts. `OptimizationStrategy::Gpu` is now backed by real logic when reached via the feature.
+  - **Files:** `Cargo.toml`, `src/feature_engineering/performance_optimization.rs`
+- [x] (S) Trim the module doc at `src/feature_engineering/performance_optimization.rs:5`, which pairs a false "GPU acceleration" claim with "SciRS2 Policy"; reword to reflect the actual (oxicuda or CPU-only) implementation. DONE: module doc now states the GPU path is real (oxicuda-blas GEMM) behind the `gpu` feature for f32/f64, with an honest CPU fallback everywhere else.
+  - **Files:** `src/feature_engineering/performance_optimization.rs`
+
 ---
 
 See also: [Workspace roadmap](../../TODO.md)

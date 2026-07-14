@@ -160,7 +160,7 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
         }
 
         // Calculate feature statistics for each class
-        for (&class, _) in class_counts.iter() {
+        for &class in class_counts.keys() {
             let class_indices: Vec<usize> = labels
                 .iter()
                 .enumerate()

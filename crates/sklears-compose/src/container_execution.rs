@@ -997,6 +997,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_container_creation() {
         let runtime = ContainerRuntime::new();
         
@@ -1022,6 +1023,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_docker_args_building() {
         let runtime = ContainerRuntime::new();
         
@@ -1081,6 +1083,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_network_creation() {
         let runtime = ContainerRuntime::new();
         
@@ -1102,6 +1105,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_ml_pipeline_config() {
         let config = MLPipelineConfig {
             image: "sklearn".to_string(),

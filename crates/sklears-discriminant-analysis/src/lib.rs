@@ -3,10 +3,12 @@
 //! This module is part of sklears, providing scikit-learn compatible
 //! machine learning algorithms in Rust.
 //!
-//! ## Known Limitations
+//! ## GPU acceleration
 //!
-//! The following module is disabled due to missing GPU API dependencies:
-//! - `gpu_acceleration` — requires scirs2-core `gpu` feature and GPU-specific APIs not yet available
+//! `gpu_acceleration` (behind the `gpu` feature) provides GPU-accelerated
+//! LDA/QDA via `sklears_core::gpu` (real `oxicuda-driver`/`oxicuda-blas`/
+//! `oxicuda-solver` bindings), with automatic, transparent fallback to the
+//! plain CPU estimators whenever no GPU is detected.
 
 // #![warn(missing_docs)]
 
@@ -25,7 +27,8 @@ pub mod distributed_discriminant;
 pub mod ensemble_imbalanced;
 pub mod error_correcting_output_codes;
 pub mod feature_ranking;
-// pub mod gpu_acceleration; // [~] DEFERRED: scirs2_core::gpu::kernels::reduction::ReductionKernel and scirs2_core::gpu::memory do not exist in scirs2-core 0.4.2; requires gpu feature gate and API refactoring
+#[cfg(feature = "gpu")]
+pub mod gpu_acceleration;
 pub mod heteroscedastic;
 pub mod hierarchical;
 pub mod information_theoretic;
@@ -121,10 +124,11 @@ pub use error_correcting_output_codes::{
 pub use feature_ranking::{
     DiscriminantFeatureRanking, DiscriminantFeatureRankingConfig, FeatureRank,
 };
-// pub use gpu_acceleration::{
-//     GpuAcceleratedLDA, GpuAcceleratedQDA, GpuAccelerationConfig, GpuDiscriminantAnalysis,
-//     GpuLDAKernel, GpuMemoryStrategy, GpuPerformanceStats, GpuQDAKernel,
-// };
+#[cfg(feature = "gpu")]
+pub use gpu_acceleration::{
+    GpuAcceleratedLDA, GpuAcceleratedQDA, GpuAccelerationConfig, GpuDiscriminantAnalysis,
+    GpuLDAKernel, GpuMemoryStrategy, GpuPerformanceStats, GpuQDAKernel,
+};
 pub use heteroscedastic::{
     HeteroscedasticDiscriminantAnalysis, HeteroscedasticDiscriminantAnalysisConfig,
 };

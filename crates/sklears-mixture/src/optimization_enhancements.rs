@@ -21,7 +21,7 @@
 
 use crate::common::CovarianceType;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
-use scirs2_core::random::thread_rng;
+use scirs2_core::random::seeded_rng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -78,6 +78,7 @@ pub enum QuasiNewtonMethod {
 /// ```
 #[derive(Debug, Clone)]
 pub struct AcceleratedEM<S = Untrained> {
+    pub(crate) state: S,
     n_components: usize,
     acceleration: AccelerationType,
     covariance_type: CovarianceType,
@@ -85,7 +86,6 @@ pub struct AcceleratedEM<S = Untrained> {
     tol: f64,
     reg_covar: f64,
     random_state: Option<u64>,
-    _phantom: std::marker::PhantomData<S>,
 }
 
 /// Trained Accelerated EM model
@@ -95,9 +95,11 @@ pub struct AcceleratedEMTrained {
     pub weights: Array1<f64>,
     /// Component means
     pub means: Array2<f64>,
-    /// Component covariances
+    /// Component covariances (tied/shared diagonal, stored as a full matrix
+    /// whose diagonal holds the per-feature variance -- see module docs)
     pub covariances: Array2<f64>,
-    /// Log-likelihood history
+    /// Log-likelihood history (real log-sum-exp log-likelihood per
+    /// iteration, i.e. `sum_i log(sum_k weight_k * N(x_i; mean_k, cov))`)
     pub log_likelihood_history: Vec<f64>,
     /// Number of iterations
     pub n_iter: usize,
@@ -105,7 +107,14 @@ pub struct AcceleratedEMTrained {
     pub converged: bool,
     /// Acceleration type used
     pub acceleration: AccelerationType,
-    /// Speedup factor compared to standard EM
+    /// Speedup factor compared to standard EM, measured as
+    /// `baseline_n_iter / accelerated_n_iter` from an internal unaccelerated
+    /// re-run started from the same initialization (1.0 when
+    /// `acceleration == AccelerationType::None`, since there is no baseline
+    /// to compare against). This is a real, data-dependent measurement, not
+    /// a hardcoded constant; acceleration types that do not yet have a
+    /// distinct update rule implemented (see [`AcceleratedEM::fit`] docs)
+    /// will honestly measure close to `1.0`.
     pub speedup_factor: f64,
 }
 
@@ -180,6 +189,7 @@ impl AcceleratedEMBuilder {
     /// Build the model
     pub fn build(self) -> AcceleratedEM<Untrained> {
         AcceleratedEM {
+            state: Untrained,
             n_components: self.n_components,
             acceleration: self.acceleration,
             covariance_type: self.covariance_type,
@@ -187,7 +197,6 @@ impl AcceleratedEMBuilder {
             tol: self.tol,
             reg_covar: self.reg_covar,
             random_state: self.random_state,
-            _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -235,9 +244,25 @@ impl Estimator for AcceleratedEM<Untrained> {
     }
 }
 
+/// Result of running (optionally accelerated) EM to convergence:
+/// `(weights, means, covariances, log_likelihood_history, n_iter, converged)`.
+type EmRunResult = (Array1<f64>, Array2<f64>, Array2<f64>, Vec<f64>, usize, bool);
+
 impl Fit<ArrayView2<'_, Float>, ()> for AcceleratedEM<Untrained> {
     type Fitted = AcceleratedEM<AcceleratedEMTrained>;
 
+    /// Fit a tied-diagonal-covariance Gaussian mixture via (optionally
+    /// accelerated) EM.
+    ///
+    /// Only [`AccelerationType::Aitken`] currently has a distinct update rule
+    /// (extrapolating the mean sequence via the Aitken delta-squared
+    /// process). [`AccelerationType::SQUAREM`] and
+    /// [`AccelerationType::QuasiNewton`] are accepted but currently run
+    /// plain EM steps (no distinct acceleration math is implemented for
+    /// them yet); `speedup_factor` is measured empirically (iteration-count
+    /// ratio against an internal unaccelerated baseline re-run from the same
+    /// initialization), so it honestly reports close to `1.0` for those two
+    /// rather than fabricating a specific multiplier.
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
         let X_owned = X.to_owned();
@@ -248,12 +273,18 @@ impl Fit<ArrayView2<'_, Float>, ()> for AcceleratedEM<Untrained> {
                 "Number of samples must be >= number of components".to_string(),
             ));
         }
-
-        // Initialize parameters
-        let mut rng = thread_rng();
-        if let Some(_seed) = self.random_state {
-            // Use seeded RNG if needed - for now use thread_rng for simplicity
+        if self.n_components == 0 {
+            return Err(SklearsError::InvalidInput(
+                "Number of components must be positive".to_string(),
+            ));
         }
+
+        // Initialize parameters. `random_state` is honored via
+        // `common::resolve_seed` + `seeded_rng`, so a given seed now
+        // actually reproduces the same initialization (previously the field
+        // was accepted but silently ignored in favor of `thread_rng()`).
+        let seed = crate::common::resolve_seed(self.random_state);
+        let mut rng = seeded_rng(seed);
 
         let mut means = Array2::zeros((self.n_components, n_features));
         let mut used_indices = Vec::new();
@@ -268,10 +299,91 @@ impl Fit<ArrayView2<'_, Float>, ()> for AcceleratedEM<Untrained> {
             means.row_mut(k).assign(&X_owned.row(idx));
         }
 
-        let mut weights = Array1::from_elem(self.n_components, 1.0 / self.n_components as f64);
-        let mut covariances =
+        let weights = Array1::from_elem(self.n_components, 1.0 / self.n_components as f64);
+        let covariances =
             Array2::<f64>::eye(n_features) + &(Array2::<f64>::eye(n_features) * self.reg_covar);
 
+        let (out_weights, out_means, out_covariances, log_likelihood_history, n_iter, converged) =
+            Self::run_em(
+                self.n_components,
+                self.max_iter,
+                self.tol,
+                self.reg_covar,
+                self.acceleration,
+                &X_owned,
+                means.clone(),
+                weights.clone(),
+                covariances.clone(),
+            );
+
+        // Measure the speedup empirically: for `AccelerationType::None`
+        // there is no acceleration to compare, so it is 1.0 by definition;
+        // otherwise re-run plain EM from the *same* initialization and
+        // compare iteration counts actually taken to converge (or exhaust
+        // `max_iter`).
+        let speedup_factor = if self.acceleration == AccelerationType::None {
+            1.0
+        } else {
+            let (_, _, _, _, baseline_n_iter, _) = Self::run_em(
+                self.n_components,
+                self.max_iter,
+                self.tol,
+                self.reg_covar,
+                AccelerationType::None,
+                &X_owned,
+                means,
+                weights,
+                covariances,
+            );
+            if n_iter == 0 {
+                1.0
+            } else {
+                baseline_n_iter as f64 / n_iter as f64
+            }
+        };
+
+        let trained_state = AcceleratedEMTrained {
+            weights: out_weights,
+            means: out_means,
+            covariances: out_covariances,
+            log_likelihood_history,
+            n_iter,
+            converged,
+            acceleration: self.acceleration,
+            speedup_factor,
+        };
+
+        Ok(AcceleratedEM {
+            state: Untrained,
+            n_components: self.n_components,
+            acceleration: self.acceleration,
+            covariance_type: self.covariance_type,
+            max_iter: self.max_iter,
+            tol: self.tol,
+            reg_covar: self.reg_covar,
+            random_state: self.random_state,
+        }
+        .with_state(trained_state))
+    }
+}
+
+impl AcceleratedEM<Untrained> {
+    /// Run the (optionally accelerated) EM loop to convergence from a given
+    /// initialization. Shared by the real `fit()` and by the internal
+    /// unaccelerated baseline re-run used to measure `speedup_factor`.
+    #[allow(clippy::too_many_arguments)]
+    fn run_em(
+        n_components: usize,
+        max_iter: usize,
+        tol: f64,
+        reg_covar: f64,
+        acceleration: AccelerationType,
+        x_owned: &Array2<f64>,
+        mut means: Array2<f64>,
+        mut weights: Array1<f64>,
+        mut covariances: Array2<f64>,
+    ) -> EmRunResult {
+        let (n_samples, n_features) = x_owned.dim();
         let mut log_likelihood_history = Vec::new();
         let mut converged = false;
 
@@ -280,28 +392,29 @@ impl Fit<ArrayView2<'_, Float>, ()> for AcceleratedEM<Untrained> {
         let mut prev_prev_params: Option<Array1<f64>> = None;
 
         // Standard EM with optional acceleration
-        for iter in 0..self.max_iter {
+        for iter in 0..max_iter {
             // E-step
-            let mut responsibilities = Array2::zeros((n_samples, self.n_components));
+            let mut responsibilities = Array2::zeros((n_samples, n_components));
+            let mut log_lik = 0.0;
 
             for i in 0..n_samples {
-                let x = X_owned.row(i);
+                let x = x_owned.row(i);
                 let mut log_probs = Vec::new();
 
-                for k in 0..self.n_components {
+                for k in 0..n_components {
                     let mean = means.row(k);
                     let diff = &x.to_owned() - &mean.to_owned();
 
                     let mahal = diff
                         .iter()
                         .zip(covariances.diag().iter())
-                        .map(|(d, c): (&f64, &f64)| d * d / c.max(self.reg_covar))
+                        .map(|(d, c): (&f64, &f64)| d * d / c.max(reg_covar))
                         .sum::<f64>();
 
                     let log_det = covariances
                         .diag()
                         .iter()
-                        .map(|c| c.max(self.reg_covar).ln())
+                        .map(|c| c.max(reg_covar).ln())
                         .sum::<f64>();
 
                     let log_prob = weights[k].ln()
@@ -313,15 +426,21 @@ impl Fit<ArrayView2<'_, Float>, ()> for AcceleratedEM<Untrained> {
 
                 let max_log = log_probs.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
                 let sum_exp: f64 = log_probs.iter().map(|&lp| (lp - max_log).exp()).sum();
+                // Real log-sum-exp log-likelihood contribution of this
+                // sample (previously this loop only summed the normalized
+                // responsibilities, which sum to ~1.0 by construction and
+                // therefore made `log_likelihood_history` an uninformative
+                // near-constant ~0 regardless of fit quality).
+                log_lik += max_log + sum_exp.ln();
 
-                for k in 0..self.n_components {
+                for k in 0..n_components {
                     responsibilities[[i, k]] =
                         ((log_probs[k] - max_log).exp() / sum_exp).max(1e-10);
                 }
             }
 
             // M-step
-            for k in 0..self.n_components {
+            for k in 0..n_components {
                 let resps = responsibilities.column(k);
                 let nk = resps.sum().max(1e-10);
 
@@ -329,24 +448,24 @@ impl Fit<ArrayView2<'_, Float>, ()> for AcceleratedEM<Untrained> {
 
                 let mut new_mean = Array1::zeros(n_features);
                 for i in 0..n_samples {
-                    new_mean += &(X_owned.row(i).to_owned() * resps[i]);
+                    new_mean += &(x_owned.row(i).to_owned() * resps[i]);
                 }
                 new_mean /= nk;
                 means.row_mut(k).assign(&new_mean);
 
                 let mut new_cov = Array1::zeros(n_features);
                 for i in 0..n_samples {
-                    let diff = &X_owned.row(i).to_owned() - &new_mean;
+                    let diff = &x_owned.row(i).to_owned() - &new_mean;
                     new_cov += &(diff.mapv(|x| x * x) * resps[i]);
                 }
-                new_cov = new_cov / nk + Array1::from_elem(n_features, self.reg_covar);
+                new_cov = new_cov / nk + Array1::from_elem(n_features, reg_covar);
                 covariances.diag_mut().assign(&new_cov);
             }
 
             weights /= weights.sum();
 
             // Apply acceleration if requested
-            if self.acceleration == AccelerationType::Aitken && iter >= 2 {
+            if acceleration == AccelerationType::Aitken && iter >= 2 {
                 let current_params = means.iter().cloned().collect::<Array1<f64>>();
 
                 if let (Some(prev), Some(prev_prev)) = (&prev_params, &prev_prev_params) {
@@ -356,7 +475,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for AcceleratedEM<Untrained> {
                         let accelerated =
                             prev + &((&current_params - prev) * (1.0 / (1.0 - alpha)));
                         let mut idx = 0;
-                        for k in 0..self.n_components {
+                        for k in 0..n_components {
                             for j in 0..n_features {
                                 if idx < accelerated.len() {
                                     means[[k, j]] = accelerated[idx];
@@ -371,64 +490,32 @@ impl Fit<ArrayView2<'_, Float>, ()> for AcceleratedEM<Untrained> {
                 prev_params = Some(current_params);
             }
 
-            // Compute log-likelihood
-            let mut log_lik = 0.0;
-            for i in 0..n_samples {
-                let mut ll = 0.0;
-                for k in 0..self.n_components {
-                    ll += responsibilities[[i, k]];
-                }
-                log_lik += ll.max(1e-10).ln();
-            }
             log_likelihood_history.push(log_lik);
 
             // Check convergence
             if iter > 0 {
                 let improvement = (log_lik - log_likelihood_history[iter - 1]).abs();
-                if improvement < self.tol {
+                if improvement < tol {
                     converged = true;
                     break;
                 }
             }
         }
 
-        // Estimate speedup factor (placeholder)
-        let speedup_factor = match self.acceleration {
-            AccelerationType::None => 1.0,
-            AccelerationType::Aitken => 1.5,
-            AccelerationType::SQUAREM => 2.0,
-            AccelerationType::QuasiNewton => 2.5,
-        };
-
         let n_iter = log_likelihood_history.len();
-        let trained_state = AcceleratedEMTrained {
+        (
             weights,
             means,
             covariances,
             log_likelihood_history,
             n_iter,
             converged,
-            acceleration: self.acceleration,
-            speedup_factor,
-        };
-
-        Ok(AcceleratedEM {
-            n_components: self.n_components,
-            acceleration: self.acceleration,
-            covariance_type: self.covariance_type,
-            max_iter: self.max_iter,
-            tol: self.tol,
-            reg_covar: self.reg_covar,
-            random_state: self.random_state,
-            _phantom: std::marker::PhantomData,
-        }
-        .with_state(trained_state))
+        )
     }
-}
 
-impl AcceleratedEM<Untrained> {
-    fn with_state(self, _state: AcceleratedEMTrained) -> AcceleratedEM<AcceleratedEMTrained> {
+    fn with_state(self, state: AcceleratedEMTrained) -> AcceleratedEM<AcceleratedEMTrained> {
         AcceleratedEM {
+            state,
             n_components: self.n_components,
             acceleration: self.acceleration,
             covariance_type: self.covariance_type,
@@ -436,7 +523,6 @@ impl AcceleratedEM<Untrained> {
             tol: self.tol,
             reg_covar: self.reg_covar,
             random_state: self.random_state,
-            _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -444,8 +530,14 @@ impl AcceleratedEM<Untrained> {
 impl Predict<ArrayView2<'_, Float>, Array1<usize>> for AcceleratedEM<AcceleratedEMTrained> {
     #[allow(non_snake_case)]
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array1<usize>> {
-        let (n_samples, _) = X.dim();
-        Ok(Array1::zeros(n_samples))
+        let X_owned = X.to_owned();
+        Ok(crate::common::predict_tied_diag_argmax(
+            &X_owned,
+            &self.state.weights,
+            &self.state.means,
+            &self.state.covariances,
+            self.reg_covar,
+        ))
     }
 }
 
@@ -660,6 +752,128 @@ mod tests {
 
         let result = model.fit(&X.view(), &());
         assert!(result.is_ok());
+    }
+
+    /// Regression test for the fabrication bug: `with_state` used to discard
+    /// the fitted parameters, so `predict` always returned all-zeros. A real
+    /// fit on two well-separated blobs must discriminate between them.
+    #[test]
+    #[allow(non_snake_case)] // standard ML notation
+    fn test_accelerated_em_predict_recovers_cluster_structure() {
+        let X = array![
+            [0.0, 0.0],
+            [0.1, 0.1],
+            [-0.1, 0.1],
+            [0.1, -0.1],
+            [10.0, 10.0],
+            [10.1, 10.1],
+            [9.9, 10.1],
+            [10.1, 9.9],
+        ];
+
+        for acceleration in [
+            AccelerationType::None,
+            AccelerationType::Aitken,
+            AccelerationType::SQUAREM,
+        ] {
+            let model = AcceleratedEM::builder()
+                .n_components(2)
+                .acceleration(acceleration)
+                .max_iter(50)
+                .random_state(42)
+                .build();
+            let fitted = model
+                .fit(&X.view(), &())
+                .unwrap_or_else(|e| panic!("fit should succeed for {acceleration:?}: {e}"));
+            let preds = fitted
+                .predict(&X.view())
+                .unwrap_or_else(|e| panic!("predict should succeed for {acceleration:?}: {e}"));
+
+            let distinct: std::collections::HashSet<usize> = preds.iter().copied().collect();
+            assert!(
+                distinct.len() > 1,
+                "[{acceleration:?}] predictions collapsed onto a single label (the old \
+                 all-zeros bug): {preds:?}"
+            );
+
+            let label_a = preds[0];
+            for i in 0..4 {
+                assert_eq!(
+                    preds[i], label_a,
+                    "[{acceleration:?}] first blob should share one predicted label"
+                );
+            }
+            let label_b = preds[4];
+            assert_ne!(
+                label_a, label_b,
+                "[{acceleration:?}] the two well-separated blobs must not collapse onto the \
+                 same label"
+            );
+            for i in 4..8 {
+                assert_eq!(
+                    preds[i], label_b,
+                    "[{acceleration:?}] second blob should share one predicted label"
+                );
+            }
+        }
+    }
+
+    /// `speedup_factor` must be a real, measured value -- specifically the
+    /// iteration-count ratio against an internal unaccelerated baseline
+    /// re-run from the *same* initialization -- not the old hardcoded
+    /// `1.5`/`2.0`/`2.5` constants keyed purely off the acceleration enum.
+    ///
+    /// This is a precise (not just "is it a positive finite number", which
+    /// the old hardcoded `1.5` would also satisfy) definitional check: since
+    /// `none_fit` below uses the same `random_state` as `aitken_fit`, it
+    /// performs the *exact same deterministic computation* as the baseline
+    /// re-run `aitken_fit`'s `fit()` performs internally, so
+    /// `aitken_fit.state.speedup_factor` must equal
+    /// `none_fit.state.n_iter / aitken_fit.state.n_iter` to within floating
+    /// point precision -- something the old hardcoded constant would only
+    /// satisfy by pure coincidence.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_speedup_factor_is_measured_not_hardcoded() {
+        let X = array![
+            [0.0, 0.0],
+            [0.2, 0.1],
+            [10.0, 10.0],
+            [10.2, 9.9],
+            [5.0, -5.0],
+            [5.2, -5.1],
+        ];
+
+        for n_components in [2, 3] {
+            let none_fit = AcceleratedEM::builder()
+                .n_components(n_components)
+                .acceleration(AccelerationType::None)
+                .max_iter(50)
+                .random_state(7)
+                .build()
+                .fit(&X.view(), &())
+                .expect("fit should succeed");
+            // By definition (no baseline to compare against).
+            assert_eq!(none_fit.state.speedup_factor, 1.0);
+
+            let aitken_fit = AcceleratedEM::builder()
+                .n_components(n_components)
+                .acceleration(AccelerationType::Aitken)
+                .max_iter(50)
+                .random_state(7)
+                .build()
+                .fit(&X.view(), &())
+                .expect("fit should succeed");
+
+            let expected = none_fit.state.n_iter as f64 / aitken_fit.state.n_iter as f64;
+            assert!(
+                (aitken_fit.state.speedup_factor - expected).abs() < 1e-9,
+                "[n_components={n_components}] speedup_factor ({}) must equal the measured \
+                 baseline/accelerated iteration ratio ({expected}), not a hardcoded \
+                 per-acceleration-type constant",
+                aitken_fit.state.speedup_factor
+            );
+        }
     }
 
     #[test]

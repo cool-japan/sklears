@@ -151,12 +151,12 @@
 //!
 
 // Module declarations
-pub mod graph_config;
-pub mod graph_structures;
-pub mod graph_generator;
-pub mod graph_export;
 pub mod graph_3d;
 pub mod graph_analysis;
+pub mod graph_config;
+pub mod graph_export;
+pub mod graph_generator;
+pub mod graph_structures;
 pub mod layout_algorithms;
 
 // Re-export core functionality for unified API access
@@ -182,6 +182,13 @@ pub use graph_analysis::*;
 // Layout algorithms
 pub use layout_algorithms::*;
 
+// Rich trait-information type this framework's facade methods accept as a
+// parameter. Not re-exported further here since `crate::api_reference_generator`
+// is already public in its own right; `AssociatedType`/`MethodInfo`/`Visibility`
+// are imported separately by the test module below, since production code in
+// this file only needs `TraitInfo` itself.
+use crate::api_reference_generator::TraitInfo;
+
 /// Unified graph visualization facade for convenient access to all functionality
 ///
 /// This struct provides a high-level interface that combines all the capabilities
@@ -202,7 +209,10 @@ impl GraphVisualizationFramework {
         let analyzer = GraphAnalyzer::new();
 
         let generator_3d = if config.enable_3d {
-            Some(Graph3DGenerator::new(ThreeDConfig::from_graph_config(&config)))
+            Some(Graph3DGenerator::new(
+                ThreeDConfig::from_graph_config(&config),
+                config.theme,
+            ))
         } else {
             None
         };
@@ -223,12 +233,17 @@ impl GraphVisualizationFramework {
 
     /// Create a framework optimized for performance
     pub fn with_performance_config() -> Result<Self, Box<dyn std::error::Error>> {
+        // `OptimizationLevel::Performance` is the "prioritize performance
+        // over quality" level (see `OptimizationLevel::layout_iterations`);
+        // there is no separate "parallel processing" toggle on `GraphConfig`
+        // (no algorithm in this module is currently parallelized with
+        // `rayon`), so only the settings that actually exist are configured
+        // here.
         let config = GraphConfig::new()
             .with_layout_algorithm(LayoutAlgorithm::ForceDirected)
-            .with_optimization_level(OptimizationLevel::Aggressive)
+            .with_optimization_level(OptimizationLevel::Performance)
             .with_simd_acceleration(true)
-            .with_gpu_acceleration(true)
-            .with_parallel_processing(true);
+            .with_gpu_acceleration(true);
 
         Self::new(config)
     }
@@ -240,7 +255,7 @@ impl GraphVisualizationFramework {
             .with_3d_visualization(true)
             .with_advanced_analysis(true)
             .with_optimization_level(OptimizationLevel::Quality)
-            .with_theme(VisualizationTheme::Professional);
+            .with_theme(VisualizationTheme::Scientific);
 
         Self::new(config)
     }
@@ -252,10 +267,14 @@ impl GraphVisualizationFramework {
         implementations: &[String],
     ) -> Result<TraitGraph, Box<dyn std::error::Error>> {
         // Generate the basic graph
-        let mut graph = self.generator.generate_trait_graph(trait_info, implementations)?;
+        let mut graph = self
+            .generator
+            .generate_trait_graph(trait_info, implementations)?;
 
-        // Apply layout algorithm
-        let layout = LayoutAlgorithmFactory::create_layout(self.config.layout_algorithm);
+        // Apply layout algorithm. `LayoutAlgorithm` is not `Copy` (its
+        // `Custom` variant owns a `HashMap`), so the configured algorithm is
+        // cloned out of `self.config` rather than moved.
+        let layout = LayoutAlgorithmFactory::create_layout(self.config.layout_algorithm.clone());
         let layout_result = layout.compute_layout(&graph, &self.config)?;
 
         // Update node positions
@@ -292,8 +311,9 @@ impl GraphVisualizationFramework {
         // Generate the basic graph
         let mut graph = self.generator.generate_full_graph(traits)?;
 
-        // Apply layout algorithm
-        let layout = LayoutAlgorithmFactory::create_layout(self.config.layout_algorithm);
+        // Apply layout algorithm (cloned; see the comment in
+        // `generate_complete_graph` about `LayoutAlgorithm` not being `Copy`).
+        let layout = LayoutAlgorithmFactory::create_layout(self.config.layout_algorithm.clone());
         let layout_result = layout.compute_layout(&graph, &self.config)?;
 
         // Update node positions
@@ -311,7 +331,9 @@ impl GraphVisualizationFramework {
         // Add comprehensive analysis
         if self.config.enable_analysis {
             let analysis_result = self.analyzer.analyze_graph(&graph)?;
-            let communities = self.analyzer.detect_communities(&graph, CommunityDetection::Louvain)?;
+            let communities = self
+                .analyzer
+                .detect_communities(&graph, CommunityDetection::Louvain)?;
             let critical_paths = self.analyzer.find_critical_paths_comprehensive(&graph)?;
 
             // Update graph metadata
@@ -332,20 +354,29 @@ impl GraphVisualizationFramework {
         graph: &TraitGraph,
         base_path: &str,
     ) -> Result<ExportResults, Box<dyn std::error::Error>> {
-        let mut results = ExportResults::default();
-
-        // Export to various formats
-        results.svg = Some(self.exporter.export_graph(graph, GraphExportFormat::Svg)?);
-        results.json = Some(self.exporter.export_graph(graph, GraphExportFormat::Json)?);
-        results.dot = Some(self.exporter.export_graph(graph, GraphExportFormat::Dot)?);
-        results.interactive_html = Some(self.exporter.export_graph(graph, GraphExportFormat::InteractiveHtml)?);
-        results.graphml = Some(self.exporter.export_graph(graph, GraphExportFormat::GraphML)?);
-        results.gexf = Some(self.exporter.export_graph(graph, GraphExportFormat::GEXF)?);
+        // The unconditional formats are set directly at construction time;
+        // `three_d_scene` remains conditional (see below) so it is left to
+        // `..Default::default()` here.
+        let mut results = ExportResults {
+            svg: Some(self.exporter.export_graph(graph, GraphExportFormat::Svg)?),
+            json: Some(self.exporter.export_graph(graph, GraphExportFormat::Json)?),
+            dot: Some(self.exporter.export_graph(graph, GraphExportFormat::Dot)?),
+            interactive_html: Some(
+                self.exporter
+                    .export_graph(graph, GraphExportFormat::InteractiveHtml)?,
+            ),
+            graphml: Some(
+                self.exporter
+                    .export_graph(graph, GraphExportFormat::GraphMl)?,
+            ),
+            gexf: Some(self.exporter.export_graph(graph, GraphExportFormat::Gexf)?),
+            ..Default::default()
+        };
 
         // Export 3D scene if enabled
         if self.config.enable_3d {
             if let Some(ref generator_3d) = self.generator_3d {
-                results.three_d_scene = Some(generator_3d.generate_3d_scene(graph)?);
+                results.three_d_scene = Some(generator_3d.generate_3d_html(graph)?);
             }
         }
 
@@ -382,28 +413,30 @@ impl GraphVisualizationFramework {
         &self,
         graph: &TraitGraph,
     ) -> Result<ComprehensiveAnalysisResults, Box<dyn std::error::Error>> {
-        let mut results = ComprehensiveAnalysisResults::default();
-
-        // Basic analysis
-        results.basic_analysis = self.analyzer.analyze_graph(graph)?;
-
-        // Community detection with multiple algorithms
-        results.louvain_communities = self.analyzer.detect_communities(graph, CommunityDetection::Louvain)?;
-
-        // Critical path analysis
-        results.critical_paths = self.analyzer.find_critical_paths_comprehensive(graph)?;
-
-        // Hub and bridge analysis
-        results.hub_nodes = self.analyzer.identify_hub_nodes(graph, 0.1)?;
-        results.bridge_nodes = self.analyzer.identify_bridge_nodes(graph)?;
-        results.bottleneck_edges = self.analyzer.identify_bottleneck_edges(graph)?;
+        // The unconditionally-computed fields are set directly at
+        // construction time; `modularity` is genuinely conditional (only
+        // computed when communities were found) so it is left to
+        // `..Default::default()` here and assigned afterward.
+        let mut results = ComprehensiveAnalysisResults {
+            basic_analysis: self.analyzer.analyze_graph(graph)?,
+            louvain_communities: self
+                .analyzer
+                .detect_communities(graph, CommunityDetection::Louvain)?,
+            critical_paths: self.analyzer.find_critical_paths_comprehensive(graph)?,
+            hub_nodes: self.analyzer.identify_hub_nodes(graph, 0.1)?,
+            bridge_nodes: self.analyzer.identify_bridge_nodes(graph)?,
+            bottleneck_edges: self.analyzer.identify_bottleneck_edges(graph)?,
+            small_world_coefficient: Some(self.analyzer.calculate_small_world_coefficient(graph)?),
+            ..Default::default()
+        };
 
         // Quality metrics
         if !results.louvain_communities.is_empty() {
-            results.modularity = Some(self.analyzer.calculate_modularity(graph, &results.louvain_communities)?);
+            results.modularity = Some(
+                self.analyzer
+                    .calculate_modularity(graph, &results.louvain_communities)?,
+            );
         }
-
-        results.small_world_coefficient = Some(self.analyzer.calculate_small_world_coefficient(graph)?);
 
         Ok(results)
     }
@@ -414,13 +447,19 @@ impl GraphVisualizationFramework {
     }
 
     /// Update the configuration and reinitialize components
-    pub fn update_config(&mut self, new_config: GraphConfig) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn update_config(
+        &mut self,
+        new_config: GraphConfig,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         self.config = new_config.clone();
         self.generator = TraitGraphGenerator::new(new_config.clone())?;
         self.exporter = GraphExporter::new(new_config.clone());
 
         self.generator_3d = if new_config.enable_3d {
-            Some(Graph3DGenerator::new(ThreeDConfig::from_graph_config(&new_config)))
+            Some(Graph3DGenerator::new(
+                ThreeDConfig::from_graph_config(&new_config),
+                new_config.theme,
+            ))
         } else {
             None
         };
@@ -435,7 +474,7 @@ impl GraphVisualizationFramework {
 
     /// Get available export formats
     pub fn available_export_formats(&self) -> Vec<GraphExportFormat> {
-        GraphExporter::available_formats()
+        GraphExporter::get_supported_formats()
     }
 
     /// Get available themes
@@ -445,8 +484,10 @@ impl GraphVisualizationFramework {
             VisualizationTheme::Dark,
             VisualizationTheme::HighContrast,
             VisualizationTheme::ColorblindFriendly,
+            VisualizationTheme::Presentation,
+            VisualizationTheme::Scientific,
             VisualizationTheme::Minimalist,
-            VisualizationTheme::Professional,
+            VisualizationTheme::Vibrant,
         ]
     }
 }
@@ -498,13 +539,15 @@ pub fn quick_ecosystem_graph(
 /// Export a graph to interactive HTML with default settings
 pub fn quick_html_export(graph: &TraitGraph) -> Result<String, Box<dyn std::error::Error>> {
     let exporter = GraphExporter::new(GraphConfig::default());
-    exporter.export_graph(graph, GraphExportFormat::InteractiveHtml)
+    Ok(exporter.export_graph(graph, GraphExportFormat::InteractiveHtml)?)
 }
 
 /// Perform quick analysis on a graph
-pub fn quick_analysis(graph: &TraitGraph) -> Result<GraphAnalysisResult, Box<dyn std::error::Error>> {
+pub fn quick_analysis(
+    graph: &TraitGraph,
+) -> Result<GraphAnalysisResult, Box<dyn std::error::Error>> {
     let analyzer = GraphAnalyzer::new();
-    analyzer.analyze_graph(graph)
+    Ok(analyzer.analyze_graph(graph)?)
 }
 
 /// Create a graph with performance-optimized settings
@@ -529,22 +572,36 @@ pub fn quality_optimized_graph(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api_reference_generator::{AssociatedType, MethodInfo, Visibility};
     use std::env;
 
     fn create_test_trait_info(name: &str) -> TraitInfo {
         TraitInfo {
             name: name.to_string(),
-            description: format!("Test trait {}", name),
-            path: format!("test::{}", name),
+            docs: Some(format!("Test trait {}", name)),
+            module_path: Some(format!("test::{}", name)),
+            visibility: Visibility::Public,
             generics: vec!["T".to_string()],
+            supertraits: vec!["Clone".to_string()],
             associated_types: vec![AssociatedType {
                 name: "Item".to_string(),
-                description: "Test associated type".to_string(),
-                bounds: vec![],
+                bounds: Vec::new(),
+                default: None,
             }],
-            methods: vec!["test_method".to_string()],
-            supertraits: vec!["Clone".to_string()],
-            implementations: vec!["TestImpl".to_string()],
+            methods: vec![MethodInfo {
+                name: "test_method".to_string(),
+                signature: "fn test_method(&self)".to_string(),
+                docs: None,
+                is_required: true,
+                is_async: false,
+                is_unsafe: false,
+                generics: Vec::new(),
+                return_type: None,
+                arguments: Vec::new(),
+            }],
+            source_file: None,
+            source_line: None,
+            feature_flags: Vec::new(),
         }
     }
 
@@ -607,7 +664,9 @@ mod tests {
         let trait_info = create_test_trait_info("TestTrait");
         let implementations = vec!["TestImpl".to_string()];
 
-        let graph = framework.generate_complete_graph(&trait_info, &implementations).expect("generate_complete_graph should succeed");
+        let graph = framework
+            .generate_complete_graph(&trait_info, &implementations)
+            .expect("generate_complete_graph should succeed");
 
         // Test export without writing files
         let results = framework.export_all_formats(&graph, "");
@@ -626,24 +685,31 @@ mod tests {
         let trait_info = create_test_trait_info("TestTrait");
         let implementations = vec!["TestImpl".to_string()];
 
-        let graph = framework.generate_complete_graph(&trait_info, &implementations).expect("generate_complete_graph should succeed");
+        let graph = framework
+            .generate_complete_graph(&trait_info, &implementations)
+            .expect("generate_complete_graph should succeed");
         let analysis = framework.analyze_comprehensive(&graph);
 
         assert!(analysis.is_ok());
         let analysis = analysis.expect("expected valid value");
-        assert!(!analysis.hub_nodes.is_empty() || analysis.hub_nodes.is_empty()); // Either is valid
+        assert!(!analysis.hub_nodes.is_empty() || analysis.hub_nodes.is_empty());
+        // Either is valid
     }
 
     #[test]
     fn test_config_update() {
-        let mut framework = GraphVisualizationFramework::with_defaults().expect("expected valid value");
+        let mut framework =
+            GraphVisualizationFramework::with_defaults().expect("expected valid value");
         let new_config = GraphConfig::new()
             .with_layout_algorithm(LayoutAlgorithm::Circular)
             .with_theme(VisualizationTheme::Dark);
 
         let result = framework.update_config(new_config.clone());
         assert!(result.is_ok());
-        assert_eq!(framework.config().layout_algorithm, LayoutAlgorithm::Circular);
+        assert_eq!(
+            framework.config().layout_algorithm,
+            LayoutAlgorithm::Circular
+        );
         assert_eq!(framework.config().theme, VisualizationTheme::Dark);
     }
 
@@ -704,15 +770,25 @@ mod tests {
         let trait_info = create_test_trait_info("TestTrait");
         let implementations = vec!["TestImpl".to_string()];
 
-        let graph = framework.generate_complete_graph(&trait_info, &implementations).expect("generate_complete_graph should succeed");
+        let graph = framework
+            .generate_complete_graph(&trait_info, &implementations)
+            .expect("generate_complete_graph should succeed");
 
         // Export with file writing
-        let results = framework.export_all_formats(&graph, test_path.to_str().expect("export_all_formats should succeed"));
+        let results = framework.export_all_formats(
+            &graph,
+            test_path
+                .to_str()
+                .expect("export_all_formats should succeed"),
+        );
         assert!(results.is_ok());
 
         // Check that files were created
         let svg_file = format!("{}.svg", test_path.to_str().expect("to_str should succeed"));
-        let json_file = format!("{}.json", test_path.to_str().expect("to_str should succeed"));
+        let json_file = format!(
+            "{}.json",
+            test_path.to_str().expect("to_str should succeed")
+        );
 
         if std::path::Path::new(&svg_file).exists() {
             std::fs::remove_file(&svg_file).unwrap_or(());
@@ -735,9 +811,15 @@ mod tests {
         let implementations = vec!["TestImpl".to_string()];
 
         // Full workflow test
-        let graph = framework.generate_complete_graph(&trait_info, &implementations).expect("generate_complete_graph should succeed");
-        let analysis = framework.analyze_comprehensive(&graph).expect("analyze_comprehensive should succeed");
-        let exports = framework.export_all_formats(&graph, "").expect("export_all_formats should succeed");
+        let graph = framework
+            .generate_complete_graph(&trait_info, &implementations)
+            .expect("generate_complete_graph should succeed");
+        let analysis = framework
+            .analyze_comprehensive(&graph)
+            .expect("analyze_comprehensive should succeed");
+        let exports = framework
+            .export_all_formats(&graph, "")
+            .expect("export_all_formats should succeed");
 
         // Verify results
         assert!(!graph.nodes.is_empty());

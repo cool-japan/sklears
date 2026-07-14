@@ -675,6 +675,7 @@ mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_circuit_breaker_basic_functionality() {
         let config = CircuitBreakerConfig {
             circuit_id: "test".to_string(),
@@ -693,6 +694,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_circuit_breaker_failure_detection() {
         let config = CircuitBreakerConfig {
             circuit_id: "test".to_string(),
@@ -718,6 +720,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_circuit_breaker_recovery() {
         let config = CircuitBreakerConfig {
             circuit_id: "test".to_string(),
@@ -752,6 +755,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_circuit_breaker_metrics() {
         let circuit = CircuitBreaker::with_defaults("test".to_string());
 
@@ -768,6 +772,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_circuit_breaker_system() {
         let system = CircuitBreakerSystem::with_defaults("test_system".to_string());
 
@@ -788,6 +793,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_concurrent_circuit_breaker() {
         let circuit = Arc::new(CircuitBreaker::with_defaults("concurrent_test".to_string()));
         let counter = Arc::new(AtomicU32::new(0));

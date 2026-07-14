@@ -28,10 +28,15 @@ oxicode = { workspace = true, optional = true }
 [dev-dependencies]
 approx = { workspace = true }
 proptest = { workspace = true }
-sklears-linear = { path = "../sklears-linear" }
+sklears-linear = { workspace = true }
+criterion = { workspace = true }
 
 [features]
 default = []
 serde = ["dep:serde", "sklears-core/serde"]
-gpu = []
+gpu = ["sklears-core/gpu_support"]
 memory-optimization = []
+
+[[bench]]
+name = "classifier_benchmarks"
+harness = false

@@ -2,7 +2,7 @@
 //!
 //! This module provides LLE for non-linear dimensionality reduction through locally linear embedding.
 
-use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -73,6 +73,13 @@ pub struct LleTrained {
     pub reconstruction_weights: Array2<f64>,
     /// Reconstruction error from the embedding
     pub reconstruction_error: f64,
+    /// Training data retained for the out-of-sample `transform` extension.
+    ///
+    /// New points are projected by reconstructing them from their nearest
+    /// training neighbors (barycentric weights) and applying those same weights
+    /// to the neighbors' embedding coordinates, so the original training
+    /// coordinates must be kept around.
+    training_data: Array2<f64>,
 }
 
 impl LocallyLinearEmbedding<Untrained> {
@@ -212,7 +219,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for LocallyLinearEmbedding<Untrained> {
         // Step 3: Find the embedding that preserves these weights
         let embedding = self.compute_embedding(&weights)?;
 
-        // Compute reconstruction error
+        // Compute reconstruction error (last use of `x` as a borrow before it is moved).
         let reconstruction_error =
             self.compute_lle_reconstruction_error(&x, &neighbor_indices, &weights);
 
@@ -221,6 +228,9 @@ impl Fit<ArrayView2<'_, Float>, ()> for LocallyLinearEmbedding<Untrained> {
                 embedding,
                 reconstruction_weights: weights,
                 reconstruction_error,
+                // `x` is not needed after the reconstruction-error computation, so it is
+                // moved (not cloned) into the trained state for out-of-sample transforms.
+                training_data: x,
             },
             n_neighbors: self.n_neighbors,
             n_components: self.n_components,
@@ -235,6 +245,83 @@ impl Fit<ArrayView2<'_, Float>, ()> for LocallyLinearEmbedding<Untrained> {
             random_state: self.random_state,
             n_jobs: self.n_jobs,
         })
+    }
+}
+
+impl<S> LocallyLinearEmbedding<S> {
+    /// Solve the local LLE weight system `a x = b` for barycentric reconstruction weights.
+    ///
+    /// `a` is the (already `reg`-regularized) local Gram matrix and `b` is the all-ones
+    /// right-hand side. Returns the raw, *un-normalized* weight vector. A tiny diagonal
+    /// jitter is added on top of the caller's `self.reg` purely for numerical stability so
+    /// that near-singular Gram matrices (e.g. duplicate neighbors) still solve cleanly.
+    ///
+    /// This lives on the generic `impl<S>` block so both `fit` (via `Untrained`) and the
+    /// out-of-sample `transform` (via `LleTrained`) can reuse the exact same solver.
+    fn solve_linear_system(&self, a: &Array2<f64>, b: &Array1<f64>) -> SklResult<Array1<f64>> {
+        let n = a.nrows();
+        let mut a_reg = a.clone();
+        for i in 0..n {
+            // Numerical stability, layered on top of the caller's `self.reg` diagonal term.
+            a_reg[[i, i]] += 1e-10;
+        }
+        a_reg.solve(b).map_err(|e| {
+            SklearsError::NumericalError(format!("Failed to solve local LLE weight system: {e}"))
+        })
+    }
+
+    /// Compute normalized barycentric reconstruction weights for a single query point.
+    ///
+    /// Given a `query` point and the row indices of its `neighbors` within `data`
+    /// (shape `(k, n_features)` once gathered), this builds the local Gram matrix
+    /// `G[a, b] = (data[neighbor_a] - query) . (data[neighbor_b] - query)`, regularizes
+    /// its diagonal with `self.reg`, solves `G w = 1`, and normalizes `w` to sum to 1.
+    ///
+    /// Both `fit` (query = the training point itself, neighbors = its k training neighbors)
+    /// and `transform` (query = a new point, neighbors = its k nearest training points)
+    /// call this identical routine — there is a single copy of the weight-solving logic.
+    ///
+    /// Falls back to uniform weights when the linear solve genuinely fails (singular system)
+    /// or the resulting weights sum to ~0.
+    fn barycentric_weights(
+        &self,
+        query: &ArrayView1<'_, f64>,
+        data: &Array2<f64>,
+        neighbors: &[usize],
+    ) -> Array1<f64> {
+        let k = neighbors.len();
+
+        // Center each neighbor on the query point: diff_a = data[neighbor_a] - query.
+        let diffs: Vec<Array1<f64>> = neighbors.iter().map(|&n| &data.row(n) - query).collect();
+
+        // Local Gram matrix G[a, b] = diff_a . diff_b.
+        let mut local_gram = Array2::zeros((k, k));
+        for a in 0..k {
+            for b in 0..k {
+                local_gram[[a, b]] = diffs[a].dot(&diffs[b]);
+            }
+        }
+
+        // Regularize the diagonal so the system is well-posed even for flat neighborhoods.
+        for j in 0..k {
+            local_gram[[j, j]] += self.reg;
+        }
+
+        // Solve G w = 1 for the (un-normalized) barycentric weights.
+        let ones = Array1::ones(k);
+        let w = match self.solve_linear_system(&local_gram, &ones) {
+            Ok(w) => w,
+            // Defensive fallback for a genuinely singular system: uniform weights.
+            Err(_) => Array1::from_elem(k, 1.0 / k as f64),
+        };
+
+        // Normalize the weights to sum to 1 (the barycentric constraint).
+        let weight_sum: f64 = w.sum();
+        if weight_sum.abs() > 1e-15 {
+            w / weight_sum
+        } else {
+            Array1::from_elem(k, 1.0 / k as f64)
+        }
     }
 }
 
@@ -278,57 +365,18 @@ impl LocallyLinearEmbedding<Untrained> {
                 .map(|j| neighbor_indices[[i, j]])
                 .collect();
 
-            // Create local covariance matrix
-            let mut local_gram = Array2::zeros((self.n_neighbors, self.n_neighbors));
-            for (a, &neighbor_a) in neighbors.iter().enumerate() {
-                for (b, &neighbor_b) in neighbors.iter().enumerate() {
-                    let diff_a = &x.row(neighbor_a) - &x.row(i);
-                    let diff_b = &x.row(neighbor_b) - &x.row(i);
-                    local_gram[[a, b]] = diff_a.dot(&diff_b);
-                }
-            }
+            // Barycentric reconstruction weights of point i from its own neighbors.
+            // Reuses the exact same weight-solving routine that `transform` uses for
+            // out-of-sample points (query = the training point itself here).
+            let w = self.barycentric_weights(&x.row(i), x, &neighbors);
 
-            // Add regularization
-            for j in 0..self.n_neighbors {
-                local_gram[[j, j]] += self.reg;
-            }
-
-            // Solve for weights: local_gram * w = 1
-            let ones = Array2::ones((self.n_neighbors, 1));
-            let w = match self.solve_linear_system(&local_gram, &ones) {
-                Ok(w) => w,
-                Err(_) => {
-                    // Fallback: use uniform weights
-                    Array2::from_elem((self.n_neighbors, 1), 1.0 / self.n_neighbors as f64)
-                }
-            };
-
-            // Normalize weights
-            let weight_sum: f64 = w.sum();
-            if weight_sum > 1e-15 {
-                for (j, &neighbor_j) in neighbors.iter().enumerate() {
-                    weights[[i, neighbor_j]] = w[[j, 0]] / weight_sum;
-                }
+            // Scatter the (already normalized) weights into the sparse weight matrix.
+            for (j, &neighbor_j) in neighbors.iter().enumerate() {
+                weights[[i, neighbor_j]] = w[j];
             }
         }
 
         Ok(weights)
-    }
-
-    fn solve_linear_system(&self, a: &Array2<f64>, _b: &Array2<f64>) -> SklResult<Array2<f64>> {
-        // Simple pseudo-inverse solution for small systems
-        // In a full implementation, would use proper linear system solver
-        let n = a.nrows();
-        let _a_inv: Array2<f64> = Array2::eye(n); // deferred: used in future proper solver
-
-        // Simple diagonal regularization for numerical stability
-        let mut a_reg = a.clone();
-        for i in 0..n {
-            a_reg[[i, i]] += 1e-10;
-        }
-
-        // Very simplified solution - in practice would use proper linear algebra
-        Ok(Array2::ones((n, 1)) / n as f64)
     }
 
     fn compute_embedding(&self, weights: &Array2<f64>) -> SklResult<Array2<f64>> {
@@ -414,9 +462,62 @@ impl LocallyLinearEmbedding<Untrained> {
 }
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for LocallyLinearEmbedding<LleTrained> {
-    fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        // LLE doesn't support transforming new data in this implementation
-        Ok(self.state.embedding.clone())
+    /// Project new (out-of-sample) points into the learned embedding space.
+    ///
+    /// This is the standard LLE out-of-sample extension (the same one implemented by
+    /// scikit-learn's `LocallyLinearEmbedding.transform`): each new point is reconstructed
+    /// from its nearest *training* neighbors using barycentric weights, and those weights
+    /// are then applied to the neighbors' embedding coordinates.
+    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
+        let training_data = &self.state.training_data;
+        let embedding = &self.state.embedding;
+        let n_train = training_data.nrows();
+        let n_features = training_data.ncols();
+
+        // Feature-count must match what the model was trained on.
+        if x.ncols() != n_features {
+            return Err(SklearsError::FeatureMismatch {
+                expected: n_features,
+                actual: x.ncols(),
+            });
+        }
+
+        let n_new = x.nrows();
+        // Use at most as many neighbors as there are training points, and at least one.
+        let k = self.n_neighbors.min(n_train).max(1);
+
+        let mut embedding_new = Array2::zeros((n_new, self.n_components));
+
+        for p in 0..n_new {
+            let query = x.row(p);
+
+            // (a) Find the k nearest TRAINING points to the new query point by direct
+            //     Euclidean distance (cross-set version of `find_neighbors`).
+            let mut distances: Vec<(f64, usize)> = Vec::with_capacity(n_train);
+            for t in 0..n_train {
+                let diff = &training_data.row(t) - &query;
+                let dist = diff.mapv(|v| v * v).sum().sqrt();
+                distances.push((dist, t));
+            }
+            // `total_cmp` gives a panic-free total order over f64 (no unwrap/expect).
+            distances.sort_by(|a, b| a.0.total_cmp(&b.0));
+            let neighbors: Vec<usize> = distances.iter().take(k).map(|&(_, t)| t).collect();
+
+            // (b) + (c) Build the local Gram matrix from differences to the NEW point,
+            //     solve `G w = 1`, and normalize `w` to sum to 1 — the identical routine
+            //     that `fit` uses for its training reconstruction weights.
+            let w = self.barycentric_weights(&query, training_data, &neighbors);
+
+            // (d) The new point's embedding is the weighted combination of its neighbors'
+            //     training embedding coordinates.
+            for (j, &neighbor) in neighbors.iter().enumerate() {
+                for c in 0..self.n_components {
+                    embedding_new[[p, c]] += w[j] * embedding[[neighbor, c]];
+                }
+            }
+        }
+
+        Ok(embedding_new)
     }
 }
 
@@ -434,5 +535,162 @@ impl LocallyLinearEmbedding<LleTrained> {
     /// Get the reconstruction error
     pub fn reconstruction_error(&self) -> f64 {
         self.state.reconstruction_error
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{LleTrained, LocallyLinearEmbedding};
+    use scirs2_core::ndarray::{array, Array2};
+    use sklears_core::traits::{Fit, Transform};
+
+    /// An 8-point 4x2 grid lying on a gently tilted plane (intrinsic dimension 2,
+    /// ambient dimension 3) — a well-behaved manifold for LLE.
+    fn training_data() -> Array2<f64> {
+        array![
+            [0.0, 0.0, 0.00],
+            [1.0, 0.0, 0.10],
+            [2.0, 0.0, 0.20],
+            [3.0, 0.0, 0.30],
+            [0.0, 1.0, 0.10],
+            [1.0, 1.0, 0.20],
+            [2.0, 1.0, 0.30],
+            [3.0, 1.0, 0.40],
+        ]
+    }
+
+    fn fitted() -> LocallyLinearEmbedding<LleTrained> {
+        let x = training_data();
+        LocallyLinearEmbedding::new()
+            .n_neighbors(4)
+            .n_components(2)
+            .fit(&x.view(), &())
+            .expect("fit should succeed")
+    }
+
+    /// (1) Fit succeeds and the embedding has the expected shape.
+    #[test]
+    fn test_fit_embedding_shape() {
+        let model = fitted();
+        assert_eq!(model.embedding().dim(), (8, 2));
+    }
+
+    /// (3) `transform` output shape matches `(new_data.nrows(), n_components)`.
+    #[test]
+    fn test_transform_output_shape() {
+        let model = fitted();
+        let new = array![[0.5, 0.5, 0.15], [2.5, 0.5, 0.35], [1.2, 0.3, 0.20]];
+        let out = model
+            .transform(&new.view())
+            .expect("transform should succeed");
+        assert_eq!(out.dim(), (3, 2));
+    }
+
+    /// (2) Core regression test: `transform` must actually depend on its input.
+    ///
+    /// The old bug returned the stale training-time embedding regardless of input.
+    /// Here we assert (a) transforming genuinely new data is NOT value-identical to the
+    /// stored embedding, and (b) two different new datasets produce two different outputs.
+    #[test]
+    fn test_transform_depends_on_input() {
+        let model = fitted();
+        let stored = model.embedding().clone();
+
+        // Genuinely new data, same row count as the embedding but different coordinates.
+        let new_diff = array![
+            [0.5, 0.2, 0.12],
+            [1.5, 0.1, 0.18],
+            [2.5, 0.3, 0.28],
+            [3.2, 0.4, 0.35],
+            [0.2, 0.8, 0.15],
+            [1.2, 0.7, 0.24],
+            [2.2, 0.6, 0.33],
+            [2.9, 0.5, 0.40],
+        ];
+        let out_diff = model
+            .transform(&new_diff.view())
+            .expect("transform new_diff should succeed");
+        // Must NOT reproduce the stale training embedding (the old broken behavior).
+        assert_ne!(
+            out_diff, stored,
+            "transform returned the stale training embedding instead of projecting the input"
+        );
+
+        // Two different new datasets must give two different outputs.
+        let new_a = array![[0.5, 0.5, 0.15], [2.5, 0.5, 0.35]];
+        let new_b = array![[2.8, 0.9, 0.42], [0.1, 0.2, 0.10]];
+        let out_a = model
+            .transform(&new_a.view())
+            .expect("transform new_a should succeed");
+        let out_b = model
+            .transform(&new_b.view())
+            .expect("transform new_b should succeed");
+        assert_ne!(
+            out_a, out_b,
+            "two different inputs produced identical outputs — input is being ignored"
+        );
+    }
+
+    /// (4) Near-duplicate sanity check (the standard LLE out-of-sample correctness test).
+    ///
+    /// Perturbing every training point by a tiny amount and transforming it should
+    /// reproduce that point's original embedding row closely, because the barycentric
+    /// weights collapse onto the (near-)coincident training neighbor.
+    #[test]
+    fn test_transform_near_duplicate_recovers_embedding() {
+        let model = fitted();
+        let stored = model.embedding().clone();
+        let x = training_data();
+
+        let perturbed = &x + 1e-4;
+        let out = model
+            .transform(&perturbed.view())
+            .expect("transform perturbed should succeed");
+
+        assert_eq!(out.dim(), stored.dim());
+        for i in 0..x.nrows() {
+            for c in 0..2 {
+                let diff = (out[[i, c]] - stored[[i, c]]).abs();
+                assert!(
+                    diff < 1e-2,
+                    "row {i} comp {c}: transformed {} vs stored {} (|diff| = {diff})",
+                    out[[i, c]],
+                    stored[[i, c]]
+                );
+            }
+        }
+    }
+
+    /// (5) Guards against silently reintroducing the `solve_linear_system` stub.
+    ///
+    /// The old stub ignored `a` and `b` and always returned uniform `1/n` weights, which
+    /// does NOT solve a general system. Here we solve a small known system and check both
+    /// `A @ x == b` and that `x` equals the closed-form answer.
+    #[test]
+    fn test_solve_linear_system_actually_solves() {
+        // A = [[4, 1], [1, 3]], b = [1, 2] => x = [1/11, 7/11].
+        let a = array![[4.0, 1.0], [1.0, 3.0]];
+        let b = array![1.0, 2.0];
+
+        let model = LocallyLinearEmbedding::new();
+        let x = model
+            .solve_linear_system(&a, &b)
+            .expect("solve_linear_system should succeed");
+
+        // The stub's uniform [0.5, 0.5] would give A@x = [2.5, 2.0] != b and would fail here.
+        let ax = a.dot(&x);
+        assert!(
+            (ax[0] - b[0]).abs() < 1e-6,
+            "A@x[0] = {} (expected 1.0)",
+            ax[0]
+        );
+        assert!(
+            (ax[1] - b[1]).abs() < 1e-6,
+            "A@x[1] = {} (expected 2.0)",
+            ax[1]
+        );
+
+        assert!((x[0] - 1.0 / 11.0).abs() < 1e-6, "x[0] = {}", x[0]);
+        assert!((x[1] - 7.0 / 11.0).abs() < 1e-6, "x[1] = {}", x[1]);
     }
 }

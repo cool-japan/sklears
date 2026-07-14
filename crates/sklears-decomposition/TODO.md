@@ -1,5 +1,26 @@
 # sklears-decomposition TODO
 
+## Current Status (updated 2026-07-14)
+This crate is part of the sklears v0.2.0 release. 380 tests passing (`cargo nextest run -p sklears-decomposition --all-features`; previously recorded as 344/349).
+
+## README accuracy pass (2026-07-11)
+- [x] Verified README code examples against real source and rewrote fabricated content:
+  `TruncatedSVD`, `RandomizedSVD`, `RandomizedPCA`, `OutOfCorePCA`, `TensorPCA`, `Tucker`,
+  `PARAFAC`, `SignalICA`, `EMD`, `VMD`, `MemoryEfficientNMF` do not exist as public types (real
+  equivalents: `CPDecomposition`/`TuckerDecomposition` for tensor work, `EmpiricalModeDecomposition`
+  for EMD, `FastICA` for blind source separation — see corrected `README.md`).
+- [ ] `RobustPCA`, `SparsePCA`, `ProbabilisticPCA` in `src/pca.rs` are empty placeholder marker
+  structs (`pub struct SparsePCA;` etc., no fields or methods) kept only for name compatibility —
+  `pub use pca::*;` re-exports them at the crate root with no working functionality behind the
+  name. `LowRankMatrixRecovery` (`matrix_completion.rs`, `RecoveryAlgorithm::RPCA`/`PCP`) is the
+  real robust/low-rank-plus-sparse recovery implementation. Either implement real
+  `RobustPCA`/`SparsePCA`/`ProbabilisticPCA` types or remove the placeholders so they stop shadowing
+  the real names via the glob re-export.
+- [ ] `PcaConfig::svd_solver: String` is set (default `"auto"`) but never read anywhere in the fit
+  path — no working randomized-SVD option currently exists despite the config field suggesting one.
+- [ ] `PCA`/`PcaTrained` does not implement `inverse_transform` (confirmed via
+  `property_tests.rs`'s own comment: "PCA inverse_transform not yet implemented").
+
 ## Disabled modules (re-enable per empirical protocol)
 
 - [x] Re-enable `pub mod cca` — Phase D-1 complete (banners were stale)
@@ -79,6 +100,26 @@ Notes on log-likelihood implementation:
 - Uses Woodbury identity for `trace(Σ⁻¹ S)` with full sample covariance S
 - Numerically verified against hand-computed values for q=1, p=2 case (test_log_likelihood_numerical)
 - `log|M|` computed via Leibniz cofactor expansion (q ≤ 4) or partial-pivot Gaussian elimination (q > 4)
+
+## OxiCUDA Migration (v0.2.0)
+
+Status: fully migrated to oxicuda-backed GPU support (Wave A2). Phase 5 hardening
+(dependency pruning) complete for the unused-dep item below.
+
+- [x] (S) Remove unused optional deps `oxicuda-blas` and `half` from the `gpu` feature — confirmed
+  via `rg` that neither `oxicuda_blas` nor `half::`/`f16`/`bf16` is referenced anywhere in crate code
+  (GEMM already routes through `sklears_core::gpu`). Dropped `oxicuda-blas` and `half` from
+  `[dependencies]` and from the `gpu` feature list, keeping `dep:oxicuda-solver`,
+  `dep:oxicuda-memory`, and `sklears-core/gpu_support`. Verified with `cargo check -p
+  sklears-decomposition` and `cargo check -p sklears-decomposition --features gpu` (both
+  warning-free), plus `cargo nextest run -p sklears-decomposition --features gpu
+  hardware_acceleration` (20/20 passed).
+
+Version watch: oxicuda-* pins are now 0.5.0 workspace-wide (bumped 0.4.0 → 0.4.1 → 0.5.0 during the
+0.2.0 cycle). 0.5.0 is a hard floor, not a preference — 0.4.1's PTX codegen emitted invalid f64
+elementwise/reduction kernels (32-bit value registers for 64-bit ops) that `ptxas` rejects on real
+hardware; 0.5.0 carries the fix. This crate's `gpu` feature deps (`oxicuda-solver`,
+`oxicuda-memory`) follow the same workspace pin.
 
 ---
 

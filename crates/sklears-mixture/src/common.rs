@@ -4,7 +4,7 @@
 //! All implementations follow SciRS2 Policy for numerical computing and random number generation.
 
 // IMPORTANT: SciRS2 Policy compliance - use scirs2-core instead of direct dependencies
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::{thread_rng, RandNormal};
 use scirs2_linalg::cholesky;
 use sklears_core::error::{Result as SklResult, SklearsError};
@@ -120,6 +120,100 @@ pub fn gaussian_log_pdf_spherical(
     let log_exp = -0.5 * squared_dist / variance;
 
     Ok(log_norm + log_exp)
+}
+
+/// Resolve a reproducible seed for `scirs2_core::random::seeded_rng`: use the
+/// caller-provided `random_state` when given, otherwise derive a time-based
+/// seed so unseeded runs still vary from call to call (mirroring the
+/// previous, silently-non-deterministic `thread_rng()` behavior these
+/// "advanced" EM variants used even when a `random_state` was configured).
+///
+/// This crate may not depend on `rand` directly (see the SciRS2 Policy note
+/// in `Cargo.toml`), and `thread_rng()`/`seeded_rng(seed)` return different
+/// concrete `Random<R>` instantiations (`Random<ThreadRng>` vs
+/// `Random<StdRng>`) that cannot be unified in one variable without naming
+/// `rand`'s RNG traits. Always seeding (with either the caller's seed or a
+/// time-derived one) sidesteps that entirely while making `random_state`
+/// actually reproducible, which it previously was not.
+pub(crate) fn resolve_seed(random_state: Option<u64>) -> u64 {
+    random_state.unwrap_or_else(|| {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos() as u64
+    })
+}
+
+/// Compute the mixture-weighted log-probability of `x` under component `k`
+/// for a *tied* (shared across all components) diagonal-covariance Gaussian
+/// mixture, i.e. `weight_k * N(x; mean_k, diag(cov_diag))`.
+///
+/// This is shared by the simplified "advanced" EM variants in this crate
+/// (`AcceleratedEM`, `L1RegularizedGMM`, `MiniBatchGMM`, `LaplaceGMM`) that
+/// keep a single `n_features x n_features` covariance matrix (using only its
+/// diagonal) rather than one full covariance per component. Centralizing the
+/// formula here avoids re-deriving (and potentially mis-deriving) the same
+/// math independently in each variant's `predict`/E-step implementation.
+pub(crate) fn tied_diag_weighted_log_prob(
+    x: &ArrayView1<f64>,
+    mean_k: &ArrayView1<f64>,
+    weight_k: f64,
+    cov_diag: &ArrayView1<f64>,
+    reg_covar: f64,
+) -> f64 {
+    let n_features = x.len();
+    let mahal: f64 = x
+        .iter()
+        .zip(mean_k.iter())
+        .zip(cov_diag.iter())
+        .map(|((xi, mi), c)| {
+            let d = xi - mi;
+            d * d / c.max(reg_covar)
+        })
+        .sum();
+    let log_det: f64 = cov_diag.iter().map(|c| c.max(reg_covar).ln()).sum();
+    let log_2pi = (2.0 * PI).ln();
+    weight_k.ln() - 0.5 * (n_features as f64 * log_2pi + log_det) - 0.5 * mahal
+}
+
+/// Predict the most likely component index for each row of `x` under a
+/// tied-diagonal-covariance Gaussian mixture (argmax of the weighted log
+/// probability across components, mirroring `GaussianMixture::predict` in
+/// `gaussian.rs` but for the single-shared-covariance representation used by
+/// the simplified EM variants).
+pub(crate) fn predict_tied_diag_argmax(
+    x_owned: &Array2<f64>,
+    weights: &Array1<f64>,
+    means: &Array2<f64>,
+    covariances: &Array2<f64>,
+    reg_covar: f64,
+) -> Array1<usize> {
+    let n_samples = x_owned.nrows();
+    let n_components = means.nrows();
+    let cov_diag = covariances.diag().to_owned();
+    let mut predictions = Array1::zeros(n_samples);
+
+    for (i, sample) in x_owned.axis_iter(Axis(0)).enumerate() {
+        let mut best_k = 0usize;
+        let mut best_log_prob = f64::NEG_INFINITY;
+        for k in 0..n_components {
+            let mean_k = means.row(k);
+            let log_prob = tied_diag_weighted_log_prob(
+                &sample,
+                &mean_k,
+                weights[k],
+                &cov_diag.view(),
+                reg_covar,
+            );
+            if log_prob > best_log_prob {
+                best_log_prob = log_prob;
+                best_k = k;
+            }
+        }
+        predictions[i] = best_k;
+    }
+
+    predictions
 }
 
 /// Covariance type for Gaussian mixture models
@@ -264,6 +358,27 @@ mod tests {
             sample.len(),
             3,
             "sample dimension should match mean dimension"
+        );
+    }
+
+    /// `predict_tied_diag_argmax` must actually discriminate between
+    /// well-separated components rather than collapsing to a single label
+    /// (this is the exact shape of the fabrication bug this helper was
+    /// extracted to fix across the "advanced" EM variants).
+    #[test]
+    fn test_predict_tied_diag_argmax_recovers_clusters() {
+        let x = array![[0.0, 0.0], [0.1, -0.1], [10.0, 10.0], [10.1, 9.9],];
+        let weights = array![0.5_f64, 0.5];
+        let means = array![[0.0_f64, 0.0], [10.0, 10.0]];
+        let covariances = Array2::<f64>::eye(2);
+
+        let preds = predict_tied_diag_argmax(&x, &weights, &means, &covariances, 1e-6);
+
+        assert_eq!(preds[0], preds[1], "first blob should share a label");
+        assert_eq!(preds[2], preds[3], "second blob should share a label");
+        assert_ne!(
+            preds[0], preds[2],
+            "distinct blobs must not collapse onto the same predicted label"
         );
     }
 }

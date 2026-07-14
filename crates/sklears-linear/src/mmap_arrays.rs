@@ -644,6 +644,10 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
+    #[cfg_attr(
+        miri,
+        ignore = "Miri does not support file-backed memory mappings (confirmed interpreter limitation, not a bug)"
+    )]
     fn test_mmap_matrix_creation() {
         let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_matrix.dat");
@@ -677,6 +681,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        miri,
+        ignore = "Miri does not support file-backed memory mappings (confirmed interpreter limitation, not a bug)"
+    )]
     fn test_mmap_matrix_chunked_processing() {
         let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_matrix_chunks.dat");
@@ -706,6 +714,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        miri,
+        ignore = "Miri does not support file-backed memory mappings (confirmed interpreter limitation, not a bug)"
+    )]
     fn test_mmap_vector() {
         let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_vector.dat");
@@ -734,6 +746,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        miri,
+        ignore = "Miri does not support file-backed memory mappings (confirmed interpreter limitation, not a bug)"
+    )]
     fn test_mmap_matrix_mut() {
         let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_matrix_mut.dat");

@@ -1,7 +1,25 @@
-use std::collections::{HashMap, HashSet};
+use super::security_types::*;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
-use serde::{Serialize, Deserialize};
-use crate::trait_explorer::TraitContext;
+
+#[path = "crypto_analysis_types.rs"]
+mod crypto_analysis_types;
+pub use crypto_analysis_types::*;
+
+/// Generate a manager's `new()` from a flat `field: value` list, skipping the repeated
+/// `impl X { pub fn new() -> Self { Self { .. } } }` boilerplate.
+macro_rules! manager_new {
+    ($($t:ident { $($field:ident: $val:expr),* $(,)? })*) => {
+        $(impl $t { pub fn new() -> Self { Self { $($field: $val),* } } })*
+    };
+}
+
+/// `impl Default for $t { fn default() -> Self { Self::new() } }` for every listed type — see
+/// `clippy::new_without_default`.
+macro_rules! default_via_new {
+    ($($t:ty),* $(,)?) => { $(impl Default for $t { fn default() -> Self { Self::new() } })* };
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CryptographicAnalyzer {
@@ -86,7 +104,7 @@ pub struct RandomNumberGeneratorAnalyzer {
     drbg_analyzers: HashMap<String, DrbgAnalyzer>,
     nist_test_suite: NistRandomnessTestSuite,
     diehard_test_suite: DiehardTestSuite,
-    testU01_suite: TestU01Suite,
+    test_u01_suite: TestU01Suite,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -155,6 +173,8 @@ pub struct CryptographicImplementationAnalyzer {
     performance_security_analyzers: Vec<PerformanceSecurityAnalyzer>,
 }
 
+/// Two fields beyond the originally-given set: `risk_score` and `identified_issues` (mandatory
+/// contract additions — see module docs).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CryptographicAnalysisResult {
     pub analysis_id: String,
@@ -175,6 +195,13 @@ pub struct CryptographicAnalysisResult {
     pub vulnerability_report: CryptographicVulnerabilityReport,
     pub analysis_confidence: f64,
     pub analysis_metadata: HashMap<String, String>,
+    /// Overall cryptographic risk score in `[0.0, 10.0]`, derived as the inverse of
+    /// `overall_cryptographic_score`. Consumed by `core_analyzer.rs`'s comprehensive risk calculation.
+    pub risk_score: f64,
+    /// Individually addressable cryptographic weaknesses identified across the algorithm,
+    /// key-management, side-channel, and protocol sub-analyses. Consumed by
+    /// `core_analyzer.rs`'s `generate_crypto_recommendations`.
+    pub identified_issues: Vec<CryptographicIssue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -237,11 +264,14 @@ impl CryptographicAnalyzer {
         }
     }
 
-    pub fn analyze_cryptographic_security(&mut self, context: &TraitUsageContext) -> Result<CryptographicAnalysisResult, CryptographicAnalysisError> {
+    pub fn analyze_cryptographic_security(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<CryptographicAnalysisResult, CryptographicAnalysisError> {
         let analysis_id = self.generate_analysis_id(context);
 
         if let Some(cached_result) = self.get_cached_analysis(&analysis_id) {
-            if self.is_cache_valid(&cached_result) {
+            if self.is_cache_valid(cached_result) {
                 return Ok(cached_result.result.clone());
             }
         }
@@ -257,35 +287,51 @@ impl CryptographicAnalyzer {
         let quantum_resistance_analysis = self.analyze_quantum_resistance(context)?;
         let implementation_analysis = self.analyze_cryptographic_implementation(context)?;
 
-        let overall_score = self.calculate_overall_cryptographic_score(
-            &algorithm_analysis,
-            &key_management_analysis,
-            &side_channel_analysis,
-            &protocol_analysis,
-            &random_number_analysis,
-            &hash_function_analysis,
-            &signature_analysis,
-            &encryption_analysis,
-            &quantum_resistance_analysis,
-            &implementation_analysis,
-        )?;
+        // NOTE: `calculate_overall_cryptographic_score` and `generate_security_recommendations`
+        // take a bundled slice/struct (rather than 10 positional refs) purely to stay within
+        // clippy::too_many_arguments; the sequence and content of the 10 sub-analyses above is
+        // unchanged.
+        let side_channel_score = (10.0
+            - side_channel_analysis
+                .vulnerability_severity_scores
+                .values()
+                .sum::<f64>())
+        .clamp(0.0, 10.0);
+        let protocol_score =
+            (10.0 - protocol_analysis.protocol_vulnerabilities.len() as f64 * 1.5).clamp(0.0, 10.0);
 
-        let security_recommendations = self.generate_security_recommendations(
-            &algorithm_analysis,
-            &key_management_analysis,
-            &side_channel_analysis,
-            &protocol_analysis,
-            &random_number_analysis,
-            &hash_function_analysis,
-            &signature_analysis,
-            &encryption_analysis,
-            &quantum_resistance_analysis,
-            &implementation_analysis,
-        )?;
+        let overall_score = self.calculate_overall_cryptographic_score(&[
+            algorithm_analysis.security_level_assessment.score,
+            key_management_analysis.key_management_score,
+            side_channel_score,
+            protocol_score,
+            random_number_analysis.randomness_quality_score,
+            hash_function_analysis.hash_security_score,
+            signature_analysis.signature_security_score,
+            encryption_analysis.encryption_security_score,
+            quantum_resistance_analysis.quantum_resistance_score,
+            implementation_analysis.implementation_security_score,
+        ])?;
+
+        let security_recommendations =
+            self.generate_security_recommendations(&CryptoSubAnalysesRef {
+                algorithm: &algorithm_analysis,
+                key_management: &key_management_analysis,
+                side_channel: &side_channel_analysis,
+                protocol: &protocol_analysis,
+                random_number: &random_number_analysis,
+                hash_function: &hash_function_analysis,
+                signature: &signature_analysis,
+                encryption: &encryption_analysis,
+                quantum_resistance: &quantum_resistance_analysis,
+                implementation: &implementation_analysis,
+            })?;
 
         let compliance_status = self.compliance_checker.check_compliance(context)?;
         let vulnerability_report = self.vulnerability_scanner.scan_vulnerabilities(context)?;
         let analysis_confidence = self.calculate_analysis_confidence()?;
+        let identified_issues = self.identify_cryptographic_issues(context);
+        let risk_score = (10.0 - overall_score).clamp(0.0, 10.0);
 
         let result = CryptographicAnalysisResult {
             analysis_id: analysis_id.clone(),
@@ -306,13 +352,18 @@ impl CryptographicAnalyzer {
             vulnerability_report,
             analysis_confidence,
             analysis_metadata: self.generate_analysis_metadata(context),
+            risk_score,
+            identified_issues,
         };
 
         self.cache_analysis(analysis_id, &result);
         Ok(result)
     }
 
-    fn analyze_cryptographic_algorithms(&mut self, context: &TraitUsageContext) -> Result<AlgorithmAnalysisResult, CryptographicAnalysisError> {
+    fn analyze_cryptographic_algorithms(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<AlgorithmAnalysisResult, CryptographicAnalysisError> {
         let mut symmetric_results = HashMap::new();
         let mut asymmetric_results = HashMap::new();
         let mut hash_results = HashMap::new();
@@ -344,10 +395,14 @@ impl CryptographicAnalyzer {
             kdf_results.insert(name.clone(), result);
         }
 
-        let compatibility_matrix = self.build_algorithm_compatibility_matrix(&symmetric_results, &asymmetric_results)?;
-        let security_level_assessment = self.assess_security_levels(&symmetric_results, &asymmetric_results)?;
-        let deprecation_warnings = self.check_algorithm_deprecations(&symmetric_results, &asymmetric_results)?;
-        let upgrade_recommendations = self.generate_algorithm_upgrade_recommendations(&deprecation_warnings)?;
+        let compatibility_matrix =
+            self.build_algorithm_compatibility_matrix(&symmetric_results, &asymmetric_results)?;
+        let security_level_assessment =
+            self.assess_security_levels(&symmetric_results, &asymmetric_results)?;
+        let deprecation_warnings =
+            self.check_algorithm_deprecations(&symmetric_results, &asymmetric_results)?;
+        let upgrade_recommendations =
+            self.generate_algorithm_upgrade_recommendations(&deprecation_warnings)?;
 
         Ok(AlgorithmAnalysisResult {
             symmetric_algorithm_results: symmetric_results,
@@ -362,7 +417,10 @@ impl CryptographicAnalyzer {
         })
     }
 
-    fn analyze_key_management(&mut self, context: &TraitUsageContext) -> Result<KeyManagementAnalysisResult, CryptographicAnalysisError> {
+    fn analyze_key_management(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<KeyManagementAnalysisResult, CryptographicAnalysisError> {
         let key_generation_assessment = self.assess_key_generation(context)?;
         let key_storage_assessment = self.assess_key_storage(context)?;
         let key_distribution_assessment = self.assess_key_distribution(context)?;
@@ -371,18 +429,21 @@ impl CryptographicAnalyzer {
         let entropy_assessment = self.assess_entropy_sources(context)?;
         let key_lifecycle_assessment = self.assess_key_lifecycle(context)?;
 
-        let key_management_score = self.calculate_key_management_score(
-            &key_generation_assessment,
-            &key_storage_assessment,
-            &key_distribution_assessment,
-            &key_rotation_assessment,
-            &key_revocation_assessment,
-            &entropy_assessment,
-            &key_lifecycle_assessment,
-        )?;
+        // NOTE: bundled into a slice (rather than 7 positional refs) purely to stay within
+        // clippy::too_many_arguments; all 7 assessments above are still computed unconditionally.
+        let key_management_score = self.calculate_key_management_score(&[
+            key_generation_assessment.score,
+            key_storage_assessment.score,
+            key_distribution_assessment.score,
+            key_rotation_assessment.score,
+            key_revocation_assessment.score,
+            entropy_assessment.score,
+            key_lifecycle_assessment.score,
+        ])?;
 
         let key_management_risks = self.identify_key_management_risks(context)?;
-        let key_management_recommendations = self.generate_key_management_recommendations(&key_management_risks)?;
+        let key_management_recommendations =
+            self.generate_key_management_recommendations(&key_management_risks)?;
 
         Ok(KeyManagementAnalysisResult {
             key_generation_assessment,
@@ -398,7 +459,10 @@ impl CryptographicAnalyzer {
         })
     }
 
-    fn analyze_side_channel_vulnerabilities(&mut self, context: &TraitUsageContext) -> Result<SideChannelAnalysisResult, CryptographicAnalysisError> {
+    fn analyze_side_channel_vulnerabilities(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<SideChannelAnalysisResult, CryptographicAnalysisError> {
         let mut timing_vulnerabilities = Vec::new();
         let mut power_vulnerabilities = Vec::new();
         let mut electromagnetic_vulnerabilities = Vec::new();
@@ -415,7 +479,8 @@ impl CryptographicAnalyzer {
         }
 
         for detector in &self.side_channel_detector.electromagnetic_detectors {
-            electromagnetic_vulnerabilities.extend(detector.detect_electromagnetic_vulnerabilities(context)?);
+            electromagnetic_vulnerabilities
+                .extend(detector.detect_electromagnetic_vulnerabilities(context)?);
         }
 
         for detector in &self.side_channel_detector.acoustic_attack_detectors {
@@ -427,7 +492,8 @@ impl CryptographicAnalyzer {
         }
 
         for detector in &self.side_channel_detector.fault_injection_detectors {
-            fault_injection_vulnerabilities.extend(detector.detect_fault_injection_vulnerabilities(context)?);
+            fault_injection_vulnerabilities
+                .extend(detector.detect_fault_injection_vulnerabilities(context)?);
         }
 
         let side_channel_countermeasures = self.identify_applicable_countermeasures(context)?;
@@ -462,21 +528,55 @@ impl CryptographicAnalyzer {
         })
     }
 
-    fn analyze_cryptographic_protocols(&mut self, context: &TraitUsageContext) -> Result<ProtocolAnalysisResult, CryptographicAnalysisError> {
-        let tls_analysis = self.protocol_analyzer.tls_analyzer.analyze_tls_usage(context)?;
-        let ssh_analysis = self.protocol_analyzer.ssh_analyzer.analyze_ssh_usage(context)?;
-        let ipsec_analysis = self.protocol_analyzer.ipsec_analyzer.analyze_ipsec_usage(context)?;
-        let pgp_analysis = self.protocol_analyzer.pgp_analyzer.analyze_pgp_usage(context)?;
-        let oauth_analysis = self.protocol_analyzer.oauth_analyzer.analyze_oauth_usage(context)?;
-        let saml_analysis = self.protocol_analyzer.saml_analyzer.analyze_saml_usage(context)?;
-        let kerberos_analysis = self.protocol_analyzer.kerberos_analyzer.analyze_kerberos_usage(context)?;
+    fn analyze_cryptographic_protocols(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<ProtocolAnalysisResult, CryptographicAnalysisError> {
+        let tls_analysis = self
+            .protocol_analyzer
+            .tls_analyzer
+            .analyze_tls_usage(context)?;
+        let ssh_analysis = self
+            .protocol_analyzer
+            .ssh_analyzer
+            .analyze_ssh_usage(context)?;
+        let ipsec_analysis = self
+            .protocol_analyzer
+            .ipsec_analyzer
+            .analyze_ipsec_usage(context)?;
+        let pgp_analysis = self
+            .protocol_analyzer
+            .pgp_analyzer
+            .analyze_pgp_usage(context)?;
+        let oauth_analysis = self
+            .protocol_analyzer
+            .oauth_analyzer
+            .analyze_oauth_usage(context)?;
+        let saml_analysis = self
+            .protocol_analyzer
+            .saml_analyzer
+            .analyze_saml_usage(context)?;
+        let kerberos_analysis = self
+            .protocol_analyzer
+            .kerberos_analyzer
+            .analyze_kerberos_usage(context)?;
 
-        let protocol_state_analysis = self.protocol_analyzer.protocol_state_analyzer.analyze_protocol_states(context)?;
-        let message_flow_analysis = self.protocol_analyzer.message_flow_analyzer.analyze_message_flows(context)?;
-        let authentication_analysis = self.protocol_analyzer.authentication_analyzer.analyze_authentication_protocols(context)?;
+        let protocol_state_analysis = self
+            .protocol_analyzer
+            .protocol_state_analyzer
+            .analyze_protocol_states(context)?;
+        let message_flow_analysis = self
+            .protocol_analyzer
+            .message_flow_analyzer
+            .analyze_message_flows(context)?;
+        let authentication_analysis = self
+            .protocol_analyzer
+            .authentication_analyzer
+            .analyze_authentication_protocols(context)?;
 
         let protocol_vulnerabilities = self.identify_protocol_vulnerabilities(context)?;
-        let protocol_recommendations = self.generate_protocol_recommendations(&protocol_vulnerabilities)?;
+        let protocol_recommendations =
+            self.generate_protocol_recommendations(&protocol_vulnerabilities)?;
 
         Ok(ProtocolAnalysisResult {
             tls_analysis,
@@ -494,7 +594,10 @@ impl CryptographicAnalyzer {
         })
     }
 
-    fn analyze_random_number_generation(&mut self, context: &TraitUsageContext) -> Result<RandomNumberAnalysisResult, CryptographicAnalysisError> {
+    fn analyze_random_number_generation(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<RandomNumberAnalysisResult, CryptographicAnalysisError> {
         let entropy_test_results = self.run_entropy_tests(context)?;
         let statistical_test_results = self.run_statistical_randomness_tests(context)?;
         let predictability_analysis = self.analyze_predictability(context)?;
@@ -504,9 +607,18 @@ impl CryptographicAnalyzer {
         let trng_analysis = self.analyze_trng_implementations(context)?;
         let drbg_analysis = self.analyze_drbg_implementations(context)?;
 
-        let nist_test_results = self.random_number_analyzer.nist_test_suite.run_tests(context)?;
-        let diehard_test_results = self.random_number_analyzer.diehard_test_suite.run_tests(context)?;
-        let testu01_results = self.random_number_analyzer.testU01_suite.run_tests(context)?;
+        let nist_test_results = self
+            .random_number_analyzer
+            .nist_test_suite
+            .run_tests(context)?;
+        let diehard_test_results = self
+            .random_number_analyzer
+            .diehard_test_suite
+            .run_tests(context)?;
+        let testu01_results = self
+            .random_number_analyzer
+            .test_u01_suite
+            .run_tests(context)?;
 
         let randomness_quality_score = self.calculate_randomness_quality_score(
             &entropy_test_results,
@@ -538,7 +650,10 @@ impl CryptographicAnalyzer {
         })
     }
 
-    fn analyze_hash_functions(&mut self, context: &TraitUsageContext) -> Result<HashFunctionAnalysisResult, CryptographicAnalysisError> {
+    fn analyze_hash_functions(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<HashFunctionAnalysisResult, CryptographicAnalysisError> {
         let collision_resistance_results = self.test_collision_resistance(context)?;
         let preimage_resistance_results = self.test_preimage_resistance(context)?;
         let second_preimage_results = self.test_second_preimage_resistance(context)?;
@@ -547,8 +662,14 @@ impl CryptographicAnalyzer {
         let length_extension_analysis = self.analyze_length_extension_vulnerability(context)?;
 
         let hash_family_analysis = self.analyze_hash_families(context)?;
-        let merkle_damgard_analysis = self.hash_function_analyzer.merkle_damgard_analyzer.analyze(context)?;
-        let sponge_function_analysis = self.hash_function_analyzer.sponge_function_analyzer.analyze(context)?;
+        let merkle_damgard_analysis = self
+            .hash_function_analyzer
+            .merkle_damgard_analyzer
+            .analyze(context)?;
+        let sponge_function_analysis = self
+            .hash_function_analyzer
+            .sponge_function_analyzer
+            .analyze(context)?;
 
         let hash_security_score = self.calculate_hash_security_score(
             &collision_resistance_results,
@@ -578,7 +699,10 @@ impl CryptographicAnalyzer {
         })
     }
 
-    fn analyze_digital_signatures(&mut self, context: &TraitUsageContext) -> Result<SignatureAnalysisResult, CryptographicAnalysisError> {
+    fn analyze_digital_signatures(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<SignatureAnalysisResult, CryptographicAnalysisError> {
         let mut signature_scheme_results = HashMap::new();
         let mut verification_results = Vec::new();
         let mut forge_resistance_results = Vec::new();
@@ -612,7 +736,6 @@ impl CryptographicAnalyzer {
             &verification_results,
             &forge_resistance_results,
         )?;
-
         let signature_recommendations = self.generate_signature_recommendations(
             &forge_resistance_results,
             &existential_forgery_results,
@@ -634,7 +757,10 @@ impl CryptographicAnalyzer {
         })
     }
 
-    fn analyze_encryption_schemes(&mut self, context: &TraitUsageContext) -> Result<EncryptionAnalysisResult, CryptographicAnalysisError> {
+    fn analyze_encryption_schemes(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<EncryptionAnalysisResult, CryptographicAnalysisError> {
         let symmetric_encryption_analysis = self.analyze_symmetric_encryption(context)?;
         let asymmetric_encryption_analysis = self.analyze_asymmetric_encryption(context)?;
         let mode_of_operation_analysis = self.analyze_modes_of_operation(context)?;
@@ -645,8 +771,14 @@ impl CryptographicAnalyzer {
         let chosen_ciphertext_analysis = self.analyze_chosen_ciphertext_attacks(context)?;
         let known_plaintext_analysis = self.analyze_known_plaintext_attacks(context)?;
 
-        let differential_cryptanalysis_results = self.encryption_analyzer.differential_cryptanalysis.analyze(context)?;
-        let linear_cryptanalysis_results = self.encryption_analyzer.linear_cryptanalysis.analyze(context)?;
+        let differential_cryptanalysis_results = self
+            .encryption_analyzer
+            .differential_cryptanalysis
+            .analyze(context)?;
+        let linear_cryptanalysis_results = self
+            .encryption_analyzer
+            .linear_cryptanalysis
+            .analyze(context)?;
 
         let encryption_security_score = self.calculate_encryption_security_score(
             &symmetric_encryption_analysis,
@@ -677,7 +809,10 @@ impl CryptographicAnalyzer {
         })
     }
 
-    fn analyze_quantum_resistance(&mut self, context: &TraitUsageContext) -> Result<QuantumResistanceAnalysisResult, CryptographicAnalysisError> {
+    fn analyze_quantum_resistance(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<QuantumResistanceAnalysisResult, CryptographicAnalysisError> {
         let mut post_quantum_results = HashMap::new();
 
         for (name, analyzer) in &self.quantum_resistance_analyzer.post_quantum_analyzers {
@@ -685,9 +820,18 @@ impl CryptographicAnalyzer {
             post_quantum_results.insert(name.clone(), result);
         }
 
-        let shor_algorithm_impact = self.quantum_resistance_analyzer.shor_algorithm_analyzer.analyze_impact(context)?;
-        let grover_algorithm_impact = self.quantum_resistance_analyzer.grover_algorithm_analyzer.analyze_impact(context)?;
-        let quantum_key_distribution_analysis = self.quantum_resistance_analyzer.quantum_key_distribution_analyzer.analyze(context)?;
+        let shor_algorithm_impact = self
+            .quantum_resistance_analyzer
+            .shor_algorithm_analyzer
+            .analyze_impact(context)?;
+        let grover_algorithm_impact = self
+            .quantum_resistance_analyzer
+            .grover_algorithm_analyzer
+            .analyze_impact(context)?;
+        let quantum_key_distribution_analysis = self
+            .quantum_resistance_analyzer
+            .quantum_key_distribution_analyzer
+            .analyze(context)?;
 
         let lattice_based_analysis = self.analyze_lattice_based_cryptography(context)?;
         let code_based_analysis = self.analyze_code_based_cryptography(context)?;
@@ -703,7 +847,6 @@ impl CryptographicAnalyzer {
             &shor_algorithm_impact,
             &grover_algorithm_impact,
         )?;
-
         let quantum_recommendations = self.generate_quantum_resistance_recommendations(
             &quantum_threat_assessment,
             &migration_strategy,
@@ -726,14 +869,18 @@ impl CryptographicAnalyzer {
         })
     }
 
-    fn analyze_cryptographic_implementation(&mut self, context: &TraitUsageContext) -> Result<ImplementationAnalysisResult, CryptographicAnalysisError> {
+    fn analyze_cryptographic_implementation(
+        &mut self,
+        context: &TraitUsageContext,
+    ) -> Result<ImplementationAnalysisResult, CryptographicAnalysisError> {
         let constant_time_analysis = self.analyze_constant_time_implementation(context)?;
         let memory_safety_analysis = self.analyze_memory_safety(context)?;
         let secure_coding_analysis = self.analyze_secure_coding_practices(context)?;
         let library_analysis = self.analyze_cryptographic_libraries(context)?;
         let hardware_security_analysis = self.analyze_hardware_security_features(context)?;
 
-        let side_channel_countermeasures_analysis = self.analyze_side_channel_countermeasures(context)?;
+        let side_channel_countermeasures_analysis =
+            self.analyze_side_channel_countermeasures(context)?;
         let fault_tolerance_analysis = self.analyze_fault_tolerance(context)?;
         let performance_security_analysis = self.analyze_performance_security_tradeoffs(context)?;
 
@@ -765,6 +912,27 @@ impl CryptographicAnalyzer {
     }
 }
 
+/// Bundled refs to every per-domain sub-analysis; avoids an unwieldy positional-argument list in
+/// [`CryptographicAnalyzer::generate_security_recommendations`] (see `clippy::too_many_arguments`).
+struct CryptoSubAnalysesRef<'a> {
+    algorithm: &'a AlgorithmAnalysisResult,
+    key_management: &'a KeyManagementAnalysisResult,
+    side_channel: &'a SideChannelAnalysisResult,
+    protocol: &'a ProtocolAnalysisResult,
+    random_number: &'a RandomNumberAnalysisResult,
+    hash_function: &'a HashFunctionAnalysisResult,
+    signature: &'a SignatureAnalysisResult,
+    encryption: &'a EncryptionAnalysisResult,
+    quantum_resistance: &'a QuantumResistanceAnalysisResult,
+    implementation: &'a ImplementationAnalysisResult,
+}
+
+impl Default for CryptographicAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CryptographicAlgorithmAnalyzer {
     pub fn new() -> Self {
         Self {
@@ -782,19 +950,37 @@ impl CryptographicAlgorithmAnalyzer {
     fn initialize_symmetric_analyzers() -> HashMap<String, SymmetricAlgorithmAnalyzer> {
         let mut analyzers = HashMap::new();
         analyzers.insert("AES".to_string(), SymmetricAlgorithmAnalyzer::new_aes());
-        analyzers.insert("ChaCha20".to_string(), SymmetricAlgorithmAnalyzer::new_chacha20());
-        analyzers.insert("Salsa20".to_string(), SymmetricAlgorithmAnalyzer::new_salsa20());
+        analyzers.insert(
+            "ChaCha20".to_string(),
+            SymmetricAlgorithmAnalyzer::new_chacha20(),
+        );
+        analyzers.insert(
+            "Salsa20".to_string(),
+            SymmetricAlgorithmAnalyzer::new_salsa20(),
+        );
         analyzers.insert("3DES".to_string(), SymmetricAlgorithmAnalyzer::new_3des());
-        analyzers.insert("Blowfish".to_string(), SymmetricAlgorithmAnalyzer::new_blowfish());
-        analyzers.insert("Twofish".to_string(), SymmetricAlgorithmAnalyzer::new_twofish());
+        analyzers.insert(
+            "Blowfish".to_string(),
+            SymmetricAlgorithmAnalyzer::new_blowfish(),
+        );
+        analyzers.insert(
+            "Twofish".to_string(),
+            SymmetricAlgorithmAnalyzer::new_twofish(),
+        );
         analyzers
     }
 
     fn initialize_asymmetric_analyzers() -> HashMap<String, AsymmetricAlgorithmAnalyzer> {
         let mut analyzers = HashMap::new();
         analyzers.insert("RSA".to_string(), AsymmetricAlgorithmAnalyzer::new_rsa());
-        analyzers.insert("ECDSA".to_string(), AsymmetricAlgorithmAnalyzer::new_ecdsa());
-        analyzers.insert("EdDSA".to_string(), AsymmetricAlgorithmAnalyzer::new_eddsa());
+        analyzers.insert(
+            "ECDSA".to_string(),
+            AsymmetricAlgorithmAnalyzer::new_ecdsa(),
+        );
+        analyzers.insert(
+            "EdDSA".to_string(),
+            AsymmetricAlgorithmAnalyzer::new_eddsa(),
+        );
         analyzers.insert("DH".to_string(), AsymmetricAlgorithmAnalyzer::new_dh());
         analyzers.insert("ECDH".to_string(), AsymmetricAlgorithmAnalyzer::new_ecdh());
         analyzers.insert("DSA".to_string(), AsymmetricAlgorithmAnalyzer::new_dsa());
@@ -847,13 +1033,165 @@ impl CryptographicAlgorithmAnalyzer {
 
     fn initialize_security_levels() -> HashMap<String, SecurityLevel> {
         let mut levels = HashMap::new();
-        levels.insert("AES-128".to_string(), SecurityLevel::new(128, SecurityStrength::High));
-        levels.insert("AES-256".to_string(), SecurityLevel::new(256, SecurityStrength::VeryHigh));
-        levels.insert("RSA-2048".to_string(), SecurityLevel::new(112, SecurityStrength::Medium));
-        levels.insert("RSA-3072".to_string(), SecurityLevel::new(128, SecurityStrength::High));
-        levels.insert("ECDSA-P256".to_string(), SecurityLevel::new(128, SecurityStrength::High));
-        levels.insert("ECDSA-P384".to_string(), SecurityLevel::new(192, SecurityStrength::VeryHigh));
+        levels.insert(
+            "AES-128".to_string(),
+            SecurityLevel::new(128, SecurityStrength::High),
+        );
+        levels.insert(
+            "AES-256".to_string(),
+            SecurityLevel::new(256, SecurityStrength::VeryHigh),
+        );
+        levels.insert(
+            "RSA-2048".to_string(),
+            SecurityLevel::new(112, SecurityStrength::Medium),
+        );
+        levels.insert(
+            "RSA-3072".to_string(),
+            SecurityLevel::new(128, SecurityStrength::High),
+        );
+        levels.insert(
+            "ECDSA-P256".to_string(),
+            SecurityLevel::new(128, SecurityStrength::High),
+        );
+        levels.insert(
+            "ECDSA-P384".to_string(),
+            SecurityLevel::new(192, SecurityStrength::VeryHigh),
+        );
         levels
+    }
+}
+
+// Manager-level `new()` bodies and shared `Default` boilerplate.
+
+manager_new! {
+    KeyManagementAnalyzer {
+        key_generation_analyzers: Vec::new(), key_storage_analyzers: Vec::new(), key_distribution_analyzers: Vec::new(),
+        key_rotation_analyzers: Vec::new(), key_revocation_analyzers: Vec::new(), key_escrow_analyzers: Vec::new(),
+        entropy_analyzers: Vec::new(), key_lifecycle_analyzer: KeyLifecycleAnalyzer::new(),
+        key_derivation_analyzer: KeyDerivationAnalyzer::new(), key_agreement_analyzer: KeyAgreementAnalyzer::new()
+    }
+    SideChannelAttackDetector {
+        timing_attack_detectors: vec![TimingAttackDetector::new()], power_analysis_detectors: vec![PowerAnalysisDetector::new()],
+        electromagnetic_detectors: vec![ElectromagneticAttackDetector::new()], acoustic_attack_detectors: vec![AcousticAttackDetector::new()],
+        cache_attack_detectors: vec![CacheAttackDetector::new()], fault_injection_detectors: vec![FaultInjectionDetector::new()],
+        differential_power_analysis: DifferentialPowerAnalysis::new(), simple_power_analysis: SimplePowerAnalysis::new(),
+        correlation_power_analysis: CorrelationPowerAnalysis::new(), template_attack_detector: TemplateAttackDetector::new()
+    }
+    CryptographicProtocolAnalyzer {
+        tls_analyzer: TlsProtocolAnalyzer::new(), ssh_analyzer: SshProtocolAnalyzer::new(), ipsec_analyzer: IpsecProtocolAnalyzer::new(),
+        pgp_analyzer: PgpProtocolAnalyzer::new(), oauth_analyzer: OAuthProtocolAnalyzer::new(), saml_analyzer: SamlProtocolAnalyzer::new(),
+        kerberos_analyzer: KerberosProtocolAnalyzer::new(), protocol_state_analyzer: ProtocolStateAnalyzer::new(),
+        message_flow_analyzer: MessageFlowAnalyzer::new(), authentication_analyzer: AuthenticationProtocolAnalyzer::new()
+    }
+    RandomNumberGeneratorAnalyzer {
+        entropy_testers: Vec::new(), statistical_testers: Vec::new(), predictability_analyzers: Vec::new(), seed_analyzers: Vec::new(),
+        prng_analyzers: HashMap::new(), trng_analyzers: HashMap::new(), drbg_analyzers: HashMap::new(),
+        nist_test_suite: NistRandomnessTestSuite::new(), diehard_test_suite: DiehardTestSuite::new(), test_u01_suite: TestU01Suite::new()
+    }
+    HashFunctionAnalyzer {
+        collision_resistance_testers: Vec::new(), preimage_resistance_testers: Vec::new(), second_preimage_testers: Vec::new(),
+        avalanche_effect_testers: Vec::new(), birthday_attack_analyzers: Vec::new(), length_extension_analyzers: Vec::new(),
+        hash_family_analyzers: HashMap::new(), merkle_damgard_analyzer: MerkleDamgardAnalyzer::new(),
+        sponge_function_analyzer: SpongeFunctionAnalyzer::new()
+    }
+    DigitalSignatureAnalyzer {
+        signature_scheme_analyzers: { let mut m = HashMap::new(); m.insert("RSA-PSS".to_string(), SignatureSchemeAnalyzer::new()); m.insert("ECDSA".to_string(), SignatureSchemeAnalyzer::new()); m },
+        verification_analyzers: vec![SignatureVerificationAnalyzer::new()], forge_resistance_testers: vec![ForgeResistanceTester::new()],
+        existential_forgery_testers: vec![ExistentialForgeryTester::new()], chosen_message_analyzers: Vec::new(),
+        blind_signature_analyzers: Vec::new(), multi_signature_analyzers: Vec::new(), threshold_signature_analyzers: Vec::new(),
+        ring_signature_analyzers: Vec::new()
+    }
+    EncryptionAnalyzer {
+        symmetric_encryption_analyzers: HashMap::new(), asymmetric_encryption_analyzers: HashMap::new(),
+        mode_of_operation_analyzers: HashMap::new(), padding_scheme_analyzers: HashMap::new(),
+        authenticated_encryption_analyzers: Vec::new(), chosen_plaintext_analyzers: Vec::new(), chosen_ciphertext_analyzers: Vec::new(),
+        known_plaintext_analyzers: Vec::new(), differential_cryptanalysis: DifferentialCryptanalysis::new(),
+        linear_cryptanalysis: LinearCryptanalysis::new()
+    }
+    QuantumResistanceAnalyzer {
+        post_quantum_analyzers: { let mut m = HashMap::new(); m.insert("Kyber".to_string(), PostQuantumAnalyzer::new()); m.insert("Dilithium".to_string(), PostQuantumAnalyzer::new()); m },
+        shor_algorithm_analyzer: ShorAlgorithmAnalyzer::new(), grover_algorithm_analyzer: GroverAlgorithmAnalyzer::new(),
+        quantum_key_distribution_analyzer: QuantumKeyDistributionAnalyzer::new(), lattice_based_analyzers: Vec::new(),
+        code_based_analyzers: Vec::new(), multivariate_analyzers: Vec::new(), hash_based_analyzers: Vec::new(),
+        isogeny_analyzers: Vec::new(), quantum_threat_timeline: QuantumThreatTimeline::new()
+    }
+    CryptographicImplementationAnalyzer {
+        constant_time_analyzers: Vec::new(), memory_safety_analyzers: Vec::new(), secure_coding_analyzers: Vec::new(),
+        library_analyzers: HashMap::new(), hardware_security_analyzers: Vec::new(), side_channel_countermeasures: Vec::new(),
+        fault_tolerance_analyzers: Vec::new(), performance_security_analyzers: Vec::new()
+    }
+}
+
+default_via_new! {
+    CryptographicAlgorithmAnalyzer, KeyManagementAnalyzer, SideChannelAttackDetector, CryptographicProtocolAnalyzer,
+    RandomNumberGeneratorAnalyzer, HashFunctionAnalyzer, DigitalSignatureAnalyzer, EncryptionAnalyzer,
+    QuantumResistanceAnalyzer, CryptographicImplementationAnalyzer,
+}
+
+// Compliance / vulnerability-scan sub-managers used directly by `CryptographicAnalyzer`.
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CryptographicComplianceChecker {}
+
+impl CryptographicComplianceChecker {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn check_compliance(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<CryptographicComplianceStatus, CryptographicAnalysisError> {
+        Ok(
+            if context.has_cryptographic_operations
+                && context.has_secure_key_management
+                && context.has_constant_time_operations
+            {
+                CryptographicComplianceStatus::Compliant
+            } else if context.has_cryptographic_operations
+                && (context.has_secure_key_management || context.has_constant_time_operations)
+            {
+                CryptographicComplianceStatus::PartiallyCompliant
+            } else if context.has_cryptographic_operations {
+                CryptographicComplianceStatus::NonCompliant
+            } else {
+                CryptographicComplianceStatus::NotAssessed
+            },
+        )
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CryptographicVulnerabilityScanner {}
+
+impl CryptographicVulnerabilityScanner {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn scan_vulnerabilities(
+        &self,
+        context: &TraitUsageContext,
+    ) -> Result<CryptographicVulnerabilityReport, CryptographicAnalysisError> {
+        let mut total = 0usize;
+        let mut critical = 0usize;
+        if context.has_cryptographic_operations && !context.has_constant_time_operations {
+            total += 1;
+            critical += 1;
+        }
+        if context.has_cryptographic_operations && !context.has_secure_key_management {
+            total += 1;
+        }
+        if context.has_timing_dependencies && !context.has_constant_time_operations {
+            total += 1;
+        }
+        Ok(CryptographicVulnerabilityReport {
+            total_findings: total,
+            critical_findings: critical,
+            summary: format!(
+                "{total} potential cryptographic weaknesses identified ({critical} critical)"
+            ),
+        })
     }
 }
 
@@ -872,13 +1210,27 @@ pub enum CryptographicAnalysisError {
 impl std::fmt::Display for CryptographicAnalysisError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CryptographicAnalysisError::AlgorithmAnalysisError(msg) => write!(f, "Algorithm analysis error: {}", msg),
-            CryptographicAnalysisError::KeyManagementError(msg) => write!(f, "Key management error: {}", msg),
-            CryptographicAnalysisError::SideChannelAnalysisError(msg) => write!(f, "Side channel analysis error: {}", msg),
-            CryptographicAnalysisError::ProtocolAnalysisError(msg) => write!(f, "Protocol analysis error: {}", msg),
-            CryptographicAnalysisError::RandomnessAnalysisError(msg) => write!(f, "Randomness analysis error: {}", msg),
-            CryptographicAnalysisError::ImplementationAnalysisError(msg) => write!(f, "Implementation analysis error: {}", msg),
-            CryptographicAnalysisError::ConfigurationError(msg) => write!(f, "Configuration error: {}", msg),
+            CryptographicAnalysisError::AlgorithmAnalysisError(msg) => {
+                write!(f, "Algorithm analysis error: {}", msg)
+            }
+            CryptographicAnalysisError::KeyManagementError(msg) => {
+                write!(f, "Key management error: {}", msg)
+            }
+            CryptographicAnalysisError::SideChannelAnalysisError(msg) => {
+                write!(f, "Side channel analysis error: {}", msg)
+            }
+            CryptographicAnalysisError::ProtocolAnalysisError(msg) => {
+                write!(f, "Protocol analysis error: {}", msg)
+            }
+            CryptographicAnalysisError::RandomnessAnalysisError(msg) => {
+                write!(f, "Randomness analysis error: {}", msg)
+            }
+            CryptographicAnalysisError::ImplementationAnalysisError(msg) => {
+                write!(f, "Implementation analysis error: {}", msg)
+            }
+            CryptographicAnalysisError::ConfigurationError(msg) => {
+                write!(f, "Configuration error: {}", msg)
+            }
             CryptographicAnalysisError::DataError(msg) => write!(f, "Data error: {}", msg),
         }
     }
@@ -888,7 +1240,7 @@ impl std::error::Error for CryptographicAnalysisError {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CryptographicAnalysisConfig {
-    pub algorithm_analysis_depth: AnalysisDepth,
+    pub algorithm_analysis_depth: CryptoAnalysisDepth,
     pub side_channel_analysis_enabled: bool,
     pub quantum_resistance_analysis_enabled: bool,
     pub compliance_standards: Vec<String>,
@@ -899,7 +1251,7 @@ pub struct CryptographicAnalysisConfig {
 impl Default for CryptographicAnalysisConfig {
     fn default() -> Self {
         Self {
-            algorithm_analysis_depth: AnalysisDepth::Moderate,
+            algorithm_analysis_depth: CryptoAnalysisDepth::Moderate,
             side_channel_analysis_enabled: true,
             quantum_resistance_analysis_enabled: true,
             compliance_standards: vec!["FIPS-140-2".to_string(), "Common Criteria".to_string()],
@@ -912,7 +1264,7 @@ impl Default for CryptographicAnalysisConfig {
 macro_rules! define_crypto_supporting_types {
     () => {
         #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub enum AnalysisDepth {
+        pub enum CryptoAnalysisDepth {
             Surface,
             Moderate,
             Deep,
@@ -974,7 +1326,67 @@ pub fn create_cryptographic_analyzer() -> CryptographicAnalyzer {
     CryptographicAnalyzer::new()
 }
 
-pub fn analyze_cryptographic_security(context: &TraitUsageContext) -> Result<CryptographicAnalysisResult, CryptographicAnalysisError> {
+pub fn analyze_cryptographic_security(
+    context: &TraitUsageContext,
+) -> Result<CryptographicAnalysisResult, CryptographicAnalysisError> {
     let mut analyzer = CryptographicAnalyzer::new();
     analyzer.analyze_cryptographic_security(context)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// End-to-end smoke test: an insecure crypto usage context should produce in-range scores
+    /// and at least one identified issue; a benign (non-crypto) context should surface none.
+    #[test]
+    fn test_analyze_cryptographic_security_smoke() {
+        let insecure = TraitUsageContext {
+            trait_name: "Cipher".to_string(),
+            traits: vec!["Cipher".to_string()],
+            has_cryptographic_operations: true,
+            has_constant_time_operations: false,
+            has_secure_key_management: false,
+            handles_sensitive_data: true,
+            ..Default::default()
+        };
+        let analysis = analyze_cryptographic_security(&insecure).expect("analysis should succeed");
+        assert!((0.0..=10.0).contains(&analysis.overall_cryptographic_score));
+        assert!((0.0..=10.0).contains(&analysis.risk_score));
+        assert!((0.0..=1.0).contains(&analysis.analysis_confidence));
+        assert!(
+            !analysis.identified_issues.is_empty(),
+            "insecure crypto usage should surface at least one issue"
+        );
+
+        let benign = TraitUsageContext {
+            trait_name: "Display".to_string(),
+            traits: vec!["Display".to_string()],
+            ..Default::default()
+        };
+        assert!(analyze_cryptographic_security(&benign)
+            .expect("analysis should succeed")
+            .identified_issues
+            .is_empty());
+    }
+
+    /// Repeated analysis of the same context should hit the cache and return the same
+    /// `analysis_id`, exercising `generate_analysis_id`/`get_cached_analysis`/`is_cache_valid`.
+    #[test]
+    fn test_analysis_cache_reuses_result() {
+        let mut analyzer = create_cryptographic_analyzer();
+        let context = TraitUsageContext {
+            trait_name: "Hasher".to_string(),
+            traits: vec!["Hasher".to_string()],
+            has_cryptographic_operations: true,
+            ..Default::default()
+        };
+        let first = analyzer
+            .analyze_cryptographic_security(&context)
+            .expect("first analysis should succeed");
+        let second = analyzer
+            .analyze_cryptographic_security(&context)
+            .expect("second analysis should succeed");
+        assert_eq!(first.analysis_id, second.analysis_id);
+    }
 }

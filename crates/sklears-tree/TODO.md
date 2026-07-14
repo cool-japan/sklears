@@ -51,6 +51,11 @@
 
 - [x] Phase C-4: Removed all 7 blanket #![allow(...)] suppressors; 71 tests pass, 0 warnings
 
+## Known Gaps (found during 2026-07-11 README audit)
+
+- [ ] (L) Several top-level `src/*.rs` files are **not** declared as `mod`/`pub mod` anywhere in `lib.rs` (verified via `git log --all -p -- src/lib.rs`, which shows they have never been wired in, even back to v0.1.0) and are therefore dead code excluded from the compiled crate: `bart.rs`, `soft_tree.rs`, `gradient_boosting.rs` (+ its 15 internal submodules: GOSS/EFB/histogram training/etc.), `fairness.rs`, `spatial.rs`, `temporal.rs`, `adaboost.rs`, `categorical.rs`, `tree_visualization.rs`, `numa.rs`, `mmap_storage.rs`, `feature_importance.rs`, `sparse.rs`, `distributed.rs`, `extra_trees.rs`, `building.rs`, `compact.rs`, `shared.rs`, `loss_functions.rs`, and the whole `tree_interpretation/` directory (LIME, decision-path, anchor explainers). README.md previously advertised BART, Soft Decision Trees, LightGBM-style GOSS/EFB gradient boosting, Fairness-Aware Trees, Temporal/Spatial trees, Memory-Mapped storage, distributed training, and LIME as implemented (✓) — none of that is reachable from the public API. README.md has been corrected to describe only genuinely wired modules (Decision Tree/Random Forest/Isolation Forest/Model Tree/Multi-Output/Multi-Label trees, oblique+CHAID splits, TreeSHAP, Hoeffding/incremental/online-gradient-boosting streaming, parallel training, compact/bit-packed tree storage).
+  - **Action needed:** either (a) wire the salvageable files in as real `pub mod` declarations after auditing each for correctness/completeness (largest lift: `gradient_boosting.rs` and its submodule tree), or (b) delete the orphaned files entirely if they're abandoned drafts, to stop future confusion. Until one of these happens, do not re-add these as README features.
+
 ---
 
 See also: [Workspace roadmap](../../TODO.md)

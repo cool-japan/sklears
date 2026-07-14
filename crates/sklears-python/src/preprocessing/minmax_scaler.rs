@@ -27,8 +27,10 @@ struct MinMaxScalerState {
 ///
 /// The transformation is given by:
 ///
-///     X_std = (X - X.min(axis=0)) / (X.max(axis=0) - X.min(axis=0))
-///     X_scaled = X_std * (max - min) + min
+/// ```text
+/// X_std = (X - X.min(axis=0)) / (X.max(axis=0) - X.min(axis=0))
+/// X_scaled = X_std * (max - min) + min
+/// ```
 ///
 /// where min, max = feature_range.
 ///
@@ -191,7 +193,11 @@ impl PyMinMaxScaler {
     /// -------
     /// Xt : ndarray of shape (n_samples, n_features)
     ///     Transformed data.
-    fn transform<'py>(&self, py: Python<'py>, x: PyReadonlyArray2<f64>) -> PyResult<Py<PyArray2<f64>>> {
+    fn transform<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Py<PyArray2<f64>>> {
         let state = self
             .state
             .as_ref()

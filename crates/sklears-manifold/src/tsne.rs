@@ -51,7 +51,7 @@ use sklears_core::{
 ///     .perplexity(2.0)
 ///     .n_iter(100);
 /// let fitted = tsne.fit(&X.view(), &()).unwrap();
-/// let embedding = fitted.transform(&X.view()).unwrap();
+/// let embedding = fitted.embedding();
 /// ```
 #[derive(Debug, Clone)]
 pub struct TSNE<S = Untrained> {
@@ -766,8 +766,16 @@ impl TSNE<Untrained> {
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for TSNE<TsneTrained> {
     fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        // t-SNE doesn't support transforming new data
-        Ok(self.state.embedding.clone())
+        Err(SklearsError::NotImplemented(
+            "t-SNE is a transductive method: like scikit-learn's TSNE (which has no \
+             transform() method at all), the embedding produced by fit() is only \
+             defined for the exact points used during training and cannot be \
+             extended to new, unseen data. Use `.embedding()` on the fitted model to \
+             retrieve the training embedding. To incorporate new points, refit t-SNE \
+             on the combined (old + new) dataset, or use Isomap or UMAP, which \
+             support real out-of-sample projection via transform() in this crate."
+                .to_string(),
+        ))
     }
 }
 

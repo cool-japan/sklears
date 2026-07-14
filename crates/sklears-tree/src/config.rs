@@ -10,8 +10,9 @@ use smartcore::linalg::basic::matrix::DenseMatrix;
 #[cfg(feature = "oblique")]
 use sklears_core::error::Result;
 
-// Import types from criteria module
-use crate::criteria::SplitCriterion;
+// Re-export SplitCriterion so downstream modules (classifier, regressor) can
+// import it via `crate::config` in addition to `crate::criteria`.
+pub use crate::criteria::SplitCriterion;
 
 /// Monotonic constraint for a feature
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -42,7 +42,7 @@ use sklears_core::{
 ///     .n_neighbors(2);
 ///
 /// let fitted = mbumap.fit(&x.view(), &()).unwrap();
-/// let embedded = fitted.transform(&x.view()).unwrap();
+/// let embedding = fitted.embedding();
 /// ```
 #[derive(Debug, Clone)]
 pub struct MiniBatchUMAP<S = Untrained> {
@@ -204,9 +204,19 @@ impl Fit<ArrayView2<'_, Float>, ()> for MiniBatchUMAP<Untrained> {
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for MiniBatchUMAP<MBUMAPTrained> {
     fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        // For fitted data, return the stored embedding
-        // For new data, this would require out-of-sample extension (not implemented here)
-        Ok(self.state.embedding.clone())
+        // This mini-batch implementation has no learned out-of-sample mapping:
+        // the embedding is produced by directly optimizing per-sample coordinates
+        // against the training k-NN graph, so there is no function that can place
+        // new points into that space. Report this honestly rather than silently
+        // returning the stale training-time embedding regardless of input. Users
+        // needing out-of-sample projection can consider this crate's full `UMAP`
+        // estimator, which supports out-of-sample transform.
+        Err(SklearsError::NotImplemented(
+            "MiniBatchUMAP does not support out-of-sample transform; use \
+             `embedding()` to retrieve the training-time embedding, or use this \
+             crate's `UMAP` estimator, which supports out-of-sample transform."
+                .to_string(),
+        ))
     }
 }
 
@@ -340,5 +350,56 @@ impl MiniBatchUMAP<MBUMAPTrained> {
     /// Get the learned embedding
     pub fn embedding(&self) -> &Array2<f64> {
         &self.state.embedding
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    #[test]
+    fn test_minibatch_umap_fit_works() {
+        let x = array![
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
+            [10.0, 11.0, 12.0]
+        ];
+
+        let mbumap = MiniBatchUMAP::new()
+            .n_components(2)
+            .n_neighbors(2)
+            .batch_size(2)
+            .n_epochs(3)
+            .random_state(Some(42));
+
+        let fitted = mbumap.fit(&x.view(), &()).expect("fit should succeed");
+        assert_eq!(fitted.embedding().dim(), (4, 2));
+    }
+
+    #[test]
+    fn test_minibatch_umap_transform_errors() {
+        let x = array![
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
+            [10.0, 11.0, 12.0]
+        ];
+
+        let mbumap = MiniBatchUMAP::new()
+            .n_components(2)
+            .n_neighbors(2)
+            .batch_size(2)
+            .n_epochs(3)
+            .random_state(Some(42));
+
+        let fitted = mbumap.fit(&x.view(), &()).expect("fit should succeed");
+        let result = fitted.transform(&x.view());
+
+        // MiniBatchUMAP has no learned out-of-sample mapping; transform() must
+        // honestly report NotImplemented rather than silently returning the
+        // stale training-time embedding regardless of input.
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
     }
 }

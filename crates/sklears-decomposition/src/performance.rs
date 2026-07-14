@@ -327,18 +327,25 @@ impl AlignedAllocator {
         dealloc(ptr as *mut u8, layout);
     }
 
-    /// Create aligned vector
-    pub fn aligned_vec(size: usize, alignment: usize) -> Result<Vec<Float>> {
-        let ptr = Self::allocate(size, alignment)?;
-
-        unsafe {
-            // Initialize to zero
-            ptr::write_bytes(ptr, 0, size);
-
-            // Create Vec from raw parts
-            // Note: This is a simplified version - real implementation would need custom Drop
-            Ok(Vec::from_raw_parts(ptr, size, size))
-        }
+    /// Create a zero-initialized, custom-aligned buffer.
+    ///
+    /// This intentionally returns [`crate::hardware_acceleration::AlignedBuffer`]
+    /// rather than `Vec<Float>`: `Vec::from_raw_parts` requires the backing
+    /// allocation to have been made with exactly `Layout::array::<Float>(cap)`
+    /// (i.e. `align_of::<Float>()`), since that is the layout `Vec`'s `Drop`
+    /// uses on deallocation. Handing a `Vec` a pointer allocated with a
+    /// *different* (e.g. SIMD/cache-line) alignment -- which is the entire
+    /// point of an "aligned" allocator -- would deallocate with a mismatched
+    /// `Layout` and is undefined behavior. `AlignedBuffer` stores its own
+    /// `Layout` and frees with the exact layout it was allocated with, so it
+    /// is sound for any requested alignment.
+    pub fn aligned_vec(
+        size: usize,
+        alignment: usize,
+    ) -> Result<crate::hardware_acceleration::AlignedBuffer> {
+        Ok(crate::hardware_acceleration::AlignedBuffer::new(
+            size, alignment,
+        ))
     }
 }
 

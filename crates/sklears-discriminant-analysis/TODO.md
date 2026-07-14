@@ -4,7 +4,7 @@
 
 - [x] Re-enable `pub mod async_optimization` — ENABLED (fixed SklearsError::ComputationError → ProcessingError, array view add, RwLockGuard across await)
 - [x] Re-enable `pub mod boundary_adjustment` — ENABLED (fixed associated type bound: T::Fitted → explicit F generic with Fitted=F + Send+Sync)
-- [~] Re-enable `pub mod gpu_acceleration` — DEFERRED: scirs2_core::gpu::kernels::reduction::ReductionKernel and scirs2_core::gpu::memory path do not exist in scirs2-core 0.4.2; requires gpu feature dep not in Cargo.toml
+- [x] Re-enable `pub mod gpu_acceleration` — DONE (2026-07-03): retargeted from dead `scirs2_core::gpu::*` to the real `sklears_core::gpu::{GpuBackend, GpuArray, GpuMatrixOps}` foundation; real GEMM-based class means/covariance; oxicuda-solver wiring for QDA inverse/log-determinant and an LDA generalized eigensolve via Cholesky reduction (no sygvd in oxicuda-solver 0.4.0); found and fixed a real bug in `NumericalStability::stable_inverse` (was a stub returning NotImplemented for non-symmetric matrices, now uses scirs2_linalg::inv); 322 tests passing (16 new gpu_acceleration tests, all GPU-path tests gracefully skip on this no-CUDA machine rather than silently no-op-passing).
 - [x] Re-enable `pub mod phantom_types` — ENABLED (const _: () = assert!() in generic fn → runtime assert!(), const fn → fn in ConfigurationValidator, added ldlt_solver() builder method)
 
 ## Source-level TODOs
@@ -27,6 +27,16 @@
 ## Phase C-4
 
 - [x] Phase C-4: Removed all 7 blanket #![allow(...)] suppressors; 300 tests pass, 0 warnings
+
+## OxiCUDA Migration (v0.2.0)
+
+Status: fully migrated — `gpu_acceleration` already runs on the oxicuda-backed `sklears_core::gpu` foundation (see 2026-07-03 entry above) and serves as the reference pattern for sklears-preprocessing. Remaining item is a forward-looking enhancement only.
+
+- [ ] Adopt oxicuda-solver `sygvd` for the LDA generalized eigensolve when it ships (S) — `solve_generalized_eigen_gpu` (src/gpu_acceleration.rs:554-598) hand-reduces `S_b w = lambda S_w w` via `dense::cholesky` + `dense::inverse` + two GEMMs + `dense::syevd` because oxicuda-solver still lacks a symmetric generalized eigensolver. Track oxicuda-solver releases; when `sygvd` (or on-device `syevd`) lands, replace the 4-step reduction with a single call. (blocked upstream 2026-07-06: oxicuda-solver 0.4.0 lacks sygvd — verified by inspecting both the crates.io 0.4.0 source cache and the ~/work/oxicuda dev tree (workspace version 0.4.1): `rg -rni "sygvd|generalized"` across `oxicuda-solver/src` finds only `dense/qz.rs`'s non-symmetric QZ solver (`qz_host`, an explicit CPU host fallback), no symmetric-definite generalized eigensolver and no on-device kernel. Re-checked 2026-07-14 against the workspace's current oxicuda-solver 0.5.0 pin (`~/work/oxicuda` dev tree): still only `dense/qz.rs`'s non-symmetric `qz_host` CPU fallback — no `sygvd`, no symmetric-definite generalized eigensolver, no on-device kernel. Re-check again on the next oxicuda-solver release past 0.5.0.)
+
+## Known Gaps (found during 2026-07-11 README audit)
+
+- [x] README previously advertised "Probability Calibration: Built-in support for Platt scaling and isotonic calibration for multiclass scenarios" — there is no Platt/isotonic calibration logic anywhere in this crate (`rg -i "platt|isotonic"` finds zero hits). The only nearby field, `CostSensitiveDiscriminantAnalysis`'s `calibration_method: String` (defaults to `"platt"`), is set in the config but never read/applied anywhere in `cost_sensitive_discriminant_analysis.rs` — it is a dead config knob, not a working feature. Removed the fabricated bullet from README.md; kept the accurate `predict_proba` claim.
 
 ---
 

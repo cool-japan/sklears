@@ -1137,6 +1137,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_storage_backend_creation() {
         let backend = StorageBackend::new(
             "test_backend".to_string(),

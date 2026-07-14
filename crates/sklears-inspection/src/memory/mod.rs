@@ -121,7 +121,7 @@ pub use cache_ops::{
 };
 
 // Memory layout management
-pub use layout_manager::{ExplanationDataLayout, MemoryLayoutManager};
+pub use layout_manager::{AlignedVec, ExplanationDataLayout, MemoryLayoutManager};
 
 // Shared explanation management
 pub use shared_manager::{

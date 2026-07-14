@@ -220,6 +220,7 @@ mod tests {
         }
     }
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_load_balancer_lifecycle() {
         let mut load_balancer = LoadBalancer::new().unwrap_or_default();
         load_balancer.initialize().unwrap_or_default();

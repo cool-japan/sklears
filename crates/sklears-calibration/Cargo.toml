@@ -28,6 +28,8 @@ oxicode = { workspace = true, optional = true }  # Modern replacement for bincod
 chrono = { workspace = true, features = ["serde"], optional = true }
 rayon = { workspace = true }
 num_cpus = { workspace = true }
+oxicuda-blas   = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true }
 
 [dev-dependencies]
 approx = { workspace = true }
@@ -43,6 +45,12 @@ serde = [
     "dep:chrono",
     "sklears-core/serde"
 ]
+# Real oxicuda-backed GPU device enumeration / memory queries / temperature-
+# scaling acceleration for `gpu_calibration`. Without this feature every
+# `gpu_calibration` type is a build-time-honest CPU-only stub (see
+# `src/gpu_calibration.rs`): no device is ever reported, so calibration always
+# runs on the CPU path.
+gpu = ["dep:oxicuda-blas", "dep:oxicuda-memory", "sklears-core/gpu_support"]
 
 [[bench]]
 name = "calibration_benchmarks"

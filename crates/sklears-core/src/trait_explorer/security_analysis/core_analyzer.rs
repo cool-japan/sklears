@@ -1,33 +1,126 @@
-use crate::api_reference_generator::TraitInfo;
 use crate::error::{Result, SklearsError};
 
 use super::security_types::*;
-use super::vulnerability_database::VulnerabilityDatabase;
+// Re-exported for `security_analysis::mod`'s `pub use core_analyzer::{...}` list: these
+// types are defined in `security_types` but are conceptually part of this module's public
+// surface, so they need to be reachable as `core_analyzer::SecurityAnalysisError` etc.
+// (a plain `use super::security_types::*;` above only brings them into *local* scope).
+use super::compliance_framework::{ComplianceFrameworkManager, ComplianceStatus};
+use super::crypto_analysis::{CryptographicAnalysisResult, CryptographicAnalyzer};
 use super::risk_assessment::SecurityRiskAssessor;
-use super::threat_modeling::ThreatModelingEngine;
-use super::crypto_analysis::CryptographicAnalyzer;
-use super::compliance_framework::ComplianceFrameworkManager;
-use super::security_metrics::SecurityMetricsCollector;
-
-// SciRS2 compliance - use scirs2-autograd for ndarray and scirs2-core for advanced features
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::ndarray_ext::{matrix, stats};
-use scirs2_core::random::{thread_rng, Random};
-
-// Note: Advanced SIMD and parallel types will be available in future scirs2_core versions
-// #[cfg(feature = "simd")]
-// use scirs2_core::simd::{SimdArray, SimdOps};
-
-// #[cfg(feature = "parallel")]
-// use scirs2_core::parallel::{ChunkStrategy, ParallelExecutor};
+use super::security_metrics::{SecurityMetricsCollector, SecurityMetricsResult};
+pub use super::security_types::{
+    RiskRecommendation, SecurityAnalysisError, SecurityAnalysisResult,
+};
+use super::threat_modeling::{ThreatModelingEngine, ThreatModelingResult};
+use super::vulnerability_database::VulnerabilityDatabase;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use chrono::{DateTime, Utc};
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::fmt;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::collections::HashMap;
+use std::time::{Duration, SystemTime};
+
+/// A single identified security vulnerability in a trait usage pattern.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct SecurityVulnerability {
+    pub id: String,
+    pub category: String,
+    pub severity: RiskSeverity,
+    pub description: String,
+    pub mitigation: String,
+    pub fix_complexity: ImplementationEffort,
+    pub cve_references: Vec<String>,
+    pub owasp_references: Vec<String>,
+    pub affected_platforms: Vec<String>,
+    pub discovery_date: DateTime<Utc>,
+    pub cvss_score: Option<f64>,
+}
+
+/// A single identified security risk (as opposed to a concrete vulnerability) arising
+/// from a trait usage pattern.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct SecurityRisk {
+    pub id: String,
+    pub category: String,
+    pub severity: RiskSeverity,
+    pub description: String,
+    pub impact: String,
+    pub likelihood: f64,
+    pub affected_components: Vec<String>,
+    pub mitigation_priority: MitigationPriority,
+}
+
+/// A recommendation to address a vulnerability, risk, threat, or cryptographic issue
+/// discovered during security analysis.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct SecurityRecommendation {
+    pub id: String,
+    pub priority: RiskSeverity,
+    pub category: String,
+    pub title: String,
+    pub description: String,
+    pub implementation_effort: ImplementationEffort,
+    pub testing_requirements: Vec<String>,
+    pub compliance_frameworks: Vec<String>,
+    pub estimated_cost: EstimatedCost,
+    pub implementation_timeline: Duration,
+    pub dependencies: Vec<String>,
+}
+
+/// Metadata describing an individual security analysis run (analyzer version, timing,
+/// and the analysis depth used).
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct SecurityAnalysisMetadata {
+    pub analyzer_version: String,
+    pub analysis_timestamp: DateTime<Utc>,
+    pub analysis_duration: Duration,
+    pub analysis_depth: AnalysisDepth,
+}
+
+/// The full result of analyzing a trait usage pattern for security concerns: known and
+/// pattern-based vulnerabilities, risk factors, recommendations, compliance status, and
+/// (optionally) threat modeling and cryptographic analysis results.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct SecurityAnalysis {
+    pub overall_risk_level: RiskLevel,
+    pub vulnerabilities: Vec<SecurityVulnerability>,
+    pub risk_factors: Vec<SecurityRisk>,
+    pub recommendations: Vec<SecurityRecommendation>,
+    pub compliance_status: ComplianceStatus,
+    pub threat_analysis: Option<ThreatModelingResult>,
+    pub crypto_analysis: Option<CryptographicAnalysisResult>,
+    pub security_metrics: SecurityMetricsResult,
+    pub analysis_timestamp: DateTime<Utc>,
+    pub cache_ttl: Duration,
+}
+
+/// A cached security analysis result together with the time it was produced.
+#[derive(Debug, Clone)]
+struct CachedSecurityAnalysis {
+    analysis: SecurityAnalysis,
+    timestamp: SystemTime,
+}
+
+impl CachedSecurityAnalysis {
+    /// Whether this cache entry has exceeded the default analysis cache lifetime.
+    fn is_expired(&self) -> bool {
+        self.is_expired_at(SystemTime::now())
+    }
+
+    /// Whether this cache entry is expired as of the given point in time.
+    fn is_expired_at(&self, now: SystemTime) -> bool {
+        now.duration_since(self.timestamp)
+            .map(|elapsed| elapsed > DEFAULT_ANALYSIS_TIMEOUT)
+            .unwrap_or(false)
+    }
+}
 
 /// Main security analyzer for trait usage patterns with comprehensive vulnerability assessment,
 /// risk analysis, compliance checking, and threat modeling capabilities.
@@ -44,8 +137,23 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust,no_run
 /// use sklears_core::trait_explorer::security_analysis::{
+///     create_trait_security_analyzer, TraitUsageContext,
+/// };
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut analyzer = create_trait_security_analyzer();
+/// let context = TraitUsageContext {
+///     trait_name: "MyTrait".to_string(),
+///     ..Default::default()
+/// };
+/// let analysis = analyzer.analyze_trait_security(&context)?;
+/// println!("Risk level: {:?}", analysis.overall_risk_level);
+/// println!("Vulnerabilities: {}", analysis.vulnerabilities.len());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct TraitSecurityAnalyzer {
     vulnerability_database: VulnerabilityDatabase,
@@ -134,14 +242,23 @@ impl TraitSecurityAnalyzer {
 
         // 3. Threat Modeling (if enabled)
         if self.config.enable_threat_modeling {
-            threat_analysis = Some(self.threat_modeling_engine.analyze_threats(trait_usage)?);
+            threat_analysis = Some(
+                self.threat_modeling_engine
+                    .analyze_threats(trait_usage)
+                    .map_err(|e| {
+                        SklearsError::AnalysisError(format!("threat modeling failed: {e}"))
+                    })?,
+            );
         }
 
         // 4. Cryptographic Analysis (if enabled)
         if self.config.enable_crypto_analysis {
             crypto_analysis = Some(
                 self.crypto_analyzer
-                    .analyze_cryptographic_usage(trait_usage)?,
+                    .analyze_cryptographic_security(trait_usage)
+                    .map_err(|e| {
+                        SklearsError::AnalysisError(format!("cryptographic analysis failed: {e}"))
+                    })?,
             );
         }
 
@@ -162,7 +279,8 @@ impl TraitSecurityAnalyzer {
         // 6. Compliance Assessment
         let compliance_status = self
             .compliance_manager
-            .check_compliance_status(trait_usage)?;
+            .check_compliance_status(trait_usage)
+            .map_err(|e| SklearsError::AnalysisError(format!("compliance check failed: {e}")))?;
 
         // 7. Calculate Overall Risk
         let overall_risk_level = self.calculate_comprehensive_risk(
@@ -173,9 +291,12 @@ impl TraitSecurityAnalyzer {
         );
 
         // 8. Generate Security Metrics
-        let security_metrics =
-            self.metrics_collector
-                .collect_metrics(trait_usage, &vulnerabilities, &risk_factors)?;
+        let security_metrics = self
+            .metrics_collector
+            .collect_security_metrics(trait_usage)
+            .map_err(|e| {
+                SklearsError::AnalysisError(format!("security metrics collection failed: {e}"))
+            })?;
 
         let analysis = SecurityAnalysis {
             overall_risk_level,
@@ -664,17 +785,24 @@ impl TraitSecurityAnalyzer {
                 priority: RiskSeverity::High,
                 category: "Key Management".to_string(),
                 title: "Implement secure key management".to_string(),
-                description: "Implement secure key generation, storage, and rotation mechanisms".to_string(),
+                description: "Implement secure key generation, storage, and rotation mechanisms"
+                    .to_string(),
                 implementation_effort: ImplementationEffort::High,
                 testing_requirements: vec![
                     "Key lifecycle validation".to_string(),
                     "Security hardware integration testing".to_string(),
                     "Key rotation validation".to_string(),
                 ],
-                compliance_frameworks: vec!["FIPS 140-2".to_string(), "Common Criteria".to_string()],
+                compliance_frameworks: vec![
+                    "FIPS 140-2".to_string(),
+                    "Common Criteria".to_string(),
+                ],
                 estimated_cost: EstimatedCost::High,
                 implementation_timeline: Duration::from_secs(86400 * 21), // 3 weeks
-                dependencies: vec!["HSM integration".to_string(), "Key management infrastructure".to_string()],
+                dependencies: vec![
+                    "HSM integration".to_string(),
+                    "Key management infrastructure".to_string(),
+                ],
             });
         }
 
@@ -714,7 +842,8 @@ impl TraitSecurityAnalyzer {
                 priority: RiskSeverity::Medium,
                 category: "FIPS Compliance".to_string(),
                 title: "Implement FIPS 140-2 compliant cryptography".to_string(),
-                description: "Ensure all cryptographic operations comply with FIPS 140-2 standards".to_string(),
+                description: "Ensure all cryptographic operations comply with FIPS 140-2 standards"
+                    .to_string(),
                 implementation_effort: ImplementationEffort::Medium,
                 testing_requirements: vec![
                     "FIPS validation testing".to_string(),
@@ -734,7 +863,7 @@ impl TraitSecurityAnalyzer {
     /// Generate threat-specific mitigation recommendations.
     fn generate_threat_mitigation_recommendations(
         &self,
-        threat_analysis: &ThreatAnalysisResult,
+        threat_analysis: &ThreatModelingResult,
     ) -> Result<Vec<SecurityRecommendation>> {
         let mut recommendations = Vec::new();
 
@@ -799,7 +928,7 @@ impl TraitSecurityAnalyzer {
         &self,
         vulnerabilities: &[SecurityVulnerability],
         risk_factors: &[SecurityRisk],
-        threat_analysis: &Option<ThreatAnalysisResult>,
+        threat_analysis: &Option<ThreatModelingResult>,
         crypto_analysis: &Option<CryptographicAnalysisResult>,
     ) -> RiskLevel {
         let mut risk_score: f64 = 0.0;
@@ -862,13 +991,16 @@ impl TraitSecurityAnalyzer {
     /// Clear expired entries from analysis cache.
     pub fn cleanup_cache(&mut self) {
         let now = SystemTime::now();
-        self.analysis_cache.retain(|_, cached| !cached.is_expired_at(now));
+        self.analysis_cache
+            .retain(|_, cached| !cached.is_expired_at(now));
     }
 
     /// Get cache statistics for monitoring.
     pub fn get_cache_stats(&self) -> CacheStatistics {
         let total_entries = self.analysis_cache.len();
-        let expired_entries = self.analysis_cache.values()
+        let expired_entries = self
+            .analysis_cache
+            .values()
             .filter(|cached| cached.is_expired())
             .count();
 
@@ -983,4 +1115,71 @@ pub struct CacheStatistics {
     pub total_entries: usize,
     pub expired_entries: usize,
     pub hit_rate: f64,
+}
+
+/// Create a new [`TraitSecurityAnalyzer`] with default configuration.
+///
+/// Thin constructor wrapper kept for API-surface consistency with the other
+/// `create_*` factory functions in `trait_explorer` (e.g.
+/// [`super::vulnerability_database::create_vulnerability_database`],
+/// [`super::risk_assessment::create_security_risk_assessor`]).
+pub fn create_trait_security_analyzer() -> TraitSecurityAnalyzer {
+    TraitSecurityAnalyzer::new()
+}
+
+/// Perform a comprehensive security analysis of a trait usage pattern using a
+/// freshly-constructed [`TraitSecurityAnalyzer`] with default configuration.
+pub fn perform_comprehensive_security_analysis(
+    trait_usage: &TraitUsageContext,
+) -> Result<SecurityAnalysis> {
+    let mut analyzer = create_trait_security_analyzer();
+    analyzer.analyze_trait_security(trait_usage)
+}
+
+#[allow(non_snake_case)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Smoke test: build a minimal, high-risk trait usage context, run the full
+    /// comprehensive security analysis entry point, and assert that every
+    /// top-level section of the result is populated without panicking.
+    #[test]
+    fn test_comprehensive_security_analysis_smoke() {
+        let context = TraitUsageContext {
+            trait_name: "Serialize".to_string(),
+            traits: vec!["Serialize".to_string(), "Clone".to_string()],
+            handles_sensitive_data: true,
+            has_serialization: true,
+            has_input_validation: false,
+            has_unsafe_operations: true,
+            requires_elevated_privileges: true,
+            has_cryptographic_operations: true,
+            ..Default::default()
+        };
+
+        let result = perform_comprehensive_security_analysis(&context);
+        assert!(result.is_ok(), "analysis should succeed: {result:?}");
+
+        let analysis = result.expect("analysis should succeed");
+        assert!(
+            !analysis.vulnerabilities.is_empty(),
+            "expected at least one vulnerability for an unsafe, unvalidated Serialize/Clone context"
+        );
+        assert!(
+            !analysis.risk_factors.is_empty(),
+            "expected at least one risk factor for a sensitive-data, elevated-privilege context"
+        );
+        assert!(
+            !analysis.recommendations.is_empty(),
+            "expected at least one security recommendation"
+        );
+        assert!(analysis.security_metrics.overall_security_score >= 0.0);
+    }
+
+    #[test]
+    fn test_create_trait_security_analyzer() {
+        let analyzer = create_trait_security_analyzer();
+        assert_eq!(analyzer.get_cache_stats().total_entries, 0);
+    }
 }

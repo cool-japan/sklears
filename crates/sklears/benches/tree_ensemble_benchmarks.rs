@@ -36,7 +36,6 @@ fn bench_decision_tree_classification(c: &mut Criterion) {
     for &n_samples in &[100, 500, 1000, 2000] {
         for &n_features in &[5, 10, 20] {
             let (x, y_i32) = generate_classification_data(n_samples, n_features);
-            let y = y_i32.mapv(|x| x as f64); // Convert to f64 for tree API
 
             // Benchmark different split criteria
             for criterion in [SplitCriterion::Gini, SplitCriterion::Entropy] {
@@ -46,7 +45,7 @@ fn bench_decision_tree_classification(c: &mut Criterion) {
                         format!("fit_{:?}", criterion),
                         format!("{}x{}", n_samples, n_features),
                     ),
-                    &(&x, &y),
+                    &(&x, &y_i32),
                     |b, (x, y)| {
                         b.iter(|| {
                             let tree = DecisionTreeClassifier::new()
@@ -62,7 +61,7 @@ fn bench_decision_tree_classification(c: &mut Criterion) {
             let tree = DecisionTreeClassifier::new()
                 .criterion(SplitCriterion::Gini)
                 .max_depth(10);
-            let fitted_tree = tree.fit(&x, &y).expect("model fitting should succeed");
+            let fitted_tree = tree.fit(&x, &y_i32).expect("model fitting should succeed");
 
             group.bench_with_input(
                 BenchmarkId::new("predict", format!("{}x{}", n_samples, n_features)),
@@ -412,7 +411,6 @@ fn bench_tree_depth_comparison(c: &mut Criterion) {
     let mut group = c.benchmark_group("tree_depth_comparison");
 
     let (x, y_i32) = generate_classification_data(1000, 10);
-    let y = y_i32.mapv(|x| x as f64);
 
     for max_depth in [Some(3), Some(5), Some(10), Some(15), None] {
         let depth_str = match max_depth {
@@ -422,7 +420,7 @@ fn bench_tree_depth_comparison(c: &mut Criterion) {
 
         group.bench_with_input(
             BenchmarkId::new("decision_tree", &depth_str),
-            &(&x, &y),
+            &(&x, &y_i32),
             |b, (x, y)| {
                 b.iter(|| {
                     let mut tree = DecisionTreeClassifier::new().criterion(SplitCriterion::Gini);
@@ -444,16 +442,13 @@ fn bench_tree_memory_patterns(c: &mut Criterion) {
     let mut group = c.benchmark_group("tree_memory_patterns");
 
     let (x, y_i32) = generate_classification_data(500, 10);
-    let y = y_i32.mapv(|x| x as f64);
 
     // Benchmark repeated fits to check for memory leaks
     group.bench_function("repeated_decision_tree_fits", |b| {
         b.iter(|| {
             for _ in 0..10 {
-                let tree = DecisionTreeClassifier::new()
-                    .max_depth(10)
-                    .random_state(Some(42));
-                let fitted = tree.fit(&x, &y).expect("model fitting should succeed");
+                let tree = DecisionTreeClassifier::new().max_depth(10).random_state(42);
+                let fitted = tree.fit(&x, &y_i32).expect("model fitting should succeed");
                 black_box(fitted.predict(&x).expect("prediction should succeed"));
             }
         })

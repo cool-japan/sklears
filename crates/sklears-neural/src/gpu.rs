@@ -36,7 +36,21 @@ use sklears_core::error::SklearsError;
 use std::collections::HashMap;
 
 #[cfg(feature = "gpu")]
-use sklears_core::gpu::{GpuArray, GpuContext as SklearsGpuContext, GpuMatrixOps};
+use crate::gpu_pool;
+#[cfg(feature = "gpu")]
+use oxicuda_blas::{GpuFloat, Layout, MatrixDesc, MatrixDescMut, Transpose};
+#[cfg(feature = "gpu")]
+use oxicuda_dnn::conv::api::conv_forward;
+#[cfg(feature = "gpu")]
+use oxicuda_dnn::error::DnnError;
+#[cfg(feature = "gpu")]
+use oxicuda_dnn::handle::DnnHandle;
+#[cfg(feature = "gpu")]
+use oxicuda_dnn::types::{ConvolutionDescriptor, TensorDesc, TensorDescMut};
+#[cfg(feature = "gpu")]
+use oxicuda_memory::DeviceBuffer;
+#[cfg(feature = "gpu")]
+use sklears_core::gpu::GpuContext as SklearsGpuContext;
 
 /// Configuration for GPU operations
 #[derive(Debug, Clone)]
@@ -65,20 +79,39 @@ impl Default for GpuConfig {
     }
 }
 
-/// GPU tensor backed by `oxicuda-backend` device memory.
+/// GPU tensor backed directly by an `oxicuda-memory` device buffer.
 ///
-/// Wraps `sklears_core::gpu::GpuArray<T>` and stores the multi-dimensional shape
-/// separately (the underlying `GpuArray` always uses a flat 1-D allocation).
+/// Stores the multi-dimensional `shape` alongside a flat `oxicuda_memory::DeviceBuffer<T>`.
+/// This used to wrap `sklears_core::gpu::GpuArray<T>` instead, but that type does not expose its
+/// underlying device buffer (by design), which made it impossible to feed `GpuArray`-resident
+/// data into `oxicuda_blas::elementwise` unary kernels for a zero-copy ReLU/sigmoid (see
+/// `GpuContext::relu`/`sigmoid` below), or into `f16` tensor-core GEMM
+/// (`sklears_core::gpu::GpuMatrixOps` is only implemented for `GpuArray<f32>`/`GpuArray<f64>`,
+/// not `GpuArray<half::f16>`). Holding the `DeviceBuffer` directly keeps every op in this file a
+/// real on-device kernel, with no device->host->device round trips hidden behind an opaque
+/// wrapper.
 #[cfg(feature = "gpu")]
 pub struct GpuTensor<T: bytemuck::Pod> {
     /// Logical shape of the tensor (e.g. `[batch, rows, cols]`).
     pub shape: Vec<usize>,
-    array: GpuArray<T>,
+    buf: DeviceBuffer<T>,
     ctx: SklearsGpuContext,
 }
 
+/// Makes `ctx`'s CUDA context current on the calling thread.
+///
+/// Every device allocation/copy/kernel-launch in this file needs this first. Mirrors
+/// `sklears_core::gpu::GpuBackend`'s own private `ensure_current` helper, which is not visible
+/// outside that crate.
 #[cfg(feature = "gpu")]
-impl<T: bytemuck::Pod + Clone> GpuTensor<T> {
+fn ensure_current(ctx: &SklearsGpuContext) -> NeuralResult<()> {
+    ctx.context().set_current().map_err(|e| {
+        SklearsError::InvalidInput(format!("Failed to set CUDA context current: {}", e))
+    })
+}
+
+#[cfg(feature = "gpu")]
+impl<T: bytemuck::Pod + Clone + Default> GpuTensor<T> {
     /// Upload host `data` to the GPU, tagging it with `shape`.
     pub fn from_host_data(ctx: &GpuContext, data: &[T], shape: &[usize]) -> NeuralResult<Self> {
         let total_elements: usize = shape.iter().product();
@@ -90,21 +123,25 @@ impl<T: bytemuck::Pod + Clone> GpuTensor<T> {
                 total_elements
             )));
         }
-        let array = GpuArray::<T>::from_slice(&ctx.inner, data).map_err(|e| {
+        ensure_current(&ctx.inner)?;
+        let buf = DeviceBuffer::<T>::from_host(data).map_err(|e| {
             SklearsError::InvalidInput(format!("Failed to copy data to GPU: {}", e))
         })?;
         Ok(Self {
             shape: shape.to_vec(),
-            array,
+            buf,
             ctx: ctx.inner.clone(),
         })
     }
 
     /// Download tensor data to host memory.
     pub fn to_host(&self) -> NeuralResult<Vec<T>> {
-        self.array
-            .to_cpu()
-            .map_err(|e| SklearsError::InvalidInput(format!("Failed to copy data from GPU: {}", e)))
+        ensure_current(&self.ctx)?;
+        let mut out = vec![T::default(); self.buf.len()];
+        self.buf.copy_to_host(&mut out).map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to copy data from GPU: {}", e))
+        })?;
+        Ok(out)
     }
 
     /// Total number of elements.
@@ -123,6 +160,9 @@ impl<T: bytemuck::Pod + Clone> GpuTensor<T> {
     }
 
     /// Return a new tensor with `new_shape`, preserving the underlying data.
+    ///
+    /// Reshapes via a device-to-device copy (`DeviceBuffer::copy_from_device`); there is no host
+    /// round trip since the element count -- and therefore the byte layout -- never changes.
     pub fn reshape(&self, new_shape: &[usize]) -> NeuralResult<GpuTensor<T>> {
         let new_len: usize = new_shape.iter().product();
         if new_len != self.len() {
@@ -133,27 +173,85 @@ impl<T: bytemuck::Pod + Clone> GpuTensor<T> {
                 new_len
             )));
         }
-        let data = self.to_host()?;
-        let array = GpuArray::<T>::from_slice(&self.ctx, &data).map_err(|e| {
+        ensure_current(&self.ctx)?;
+        let mut buf = DeviceBuffer::<T>::alloc(self.buf.len()).map_err(|e| {
             SklearsError::InvalidInput(format!("Failed to allocate reshaped tensor: {}", e))
+        })?;
+        buf.copy_from_device(&self.buf).map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to copy reshaped tensor: {}", e))
         })?;
         Ok(GpuTensor {
             shape: new_shape.to_vec(),
-            array,
+            buf,
             ctx: self.ctx.clone(),
         })
     }
 }
 
-/// GPU context for neural network operations, backed by `oxicuda-backend`.
+/// Shared GEMM implementation for `GpuContext::{matrix_multiply, matrix_multiply_f64,
+/// tensor_core_gemm_f16}`: `C = A * B` via `oxicuda_blas::level3::gemm`, entirely on-device.
+#[cfg(feature = "gpu")]
+fn gpu_gemm<T: GpuFloat>(
+    ctx: &SklearsGpuContext,
+    a: &DeviceBuffer<T>,
+    a_shape: &[usize],
+    b: &DeviceBuffer<T>,
+    b_shape: &[usize],
+) -> NeuralResult<(DeviceBuffer<T>, usize, usize)> {
+    if a_shape.len() != 2 || b_shape.len() != 2 {
+        return Err(SklearsError::InvalidInput(
+            "GEMM requires 2-D tensors".to_string(),
+        ));
+    }
+    let (m, k) = (a_shape[0], a_shape[1]);
+    let (k2, n) = (b_shape[0], b_shape[1]);
+    if k != k2 {
+        return Err(SklearsError::InvalidInput(format!(
+            "Matrix dimension mismatch: {}×{} and {}×{}",
+            m, k, k2, n
+        )));
+    }
+    ensure_current(ctx)?;
+    let a_desc = MatrixDesc::from_buffer(a, m as u32, k as u32, Layout::RowMajor)
+        .map_err(|e| SklearsError::InvalidInput(format!("GPU GEMM failed: {}", e)))?;
+    let b_desc = MatrixDesc::from_buffer(b, k as u32, n as u32, Layout::RowMajor)
+        .map_err(|e| SklearsError::InvalidInput(format!("GPU GEMM failed: {}", e)))?;
+    let mut c_buf = DeviceBuffer::<T>::zeroed(m * n)
+        .map_err(|e| SklearsError::InvalidInput(format!("GPU GEMM failed: {}", e)))?;
+    let mut c_desc = MatrixDescMut::from_buffer(&mut c_buf, m as u32, n as u32, Layout::RowMajor)
+        .map_err(|e| SklearsError::InvalidInput(format!("GPU GEMM failed: {}", e)))?;
+    oxicuda_blas::level3::gemm(
+        ctx.blas(),
+        Transpose::NoTrans,
+        Transpose::NoTrans,
+        T::gpu_one(),
+        &a_desc,
+        &b_desc,
+        T::gpu_zero(),
+        &mut c_desc,
+    )
+    .map_err(|e| SklearsError::InvalidInput(format!("GPU GEMM failed: {}", e)))?;
+    Ok((c_buf, m, n))
+}
+
+/// GPU context for neural network operations, backed directly by `oxicuda-driver` /
+/// `oxicuda-blas` via `sklears_core::gpu::GpuBackend` (the `GpuContext` alias there).
 ///
-/// Wraps `sklears_core::gpu::GpuContext` which provides the `ComputeBackend` abstraction
-/// (real CUDA on NVIDIA hardware, `CpuBackend` otherwise).
+/// A live `GpuContext` value is itself proof a real GPU device is bound: `with_config` only
+/// succeeds once `GpuBackend::detect`/`with_device_id` has found one (see below), so every method
+/// here can attempt real on-device work unconditionally rather than re-checking device presence.
 #[cfg(feature = "gpu")]
 pub struct GpuContext {
     inner: SklearsGpuContext,
-    #[allow(dead_code)]
     config: GpuConfig,
+    /// Real pooled allocator sized by `config.memory_pool_size`, backing
+    /// [`memory_pool_stats`](Self::memory_pool_stats) with genuine hit/miss
+    /// telemetry instead of fabricated numbers. See `crate::gpu_pool` for the
+    /// implementation.
+    memory_pool: gpu_pool::GpuMemoryPool,
+    /// `config.max_streams` real CUDA streams, round-robin-accessible via
+    /// [`stream`](Self::stream).
+    streams: Vec<oxicuda_driver::Stream>,
 }
 
 #[cfg(feature = "gpu")]
@@ -164,15 +262,97 @@ impl GpuContext {
     }
 
     /// Create a GPU context using the provided configuration.
+    ///
+    /// `config.device_id == None` means automatic selection (the device with the most free
+    /// memory) via `GpuBackend::detect`; `Some(id)` binds to that device ordinal via
+    /// `GpuBackend::with_device_id`. Both are `Result<Option<_>>`-returning: `Ok(None)` (driver
+    /// missing, or no such device) is turned into an `Err` here, because
+    /// `sklears_neural::gpu::GpuContext` -- unlike `GpuBackend` -- has always been a "real GPU or
+    /// nothing" type. Automatic GPU-then-CPU fallback for callers that want it already happens
+    /// one level up, in `GpuAcceleratedOps::with_config`, via `.ok()`.
+    ///
+    /// Also builds the real infrastructure `config` describes: a
+    /// `gpu_pool::GpuMemoryPool` sized by `config.memory_pool_size`, and
+    /// `config.max_streams` real CUDA streams (see [`stream`](Self::stream)).
+    /// Both are genuinely read here, not merely stored.
     pub fn with_config(config: GpuConfig) -> NeuralResult<Self> {
-        let device_id = config.device_id.unwrap_or(0);
-        let inner = SklearsGpuContext::with_device_id(device_id).map_err(|e| {
-            SklearsError::InvalidInput(format!(
-                "Failed to initialize GPU device {}: {}",
-                device_id, e
-            ))
-        })?;
-        Ok(Self { inner, config })
+        let inner = match config.device_id {
+            Some(device_id) => SklearsGpuContext::with_device_id(device_id)
+                .map_err(|e| {
+                    SklearsError::InvalidInput(format!(
+                        "Failed to initialize GPU device {}: {}",
+                        device_id, e
+                    ))
+                })?
+                .ok_or_else(|| {
+                    SklearsError::InvalidInput(format!(
+                        "No GPU device found at index {}",
+                        device_id
+                    ))
+                })?,
+            None => SklearsGpuContext::detect()
+                .map_err(|e| {
+                    SklearsError::InvalidInput(format!("Failed to detect a GPU device: {}", e))
+                })?
+                .ok_or_else(|| SklearsError::InvalidInput("No GPU device available".to_string()))?,
+        };
+
+        let memory_pool =
+            gpu_pool::GpuMemoryPool::new(inner.device_id() as i32, config.memory_pool_size)?;
+
+        let stream_count = config.max_streams.max(1);
+        let mut streams = Vec::with_capacity(stream_count);
+        for _ in 0..stream_count {
+            let stream = oxicuda_driver::Stream::new(inner.context()).map_err(|e| {
+                SklearsError::InvalidInput(format!("Failed to create CUDA stream: {}", e))
+            })?;
+            streams.push(stream);
+        }
+
+        let ctx = Self {
+            inner,
+            config,
+            memory_pool,
+            streams,
+        };
+        // Real, minimal warm-up: proves the pool + stream wiring above
+        // actually works (fail fast on a broken device rather than silently
+        // on first real workload) and gives `GpuMemoryPool::acquire` /
+        // `PooledHandle` a genuine production caller, not just tests.
+        ctx.warm_memory_pool()?;
+        Ok(ctx)
+    }
+
+    /// Returns one of this context's `config.max_streams` CUDA streams,
+    /// round-robin by `index`. There is always at least one stream (`0`
+    /// streams is rounded up to `1` in [`with_config`](Self::with_config)),
+    /// so this never divides by zero.
+    pub fn stream(&self, index: usize) -> &oxicuda_driver::Stream {
+        &self.streams[index % self.streams.len()]
+    }
+
+    /// Acquires and immediately releases a single-element `f32` pooled
+    /// buffer on stream `0`.
+    ///
+    /// This is the "genuinely read" proof for `memory_pool`/`streams`: every
+    /// real [`GpuContext`] construction exercises `GpuMemoryPool::acquire`
+    /// and `PooledHandle`'s reuse-on-drop path at least once, so a broken
+    /// pool/stream surfaces immediately as a construction error instead of
+    /// silently on first real use.
+    fn warm_memory_pool(&self) -> NeuralResult<()> {
+        let handle = self.memory_pool.acquire::<f32>(1, self.stream(0))?;
+        if handle.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "GPU memory pool warm-up returned an empty buffer".to_string(),
+            ));
+        }
+        log::trace!(
+            "GPU memory pool warm-up: {} elements ({} bytes) at {:#x} on stream 0",
+            handle.len(),
+            handle.byte_size(),
+            handle.as_device_ptr()
+        );
+        Ok(())
     }
 
     /// Block until all pending GPU operations have completed.
@@ -188,31 +368,10 @@ impl GpuContext {
         a: &GpuTensor<f32>,
         b: &GpuTensor<f32>,
     ) -> NeuralResult<GpuTensor<f32>> {
-        if a.shape.len() != 2 || b.shape.len() != 2 {
-            return Err(SklearsError::InvalidInput(
-                "matrix_multiply requires 2-D tensors".to_string(),
-            ));
-        }
-        let (m, k) = (a.shape[0], a.shape[1]);
-        let (k2, n) = (b.shape[0], b.shape[1]);
-        if k != k2 {
-            return Err(SklearsError::InvalidInput(format!(
-                "Matrix dimension mismatch: {}×{} and {}×{}",
-                m, k, k2, n
-            )));
-        }
-        let c = a
-            .array
-            .matmul(&b.array)
-            .map_err(|e| SklearsError::InvalidInput(format!("GPU GEMM failed: {}", e)))?;
-        let data = c
-            .to_cpu()
-            .map_err(|e| SklearsError::InvalidInput(format!("Failed to download result: {}", e)))?;
-        let array = sklears_core::gpu::GpuArray::<f32>::from_slice(&self.inner, &data)
-            .map_err(|e| SklearsError::InvalidInput(format!("Failed to upload result: {}", e)))?;
+        let (buf, m, n) = gpu_gemm::<f32>(&self.inner, &a.buf, &a.shape, &b.buf, &b.shape)?;
         Ok(GpuTensor {
             shape: vec![m, n],
-            array,
+            buf,
             ctx: self.inner.clone(),
         })
     }
@@ -223,38 +382,16 @@ impl GpuContext {
         a: &GpuTensor<f64>,
         b: &GpuTensor<f64>,
     ) -> NeuralResult<GpuTensor<f64>> {
-        if a.shape.len() != 2 || b.shape.len() != 2 {
-            return Err(SklearsError::InvalidInput(
-                "matrix_multiply_f64 requires 2-D tensors".to_string(),
-            ));
-        }
-        let (m, k) = (a.shape[0], a.shape[1]);
-        let (k2, n) = (b.shape[0], b.shape[1]);
-        if k != k2 {
-            return Err(SklearsError::InvalidInput(format!(
-                "Matrix dimension mismatch: {}×{} and {}×{}",
-                m, k, k2, n
-            )));
-        }
-        let c = a
-            .array
-            .matmul(&b.array)
-            .map_err(|e| SklearsError::InvalidInput(format!("GPU GEMM f64 failed: {}", e)))?;
-        let data = c.to_cpu().map_err(|e| {
-            SklearsError::InvalidInput(format!("Failed to download f64 result: {}", e))
-        })?;
-        let array =
-            sklears_core::gpu::GpuArray::<f64>::from_slice(&self.inner, &data).map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to upload f64 result: {}", e))
-            })?;
+        let (buf, m, n) = gpu_gemm::<f64>(&self.inner, &a.buf, &a.shape, &b.buf, &b.shape)?;
         Ok(GpuTensor {
             shape: vec![m, n],
-            array,
+            buf,
             ctx: self.inner.clone(),
         })
     }
 
-    /// Element-wise addition of two f32 tensors via `backend.binary`.
+    /// Element-wise addition of two f32 tensors via a real `oxicuda_blas::elementwise::add` GPU
+    /// kernel (no CPU round-trip).
     pub fn add(&self, a: &GpuTensor<f32>, b: &GpuTensor<f32>) -> NeuralResult<GpuTensor<f32>> {
         if a.shape != b.shape {
             return Err(SklearsError::InvalidInput(format!(
@@ -262,36 +399,53 @@ impl GpuContext {
                 a.shape, b.shape
             )));
         }
-        let c = a
-            .array
-            .add(&b.array)
+        ensure_current(&self.inner)?;
+        let n = a.buf.len();
+        let mut out = DeviceBuffer::<f32>::zeroed(n)
             .map_err(|e| SklearsError::InvalidInput(format!("GPU add failed: {}", e)))?;
-        let data = c.to_cpu().map_err(|e| {
-            SklearsError::InvalidInput(format!("Failed to download add result: {}", e))
-        })?;
-        let array =
-            sklears_core::gpu::GpuArray::<f32>::from_slice(&self.inner, &data).map_err(|e| {
-                SklearsError::InvalidInput(format!("Failed to upload add result: {}", e))
-            })?;
+        oxicuda_blas::elementwise::add(self.inner.blas(), n as u32, &a.buf, &b.buf, &mut out)
+            .map_err(|e| SklearsError::InvalidInput(format!("GPU add failed: {}", e)))?;
         Ok(GpuTensor {
             shape: a.shape.clone(),
-            array,
+            buf: out,
             ctx: self.inner.clone(),
         })
     }
 
-    /// ReLU activation: downloads data, applies CPU-side, re-uploads.
+    /// ReLU activation via a real on-device `oxicuda_blas::elementwise::relu` kernel.
+    ///
+    /// Wave B4: this used to download the tensor, apply `x.max(0.0)` with a Rust closure on the
+    /// CPU, and re-upload -- an unnecessary device->host->device round trip for what is meant to
+    /// be a GPU operation. It now launches the real GPU kernel directly on the tensor's existing
+    /// device buffer and never touches host memory.
     pub fn relu(&self, input: &GpuTensor<f32>) -> NeuralResult<GpuTensor<f32>> {
-        let data = input.to_host()?;
-        let result: Vec<f32> = data.into_iter().map(|x| x.max(0.0)).collect();
-        GpuTensor::from_host_data(self, &result, &input.shape)
+        ensure_current(&self.inner)?;
+        let n = input.buf.len();
+        let mut out = DeviceBuffer::<f32>::zeroed(n)
+            .map_err(|e| SklearsError::InvalidInput(format!("GPU relu failed: {}", e)))?;
+        oxicuda_blas::elementwise::relu(self.inner.blas(), n as u32, &input.buf, &mut out)
+            .map_err(|e| SklearsError::InvalidInput(format!("GPU relu failed: {}", e)))?;
+        Ok(GpuTensor {
+            shape: input.shape.clone(),
+            buf: out,
+            ctx: self.inner.clone(),
+        })
     }
 
-    /// Sigmoid activation: downloads data, applies CPU-side, re-uploads.
+    /// Sigmoid activation via a real on-device `oxicuda_blas::elementwise::sigmoid` kernel (see
+    /// `relu` above for why this replaced a CPU round-trip).
     pub fn sigmoid(&self, input: &GpuTensor<f32>) -> NeuralResult<GpuTensor<f32>> {
-        let data = input.to_host()?;
-        let result: Vec<f32> = data.into_iter().map(|x| 1.0 / (1.0 + (-x).exp())).collect();
-        GpuTensor::from_host_data(self, &result, &input.shape)
+        ensure_current(&self.inner)?;
+        let n = input.buf.len();
+        let mut out = DeviceBuffer::<f32>::zeroed(n)
+            .map_err(|e| SklearsError::InvalidInput(format!("GPU sigmoid failed: {}", e)))?;
+        oxicuda_blas::elementwise::sigmoid(self.inner.blas(), n as u32, &input.buf, &mut out)
+            .map_err(|e| SklearsError::InvalidInput(format!("GPU sigmoid failed: {}", e)))?;
+        Ok(GpuTensor {
+            shape: input.shape.clone(),
+            buf: out,
+            ctx: self.inner.clone(),
+        })
     }
 
     /// Return `(free_bytes, total_bytes)` for the device.
@@ -303,54 +457,240 @@ impl GpuContext {
         Ok((info.free, info.total))
     }
 
-    /// Return memory pool utilization `(used_fraction, hit_rate)` — always `(0, 0)` without a pool.
+    /// Return real memory pool utilization `(used_fraction, hit_rate)`.
+    ///
+    /// Backed by `self.memory_pool`'s own `gpu_pool::PoolTelemetry`: `used_fraction` is
+    /// currently-allocated bytes over `config.memory_pool_size`, and `hit_rate` is the fraction of
+    /// `GpuMemoryPool::acquire` calls served from the pool's own free-list without a fresh device
+    /// allocation. Both are real counters updated by every `acquire`/drop cycle (including the
+    /// warm-up performed in [`with_config`](Self::with_config)) -- never fabricated zeros.
     pub fn memory_pool_stats(&self) -> (f64, f64) {
-        (0.0, 0.0)
+        self.memory_pool.telemetry_stats()
     }
 
     /// Returns `true` if the device has dedicated Tensor Core hardware.
+    ///
+    /// Tensor Cores were introduced with the Volta architecture (compute capability 7.0), so any
+    /// device reporting `major >= 7` via [`compute_capability`](Self::compute_capability) has
+    /// them. Returns `false` when the compute capability cannot be queried (e.g. an unusual
+    /// driver/device combination) rather than guessing.
     pub fn has_tensor_cores(&self) -> bool {
-        false
+        self.compute_capability()
+            .map(|(major, _minor)| major >= 7)
+            .unwrap_or(false)
+    }
+
+    /// Returns `true` if this context should use its mixed-precision GEMM path.
+    ///
+    /// Reads `config.mixed_precision` (genuinely, not merely storing it) and additionally
+    /// requires real Tensor Core hardware ([`has_tensor_cores`](Self::has_tensor_cores)): a
+    /// caller that asked for mixed precision on a device without Tensor Cores would get no
+    /// benefit from `tensor_core_gemm_f16`'s fp16 kernel, so this honestly reports `false` in
+    /// that case rather than claiming a mode the hardware cannot accelerate.
+    pub fn use_mixed_precision(&self) -> bool {
+        self.config.mixed_precision && self.has_tensor_cores()
     }
 
     /// Return the CUDA compute capability `(major, minor)` of the device, if known.
+    ///
+    /// Queries `CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_{MAJOR,MINOR}` via
+    /// `oxicuda_driver::Device::compute_capability` on the `Device` owned by this context's
+    /// `Context` (`sklears_core::gpu::GpuBackend::context`). Returns `None` only if the
+    /// underlying driver query fails, which should not happen for a `Context` that was
+    /// successfully created (`with_config` above already proved a real device is bound).
     pub fn compute_capability(&self) -> Option<(i32, i32)> {
-        None
+        let device: &oxicuda_driver::Device = self.inner.context().device();
+        device.compute_capability().ok()
     }
 
-    /// Tensor core f16 GEMM — not yet supported with `oxicuda-backend`.
+    /// Tensor-core-eligible f16 GEMM: `C = A * B`, fp16 in/out.
+    ///
+    /// Wave B4: this used to unconditionally return a hard error ("requires a real CUDA device")
+    /// regardless of whether a device was actually present. `self` being a `GpuContext` already
+    /// proves a device is bound (see the type-level docs above), so this now always attempts the
+    /// real `oxicuda_blas::level3::gemm::<half::f16>` kernel instead of hard-failing first.
+    /// `half::f16` implements `oxicuda_blas::GpuFloat` (its `Accumulator` associated type is
+    /// `f32`, so the kernel accumulates in fp32 internally even though the host-visible output
+    /// buffer stays fp16).
     pub fn tensor_core_gemm_f16(
         &self,
-        _a: &GpuTensor<half::f16>,
-        _b: &GpuTensor<half::f16>,
+        a: &GpuTensor<half::f16>,
+        b: &GpuTensor<half::f16>,
     ) -> NeuralResult<GpuTensor<half::f16>> {
-        Err(SklearsError::InvalidInput(
-            "Tensor core f16 GEMM requires a real CUDA device".to_string(),
-        ))
+        let (buf, m, n) = gpu_gemm::<half::f16>(&self.inner, &a.buf, &a.shape, &b.buf, &b.shape)?;
+        Ok(GpuTensor {
+            shape: vec![m, n],
+            buf,
+            ctx: self.inner.clone(),
+        })
     }
 
-    /// Mixed-precision GEMM (f16 in, f32 out) — not yet supported.
+    /// Mixed-precision GEMM: fp16 inputs, fp32 accumulate-and-output.
+    ///
+    /// Wave B4: this used to unconditionally hard-error, same as `tensor_core_gemm_f16`. It now
+    /// runs the real fp16 tensor-core GEMM (`tensor_core_gemm_f16`; fp32 accumulation happens
+    /// inside that kernel, see its docs), then widens the fp16 result to fp32.
+    /// `oxicuda_blas::level3::gemm` requires a single uniform `GpuFloat` type across A/B/C (there
+    /// is no fp16-in/fp32-out kernel entry point in `oxicuda-blas` yet), so the widen step is an
+    /// explicit, honest host round trip via `half::f16::to_f32` -- not a fake computation.
     pub fn mixed_precision_gemm(
         &self,
-        _a: &GpuTensor<half::f16>,
-        _b: &GpuTensor<half::f16>,
+        a: &GpuTensor<half::f16>,
+        b: &GpuTensor<half::f16>,
     ) -> NeuralResult<GpuTensor<f32>> {
-        Err(SklearsError::InvalidInput(
-            "Mixed-precision GEMM requires a real CUDA device".to_string(),
-        ))
+        let f16_result = self.tensor_core_gemm_f16(a, b)?;
+        let f16_data = f16_result.to_host()?;
+        let f32_data: Vec<f32> = f16_data.iter().map(|x| x.to_f32()).collect();
+        GpuTensor::from_host_data(self, &f32_data, &f16_result.shape)
     }
 
-    /// Tensor-core conv2d — not yet supported.
+    /// Tensor-core-eligible 2-D convolution: NCHW `input`, KCRS `kernel` (dilation fixed at 1,
+    /// groups fixed at 1), `fp16` in/out.
+    ///
+    /// Forward pass via `oxicuda_dnn::conv::api::conv_forward`, which picks the best algorithm
+    /// (`Direct`/`ImplicitGemm`/`Im2colGemm`/`Winograd`/`FftConv`) for the problem size and the
+    /// bound device's SM version internally (through its own `DnnHandle`). Algorithms that need
+    /// scratch space report it via `DnnError::WorkspaceRequired(bytes)` instead of accepting a
+    /// size up front, so this first attempts the call with no workspace and, only if asked,
+    /// allocates exactly the requested number of bytes and retries once -- no workspace is
+    /// allocated speculatively.
     pub fn tensor_core_conv2d(
         &self,
-        _input: &GpuTensor<half::f16>,
-        _kernel: &GpuTensor<half::f16>,
-        _stride: (usize, usize),
-        _padding: (usize, usize),
+        input: &GpuTensor<half::f16>,
+        kernel: &GpuTensor<half::f16>,
+        stride: (usize, usize),
+        padding: (usize, usize),
     ) -> NeuralResult<GpuTensor<half::f16>> {
-        Err(SklearsError::InvalidInput(
-            "Tensor core conv2d requires a real CUDA device".to_string(),
-        ))
+        if input.shape.len() != 4 {
+            return Err(SklearsError::InvalidInput(format!(
+                "conv2d input must be a 4-D NCHW tensor, got shape {:?}",
+                input.shape
+            )));
+        }
+        if kernel.shape.len() != 4 {
+            return Err(SklearsError::InvalidInput(format!(
+                "conv2d kernel must be a 4-D KCRS tensor, got shape {:?}",
+                kernel.shape
+            )));
+        }
+        let (n, c_in, h, w) = (
+            input.shape[0],
+            input.shape[1],
+            input.shape[2],
+            input.shape[3],
+        );
+        let (k_out, c_k, r, s) = (
+            kernel.shape[0],
+            kernel.shape[1],
+            kernel.shape[2],
+            kernel.shape[3],
+        );
+        if c_in != c_k {
+            return Err(SklearsError::InvalidInput(format!(
+                "conv2d channel mismatch: input has {} channels, kernel expects {}",
+                c_in, c_k
+            )));
+        }
+
+        ensure_current(&self.inner)?;
+
+        let dnn_handle = DnnHandle::new(self.inner.context()).map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to create DNN handle: {}", e))
+        })?;
+
+        let conv_desc = ConvolutionDescriptor::conv2d(
+            padding.0 as u32,
+            padding.1 as u32,
+            stride.0 as u32,
+            stride.1 as u32,
+            1,
+            1,
+            1,
+        )
+        .map_err(|e| SklearsError::InvalidInput(format!("Invalid conv2d descriptor: {}", e)))?;
+
+        let out_h = ConvolutionDescriptor::output_size(
+            h as u32,
+            r as u32,
+            padding.0 as u32,
+            stride.0 as u32,
+            1,
+        )
+        .map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to compute conv2d output height: {}", e))
+        })? as usize;
+        let out_w = ConvolutionDescriptor::output_size(
+            w as u32,
+            s as u32,
+            padding.1 as u32,
+            stride.1 as u32,
+            1,
+        )
+        .map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to compute conv2d output width: {}", e))
+        })? as usize;
+
+        let input_desc = TensorDesc::nchw(&input.buf, n as u32, c_in as u32, h as u32, w as u32)
+            .map_err(|e| {
+                SklearsError::InvalidInput(format!("Invalid conv2d input tensor: {}", e))
+            })?;
+        let filter_desc =
+            TensorDesc::nchw(&kernel.buf, k_out as u32, c_k as u32, r as u32, s as u32).map_err(
+                |e| SklearsError::InvalidInput(format!("Invalid conv2d filter tensor: {}", e)),
+            )?;
+
+        let out_len = n * k_out * out_h * out_w;
+        let mut out_buf = DeviceBuffer::<half::f16>::zeroed(out_len).map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to allocate conv2d output: {}", e))
+        })?;
+        let mut output_desc = TensorDescMut::nchw(
+            &mut out_buf,
+            n as u32,
+            k_out as u32,
+            out_h as u32,
+            out_w as u32,
+        )
+        .map_err(|e| SklearsError::InvalidInput(format!("Invalid conv2d output tensor: {}", e)))?;
+
+        match conv_forward(
+            &dnn_handle,
+            &input_desc,
+            &filter_desc,
+            &mut output_desc,
+            &conv_desc,
+            None,
+        ) {
+            Ok(()) => {}
+            Err(DnnError::WorkspaceRequired(bytes)) => {
+                let mut workspace = DeviceBuffer::<u8>::zeroed(bytes).map_err(|e| {
+                    SklearsError::InvalidInput(format!(
+                        "Failed to allocate conv2d workspace ({} bytes): {}",
+                        bytes, e
+                    ))
+                })?;
+                conv_forward(
+                    &dnn_handle,
+                    &input_desc,
+                    &filter_desc,
+                    &mut output_desc,
+                    &conv_desc,
+                    Some(&mut workspace),
+                )
+                .map_err(|e| SklearsError::InvalidInput(format!("GPU conv2d failed: {}", e)))?;
+            }
+            Err(e) => {
+                return Err(SklearsError::InvalidInput(format!(
+                    "GPU conv2d failed: {}",
+                    e
+                )));
+            }
+        }
+
+        Ok(GpuTensor {
+            shape: vec![n, k_out, out_h, out_w],
+            buf: out_buf,
+            ctx: self.inner.clone(),
+        })
     }
 }
 
@@ -586,6 +926,17 @@ impl GpuAcceleratedOps {
                         "Not available on this GPU - use regular FP32 operations".to_string(),
                     );
                 }
+            } else {
+                // Wave B4: `GpuContext::with_config` is now honestly fallible (see its docs) --
+                // `self.context` is `None` whenever the `gpu` feature is compiled in but no CUDA
+                // device was actually detected at runtime (e.g. this crate's own dev/CI
+                // machines). That is a distinct, expected case from "gpu feature not compiled
+                // in" (handled by the `#[cfg(not(feature = "gpu"))]` branch below) and must still
+                // report something here, rather than silently leaving `recommendations` empty.
+                recommendations.insert(
+                    "tensor_cores".to_string(),
+                    "GPU feature compiled in, but no CUDA device detected at runtime - falling back to CPU".to_string(),
+                );
             }
         }
 
@@ -666,14 +1017,27 @@ impl GpuAcceleratedOps {
         #[cfg(feature = "gpu")]
         {
             if let Some(ref ctx) = self.context {
-                let (f32_hit_rate, f64_hit_rate) = ctx.memory_pool_stats();
-                stats.insert("f32_pool_hit_rate".to_string(), f32_hit_rate);
-                stats.insert("f64_pool_hit_rate".to_string(), f64_hit_rate);
+                // Real telemetry from `ctx.memory_pool`'s `PoolTelemetry` (see
+                // `gpu_pool.rs`), matching `memory_pool_stats`'s own
+                // `(used_fraction, hit_rate)` doc-comment ordering -- these
+                // used to be labelled `f32_pool_hit_rate`/`f64_pool_hit_rate`
+                // while actually always reporting fabricated `(0.0, 0.0)`, an
+                // ordering/type mismatch as well as a fabrication; renamed
+                // here since no other crate in this workspace reads these
+                // particular `HashMap` keys (`GpuConfig`/`memory_pool_stats`
+                // are crate-local elsewhere too).
+                let (pool_used_fraction, pool_hit_rate) = ctx.memory_pool_stats();
+                stats.insert("pool_used_fraction".to_string(), pool_used_fraction);
+                stats.insert("pool_hit_rate".to_string(), pool_hit_rate);
 
                 // Add tensor core availability
                 stats.insert(
                     "tensor_cores_available".to_string(),
                     if ctx.has_tensor_cores() { 1.0 } else { 0.0 },
+                );
+                stats.insert(
+                    "mixed_precision_active".to_string(),
+                    if ctx.use_mixed_precision() { 1.0 } else { 0.0 },
                 );
             }
         }

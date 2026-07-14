@@ -7,38 +7,35 @@
 
 State-of-the-art multiclass classification strategies for Rust, providing 5-15x performance improvements over scikit-learn while maintaining API familiarity.
 
-> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
 `sklears-multiclass` implements comprehensive multiclass classification strategies including:
 
 - **Binary Decomposition**: One-vs-Rest (OvR), One-vs-One (OvO), Error-Correcting Output Codes (ECOC)
-- **Advanced Ensemble Methods**: AdaBoost.M1/M2, Gradient Boosting, Stacking, Rotation Forest
-- **Class Imbalance Handling**: SMOTE variants, cost-sensitive learning, threshold optimization
-- **Calibration & Uncertainty**: Platt scaling, isotonic regression, conformal prediction
-- **Production Features**: Early stopping, sparse storage, builder APIs
+- **Advanced Ensemble Methods**: AdaBoost, Gradient Boosting, Stacking, Rotation Forest
+- **Hierarchical Classification**: Nested dichotomies, recursive binary partitioning, taxonomy-aware classification
+- **Calibration & Uncertainty**: Platt scaling, isotonic regression, temperature/Dirichlet scaling, conformal prediction
+- **Production Features**: Builder APIs, prediction caching, optional GPU-accelerated distance/matmul ops (`gpu` feature)
 
 ## Quick Start
 
 ```rust
-use sklears_multiclass::{OneVsRestClassifier, OneVsOneClassifier};
+use sklears_multiclass::{OneVsOneClassifier, OneVsRestClassifier};
 use sklears_linear::LogisticRegression;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 // Create base binary classifier
 let base_classifier = LogisticRegression::default();
 
-// One-vs-Rest strategy
-let ovr = OneVsRestClassifier::builder()
-    .base_classifier(base_classifier.clone())
-    .parallel(true)
+// One-vs-Rest strategy (the base estimator is passed into the builder)
+let ovr = OneVsRestClassifier::builder(base_classifier.clone())
+    .parallel() // enable parallel training across all cores
     .build();
 
-// One-vs-One strategy  
-let ovo = OneVsOneClassifier::builder()
-    .base_classifier(base_classifier)
-    .build();
+// One-vs-One strategy
+let ovo = OneVsOneClassifier::builder(base_classifier).build();
 
 // Train and predict
 let X = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0]];
@@ -54,22 +51,22 @@ let predictions = trained_ovr.predict(&X)?;
 
 - **One-vs-Rest (OvR)**: Efficient parallel training of binary classifiers
 - **One-vs-One (OvO)**: Pairwise classification with advanced voting
-- **ECOC**: Error-correcting codes with BCH and optimal code design
-- **Adaptive Decomposition**: Data-driven strategy selection
+- **ECOC**: Error-correcting codes with optimized/quantized/compressed code matrices
 
 ### Advanced Methods
 
-- **Hierarchical Classification**: Tree-based taxonomies with multiple traversal strategies
-- **Cost-Sensitive Learning**: Economic cost matrices and imbalance handling
-- **Ensemble Methods**: Bagging, boosting, stacking with meta-learners
-- **Calibration**: Comprehensive probability calibration methods
+- **Hierarchical Classification**: Nested dichotomies, recursive binary partitioning, and taxonomy-aware classification
+- **Ensemble Methods**: Bagging, AdaBoost, Gradient Boosting, Stacking, Rotation Forest
+- **Incremental Learning**: Warm-start, drift detection (Page-Hinkley, ADWIN), and memory-bounded online learners
+- **Calibration**: Platt scaling, isotonic regression, temperature/Dirichlet scaling, conformal prediction
 
 ### Production Ready
 
 - **Builder Pattern APIs**: Consistent, type-safe configuration
 - **Parallel Training**: Rayon-based parallelization
-- **Early Stopping**: Configurable stopping criteria
-- **Sparse Storage**: Memory-efficient ECOC matrices
+- **Prediction Caching**: Configurable prediction cache with eviction
+- **Sparse/Quantized Storage**: Memory-efficient ECOC matrices
+- **Optional GPU Acceleration**: OxiCUDA-backed matmul and ECOC distance ops behind the `gpu` feature (honest CPU fallback when no device is present)
 
 ## Performance
 
@@ -77,44 +74,28 @@ Benchmarks on standard datasets show:
 - **5-15x speedup** over scikit-learn
 - **50% less memory** usage
 - **Linear scalability** with CPU cores
-- **GPU acceleration** support via CUDA/WebGPU bridges
+- **Optional GPU acceleration** via OxiCUDA (CUDA only, `gpu` feature)
 
 ## Examples
-
-### SMOTE for Imbalanced Data
-
-```rust
-use sklears_multiclass::{MulticlassSMOTE, SMOTEVariant, SamplingStrategy};
-
-let smote = MulticlassSMOTE::builder()
-    .variant(SMOTEVariant::BorderlineSMOTE)
-    .sampling_strategy(SamplingStrategy::Auto)
-    .k_neighbors(5)
-    .build();
-
-let (X_resampled, y_resampled) = smote.fit_resample(&X, &y)?;
-```
 
 ### Calibrated Classification
 
 ```rust
 use sklears_multiclass::{CalibratedClassifier, CalibrationMethod};
 
-let calibrated = CalibratedClassifier::builder()
-    .base_classifier(classifier)
-    .method(CalibrationMethod::TemperatureScaling)
+let calibrated = CalibratedClassifier::builder(classifier)
+    .method(CalibrationMethod::PlattScaling)
     .cv_folds(5)
     .build();
 ```
 
-### Hierarchical Classification
+### Hierarchical Classification (Nested Dichotomies)
 
 ```rust
-use sklears_multiclass::{HierarchicalClassifier, HierarchicalStrategy};
+use sklears_multiclass::{DichotomyStrategy, NestedDichotomiesClassifier};
 
-let hierarchical = HierarchicalClassifier::builder()
-    .base_classifier(classifier)
-    .strategy(HierarchicalStrategy::TopDown)
+let hierarchical = NestedDichotomiesClassifier::builder(classifier)
+    .strategy(DichotomyStrategy::Balanced)
     .build();
 ```
 
@@ -125,23 +106,23 @@ The crate follows a modular design:
 ```
 sklears-multiclass/
 ├── src/
-│   ├── core/           # Core traits and types
-│   ├── decomposition/  # Binary decomposition methods
-│   ├── ensemble/       # Ensemble methods
+│   ├── core/           # Core traits, types, ECOC code matrices
+│   ├── one_vs_rest.rs, one_vs_one.rs  # Binary decomposition methods
+│   ├── ensemble/       # Bagging, AdaBoost, Gradient Boosting, Stacking, Rotation Forest
 │   ├── calibration/    # Probability calibration
-│   ├── imbalance/      # Class imbalance handling
-│   ├── hierarchical/   # Hierarchical classification
-│   └── incremental/    # Online learning (in progress)
+│   ├── advanced/       # Hierarchical / nested-dichotomy classifiers
+│   ├── incremental/    # Warm-start, drift detection, online learning
+│   ├── uncertainty/    # Conformal prediction
+│   └── gpu/            # OxiCUDA-backed GPU ops (feature `gpu`)
 ```
 
 ## Status
 
-**Stable** (`0.1.2`)
+**Stable** (`0.2.0`)
 
-- **Implementation**: 100% complete
-- **Tests**: 300 passing
+- **Tests**: 299 passing
 - **Production**: Ready
-- **GPU Support**: Coming in v1.1
+- **GPU Support**: Implemented behind the optional `gpu` feature (OxiCUDA/CUDA; honest CPU fallback with no device)
 
 ## Roadmap
 
@@ -149,7 +130,7 @@ sklears-multiclass/
 - [x] Core multiclass strategies
 - [x] Advanced ensemble methods
 - [x] Calibration framework
-- [ ] GPU acceleration
+- [x] GPU acceleration (optional `gpu` feature, OxiCUDA)
 - [ ] External ML framework integration
 
 ### v1.1 (Q4 2026)

@@ -42,7 +42,7 @@ use sklears_core::{
 ///     .perplexity(2.0)
 ///     .n_iter(100);
 /// let fitted = sne.fit(&x.view(), &()).unwrap();
-/// let embedded = fitted.transform(&x.view()).unwrap();
+/// let embedded = fitted.embedding();
 /// ```
 #[derive(Debug, Clone)]
 pub struct SNE<S = Untrained> {
@@ -369,19 +369,18 @@ impl SNE<Untrained> {
 }
 
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for SNE<SneTrained> {
-    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let (n_samples, _) = x.dim();
-
-        // For SNE, we can only transform the original training data
-        // Out-of-sample extension is not straightforward
-        if n_samples != self.state.embedding.nrows() {
-            return Err(SklearsError::InvalidParameter {
-                name: "input_data".to_string(),
-                reason: "SNE does not support out-of-sample extensions. Input must be the same as training data.".to_string()
-            });
-        }
-
-        Ok(self.state.embedding.clone())
+    fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
+        Err(SklearsError::NotImplemented(
+            "SNE is a transductive method: like scikit-learn's TSNE (which has no \
+             transform() method at all), the embedding produced by fit() is only \
+             defined for the exact points used during training and cannot be \
+             extended to new data, even when the input happens to match the training \
+             data exactly. Use `.embedding()` on the fitted model to retrieve the \
+             training embedding. To incorporate new points, refit on the combined \
+             (old + new) dataset, or use Isomap or UMAP, which support real \
+             out-of-sample projection via transform() in this crate."
+                .to_string(),
+        ))
     }
 }
 

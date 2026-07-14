@@ -6,10 +6,11 @@ use scirs2_core::ndarray::{array, Array2};
 use sklears::metrics::classification::{accuracy_score, f1_score, precision_score, recall_score};
 use sklears::neighbors::KNeighborsClassifier;
 use sklears::prelude::*;
-// StandardScaler not available in facade, skipping preprocessing test
-// use sklears::preprocessing::StandardScaler;
+#[cfg(feature = "preprocessing")]
+use sklears::preprocessing::{MinMaxScaler, StandardScaler};
 use sklears::utils::data_generation::make_classification;
 
+#[cfg(feature = "preprocessing")]
 #[test]
 #[allow(non_snake_case)]
 fn test_end_to_end_classification_pipeline() {
@@ -17,9 +18,13 @@ fn test_end_to_end_classification_pipeline() {
     let (X, y) = make_classification(100, 4, 3, None, None, 0.0, 1.0, Some(42))
         .expect("operation should succeed");
 
-    // Skip preprocessing for now (StandardScaler not available in facade)
-    // TODO: Re-enable when preprocessing is properly exposed
-    let X_scaled = X.clone();
+    // Standardize features before classification
+    let scaler = StandardScaler::new()
+        .fit(&X, &())
+        .expect("StandardScaler fit should succeed");
+    let X_scaled = scaler
+        .transform(&X)
+        .expect("StandardScaler transform should succeed");
 
     // Train classifier
     let classifier = KNeighborsClassifier::new(3);
@@ -101,11 +106,68 @@ fn test_metrics_consistency() {
     assert!((f1 - expected_f1).abs() < 1e-10);
 }
 
+#[cfg(feature = "preprocessing")]
 #[test]
-#[ignore = "StandardScaler not available in facade crate"]
+#[allow(non_snake_case)]
 fn test_preprocessing_pipeline() {
-    // Test disabled until StandardScaler is properly exposed in sklears facade
-    // TODO: Re-enable when sklears::preprocessing::StandardScaler is available
+    let X = Array2::from_shape_vec(
+        (6, 3),
+        vec![
+            1.0, 10.0, -1.0, 2.0, 20.0, -2.0, 3.0, 30.0, -3.0, 4.0, 40.0, -4.0, 5.0, 50.0, -5.0,
+            6.0, 60.0, -6.0,
+        ],
+    )
+    .expect("shape and data length should match");
+
+    // StandardScaler: every column should end up with ~zero mean and unit variance
+    let std_scaler = StandardScaler::new()
+        .fit(&X, &())
+        .expect("StandardScaler fit should succeed");
+    let X_std = std_scaler
+        .transform(&X)
+        .expect("StandardScaler transform should succeed");
+
+    assert_eq!(X_std.dim(), X.dim());
+    for j in 0..X_std.ncols() {
+        let col = X_std.column(j);
+        let n = col.len() as f64;
+        let mean: f64 = col.iter().sum::<f64>() / n;
+        let variance: f64 = col.iter().map(|&v| (v - mean).powi(2)).sum::<f64>() / n;
+        assert!(
+            mean.abs() < 1e-8,
+            "column {j} mean should be ~0, got {mean}"
+        );
+        assert!(
+            (variance - 1.0).abs() < 1e-8,
+            "column {j} variance should be ~1, got {variance}"
+        );
+    }
+
+    // MinMaxScaler: every value should land inside the configured [0, 1] range
+    let minmax_scaler = MinMaxScaler::new()
+        .fit(&X, &())
+        .expect("MinMaxScaler fit should succeed");
+    let X_minmax = minmax_scaler
+        .transform(&X)
+        .expect("MinMaxScaler transform should succeed");
+
+    assert_eq!(X_minmax.dim(), X.dim());
+    let eps = 1e-8;
+    for &value in X_minmax.iter() {
+        assert!(
+            value >= -eps && value <= 1.0 + eps,
+            "MinMaxScaler output {value} should be within [0, 1]"
+        );
+    }
+
+    // Chain the pipeline: scale, then feed the result into a classifier
+    let y = array![0, 0, 0, 1, 1, 1];
+    let classifier = KNeighborsClassifier::new(3);
+    let fitted = classifier
+        .fit(&X_std, &y)
+        .expect("model fitting should succeed");
+    let predictions = fitted.predict(&X_std).expect("prediction should succeed");
+    assert_eq!(predictions.len(), y.len());
 }
 
 #[test]

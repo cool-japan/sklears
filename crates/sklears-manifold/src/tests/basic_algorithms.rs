@@ -38,17 +38,22 @@ fn test_isomap_basic() {
 }
 
 #[test]
-fn test_tsne_transform() {
+fn test_tsne_transform_not_implemented() {
     let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
     let tsne = TSNE::new().n_components(2).perplexity(1.0).n_iter(50);
 
     let fitted = tsne.fit(&x.view(), &()).expect("operation should succeed");
-    let transformed = fitted
-        .transform(&x.view())
-        .expect("operation should succeed");
 
-    assert_eq!(transformed.dim(), (4, 2));
+    // t-SNE is transductive: transforming new data is not supported and must
+    // return an explicit error rather than silently reusing the training embedding.
+    assert!(matches!(
+        fitted.transform(&x.view()),
+        Err(SklearsError::NotImplemented(_))
+    ));
+
+    // The fit path itself still produces a valid training embedding.
+    assert_eq!(fitted.embedding().dim(), (4, 2));
 }
 
 #[test]
@@ -128,7 +133,7 @@ fn test_laplacian_eigenmaps_basic() {
 }
 
 #[test]
-fn test_laplacian_eigenmaps_transform() {
+fn test_laplacian_eigenmaps_transform_not_implemented() {
     let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0], [9.0, 10.0]];
 
     let laplacian = LaplacianEigenmaps::new().n_neighbors(2).n_components(2);
@@ -136,11 +141,16 @@ fn test_laplacian_eigenmaps_transform() {
     let fitted = laplacian
         .fit(&x.view(), &())
         .expect("operation should succeed");
-    let transformed = fitted
-        .transform(&x.view())
-        .expect("operation should succeed");
 
-    assert_eq!(transformed.dim(), (5, 2));
+    // Laplacian Eigenmaps is transductive: transforming new data is not
+    // supported and must return an explicit error.
+    assert!(matches!(
+        fitted.transform(&x.view()),
+        Err(SklearsError::NotImplemented(_))
+    ));
+
+    // The fit path itself still produces a valid training embedding.
+    assert_eq!(fitted.embedding().dim(), (5, 2));
 }
 
 #[test]
@@ -166,17 +176,22 @@ fn test_mds_basic() {
 }
 
 #[test]
-fn test_mds_transform() {
+fn test_mds_transform_not_implemented() {
     let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0], [9.0, 10.0]];
 
     let mds = MDS::new().n_components(2);
 
     let fitted = mds.fit(&x.view(), &()).expect("operation should succeed");
-    let transformed = fitted
-        .transform(&x.view())
-        .expect("operation should succeed");
 
-    assert_eq!(transformed.dim(), (5, 2));
+    // MDS is transductive: transforming new data is not supported and must
+    // return an explicit error.
+    assert!(matches!(
+        fitted.transform(&x.view()),
+        Err(SklearsError::NotImplemented(_))
+    ));
+
+    // The fit path itself still produces a valid training embedding.
+    assert_eq!(fitted.embedding().dim(), (5, 2));
 }
 
 #[test]
@@ -330,17 +345,22 @@ fn test_diffusion_maps_basic() {
 }
 
 #[test]
-fn test_diffusion_maps_transform() {
+fn test_diffusion_maps_transform_not_implemented() {
     let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0], [9.0, 10.0]];
 
     let dm = DiffusionMaps::new().n_components(2).epsilon(1.5);
 
     let fitted = dm.fit(&x.view(), &()).expect("operation should succeed");
-    let transformed = fitted
-        .transform(&x.view())
-        .expect("operation should succeed");
 
-    assert_eq!(transformed.dim(), (5, 2));
+    // Diffusion Maps is transductive: transforming new data is not supported
+    // and must return an explicit error.
+    assert!(matches!(
+        fitted.transform(&x.view()),
+        Err(SklearsError::NotImplemented(_))
+    ));
+
+    // The fit path itself still produces a valid training embedding.
+    assert_eq!(fitted.embedding().dim(), (5, 2));
 }
 
 #[test]

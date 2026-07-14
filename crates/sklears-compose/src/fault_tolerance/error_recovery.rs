@@ -922,6 +922,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_error_recovery_basic_functionality() {
         let system = ErrorRecoverySystem::with_defaults("test_system".to_string());
 
@@ -953,6 +954,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_error_classification() {
         let system = ErrorRecoverySystem::with_defaults("test_system".to_string());
 
@@ -965,6 +967,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_recovery_strategy_selection() {
         let system = ErrorRecoverySystem::with_defaults("test_system".to_string());
 
@@ -1000,6 +1003,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_state_snapshot_management() {
         let system = ErrorRecoverySystem::with_defaults("test_system".to_string());
 
@@ -1021,6 +1025,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_component_registration() {
         let system = ErrorRecoverySystem::with_defaults("test_system".to_string());
 
@@ -1047,6 +1052,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_recovery_metrics() {
         let system = ErrorRecoverySystem::with_defaults("test_system".to_string());
 
@@ -1084,6 +1090,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "constructs a tokio runtime with an IO driver; kqueue is unsupported by Miri on macOS")]
     async fn test_health_status() {
         let system = ErrorRecoverySystem::with_defaults("test_system".to_string());
 

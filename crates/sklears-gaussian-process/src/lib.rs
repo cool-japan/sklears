@@ -60,15 +60,13 @@ pub use classification::{
 //     ConstraintApproximation, ConstraintConfig, ConstraintEvaluation, ConstraintFunction,
 //     FeasibilityAnalysis,
 // };
-// TODO: Re-enable when modules are fully implemented
-// pub use convolution_processes::{ConvolutionProcess, ConvolutionProcessTrained};
-// pub use deep_gp::{DeepGPConfig, DeepGPLayer, DeepGaussianProcessRegressor};
+pub use convolution_processes::{ConvolutionProcess, ConvolutionProcessTrained};
+pub use deep_gp::{DeepGPConfig, DeepGPLayer, DeepGaussianProcessRegressor};
 pub use features::{RandomFourierFeatures, RandomFourierFeaturesGPR, RffGprTrained};
-// TODO: Re-enable when FITC is fully implemented
-// pub use fitc::{
-//     FitcGaussianProcessRegressor, FitcGaussianProcessRegressorConfig, FitcGprTrained,
-//     InducingPointInit as FitcInducingPointInit,
-// };
+pub use fitc::{
+    FitcGaussianProcessRegressor, FitcGaussianProcessRegressorConfig, FitcGprTrained,
+    InducingPointInit as FitcInducingPointInit,
+};
 pub use gpr::{GaussianProcessRegressor, GprTrained};
 pub use heteroscedastic::{
     ConstantNoise, HeteroscedasticGaussianProcessRegressor, LearnableNoiseFunction, LinearNoise,
@@ -78,16 +76,15 @@ pub use hierarchical::{HierarchicalGPConfig, HierarchicalGaussianProcessRegresso
 pub use intrinsic_coregionalization::{IcmTrained, IntrinsicCoregionalizationModel};
 pub use kernel_optimization::OptimizationResult as KernelOptimizationResult;
 pub use kernel_optimization::{optimize_kernel_parameters, KernelOptimizer};
-pub use linear_model_coregionalization::{LinearModelCoregionalization, LmcTrained};
-// TODO: Re-enable when kernel_selection is fully implemented
-// pub use kernel_selection::{
-//     select_best_kernel, select_kernel_aic, select_kernel_bic, select_kernel_cv,
-//     KernelSelectionConfig, KernelSelectionResult, KernelSelector, SelectionCriterion,
-// };
+pub use kernel_selection::{
+    select_best_kernel, select_kernel_aic, select_kernel_bic, select_kernel_cv,
+    KernelSelectionConfig, KernelSelectionResult, KernelSelector, SelectionCriterion,
+};
 pub use kernel_structure_learning::{
     ConvergenceInfo, KernelGrammar, KernelStructureLearner, NonTerminalOperation, SearchStrategy,
     StructureLearningResult, TerminalKernel,
 };
+pub use linear_model_coregionalization::{LinearModelCoregionalization, LmcTrained};
 pub use marginal_likelihood::OptimizationResult as MarginalLikelihoodOptimizationResult;
 pub use marginal_likelihood::{
     cross_validate_hyperparameters, log_marginal_likelihood, log_marginal_likelihood_stable,
@@ -128,11 +125,10 @@ pub use structured_kernel_interpolation::{
 //     SeasonalDecomposition, StateSpaceModel, TemporalGPConfig, TemporalGaussianProcessRegressor,
 //     TemporalKernel, Trained as TemporalGprTrained,
 // };
-// TODO: Re-enable when variational is fully implemented
-// pub use variational::{
-//     SparseGaussianProcessClassifier, SgpcTrained, VariationalGaussianProcessClassifier,
-//     VariationalGpcConfig, VariationalGpcTrained,
-// };
+pub use variational::{
+    SgpcTrained, SparseGaussianProcessClassifier, VariationalGaussianProcessClassifier,
+    VariationalGpcConfig, VariationalGpcTrained,
+};
 pub use variational_deep_gp::{
     VariationalDeepGPBuilder, VariationalDeepGPConfig, VariationalDeepGaussianProcess,
     VariationalLayerConfig, VariationalLayerParameters, VariationalLikelihood,

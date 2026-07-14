@@ -56,9 +56,8 @@ try:
     from sklearn.linear_model import LogisticRegression as SklearnLogistic
     from sklearn.cluster import KMeans as SklearnKMeans
     from sklearn.cluster import DBSCAN as SklearnDBSCAN
-    # TODO: Coming soon - StandardScaler and MinMaxScaler not yet exposed via skl
-    # from sklearn.preprocessing import StandardScaler as SklearnStandardScaler
-    # from sklearn.preprocessing import MinMaxScaler as SklearnMinMaxScaler
+    from sklearn.preprocessing import StandardScaler as SklearnStandardScaler
+    from sklearn.preprocessing import MinMaxScaler as SklearnMinMaxScaler
     from sklearn.metrics import accuracy_score, mean_squared_error, r2_score
     HAS_SKLEARN = True
 except ImportError:
@@ -105,16 +104,24 @@ class PerformanceBenchmarker:
         self.random_state = 42
         np.random.seed(self.random_state)
 
-    def _time_operation(self, operation, *args, **kwargs) -> Tuple[Any, float]:
-        """Time a single operation and return result and elapsed time"""
+    def _time_operation(self, operation, *args, **kwargs) -> Tuple[bool, Any, float]:
+        """Time a single operation; returns (success, result, elapsed).
+
+        Success is tracked explicitly via whether an exception was raised,
+        *not* via `result is not None`: sklears' `.fit()` methods mutate
+        `self` and return `None` on success (unlike scikit-learn's `.fit()`,
+        which returns `self`), so a `result is not None` check would
+        misclassify every successful sklears fit as a failure and silently
+        drop it from the report.
+        """
         start_time = time.perf_counter()
         try:
             result = operation(*args, **kwargs)
             elapsed = time.perf_counter() - start_time
-            return result, elapsed
+            return True, result, elapsed
         except Exception as e:
             elapsed = time.perf_counter() - start_time
-            return None, elapsed
+            return False, e, elapsed
 
     def _generate_regression_data(self, n_samples: int, n_features: int) -> Tuple[np.ndarray, np.ndarray]:
         """Generate regression dataset"""
@@ -160,10 +167,13 @@ class PerformanceBenchmarker:
             # Benchmark sklears
             try:
                 model = skl.LinearRegression()
-                fitted_model, fit_time = self._time_operation(model.fit, X_train, y_train)
-                predictions, predict_time = self._time_operation(model.predict, X_test)
+                fit_ok, fit_err, fit_time = self._time_operation(model.fit, X_train, y_train)
+                if fit_ok:
+                    predict_ok, predictions, predict_time = self._time_operation(model.predict, X_test)
+                else:
+                    predict_ok, predictions, predict_time = False, None, 0.0
 
-                if fitted_model is not None and predictions is not None:
+                if fit_ok and predict_ok:
                     # Use numpy fallback since skl.r2_score is not yet exposed
                     r2 = _numpy_r2_score(y_test, predictions)
                     self.results.append(BenchmarkResult(
@@ -174,6 +184,17 @@ class PerformanceBenchmarker:
                         predict_time=predict_time,
                         total_time=fit_time + predict_time,
                         accuracy_metric=r2
+                    ))
+                else:
+                    failure = fit_err if not fit_ok else predictions
+                    self.results.append(BenchmarkResult(
+                        algorithm="LinearRegression",
+                        library="sklears",
+                        dataset_size=(n_samples, n_features),
+                        fit_time=0,
+                        predict_time=0,
+                        total_time=0,
+                        error_message=str(failure)
                     ))
             except Exception as e:
                 self.results.append(BenchmarkResult(
@@ -190,10 +211,13 @@ class PerformanceBenchmarker:
             if HAS_SKLEARN:
                 try:
                     model = SklearnLR()
-                    fitted_model, fit_time = self._time_operation(model.fit, X_train, y_train)
-                    predictions, predict_time = self._time_operation(model.predict, X_test)
+                    fit_ok, fit_err, fit_time = self._time_operation(model.fit, X_train, y_train)
+                    if fit_ok:
+                        predict_ok, predictions, predict_time = self._time_operation(model.predict, X_test)
+                    else:
+                        predict_ok, predictions, predict_time = False, None, 0.0
 
-                    if fitted_model is not None and predictions is not None:
+                    if fit_ok and predict_ok:
                         r2 = r2_score(y_test, predictions)
                         self.results.append(BenchmarkResult(
                             algorithm="LinearRegression",
@@ -203,6 +227,17 @@ class PerformanceBenchmarker:
                             predict_time=predict_time,
                             total_time=fit_time + predict_time,
                             accuracy_metric=r2
+                        ))
+                    else:
+                        failure = fit_err if not fit_ok else predictions
+                        self.results.append(BenchmarkResult(
+                            algorithm="LinearRegression",
+                            library="sklearn",
+                            dataset_size=(n_samples, n_features),
+                            fit_time=0,
+                            predict_time=0,
+                            total_time=0,
+                            error_message=str(failure)
                         ))
                 except Exception as e:
                     self.results.append(BenchmarkResult(
@@ -235,9 +270,9 @@ class PerformanceBenchmarker:
 
             for alg_name, model, library in algorithms:
                 try:
-                    labels, total_time = self._time_operation(model.fit_predict, X)
+                    success, labels, total_time = self._time_operation(model.fit_predict, X)
 
-                    if labels is not None:
+                    if success:
                         n_clusters = len(np.unique(labels))
                         self.results.append(BenchmarkResult(
                             algorithm=alg_name,
@@ -247,6 +282,16 @@ class PerformanceBenchmarker:
                             predict_time=0,
                             total_time=total_time,
                             accuracy_metric=float(n_clusters)
+                        ))
+                    else:
+                        self.results.append(BenchmarkResult(
+                            algorithm=alg_name,
+                            library=library,
+                            dataset_size=(n_samples, n_features),
+                            fit_time=0,
+                            predict_time=0,
+                            total_time=0,
+                            error_message=str(labels)
                         ))
                 except Exception as e:
                     self.results.append(BenchmarkResult(
@@ -259,53 +304,65 @@ class PerformanceBenchmarker:
                         error_message=str(e)
                     ))
 
-    # TODO: Coming soon - benchmark_preprocessing() requires StandardScaler/MinMaxScaler
-    # which are not yet exposed in the sklears module.
-    # def benchmark_preprocessing(self, dataset_sizes: List[Tuple[int, int]]):
-    #     """Benchmark preprocessing algorithms"""
-    #     print("Benchmarking Preprocessing...")
-    #
-    #     for n_samples, n_features in dataset_sizes:
-    #         print(f"  Dataset size: {n_samples} x {n_features}")
-    #
-    #         X = np.random.randn(n_samples, n_features) * 10 + 5
-    #
-    #         scalers = [
-    #             ("StandardScaler", skl.StandardScaler(), "sklears"),
-    #         ]
-    #
-    #         if HAS_SKLEARN:
-    #             scalers.append(("StandardScaler", SklearnStandardScaler(), "sklearn"))
-    #
-    #         for scaler_name, scaler, library in scalers:
-    #             try:
-    #                 fitted_scaler, fit_time = self._time_operation(scaler.fit, X)
-    #                 X_scaled, transform_time = self._time_operation(scaler.transform, X)
-    #
-    #                 if fitted_scaler is not None and X_scaled is not None:
-    #                     mean_close_to_zero = np.abs(X_scaled.mean()) < 0.01
-    #                     std_close_to_one = np.abs(X_scaled.std() - 1.0) < 0.01
-    #                     accuracy = float(mean_close_to_zero and std_close_to_one)
-    #
-    #                     self.results.append(BenchmarkResult(
-    #                         algorithm=scaler_name,
-    #                         library=library,
-    #                         dataset_size=(n_samples, n_features),
-    #                         fit_time=fit_time,
-    #                         predict_time=transform_time,
-    #                         total_time=fit_time + transform_time,
-    #                         accuracy_metric=accuracy
-    #                     ))
-    #             except Exception as e:
-    #                 self.results.append(BenchmarkResult(
-    #                     algorithm=scaler_name,
-    #                     library=library,
-    #                     dataset_size=(n_samples, n_features),
-    #                     fit_time=0,
-    #                     predict_time=0,
-    #                     total_time=0,
-    #                     error_message=str(e)
-    #                 ))
+    def benchmark_preprocessing(self, dataset_sizes: List[Tuple[int, int]]):
+        """Benchmark preprocessing algorithms"""
+        print("Benchmarking Preprocessing...")
+
+        for n_samples, n_features in dataset_sizes:
+            print(f"  Dataset size: {n_samples} x {n_features}")
+
+            X = np.random.randn(n_samples, n_features) * 10 + 5
+
+            scalers = [
+                ("StandardScaler", skl.StandardScaler(), "sklears"),
+            ]
+
+            if HAS_SKLEARN:
+                scalers.append(("StandardScaler", SklearnStandardScaler(), "sklearn"))
+
+            for scaler_name, scaler, library in scalers:
+                try:
+                    fit_ok, fit_err, fit_time = self._time_operation(scaler.fit, X)
+                    if fit_ok:
+                        transform_ok, X_scaled, transform_time = self._time_operation(scaler.transform, X)
+                    else:
+                        transform_ok, X_scaled, transform_time = False, None, 0.0
+
+                    if fit_ok and transform_ok:
+                        mean_close_to_zero = np.abs(X_scaled.mean()) < 0.01
+                        std_close_to_one = np.abs(X_scaled.std() - 1.0) < 0.01
+                        accuracy = float(mean_close_to_zero and std_close_to_one)
+
+                        self.results.append(BenchmarkResult(
+                            algorithm=scaler_name,
+                            library=library,
+                            dataset_size=(n_samples, n_features),
+                            fit_time=fit_time,
+                            predict_time=transform_time,
+                            total_time=fit_time + transform_time,
+                            accuracy_metric=accuracy
+                        ))
+                    else:
+                        failure = fit_err if not fit_ok else X_scaled
+                        self.results.append(BenchmarkResult(
+                            algorithm=scaler_name,
+                            library=library,
+                            dataset_size=(n_samples, n_features),
+                            fit_time=0,
+                            predict_time=0,
+                            total_time=0,
+                            error_message=str(failure)
+                        ))
+                except Exception as e:
+                    self.results.append(BenchmarkResult(
+                        algorithm=scaler_name,
+                        library=library,
+                        dataset_size=(n_samples, n_features),
+                        fit_time=0,
+                        predict_time=0,
+                        total_time=0,
+                        error_message=str(e)
+                    ))
 
     def run_comprehensive_benchmark(self,
                                   small_datasets: bool = True,
@@ -331,7 +388,7 @@ class PerformanceBenchmarker:
         # Run benchmarks
         self.benchmark_linear_regression(dataset_sizes)
         self.benchmark_clustering(dataset_sizes)
-        # benchmark_preprocessing skipped: TODO: Coming soon (StandardScaler/MinMaxScaler not yet exposed)
+        self.benchmark_preprocessing(dataset_sizes)
 
         total_runtime = time.time() - start_time
 
@@ -339,8 +396,7 @@ class PerformanceBenchmarker:
         system_info = {
             "sklears_version": skl.get_version(),
             "sklears_build_info": skl.get_build_info(),
-            # TODO: Coming soon - get_hardware_info() not yet exposed
-            # "hardware_info": skl.get_hardware_info(),
+            "hardware_info": skl.get_hardware_info(),
         }
 
         if HAS_SKLEARN:
@@ -389,11 +445,10 @@ class PerformanceBenchmarker:
         if 'sklearn_version' in summary.system_info:
             report.append(f"Scikit-learn version: {summary.system_info['sklearn_version']}")
 
-        # TODO: Coming soon - hardware_info not yet in system_info (get_hardware_info not exposed)
-        # if 'hardware_info' in summary.system_info:
-        #     hw_info = summary.system_info['hardware_info']
-        #     report.append(f"CPU cores: {hw_info.get('num_cpus', 'Unknown')}")
-        #     report.append(f"SIMD support: {hw_info.get('avx2', False) or hw_info.get('neon', False)}")
+        if 'hardware_info' in summary.system_info:
+            hw_info = summary.system_info['hardware_info']
+            report.append(f"CPU cores: {hw_info.get('num_cpus', 'Unknown')}")
+            report.append(f"SIMD support: {hw_info.get('avx2', False) or hw_info.get('neon', False)}")
 
         report.append(f"Total runtime: {summary.total_runtime:.2f} seconds")
         report.append("")

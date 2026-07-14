@@ -13,17 +13,15 @@ use sklears_core::{
 };
 use smartcore::{
     linalg::basic::matrix::DenseMatrix,
-    tree::decision_tree_regressor::{*, DecisionTreeRegressor as SmartCoreRegressor},
+    tree::decision_tree_regressor::{DecisionTreeRegressor as SmartCoreRegressor, *},
 };
 
+use crate::builder::{find_best_mae_split, handle_missing_values};
+use crate::config::ndarray_to_dense_matrix;
 use crate::config::{
     DecisionTreeConfig, FeatureType, MaxFeatures, MissingValueStrategy, PruningStrategy,
-    SplitCriterion, TreeGrowingStrategy, SplitType,
+    SplitCriterion, SplitType, TreeGrowingStrategy,
 };
-use crate::builder::{
-    handle_missing_values, find_best_mae_split, mae_impurity,
-};
-use crate::config::ndarray_to_dense_matrix;
 
 /// Decision Tree Regressor
 pub struct DecisionTreeRegressor<State = Untrained> {
@@ -38,8 +36,10 @@ pub struct DecisionTreeRegressor<State = Untrained> {
 impl DecisionTreeRegressor<Untrained> {
     /// Create a new Decision Tree Regressor
     pub fn new() -> Self {
-        let mut config = DecisionTreeConfig::default();
-        config.criterion = SplitCriterion::MSE; // Use regression-appropriate criterion
+        let config = DecisionTreeConfig {
+            criterion: SplitCriterion::MSE, // Use regression-appropriate criterion
+            ..Default::default()
+        };
         Self {
             config,
             state: PhantomData,
@@ -47,6 +47,11 @@ impl DecisionTreeRegressor<Untrained> {
             n_features_: None,
             max_depth_: None,
         }
+    }
+
+    /// Check if the regressor has been fitted (always false for untrained regressors)
+    pub fn is_fitted(&self) -> bool {
+        false
     }
 
     /// Set the split criterion
@@ -292,9 +297,13 @@ impl DecisionTreeRegressor<Untrained> {
         // Split data: 70% training, 30% validation
         let train_size = (n_samples as f64 * 0.7) as usize;
 
-        let train_x = x.slice(scirs2_core::ndarray::s![..train_size, ..]).to_owned();
+        let train_x = x
+            .slice(scirs2_core::ndarray::s![..train_size, ..])
+            .to_owned();
         let train_y = y.slice(scirs2_core::ndarray::s![..train_size]).to_owned();
-        let val_x = x.slice(scirs2_core::ndarray::s![train_size.., ..]).to_owned();
+        let val_x = x
+            .slice(scirs2_core::ndarray::s![train_size.., ..])
+            .to_owned();
         let val_y = y.slice(scirs2_core::ndarray::s![train_size..]).to_owned();
 
         let depths_to_try = vec![3, 5, 7, 10, 15];
@@ -396,6 +405,11 @@ impl DecisionTreeRegressor<Untrained> {
 }
 
 impl DecisionTreeRegressor<Trained> {
+    /// Check if the regressor has been fitted (always true for trained regressors)
+    pub fn is_fitted(&self) -> bool {
+        true
+    }
+
     /// Get the number of features
     pub fn n_features(&self) -> usize {
         self.n_features_.expect("Model should be fitted")
@@ -612,5 +626,50 @@ mod tests {
 
         let predictions = model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
+    }
+
+    /// Non-degeneracy check: the regressor must actually learn from `y`, not
+    /// just return shape-correct zeros. Fit on `y = 2*x + noise` and confirm
+    /// predictions track the true targets closely; the old degenerate stub
+    /// (which always predicted zero) would have a mean absolute error close
+    /// to the average magnitude of `y` (tens of units here), not a small one.
+    #[test]
+    fn test_regressor_learns_linear_pattern() {
+        use scirs2_core::random::seeded_rng;
+
+        let mut rng = seeded_rng(123);
+        let n_samples = 60;
+        let mut x_data = Vec::with_capacity(n_samples);
+        let mut y_data = Vec::with_capacity(n_samples);
+
+        for i in 0..n_samples {
+            let x_val = i as f64 * 0.5;
+            let noise = rng.gen_range(-0.3..0.3);
+            x_data.push(x_val);
+            y_data.push(2.0 * x_val + noise);
+        }
+
+        let x =
+            Array2::from_shape_vec((n_samples, 1), x_data).expect("shape should match data length");
+        let y = Array1::from_vec(y_data);
+
+        let model = DecisionTreeRegressor::new()
+            .max_depth(10)
+            .fit(&x, &y)
+            .expect("fit should succeed on learnable linear pattern");
+
+        let predictions = model.predict(&x).expect("predict should succeed");
+
+        let mae: f64 = predictions
+            .iter()
+            .zip(y.iter())
+            .map(|(pred, actual)| (pred - actual).abs())
+            .sum::<f64>()
+            / y.len() as f64;
+
+        assert!(
+            mae < 1.0,
+            "expected mean absolute error < 1.0 for a learnable linear pattern, got {mae}"
+        );
     }
 }

@@ -41,7 +41,7 @@ use sklears_core::{
 ///     .perplexity(1.0);
 ///
 /// let fitted = mbtsne.fit(&x.view(), &()).unwrap();
-/// let embedded = fitted.transform(&x.view()).unwrap();
+/// let embedded = fitted.embedding();
 /// ```
 #[derive(Debug, Clone)]
 pub struct MiniBatchTSNE<S = Untrained> {
@@ -250,9 +250,16 @@ impl Fit<ArrayView2<'_, Float>, ()> for MiniBatchTSNE<Untrained> {
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for MiniBatchTSNE<MBTSNETrained> {
     fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        // For fitted data, return the stored embedding
-        // For new data, this would require out-of-sample extension (not implemented here)
-        Ok(self.state.embedding.clone())
+        Err(SklearsError::NotImplemented(
+            "Mini-batch t-SNE is a transductive method: like scikit-learn's TSNE \
+             (which has no transform() method at all), the embedding produced by \
+             fit() is only defined for the exact points used during training and \
+             cannot be extended to new, unseen data. Use `.embedding()` on the fitted \
+             model to retrieve the training embedding. To incorporate new points, \
+             refit on the combined (old + new) dataset, or use Isomap or UMAP, which \
+             support real out-of-sample projection via transform() in this crate."
+                .to_string(),
+        ))
     }
 }
 
@@ -309,5 +316,59 @@ impl MiniBatchTSNE<MBTSNETrained> {
     /// Get the learned embedding
     pub fn embedding(&self) -> &Array2<f64> {
         &self.state.embedding
+    }
+}
+
+#[allow(non_snake_case)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    #[test]
+    fn test_minibatch_tsne_fit() {
+        let x = array![
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
+            [10.0, 11.0, 12.0]
+        ];
+
+        let mbtsne = MiniBatchTSNE::new()
+            .n_components(2)
+            .batch_size(2)
+            .perplexity(1.0)
+            .n_iter(10)
+            .random_state(Some(42));
+
+        let fitted = mbtsne
+            .fit(&x.view(), &())
+            .expect("operation should succeed");
+
+        assert_eq!(fitted.embedding().dim(), (4, 2));
+    }
+
+    #[test]
+    fn test_minibatch_tsne_transform_errors() {
+        let x = array![
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
+            [10.0, 11.0, 12.0]
+        ];
+
+        let mbtsne = MiniBatchTSNE::new()
+            .n_components(2)
+            .batch_size(2)
+            .perplexity(1.0)
+            .n_iter(10)
+            .random_state(Some(42));
+
+        let fitted = mbtsne
+            .fit(&x.view(), &())
+            .expect("operation should succeed");
+
+        let result = fitted.transform(&x.view());
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
     }
 }

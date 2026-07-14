@@ -4,6 +4,9 @@
 //! memory layout optimization, and high-performance SIMD vectorized operations.
 
 use crate::types::*;
+use std::alloc::{alloc, dealloc, Layout};
+use std::ops::{Deref, DerefMut};
+use std::ptr::NonNull;
 use std::sync::{Arc, Mutex};
 
 /// Memory-efficient data structure for explanation results
@@ -27,12 +30,107 @@ impl Default for ExplanationDataLayout {
     }
 }
 
+/// Owned buffer of `Float` values allocated with an explicit (possibly
+/// over-aligned) [`Layout`].
+///
+/// `Vec<Float>` cannot safely hold memory allocated with an alignment
+/// greater than `align_of::<Float>()`: its `Drop` implementation always
+/// deallocates using `Layout::array::<Float>(capacity)`, i.e. `Float`'s
+/// *natural* alignment, with no way to override it. Wrapping a custom,
+/// over-aligned allocation in a `Vec` via `Vec::from_raw_parts` therefore
+/// deallocates with the wrong layout -- Undefined Behavior (confirmed by
+/// Miri: "incorrect layout on deallocation"). `AlignedVec` instead
+/// remembers the exact layout used at allocation time and frees the memory
+/// with that same layout, so it can safely provide cache-line-aligned
+/// storage.
+pub struct AlignedVec {
+    ptr: NonNull<Float>,
+    len: usize,
+    layout: Layout,
+}
+
+impl AlignedVec {
+    /// Allocate a new zero-initialized buffer of `len` elements, aligned to
+    /// `alignment` bytes (rounded up to a power of two, and to at least
+    /// `align_of::<Float>()`).
+    fn new_zeroed(len: usize, alignment: usize) -> Self {
+        let alignment = alignment
+            .max(std::mem::align_of::<Float>())
+            .next_power_of_two();
+        let total_size = len * std::mem::size_of::<Float>();
+
+        if total_size == 0 {
+            // `GlobalAlloc::alloc` forbids zero-size layouts; use a
+            // dangling, well-aligned pointer instead, mirroring how `Vec`
+            // itself represents zero-capacity buffers.
+            let layout = Layout::from_size_align(0, alignment).expect(
+                "alignment is a validated power of two, so a zero-size layout is always valid",
+            );
+            return Self {
+                ptr: NonNull::dangling(),
+                len: 0,
+                layout,
+            };
+        }
+
+        let layout = Layout::from_size_align(total_size, alignment).expect(
+            "size/alignment combination must fit within isize::MAX for any realistic buffer length",
+        );
+
+        // SAFETY: `layout` has non-zero size (checked above).
+        let raw_ptr = unsafe { alloc(layout) };
+        let ptr = match NonNull::new(raw_ptr.cast::<Float>()) {
+            Some(ptr) => ptr,
+            None => std::alloc::handle_alloc_error(layout),
+        };
+
+        // SAFETY: `ptr` was just allocated and is valid for `total_size`
+        // bytes (`len` elements of `Float`).
+        unsafe { std::ptr::write_bytes(ptr.as_ptr(), 0, len) };
+
+        Self { ptr, len, layout }
+    }
+}
+
+impl Deref for AlignedVec {
+    type Target = [Float];
+
+    fn deref(&self) -> &[Float] {
+        // SAFETY: `ptr` is valid and initialized for `len` elements for as
+        // long as `self` is alive.
+        unsafe { std::slice::from_raw_parts(self.ptr.as_ptr(), self.len) }
+    }
+}
+
+impl DerefMut for AlignedVec {
+    fn deref_mut(&mut self) -> &mut [Float] {
+        // SAFETY: `ptr` is valid and initialized for `len` elements, and
+        // `self` has exclusive access.
+        unsafe { std::slice::from_raw_parts_mut(self.ptr.as_ptr(), self.len) }
+    }
+}
+
+impl Drop for AlignedVec {
+    fn drop(&mut self) {
+        if self.layout.size() != 0 {
+            // SAFETY: `self.ptr` was allocated by `alloc` with exactly
+            // `self.layout`, and this is the only place that frees it.
+            unsafe { dealloc(self.ptr.as_ptr().cast::<u8>(), self.layout) };
+        }
+    }
+}
+
+// SAFETY: `AlignedVec` exclusively owns its heap allocation; sharing it
+// across threads is as safe as sharing a `Vec<Float>` (which is Send+Sync).
+unsafe impl Send for AlignedVec {}
+unsafe impl Sync for AlignedVec {}
+
 /// Memory-efficient data layout manager
 pub struct MemoryLayoutManager {
     /// Current layout configuration
     layout: ExplanationDataLayout,
     /// Memory pool for reuse
-    memory_pool: Arc<Mutex<Vec<Vec<Float>>>>,
+    memory_pool: Arc<Mutex<Vec<AlignedVec>>>,
 }
 
 impl MemoryLayoutManager {
@@ -66,7 +164,7 @@ impl MemoryLayoutManager {
     }
 
     /// Allocate aligned memory for explanation computation
-    pub fn allocate_aligned(&self, size: usize) -> Vec<Float> {
+    pub fn allocate_aligned(&self, size: usize) -> AlignedVec {
         // Try to reuse memory from pool
         {
             // Handle poisoned mutex by recovering or creating empty pool
@@ -81,50 +179,14 @@ impl MemoryLayoutManager {
             }
         }
 
-        // Allocate new aligned memory using unsafe for better performance
-        unsafe { self.allocate_aligned_unsafe(size) }
-    }
-
-    /// Unsafe aligned memory allocation for maximum performance
-    ///
-    /// # Safety
-    ///
-    /// This function is safe when:
-    /// - `size` is non-zero
-    /// - The alignment is a power of 2
-    /// - The caller properly handles the returned memory
-    unsafe fn allocate_aligned_unsafe(&self, size: usize) -> Vec<Float> {
-        use std::alloc::{alloc, Layout};
-
-        // Ensure alignment is power of 2
-        let alignment = self.layout.alignment.max(std::mem::align_of::<Float>());
-        let alignment = alignment.next_power_of_two();
-
-        // Calculate total size needed
-        let total_size = size * std::mem::size_of::<Float>();
-
-        // Create layout for aligned allocation
-        let layout = Layout::from_size_align_unchecked(total_size, alignment);
-
-        // Allocate aligned memory
-        let ptr = alloc(layout) as *mut Float;
-
-        if ptr.is_null() {
-            // Fallback to regular allocation if aligned allocation fails
-            let mut memory = Vec::with_capacity(size);
-            memory.resize(size, 0.0);
-            return memory;
-        }
-
-        // Initialize memory to zero for safety
-        std::ptr::write_bytes(ptr, 0, size);
-
-        // Create Vec from raw parts
-        Vec::from_raw_parts(ptr, size, size)
+        // Allocate new aligned memory. `AlignedVec` encapsulates the unsafe
+        // allocation and remembers its own layout so it can be freed
+        // correctly, regardless of the requested alignment.
+        AlignedVec::new_zeroed(size, self.layout.alignment)
     }
 
     /// Return memory to pool for reuse
-    pub fn deallocate(&self, memory: Vec<Float>) {
+    pub fn deallocate(&self, memory: AlignedVec) {
         // Handle poisoned mutex by recovering or creating empty pool
         let mut pool = self.memory_pool.lock().unwrap_or_else(|poisoned| {
             // Clear the poisoned state and return the guard
@@ -268,8 +330,8 @@ impl MemoryLayoutManager {
                 }
 
                 // Extract and sum the 4 values
-                let sum_arr = [0.0; 4];
-                _mm256_storeu_pd(sum_arr.as_ptr() as *mut f64, sum_vec);
+                let mut sum_arr = [0.0; 4];
+                _mm256_storeu_pd(sum_arr.as_mut_ptr(), sum_vec);
                 result = sum_arr[0] + sum_arr[1] + sum_arr[2] + sum_arr[3];
 
                 // Handle remaining elements
@@ -292,8 +354,8 @@ impl MemoryLayoutManager {
                 }
 
                 // Extract and sum the 4 values
-                let sum_arr = [0.0; 4];
-                _mm_storeu_ps(sum_arr.as_ptr() as *mut f32, sum_vec);
+                let mut sum_arr = [0.0; 4];
+                _mm_storeu_ps(sum_arr.as_mut_ptr(), sum_vec);
                 result = (sum_arr[0] + sum_arr[1] + sum_arr[2] + sum_arr[3]) as Float;
 
                 // Handle remaining elements

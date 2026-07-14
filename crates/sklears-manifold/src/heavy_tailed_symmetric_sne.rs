@@ -44,7 +44,7 @@ use sklears_core::{
 ///     .degrees_of_freedom(2.0)
 ///     .n_iter(100);
 /// let fitted = htsne.fit(&x.view(), &()).unwrap();
-/// let embedded = fitted.transform(&x.view()).unwrap();
+/// let embedded = fitted.embedding();
 /// ```
 #[derive(Debug, Clone)]
 pub struct HeavyTailedSymmetricSNE<S = Untrained> {
@@ -431,15 +431,18 @@ impl HeavyTailedSymmetricSNE<Untrained> {
 impl Transform<ArrayView2<'_, Float>, Array2<Float>>
     for HeavyTailedSymmetricSNE<HeavyTailedSymmetricSneTrained>
 {
-    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        // For Heavy-Tailed Symmetric SNE, transform returns the learned embedding
-        // as it's a non-parametric method that doesn't support out-of-sample extension
-        if x.nrows() != self.state.embedding.nrows() {
-            return Err(SklearsError::InvalidInput(
-                "Input data must have the same number of samples as training data for non-parametric methods".to_string()
-            ));
-        }
-        Ok(self.state.embedding.clone())
+    fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
+        Err(SklearsError::NotImplemented(
+            "Heavy-Tailed Symmetric SNE is a transductive method: like scikit-learn's \
+             TSNE (which has no transform() method at all), the embedding produced by \
+             fit() is only defined for the exact points used during training and \
+             cannot be extended to new data, even when the input happens to match \
+             the training data exactly. Use `.embedding()` on the fitted model to \
+             retrieve the training embedding. To incorporate new points, refit on \
+             the combined (old + new) dataset, or use Isomap or UMAP, which support \
+             real out-of-sample projection via transform() in this crate."
+                .to_string(),
+        ))
     }
 }
 
@@ -452,5 +455,55 @@ impl HeavyTailedSymmetricSNE<HeavyTailedSymmetricSneTrained> {
     /// Get the joint probabilities matrix
     pub fn joint_probabilities(&self) -> &Array2<f64> {
         &self.state.p_joint
+    }
+}
+
+#[allow(non_snake_case)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    #[test]
+    fn test_heavy_tailed_symmetric_sne_fit() {
+        let x = array![
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
+            [10.0, 11.0, 12.0]
+        ];
+
+        let htsne = HeavyTailedSymmetricSNE::new()
+            .n_components(2)
+            .perplexity(1.0)
+            .degrees_of_freedom(2.0)
+            .n_iter(50)
+            .random_state(Some(42));
+
+        let fitted = htsne.fit(&x.view(), &()).expect("operation should succeed");
+
+        assert_eq!(fitted.embedding().dim(), (4, 2));
+    }
+
+    #[test]
+    fn test_heavy_tailed_symmetric_sne_transform_errors() {
+        let x = array![
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
+            [10.0, 11.0, 12.0]
+        ];
+
+        let htsne = HeavyTailedSymmetricSNE::new()
+            .n_components(2)
+            .perplexity(1.0)
+            .degrees_of_freedom(2.0)
+            .n_iter(50)
+            .random_state(Some(42));
+
+        let fitted = htsne.fit(&x.view(), &()).expect("operation should succeed");
+
+        let result = fitted.transform(&x.view());
+        assert!(matches!(result, Err(SklearsError::NotImplemented(_))));
     }
 }

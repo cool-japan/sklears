@@ -5,9 +5,27 @@
 //! and template management.
 
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "gpu")]
+use sklears_core::gpu::GpuBackend;
 use std::collections::HashMap;
 use std::path::Path;
 use thiserror::Error;
+
+/// Real oxicuda-backed GPU availability check, used both to derive
+/// [`ResourceConfig::use_gpu`]'s default and to validate a config that
+/// requests GPU acceleration. Without the `gpu` feature (which enables
+/// `sklears-core`'s `gpu_support`) no GPU code is compiled into this crate
+/// at all, so this honestly reports `false` rather than fabricating
+/// availability.
+#[cfg(feature = "gpu")]
+fn gpu_is_available() -> bool {
+    GpuBackend::is_available()
+}
+
+#[cfg(not(feature = "gpu"))]
+fn gpu_is_available() -> bool {
+    false
+}
 
 /// Configuration management error types
 #[derive(Error, Debug)]
@@ -129,8 +147,12 @@ pub struct ResourceConfig {
     pub n_jobs: i32,
     /// Memory limit in MB
     pub memory_limit: Option<usize>,
-    /// Enable GPU acceleration
-    #[serde(default)]
+    /// Enable GPU acceleration. Defaults to a real oxicuda-backed detection
+    /// (`sklears_core::gpu::GpuBackend::is_available()`) rather than a
+    /// hardcoded value, and is cross-checked against actual availability by
+    /// [`ConfigManager`]'s validation (`use_gpu: true` on a host with no
+    /// usable GPU is a validation error, not a silent no-op).
+    #[serde(default = "default_use_gpu")]
     pub use_gpu: bool,
     /// Batch size for parallel processing
     #[serde(default = "default_batch_size")]
@@ -283,6 +305,19 @@ impl ConfigManager {
             ));
         }
 
+        // Validate `use_gpu` against real oxicuda-backed device detection:
+        // requesting GPU acceleration on a host/build with no usable GPU is
+        // rejected rather than silently ignored, so callers don't believe
+        // they got GPU acceleration when none exists.
+        if config.resources.use_gpu && !gpu_is_available() {
+            return Err(ConfigError::Validation(
+                "resources.use_gpu is true but no GPU device was detected \
+                 (GpuBackend::is_available() returned false); either disable \
+                 use_gpu or run on a host with a supported oxicuda-backed GPU"
+                    .to_string(),
+            ));
+        }
+
         Ok(())
     }
 
@@ -362,7 +397,7 @@ impl ConfigManager {
             resources: ResourceConfig {
                 n_jobs: -1,
                 memory_limit: None,
-                use_gpu: false,
+                use_gpu: default_use_gpu(),
                 batch_size: 32,
                 memory_efficient: false,
             },
@@ -422,6 +457,15 @@ fn default_n_jobs() -> i32 {
 fn default_batch_size() -> usize {
     32
 }
+/// Default for [`ResourceConfig::use_gpu`]: reflects real oxicuda-backed GPU
+/// detection (`GpuBackend::is_available()`) rather than a hardcoded value.
+/// On hosts/builds without a usable GPU (including non-`gpu_support`
+/// builds, which always report unavailable) this is `false`, preserving the
+/// prior default behavior; it only becomes `true` when an actual CUDA
+/// device was detected.
+fn default_use_gpu() -> bool {
+    gpu_is_available()
+}
 
 impl Default for ModelSelectionConfig {
     fn default() -> Self {
@@ -449,7 +493,7 @@ impl Default for ModelSelectionConfig {
             resources: ResourceConfig {
                 n_jobs: default_n_jobs(),
                 memory_limit: None,
-                use_gpu: false,
+                use_gpu: default_use_gpu(),
                 batch_size: default_batch_size(),
                 memory_efficient: false,
             },

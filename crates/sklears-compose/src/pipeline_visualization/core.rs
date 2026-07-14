@@ -2,9 +2,17 @@
 //!
 //! This module provides the main visualization structures and functionality
 //! for rendering machine learning pipelines.
+//!
+//! # Implementation status
+//!
+//! The data model (graph/node/edge/config types) is complete, but the actual
+//! extraction and rendering logic is **not implemented yet**: [`PipelineVisualizer`]
+//! graph extraction and [`DefaultRenderingEngine`] rendering honestly return
+//! `Err(SklearsError::NotImplemented(_))` rather than silently producing empty or
+//! fabricated output. See `TODO.md` for the tracked follow-up.
 
 use scirs2_core::ndarray::Array1;
-use sklears_core::{error::Result as SklResult, types::Float};
+use sklears_core::{error::Result as SklResult, prelude::SklearsError, types::Float};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -370,7 +378,14 @@ impl PipelineVisualizer {
         }
     }
 
-    /// Add a pipeline to visualize
+    /// Add a pipeline to visualize.
+    ///
+    /// # Errors
+    ///
+    /// Graph extraction is **not implemented yet**. This always returns
+    /// `Err(SklearsError::NotImplemented(_))` (propagated from the internal node/edge
+    /// extraction routines) instead of silently adding an empty graph. See `TODO.md`
+    /// for the tracked follow-up.
     pub fn add_pipeline(&mut self, pipeline: &dyn PipelineComponent) -> SklResult<()> {
         // Convert pipeline to graph representation
         let nodes = self.extract_nodes(pipeline)?;
@@ -382,12 +397,25 @@ impl PipelineVisualizer {
         Ok(())
     }
 
-    /// Generate visualization
+    /// Generate visualization.
+    ///
+    /// # Errors
+    ///
+    /// No rendering backend is implemented yet. This always returns
+    /// `Err(SklearsError::NotImplemented(_))` (propagated from the configured
+    /// [`RenderingEngine`]) instead of silently returning fake/empty output. See
+    /// `TODO.md` for the tracked follow-up.
     pub fn visualize(&self) -> SklResult<RenderedOutput> {
         self.renderer.render(&self.graph, &self.config)
     }
 
-    /// Export visualization to file
+    /// Export visualization to file.
+    ///
+    /// # Errors
+    ///
+    /// Always fails because [`Self::visualize`] is not implemented yet
+    /// (`Err(SklearsError::NotImplemented(_))`); no file is written. See `TODO.md` for
+    /// the tracked follow-up.
     pub fn export(&self, _format: ExportFormat, path: &str) -> SklResult<()> {
         let output = self.visualize()?;
 
@@ -397,18 +425,40 @@ impl PipelineVisualizer {
         Ok(())
     }
 
-    /// Extract nodes from pipeline component
+    /// Extract nodes from a pipeline component.
+    ///
+    /// **Not implemented yet.** Real extraction (walking the `Pipeline` /
+    /// `PipelineComponent` structure to build [`GraphNode`]s) does not exist yet. This
+    /// intentionally returns an error instead of `Ok(Vec::new())` so callers cannot
+    /// mistake a failed extraction for a real (but trivially empty) graph. See
+    /// `TODO.md` for the tracked follow-up.
+    ///
+    /// # Errors
+    ///
+    /// Always returns `Err(SklearsError::NotImplemented(_))`.
     fn extract_nodes(&self, _pipeline: &dyn PipelineComponent) -> SklResult<Vec<GraphNode>> {
-        // Implementation would analyze the pipeline structure
-        // and create corresponding graph nodes
-        Ok(Vec::new())
+        Err(SklearsError::NotImplemented(
+            "pipeline graph node extraction is not yet implemented — see TODO.md for the tracked follow-up"
+                .to_string(),
+        ))
     }
 
-    /// Extract edges from pipeline component
+    /// Extract edges from a pipeline component.
+    ///
+    /// **Not implemented yet.** Real data-flow extraction (walking the `Pipeline` /
+    /// `PipelineComponent` structure to build [`GraphEdge`]s) does not exist yet. This
+    /// intentionally returns an error instead of `Ok(Vec::new())` so callers cannot
+    /// mistake a failed extraction for a real (but trivially empty) graph. See
+    /// `TODO.md` for the tracked follow-up.
+    ///
+    /// # Errors
+    ///
+    /// Always returns `Err(SklearsError::NotImplemented(_))`.
     fn extract_edges(&self, _pipeline: &dyn PipelineComponent) -> SklResult<Vec<GraphEdge>> {
-        // Implementation would analyze data flow between pipeline components
-        // and create corresponding graph edges
-        Ok(Vec::new())
+        Err(SklearsError::NotImplemented(
+            "pipeline graph edge extraction is not yet implemented — see TODO.md for the tracked follow-up"
+                .to_string(),
+        ))
     }
 }
 
@@ -554,7 +604,11 @@ impl Default for GraphLayout {
     }
 }
 
-/// Default rendering engine implementation
+/// Default rendering engine implementation.
+///
+/// **Not implemented yet.** No SVG/PNG/HTML rendering backend exists yet; every
+/// [`RenderingEngine::render`] call returns `Err(SklearsError::NotImplemented(_))`
+/// instead of fabricated output. See `TODO.md` for the tracked follow-up.
 pub struct DefaultRenderingEngine {
     options: RenderingOptions,
 }
@@ -581,17 +635,25 @@ impl DefaultRenderingEngine {
 }
 
 impl RenderingEngine for DefaultRenderingEngine {
+    /// Renders the pipeline graph.
+    ///
+    /// **Not implemented yet.** No SVG/PNG/HTML rendering backend exists yet. This
+    /// intentionally errors instead of returning a hardcoded empty `<svg></svg>` so
+    /// callers cannot mistake it for real output. See `TODO.md` for the tracked
+    /// follow-up.
+    ///
+    /// # Errors
+    ///
+    /// Always returns `Err(SklearsError::NotImplemented(_))`.
     fn render(
         &self,
         _graph: &PipelineGraph,
         _config: &VisualizationConfig,
     ) -> SklResult<RenderedOutput> {
-        // Placeholder implementation
-        Ok(RenderedOutput {
-            data: b"<svg></svg>".to_vec(),
-            mime_type: "image/svg+xml".to_string(),
-            metadata: HashMap::new(),
-        })
+        Err(SklearsError::NotImplemented(
+            "SVG/HTML rendering backend not yet implemented — see TODO.md for the tracked follow-up"
+                .to_string(),
+        ))
     }
 
     fn supported_formats(&self) -> Vec<ExportFormat> {

@@ -5,7 +5,7 @@
 //! DOT, JSON, and specialized formats for visualization tools.
 
 use super::graph_config::{GraphConfig, GraphExportFormat, VisualizationTheme};
-use super::graph_structures::{TraitGraph, TraitGraphNode, TraitGraphEdge, PerformanceMetrics};
+use super::graph_structures::TraitGraph;
 use crate::error::{Result, SklearsError};
 
 use serde_json;
@@ -103,14 +103,17 @@ impl GraphExporter {
 
     /// Export to interactive HTML with D3.js
     pub fn to_interactive_html(&self, graph: &TraitGraph) -> Result<String> {
-        let theme = self.theme_templates.get(&self.config.theme)
+        let theme = self
+            .theme_templates
+            .get(&self.config.theme)
             .ok_or_else(|| SklearsError::ValidationError("Theme not found".to_string()))?;
 
         let graph_data = self.to_json_object(graph)?;
         let css_styles = self.generate_css_styles(theme);
         let javascript_code = self.generate_interactive_javascript(graph);
 
-        let html = format!(r#"<!DOCTYPE html>
+        let html = format!(
+            r#"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -172,13 +175,16 @@ impl GraphExporter {
 
     /// Export to static HTML
     pub fn to_static_html(&self, graph: &TraitGraph) -> Result<String> {
-        let theme = self.theme_templates.get(&self.config.theme)
+        let theme = self
+            .theme_templates
+            .get(&self.config.theme)
             .ok_or_else(|| SklearsError::ValidationError("Theme not found".to_string()))?;
 
         let svg_content = self.generate_static_svg(graph)?;
         let css_styles = self.generate_css_styles(theme);
 
-        let html = format!(r#"<!DOCTYPE html>
+        let html = format!(
+            r#"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -231,14 +237,14 @@ impl GraphExporter {
     /// Export to PNG format (placeholder - requires external rendering)
     pub fn to_png(&self, _graph: &TraitGraph) -> Result<String> {
         Err(SklearsError::ValidationError(
-            "PNG export requires external rendering library. Use SVG export instead.".to_string()
+            "PNG export requires external rendering library. Use SVG export instead.".to_string(),
         ))
     }
 
     /// Export to PDF format (placeholder - requires external rendering)
     pub fn to_pdf(&self, _graph: &TraitGraph) -> Result<String> {
         Err(SklearsError::ValidationError(
-            "PDF export requires external rendering library. Use SVG export instead.".to_string()
+            "PDF export requires external rendering library. Use SVG export instead.".to_string(),
         ))
     }
 
@@ -276,7 +282,7 @@ impl GraphExporter {
             ));
         }
 
-        dot.push_str("\n");
+        dot.push('\n');
 
         // Add edges
         for edge in &graph.edges {
@@ -330,7 +336,8 @@ impl GraphExporter {
     pub fn to_graphml(&self, graph: &TraitGraph) -> Result<String> {
         let mut graphml = String::new();
 
-        graphml.push_str(r#"<?xml version="1.0" encoding="UTF-8"?>
+        graphml.push_str(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
 <graphml xmlns="http://graphml.graphdrawing.org/xmlns"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
@@ -342,7 +349,8 @@ impl GraphExporter {
   <key id="weight" for="edge" attr.name="weight" attr.type="double"/>
   <key id="label" for="edge" attr.name="label" attr.type="string"/>
   <graph id="TraitGraph" edgedefault="directed">
-"#);
+"#,
+        );
 
         // Add nodes
         for node in &graph.nodes {
@@ -386,7 +394,8 @@ impl GraphExporter {
     pub fn to_gexf(&self, graph: &TraitGraph) -> Result<String> {
         let mut gexf = String::new();
 
-        gexf.push_str(r#"<?xml version="1.0" encoding="UTF-8"?>
+        gexf.push_str(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
 <gexf xmlns="http://www.gexf.net/1.2draft" version="1.2">
   <meta lastmodifieddate="2024-01-01">
     <creator>sklears-core graph visualization</creator>
@@ -394,7 +403,8 @@ impl GraphExporter {
   </meta>
   <graph mode="static" defaultedgetype="directed">
     <nodes>
-"#);
+"#,
+        );
 
         // Add nodes
         for node in &graph.nodes {
@@ -432,7 +442,12 @@ impl GraphExporter {
     }
 
     /// Save graph to file
-    pub fn save_to_file<P: AsRef<Path>>(&self, graph: &TraitGraph, path: P, format: GraphExportFormat) -> Result<()> {
+    pub fn save_to_file<P: AsRef<Path>>(
+        &self,
+        graph: &TraitGraph,
+        path: P,
+        format: GraphExportFormat,
+    ) -> Result<()> {
         let content = self.export_graph(graph, format)?;
         fs::write(path, content)
             .map_err(|e| SklearsError::ValidationError(format!("Failed to write file: {}", e)))?;
@@ -444,48 +459,109 @@ impl GraphExporter {
         let mut json_graph = serde_json::Map::new();
 
         // Add metadata
-        json_graph.insert("metadata".to_string(), serde_json::to_value(&graph.metadata)?);
-        json_graph.insert("statistics".to_string(), serde_json::to_value(&graph.statistics)?);
-        json_graph.insert("performance".to_string(), serde_json::to_value(&graph.performance)?);
+        json_graph.insert(
+            "metadata".to_string(),
+            serde_json::to_value(&graph.metadata)?,
+        );
+        json_graph.insert(
+            "statistics".to_string(),
+            serde_json::to_value(&graph.statistics)?,
+        );
+        json_graph.insert(
+            "performance".to_string(),
+            serde_json::to_value(&graph.performance)?,
+        );
 
         // Add nodes
-        let nodes: Vec<_> = graph.nodes.iter().map(|node| {
-            let mut node_obj = serde_json::Map::new();
-            node_obj.insert("id".to_string(), serde_json::Value::String(node.id.clone()));
-            node_obj.insert("label".to_string(), serde_json::Value::String(node.label.clone()));
-            node_obj.insert("type".to_string(), serde_json::Value::String(node.node_type.display_name().to_string()));
-            node_obj.insert("size".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(node.size).expect("valid JSON operation")));
+        let nodes: Vec<_> = graph
+            .nodes
+            .iter()
+            .map(|node| {
+                let mut node_obj = serde_json::Map::new();
+                node_obj.insert("id".to_string(), serde_json::Value::String(node.id.clone()));
+                node_obj.insert(
+                    "label".to_string(),
+                    serde_json::Value::String(node.label.clone()),
+                );
+                node_obj.insert(
+                    "type".to_string(),
+                    serde_json::Value::String(node.node_type.display_name().to_string()),
+                );
+                node_obj.insert(
+                    "size".to_string(),
+                    serde_json::Value::Number(
+                        serde_json::Number::from_f64(node.size).expect("valid JSON operation"),
+                    ),
+                );
 
-            if let Some(ref color) = node.color {
-                node_obj.insert("color".to_string(), serde_json::Value::String(color.clone()));
-            }
+                if let Some(ref color) = node.color {
+                    node_obj.insert(
+                        "color".to_string(),
+                        serde_json::Value::String(color.clone()),
+                    );
+                }
 
-            if let Some((x, y)) = node.position_2d {
-                node_obj.insert("x".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(x).expect("valid JSON operation")));
-                node_obj.insert("y".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(y).expect("valid JSON operation")));
-            }
+                if let Some((x, y)) = node.position_2d {
+                    node_obj.insert(
+                        "x".to_string(),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(x).expect("valid JSON operation"),
+                        ),
+                    );
+                    node_obj.insert(
+                        "y".to_string(),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(y).expect("valid JSON operation"),
+                        ),
+                    );
+                }
 
-            serde_json::Value::Object(node_obj)
-        }).collect();
+                serde_json::Value::Object(node_obj)
+            })
+            .collect();
 
         // Add edges
-        let edges: Vec<_> = graph.edges.iter().map(|edge| {
-            let mut edge_obj = serde_json::Map::new();
-            edge_obj.insert("source".to_string(), serde_json::Value::String(edge.from.clone()));
-            edge_obj.insert("target".to_string(), serde_json::Value::String(edge.to.clone()));
-            edge_obj.insert("type".to_string(), serde_json::Value::String(edge.edge_type.display_name().to_string()));
-            edge_obj.insert("weight".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(edge.weight).expect("valid JSON operation")));
+        let edges: Vec<_> = graph
+            .edges
+            .iter()
+            .map(|edge| {
+                let mut edge_obj = serde_json::Map::new();
+                edge_obj.insert(
+                    "source".to_string(),
+                    serde_json::Value::String(edge.from.clone()),
+                );
+                edge_obj.insert(
+                    "target".to_string(),
+                    serde_json::Value::String(edge.to.clone()),
+                );
+                edge_obj.insert(
+                    "type".to_string(),
+                    serde_json::Value::String(edge.edge_type.display_name().to_string()),
+                );
+                edge_obj.insert(
+                    "weight".to_string(),
+                    serde_json::Value::Number(
+                        serde_json::Number::from_f64(edge.weight).expect("valid JSON operation"),
+                    ),
+                );
 
-            if let Some(ref label) = edge.label {
-                edge_obj.insert("label".to_string(), serde_json::Value::String(label.clone()));
-            }
+                if let Some(ref label) = edge.label {
+                    edge_obj.insert(
+                        "label".to_string(),
+                        serde_json::Value::String(label.clone()),
+                    );
+                }
 
-            if let Some(ref color) = edge.color {
-                edge_obj.insert("color".to_string(), serde_json::Value::String(color.clone()));
-            }
+                if let Some(ref color) = edge.color {
+                    edge_obj.insert(
+                        "color".to_string(),
+                        serde_json::Value::String(color.clone()),
+                    );
+                }
 
-            serde_json::Value::Object(edge_obj)
-        }).collect();
+                serde_json::Value::Object(edge_obj)
+            })
+            .collect();
 
         json_graph.insert("nodes".to_string(), serde_json::Value::Array(nodes));
         json_graph.insert("edges".to_string(), serde_json::Value::Array(edges));
@@ -497,7 +573,9 @@ impl GraphExporter {
     fn generate_static_svg(&self, graph: &TraitGraph) -> Result<String> {
         let width = 800;
         let height = 600;
-        let theme = self.theme_templates.get(&self.config.theme)
+        let theme = self
+            .theme_templates
+            .get(&self.config.theme)
             .ok_or_else(|| SklearsError::ValidationError("Theme not found".to_string()))?;
 
         let mut svg = format!(
@@ -511,11 +589,16 @@ impl GraphExporter {
   <rect width="100%" height="100%" fill="{}"/>
   <text x="{}" y="30" class="title">{}</text>
 "#,
-            width, height,
-            theme.accent_color, theme.text_color,
-            theme.text_color, theme.text_color, theme.text_color,
+            width,
+            height,
+            theme.accent_color,
+            theme.text_color,
+            theme.text_color,
+            theme.text_color,
+            theme.text_color,
             theme.background_color,
-            width / 2, graph.metadata.title
+            width / 2,
+            graph.metadata.title
         );
 
         // Simple layout for static SVG
@@ -523,10 +606,9 @@ impl GraphExporter {
 
         // Draw edges first (so they appear behind nodes)
         for edge in &graph.edges {
-            if let (Some(&(x1, y1)), Some(&(x2, y2))) = (
-                node_positions.get(&edge.from),
-                node_positions.get(&edge.to)
-            ) {
+            if let (Some(&(x1, y1)), Some(&(x2, y2))) =
+                (node_positions.get(&edge.from), node_positions.get(&edge.to))
+            {
                 let color = edge.color.as_deref().unwrap_or(&theme.text_color);
                 let thickness = edge.thickness.unwrap_or(1.0);
 
@@ -547,12 +629,18 @@ impl GraphExporter {
         }
 
         // Add arrowhead marker for directed edges
-        svg.push_str(r#"  <defs>
+        // NOTE: uses a `r##"..."##` raw string (two hashes) because the
+        // content contains a literal `"#666"` CSS hex color, whose `"#`
+        // would otherwise be misread as the closing delimiter of a
+        // single-hash `r#"..."#` raw string.
+        svg.push_str(
+            r##"  <defs>
     <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
     </marker>
   </defs>
-"#);
+"##,
+        );
 
         // Draw nodes
         for node in &graph.nodes {
@@ -564,8 +652,14 @@ impl GraphExporter {
                     r#"  <circle cx="{}" cy="{}" r="{}" fill="{}" stroke="{}" stroke-width="2"/>
   <text x="{}" y="{}" class="label">{}</text>
 "#,
-                    x, y, radius, color, theme.text_color,
-                    x, y + 4, Self::escape_xml(&node.label)
+                    x,
+                    y,
+                    radius,
+                    color,
+                    theme.text_color,
+                    x,
+                    y + 4.0,
+                    Self::escape_xml(&node.label)
                 ));
             }
         }
@@ -575,7 +669,12 @@ impl GraphExporter {
     }
 
     /// Calculate simple circular layout for static visualization
-    fn calculate_simple_layout(&self, graph: &TraitGraph, width: usize, height: usize) -> HashMap<String, (f64, f64)> {
+    fn calculate_simple_layout(
+        &self,
+        graph: &TraitGraph,
+        width: usize,
+        height: usize,
+    ) -> HashMap<String, (f64, f64)> {
         let mut positions = HashMap::new();
         let n = graph.nodes.len();
 
@@ -599,7 +698,7 @@ impl GraphExporter {
                 let angle = 2.0 * std::f64::consts::PI * i as f64 / n as f64;
                 (
                     center_x + radius * angle.cos(),
-                    center_y + radius * angle.sin()
+                    center_y + radius * angle.sin(),
                 )
             };
             positions.insert(node.id.clone(), (x, y));
@@ -610,7 +709,8 @@ impl GraphExporter {
 
     /// Generate CSS styles for themes
     fn generate_css_styles(&self, theme: &ThemeTemplate) -> String {
-        format!(r#"
+        format!(
+            r#"
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
@@ -727,20 +827,34 @@ impl GraphExporter {
             z-index: 1000;
         }}
         "#,
-            theme.background_color, theme.text_color,
-            theme.background_color, theme.accent_color,
+            theme.background_color,
             theme.text_color,
-            theme.accent_color, theme.background_color, theme.text_color,
+            theme.background_color,
             theme.accent_color,
-            theme.background_color, theme.accent_color,
-            theme.accent_color, theme.text_color,
-            theme.text_color, theme.text_color
+            theme.text_color,
+            theme.accent_color,
+            theme.background_color,
+            theme.text_color,
+            theme.accent_color,
+            theme.background_color,
+            theme.accent_color,
+            theme.accent_color,
+            theme.text_color,
+            theme.text_color,
+            theme.text_color
         )
     }
 
     /// Generate interactive JavaScript code
-    fn generate_interactive_javascript(&self, graph: &TraitGraph) -> String {
-        format!(r#"
+    fn generate_interactive_javascript(&self, _graph: &TraitGraph) -> String {
+        // NOTE: uses a `r##"..."##` raw string (two hashes) because the D3.js
+        // template below contains several literal `"#id"`/`"#rrggbb"`
+        // sequences (`d3.select("#graph")`, `"#999"`, `"#69b3a2"`), whose
+        // `"#` would otherwise be misread as the closing delimiter of a
+        // single-hash `r#"..."#` raw string. There are no `{}` placeholders
+        // in this particular template (unlike the other export templates),
+        // so it is a plain string rather than a `format!` call.
+        r##"
         // Graph visualization with D3.js
         const width = document.getElementById('graph-container').clientWidth;
         const height = document.getElementById('graph-container').clientHeight;
@@ -752,9 +866,9 @@ impl GraphExporter {
         // Create zoom behavior
         const zoom = d3.zoom()
             .scaleExtent([0.1, 10])
-            .on("zoom", (event) => {{
+            .on("zoom", (event) => {
                 container.attr("transform", event.transform);
-            }});
+            });
 
         svg.call(zoom);
 
@@ -807,7 +921,7 @@ impl GraphExporter {
             .attr("dy", -3);
 
         // Update positions on simulation tick
-        simulation.on("tick", () => {{
+        simulation.on("tick", () => {
             link
                 .attr("x1", d => d.source.x)
                 .attr("y1", d => d.source.y)
@@ -821,87 +935,87 @@ impl GraphExporter {
             label
                 .attr("x", d => d.x)
                 .attr("y", d => d.y);
-        }});
+        });
 
         // Drag functions
-        function dragStarted(event) {{
+        function dragStarted(event) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
             event.subject.fx = event.subject.x;
             event.subject.fy = event.subject.y;
-        }}
+        }
 
-        function dragged(event) {{
+        function dragged(event) {
             event.subject.fx = event.x;
             event.subject.fy = event.y;
-        }}
+        }
 
-        function dragEnded(event) {{
+        function dragEnded(event) {
             if (!event.active) simulation.alphaTarget(0);
             event.subject.fx = null;
             event.subject.fy = null;
-        }}
+        }
 
         // Tooltip functions
-        function showTooltip(event, d) {{
+        function showTooltip(event, d) {
             tooltip.transition()
                 .duration(200)
                 .style("opacity", .9);
             tooltip.html(`
-                <strong>${{d.label}}</strong><br/>
-                Type: ${{d.type}}<br/>
-                Size: ${{d.size}}
+                <strong>${d.label}</strong><br/>
+                Type: ${d.type}<br/>
+                Size: ${d.size}
             `)
                 .style("left", (event.pageX + 10) + "px")
                 .style("top", (event.pageY - 28) + "px");
-        }}
+        }
 
-        function hideTooltip() {{
+        function hideTooltip() {
             tooltip.transition()
                 .duration(500)
                 .style("opacity", 0);
-        }}
+        }
 
         // Node info panel
-        function showNodeInfo(event, d) {{
+        function showNodeInfo(event, d) {
             const infoPanel = document.getElementById('node-info');
             infoPanel.innerHTML = `
-                <h4>${{d.label}}</h4>
-                <p><strong>Type:</strong> ${{d.type}}</p>
-                <p><strong>Size:</strong> ${{d.size}}</p>
-                <p><strong>ID:</strong> ${{d.id}}</p>
+                <h4>${d.label}</h4>
+                <p><strong>Type:</strong> ${d.type}</p>
+                <p><strong>Size:</strong> ${d.size}</p>
+                <p><strong>ID:</strong> ${d.id}</p>
             `;
-        }}
+        }
 
         // Control handlers
-        document.getElementById('zoomIn').onclick = () => {{
+        document.getElementById('zoomIn').onclick = () => {
             svg.transition().call(zoom.scaleBy, 1.5);
-        }};
+        };
 
-        document.getElementById('zoomOut').onclick = () => {{
+        document.getElementById('zoomOut').onclick = () => {
             svg.transition().call(zoom.scaleBy, 0.75);
-        }};
+        };
 
-        document.getElementById('resetView').onclick = () => {{
+        document.getElementById('resetView').onclick = () => {
             svg.transition().call(zoom.transform, d3.zoomIdentity);
-        }};
+        };
 
         // Search functionality
-        document.getElementById('search').oninput = function(event) {{
+        document.getElementById('search').oninput = function(event) {
             const searchTerm = event.target.value.toLowerCase();
-            node.style("opacity", d => {{
+            node.style("opacity", d => {
                 if (searchTerm === '') return 1;
                 return d.label.toLowerCase().includes(searchTerm) ? 1 : 0.3;
-            }});
-            label.style("opacity", d => {{
+            });
+            label.style("opacity", d => {
                 if (searchTerm === '') return 1;
                 return d.label.toLowerCase().includes(searchTerm) ? 1 : 0.3;
-            }});
-        }};
+            });
+        };
 
         // Layout selector
-        document.getElementById('layoutSelect').onchange = function(event) {{
+        document.getElementById('layoutSelect').onchange = function(event) {
             const layout = event.target.value;
-            switch(layout) {{
+            switch(layout) {
                 case 'hierarchical':
                     applyHierarchicalLayout();
                     break;
@@ -913,30 +1027,30 @@ impl GraphExporter {
                     break;
                 default:
                     restartForceSimulation();
-            }}
-        }};
+            }
+        };
 
-        function applyHierarchicalLayout() {{
+        function applyHierarchicalLayout() {
             simulation.stop();
-            graphData.nodes.forEach((d, i) => {{
+            graphData.nodes.forEach((d, i) => {
                 d.fx = (i % 5) * 150 + 100;
                 d.fy = Math.floor(i / 5) * 100 + 100;
-            }});
+            });
             simulation.alpha(1).restart();
-        }}
+        }
 
-        function applyCircularLayout() {{
+        function applyCircularLayout() {
             simulation.stop();
             const radius = Math.min(width, height) / 3;
-            graphData.nodes.forEach((d, i) => {{
+            graphData.nodes.forEach((d, i) => {
                 const angle = (i / graphData.nodes.length) * 2 * Math.PI;
                 d.fx = width / 2 + radius * Math.cos(angle);
                 d.fy = height / 2 + radius * Math.sin(angle);
-            }});
+            });
             simulation.alpha(1).restart();
-        }}
+        }
 
-        function applyRadialLayout() {{
+        function applyRadialLayout() {
             simulation.stop();
             // Place most connected node at center
             const centerNode = graphData.nodes.reduce((max, node) =>
@@ -948,22 +1062,23 @@ impl GraphExporter {
 
             // Place others in concentric circles
             let radius = 100;
-            graphData.nodes.filter(n => n !== centerNode).forEach((d, i) => {{
+            graphData.nodes.filter(n => n !== centerNode).forEach((d, i) => {
                 const angle = (i / (graphData.nodes.length - 1)) * 2 * Math.PI;
                 d.fx = width / 2 + radius * Math.cos(angle);
                 d.fy = height / 2 + radius * Math.sin(angle);
-            }});
+            });
             simulation.alpha(1).restart();
-        }}
+        }
 
-        function restartForceSimulation() {{
-            graphData.nodes.forEach(d => {{
+        function restartForceSimulation() {
+            graphData.nodes.forEach(d => {
                 d.fx = null;
                 d.fy = null;
-            }});
+            });
             simulation.alpha(1).restart();
-        }}
-        "#)
+        }
+        "##
+        .to_string()
     }
 
     /// Create theme template
@@ -977,7 +1092,7 @@ impl GraphExporter {
                 node_colors.insert("trait".to_string(), "#66b3ff".to_string());
                 node_colors.insert("implementation".to_string(), "#99ff99".to_string());
                 edge_colors.insert("inherits".to_string(), "#ffcc99".to_string());
-            },
+            }
             _ => {
                 node_colors.insert("trait".to_string(), "#007bff".to_string());
                 node_colors.insert("implementation".to_string(), "#28a745".to_string());
@@ -1043,12 +1158,10 @@ impl GraphExporter {
     /// Validate export configuration
     pub fn validate_export_config(&self, format: GraphExportFormat) -> Result<()> {
         match format {
-            GraphExportFormat::Png | GraphExportFormat::Pdf => {
-                Err(SklearsError::ValidationError(
-                    "PNG and PDF export require external rendering libraries".to_string()
-                ))
-            },
-            _ => Ok(())
+            GraphExportFormat::Png | GraphExportFormat::Pdf => Err(SklearsError::ValidationError(
+                "PNG and PDF export require external rendering libraries".to_string(),
+            )),
+            _ => Ok(()),
         }
     }
 }
@@ -1056,17 +1169,21 @@ impl GraphExporter {
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::graph_config::GraphConfig;
-    use super::super::graph_structures::{TraitGraph, TraitGraphNode, TraitGraphEdge};
+    use super::super::graph_structures::{TraitGraph, TraitGraphEdge, TraitGraphNode};
+    use super::*;
 
     fn create_test_graph() -> TraitGraph {
         let mut graph = TraitGraph::new();
 
         let node1 = TraitGraphNode::new_trait("Trait1".to_string(), "Trait1".to_string())
             .with_position_2d(0.0, 0.0);
-        let node2 = TraitGraphNode::new_implementation("Impl1".to_string(), "Impl1".to_string(), "Trait1".to_string())
-            .with_position_2d(100.0, 0.0);
+        let node2 = TraitGraphNode::new_implementation(
+            "Impl1".to_string(),
+            "Impl1".to_string(),
+            "Trait1".to_string(),
+        )
+        .with_position_2d(100.0, 0.0);
 
         graph.add_node(node1);
         graph.add_node(node2);
@@ -1152,7 +1269,9 @@ mod tests {
 
         let html_str = html_result.expect("expected valid value");
         assert!(html_str.contains("<!DOCTYPE html>"));
-        assert!(html_str.contains("d3.js"));
+        // The D3.js CDN script tag is `<script src="https://d3js.org/d3.v7.min.js">`;
+        // "d3.js" itself is not a contiguous substring of that URL.
+        assert!(html_str.contains("d3js.org"));
     }
 
     #[test]
@@ -1171,8 +1290,14 @@ mod tests {
 
     #[test]
     fn test_escape_functions() {
-        assert_eq!(GraphExporter::escape_dot_string("test\"quote"), "test\\\"quote");
-        assert_eq!(GraphExporter::escape_csv_field("test,comma"), "\"test,comma\"");
+        assert_eq!(
+            GraphExporter::escape_dot_string("test\"quote"),
+            "test\\\"quote"
+        );
+        assert_eq!(
+            GraphExporter::escape_csv_field("test,comma"),
+            "\"test,comma\""
+        );
         assert_eq!(GraphExporter::escape_xml("test<tag>"), "test&lt;tag&gt;");
     }
 
@@ -1189,10 +1314,18 @@ mod tests {
         let config = GraphConfig::default();
         let exporter = GraphExporter::new(config);
 
-        assert!(exporter.validate_export_config(GraphExportFormat::Svg).is_ok());
-        assert!(exporter.validate_export_config(GraphExportFormat::Json).is_ok());
-        assert!(exporter.validate_export_config(GraphExportFormat::Png).is_err());
-        assert!(exporter.validate_export_config(GraphExportFormat::Pdf).is_err());
+        assert!(exporter
+            .validate_export_config(GraphExportFormat::Svg)
+            .is_ok());
+        assert!(exporter
+            .validate_export_config(GraphExportFormat::Json)
+            .is_ok());
+        assert!(exporter
+            .validate_export_config(GraphExportFormat::Png)
+            .is_err());
+        assert!(exporter
+            .validate_export_config(GraphExportFormat::Pdf)
+            .is_err());
     }
 
     #[test]

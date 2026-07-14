@@ -4,37 +4,36 @@
 //! graphs from source code analysis, with support for hierarchical relationships,
 //! implementations, associated types, and complex trait dependencies.
 
-use super::graph_config::{GraphConfig, TraitNodeType, EdgeType, StabilityLevel, OptimizationLevel};
+use super::graph_config::{EdgeType, GraphConfig, StabilityLevel, TraitNodeType};
 use super::graph_structures::{
-    TraitGraph, TraitGraphNode, TraitGraphEdge, NodeMetadata, EdgeMetadata,
-    TraitGraphMetadata, GraphStatistics, PerformanceMetrics,
+    EdgeMetadata, GraphStatistics, LayoutQualityMetrics, NodeMetadata, PerformanceMetrics,
+    TraitGraph, TraitGraphEdge, TraitGraphMetadata, TraitGraphNode,
 };
-use crate::api_reference_generator::{AssociatedType, TraitInfo};
+use crate::api_reference_generator::{AssociatedType, MethodInfo, TraitInfo};
 use crate::error::{Result, SklearsError};
 
 // SciRS2 Core imports for full compliance
-use scirs2_core::ndarray::{Array, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{Random, rng};
-use scirs2_core::gpu::{GpuBackend, GpuBuffer, GpuContext, GpuKernel};
-use scirs2_core::profiling::{profiling_memory_tracker, Profiler};
-use scirs2_core::validation::{check_finite, check_in_bounds};
+#[cfg(feature = "gpu_support")]
+use crate::gpu::GpuBackend;
+use scirs2_core::random::Random;
 
 use chrono::Utc;
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::{Arc, Mutex, RwLock};
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 /// Main generator for trait relationship graphs with advanced capabilities
-#[derive(Debug)]
+///
+/// Implements [`std::fmt::Debug`] manually below (rather than deriving it)
+/// since `layout_algorithms: HashMap<String, Box<dyn LayoutAlgorithmImpl + Send + Sync>>`
+/// holds a trait object that does not itself implement `Debug`.
 pub struct TraitGraphGenerator {
     /// Configuration for graph generation
     config: GraphConfig,
-    /// Random number generator for stochastic algorithms
-    rng: Arc<Mutex<Random>>,
-    /// GPU context for acceleration (optional)
-    gpu_context: Option<GpuContext>,
-    /// Profiler for performance tracking
-    profiler: Arc<Mutex<Profiler>>,
+    /// GPU context for acceleration (optional; only tracked when the
+    /// `gpu_support` feature is enabled).
+    #[cfg(feature = "gpu_support")]
+    gpu_context: Option<GpuBackend>,
     /// Layout algorithms registry
     layout_algorithms: HashMap<String, Box<dyn LayoutAlgorithmImpl + Send + Sync>>,
     /// Layout computation cache
@@ -42,7 +41,16 @@ pub struct TraitGraphGenerator {
 }
 
 /// Trait for layout algorithm implementations
-pub trait LayoutAlgorithmImpl: Send + Sync {
+///
+/// This is a private, minimal implementation used internally by
+/// [`TraitGraphGenerator`] for its own layout application step. The public,
+/// fully-featured layout algorithm surface (with configurable parameters and
+/// quality metrics) lives in
+/// [`crate::trait_explorer::graph_visualization::layout_algorithms`] and is
+/// used by [`super::GraphVisualizationFramework`] instead; the two are kept
+/// separate (rather than sharing one trait) so this module's placeholder
+/// implementations don't collide with the public `layout_algorithms` API.
+trait LayoutAlgorithmImpl: Send + Sync {
     fn compute_layout(&self, graph: &TraitGraph, config: &GraphConfig) -> Result<LayoutResult>;
     fn get_algorithm_name(&self) -> &str;
     fn supports_3d(&self) -> bool;
@@ -62,25 +70,28 @@ pub struct LayoutResult {
     pub computation_time: Duration,
 }
 
-/// Quality metrics for layout evaluation
-#[derive(Debug, Clone)]
-pub struct LayoutQualityMetrics {
-    /// Number of edge crossings
-    pub edge_crossings: usize,
-    /// Average edge length
-    pub average_edge_length: f64,
-    /// Distribution uniformity (0.0-1.0)
-    pub distribution_uniformity: f64,
-    /// Overall aesthetic score (0.0-1.0)
-    pub aesthetic_score: f64,
-}
-
 impl std::fmt::Debug for TraitGraphGenerator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Summarize each registered layout algorithm as "name" or "name
+        // (3d)" so the registry's actual contents are visible in Debug
+        // output, rather than just a bare count.
+        let mut algorithm_names: Vec<String> = self
+            .layout_algorithms
+            .values()
+            .map(|algorithm| {
+                if algorithm.supports_3d() {
+                    format!("{} (3d)", algorithm.get_algorithm_name())
+                } else {
+                    algorithm.get_algorithm_name().to_string()
+                }
+            })
+            .collect();
+        algorithm_names.sort();
+
         f.debug_struct("TraitGraphGenerator")
             .field("config", &self.config)
-            .field("has_gpu_context", &self.gpu_context.is_some())
-            .field("layout_algorithms_count", &self.layout_algorithms.len())
+            .field("has_gpu_context", &self.has_gpu_context())
+            .field("layout_algorithms", &algorithm_names)
             .finish()
     }
 }
@@ -88,42 +99,35 @@ impl std::fmt::Debug for TraitGraphGenerator {
 impl TraitGraphGenerator {
     /// Create a new graph generator with the specified configuration
     pub fn new(config: GraphConfig) -> Result<Self> {
-        let rng = Arc::new(Mutex::new(Random::seed(42)));
-        let profiler = Arc::new(Mutex::new(Profiler::new()));
-
-        // Initialize GPU context if enabled.
+        // Initialize GPU context if enabled and the `gpu_support` feature is
+        // active.
         //
-        // We use the SciRS2-Core GPU abstraction to select the best available
-        // backend. `GpuBackend::preferred()` performs runtime device detection
-        // and transparently yields `GpuBackend::Cpu` when no accelerator is
-        // present, so the resulting context honestly reflects the hardware that
-        // is actually in use rather than claiming a GPU that does not exist.
+        // We use the crate's own oxicuda-backed GPU abstraction
+        // (`crate::gpu::GpuBackend`) to detect a real accelerator.
+        // `GpuBackend::detect()` performs runtime driver/device
+        // initialization and returns `Ok(None)` when no accelerator is
+        // present, so the resulting context honestly reflects the hardware
+        // that is actually in use rather than claiming a GPU that does not
+        // exist. There is no CPU-context fallback to construct here: `None`
+        // simply means "no GPU context is tracked".
+        #[cfg(feature = "gpu_support")]
         let gpu_context = if config.enable_gpu {
-            let preferred = GpuBackend::preferred();
-            match GpuContext::new(preferred) {
-                Ok(context) => Some(context),
-                Err(err) => {
-                    // The preferred backend could not be initialized (for
-                    // example, a detected device became unavailable). Fall back
-                    // to a real CPU context so downstream code still has a valid
-                    // execution context, and surface the reason via the profiler
-                    // rather than fabricating GPU availability.
-                    if let Ok(mut profiler) = profiler.lock() {
-                        profiler.start_section("gpu_init_fallback_cpu");
-                        profiler.end_section("gpu_init_fallback_cpu");
-                    }
-                    let _ = err;
-                    GpuContext::new(GpuBackend::Cpu).ok()
-                }
-            }
+            GpuBackend::detect()?
         } else {
             None
         };
 
         // Initialize layout algorithms
-        let mut layout_algorithms: HashMap<String, Box<dyn LayoutAlgorithmImpl + Send + Sync>> = HashMap::new();
-        layout_algorithms.insert("force_directed".to_string(), Box::new(ForceDirectedLayout::new()));
-        layout_algorithms.insert("hierarchical".to_string(), Box::new(HierarchicalLayout::new()));
+        let mut layout_algorithms: HashMap<String, Box<dyn LayoutAlgorithmImpl + Send + Sync>> =
+            HashMap::new();
+        layout_algorithms.insert(
+            "force_directed".to_string(),
+            Box::new(ForceDirectedLayout::new()),
+        );
+        layout_algorithms.insert(
+            "hierarchical".to_string(),
+            Box::new(HierarchicalLayout::new()),
+        );
         layout_algorithms.insert("circular".to_string(), Box::new(CircularLayout::new()));
         layout_algorithms.insert("grid".to_string(), Box::new(GridLayout::new()));
         layout_algorithms.insert("radial".to_string(), Box::new(RadialLayout::new()));
@@ -132,9 +136,8 @@ impl TraitGraphGenerator {
 
         Ok(Self {
             config,
-            rng,
+            #[cfg(feature = "gpu_support")]
             gpu_context,
-            profiler,
             layout_algorithms,
             layout_cache,
         })
@@ -147,11 +150,6 @@ impl TraitGraphGenerator {
         implementations: &[String],
     ) -> Result<TraitGraph> {
         let start_time = Instant::now();
-
-        // Start profiling
-        if let Ok(mut profiler) = self.profiler.lock() {
-            profiler.start_section("graph_generation");
-        }
 
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
@@ -216,12 +214,18 @@ impl TraitGraphGenerator {
 
         // Add associated type nodes if any
         for associated_type in &trait_info.associated_types {
-            let assoc_node = self.create_associated_type_node(&associated_type.name, &trait_info.name)?;
+            let assoc_node =
+                self.create_associated_type_node(&associated_type.name, &trait_info.name)?;
+            // Read the node's actual (namespaced, e.g. "TraitName::AssocTypeName")
+            // id before moving it into `nodes`, so the edge below points at
+            // the node that really exists rather than the bare associated
+            // type name.
+            let assoc_node_id = assoc_node.id.clone();
             nodes.push(assoc_node);
 
             let edge = TraitGraphEdge {
                 from: trait_info.name.clone(),
-                to: associated_type.name.clone(),
+                to: assoc_node_id,
                 edge_type: EdgeType::AssociatedWith,
                 weight: 0.6,
                 thickness: Some(1.0),
@@ -242,14 +246,23 @@ impl TraitGraphGenerator {
         }
 
         // Add method nodes if configured
-        if self.config.filter_config.node_types.contains(&TraitNodeType::Method) {
+        if self
+            .config
+            .filter_config
+            .node_types
+            .contains(&TraitNodeType::Method)
+        {
             for method in &trait_info.methods {
                 let method_node = self.create_method_node(&method.name, &trait_info.name)?;
+                // As with associated types above: the node's id is
+                // namespaced ("TraitName::method_name"), so the edge must
+                // target that id, not the bare method name.
+                let method_node_id = method_node.id.clone();
                 nodes.push(method_node);
 
                 let edge = TraitGraphEdge {
                     from: trait_info.name.clone(),
-                    to: method.name.clone(),
+                    to: method_node_id,
                     edge_type: EdgeType::DefinesMethod,
                     weight: 0.4,
                     thickness: Some(0.8),
@@ -283,6 +296,7 @@ impl TraitGraphGenerator {
             git_commit: None,
             tags: vec!["trait".to_string(), "relationships".to_string()],
             custom_metadata: HashMap::new(),
+            ..Default::default()
         };
 
         // Calculate statistics
@@ -300,11 +314,6 @@ impl TraitGraphGenerator {
             gpu_accelerated: self.is_gpu_accelerated(),
             simd_optimized: self.config.enable_simd,
         };
-
-        // End profiling
-        if let Ok(mut profiler) = self.profiler.lock() {
-            profiler.end_section("graph_generation");
-        }
 
         let mut graph = TraitGraph {
             nodes,
@@ -366,12 +375,16 @@ impl TraitGraphGenerator {
 
             // Process associated types
             for associated_type in &trait_info.associated_types {
-                let assoc_node = self.create_associated_type_node(&associated_type.name, &trait_info.name)?;
+                let assoc_node =
+                    self.create_associated_type_node(&associated_type.name, &trait_info.name)?;
+                // See the identical comment in `generate_trait_graph`: the
+                // edge must target the node's actual (namespaced) id.
+                let assoc_node_id = assoc_node.id.clone();
                 nodes.push(assoc_node);
 
                 let edge = TraitGraphEdge {
                     from: trait_info.name.clone(),
-                    to: associated_type.name.clone(),
+                    to: assoc_node_id,
                     edge_type: EdgeType::AssociatedWith,
                     weight: 0.6,
                     thickness: Some(1.0),
@@ -384,14 +397,21 @@ impl TraitGraphGenerator {
             }
 
             // Process methods if configured
-            if self.config.filter_config.node_types.contains(&TraitNodeType::Method) {
+            if self
+                .config
+                .filter_config
+                .node_types
+                .contains(&TraitNodeType::Method)
+            {
                 for method in &trait_info.methods {
                     let method_node = self.create_method_node(&method.name, &trait_info.name)?;
+                    // See the identical comment in `generate_trait_graph`.
+                    let method_node_id = method_node.id.clone();
                     nodes.push(method_node);
 
                     let edge = TraitGraphEdge {
                         from: trait_info.name.clone(),
-                        to: method.name.clone(),
+                        to: method_node_id,
                         edge_type: EdgeType::DefinesMethod,
                         weight: 0.4,
                         thickness: Some(0.8),
@@ -414,13 +434,21 @@ impl TraitGraphGenerator {
         // Create comprehensive metadata
         let metadata = TraitGraphMetadata {
             title: "Comprehensive Trait Relationship Graph".to_string(),
-            description: Some(format!("Complete relationship graph for {} traits", traits.len())),
+            description: Some(format!(
+                "Complete relationship graph for {} traits",
+                traits.len()
+            )),
             generated_at: Utc::now(),
             generator_version: env!("CARGO_PKG_VERSION").to_string(),
             source_project: None,
             git_commit: None,
-            tags: vec!["traits".to_string(), "comprehensive".to_string(), "relationships".to_string()],
+            tags: vec![
+                "traits".to_string(),
+                "comprehensive".to_string(),
+                "relationships".to_string(),
+            ],
             custom_metadata: HashMap::new(),
+            ..Default::default()
         };
 
         let statistics = GraphStatistics::from_graph(&nodes, &edges);
@@ -470,11 +498,15 @@ impl TraitGraphGenerator {
             deprecation_note: None,
             feature_flags: trait_info.feature_flags.clone(),
             module_path: trait_info.module_path.clone(),
-            visibility: Some(trait_info.visibility.clone()),
+            visibility: Some(trait_info.visibility.to_string()),
             attributes: HashMap::new(),
         };
 
-        let size = self.calculate_node_size(complexity, &trait_info.methods, &trait_info.associated_types);
+        let size = self.calculate_node_size(
+            complexity,
+            &trait_info.methods,
+            &trait_info.associated_types,
+        );
 
         Ok(TraitGraphNode {
             id: trait_info.name.clone(),
@@ -563,7 +595,7 @@ impl TraitGraphGenerator {
         let metadata = NodeMetadata {
             trait_name: Some(supertrait_name.to_string()),
             stability: StabilityLevel::Stable, // Default assumption
-            complexity: 5.0, // Default complexity
+            complexity: 5.0,                   // Default complexity
             ..Default::default()
         };
 
@@ -582,7 +614,11 @@ impl TraitGraphGenerator {
     }
 
     /// Create an implementation node
-    fn create_implementation_node(&self, impl_name: &str, trait_name: &str) -> Result<TraitGraphNode> {
+    fn create_implementation_node(
+        &self,
+        impl_name: &str,
+        trait_name: &str,
+    ) -> Result<TraitGraphNode> {
         let metadata = NodeMetadata {
             trait_name: Some(trait_name.to_string()),
             stability: StabilityLevel::Stable,
@@ -605,7 +641,11 @@ impl TraitGraphGenerator {
     }
 
     /// Create an associated type node
-    fn create_associated_type_node(&self, type_name: &str, trait_name: &str) -> Result<TraitGraphNode> {
+    fn create_associated_type_node(
+        &self,
+        type_name: &str,
+        trait_name: &str,
+    ) -> Result<TraitGraphNode> {
         let metadata = NodeMetadata {
             trait_name: Some(trait_name.to_string()),
             stability: StabilityLevel::Stable,
@@ -658,8 +698,11 @@ impl TraitGraphGenerator {
         let supertrait_complexity = trait_info.supertraits.len() as f64 * 2.5;
 
         let base_complexity = 1.0;
-        let total = base_complexity + method_complexity + associated_type_complexity +
-                   generic_complexity + supertrait_complexity;
+        let total = base_complexity
+            + method_complexity
+            + associated_type_complexity
+            + generic_complexity
+            + supertrait_complexity;
 
         // Normalize to 0-100 scale
         total.min(100.0)
@@ -670,9 +713,16 @@ impl TraitGraphGenerator {
         // Simple heuristics - in practice would analyze attributes and documentation
         if trait_info.feature_flags.contains(&"unstable".to_string()) {
             StabilityLevel::Unstable
-        } else if trait_info.feature_flags.contains(&"experimental".to_string()) {
+        } else if trait_info
+            .feature_flags
+            .contains(&"experimental".to_string())
+        {
             StabilityLevel::Experimental
-        } else if trait_info.docs.as_ref().map_or(false, |docs| docs.contains("deprecated")) {
+        } else if trait_info
+            .docs
+            .as_ref()
+            .is_some_and(|docs| docs.contains("deprecated"))
+        {
             StabilityLevel::Deprecated
         } else {
             StabilityLevel::Stable
@@ -680,17 +730,26 @@ impl TraitGraphGenerator {
     }
 
     /// Calculate appropriate node size based on complexity and content
-    fn calculate_node_size(&self, complexity: f64, methods: &[crate::api_reference_generator::MethodInfo], associated_types: &[AssociatedType]) -> f64 {
+    fn calculate_node_size(
+        &self,
+        complexity: f64,
+        methods: &[MethodInfo],
+        associated_types: &[AssociatedType],
+    ) -> f64 {
         let base_size = 1.0;
         let complexity_factor = complexity / 50.0; // Normalize complexity
         let method_factor = methods.len() as f64 * 0.1;
         let type_factor = associated_types.len() as f64 * 0.15;
 
-        (base_size + complexity_factor + method_factor + type_factor).max(0.3).min(3.0)
+        (base_size + complexity_factor + method_factor + type_factor).clamp(0.3, 3.0)
     }
 
     /// Apply filters to nodes and edges based on configuration
-    fn apply_filters(&self, nodes: &mut Vec<TraitGraphNode>, edges: &mut Vec<TraitGraphEdge>) -> Result<()> {
+    fn apply_filters(
+        &self,
+        nodes: &mut Vec<TraitGraphNode>,
+        edges: &mut Vec<TraitGraphEdge>,
+    ) -> Result<()> {
         let filter_config = &self.config.filter_config;
 
         // Filter nodes by type
@@ -698,12 +757,16 @@ impl TraitGraphGenerator {
 
         // Filter nodes by complexity
         nodes.retain(|node| {
-            node.metadata.complexity >= filter_config.min_complexity &&
-            node.metadata.complexity <= filter_config.max_complexity
+            node.metadata.complexity >= filter_config.min_complexity
+                && node.metadata.complexity <= filter_config.max_complexity
         });
 
         // Filter nodes by stability
-        nodes.retain(|node| filter_config.stability_levels.contains(&node.metadata.stability));
+        nodes.retain(|node| {
+            filter_config
+                .stability_levels
+                .contains(&node.metadata.stability)
+        });
 
         // Filter nodes by deprecated status
         if !filter_config.include_deprecated {
@@ -739,7 +802,8 @@ impl TraitGraphGenerator {
         if nodes.len() > self.config.max_nodes {
             // Sort by importance and keep the most important nodes
             nodes.sort_by(|a, b| {
-                b.importance_score().partial_cmp(&a.importance_score())
+                b.importance_score()
+                    .partial_cmp(&a.importance_score())
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
             nodes.truncate(self.config.max_nodes);
@@ -755,7 +819,11 @@ impl TraitGraphGenerator {
     }
 
     /// Add cross-trait relationships (usage, dependencies, etc.)
-    fn add_cross_trait_relationships(&self, edges: &mut Vec<TraitGraphEdge>, traits: &[&TraitInfo]) -> Result<()> {
+    fn add_cross_trait_relationships(
+        &self,
+        edges: &mut Vec<TraitGraphEdge>,
+        traits: &[&TraitInfo],
+    ) -> Result<()> {
         // Simple implementation - look for trait names mentioned in other traits
         for trait_info in traits {
             for other_trait in traits {
@@ -782,7 +850,11 @@ impl TraitGraphGenerator {
                 // Check associated types for references
                 if !has_relationship {
                     for assoc_type in &trait_info.associated_types {
-                        if assoc_type.bounds.iter().any(|bound| bound.contains(&other_trait.name)) {
+                        if assoc_type
+                            .bounds
+                            .iter()
+                            .any(|bound| bound.contains(&other_trait.name))
+                        {
                             has_relationship = true;
                             break;
                         }
@@ -844,9 +916,10 @@ impl TraitGraphGenerator {
         let layout_result = if let Some(algorithm) = self.layout_algorithms.get(algorithm_name) {
             algorithm.compute_layout(graph, &self.config)?
         } else {
-            return Err(SklearsError::ValidationError(
-                format!("Layout algorithm '{}' not found", algorithm_name)
-            ));
+            return Err(SklearsError::ValidationError(format!(
+                "Layout algorithm '{}' not found",
+                algorithm_name
+            )));
         };
 
         // Cache the result
@@ -859,7 +932,8 @@ impl TraitGraphGenerator {
 
         // Update performance metrics
         graph.performance.layout_time = layout_start.elapsed();
-        graph.performance.layout_iterations = self.config.optimization_level.layout_iterations() as u32;
+        graph.performance.layout_iterations =
+            self.config.optimization_level.layout_iterations() as u32;
 
         Ok(())
     }
@@ -892,10 +966,7 @@ impl TraitGraphGenerator {
 
     /// Estimate memory usage of the graph
     fn estimate_memory_usage(&self, nodes: &[TraitGraphNode], edges: &[TraitGraphEdge]) -> u64 {
-        let node_size = std::mem::size_of::<TraitGraphNode>();
-        let edge_size = std::mem::size_of::<TraitGraphEdge>();
-
-        ((nodes.len() * node_size) + (edges.len() * edge_size)) as u64
+        (std::mem::size_of_val(nodes) + std::mem::size_of_val(edges)) as u64
     }
 
     /// Get configuration
@@ -914,19 +985,49 @@ impl TraitGraphGenerator {
     /// active. A CPU fallback context (used when GPU acceleration was requested
     /// but no device is present) reports `false` so callers are never misled
     /// into believing the GPU is in use.
+    ///
+    /// Without the `gpu_support` feature enabled, no GPU context is ever
+    /// tracked and this always returns `false`.
     pub fn has_gpu_acceleration(&self) -> bool {
         self.is_gpu_accelerated()
     }
 
     /// Determine whether the active GPU context targets a real accelerator.
     ///
-    /// This inspects the backend selected for the context and treats only
-    /// non-CPU backends as genuinely GPU-accelerated.
+    /// A tracked [`crate::gpu::GpuBackend`] only ever exists once
+    /// [`crate::gpu::GpuBackend::detect`] has found a real, usable GPU (see
+    /// its doc comment), so this collapses to "is a context tracked at all".
+    #[cfg(feature = "gpu_support")]
     fn is_gpu_accelerated(&self) -> bool {
         self.gpu_context
             .as_ref()
-            .map(|context| context.backend() != GpuBackend::Cpu)
+            .map(|backend| backend.is_gpu())
             .unwrap_or(false)
+    }
+
+    /// Determine whether the active GPU context targets a real accelerator.
+    ///
+    /// The `gpu_support` feature is disabled in this build, so no GPU
+    /// context is ever tracked and acceleration is never reported.
+    #[cfg(not(feature = "gpu_support"))]
+    fn is_gpu_accelerated(&self) -> bool {
+        false
+    }
+
+    /// Whether a GPU context is currently tracked (for [`std::fmt::Debug`]
+    /// reporting only; does not imply the context targets a real
+    /// accelerator, see [`Self::is_gpu_accelerated`]).
+    #[cfg(feature = "gpu_support")]
+    fn has_gpu_context(&self) -> bool {
+        self.gpu_context.is_some()
+    }
+
+    /// Whether a GPU context is currently tracked (for [`std::fmt::Debug`]
+    /// reporting only). The `gpu_support` feature is disabled in this build,
+    /// so no GPU context is ever tracked.
+    #[cfg(not(feature = "gpu_support"))]
+    fn has_gpu_context(&self) -> bool {
+        false
     }
 
     /// Get layout algorithm names
@@ -943,11 +1044,20 @@ impl TraitGraphGenerator {
     }
 }
 
-// Placeholder layout algorithm implementations
+// Placeholder layout algorithm implementations.
+//
+// These are private to this module: they back `TraitGraphGenerator`'s own
+// internal `layout_algorithms` registry only. The public, richer layout
+// algorithm surface (same algorithm names, configurable parameters, full
+// quality-metric computation) lives in `super::layout_algorithms` and is
+// used by `super::GraphVisualizationFramework` instead. Keeping these
+// private avoids an ambiguous-glob-export collision between the two
+// same-named type sets when this module and `layout_algorithms` are both
+// re-exported via `pub use *` from `graph_visualization/mod.rs`.
 
 /// Force-directed layout algorithm using physics simulation
 #[derive(Debug)]
-pub struct ForceDirectedLayout;
+struct ForceDirectedLayout;
 
 impl ForceDirectedLayout {
     pub fn new() -> Self {
@@ -974,10 +1084,14 @@ impl LayoutAlgorithmImpl for ForceDirectedLayout {
             });
         }
 
-        // Initialize random positions
+        // Initialize random positions. The maps are given explicit types so
+        // that the `f64` arithmetic below (e.g. `.sqrt()`) has a concrete
+        // numeric type to resolve against, rather than leaving `x`/`y`
+        // dependent on inference alone (which `rng.random_range`'s generic
+        // return type cannot pin down on its own).
         let mut rng = Random::seed(42);
-        let mut positions_2d = HashMap::new();
-        let mut positions_3d = if config.enable_3d {
+        let mut positions_2d: HashMap<String, (f64, f64)> = HashMap::new();
+        let mut positions_3d: Option<HashMap<String, (f64, f64, f64)>> = if config.enable_3d {
             Some(HashMap::new())
         } else {
             None
@@ -1024,7 +1138,11 @@ impl LayoutAlgorithmImpl for ForceDirectedLayout {
                     // Attractive forces from connected nodes
                     for edge in &graph.edges {
                         if edge.from == node.id || edge.to == node.id {
-                            let other_id = if edge.from == node.id { &edge.to } else { &edge.from };
+                            let other_id = if edge.from == node.id {
+                                &edge.to
+                            } else {
+                                &edge.from
+                            };
                             if let Some((ox, oy)) = positions_2d.get(other_id).copied() {
                                 let dx = ox - x;
                                 let dy = oy - y;
@@ -1092,7 +1210,7 @@ impl LayoutAlgorithmImpl for ForceDirectedLayout {
 
 /// Hierarchical layout algorithm
 #[derive(Debug)]
-pub struct HierarchicalLayout;
+struct HierarchicalLayout;
 
 impl HierarchicalLayout {
     pub fn new() -> Self {
@@ -1105,13 +1223,21 @@ impl LayoutAlgorithmImpl for HierarchicalLayout {
         let start_time = Instant::now();
         let mut positions_2d = HashMap::new();
 
-        // Simple hierarchical layout - arrange nodes in levels
-        let mut y = 0.0;
+        // Simple hierarchical layout: arrange nodes left-to-right, wrapping
+        // into additional rows (levels) once a row fills up, so the
+        // "hierarchical" structure is reflected in actual y-displacement
+        // rather than placing every node on a single flat line.
         let x_spacing = 100.0;
         let y_spacing = 80.0;
+        let nodes_per_row = (graph.nodes.len() as f64).sqrt().ceil().max(1.0) as usize;
 
         for (i, node) in graph.nodes.iter().enumerate() {
-            let x = (i as f64) * x_spacing - ((graph.nodes.len() as f64 - 1.0) * x_spacing / 2.0);
+            let row = i / nodes_per_row;
+            let col = i % nodes_per_row;
+            let row_start = row * nodes_per_row;
+            let row_len = nodes_per_row.min(graph.nodes.len() - row_start);
+            let x = (col as f64) * x_spacing - ((row_len as f64 - 1.0) * x_spacing / 2.0);
+            let y = (row as f64) * y_spacing;
             positions_2d.insert(node.id.clone(), (x, y));
         }
 
@@ -1148,7 +1274,7 @@ impl LayoutAlgorithmImpl for HierarchicalLayout {
 
 /// Circular layout algorithm
 #[derive(Debug)]
-pub struct CircularLayout;
+struct CircularLayout;
 
 impl CircularLayout {
     pub fn new() -> Self {
@@ -1219,7 +1345,7 @@ impl LayoutAlgorithmImpl for CircularLayout {
 
 /// Grid layout algorithm
 #[derive(Debug)]
-pub struct GridLayout;
+struct GridLayout;
 
 impl GridLayout {
     pub fn new() -> Self {
@@ -1289,7 +1415,7 @@ impl LayoutAlgorithmImpl for GridLayout {
 
 /// Radial layout algorithm
 #[derive(Debug)]
-pub struct RadialLayout;
+struct RadialLayout;
 
 impl RadialLayout {
     pub fn new() -> Self {
@@ -1303,7 +1429,9 @@ impl LayoutAlgorithmImpl for RadialLayout {
         let mut positions_2d = HashMap::new();
 
         // Place the most connected node at center
-        let center_node = graph.nodes.iter()
+        let center_node = graph
+            .nodes
+            .iter()
             .max_by_key(|node| graph.get_degree(&node.id))
             .map(|node| node.id.clone())
             .unwrap_or_else(|| graph.nodes[0].id.clone());
@@ -1312,7 +1440,9 @@ impl LayoutAlgorithmImpl for RadialLayout {
 
         // Place other nodes in concentric circles
         let mut radius = 80.0;
-        let mut remaining_nodes: Vec<_> = graph.nodes.iter()
+        let mut remaining_nodes: Vec<_> = graph
+            .nodes
+            .iter()
             .filter(|node| node.id != center_node)
             .collect();
 
@@ -1322,11 +1452,11 @@ impl LayoutAlgorithmImpl for RadialLayout {
 
             let angle_step = 2.0 * std::f64::consts::PI / nodes_to_place as f64;
 
-            for i in 0..nodes_to_place {
+            for (i, node) in remaining_nodes.iter().enumerate().take(nodes_to_place) {
                 let angle = i as f64 * angle_step;
                 let x = radius * angle.cos();
                 let y = radius * angle.sin();
-                positions_2d.insert(remaining_nodes[i].id.clone(), (x, y));
+                positions_2d.insert(node.id.clone(), (x, y));
             }
 
             remaining_nodes.drain(0..nodes_to_place);
@@ -1465,7 +1595,9 @@ mod tests {
         let generator = TraitGraphGenerator::new(config).expect("expected valid value");
         let trait_info = create_test_trait_info();
 
-        let node = generator.create_trait_node(&trait_info).expect("create_trait_node should succeed");
+        let node = generator
+            .create_trait_node(&trait_info)
+            .expect("create_trait_node should succeed");
         assert_eq!(node.id, "TestTrait");
         assert_eq!(node.node_type, TraitNodeType::Trait);
         assert!(node.visible);
@@ -1530,8 +1662,10 @@ mod tests {
     #[test]
     fn test_gpu_acceleration_reporting_without_gpu() {
         // With GPU disabled there is no context, so acceleration is false.
-        let mut config = GraphConfig::default();
-        config.enable_gpu = false;
+        let config = GraphConfig {
+            enable_gpu: false,
+            ..Default::default()
+        };
         let generator = TraitGraphGenerator::new(config).expect("expected valid value");
         assert!(!generator.has_gpu_acceleration());
     }
@@ -1544,7 +1678,9 @@ mod tests {
         let generator = TraitGraphGenerator::new(config).expect("expected valid value");
         let trait_info = create_test_trait_info();
 
-        let mut nodes = vec![generator.create_trait_node(&trait_info).expect("create_trait_node should succeed")];
+        let mut nodes = vec![generator
+            .create_trait_node(&trait_info)
+            .expect("create_trait_node should succeed")];
         let mut edges = Vec::new();
 
         // This should work since our test trait has low complexity
@@ -1557,8 +1693,14 @@ mod tests {
         let config = GraphConfig::default();
         let generator = TraitGraphGenerator::new(config).expect("expected valid value");
 
-        let nodes = vec![TraitGraphNode::new_trait("test".to_string(), "Test".to_string())];
-        let edges = vec![TraitGraphEdge::new_inheritance("a".to_string(), "b".to_string())];
+        let nodes = vec![TraitGraphNode::new_trait(
+            "test".to_string(),
+            "Test".to_string(),
+        )];
+        let edges = vec![TraitGraphEdge::new_inheritance(
+            "a".to_string(),
+            "b".to_string(),
+        )];
 
         let memory = generator.estimate_memory_usage(&nodes, &edges);
         assert!(memory > 0);
@@ -1573,5 +1715,109 @@ mod tests {
         assert!(layouts.contains(&"force_directed".to_string()));
         assert!(layouts.contains(&"hierarchical".to_string()));
         assert!(layouts.contains(&"circular".to_string()));
+    }
+
+    /// End-to-end smoke test: build a rich `TraitInfo` directly from
+    /// `crate::api_reference_generator`'s public types (rather than through
+    /// the shared `create_test_trait_info` helper) and drive it through
+    /// `TraitGraphGenerator` to produce a `TraitGraph`, asserting the
+    /// resulting node/edge structure matches the source trait information.
+    #[test]
+    fn test_smoke_rich_trait_info_end_to_end() {
+        let trait_info = TraitInfo {
+            name: "SmokeTestTrait".to_string(),
+            docs: Some("Smoke-test trait for the rich API types.".to_string()),
+            module_path: Some("smoke::module".to_string()),
+            visibility: Visibility::Restricted("crate".to_string()),
+            generics: vec!["T: Send".to_string()],
+            supertraits: vec!["SmokeSuperTrait".to_string()],
+            associated_types: vec![AssociatedType {
+                name: "Item".to_string(),
+                bounds: vec!["Clone".to_string(), "Debug".to_string()],
+                default: Some("()".to_string()),
+            }],
+            methods: vec![
+                MethodInfo {
+                    name: "required_method".to_string(),
+                    signature: "fn required_method(&self) -> Self::Item".to_string(),
+                    docs: Some("A required method.".to_string()),
+                    is_required: true,
+                    is_async: false,
+                    is_unsafe: false,
+                    generics: Vec::new(),
+                    return_type: Some("Self::Item".to_string()),
+                    arguments: Vec::new(),
+                },
+                MethodInfo {
+                    name: "provided_method".to_string(),
+                    signature: "async fn provided_method(&self)".to_string(),
+                    docs: None,
+                    is_required: false,
+                    is_async: true,
+                    is_unsafe: false,
+                    generics: Vec::new(),
+                    return_type: None,
+                    arguments: Vec::new(),
+                },
+            ],
+            source_file: Some("smoke_test.rs".to_string()),
+            source_line: Some(7),
+            feature_flags: vec!["experimental".to_string()],
+        };
+        let implementations = vec!["SmokeImpl".to_string()];
+
+        let config = GraphConfig::default();
+        let generator =
+            TraitGraphGenerator::new(config).expect("generator creation should succeed");
+
+        let graph = generator
+            .generate_trait_graph(&trait_info, &implementations)
+            .expect("graph generation should succeed for a well-formed rich TraitInfo");
+
+        // The graph must validate (no dangling edges, no duplicate node IDs).
+        graph
+            .validate()
+            .expect("generated graph should be internally consistent");
+
+        // Expect at least: the trait node itself, its supertrait, its
+        // implementation, and its associated type.
+        assert!(graph.nodes.iter().any(|n| n.id == "SmokeTestTrait"));
+        assert!(graph.nodes.iter().any(|n| n.id == "SmokeSuperTrait"));
+        assert!(graph.nodes.iter().any(|n| n.id == "SmokeImpl"));
+        assert!(graph
+            .nodes
+            .iter()
+            .any(|n| n.node_type == TraitNodeType::AssociatedType));
+
+        // The trait node should carry through the rich metadata via the
+        // `Visibility::to_string()` conversion (Display impl), not a debug
+        // dump of the enum.
+        let trait_node = graph
+            .find_node("SmokeTestTrait")
+            .expect("trait node should be present");
+        assert_eq!(
+            trait_node.metadata.visibility.as_deref(),
+            Some("restricted(crate)")
+        );
+        assert_eq!(
+            trait_node.metadata.feature_flags,
+            vec!["experimental".to_string()]
+        );
+
+        // Expect at least one edge for each relationship kind that was fed
+        // in: inherits (supertrait), implements (implementation), and
+        // associated-with (associated type).
+        assert!(graph
+            .edges
+            .iter()
+            .any(|e| e.edge_type == EdgeType::Inherits));
+        assert!(graph
+            .edges
+            .iter()
+            .any(|e| e.edge_type == EdgeType::Implements));
+        assert!(graph
+            .edges
+            .iter()
+            .any(|e| e.edge_type == EdgeType::AssociatedWith));
     }
 }

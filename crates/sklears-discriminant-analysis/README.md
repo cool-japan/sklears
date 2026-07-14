@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -14,9 +14,8 @@
 ## Key Features
 
 - **Comprehensive Algorithms**: LDA, QDA, shrinkage estimators, regularized discriminant analysis, and Bayesian variants.
-- **Performance Optimizations**: SIMD-enabled linear algebra, batched matrix factorizations, and optional GPU backends.
-- **Pipeline Support**: Works with sklears pipelines, calibration, and model selection utilities.
-- **Probability Calibration**: Built-in support for Platt scaling and isotonic calibration for multiclass scenarios.
+- **Performance Optimizations**: SIMD-enabled linear algebra, batched matrix factorizations, and (behind the opt-in `gpu` feature, not enabled by default) a real `sklears_core::gpu`-backed GPU path (GEMM-based class-statistics, an LDA generalized-eigenvalue solve via Cholesky reduction verified against SciPy to ~1e-15, and QDA via `oxicuda-solver`).
+- **Pipeline Support**: Works with sklears pipelines and model selection utilities; `predict_proba` is available on the fitted estimators.
 
 ## Quick Start
 
@@ -32,11 +31,10 @@ let x = array![
 ];
 let y = Array1::from(vec![0, 0, 1, 1]);
 
-let lda = LinearDiscriminantAnalysis::builder()
+let lda = LinearDiscriminantAnalysis::new()
     .solver("svd")
     .shrinkage(None)
-    .n_components(Some(1))
-    .build();
+    .n_components(Some(1));
 
 let fitted = lda.fit(&x, &y)?;
 let predictions = fitted.predict(&x)?;
@@ -44,6 +42,7 @@ let predictions = fitted.predict(&x)?;
 
 ## Status
 
-- Covered by 300 passing tests in `0.1.2` (Stable).
-- Numerical stability validated on high-dimensional datasets using SciRS2 linear algebra backends.
-- Future enhancements (incremental LDA, GPU QDA) tracked within this crate's `TODO.md`.
+- Covered by 322 passing tests in `0.2.0` (Partial — actively evolving).
+- Numerical stability validated on high-dimensional datasets using SciRS2 linear algebra backends; `NumericalStability::stable_inverse` now correctly handles non-symmetric matrices via `scirs2_linalg::inv` (previously a stub that returned `NotImplemented`).
+- GPU acceleration now targets the `sklears_core::gpu` foundation (`GpuBackend`/`GpuArray`/`GpuMatrixOps`), replacing the previous dead `scirs2_core::gpu::*` path.
+- Future enhancements (incremental LDA) tracked within this crate's `TODO.md`.

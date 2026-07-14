@@ -67,6 +67,35 @@ pub enum ScalingValues {
     PowersOfTwo { min_power: i32, max_power: i32 },
 }
 
+/// Compute `2.0_f64.powi(power)` with a result that is guaranteed to be exact
+/// (bit-for-bit identical) across every Rust backend and interpreter.
+///
+/// `f64::powi`/`powf` are explicitly *not* guaranteed by Rust to be
+/// correctly-rounded or reproducible across platforms/backends (unlike the
+/// basic `+ - * /` operators, which IEEE 754 requires to be exact or
+/// correctly rounded). In practice this means `2.0_f64.powi(4)` can differ in
+/// its last bit between native codegen and Miri's interpreter, even though
+/// mathematically `2^n` is always exactly representable in `f64` for
+/// reasonable `n`.
+///
+/// Repeated doubling/halving by exactly `2.0` sidesteps this: multiplying or
+/// dividing a normal `f64` by `2.0` only ever adjusts the exponent field and
+/// never rounds the mantissa, so this is exact on any IEEE-754-compliant
+/// implementation, Miri included.
+fn exact_power_of_two(power: i32) -> f64 {
+    let mut value = 1.0_f64;
+    if power >= 0 {
+        for _ in 0..power {
+            value *= 2.0;
+        }
+    } else {
+        for _ in 0..power.unsigned_abs() {
+            value /= 2.0;
+        }
+    }
+    value
+}
+
 /// Algorithmic complexity classes
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ComplexityClass {
@@ -660,7 +689,7 @@ impl BenchmarkGenerator {
             ScalingValues::PowersOfTwo {
                 min_power,
                 max_power,
-            } => (*min_power..=*max_power).map(|p| 2.0_f64.powi(p)).collect(),
+            } => (*min_power..=*max_power).map(exact_power_of_two).collect(),
         }
     }
 

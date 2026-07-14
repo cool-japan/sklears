@@ -2,7 +2,7 @@
 //!
 //! This module provides Isomap for non-linear dimensionality reduction through isometric mapping.
 
-use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -64,6 +64,29 @@ pub struct IsomapTrained {
     pub geodesic_distances: Array2<f64>,
     /// Reconstruction error from the embedding
     pub reconstruction_error: f64,
+    // The training data used at fit time (needed to measure distances to new points).
+    training_data: Array2<f64>,
+    // Top `n_components` eigenvectors of the double-centered matrix, one per column,
+    // in the same order used to build `embedding`.
+    eigenvectors: Array2<f64>,
+    // Corresponding top `n_components` eigenvalues (0.0 for any that were <= 1e-12 and
+    // thus unused, mirroring how `embedding` zero-fills those columns).
+    eigenvalues: Array1<f64>,
+    // Row means of the training D^2 matrix (== column means, since D^2 is symmetric);
+    // used to center new points consistently with training.
+    row_means: Array1<f64>,
+    // Grand mean of the training D^2 matrix.
+    grand_mean: f64,
+}
+
+/// Intermediate products of classical MDS retained so that out-of-sample points can
+/// later be projected onto the training embedding via Gower's supplementary formula.
+struct ClassicalMdsResult {
+    embedding: Array2<f64>,
+    eigenvectors: Array2<f64>,
+    eigenvalues: Array1<f64>,
+    row_means: Array1<f64>,
+    grand_mean: f64,
 }
 
 impl Isomap<Untrained> {
@@ -169,18 +192,24 @@ impl Fit<ArrayView2<'_, Float>, ()> for Isomap<Untrained> {
         // Compute shortest path distances
         let geodesic_distances = self.compute_shortest_paths(&graph)?;
 
-        // Apply classical MDS
-        let embedding = self.classical_mds(&geodesic_distances)?;
+        // Apply classical MDS, retaining the eigenbasis and centering statistics so
+        // that new points can be projected onto this embedding later.
+        let mds = self.classical_mds(&geodesic_distances)?;
 
         // Compute reconstruction error
         let reconstruction_error =
-            self.compute_reconstruction_error(&geodesic_distances, &embedding);
+            self.compute_reconstruction_error(&geodesic_distances, &mds.embedding);
 
         Ok(Isomap {
             state: IsomapTrained {
-                embedding,
+                embedding: mds.embedding,
                 geodesic_distances,
                 reconstruction_error,
+                training_data: x,
+                eigenvectors: mds.eigenvectors,
+                eigenvalues: mds.eigenvalues,
+                row_means: mds.row_means,
+                grand_mean: mds.grand_mean,
             },
             n_neighbors: self.n_neighbors,
             n_components: self.n_components,
@@ -298,7 +327,7 @@ impl Isomap<Untrained> {
         }
     }
 
-    fn classical_mds(&self, distances: &Array2<f64>) -> SklResult<Array2<f64>> {
+    fn classical_mds(&self, distances: &Array2<f64>) -> SklResult<ClassicalMdsResult> {
         let n = distances.nrows();
 
         // Center the squared distance matrix using double centering
@@ -335,13 +364,23 @@ impl Isomap<Untrained> {
             .collect();
         eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
-        // Take the largest n_components eigenvalues
+        // Take the largest n_components eigenvalues, retaining the eigenbasis so that
+        // out-of-sample points can later be projected via Gower's formula.
         let mut embedding = Array2::zeros((n, self.n_components));
+        let mut eigenvectors: Array2<f64> = Array2::zeros((n, self.n_components));
+        let mut eigenvalues: Array1<f64> = Array1::zeros(self.n_components);
         for (comp_idx, &(eigenval, eigen_idx)) in
             eigen_pairs.iter().take(self.n_components).enumerate()
         {
+            // Always retain the eigenvector column in embedding order; transform only
+            // consults the columns whose eigenvalue is strictly positive.
+            for i in 0..n {
+                eigenvectors[[i, comp_idx]] = eigenvecs[[i, eigen_idx]];
+            }
             if eigenval > 1e-12 {
-                // Only use positive eigenvalues
+                // Only use positive eigenvalues; the rest stay zero-filled in both
+                // `embedding` and `eigenvalues`.
+                eigenvalues[comp_idx] = eigenval;
                 let sqrt_eigenval = eigenval.sqrt();
                 for i in 0..n {
                     embedding[[i, comp_idx]] = eigenvecs[[i, eigen_idx]] * sqrt_eigenval;
@@ -349,14 +388,107 @@ impl Isomap<Untrained> {
             }
         }
 
-        Ok(embedding)
+        Ok(ClassicalMdsResult {
+            embedding,
+            eigenvectors,
+            eigenvalues,
+            row_means,
+            grand_mean,
+        })
     }
 }
 
 impl Transform<ArrayView2<'_, Float>, Array2<f64>> for Isomap<IsomapTrained> {
-    fn transform(&self, _x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
-        // Isomap doesn't support transforming new data in this implementation
-        Ok(self.state.embedding.clone())
+    /// Project new (out-of-sample) points onto the trained Isomap embedding.
+    ///
+    /// This implements the standard Isomap out-of-sample extension (Gower's formula for
+    /// supplementary points in classical MDS, with geodesic distances substituted for
+    /// Euclidean ones). For each new point `p` we:
+    ///
+    /// 1. measure its direct Euclidean distance to every training point;
+    /// 2. take its `k` nearest training points (`k = n_neighbors`, clamped to the
+    ///    training size);
+    /// 3. approximate its geodesic distance to each training point `j` by entering the
+    ///    training graph through one of those neighbours:
+    ///    `g[j] = min_nb (direct(p, nb) + geodesic(nb, j))`. Because the training
+    ///    geodesic matrix already satisfies the triangle inequality, this is a valid
+    ///    shortest-path approximation;
+    /// 4. double-center the squared approximate distances against the stored training
+    ///    statistics; and
+    /// 5. project the result onto the retained eigenbasis.
+    ///
+    /// Feeding the exact training data back through this method reproduces the training
+    /// embedding (up to floating-point error), because a training point is its own
+    /// nearest neighbour at distance zero and, by the triangle inequality, `g` collapses
+    /// to the exact training geodesic row.
+    fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
+        let n_features = self.state.training_data.ncols();
+        if x.ncols() != n_features {
+            return Err(SklearsError::FeatureMismatch {
+                expected: n_features,
+                actual: x.ncols(),
+            });
+        }
+
+        let n_train = self.state.training_data.nrows();
+        let n_new = x.nrows();
+        let n_components = self.n_components;
+        // Number of training neighbours used to re-enter the geodesic graph.
+        let k = self.n_neighbors.min(n_train).max(1);
+
+        let mut embedding_new = Array2::zeros((n_new, n_components));
+
+        for p in 0..n_new {
+            let point = x.row(p);
+
+            // Step 1: direct Euclidean distance to every training point.
+            let mut direct = vec![0.0_f64; n_train];
+            for (t, d) in direct.iter_mut().enumerate() {
+                let diff = &point - &self.state.training_data.row(t);
+                *d = diff.mapv(|v| v * v).sum().sqrt();
+            }
+
+            // Step 2: indices of the k nearest training points (by direct distance).
+            let mut order: Vec<usize> = (0..n_train).collect();
+            order.sort_by(|&a, &b| direct[a].total_cmp(&direct[b]));
+            let neighbors = &order[..k];
+
+            // Steps 3-4: approximate squared geodesic distance to every training point by
+            // entering the graph through the new point's nearest neighbours, then take
+            // this new point's own row mean of those squared distances.
+            let mut d_p = vec![0.0_f64; n_train];
+            for (j, dp) in d_p.iter_mut().enumerate() {
+                let mut g = f64::INFINITY;
+                for &nb in neighbors {
+                    let candidate = direct[nb] + self.state.geodesic_distances[[nb, j]];
+                    if candidate < g {
+                        g = candidate;
+                    }
+                }
+                *dp = g * g;
+            }
+            let m_p = d_p.iter().sum::<f64>() / n_train as f64;
+
+            // Steps 5-6: double-center against the training statistics and project onto
+            // the stored eigenbasis:
+            //   b_p[j]          = -0.5 (d_p[j] - row_means[j] - m_p + grand_mean)
+            //   embedding[p, c] = (sum_j b_p[j] * eigenvectors[j, c]) / sqrt(eigenvalues[c]).
+            for c in 0..n_components {
+                let eigenval = self.state.eigenvalues[c];
+                if eigenval > 1e-12 {
+                    let mut acc = 0.0;
+                    for (j, &d_p_j) in d_p.iter().enumerate() {
+                        let b_p =
+                            -0.5 * (d_p_j - self.state.row_means[j] - m_p + self.state.grand_mean);
+                        acc += b_p * self.state.eigenvectors[[j, c]];
+                    }
+                    embedding_new[[p, c]] = acc / eigenval.sqrt();
+                }
+                // eigenvalue <= 1e-12: leave this coordinate at 0.0, matching `embedding`.
+            }
+        }
+
+        Ok(embedding_new)
     }
 }
 
@@ -374,5 +506,155 @@ impl Isomap<IsomapTrained> {
     /// Get the reconstruction error
     pub fn reconstruction_error(&self) -> f64 {
         self.state.reconstruction_error
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    // A 3x2 grid of points. Consecutive rows and columns are close enough that a
+    // k-NN graph with k = 3 is connected, which Isomap requires, and the data spans two
+    // dimensions so both embedding components are meaningful.
+    fn training_data() -> Array2<f64> {
+        array![
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [2.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [2.0, 1.0],
+        ]
+    }
+
+    fn fitted_isomap() -> Isomap<IsomapTrained> {
+        let x = training_data();
+        Isomap::new()
+            .n_neighbors(3)
+            .n_components(2)
+            .fit(&x.view(), &())
+            .expect("fit should succeed on a connected k-NN graph")
+    }
+
+    #[test]
+    fn fit_produces_embedding_of_expected_shape() {
+        let fitted = fitted_isomap();
+        assert_eq!(fitted.embedding().dim(), (6, 2));
+    }
+
+    #[test]
+    fn transform_shape_matches_new_data() {
+        let fitted = fitted_isomap();
+        let new = array![[0.5, 0.5], [1.5, 0.25], [0.25, 0.75]];
+        let out = fitted
+            .transform(&new.view())
+            .expect("transform should succeed");
+        assert_eq!(out.dim(), (new.nrows(), 2));
+    }
+
+    #[test]
+    fn transform_is_a_function_of_the_input() {
+        let fitted = fitted_isomap();
+
+        // Two genuinely different out-of-sample sets must yield different embeddings.
+        let a = array![[0.5, 0.5], [1.5, 0.5]];
+        let b = array![[0.1, 0.9], [1.9, 0.1]];
+        let out_a = fitted.transform(&a.view()).expect("transform a");
+        let out_b = fitted.transform(&b.view()).expect("transform b");
+
+        let mut max_diff = 0.0_f64;
+        for (va, vb) in out_a.iter().zip(out_b.iter()) {
+            max_diff = max_diff.max((va - vb).abs());
+        }
+        assert!(
+            max_diff > 1e-6,
+            "different inputs must map to different outputs (max_diff = {max_diff})"
+        );
+
+        // The transform of new data must NOT simply replay the training embedding
+        // (this is the exact bug being fixed).
+        let emb = fitted.embedding();
+        let mut replays_training = true;
+        for r in 0..out_a.nrows() {
+            for c in 0..2 {
+                if (out_a[[r, c]] - emb[[r, c]]).abs() > 1e-9 {
+                    replays_training = false;
+                }
+            }
+        }
+        assert!(
+            !replays_training,
+            "transform of new data must not return the stale training embedding"
+        );
+    }
+
+    #[test]
+    fn self_transform_reproduces_training_embedding() {
+        let fitted = fitted_isomap();
+        let x = training_data();
+
+        let round_trip = fitted
+            .transform(&x.view())
+            .expect("self-transform should succeed");
+        let emb = fitted.embedding();
+        assert_eq!(round_trip.dim(), emb.dim());
+        for (got, want) in round_trip.iter().zip(emb.iter()) {
+            assert!(
+                (got - want).abs() < 1e-6,
+                "self-transform must reproduce the training embedding: got {got}, want {want}"
+            );
+        }
+    }
+
+    #[test]
+    fn near_duplicate_maps_close_to_original_embedding() {
+        let fitted = fitted_isomap();
+        let emb = fitted.embedding();
+
+        // Perturb training point 0 = [0, 0] by a tiny amount along each coordinate.
+        let perturbed = array![[1e-4, 1e-4]];
+        let out = fitted
+            .transform(&perturbed.view())
+            .expect("transform should succeed");
+
+        let dist_to_own =
+            ((out[[0, 0]] - emb[[0, 0]]).powi(2) + (out[[0, 1]] - emb[[0, 1]]).powi(2)).sqrt();
+
+        // It must land closer to its own original embedding row than to any other row.
+        for i in 1..emb.nrows() {
+            let dist_to_other =
+                ((out[[0, 0]] - emb[[i, 0]]).powi(2) + (out[[0, 1]] - emb[[i, 1]]).powi(2)).sqrt();
+            assert!(
+                dist_to_own < dist_to_other,
+                "perturbed point 0 should map nearest to embedding row 0, but row {i} \
+                 was closer (own = {dist_to_own}, other = {dist_to_other})"
+            );
+        }
+
+        // And in absolute terms it should stay very close to the original.
+        assert!(
+            dist_to_own < 1e-2,
+            "a tiny perturbation should stay near the original embedding (dist = {dist_to_own})"
+        );
+    }
+
+    #[test]
+    fn transform_rejects_feature_mismatch() {
+        let fitted = fitted_isomap();
+
+        // Three features where the model was trained on two.
+        let bad = array![[0.0, 1.0, 2.0]];
+        let result = fitted.transform(&bad.view());
+        assert!(
+            matches!(
+                result,
+                Err(SklearsError::FeatureMismatch {
+                    expected: 2,
+                    actual: 3
+                })
+            ),
+            "feature-count mismatch must be rejected with FeatureMismatch"
+        );
     }
 }

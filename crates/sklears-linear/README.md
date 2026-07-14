@@ -7,49 +7,39 @@
 
 High-performance linear models for Rust with pure Rust implementation and ongoing performance optimization, featuring advanced solvers, numerical stability, and GPU acceleration.
 
-> **Latest release:** `0.1.2` (June 30, 2026). See the [workspace release notes](../../docs/releases/0.1.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
 `sklears-linear` provides comprehensive linear modeling capabilities:
 
-- **Core Models**: LinearRegression, Ridge, Lasso, ElasticNet, LogisticRegression
-- **Advanced Solvers**: ADMM, coordinate descent, proximal gradient, L-BFGS
-- **Numerical Stability**: Condition checking, iterative refinement, rank-deficient handling
-- **Performance**: SIMD optimization, sparse matrix support, parallel training
+- **Core Models**: `LinearRegression` (OLS/Ridge/Lasso/ElasticNet via a unified `Penalty` config), `LogisticRegression`, `RidgeCV`/`LassoCV`/`ElasticNetCV`, Bayesian variants (`BayesianRidge`, `ARDRegression`, `VariationalBayesianRegression`)
+- **Advanced Solvers**: ADMM (`AdmmSolver`), coordinate descent, L-BFGS (`LogisticRegression`)
+- **Numerical Stability**: Condition-number checks, SVD/truncated normal-equations solving, rank-deficient handling
+- **Performance**: SIMD optimization, sparse matrix support (`sparse` feature), parallel cross-validation
 - **Production Ready**: Cross-validation, early stopping, warm start
 
 ## Quick Start
 
 ```rust
-use sklears_linear::{LinearRegression, Ridge, Lasso, ElasticNet};
-use ndarray::array;
+use sklears_linear::LinearRegression;
+use scirs2_core::ndarray::array;
 
-// Basic linear regression
+// Basic linear regression (ordinary least squares)
 let model = LinearRegression::default();
-let X = array![[1.0, 2.0], [2.0, 4.0], [3.0, 6.0]];
+let x = array![[1.0, 2.0], [2.0, 4.0], [3.0, 6.0]];
 let y = array![2.0, 4.0, 6.0];
-let fitted = model.fit(&X, &y)?;
-let predictions = fitted.predict(&X)?;
+let fitted = model.fit(&x, &y)?;
+let predictions = fitted.predict(&x)?;
 
-// Ridge regression with regularization
-let ridge = Ridge::builder()
-    .alpha(1.0)
-    .solver(RidgeSolver::Cholesky)
-    .build();
+// Ridge regression (L2 penalty) via the unified LinearRegression estimator
+let ridge = LinearRegression::new().regularization(1.0);
 
-// Lasso with coordinate descent
-let lasso = Lasso::builder()
-    .alpha(0.1)
-    .max_iter(1000)
-    .tol(1e-4)
-    .build();
+// Lasso (L1 penalty, coordinate-descent solver)
+let lasso = LinearRegression::lasso(0.1).max_iter(1000);
 
-// ElasticNet combining L1 and L2
-let elastic = ElasticNet::builder()
-    .alpha(0.5)
-    .l1_ratio(0.5)
-    .build();
+// ElasticNet (combined L1 + L2 penalty)
+let elastic = LinearRegression::elastic_net(0.5, 0.5);
 ```
 
 ## Advanced Features
@@ -57,70 +47,70 @@ let elastic = ElasticNet::builder()
 ### Solvers
 
 ```rust
-use sklears_linear::{ADMMSolver, CoordinateDescentSolver, ProximalGradientSolver};
+use sklears_linear::{AdmmConfig, AdmmSolver, CoordinateDescentSolver};
 
-// ADMM for distributed optimization
-let admm = ADMMSolver::builder()
-    .rho(1.0)
-    .max_iter(500)
-    .abstol(1e-4)
-    .reltol(1e-3)
-    .build();
+// ADMM for elastic-net-regularized least squares
+let admm = AdmmSolver::with_config(AdmmConfig {
+    rho: 1.0,
+    max_iter: 500,
+    primal_tol: 1e-4,
+    dual_tol: 1e-4,
+    ..Default::default()
+});
+let solution = admm.solve_elastic_net(&x, &y, 0.5, 0.5, None)?;
 
-// Coordinate descent for L1 regularization
-let cd = CoordinateDescentSolver::builder()
-    .selection_rule(SelectionRule::Cyclic)
-    .build();
+// Coordinate descent for L1/ElasticNet regularization
+let cd = CoordinateDescentSolver {
+    max_iter: 1000,
+    cyclic: true,
+    ..Default::default()
+};
+let (coef, intercept) = cd.solve_lasso(&x, &y, 0.1, true)?;
 ```
 
 ### Numerical Stability
 
 ```rust
-use sklears_linear::{LinearRegression, Solver};
+use sklears_linear::{condition_number, stable_normal_equations, stable_ridge_regression};
 
-// Automatic method selection based on condition number
-let stable_model = LinearRegression::builder()
-    .solver(Solver::Auto)  // Chooses based on matrix condition
-    .check_condition(true)
-    .build();
+// Check the design matrix's condition number before fitting
+let cond = condition_number(&x)?;
 
-// Iterative refinement for ill-conditioned problems
-let refined = LinearRegression::builder()
-    .solver(Solver::QR)
-    .iterative_refinement(true)
-    .build();
+// Rank-deficient / ill-conditioned OLS via truncated-SVD normal equations
+let coef = stable_normal_equations(&x, &y, None)?;
+
+// Numerically stable ridge regression (SVD-based, handles rank deficiency)
+let ridge_coef = stable_ridge_regression(&x, &y, 1.0, false)?;
 ```
 
 ### Sparse Data Support
 
 ```rust
-use sklears_linear::sparse::{SparseLinearRegression};
-use sprs::CsMat;
+use sklears_linear::{SparseLinearRegression, SparseMatrixCSR};
+use scirs2_sparse::CsrMatrix;
 
-// Efficient sparse matrix operations
-let sparse_X = CsMat::from_dense(...);
+// Efficient sparse matrix operations (requires the `sparse` feature)
+let csr = CsrMatrix::try_from_triplets(n_rows, n_cols, &triplets)?;
+let sparse_x = SparseMatrixCSR::new(csr);
 let model = SparseLinearRegression::default();
-let fitted = model.fit(&sparse_X, &y)?;
+let fitted = model.fit(&sparse_x, &y)?;
 ```
 
 ### Bayesian Linear Models
 
 ```rust
-use sklears_linear::{BayesianRidge, VariationalBayesRegression};
+use sklears_linear::{BayesianRidge, VariationalBayesianRegression};
 
-// Bayesian ridge with automatic relevance determination
-let bayesian = BayesianRidge::builder()
-    .n_iter(300)
-    .compute_score(true)
-    .build();
+// Bayesian ridge regression (evidence-based automatic regularization)
+let bayesian = BayesianRidge::new()
+    .max_iter(300)
+    .compute_score(true);
 
-// Variational Bayes for uncertainty quantification
-let vb = VariationalBayesRegression::builder()
-    .credible_interval(0.95)
-    .build();
+// Variational Bayesian regression, scalable to large problems
+let vb = VariationalBayesianRegression::new().max_iter(500);
 
-let fitted = vb.fit(&X, &y)?;
-let (predictions, lower, upper) = fitted.predict_with_uncertainty(&X)?;
+let fitted = vb.fit(&x, &y)?;
+let (mean, variance) = fitted.predict_with_uncertainty(&x)?;
 ```
 
 ## Performance Features
@@ -128,9 +118,11 @@ let (predictions, lower, upper) = fitted.predict_with_uncertainty(&X)?;
 ### Parallel Training
 
 ```rust
-let model = Ridge::builder()
-    .alpha(1.0)
-    .n_jobs(4)  // Use 4 threads
+use sklears_linear::LogisticRegressionCV;
+
+// Cross-validated models expose `n_jobs` for parallel fold evaluation
+let model = LogisticRegressionCV::builder()
+    .n_jobs(4)
     .build();
 ```
 
@@ -145,9 +137,8 @@ let ridge_cv = RidgeCV::builder()
     .cv(5)
     .build();
 
-// Lasso with efficient path computation
+// Lasso with cross-validated alpha selection (100 candidate alphas by default)
 let lasso_cv = LassoCV::builder()
-    .n_alphas(100)
     .cv(10)
     .build();
 ```
@@ -155,12 +146,16 @@ let lasso_cv = LassoCV::builder()
 ### Early Stopping
 
 ```rust
-let model = Lasso::builder()
-    .alpha(0.1)
-    .early_stopping(true)
-    .validation_fraction(0.2)
-    .n_iter_no_change(5)
-    .build();
+use sklears_linear::{EarlyStoppingConfig, LinearRegression, StoppingCriterion};
+
+let early_stopping_config = EarlyStoppingConfig {
+    criterion: StoppingCriterion::Patience(5),
+    validation_split: 0.2,
+    ..Default::default()
+};
+
+let (fitted, validation_info) = LinearRegression::lasso(0.1)
+    .fit_with_early_stopping(&x, &y, early_stopping_config)?;
 ```
 
 ## Specialized Regression
@@ -171,33 +166,30 @@ let model = Lasso::builder()
 use sklears_linear::{HuberRegressor, RANSACRegressor};
 
 // Huber regression for outliers
-let huber = HuberRegressor::builder()
+let huber = HuberRegressor::new()
     .epsilon(1.35)
-    .alpha(0.0001)
-    .build();
+    .alpha(0.0001);
 
 // RANSAC for severe outliers
-let ransac = RANSACRegressor::builder()
-    .min_samples(0.5)
-    .residual_threshold(5.0)
-    .build();
+let ransac = RANSACRegressor::new()
+    .min_samples(50)
+    .residual_threshold(5.0);
 ```
 
 ### Quantile Regression
 
 ```rust
-use sklears_linear::QuantileRegressor;
+use sklears_linear::{QuantileRegressor, QuantileSolver};
 
 // Median regression (50th percentile)
-let median = QuantileRegressor::builder()
-    .quantile(0.5)
-    .solver(QuantileSolver::InteriorPoint)
-    .build();
+let median = QuantileRegressor::new()
+    .quantile(0.5)?
+    .solver(QuantileSolver::InteriorPoint);
 
 // Multiple quantiles
 let quantiles = vec![0.1, 0.5, 0.9];
 for q in quantiles {
-    let model = QuantileRegressor::new(q);
+    let model = QuantileRegressor::new().quantile(q)?;
     // Fit and predict...
 }
 ```
@@ -213,9 +205,7 @@ Performance comparisons on standard datasets:
 | Lasso (CD) | 15ms | 1.2ms | 12.5x |
 | ElasticNet | 18ms | 1.5ms | 12.0x |
 
-With GPU acceleration (coming soon):
-- Expected 50-100x speedup for large problems
-- Linear scaling with problem size
+GPU acceleration is available behind the opt-in `gpu` feature (oxicuda-backed `sklears_core::gpu`, with an honest CPU fallback whenever no CUDA device is detected). See `TODO.md` for the current hardening status of individual GPU code paths.
 
 ## Architecture
 
@@ -227,17 +217,17 @@ sklears-linear/
 ├── robust/         # Robust regression methods
 ├── bayesian/       # Bayesian linear models
 ├── sparse/         # Sparse matrix support
-└── gpu/           # GPU acceleration (WIP)
+└── gpu/           # GPU acceleration (optional `gpu` feature, oxicuda-backed)
 ```
 
 ## Status
 
-**Stable** (`0.1.2`)
+**Stable** (`0.2.0`)
 
 - **Core Models**: 100% complete
 - **Advanced Solvers**: 100% complete
-- **Tests**: 429 passing, 3 skipped
-- **GPU Support**: In development
+- **Tests**: 444 passing, 3 skipped
+- **GPU Support**: Available via the opt-in `gpu` feature (oxicuda-backed, honest CPU fallback)
 
 ## Contributing
 

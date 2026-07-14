@@ -505,6 +505,7 @@ pub struct SimpleEmpiricalEstimator {
 }
 
 impl SimpleEmpiricalEstimator {
+    #[allow(dead_code)] // Constructor for example plugin, used in documentation/examples
     pub fn new() -> Self {
         Self {
             covariance: None,

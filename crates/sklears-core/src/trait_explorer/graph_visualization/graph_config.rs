@@ -191,7 +191,12 @@ impl GraphConfig {
 }
 
 /// Layout algorithms for graph visualization
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+///
+/// Not `Copy`/`Eq`/`Hash`: the `Custom` variant carries [`CustomLayoutParams`],
+/// which holds a `HashMap<String, f64>` and therefore cannot soundly
+/// implement `Copy` (owns heap data) or `Eq`/`Hash` (contains `f64`, which
+/// has no total order/hash due to `NaN`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum LayoutAlgorithm {
     /// Force-directed layout using physics simulation
     ForceDirected,
@@ -240,7 +245,7 @@ impl CustomLayoutParams {
 }
 
 /// Visualization themes for graph appearance
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum VisualizationTheme {
     /// Light theme with bright background
     Light,
@@ -388,11 +393,20 @@ impl Default for FilterConfig {
         Self {
             min_complexity: 0.0,
             max_complexity: 100.0,
+            // Every edge type here has its corresponding node type(s) below
+            // (`AssociatedWith` <-> `AssociatedType`, `DefinesMethod` <->
+            // `Method`) so that node/edge filtering agree: a node type that
+            // survives filtering should never end up with its connecting
+            // edge silently stripped because the edge type wasn't allow-
+            // listed (which would otherwise leave e.g. associated-type
+            // nodes rendered as disconnected islands by default).
             edge_types: vec![
                 EdgeType::Inherits,
                 EdgeType::Implements,
                 EdgeType::Uses,
                 EdgeType::Contains,
+                EdgeType::AssociatedWith,
+                EdgeType::DefinesMethod,
             ],
             node_types: vec![
                 TraitNodeType::Trait,
@@ -548,7 +562,10 @@ impl OptimizationLevel {
 
     /// Whether to enable expensive analysis features
     pub fn enable_expensive_analysis(&self) -> bool {
-        matches!(self, OptimizationLevel::Quality | OptimizationLevel::Balanced)
+        matches!(
+            self,
+            OptimizationLevel::Quality | OptimizationLevel::Balanced
+        )
     }
 }
 

@@ -20,7 +20,9 @@ struct StandardScalerState {
 ///
 /// The standard score of a sample `x` is calculated as:
 ///
-///     z = (x - u) / s
+/// ```text
+/// z = (x - u) / s
+/// ```
 ///
 /// where `u` is the mean of the training samples or zero if `with_mean=False`,
 /// and `s` is the standard deviation of the training samples or one if
@@ -145,7 +147,9 @@ impl PyStandardScaler {
 
         // Compute mean
         let mean = if self.with_mean {
-            x_array.mean_axis(Axis(0)).expect("array should have elements for mean computation")
+            x_array
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation")
         } else {
             Array1::zeros(n_features)
         };
@@ -201,7 +205,11 @@ impl PyStandardScaler {
     /// -------
     /// X_tr : {ndarray, sparse matrix} of shape (n_samples, n_features)
     ///     Transformed array.
-    fn transform<'py>(&self, py: Python<'py>, x: PyReadonlyArray2<f64>) -> PyResult<Py<PyArray2<f64>>> {
+    fn transform<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Py<PyArray2<f64>>> {
         let state = self
             .state
             .as_ref()

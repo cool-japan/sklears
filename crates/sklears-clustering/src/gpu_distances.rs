@@ -1,7 +1,7 @@
 //! GPU-Accelerated Distance Computations
 //!
 //! This module provides GPU-accelerated distance computations for clustering algorithms
-//! using WebGPU (wgpu) for cross-platform GPU compute support.
+//! using `oxicuda-backend` (the Pure Rust CUDA replacement) for GPU compute support.
 //!
 //! # Features
 //! - **Euclidean Distance**: Batch computation of Euclidean distances
@@ -11,11 +11,14 @@
 //! - **K-Nearest Neighbors**: GPU-accelerated k-NN search
 //! - **Memory Management**: Efficient GPU buffer management for large datasets
 //!
-//! # GPU Compute Shaders
-//! This module includes WGSL (WebGPU Shading Language) compute shaders for:
-//! - Parallel distance calculations
-//! - Reduction operations for k-NN
-//! - Memory-efficient batch processing
+//! # GPU Acceleration Strategy
+//! Euclidean and squared-Euclidean distances above `GpuConfig::gpu_threshold` use the
+//! GEMM trick, powered by `oxicuda-backend`/`oxicuda-blas` via
+//! `sklears_core::gpu::{GpuArray, GpuContext, GpuMatrixOps}`:
+//! - `D[i,j] = ||x_i||² + ||y_j||² - 2 * x_i · y_j`
+//! - The `X · Y^T` term is computed on the GPU through `GpuArray::matmul`
+//! - Row norms are computed on the CPU (inexpensive relative to the GEMM)
+//! - Manhattan/Cosine distances and datasets below the threshold fall back to CPU
 //!
 //! # Usage
 //! ```rust,ignore
@@ -75,7 +78,12 @@ pub mod gpu {
 
     /// GPU-accelerated distance computer.
     pub struct GpuDistanceComputer {
-        context: GpuContext,
+        /// `Some` when a real GPU/driver was detected at construction time;
+        /// `None` means construction gracefully found no usable GPU (see
+        /// [`GpuContext::with_device_id`]'s `Option`-returning contract) and
+        /// every operation below transparently routes through the CPU
+        /// fallbacks instead of the GEMM path.
+        context: Option<GpuContext>,
         config: GpuConfig,
     }
 
@@ -86,6 +94,12 @@ pub mod gpu {
         }
 
         /// Create a `GpuDistanceComputer` with a specific configuration.
+        ///
+        /// This never fails solely because no GPU is present:
+        /// `GpuContext::with_device_id` returns `Ok(None)` in that case, which
+        /// is stored as `context: None` here rather than surfaced as an error,
+        /// so construction always succeeds and later calls to
+        /// `compute_pairwise_distances` simply use the CPU path.
         pub async fn with_config(config: GpuConfig) -> Result<Self> {
             let context = GpuContext::with_device_id(config.device_id).map_err(|e| {
                 SklearsError::InvalidInput(format!(
@@ -98,8 +112,10 @@ pub mod gpu {
 
         /// Compute pairwise distances between rows of `data_a` and `data_b`.
         ///
-        /// Euclidean and squared-Euclidean use the GEMM trick when the dataset
-        /// exceeds `config.gpu_threshold`; otherwise falls back to CPU.
+        /// Euclidean and squared-Euclidean use the GEMM trick when a GPU was
+        /// detected at construction time *and* the dataset exceeds
+        /// `config.gpu_threshold`; otherwise (no GPU, or below the threshold)
+        /// this falls back to CPU.
         pub async fn compute_pairwise_distances(
             &mut self,
             data_a: &Array2<f64>,
@@ -112,12 +128,11 @@ pub mod gpu {
                 ));
             }
 
-            let large_enough = data_a.nrows() + data_b.nrows() >= self.config.gpu_threshold;
+            let use_gpu = self.context.is_some()
+                && data_a.nrows() + data_b.nrows() >= self.config.gpu_threshold;
 
             match metric {
-                GpuDistanceMetric::Euclidean | GpuDistanceMetric::SquaredEuclidean
-                    if large_enough =>
-                {
+                GpuDistanceMetric::Euclidean | GpuDistanceMetric::SquaredEuclidean if use_gpu => {
                     self.gemm_euclidean_distances(data_a, data_b, metric)
                 }
                 GpuDistanceMetric::Euclidean => {
@@ -174,28 +189,45 @@ pub mod gpu {
         /// Return a map of backend/device diagnostic strings.
         pub fn device_info(&self) -> HashMap<String, String> {
             let mut info = HashMap::new();
-            if let Ok(mem) = self.context.memory_info() {
-                info.insert("total_memory_bytes".to_string(), mem.total.to_string());
-                info.insert("free_memory_bytes".to_string(), mem.free.to_string());
+            if let Some(context) = &self.context {
+                if let Ok(mem) = context.memory_info() {
+                    info.insert("total_memory_bytes".to_string(), mem.total.to_string());
+                    info.insert("free_memory_bytes".to_string(), mem.free.to_string());
+                }
             }
             info.insert("backend".to_string(), "oxicuda-backend".to_string());
+            info.insert(
+                "gpu_available".to_string(),
+                self.context.is_some().to_string(),
+            );
             info
         }
 
         // ── Internal helpers ────────────────────────────────────────────────────
 
         /// Euclidean GEMM trick: D[i,j] = sqrt(||x_i||² + ||y_j||² - 2*x_i·y_j)
+        ///
+        /// The only caller, `compute_pairwise_distances`, checks `use_gpu`
+        /// (which requires `self.context.is_some()`) before reaching here, but
+        /// the context is still resolved via `ok_or_else` rather than indexed
+        /// unconditionally so a future call-site mistake surfaces as an
+        /// ordinary `Result::Err` instead of a panic.
         fn gemm_euclidean_distances(
             &self,
             x: &Array2<f64>,
             y: &Array2<f64>,
             metric: GpuDistanceMetric,
         ) -> Result<Array2<f64>> {
+            let context = self.context.as_ref().ok_or_else(|| {
+                SklearsError::InvalidOperation(
+                    "gemm_euclidean_distances requires a detected GPU context".to_string(),
+                )
+            })?;
             let (m, _d) = x.dim();
             let (n, _) = y.dim();
 
             // Upload X and Y^T to GPU
-            let x_gpu = GpuArray::<f64>::from_array2(&self.context, x)?;
+            let x_gpu = GpuArray::<f64>::from_array2(context, x)?;
             let yt: Vec<f64> = {
                 let (nr, nc) = y.dim();
                 let mut t = vec![0.0f64; nr * nc];
@@ -208,7 +240,7 @@ pub mod gpu {
             };
             let yt_array = Array2::from_shape_vec((y.ncols(), y.nrows()), yt)
                 .map_err(|e| SklearsError::InvalidInput(format!("Transpose shape error: {}", e)))?;
-            let yt_gpu = GpuArray::<f64>::from_array2(&self.context, &yt_array)?;
+            let yt_gpu = GpuArray::<f64>::from_array2(context, &yt_array)?;
 
             // inner = X · Y^T  [m × n]
             let inner_gpu = x_gpu.matmul(&yt_gpu)?;
@@ -364,43 +396,3 @@ pub mod gpu {
 // Re-export GPU module when feature is enabled
 #[cfg(feature = "gpu")]
 pub use gpu::*;
-
-// Provide stub implementations when GPU feature is not enabled
-#[cfg(not(feature = "gpu"))]
-pub mod stub {
-    use sklears_core::error::{Result, SklearsError};
-
-    /// Stub GPU distance metric (no-op when GPU feature disabled)
-    #[derive(Debug, Clone, Copy, PartialEq)]
-    pub enum GpuDistanceMetric {
-        Euclidean,
-        Manhattan,
-        Cosine,
-        SquaredEuclidean,
-    }
-
-    /// Stub GPU distance computer (returns error when GPU feature disabled)
-    pub struct GpuDistanceComputer;
-
-    impl GpuDistanceComputer {
-        pub async fn new() -> Result<Self> {
-            Err(SklearsError::InvalidInput(
-                "GPU feature not enabled. Enable with --features gpu".to_string(),
-            ))
-        }
-
-        pub async fn compute_pairwise_distances(
-            &mut self,
-            _data_a: &Array2<f64>,
-            _data_b: &Array2<f64>,
-            _metric: GpuDistanceMetric,
-        ) -> Result<Array2<f64>> {
-            Err(SklearsError::InvalidInput(
-                "GPU feature not enabled".to_string(),
-            ))
-        }
-    }
-}
-
-#[cfg(not(feature = "gpu"))]
-pub use stub::*;
