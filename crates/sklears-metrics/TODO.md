@@ -1,7 +1,7 @@
-# TODO - v0.2.0
+# TODO - v0.2.1
 
 ## Current Status (updated 2026-07-14)
-This crate is part of the sklears v0.2.0 release. 426 tests passing (`cargo nextest run -p sklears-metrics --all-features`; previously recorded as 411).
+This crate is part of the sklears v0.2.1 release. 426 tests passing (`cargo nextest run -p sklears-metrics --all-features`; previously recorded as 411).
 
 ## README accuracy pass (2026-07-11)
 - [x] Verified README code examples against real source: fixed several fabricated module

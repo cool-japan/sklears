@@ -7,7 +7,7 @@
 
 Comprehensive evaluation metrics for machine learning in Rust, with SIMD/GPU-accelerated kernels available behind optional features.
 
-> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.1` (Unreleased). See the [workspace release notes](../../docs/releases/0.2.1.md) for highlights and upgrade guidance.
 
 ## Overview
 

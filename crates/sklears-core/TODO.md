@@ -1,7 +1,7 @@
-# TODO - v0.2.0
+# TODO - v0.2.1
 
 ## Current Status (updated 2026-07-14)
-This crate is part of the sklears v0.2.0 release. 863 tests passing (`cargo nextest run -p sklears-core --all-features`).
+This crate is part of the sklears v0.2.1 release. 863 tests passing (`cargo nextest run -p sklears-core --all-features`).
 
 ## Completed in 0.2.0 (2026-07-14)
 - [x] `trait_explorer::security_analysis` fully re-enabled — previously excluded from the build

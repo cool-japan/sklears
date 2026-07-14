@@ -1,7 +1,7 @@
 # sklears-decomposition TODO
 
 ## Current Status (updated 2026-07-14)
-This crate is part of the sklears v0.2.0 release. 380 tests passing (`cargo nextest run -p sklears-decomposition --all-features`; previously recorded as 344/349).
+This crate is part of the sklears v0.2.1 release. 380 tests passing (`cargo nextest run -p sklears-decomposition --all-features`; previously recorded as 344/349).
 
 ## README accuracy pass (2026-07-11)
 - [x] Verified README code examples against real source and rewrote fabricated content:

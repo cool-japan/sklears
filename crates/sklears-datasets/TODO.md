@@ -1,7 +1,7 @@
-# TODO - v0.2.0
+# TODO - v0.2.1
 
 ## Current Status (updated 2026-07-14)
-This crate is part of the sklears v0.2.0 release. The compiled public API (`src/lib.rs`) currently
+This crate is part of the sklears v0.2.1 release. The compiled public API (`src/lib.rs`) currently
 exposes only: `generators` (basic + adversarial/causal/domain_specific/experimental/manifold/
 multimodal/privacy/simd/spatial/statistical/time_series/type_safe/performance submodules),
 `memory_pool`, `parallel_rng`, `simd_gen`, `traits`, `validation`, `versioning`, and `viz`.

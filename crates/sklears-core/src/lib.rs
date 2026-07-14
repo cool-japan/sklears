@@ -140,7 +140,7 @@
 //! ## Known Limitations
 //!
 //! The following test modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
-//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
+//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.1:
 //! - `property_tests` - Property-based tests requiring trait bound simplification
 //! - `test_utilities` - Test utilities requiring trait bound simplification
 //!

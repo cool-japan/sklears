@@ -1,7 +1,7 @@
-# TODO - v0.2.0
+# TODO - v0.2.1
 
 ## Current Status
-This crate is part of the sklears v0.2.0 release line (initially shipped in v0.1.0).
+This crate is part of the sklears v0.2.1 release line (initially shipped in v0.1.0).
 
 ## Future Enhancements
 - Performance optimizations

@@ -7,7 +7,7 @@
 
 Tree-based algorithms for Rust with 5-20x performance improvements over scikit-learn. Features CHAID and oblique (hyperplane) splits, isolation forests, multi-output/multi-label trees, and incremental/streaming variants.
 
-> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.1` (Unreleased). See the [workspace release notes](../../docs/releases/0.2.1.md) for highlights and upgrade guidance.
 
 ## Overview
 

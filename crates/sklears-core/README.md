@@ -7,7 +7,7 @@
 
 The foundational crate for sklears, providing core traits, types, and utilities that power the entire machine learning ecosystem. Actively evolving (Partial) — core traits and error handling are stable, while some advanced modules are still maturing; see [Status](#status).
 
-> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.1` (Unreleased). See the [workspace release notes](../../docs/releases/0.2.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -22,7 +22,7 @@ The foundational crate for sklears, providing core traits, types, and utilities 
 
 ## Status
 
-- **Implementation**: 0.2.0 ships with >99% of the planned v0.1 APIs implemented (141 stubs remaining). Status: **Partial** — actively evolving, not yet claiming full stability.
+- **Implementation**: 0.2.1 ships with >99% of the planned v0.1 APIs implemented (141 stubs remaining). Status: **Partial** — actively evolving, not yet claiming full stability.
 - **Validation**: Covered by 863 passing crate tests (`cargo nextest run -p sklears-core --all-features`).
 - **Performance**: Pure Rust implementation with ongoing performance optimization via SIMD, threading, and cache-friendly layouts. An oxicuda-backed GPU backend (`gpu::GpuBackend` / `GpuArray` / `GpuMatrixOps`) is available behind the `gpu_support` feature, wired directly to `oxicuda-driver` / `oxicuda-blas`; `GpuBackend::detect()` gracefully returns `Ok(None)` on machines without a usable GPU rather than silently substituting a fake backend.
 - **API Stability**: Minor breaking changes possible in pre-1.0 releases; stabilization roadmap tracked in the root `TODO.md`.

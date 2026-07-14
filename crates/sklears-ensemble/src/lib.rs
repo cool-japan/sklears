@@ -7,12 +7,6 @@
 //! - AdaBoost (Adaptive Boosting)
 //! - Voting Classifiers/Regressors
 //! - Stacking and Blending
-//!
-//! ## Known Limitations
-//!
-//! The following modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
-//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
-//! - `model_selection` - Bias-variance analysis, diversity metrics, ensemble cross-validation
 
 pub mod adaboost;
 pub mod adversarial;

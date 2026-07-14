@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.2.0` (July 14, 2026). See the [workspace release notes](../../docs/releases/0.2.0.md) for highlights and upgrade guidance.
+> **Latest release:** `0.2.1` (Unreleased). See the [workspace release notes](../../docs/releases/0.2.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -22,7 +22,7 @@ This crate exposes the top-level `sklears` API that bundles all subcrates into a
 
 ```toml
 [dependencies]
-sklears = { version = "0.2.0", features = ["linear", "ensemble", "gpu"] }
+sklears = { version = "0.2.1", features = ["linear", "ensemble", "gpu"] }
 ```
 
 ```rust

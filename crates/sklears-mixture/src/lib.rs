@@ -171,4 +171,4 @@ pub use approximation::{
     MonteCarloGMMBuilder, MonteCarloGMMTrained, MonteCarloMethod,
 };
 
-// Additional modules (constrained, mcmc, analysis, algorithms) are planned for v0.2.0.
+// Additional modules (constrained, mcmc, analysis, algorithms) are planned for a future release.

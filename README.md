@@ -7,13 +7,13 @@ A comprehensive machine learning library in Rust, inspired by scikit-learn's int
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.89+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.2.0` (2026-07-14) — 12,721 tests passing across 36 crates. See the [CHANGELOG.md](CHANGELOG.md) for details.
+> **Latest release:** `0.2.1` (Unreleased) — 12,721 tests passing across 36 crates. See the [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## Overview
 
 sklears brings the familiar scikit-learn API to Rust, aiming for comprehensive compatibility while leveraging Rust's unique advantages:
 
-- **>99% scikit-learn API coverage** validated for `0.2.0`
+- **>99% scikit-learn API coverage** validated for `0.2.1`
 - **Pure Rust implementation** with zero C/Fortran dependencies
 - **Memory safety** without garbage collection
 - **Type-safe APIs** that catch errors at compile time
@@ -162,10 +162,10 @@ Add sklears to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-sklears = "0.2.0"
+sklears = "0.2.1"
 
 # Or with specific features
-sklears = { version = "0.2.0", features = ["linear", "clustering", "parallel"] }
+sklears = { version = "0.2.1", features = ["linear", "clustering", "parallel"] }
 ```
 
 ## 🎯 Current Implementation Status
@@ -856,7 +856,7 @@ cargo test -p sklears-linear
 
 See [TODO.md](TODO.md) for detailed implementation plans.
 
-### Current Release Snapshot (0.2.0 — 2026-07-14)
+### Current Release Snapshot (0.2.1 — Unreleased)
 
 | Area | Status | Notes |
 |------|--------|-------|
@@ -868,7 +868,7 @@ See [TODO.md](TODO.md) for detailed implementation plans.
 | SciRS2 Integration | ✅ Complete | v0.6.0 stable, full workspace migration complete |
 | Tooling | ✅ Ready | AutoML pipeline, benchmarking harnesses, Polars integration |
 
-### Performance Status (v0.2.0)
+### Performance Status (v0.2.1)
 
 **Current Status**: Correctness validated, performance optimization in progress
 

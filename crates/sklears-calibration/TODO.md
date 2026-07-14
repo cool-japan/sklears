@@ -1,7 +1,7 @@
-# TODO - v0.2.0
+# TODO - v0.2.1
 
 ## Current Status (updated 2026-07-14)
-This crate is part of the sklears v0.2.0 release. 406 tests passing (`cargo nextest run -p sklears-calibration --all-features`).
+This crate is part of the sklears v0.2.1 release. 406 tests passing (`cargo nextest run -p sklears-calibration --all-features`).
 
 ## Fixed in 0.2.0 (2026-07-14)
 - [x] `GpuTemperatureScalingCalibrator`: the device-accelerated prediction path previously ran the
