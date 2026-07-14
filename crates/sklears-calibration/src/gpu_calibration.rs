@@ -472,15 +472,20 @@ impl CalibrationEstimator for GpuIsotonicCalibrator {
 ///
 /// Fitting always runs on the CPU (the optimal temperature is found via a
 /// small grid + line search over at most a few dozen scalar loss
-/// evaluations -- not a workload worth a device round-trip). Prediction takes
-/// a genuine device fast path under the `gpu` feature: once fit, applying the
-/// learned temperature to a batch of logits is `sigmoid(logit / T)`, an
-/// embarrassingly-parallel elementwise transform. When a real device is
-/// present and the batch exceeds the configured GPU threshold, that scale
-/// and sigmoid step is run as two real `oxicuda-blas` device kernels
-/// (`elementwise::scale`, `elementwise::sigmoid`); otherwise (no `gpu`
-/// feature, no device, or a small batch) it runs identically on the CPU via
-/// [`TemperatureScalingCalibrator::predict_proba`].
+/// evaluations -- not a workload worth a device round-trip). Prediction
+/// applies the learned temperature to a batch of logits as `sigmoid(logit /
+/// T)`, an embarrassingly-parallel elementwise transform.
+///
+/// The device sigmoid is built from the `ex2.approx` special-function unit,
+/// which PTX only defines for `.f32`; there is no faithful f64 sigmoid kernel
+/// in the oxicuda stack. The wrapper's native precision is f64, so the device
+/// fast path is taken only when the caller explicitly opts into mixed
+/// precision (`use_mixed_precision`): the scale and sigmoid step then runs as
+/// two real f32 `oxicuda-blas` device kernels (`elementwise::scale`,
+/// `elementwise::sigmoid`) on a present device above the configured GPU
+/// threshold. Without that opt-in -- and whenever no `gpu` feature, no device,
+/// or a small batch applies -- prediction runs on the CPU at full f64
+/// precision via [`TemperatureScalingCalibrator::predict_proba`].
 #[derive(Debug)]
 pub struct GpuTemperatureScalingCalibrator {
     cpu: TemperatureScalingCalibrator,
@@ -506,13 +511,22 @@ impl GpuTemperatureScalingCalibrator {
     }
 
     /// Runs `sigmoid(logits / T)` for the already-fitted temperature on the
-    /// detected device.
+    /// detected device, in f32 (the only precision at which the device sigmoid
+    /// exists).
     ///
-    /// Returns `Ok(None)` (rather than an error) if no device is currently
-    /// available, so callers can transparently fall back to the CPU path;
-    /// device/kernel failures are still surfaced as `Err`.
+    /// Returns `Ok(None)` (rather than an error) when the device fast path is
+    /// declined -- because mixed precision was not requested, or no device is
+    /// currently available -- so callers can transparently fall back to the
+    /// exact f64 CPU path; device/kernel failures are still surfaced as `Err`.
     #[cfg(feature = "gpu")]
     fn try_gpu_predict(&self, logits: &[Float]) -> sklears_core::error::Result<Option<Vec<Float>>> {
+        // At native f64 precision the device sigmoid is not available (see the
+        // detailed note on the kernels below); decline the fast path so the
+        // caller falls back to the exact CPU calibrator. The genuine device
+        // path is taken only under an explicit mixed-precision opt-in.
+        if !self.gpu_calibrator.config.use_mixed_precision {
+            return Ok(None);
+        }
         let device = {
             let gpu_utils = self
                 .gpu_calibrator
@@ -530,12 +544,21 @@ impl GpuTemperatureScalingCalibrator {
             .set_current()
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
+        // The activation is `sigmoid`, which on the device is built from the
+        // `ex2.approx` special-function unit -- an instruction PTX only defines
+        // for `.f32`. There is no faithful f64 sigmoid kernel in the oxicuda
+        // stack, so at the wrapper's native f64 precision the device cannot
+        // reproduce the CPU result to full precision. We run the genuine f32
+        // device kernels only when the caller has explicitly opted into mixed
+        // precision; otherwise we decline the fast path (`Ok(None)`) and let
+        // `predict_proba` fall back to the exact f64 CPU calibrator.
         let n = logits.len();
-        let input = oxicuda_memory::DeviceBuffer::from_host(logits)
+        let host_f32: Vec<f32> = logits.iter().map(|&x| x as f32).collect();
+        let input = oxicuda_memory::DeviceBuffer::from_host(&host_f32)
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
-        let mut scaled = oxicuda_memory::DeviceBuffer::<Float>::zeroed(n)
+        let mut scaled = oxicuda_memory::DeviceBuffer::<f32>::zeroed(n)
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
-        let inv_temperature = 1.0 / self.cpu.temperature();
+        let inv_temperature = (1.0 / self.cpu.temperature()) as f32;
         oxicuda_blas::elementwise::scale(
             backend.blas(),
             n as u32,
@@ -545,15 +568,16 @@ impl GpuTemperatureScalingCalibrator {
         )
         .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
-        let mut activated = oxicuda_memory::DeviceBuffer::<Float>::zeroed(n)
+        let mut activated = oxicuda_memory::DeviceBuffer::<f32>::zeroed(n)
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
         oxicuda_blas::elementwise::sigmoid(backend.blas(), n as u32, &scaled, &mut activated)
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
-        let mut out = vec![0.0 as Float; n];
+        let mut out_f32 = vec![0.0f32; n];
         activated
-            .copy_to_host(&mut out)
+            .copy_to_host(&mut out_f32)
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+        let out: Vec<Float> = out_f32.into_iter().map(Float::from).collect();
         Ok(Some(out))
     }
 }
@@ -732,9 +756,16 @@ mod tests {
         assert!(!gpu_calibrator.exceeds_gpu_threshold(500));
         assert!(gpu_calibrator.exceeds_gpu_threshold(1500));
 
-        // With no GPU backend linked, the GPU path never dispatches.
+        // Dispatch requires BOTH a usable device and a size over the threshold.
+        // A batch under the threshold never dispatches, regardless of hardware.
         assert!(!gpu_calibrator.should_use_gpu(500));
-        assert!(!gpu_calibrator.should_use_gpu(1500));
+        // A batch over the threshold dispatches exactly when a device is
+        // actually present -- so the answer must track real detection rather
+        // than a hard-coded no-GPU assumption.
+        assert_eq!(
+            gpu_calibrator.should_use_gpu(1500),
+            gpu_calibrator.gpu_available()
+        );
     }
 
     #[test]
@@ -802,6 +833,41 @@ mod tests {
             assert!(
                 (r - w).abs() < 1e-9,
                 "wrapper diverged from CPU calibrator: {r} vs {w}"
+            );
+        }
+    }
+
+    /// With mixed precision enabled the temperature wrapper takes the genuine
+    /// f32 device path when a GPU is present (and falls back to the exact CPU
+    /// path when it is not). Either way the calibrated probabilities must track
+    /// the plain CPU calibrator to within f32 accuracy.
+    #[test]
+    fn test_gpu_temperature_wrapper_mixed_precision_tracks_cpu() {
+        let probabilities = array![0.1, 0.4, 0.35, 0.8, 0.7, 0.2, 0.9, 0.55];
+        let y = array![0, 0, 1, 1, 1, 0, 1, 0];
+
+        let mut reference = TemperatureScalingCalibrator::new();
+        CalibrationEstimator::fit(&mut reference, &probabilities, &y).expect("reference fit");
+        let reference_out = CalibrationEstimator::predict_proba(&reference, &probabilities)
+            .expect("reference predict");
+
+        let config = GpuCalibrationConfig {
+            gpu_threshold: 1,
+            use_mixed_precision: true,
+            ..Default::default()
+        };
+        let mut wrapper = GpuTemperatureScalingCalibrator::new(config)
+            .expect("wrapper construction must succeed");
+        wrapper.fit(&probabilities, &y).expect("wrapper fit");
+        let wrapper_out = wrapper
+            .predict_proba(&probabilities)
+            .expect("wrapper predict");
+
+        assert_eq!(reference_out.len(), wrapper_out.len());
+        for (r, w) in reference_out.iter().zip(wrapper_out.iter()) {
+            assert!(
+                (r - w).abs() < 1e-4,
+                "mixed-precision wrapper diverged from CPU calibrator: {r} vs {w}"
             );
         }
     }

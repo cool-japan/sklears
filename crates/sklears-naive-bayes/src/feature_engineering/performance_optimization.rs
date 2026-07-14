@@ -847,12 +847,20 @@ mod tests {
 
     #[test]
     fn test_gpu_optimizer_reports_honest_availability() {
-        // No GPU/CUDA driver on this development/CI host: `GpuOptimizer` must
-        // never fabricate availability, whether the `gpu` feature is on or
-        // off.
+        // `GpuOptimizer` must never fabricate availability: it reports a device
+        // exactly when `GpuBackend::detect()` actually found one, and never
+        // without the `gpu` feature.
         let config = OptimizationConfig::default();
         let optimizer = GpuOptimizer::new(config);
-        assert!(!optimizer.is_gpu_available());
+        #[cfg(feature = "gpu")]
+        {
+            let detected = GpuBackend::detect().ok().flatten().is_some();
+            assert_eq!(optimizer.is_gpu_available(), detected);
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            assert!(!optimizer.is_gpu_available());
+        }
 
         // The result must still be correct via the CPU fallback path,
         // including for non-f32/f64 element types.

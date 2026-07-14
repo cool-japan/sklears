@@ -212,7 +212,7 @@ impl MarginalFisherAnalysis<Untrained> {
         }
 
         // For each class, connect k1 nearest neighbors within the class
-        for (_, samples) in class_samples.iter() {
+        for samples in class_samples.values() {
             for &i in samples {
                 // Find k1 nearest neighbors within the same class
                 let mut neighbors: Vec<(usize, Float)> = samples

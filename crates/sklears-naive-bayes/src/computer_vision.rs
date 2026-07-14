@@ -875,7 +875,7 @@ impl SpatialNaiveBayes {
         grid_probabilities += self.config.smoothing_alpha / (grid_h * grid_w) as f64;
 
         // Finalize neighborhood statistics
-        for (_, stats) in neighborhood_stats.iter_mut() {
+        for stats in neighborhood_stats.values_mut() {
             if stats.count > 1 {
                 stats.variance /= (stats.count - 1) as f64;
             }

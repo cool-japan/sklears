@@ -1372,12 +1372,22 @@ mod tests {
     }
 
     #[test]
-    fn test_memory_pool_device_backing_is_honest_without_a_gpu() {
-        // Regression test: on this host (no CUDA GPU), a `GpuMemoryPool`
-        // must report `is_device_backed() == false` rather than pretending
-        // to hold a device reservation it never actually made.
+    fn test_memory_pool_device_backing_matches_real_detection() {
+        // Regression test: `is_device_backed()` must report the *real* backing
+        // state, never a hardcoded value. A small (1 KiB) arena reservation
+        // succeeds on any detected device, so the pool is device-backed exactly
+        // when a GPU backend is present -- and never without the `gpu` feature,
+        // where there is no device stack at all.
         let pool = GpuMemoryPool::new(0, 1024);
-        assert!(!pool.is_device_backed());
+        #[cfg(feature = "gpu")]
+        {
+            let gpu_present = GpuBackend::with_device_id(0).ok().flatten().is_some();
+            assert_eq!(pool.is_device_backed(), gpu_present);
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            assert!(!pool.is_device_backed());
+        }
     }
 
     #[test]

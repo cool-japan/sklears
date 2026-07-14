@@ -109,7 +109,7 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
         }
 
         // Calculate feature statistics for each category
-        for (&category, _) in class_counts.iter() {
+        for &category in class_counts.keys() {
             let class_portfolios: Vec<&PortfolioData<T>> = categories
                 .iter()
                 .enumerate()

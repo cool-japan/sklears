@@ -1134,7 +1134,7 @@ impl LoadBalancer {
             return assignments;
         }
         let elements_per_gpu = workload.total_elements / num_gpus as usize;
-        for (gpu_id, _) in gpus.iter() {
+        for gpu_id in gpus.keys() {
             let assignment = GpuAssignment {
                 gpu_id: *gpu_id,
                 grid_size: (elements_per_gpu as u32 / 256, 1, 1),

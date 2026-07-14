@@ -1532,26 +1532,29 @@ mod tests {
     }
 
     #[test]
-    fn test_should_use_gpu_is_honest_without_a_real_gpu() {
-        // Regression test: on this host (no CUDA device), `should_use_gpu`
-        // must report `false` even with an aggressively low threshold and a
-        // large element count -- no fabricated GPU availability, whether or
-        // not the `gpu` feature is compiled in.
+    fn test_should_use_gpu_matches_real_detection() {
+        // `should_use_gpu` must reflect the *real* device detection combined
+        // with the size threshold -- never fabricated availability. With the
+        // threshold at 1, a below-threshold count never dispatches, and an
+        // above-threshold count dispatches exactly when a real device exists.
         let config = GpuConfig::new().with_cuda_backend().with_gpu_threshold(1);
         let ctx = GpuContextManager::new(config).expect("context creation should succeed");
 
-        assert!(!ctx.is_gpu_available());
-        assert!(!ctx.should_use_gpu(1_000_000));
+        let gpu_present = ctx.is_gpu_available();
+        // Below threshold (count 0 < threshold 1): never dispatches.
+        assert!(!ctx.should_use_gpu(0));
+        // Above threshold: dispatches iff a device was genuinely detected.
+        assert_eq!(ctx.should_use_gpu(1_000_000), gpu_present);
     }
 
     #[test]
-    fn test_gpu_standard_scaler_dispatch_records_real_cpu_fallback_stats() {
-        // The public `Fit`/`Transform` entry points only reach the
-        // `dispatch_*` methods when `should_use_gpu()` is true, which never
-        // happens on this no-GPU host. Call the dispatch methods directly
-        // (same-module test access) to exercise the honest
-        // attempt-GPU-then-fall-back-to-CPU wiring and confirm real stats
-        // get recorded rather than staying a hardcoded zero snapshot.
+    fn test_gpu_standard_scaler_dispatch_records_real_stats() {
+        // Call the `dispatch_*` methods directly (same-module test access) to
+        // exercise the honest attempt-GPU-then-fall-back-to-CPU wiring and
+        // confirm real stats get recorded rather than staying a hardcoded zero
+        // snapshot. Whether each dispatch runs on the device or falls back to
+        // CPU depends on the host, but the result and the accounting must hold
+        // either way.
         let config = GpuConfig::new();
         let scaler = GpuStandardScaler::new(config.clone());
         let ctx = GpuContextManager::new(config).expect("context creation should succeed");
@@ -1560,19 +1563,25 @@ mod tests {
 
         let mean = scaler
             .dispatch_compute_mean(&data, &ctx)
-            .expect("mean dispatch should succeed via CPU fallback");
+            .expect("mean dispatch should succeed");
         assert_abs_diff_eq!(mean[[0, 0]], 4.0, epsilon = 1e-12);
         assert_abs_diff_eq!(mean[[0, 1]], 5.0, epsilon = 1e-12);
 
         let variance = scaler
             .dispatch_compute_variance(&data, &mean, &ctx)
-            .expect("variance dispatch should succeed via CPU fallback");
+            .expect("variance dispatch should succeed");
         // Column 0 = [1,3,5,7]: sample variance (ddof=1) = 20/3.
         assert_abs_diff_eq!(variance[[0, 0]], 20.0 / 3.0, epsilon = 1e-12);
 
+        // Exactly two dispatches, each accounted on precisely one path; the sum
+        // proves the stats are genuinely accumulated, and a GPU dispatch can
+        // only be recorded when a real device is present.
         let stats = ctx.performance_stats();
-        assert_eq!(stats.gpu_operations, 0);
-        assert_eq!(stats.cpu_fallbacks, 2);
+        assert_eq!(stats.gpu_operations + stats.cpu_fallbacks, 2);
+        assert!(
+            stats.gpu_operations == 0 || ctx.is_gpu_available(),
+            "a GPU dispatch can only be recorded when a real device is present"
+        );
         assert!(stats.avg_cpu_time_us >= 0.0);
     }
 
@@ -1604,7 +1613,7 @@ mod tests {
     }
 
     #[test]
-    fn test_gpu_minmax_scaler_dispatch_records_real_cpu_fallback_stats() {
+    fn test_gpu_minmax_scaler_dispatch_records_real_stats() {
         let config = GpuConfig::new();
         let scaler = GpuMinMaxScaler::with_feature_range(config.clone(), (0.0, 1.0));
         let ctx = GpuContextManager::new(config).expect("context creation should succeed");
@@ -1613,16 +1622,26 @@ mod tests {
 
         let data_min = scaler
             .dispatch_compute_min(&data, &ctx)
-            .expect("min dispatch should succeed via CPU fallback");
+            .expect("min dispatch should succeed");
         let data_max = scaler
             .dispatch_compute_max(&data, &ctx)
-            .expect("max dispatch should succeed via CPU fallback");
+            .expect("max dispatch should succeed");
+        // The result must be correct via whichever path actually ran -- the
+        // on-device min/max reduction when a real GPU is present, or the CPU
+        // reference otherwise.
         assert_abs_diff_eq!(data_min[[0, 0]], 1.0, epsilon = 1e-12);
         assert_abs_diff_eq!(data_max[[0, 0]], 7.0, epsilon = 1e-12);
 
+        // Exactly two dispatches happened, each accounted on precisely one path
+        // (GPU or CPU fallback). Asserting the *sum* proves the stats are
+        // genuinely accumulated -- not a hardcoded zero snapshot -- without
+        // assuming which path this host takes.
         let stats = ctx.performance_stats();
-        assert_eq!(stats.gpu_operations, 0);
-        assert_eq!(stats.cpu_fallbacks, 2);
+        assert_eq!(stats.gpu_operations + stats.cpu_fallbacks, 2);
+        assert!(
+            stats.gpu_operations == 0 || ctx.is_gpu_available(),
+            "a GPU dispatch can only be recorded when a real device is present"
+        );
     }
 
     #[test]

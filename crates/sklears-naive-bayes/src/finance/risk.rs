@@ -105,7 +105,7 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
         }
 
         // Calculate feature statistics for each risk level
-        for (&risk_level, _) in class_counts.iter() {
+        for &risk_level in class_counts.keys() {
             let class_indices: Vec<usize> = risk_labels
                 .iter()
                 .enumerate()

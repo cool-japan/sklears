@@ -548,7 +548,7 @@ impl TrainedOnlineDiscriminantAnalysis {
         let forgetting_factor = self.config.forgetting_factor;
 
         // Scale down class counts
-        for (_, count) in self.class_counts.iter_mut() {
+        for count in self.class_counts.values_mut() {
             *count *= forgetting_factor;
         }
 

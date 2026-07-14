@@ -1545,10 +1545,10 @@ mod tests {
 
         let manager = GpuDiscriminantAnalysis::new(GpuAccelerationConfig::default())
             .expect("manager creation should not fail");
-        // Environment sanity check: on this dev machine (no CUDA device),
-        // detect() should find nothing, so the call below exercises the CPU
-        // fallback path specifically.
-        assert!(!manager.is_gpu_available());
+        // This problem is far below the GPU threshold, so fit/predict takes the
+        // CPU path regardless of whether a device is present -- which is exactly
+        // why its output must match the plain CPU LDA below.
+        assert!(!manager.should_use_gpu(x.nrows(), x.ncols()));
 
         let config = LinearDiscriminantAnalysisConfig::default();
         let gpu_predictions = manager
@@ -1595,7 +1595,9 @@ mod tests {
 
         let manager = GpuDiscriminantAnalysis::new(GpuAccelerationConfig::default())
             .expect("manager creation should not fail");
-        assert!(!manager.is_gpu_available());
+        // Below the GPU threshold -> CPU path regardless of device presence,
+        // which is why the output must match the plain CPU QDA below.
+        assert!(!manager.should_use_gpu(x.nrows(), x.ncols()));
 
         let config = QuadraticDiscriminantAnalysisConfig::default();
         let gpu_predictions = manager
@@ -1626,8 +1628,9 @@ mod tests {
             GpuAccelerationConfig::default(),
         )
         .expect("wrapper creation should not fail");
-        assert!(!wrapper.is_using_gpu());
-
+        // This problem is below the GPU threshold, so `fit_predict` falls back
+        // to the CPU path (asserted via `fallback_count` below) whether or not a
+        // device is present.
         let predictions = wrapper
             .fit_predict(&x.view(), &y.view(), &x_test.view())
             .expect("fit_predict should succeed via CPU fallback");
@@ -1653,8 +1656,9 @@ mod tests {
             GpuAccelerationConfig::default(),
         )
         .expect("wrapper creation should not fail");
-        assert!(!wrapper.is_using_gpu());
-
+        // This problem is below the GPU threshold, so `fit_predict` falls back
+        // to the CPU path (asserted via `fallback_count` below) whether or not a
+        // device is present.
         let predictions = wrapper
             .fit_predict(&x.view(), &y.view(), &x_test.view())
             .expect("fit_predict should succeed via CPU fallback");

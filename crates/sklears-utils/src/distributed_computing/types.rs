@@ -158,7 +158,7 @@ impl MessagePassingSystem {
         data: Vec<u8>,
     ) -> Result<(), DistributedError> {
         let routing_table = self.routing_table.read().expect("operation should succeed");
-        for (node_id, _address) in routing_table.iter() {
+        for node_id in routing_table.keys() {
             if node_id != &self.node_id {
                 let message = DistributedMessage {
                     id: format!("{}_{}", self.node_id, Instant::now().elapsed().as_millis()),

@@ -392,7 +392,7 @@ impl<
         self.initialize_quantum_states(&class_priors)?;
 
         // Create quantum feature maps for each class
-        for (&class_id, _) in class_counts.iter() {
+        for &class_id in class_counts.keys() {
             let class_indices: Vec<usize> = labels
                 .iter()
                 .enumerate()
@@ -1356,7 +1356,7 @@ impl<
         }
 
         // Calculate feature statistics for each class
-        for (&class_id, _) in class_counts.iter() {
+        for &class_id in class_counts.keys() {
             let class_indices: Vec<usize> = labels
                 .iter()
                 .enumerate()

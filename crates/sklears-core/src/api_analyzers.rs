@@ -1084,7 +1084,7 @@ impl CrossReferenceBuilder {
         }
 
         // Remove duplicates
-        for (_, values) in refs.iter_mut() {
+        for values in refs.values_mut() {
             values.sort();
             values.dedup();
         }
