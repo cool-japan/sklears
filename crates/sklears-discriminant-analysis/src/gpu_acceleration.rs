@@ -322,6 +322,10 @@ fn gpu_matrix_inverse_on_device(
     dense::inverse(&mut handle, &mut a_buf, n as u32, n as u32)
         .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
+    // `inverse` ran on the solver handle's non-blocking stream; the legacy
+    // default-stream `copy_to_host` below does not implicitly wait on it, so
+    // synchronise the context first to read the finished inverse, not a race.
+    backend.synchronize()?;
     let mut host = vec![0.0 as Float; n * n];
     a_buf
         .copy_to_host(&mut host)
@@ -633,6 +637,10 @@ impl GpuLDAKernel {
         )
         .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
+        // `cholesky` ran on the solver handle's non-blocking stream; synchronise
+        // the context before the default-stream `copy_to_host` so it downloads
+        // the finished factor rather than racing the kernel.
+        backend.synchronize()?;
         let mut l_host = vec![0.0 as Float; n * n];
         sw_buf
             .copy_to_host(&mut l_host)
@@ -654,6 +662,9 @@ impl GpuLDAKernel {
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
         dense::inverse(&mut handle, &mut l_buf, n as u32, n as u32)
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
+        // Same race as above: `inverse` runs on the non-blocking solver stream,
+        // so synchronise before the default-stream download of `L^{-1}`.
+        backend.synchronize()?;
         let mut l_inv_host = vec![0.0 as Float; n * n];
         l_buf
             .copy_to_host(&mut l_inv_host)
@@ -684,6 +695,10 @@ impl GpuLDAKernel {
         )
         .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
+        // `syevd` wrote both `eigenvalues_buf` and `c_buf` on the non-blocking
+        // solver stream; synchronise once before the two default-stream downloads
+        // below so both read finished results instead of racing the solver.
+        backend.synchronize()?;
         let mut eigenvalues_host = vec![0.0 as Float; n];
         eigenvalues_buf
             .copy_to_host(&mut eigenvalues_host)

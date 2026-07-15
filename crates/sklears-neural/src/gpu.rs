@@ -137,6 +137,10 @@ impl<T: bytemuck::Pod + Clone + Default> GpuTensor<T> {
     /// Download tensor data to host memory.
     pub fn to_host(&self) -> NeuralResult<Vec<T>> {
         ensure_current(&self.ctx)?;
+        // Any kernel that produced `self.buf` (GEMM, elementwise, conv) ran on
+        // the non-blocking compute stream; `copy_to_host` copies on the legacy
+        // default stream, which does not implicitly wait on it.
+        self.ctx.synchronize()?;
         let mut out = vec![T::default(); self.buf.len()];
         self.buf.copy_to_host(&mut out).map_err(|e| {
             SklearsError::InvalidInput(format!("Failed to copy data from GPU: {}", e))

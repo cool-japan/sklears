@@ -906,6 +906,10 @@ impl AdvancedGpuOps {
         )
         .map_err(gpu_err)?;
 
+        // The GEMM ran on the non-blocking compute stream; `copy_to_host`
+        // copies on the legacy default stream, which does not implicitly wait
+        // on it.
+        backend.synchronize()?;
         let mut c_f16 = vec![f16::ZERO; m * n];
         c_buf.copy_to_host(&mut c_f16).map_err(gpu_err)?;
 

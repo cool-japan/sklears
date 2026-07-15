@@ -1164,6 +1164,10 @@ impl GpuAcceleration {
         )
         .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
+        // `syevd` ran on the solver handle's non-blocking stream; the
+        // synchronous default-stream `copy_to_host` downloads below do not
+        // implicitly wait on it, so synchronise once before both.
+        ctx.synchronize()?;
         let mut eigenvalues_host = vec![0.0 as Float; n];
         eigenvalues_buf
             .copy_to_host(&mut eigenvalues_host)

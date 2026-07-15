@@ -447,7 +447,7 @@ impl StructuredSVM<Untrained> {
                 let mut best_score = f64::NEG_INFINITY;
                 let mut best_prev = 0;
 
-                for (_prev_label, &prev_idx) in label_to_idx.iter() {
+                for &prev_idx in label_to_idx.values() {
                     let transition_score = transition_weights[[prev_idx, curr_idx]];
                     let total_score = dp[[pos - 1, prev_idx]] + transition_score;
 
@@ -520,7 +520,7 @@ impl StructuredSVM<Untrained> {
             let mut best_score = f64::NEG_INFINITY;
             let mut best_label = 0;
 
-            for (label, _) in label_to_idx.iter() {
+            for label in label_to_idx.keys() {
                 let mut score = 0.0;
                 for (feat_idx, &feat_val) in node_features.iter().enumerate() {
                     score += weights[feat_idx] * feat_val;
@@ -666,7 +666,7 @@ impl StructuredSVM<Trained> {
         let mut backtrack = Array2::zeros((seq_len, n_labels));
 
         // Initialize first position
-        for (_label, &label_idx) in label_to_idx.iter() {
+        for &label_idx in label_to_idx.values() {
             let node_features = sequence.feature_at(0);
             let mut score = 0.0;
 
@@ -682,11 +682,11 @@ impl StructuredSVM<Trained> {
         for pos in 1..seq_len {
             let node_features = sequence.feature_at(pos);
 
-            for (_curr_label, &curr_idx) in label_to_idx.iter() {
+            for &curr_idx in label_to_idx.values() {
                 let mut best_score = f64::NEG_INFINITY;
                 let mut best_prev = 0;
 
-                for (_prev_label, &prev_idx) in label_to_idx.iter() {
+                for &prev_idx in label_to_idx.values() {
                     let transition_score = transition_weights[[prev_idx, curr_idx]];
                     let total_score = dp[[pos - 1, prev_idx]] + transition_score;
 
@@ -754,7 +754,7 @@ impl StructuredSVM<Trained> {
             let mut best_score = f64::NEG_INFINITY;
             let mut best_label = 0;
 
-            for (label, _) in label_to_idx.iter() {
+            for label in label_to_idx.keys() {
                 let mut score = 0.0;
                 for (feat_idx, &feat_val) in node_features.iter().enumerate() {
                     score += weights[feat_idx] * feat_val;

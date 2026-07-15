@@ -133,6 +133,9 @@ fn gpu_reduce_axis_to_row(
     )
     .map_err(gpu_err)?;
 
+    // The reduction ran on the non-blocking compute stream; synchronise before
+    // the D2H `copy_to_host` (legacy default stream) so it reads finished data.
+    backend.synchronize()?;
     let mut host_out = vec![0.0; n_features];
     d_out.copy_to_host(&mut host_out).map_err(gpu_err)?;
 
@@ -192,6 +195,9 @@ fn gpu_reduce_variance(
     )
     .map_err(gpu_err)?;
 
+    // The reduction ran on the non-blocking compute stream; synchronise before
+    // the D2H copy (legacy default stream) so it reads finished data.
+    backend.synchronize()?;
     let mut host_mean_x_sq = vec![0.0; n_features];
     d_mean_x_sq
         .copy_to_host(&mut host_mean_x_sq)
@@ -281,6 +287,9 @@ fn gpu_standard_transform(
     elementwise::div::<Float>(blas, total as u32, &d_centered, &d_std_full, &mut d_out)
         .map_err(gpu_err)?;
 
+    // The transform kernels ran on the non-blocking compute stream; synchronise
+    // before the D2H copy (legacy default stream) so it reads finished data.
+    backend.synchronize()?;
     let mut host_out = vec![0.0; total];
     d_out.copy_to_host(&mut host_out).map_err(gpu_err)?;
 
@@ -384,6 +393,9 @@ fn gpu_minmax_transform(
     )
     .map_err(gpu_err)?;
 
+    // The transform kernels ran on the non-blocking compute stream; synchronise
+    // before the D2H copy (legacy default stream) so it reads finished data.
+    backend.synchronize()?;
     let mut host_out = vec![0.0; total];
     d_out.copy_to_host(&mut host_out).map_err(gpu_err)?;
 

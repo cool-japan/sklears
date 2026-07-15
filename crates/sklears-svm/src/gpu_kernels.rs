@@ -223,6 +223,11 @@ impl GpuKernelComputer {
                 // See the struct-level doc comment: the on-device `pow` is
                 // unsound for a negative base, so this transform stays on
                 // the CPU after a single download of `inner`.
+                //
+                // The GEMM ran on the non-blocking compute stream; `copy_to_host`
+                // copies on the legacy default stream, which does not implicitly
+                // wait on it. Synchronise before the D2H copy so it reads finished data.
+                self.backend.synchronize().map_err(gpu_err)?;
                 let mut inner_host = vec![0.0f32; n];
                 inner_buf.copy_to_host(&mut inner_host).map_err(gpu_err)?;
                 let (g, c, d) = (*gamma as f32, *coef0 as f32, *degree as f32);
@@ -238,6 +243,11 @@ impl GpuKernelComputer {
             }
         };
 
+        // The GEMM and any Rbf/Sigmoid transform ran on the non-blocking compute
+        // stream; `copy_to_host` copies on the legacy default stream, which does
+        // not implicitly wait on it. Synchronise before the D2H copy so it reads
+        // finished data.
+        self.backend.synchronize().map_err(gpu_err)?;
         let mut out_host = vec![0.0f32; n];
         result_buf.copy_to_host(&mut out_host).map_err(gpu_err)?;
         Array2::from_shape_vec((n_x, n_y), out_host).map_err(gpu_err)

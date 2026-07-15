@@ -573,6 +573,11 @@ impl GpuTemperatureScalingCalibrator {
         oxicuda_blas::elementwise::sigmoid(backend.blas(), n as u32, &scaled, &mut activated)
             .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
+        // The scale + sigmoid kernels ran on the non-blocking compute stream;
+        // `copy_to_host` copies on the legacy default stream, which does not
+        // implicitly wait on it. Synchronise before the D2H copy so it reads
+        // finished data.
+        backend.synchronize()?;
         let mut out_f32 = vec![0.0f32; n];
         activated
             .copy_to_host(&mut out_f32)

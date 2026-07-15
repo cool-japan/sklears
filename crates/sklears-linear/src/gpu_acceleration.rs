@@ -422,6 +422,11 @@ impl GpuLinearOps {
         let mut d_b = DeviceBuffer::from_host(&atb_host).map_err(gpu_err)?;
         lu_solve::<Float>(&solver, &d_a, &d_pivots, &mut d_b, n as u32, 1).map_err(gpu_err)?;
 
+        // The solve ran on the solver handle's `CU_STREAM_NON_BLOCKING` stream;
+        // `copy_to_host` copies on the legacy default stream, which does not
+        // implicitly wait on it. Synchronise the context before the D2H copy so
+        // it reads the finished solution rather than racing the kernel.
+        backend.synchronize()?;
         let mut x_host = vec![0.0; n];
         d_b.copy_to_host(&mut x_host).map_err(gpu_err)?;
         Ok(Array1::from_vec(x_host))
@@ -499,6 +504,10 @@ impl GpuLinearOps {
         qr_generate_q::<Float>(&solver, &d_a, &d_tau, &mut d_q, m as u32, n as u32)
             .map_err(gpu_err)?;
 
+        // Both factorisation kernels ran on the solver's non-blocking stream;
+        // synchronise before the default-stream `copy_to_host` downloads so they
+        // read finished data instead of racing the still-running kernels.
+        backend.synchronize()?;
         let mut qr_packed = vec![0.0; m * n];
         d_a.copy_to_host(&mut qr_packed).map_err(gpu_err)?;
         let mut q_flat = vec![0.0; m * m];

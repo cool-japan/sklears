@@ -450,6 +450,9 @@ impl GpuMetricsContext {
         }
         .map_err(gpu_err)?;
 
+        // The preceding kernels ran on the non-blocking compute stream; `copy_to_host`
+        // uses the legacy default stream, which does not implicitly wait. Synchronise.
+        self.backend.synchronize().map_err(gpu_err)?;
         let mut out = [0.0f64; 1];
         result.copy_to_host(&mut out).map_err(gpu_err)?;
         Ok(out[0])
@@ -531,6 +534,9 @@ impl GpuMetricsContext {
         let mut result = DeviceBuffer::<f64>::zeroed(reduction_result_len(n)).map_err(gpu_err)?;
         reduction::mean(handle, n as u32, &matches, &mut result).map_err(gpu_err)?;
 
+        // The preceding kernels ran on the non-blocking compute stream; `copy_to_host`
+        // uses the legacy default stream, which does not implicitly wait. Synchronise.
+        self.backend.synchronize().map_err(gpu_err)?;
         let mut out = [0.0f64; 1];
         result.copy_to_host(&mut out).map_err(gpu_err)?;
         Ok(out[0])
@@ -558,6 +564,9 @@ impl GpuMetricsContext {
         let mut result = DeviceBuffer::<f64>::zeroed(reduction_result_len(n)).map_err(gpu_err)?;
         reduction::mean(handle, n as u32, &squared, &mut result).map_err(gpu_err)?;
 
+        // The preceding kernels ran on the non-blocking compute stream; `copy_to_host`
+        // uses the legacy default stream, which does not implicitly wait. Synchronise.
+        self.backend.synchronize().map_err(gpu_err)?;
         let mut out = [0.0f64; 1];
         result.copy_to_host(&mut out).map_err(gpu_err)?;
         Ok(out[0])
@@ -585,6 +594,9 @@ impl GpuMetricsContext {
         let mut result = DeviceBuffer::<f64>::zeroed(reduction_result_len(n)).map_err(gpu_err)?;
         reduction::mean(handle, n as u32, &abs_diff, &mut result).map_err(gpu_err)?;
 
+        // The preceding kernels ran on the non-blocking compute stream; `copy_to_host`
+        // uses the legacy default stream, which does not implicitly wait. Synchronise.
+        self.backend.synchronize().map_err(gpu_err)?;
         let mut out = [0.0f64; 1];
         result.copy_to_host(&mut out).map_err(gpu_err)?;
         Ok(out[0])
@@ -609,6 +621,9 @@ impl GpuMetricsContext {
         let mut result = DeviceBuffer::<f64>::zeroed(1).map_err(gpu_err)?;
         level1::nrm2(handle, n as u32, &diff, 1, &mut result).map_err(gpu_err)?;
 
+        // The preceding kernels ran on the non-blocking compute stream; `copy_to_host`
+        // uses the legacy default stream, which does not implicitly wait. Synchronise.
+        self.backend.synchronize().map_err(gpu_err)?;
         let mut out = [0.0f64; 1];
         result.copy_to_host(&mut out).map_err(gpu_err)?;
         Ok(out[0])
@@ -634,6 +649,10 @@ impl GpuMetricsContext {
         let mut pred_norm_buf = DeviceBuffer::<f64>::zeroed(1).map_err(gpu_err)?;
         level1::nrm2(handle, n as u32, &pred_buf, 1, &mut pred_norm_buf).map_err(gpu_err)?;
 
+        // The preceding dot/nrm2 kernels ran on the non-blocking compute stream; the
+        // `copy_to_host` calls below use the legacy default stream, which does not
+        // implicitly wait. One synchronise covers all three consecutive copies.
+        self.backend.synchronize().map_err(gpu_err)?;
         let mut dot_v = [0.0f64; 1];
         dot_buf.copy_to_host(&mut dot_v).map_err(gpu_err)?;
         let mut true_norm = [0.0f64; 1];
@@ -709,6 +728,10 @@ impl GpuMetricsContext {
         )
         .map_err(gpu_err)?;
 
+        // The preceding gemm/mul/reduce_axis kernels ran on the non-blocking compute
+        // stream; the `copy_to_host` calls below use the legacy default stream, which
+        // does not implicitly wait. One synchronise covers both consecutive copies.
+        self.backend.synchronize().map_err(gpu_err)?;
         let mut gram = vec![0.0f64; n * n];
         gram_buf.copy_to_host(&mut gram).map_err(gpu_err)?;
         let mut row_sq_norms = vec![0.0f64; n];

@@ -227,7 +227,7 @@ impl<T: FloatBounds + Default + std::iter::Sum<T> + scirs2_core::ndarray::Scalar
         &mut self,
         gradients: &mut HashMap<String, Array1<T>>,
     ) -> DistributedResult<()> {
-        for (_name, grad) in gradients.iter_mut() {
+        for grad in gradients.values_mut() {
             // Simulate all-reduce by averaging gradients across workers
             let sum: T = grad.iter().copied().sum();
             let mean = sum / T::from(self.config.num_workers).unwrap_or_else(|| T::zero());
@@ -262,7 +262,7 @@ impl<T: FloatBounds + Default + std::iter::Sum<T> + scirs2_core::ndarray::Scalar
 
         for level in 0..num_levels {
             let group_size = 2_usize.pow(level as u32);
-            for (_name, grad) in gradients.iter_mut() {
+            for grad in gradients.values_mut() {
                 // Simulate hierarchical reduction
                 let reduction_factor = T::from(group_size).unwrap_or_else(|| T::zero());
                 grad.mapv_inplace(|x| x / reduction_factor);

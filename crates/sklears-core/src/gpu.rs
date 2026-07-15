@@ -446,6 +446,13 @@ impl<T: Copy> GpuArray<T> {
         T: Default,
     {
         self.backend.ensure_current()?;
+        // Compute kernels (GEMM / elementwise) run on the BlasHandle's
+        // `CU_STREAM_NON_BLOCKING` stream, but `copy_to_host` is a synchronous
+        // `cuMemcpyDtoH_v2` on the legacy default stream, which does NOT
+        // implicitly wait on a non-blocking stream. Without this sync the D2H
+        // copy races the producing kernel and returns nondeterministic partial
+        // / all-zero data (worse the longer the kernel ran). Block first.
+        self.backend.synchronize()?;
         let mut out = vec![T::default(); self.buf.len()];
         self.buf.copy_to_host(&mut out).map_err(cuda_err)?;
         Ok(out)
@@ -658,6 +665,10 @@ fn gpu_transpose<T: GpuFloat>(a: &GpuArray<T>) -> Result<GpuArray<T>> {
         ));
     }
     a.backend.ensure_current()?;
+    // `a` may be the output of a GEMM/elementwise kernel still in flight on the
+    // non-blocking compute stream; the synchronous default-stream `copy_to_host`
+    // does not wait on it. Synchronise so the download reads finished data.
+    a.backend.synchronize()?;
     let (m, n) = (a.shape[0], a.shape[1]);
     let mut src = vec![T::gpu_zero(); m * n];
     a.buf.copy_to_host(&mut src).map_err(cuda_err)?;
@@ -962,6 +973,50 @@ mod tests {
         assert!((r[1] - 22.0).abs() < 1e-4, "C[0,1]={}", r[1]);
         assert!((r[2] - 43.0).abs() < 1e-4, "C[1,0]={}", r[2]);
         assert!((r[3] - 50.0).abs() < 1e-4, "C[1,1]={}", r[3]);
+    }
+
+    /// Regression guard for the device→host stream-synchronisation race.
+    ///
+    /// `GpuArray::to_cpu` must download the FINISHED GEMM output rather than
+    /// race the kernel running on the BlasHandle's `CU_STREAM_NON_BLOCKING`
+    /// stream. The output buffer starts zeroed, so a synchronous
+    /// `copy_to_host` on the legacy default stream — which does not implicitly
+    /// wait on a non-blocking stream — reads all-zeros if it wins the race.
+    /// A large inner dimension `K` makes the GEMM run long enough that the
+    /// unsynchronised copy would reliably lose; with all-ones operands every
+    /// output element must equal `K`. Repeated because the race is intermittent.
+    #[cfg(feature = "gpu_support")]
+    #[test]
+    fn test_gpu_matmul_large_k_no_stream_race() {
+        let Some(backend) = GpuBackend::detect().expect("detect() should not hard-error") else {
+            eprintln!("skipping test_gpu_matmul_large_k_no_stream_race: no GPU detected");
+            return;
+        };
+        // Skinny matrix×vector shape (N = 1): a large per-output K-reduction
+        // makes the kernel long-running, while the skinny GEMM launch config is
+        // known-good on this hardware (the tiled square path can hit a separate
+        // oxicuda launch-config limit at medium sizes — orthogonal to this race).
+        const M: usize = 2000;
+        const K: usize = 600;
+        const N: usize = 1;
+        let a = GpuArray::<f64>::from_slice_with_shape(&backend, &vec![1.0f64; M * K], vec![M, K])
+            .expect("a");
+        let b = GpuArray::<f64>::from_slice_with_shape(&backend, &vec![1.0f64; K * N], vec![K, N])
+            .expect("b");
+        for rep in 0..5 {
+            let c = a.matmul(&b).expect("matmul");
+            let r = c.to_cpu().expect("to_cpu");
+            assert_eq!(r.len(), M * N, "output length");
+            let max_err = r
+                .iter()
+                .map(|v| (v - K as f64).abs())
+                .fold(0.0f64, f64::max);
+            assert!(
+                max_err < 1e-6,
+                "rep {rep}: GEMM output diverged from K={K} (max_err={max_err:.3e}); \
+                 stream-synchronisation race likely regressed"
+            );
+        }
     }
 
     #[cfg(feature = "gpu_support")]
