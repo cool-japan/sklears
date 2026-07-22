@@ -59,31 +59,31 @@ categories = ["science", "mathematics", "algorithms"]
 # The 0.2.0 goal is zero sklears-side USAGE of `scirs2_core::gpu` (all sklears crates now go
 # through `sklears_core::gpu`/oxicuda-*); full eviction of the feature itself requires an
 # upstream scirs2 0.7.x fix or dropping those deps. See TODO.md "Workspace-level items" for detail.
-scirs2-core = { version = "0.6.1", default-features = false, features = ["random", "linalg", "serialization"] }
+scirs2-core = { version = "0.6.2", default-features = false, features = ["random", "linalg", "serialization"] }
 
 # TRANSITIONAL: Keep scirs2-autograd during migration (will be removed when all crates use scirs2_core::ndarray)
-scirs2-autograd = { version = "0.6.1", default-features = false }
+scirs2-autograd = { version = "0.6.2", default-features = false }
 
 # HIGHLY LIKELY REQUIRED SciRS2 crates from crates.io
-scirs2-optimize = { version = "0.6.1", default-features = false }
-scirs2-linalg = { version = "0.6.1", default-features = false }
-scirs2-stats = { version = "0.6.1", default-features = false }
-scirs2-cluster = { version = "0.6.1", default-features = false }
-scirs2-metrics = { version = "0.6.1", default-features = false }
+scirs2-optimize = { version = "0.6.2", default-features = false }
+scirs2-linalg = { version = "0.6.2", default-features = false }
+scirs2-stats = { version = "0.6.2", default-features = false }
+scirs2-cluster = { version = "0.6.2", default-features = false }
+scirs2-metrics = { version = "0.6.2", default-features = false }
 
 # CONDITIONALLY REQUIRED SciRS2 crates from crates.io
-scirs2-datasets = { version = "0.6.1", default-features = false }
-scirs2-sparse = { version = "0.6.1", default-features = false }
-scirs2-neural = { version = "0.6.1", default-features = false }
+scirs2-datasets = { version = "0.6.2", default-features = false }
+scirs2-sparse = { version = "0.6.2", default-features = false }
+scirs2-neural = { version = "0.6.2", default-features = false }
 
 # SPECIALIZED DOMAIN-SPECIFIC SciRS2 crates from crates.io
-scirs2-special = { version = "0.6.1", default-features = false }
-scirs2-spatial = { version = "0.6.1", default-features = false }
-scirs2-signal = { version = "0.6.1", default-features = false }
-scirs2-series = { version = "0.6.1", default-features = false }  # For time series
-scirs2-text = { version = "0.6.1", default-features = false }    # For text processing
-scirs2-fft = { version = "0.6.1", default-features = false }      # For FFT operations
-scirs2-graph = { version = "0.6.1", default-features = false }  # For graph neural networks
+scirs2-special = { version = "0.6.2", default-features = false }
+scirs2-spatial = { version = "0.6.2", default-features = false }
+scirs2-signal = { version = "0.6.2", default-features = false }
+scirs2-series = { version = "0.6.2", default-features = false }  # For time series
+scirs2-text = { version = "0.6.2", default-features = false }    # For text processing
+scirs2-fft = { version = "0.6.2", default-features = false }      # For FFT operations
+scirs2-graph = { version = "0.6.2", default-features = false }  # For graph neural networks
 
 # ✅ APPROVED Numerical dependencies (compatible with SciRS2)
 approx = { version = "0.5" }
