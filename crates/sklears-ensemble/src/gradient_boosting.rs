@@ -1,10 +1,25 @@
-//! Gradient Boosting implementation
+//! Gradient boosting
 //!
-//! This module provides comprehensive gradient boosting algorithms including XGBoost, LightGBM,
-//! and CatBoost-compatible implementations with histogram-based tree building, ensemble methods,
-//! and advanced boosting strategies.
+//! Binary [`GradientBoostingClassifier`] (binomial log-loss) and
+//! [`GradientBoostingRegressor`] (squared-error loss), following Friedman's
+//! "Greedy Function Approximation" (2001) and "Stochastic Gradient Boosting"
+//! (2002), built on the exact-split regression trees of [`crate::adaboost`].
+//!
+//! Supported: shrinkage (`learning_rate`), tree size control (`max_depth`,
+//! `min_samples_split`, `min_samples_leaf`), row subsampling (`subsample`),
+//! gain/frequency/cover feature importances, and staged scoring so a caller can
+//! choose a stage count without refitting.
+//!
+//! This is deliberately *not* an XGBoost / LightGBM / CatBoost port: there is no
+//! histogram binning, no second-order (Newton) leaf estimation, no L1/L2 leaf
+//! regularization, and no multiclass support. Several
+//! [`GradientBoostingConfig`] fields are still accepted but ignored — each one
+//! is marked `NO-OP` on the field itself and summarized in the `# Scope`
+//! sections of [`TrainedGradientBoostingClassifier`] and
+//! [`TrainedGradientBoostingRegressor`].
 
 use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::{rngs::StdRng, seeded_rng, CoreRandom};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Predict, Trained},
@@ -197,18 +212,43 @@ pub enum GradientBoostingTree {
 }
 
 /// Gradient boosting configuration
+///
+/// Fields marked `NO-OP` are accepted for forward compatibility but have no
+/// effect on fitting today; every other field is honored.
 #[derive(Debug, Clone)]
 pub struct GradientBoostingConfig {
+    /// Number of boosting rounds (one regression tree each). Honored.
     pub n_estimators: usize,
+    /// Shrinkage applied to every tree's contribution. Honored.
     pub learning_rate: Float,
+    /// Maximum depth of each regression tree. Honored.
     pub max_depth: usize,
+    /// Minimum node size required before a split is considered. Honored.
     pub min_samples_split: usize,
+    /// Minimum number of samples required on each side of a split. Honored.
     pub min_samples_leaf: usize,
+    /// Fraction of the training rows drawn *without replacement* for each
+    /// boosting round (stochastic gradient boosting). Must lie in
+    /// `(0.0, 1.0]`; `1.0` (the default) disables sampling entirely and leaves
+    /// fitting bit-for-bit identical to the non-stochastic path. Honored.
     pub subsample: Float,
+    /// NO-OP. The classifier always optimizes binomial log-loss and the
+    /// regressor always optimizes squared error; this field is ignored.
     pub loss_function: LossFunction,
+    /// Seed for the row-subsampling RNG. Honored whenever `subsample < 1.0`
+    /// (fitting is deterministic regardless when `subsample == 1.0`). When
+    /// `None`, a fixed default seed is used, so runs stay reproducible.
     pub random_state: Option<u64>,
+    /// NO-OP. Only the exact-split decision-tree learner is implemented;
+    /// this field is ignored.
     pub tree_type: GradientBoostingTree,
+    /// NO-OP. No internal early stopping is performed. Use
+    /// [`TrainedGradientBoostingClassifier::staged_decision_function`] (or the
+    /// regressor's [`TrainedGradientBoostingRegressor::staged_predict`]) to
+    /// choose a stage count externally without refitting.
     pub early_stopping: Option<usize>,
+    /// NO-OP. No internal validation split is carved out; this field is
+    /// ignored.
     pub validation_fraction: Float,
 }
 
@@ -284,6 +324,88 @@ fn variance(values: &[Float]) -> Float {
     }
     let mean = mean_value(values);
     values.iter().map(|&v| (v - mean).powi(2)).sum::<Float>() / n as Float
+}
+
+/// Seed used for the row-subsampling RNG when `random_state` is `None`, so that
+/// even an unseeded stochastic fit is reproducible.
+const DEFAULT_SUBSAMPLE_SEED: u64 = 0;
+
+/// Reject a `subsample` outside `(0.0, 1.0]` before any work is done.
+fn validate_subsample(subsample: Float) -> Result<()> {
+    if subsample > 0.0 && subsample <= 1.0 {
+        Ok(())
+    } else {
+        Err(SklearsError::InvalidParameter {
+            name: "subsample".to_string(),
+            reason: format!("subsample must lie in (0.0, 1.0], got {subsample}"),
+        })
+    }
+}
+
+/// Per-round row sampler for stochastic gradient boosting (Friedman 2002).
+///
+/// `state` stays `None` when `subsample == 1.0` (or a fraction that rounds up
+/// to every row): the RNG is then never constructed and every round sees the
+/// full training set, so the default configuration is bit-for-bit identical to
+/// the previous non-stochastic implementation.
+struct RowSampler {
+    state: Option<SubsampleState>,
+}
+
+/// Sampling state used only when `subsample < 1.0`.
+struct SubsampleState {
+    rng: CoreRandom<StdRng>,
+    /// Running permutation of `0..n_samples`. Each draw is a partial
+    /// Fisher-Yates over it, which leaves it a permutation, so successive
+    /// rounds are independent draws from the same seeded chain.
+    permutation: Vec<usize>,
+    /// Rows drawn per boosting round.
+    n_rows: usize,
+}
+
+impl RowSampler {
+    fn new(subsample: Float, n_samples: usize, random_state: Option<u64>) -> Self {
+        if subsample >= 1.0 || n_samples == 0 {
+            return Self { state: None };
+        }
+        let n_rows = ((subsample * n_samples as Float) as usize).clamp(1, n_samples);
+        if n_rows == n_samples {
+            return Self { state: None };
+        }
+        Self {
+            state: Some(SubsampleState {
+                rng: seeded_rng(random_state.unwrap_or(DEFAULT_SUBSAMPLE_SEED)),
+                permutation: (0..n_samples).collect(),
+                n_rows,
+            }),
+        }
+    }
+
+    /// Rows to fit the next round on, in ascending order. `None` means "every
+    /// row", letting the caller skip building a sub-matrix altogether.
+    fn next_rows(&mut self) -> Option<&[usize]> {
+        let state = self.state.as_mut()?;
+        let n_samples = state.permutation.len();
+        let n_rows = state.n_rows;
+        for i in 0..n_rows {
+            let offset: usize = state.rng.random_range(0..(n_samples - i));
+            state.permutation.swap(i, i + offset);
+        }
+        state.permutation[..n_rows].sort_unstable();
+        Some(&state.permutation[..n_rows])
+    }
+}
+
+/// Materialize the design matrix and target vector restricted to `rows`.
+#[allow(non_snake_case)] // standard ML notation
+fn gather_rows(
+    X: &Array2<Float>,
+    targets: &Array1<Float>,
+    rows: &[usize],
+) -> (Array2<Float>, Array1<Float>) {
+    let x_sub = Array2::from_shape_fn((rows.len(), X.ncols()), |(r, c)| X[[rows[r], c]]);
+    let targets_sub = Array1::from_shape_fn(rows.len(), |r| targets[rows[r]]);
+    (x_sub, targets_sub)
 }
 
 /// Discover the class labels by sorting + deduplicating the raw values of `y`,
@@ -419,10 +541,20 @@ impl GradientBoostingClassifier {
 /// fits a regression tree to the pseudo-residuals `y - sigmoid(F_{m-1})`,
 /// updating `F_m = F_{m-1} + learning_rate * h_m`.
 ///
+/// With `subsample < 1.0` each round fits its tree on a fresh random subset of
+/// the rows (drawn without replacement from the `random_state` chain) while
+/// `F_m` is still updated for *every* row — standard stochastic gradient
+/// boosting.
+///
 /// # Scope
 /// Only binary classification with binomial log-loss is implemented. The
-/// `loss_function`, `tree_type`, `early_stopping`, `validation_fraction`, and
-/// `subsample` configuration knobs are accepted but currently have no effect.
+/// `n_estimators`, `learning_rate`, `max_depth`, `min_samples_split`,
+/// `min_samples_leaf`, `subsample`, and `random_state` knobs are honored. The
+/// `loss_function`, `tree_type`, `early_stopping`, and `validation_fraction`
+/// knobs are accepted but have no effect: the loss and the learner are fixed,
+/// and no internal early stopping or validation split is performed — use
+/// [`Self::staged_decision_function`] / [`Self::decision_function_at`] to pick a
+/// stage count externally without refitting.
 #[derive(Debug, Clone)]
 pub struct TrainedGradientBoostingClassifier {
     config: GradientBoostingConfig,
@@ -458,6 +590,7 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingClassifier {
                 reason: "Number of estimators must be positive".to_string(),
             });
         }
+        validate_subsample(self.config.subsample)?;
 
         // Discover the two classes directly from the labels.
         let classes = discover_binary_classes(y)?;
@@ -476,6 +609,8 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingClassifier {
         let mut trees: Vec<DecisionTreeRegressor<Trained>> =
             Vec::with_capacity(self.config.n_estimators);
         let mut importance = ImportanceAccumulator::new(n_features);
+        let mut sampler =
+            RowSampler::new(self.config.subsample, n_samples, self.config.random_state);
 
         for m in 0..self.config.n_estimators {
             // Vanilla gradient-boosting residuals for log-loss: r_i = y_i - p_i,
@@ -484,21 +619,33 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingClassifier {
             let probabilities = current.mapv(sigmoid);
             let residuals = &y_binary - &probabilities;
 
-            let tree = DecisionTreeRegressor::new()
+            let untrained = DecisionTreeRegressor::new()
                 .max_depth(self.config.max_depth)
                 .min_samples_split(self.config.min_samples_split)
                 .min_samples_leaf(self.config.min_samples_leaf)
-                .random_state(self.config.random_state.map(|s| s + m as u64))
-                .fit(X, &residuals)?;
+                .random_state(self.config.random_state.map(|s| s + m as u64));
+
+            // Stochastic gradient boosting: the tree sees only the sampled
+            // rows, but `current` is updated for all of them below.
+            let sampled_rows = sampler.next_rows();
+            let tree = match sampled_rows {
+                None => untrained.fit(X, &residuals)?,
+                Some(rows) => {
+                    let (x_sub, residuals_sub) = gather_rows(X, &residuals, rows);
+                    untrained.fit(&x_sub, &residuals_sub)?
+                }
+            };
 
             let update = tree.predict(X)?;
-            // F_m = F_{m-1} + learning_rate * h_m.
+            // F_m = F_{m-1} + learning_rate * h_m, for every row.
             for i in 0..n_samples {
                 current[i] += self.config.learning_rate * update[i];
             }
 
             if let Some(state) = tree.tree_.as_ref() {
-                accumulate_importance(&state.root, X, &residuals, &all_indices, &mut importance);
+                // Replay the gains on exactly the rows the tree was fitted on.
+                let importance_rows = sampled_rows.unwrap_or(&all_indices);
+                accumulate_importance(&state.root, X, &residuals, importance_rows, &mut importance);
             }
 
             trees.push(tree);
@@ -527,19 +674,57 @@ impl Predict<Array2<Float>, Array1<Float>> for TrainedGradientBoostingClassifier
 }
 
 impl TrainedGradientBoostingClassifier {
-    /// Raw cumulative log-odds `F(x) = init_logit + learning_rate * sum_m h_m(x)`.
+    /// Reject a design matrix whose column count differs from training.
     #[allow(non_snake_case)] // standard ML notation
-    pub fn decision_function(&self, X: &Array2<Float>) -> Result<Array1<Float>> {
+    fn check_features(&self, X: &Array2<Float>) -> Result<()> {
         if X.ncols() != self.n_features {
             return Err(SklearsError::FeatureMismatch {
                 expected: self.n_features,
                 actual: X.ncols(),
             });
         }
+        Ok(())
+    }
+
+    /// Number of boosting stages actually fitted (always `n_estimators`).
+    pub fn n_stages(&self) -> usize {
+        self.trees.len()
+    }
+
+    /// Raw cumulative log-odds `F(x) = init_logit + learning_rate * sum_m h_m(x)`.
+    #[allow(non_snake_case)] // standard ML notation
+    pub fn decision_function(&self, X: &Array2<Float>) -> Result<Array1<Float>> {
+        self.decision_function_at(X, self.trees.len())
+    }
+
+    /// [`Self::decision_function`] truncated to the first `n_stages` boosting
+    /// rounds, i.e. the score the model would produce if it had been fitted
+    /// with `n_estimators = n_stages`.
+    ///
+    /// `n_stages == 0` returns the constant initial score; `n_stages` above
+    /// [`Self::n_stages`] is an
+    /// [`SklearsError::InvalidParameter`](sklears_core::error::SklearsError).
+    /// Combined with a held-out set this gives early stopping without refitting.
+    #[allow(non_snake_case)] // standard ML notation
+    pub fn decision_function_at(
+        &self,
+        X: &Array2<Float>,
+        n_stages: usize,
+    ) -> Result<Array1<Float>> {
+        self.check_features(X)?;
+        if n_stages > self.trees.len() {
+            return Err(SklearsError::InvalidParameter {
+                name: "n_stages".to_string(),
+                reason: format!(
+                    "n_stages must not exceed the {} fitted stages, got {n_stages}",
+                    self.trees.len()
+                ),
+            });
+        }
 
         let n_rows = X.nrows();
         let mut scores = Array1::from_elem(n_rows, self.init_logit);
-        for tree in &self.trees {
+        for tree in self.trees.iter().take(n_stages) {
             let update = tree.predict(X)?;
             for i in 0..n_rows {
                 scores[i] += self.config.learning_rate * update[i];
@@ -548,11 +733,46 @@ impl TrainedGradientBoostingClassifier {
         Ok(scores)
     }
 
+    /// The raw score after *each* boosting stage, in order: entry `m` is
+    /// `decision_function_at(X, m + 1)`, and the last entry equals
+    /// [`Self::decision_function`].
+    ///
+    /// Computed in a single pass with one running score vector (cloned once per
+    /// stage), so scoring all stages costs the same tree traversals as scoring
+    /// the full model once.
+    #[allow(non_snake_case)] // standard ML notation
+    pub fn staged_decision_function(&self, X: &Array2<Float>) -> Result<Vec<Array1<Float>>> {
+        self.check_features(X)?;
+
+        let n_rows = X.nrows();
+        let mut running = Array1::from_elem(n_rows, self.init_logit);
+        let mut stages = Vec::with_capacity(self.trees.len());
+        for tree in &self.trees {
+            let update = tree.predict(X)?;
+            for i in 0..n_rows {
+                running[i] += self.config.learning_rate * update[i];
+            }
+            stages.push(running.clone());
+        }
+        Ok(stages)
+    }
+
     /// Probability of the positive class (`classes()[1]`) for each row,
     /// `sigmoid(decision_function(X))`.
     #[allow(non_snake_case)] // standard ML notation
     pub fn predict_proba_positive(&self, X: &Array2<Float>) -> Result<Array1<Float>> {
         Ok(self.decision_function(X)?.mapv(sigmoid))
+    }
+
+    /// [`Self::staged_decision_function`] pushed through the sigmoid — the
+    /// positive-class probability after each boosting stage.
+    #[allow(non_snake_case)] // standard ML notation
+    pub fn staged_predict_proba_positive(&self, X: &Array2<Float>) -> Result<Vec<Array1<Float>>> {
+        Ok(self
+            .staged_decision_function(X)?
+            .into_iter()
+            .map(|scores| scores.mapv(sigmoid))
+            .collect())
     }
 
     /// The two class labels discovered from the training targets (ascending).
@@ -594,10 +814,19 @@ impl GradientBoostingRegressor {
 /// `F_0 = mean(y)` and each round fits a regression tree to the pseudo-residuals
 /// `y - F_{m-1}`, updating `F_m = F_{m-1} + learning_rate * h_m`.
 ///
+/// With `subsample < 1.0` each round fits its tree on a fresh random subset of
+/// the rows (drawn without replacement from the `random_state` chain) while
+/// `F_m` is still updated for *every* row — standard stochastic gradient
+/// boosting.
+///
 /// # Scope
-/// Only squared-error regression is implemented. The `loss_function`,
-/// `tree_type`, `early_stopping`, `validation_fraction`, and `subsample`
-/// configuration knobs are accepted but currently have no effect.
+/// Only squared-error regression is implemented. The `n_estimators`,
+/// `learning_rate`, `max_depth`, `min_samples_split`, `min_samples_leaf`,
+/// `subsample`, and `random_state` knobs are honored. The `loss_function`,
+/// `tree_type`, `early_stopping`, and `validation_fraction` knobs are accepted
+/// but have no effect: the loss and the learner are fixed, and no internal early
+/// stopping or validation split is performed — use [`Self::staged_predict`] /
+/// [`Self::predict_at`] to pick a stage count externally without refitting.
 #[derive(Debug, Clone)]
 pub struct TrainedGradientBoostingRegressor {
     config: GradientBoostingConfig,
@@ -632,6 +861,7 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingRegressor {
                 reason: "Number of estimators must be positive".to_string(),
             });
         }
+        validate_subsample(self.config.subsample)?;
 
         // F_0(x) = mean(y).
         let init_prediction = y.sum() / n_samples as Float;
@@ -641,26 +871,40 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingRegressor {
         let mut trees: Vec<DecisionTreeRegressor<Trained>> =
             Vec::with_capacity(self.config.n_estimators);
         let mut importance = ImportanceAccumulator::new(n_features);
+        let mut sampler =
+            RowSampler::new(self.config.subsample, n_samples, self.config.random_state);
 
         for m in 0..self.config.n_estimators {
             // Pseudo-residuals for squared-error loss: r_i = y_i - F_{m-1}(x_i).
             let residuals = y - &current;
 
-            let tree = DecisionTreeRegressor::new()
+            let untrained = DecisionTreeRegressor::new()
                 .max_depth(self.config.max_depth)
                 .min_samples_split(self.config.min_samples_split)
                 .min_samples_leaf(self.config.min_samples_leaf)
-                .random_state(self.config.random_state.map(|s| s + m as u64))
-                .fit(X, &residuals)?;
+                .random_state(self.config.random_state.map(|s| s + m as u64));
+
+            // Stochastic gradient boosting: the tree sees only the sampled
+            // rows, but `current` is updated for all of them below.
+            let sampled_rows = sampler.next_rows();
+            let tree = match sampled_rows {
+                None => untrained.fit(X, &residuals)?,
+                Some(rows) => {
+                    let (x_sub, residuals_sub) = gather_rows(X, &residuals, rows);
+                    untrained.fit(&x_sub, &residuals_sub)?
+                }
+            };
 
             let update = tree.predict(X)?;
-            // F_m = F_{m-1} + learning_rate * h_m.
+            // F_m = F_{m-1} + learning_rate * h_m, for every row.
             for i in 0..n_samples {
                 current[i] += self.config.learning_rate * update[i];
             }
 
             if let Some(state) = tree.tree_.as_ref() {
-                accumulate_importance(&state.root, X, &residuals, &all_indices, &mut importance);
+                // Replay the gains on exactly the rows the tree was fitted on.
+                let importance_rows = sampled_rows.unwrap_or(&all_indices);
+                accumulate_importance(&state.root, X, &residuals, importance_rows, &mut importance);
             }
 
             trees.push(tree);
@@ -679,17 +923,52 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingRegressor {
 impl Predict<Array2<Float>, Array1<Float>> for TrainedGradientBoostingRegressor {
     #[allow(non_snake_case)] // standard ML notation
     fn predict(&self, X: &Array2<Float>) -> Result<Array1<Float>> {
+        // Replay the additive model: F(x) = init_prediction + lr * sum_m h_m(x).
+        self.predict_at(X, self.trees.len())
+    }
+}
+
+impl TrainedGradientBoostingRegressor {
+    /// Reject a design matrix whose column count differs from training.
+    #[allow(non_snake_case)] // standard ML notation
+    fn check_features(&self, X: &Array2<Float>) -> Result<()> {
         if X.ncols() != self.n_features {
             return Err(SklearsError::FeatureMismatch {
                 expected: self.n_features,
                 actual: X.ncols(),
             });
         }
+        Ok(())
+    }
 
-        // Replay the additive model: F(x) = init_prediction + lr * sum_m h_m(x).
+    /// Number of boosting stages actually fitted (always `n_estimators`).
+    pub fn n_stages(&self) -> usize {
+        self.trees.len()
+    }
+
+    /// [`Predict::predict`] truncated to the first `n_stages` boosting rounds,
+    /// i.e. the prediction the model would produce if it had been fitted with
+    /// `n_estimators = n_stages`.
+    ///
+    /// `n_stages == 0` returns the constant initial prediction; `n_stages`
+    /// above [`Self::n_stages`] is an
+    /// [`SklearsError::InvalidParameter`](sklears_core::error::SklearsError).
+    #[allow(non_snake_case)] // standard ML notation
+    pub fn predict_at(&self, X: &Array2<Float>, n_stages: usize) -> Result<Array1<Float>> {
+        self.check_features(X)?;
+        if n_stages > self.trees.len() {
+            return Err(SklearsError::InvalidParameter {
+                name: "n_stages".to_string(),
+                reason: format!(
+                    "n_stages must not exceed the {} fitted stages, got {n_stages}",
+                    self.trees.len()
+                ),
+            });
+        }
+
         let n_rows = X.nrows();
         let mut predictions = Array1::from_elem(n_rows, self.init_prediction);
-        for tree in &self.trees {
+        for tree in self.trees.iter().take(n_stages) {
             let update = tree.predict(X)?;
             for i in 0..n_rows {
                 predictions[i] += self.config.learning_rate * update[i];
@@ -697,9 +976,30 @@ impl Predict<Array2<Float>, Array1<Float>> for TrainedGradientBoostingRegressor 
         }
         Ok(predictions)
     }
-}
 
-impl TrainedGradientBoostingRegressor {
+    /// The prediction after *each* boosting stage, in order: entry `m` is
+    /// `predict_at(X, m + 1)`, and the last entry equals
+    /// [`Predict::predict`].
+    ///
+    /// Computed in a single pass with one running prediction vector (cloned
+    /// once per stage).
+    #[allow(non_snake_case)] // standard ML notation
+    pub fn staged_predict(&self, X: &Array2<Float>) -> Result<Vec<Array1<Float>>> {
+        self.check_features(X)?;
+
+        let n_rows = X.nrows();
+        let mut running = Array1::from_elem(n_rows, self.init_prediction);
+        let mut stages = Vec::with_capacity(self.trees.len());
+        for tree in &self.trees {
+            let update = tree.predict(X)?;
+            for i in 0..n_rows {
+                running[i] += self.config.learning_rate * update[i];
+            }
+            stages.push(running.clone());
+        }
+        Ok(stages)
+    }
+
     pub fn feature_importances_gain(&self) -> &Array1<Float> {
         &self.feature_importance.gain
     }
@@ -755,6 +1055,17 @@ impl GradientBoostingClassifierBuilder {
         self
     }
 
+    /// Fraction of the training rows each boosting round is fitted on, drawn
+    /// without replacement (stochastic gradient boosting).
+    ///
+    /// Must lie in `(0.0, 1.0]`; values outside that range are rejected at
+    /// [`Fit::fit`] time. `1.0` (the default) disables sampling. Pair with
+    /// [`Self::random_state`] for reproducible stochastic fits.
+    pub fn subsample(mut self, subsample: Float) -> Self {
+        self.config.subsample = subsample;
+        self
+    }
+
     pub fn random_state(mut self, random_state: u64) -> Self {
         self.config.random_state = Some(random_state);
         self
@@ -804,6 +1115,17 @@ impl GradientBoostingRegressorBuilder {
 
     pub fn min_samples_leaf(mut self, min_samples_leaf: usize) -> Self {
         self.config.min_samples_leaf = min_samples_leaf;
+        self
+    }
+
+    /// Fraction of the training rows each boosting round is fitted on, drawn
+    /// without replacement (stochastic gradient boosting).
+    ///
+    /// Must lie in `(0.0, 1.0]`; values outside that range are rejected at
+    /// [`Fit::fit`] time. `1.0` (the default) disables sampling. Pair with
+    /// [`Self::random_state`] for reproducible stochastic fits.
+    pub fn subsample(mut self, subsample: Float) -> Self {
+        self.config.subsample = subsample;
         self
     }
 
@@ -1100,5 +1422,274 @@ mod tests {
             .expect("shape matches data length");
         let result = model.predict(&x_wrong);
         assert!(matches!(result, Err(SklearsError::FeatureMismatch { .. })));
+    }
+
+    // -- Subsampling and staged scoring ---------------------------------------
+
+    /// A deterministic, mildly overlapping binary problem with 120 rows and 3
+    /// features — large enough that row subsampling actually changes the fit.
+    fn noisy_binary_problem() -> (Array2<Float>, Array1<Float>) {
+        let n = 120usize;
+        let n_features = 3usize;
+        let mut state: u64 = 0x2024_ABCD_1234_5678;
+        let mut next_f64 = || {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            ((state >> 11) as Float) / ((1u64 << 53) as Float)
+        };
+
+        let mut data = Vec::with_capacity(n * n_features);
+        let mut targets = Vec::with_capacity(n);
+        for _ in 0..n {
+            let f0 = next_f64() * 2.0 - 1.0;
+            let f1 = next_f64() * 2.0 - 1.0;
+            let f2 = next_f64() * 2.0 - 1.0;
+            data.push(f0);
+            data.push(f1);
+            data.push(f2);
+            let score = 1.5 * f0 + f1 - 0.5 * f2;
+            targets.push(if score > 0.0 { 1.0 } else { 0.0 });
+        }
+
+        let x = Array2::from_shape_vec((n, n_features), data)
+            .expect("generated shape matches data length");
+        (x, Array1::from_vec(targets))
+    }
+
+    /// Mean binomial log-loss of `proba` against `{0, 1}` targets.
+    fn binary_log_loss(proba: &Array1<Float>, y_binary: &Array1<Float>) -> Float {
+        proba
+            .iter()
+            .zip(y_binary.iter())
+            .map(|(&p, &yb)| {
+                let p = p.clamp(1e-15, 1.0 - 1e-15);
+                -(yb * p.ln() + (1.0 - yb) * (1.0 - p).ln())
+            })
+            .sum::<Float>()
+            / proba.len() as Float
+    }
+
+    /// A seeded `subsample = 0.5` fit is reproducible run-to-run and is a
+    /// genuinely different model from the full-data fit.
+    #[test]
+    fn test_classifier_subsample_is_reproducible_and_differs_from_full() {
+        let (x, y) = noisy_binary_problem();
+        let fit = |subsample: Float| {
+            GradientBoostingClassifier::builder()
+                .n_estimators(30)
+                .learning_rate(0.2)
+                .max_depth(2)
+                .subsample(subsample)
+                .random_state(7)
+                .build()
+                .fit(&x, &y)
+                .expect("fit should succeed")
+        };
+
+        let first = fit(0.5).predict_proba_positive(&x).expect("proba");
+        let second = fit(0.5).predict_proba_positive(&x).expect("proba");
+        let full = fit(1.0).predict_proba_positive(&x).expect("proba");
+
+        for (i, (&p, &q)) in first.iter().zip(second.iter()).enumerate() {
+            assert_eq!(
+                p, q,
+                "subsample=0.5 with a fixed seed is not reproducible at row {i}"
+            );
+        }
+        assert!(
+            first
+                .iter()
+                .zip(full.iter())
+                .any(|(&p, &q)| (p - q).abs() > 1e-9),
+            "subsample=0.5 produced exactly the same model as subsample=1.0"
+        );
+    }
+
+    /// Different seeds must draw different subsamples (so `random_state` really
+    /// drives the sampler).
+    #[test]
+    fn test_classifier_subsample_depends_on_seed() {
+        let (x, y) = noisy_binary_problem();
+        let fit = |seed: u64| {
+            GradientBoostingClassifier::builder()
+                .n_estimators(30)
+                .learning_rate(0.2)
+                .max_depth(2)
+                .subsample(0.5)
+                .random_state(seed)
+                .build()
+                .fit(&x, &y)
+                .expect("fit should succeed")
+                .predict_proba_positive(&x)
+                .expect("proba")
+        };
+
+        let a = fit(1);
+        let b = fit(2);
+        assert!(
+            a.iter().zip(b.iter()).any(|(&p, &q)| (p - q).abs() > 1e-9),
+            "two different seeds produced identical subsampled models"
+        );
+    }
+
+    /// `subsample` outside `(0.0, 1.0]` is rejected at fit time.
+    #[test]
+    fn test_classifier_invalid_subsample_errors() {
+        let (x, y) = two_blobs();
+        for bad in [0.0, -0.5, 1.5] {
+            let result = GradientBoostingClassifier::builder()
+                .n_estimators(5)
+                .subsample(bad)
+                .build()
+                .fit(&x, &y);
+            assert!(
+                matches!(result, Err(SklearsError::InvalidParameter { .. })),
+                "subsample={bad} should have been rejected"
+            );
+        }
+    }
+
+    /// Staged scores have one entry per boosting round, the last entry is
+    /// exactly `decision_function`, and every prefix matches
+    /// `decision_function_at`.
+    #[test]
+    fn test_classifier_staged_decision_function_matches_full_and_truncated() {
+        let (x, y) = two_blobs();
+        let n_estimators = 12usize;
+        let model = GradientBoostingClassifier::builder()
+            .n_estimators(n_estimators)
+            .learning_rate(0.2)
+            .max_depth(2)
+            .build()
+            .fit(&x, &y)
+            .expect("fit should succeed");
+
+        assert_eq!(model.n_stages(), n_estimators);
+        let staged = model.staged_decision_function(&x).expect("staged scores");
+        assert_eq!(staged.len(), n_estimators);
+
+        let full = model.decision_function(&x).expect("decision_function");
+        for (i, (&s, &f)) in staged[n_estimators - 1].iter().zip(full.iter()).enumerate() {
+            assert_eq!(
+                s, f,
+                "final staged score differs from decision_function at row {i}"
+            );
+        }
+
+        for m in 0..=n_estimators {
+            let truncated = model
+                .decision_function_at(&x, m)
+                .expect("decision_function_at");
+            if m == 0 {
+                let init = truncated[0];
+                assert!(
+                    truncated.iter().all(|&v| v == init),
+                    "stage 0 must be the constant initial score"
+                );
+            } else {
+                for (&s, &t) in staged[m - 1].iter().zip(truncated.iter()) {
+                    assert_eq!(s, t, "stage {m} disagrees with decision_function_at");
+                }
+            }
+        }
+
+        let staged_proba = model
+            .staged_predict_proba_positive(&x)
+            .expect("staged proba");
+        assert_eq!(staged_proba.len(), n_estimators);
+        let full_proba = model.predict_proba_positive(&x).expect("proba");
+        for (&s, &f) in staged_proba[n_estimators - 1].iter().zip(full_proba.iter()) {
+            assert_eq!(s, f, "final staged probability differs from predict_proba");
+        }
+
+        assert!(matches!(
+            model.decision_function_at(&x, n_estimators + 1),
+            Err(SklearsError::InvalidParameter { .. })
+        ));
+    }
+
+    /// Boosting still works under subsampling: more rounds at `subsample = 0.8`
+    /// beat the 10-round baseline on log-loss.
+    #[test]
+    fn test_classifier_log_loss_decreases_with_subsampling() {
+        let (x, y) = noisy_binary_problem();
+        let fit = |n_estimators: usize| {
+            GradientBoostingClassifier::builder()
+                .n_estimators(n_estimators)
+                .learning_rate(0.2)
+                .max_depth(2)
+                .subsample(0.8)
+                .random_state(11)
+                .build()
+                .fit(&x, &y)
+                .expect("fit should succeed")
+                .predict_proba_positive(&x)
+                .expect("proba")
+        };
+
+        let loss_baseline = binary_log_loss(&fit(10), &y);
+        let loss_boosted = binary_log_loss(&fit(60), &y);
+        assert!(
+            loss_boosted < loss_baseline,
+            "log-loss did not decrease under subsample=0.8: 10 est = {loss_baseline}, \
+             60 est = {loss_boosted}"
+        );
+    }
+
+    /// The regressor mirrors the classifier: staged predictions line up with the
+    /// full model, and a seeded `subsample` is reproducible yet distinct.
+    #[test]
+    fn test_regressor_staged_predict_and_subsample() {
+        let (x, y) = linear_grid();
+        let n_estimators = 15usize;
+        let model = GradientBoostingRegressor::builder()
+            .n_estimators(n_estimators)
+            .learning_rate(0.2)
+            .max_depth(3)
+            .build()
+            .fit(&x, &y)
+            .expect("fit should succeed");
+
+        assert_eq!(model.n_stages(), n_estimators);
+        let staged = model.staged_predict(&x).expect("staged predictions");
+        assert_eq!(staged.len(), n_estimators);
+
+        let full = model.predict(&x).expect("predict");
+        for (&s, &f) in staged[n_estimators - 1].iter().zip(full.iter()) {
+            assert_eq!(s, f, "final staged prediction differs from predict");
+        }
+        let zero = model.predict_at(&x, 0).expect("predict_at(0)");
+        let init = zero[0];
+        assert!(
+            zero.iter().all(|&v| v == init),
+            "stage 0 must be the constant initial prediction"
+        );
+
+        let fit_sub = |subsample: Float| {
+            GradientBoostingRegressor::builder()
+                .n_estimators(n_estimators)
+                .learning_rate(0.2)
+                .max_depth(3)
+                .subsample(subsample)
+                .random_state(5)
+                .build()
+                .fit(&x, &y)
+                .expect("fit should succeed")
+                .predict(&x)
+                .expect("predict")
+        };
+        let sub_first = fit_sub(0.5);
+        let sub_second = fit_sub(0.5);
+        for (&p, &q) in sub_first.iter().zip(sub_second.iter()) {
+            assert_eq!(p, q, "seeded regressor subsampling is not reproducible");
+        }
+        assert!(
+            sub_first
+                .iter()
+                .zip(full.iter())
+                .any(|(&p, &q)| (p - q).abs() > 1e-9),
+            "subsample=0.5 produced exactly the same regressor as subsample=1.0"
+        );
     }
 }
