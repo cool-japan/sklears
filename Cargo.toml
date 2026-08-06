@@ -106,7 +106,7 @@ syn = { version = "2.0", features = ["full", "derive", "parsing", "printing"] }
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
-oxicode = { version = "0.2.5" }
+oxicode = { version = "0.2.6" }
 
 # COOLJAPAN Pure Rust implementations
 oxifft = { version = "0.4.2" }  # Pure Rust FFT (COOLJAPAN Policy - replaces rustfft)
