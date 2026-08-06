@@ -109,7 +109,7 @@ serde_json = { version = "1.0" }
 oxicode = { version = "0.2.5" }
 
 # COOLJAPAN Pure Rust implementations
-oxifft = { version = "0.4.1" }  # Pure Rust FFT (COOLJAPAN Policy - replaces rustfft)
+oxifft = { version = "0.4.2" }  # Pure Rust FFT (COOLJAPAN Policy - replaces rustfft)
 
 # Testing and benchmarking
 criterion = { version = "0.8" }
