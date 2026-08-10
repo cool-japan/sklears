@@ -155,7 +155,7 @@ itertools = { version = "0.15" }
 serde_yaml = { version = "0.9" }
 toml = { version = "1.1" }
 serde_with = { version = "3.21" }
-quick-xml = { package = "oxixml-quickxml-compat", version = "0.1.1", features = ["serialize"] }
+quick-xml = { package = "oxixml-quickxml-compat", version = "0.1.2", features = ["serialize"] }
 oxiarc-deflate = { version = "0.4.1" }
 sysinfo = { version = "0.39" }
 rmp-serde = { version = "1.3" }
