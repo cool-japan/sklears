@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- Renamed the workspace `quick-xml` dependency (`Cargo.toml`) to the `oxixml-quickxml-compat` package (drop-in quick-xml 0.41 compatible shim), keeping the local dependency name `quick-xml` so `sklears-utils` (the sole consumer, gated behind its `xml` feature) required no source changes.
 
 ### Fixed
 
