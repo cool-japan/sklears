@@ -829,6 +829,49 @@ mod tests {
         assert_eq!(suite.benchmarks.len(), 1);
     }
 
+    /// Regression test for issue #5.
+    ///
+    /// `CacheAnalyzer` used to select its counter backend by `target_arch`
+    /// while the backend itself was gated on `target_os = "linux"`, so
+    /// `sklears-core` did not compile on non-Linux x86_64 (Windows, macOS,
+    /// the BSDs) and reported dead code on Linux AArch64. Exercising the
+    /// cache-counter API in a test that builds on every platform keeps the
+    /// `cfg` arms of `read_platform_cache_counters` exhaustive.
+    #[test]
+    fn test_issue_5_cache_counters_on_every_platform() {
+        // Referencing the dispatcher as a function pointer fails to compile if
+        // a `cfg` arm is ever missing for the target being built.
+        let read_counters: fn(&CacheAnalyzer) -> CacheStats = CacheAnalyzer::read_cache_counters;
+
+        let analyzer = CacheAnalyzer::new();
+        let stats = read_counters(&analyzer);
+        // Hit rates stay well defined even when the platform reports nothing.
+        assert!((0.0..=1.0).contains(&stats.l1_hit_rate()));
+        assert!((0.0..=1.0).contains(&stats.l2_hit_rate()));
+        assert!((0.0..=1.0).contains(&stats.l3_hit_rate()));
+        assert!((0.0..=1.0).contains(&stats.efficiency_score()));
+
+        // The public monitoring API must work on every platform as well.
+        analyzer.start_monitoring();
+        let delta = analyzer.stop_monitoring();
+        assert!((0.0..=1.0).contains(&delta.efficiency_score()));
+        assert!((0.0..=1.0).contains(&analyzer.get_stats().efficiency_score()));
+    }
+
+    #[test]
+    fn test_issue_5_cache_stats_default_is_zeroed() {
+        let stats = CacheStats::default();
+        assert_eq!(stats.l1_hits, 0);
+        assert_eq!(stats.l1_misses, 0);
+        assert_eq!(stats.l2_hits, 0);
+        assert_eq!(stats.l2_misses, 0);
+        assert_eq!(stats.l3_hits, 0);
+        assert_eq!(stats.l3_misses, 0);
+        assert_eq!(stats.branch_mispredictions, 0);
+        assert_eq!(stats.tlb_misses, 0);
+        assert_eq!(stats.efficiency_score(), 0.0);
+    }
+
     #[test]
     // `PerformanceProfiler::profile()` calls `MemoryTracker::current_usage()`,
     // which on macOS calls `libc::getrusage()` via `extern "C"` FFI. Miri
@@ -1112,90 +1155,57 @@ impl CacheAnalyzer {
         }
     }
 
+    /// Current cache counters.
+    ///
+    /// Platforms without a hardware counter interface report zeroed statistics
+    /// instead of failing.
     pub fn get_stats(&self) -> CacheStats {
         self.read_cache_counters()
     }
 
-    /// Read hardware cache counters (platform-specific implementations)
-    #[cfg(target_arch = "x86_64")]
+    /// Read hardware cache counters.
+    ///
+    /// This dispatcher is compiled on every target and is the only caller of
+    /// the platform backends below, so a backend can never be selected on a
+    /// target where it is not compiled: the three `cfg` arms of
+    /// `read_platform_cache_counters` partition the whole target space into
+    /// Linux / non-Linux AArch64 / everything else. Targets without a counter
+    /// interface degrade to zeroed statistics rather than breaking the build.
     fn read_cache_counters(&self) -> CacheStats {
-        // Use RDPMC or perf_event_open for hardware counters on x86_64
-        self.read_perf_counters().unwrap_or(CacheStats {
-            l1_hits: 0,
-            l1_misses: 0,
-            l2_hits: 0,
-            l2_misses: 0,
-            l3_hits: 0,
-            l3_misses: 0,
-            branch_mispredictions: 0,
-            tlb_misses: 0,
-        })
+        self.read_platform_cache_counters().unwrap_or_default()
     }
 
-    #[cfg(target_arch = "aarch64")]
-    fn read_cache_counters(&self) -> CacheStats {
-        // Use ARM PMU counters
-        self.read_arm_pmu_counters().unwrap_or(CacheStats {
-            l1_hits: 0,
-            l1_misses: 0,
-            l2_hits: 0,
-            l2_misses: 0,
-            l3_hits: 0,
-            l3_misses: 0,
-            branch_mispredictions: 0,
-            tlb_misses: 0,
-        })
-    }
-
-    #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-    fn read_cache_counters(&self) -> CacheStats {
-        // Fallback implementation
-        CacheStats {
-            l1_hits: 0,
-            l1_misses: 0,
-            l2_hits: 0,
-            l2_misses: 0,
-            l3_hits: 0,
-            l3_misses: 0,
-            branch_mispredictions: 0,
-            tlb_misses: 0,
-        }
-    }
-
+    /// Linux backend (any architecture): the kernel exposes the hardware
+    /// counters of both x86_64 and AArch64 through `perf_event_open(2)`.
     #[cfg(target_os = "linux")]
-    fn read_perf_counters(&self) -> Result<CacheStats> {
-        // Linux perf_event_open implementation
+    fn read_platform_cache_counters(&self) -> Result<CacheStats> {
         // This would use the perf_event_open syscall to read hardware counters
-        Ok(CacheStats {
-            l1_hits: 0,
-            l1_misses: 0,
-            l2_hits: 0,
-            l2_misses: 0,
-            l3_hits: 0,
-            l3_misses: 0,
-            branch_mispredictions: 0,
-            tlb_misses: 0,
-        })
+        Ok(CacheStats::default())
     }
 
-    #[cfg(target_arch = "aarch64")]
-    fn read_arm_pmu_counters(&self) -> Result<CacheStats> {
+    /// AArch64 backend outside Linux: read the ARM Performance Monitoring Unit
+    /// directly (on Linux the PMU is reached through `perf_event_open` above).
+    #[cfg(all(not(target_os = "linux"), target_arch = "aarch64"))]
+    fn read_platform_cache_counters(&self) -> Result<CacheStats> {
         // ARM Performance Monitoring Unit implementation
-        Ok(CacheStats {
-            l1_hits: 0,
-            l1_misses: 0,
-            l2_hits: 0,
-            l2_misses: 0,
-            l3_hits: 0,
-            l3_misses: 0,
-            branch_mispredictions: 0,
-            tlb_misses: 0,
-        })
+        Ok(CacheStats::default())
+    }
+
+    /// Every remaining target — Windows, macOS and the BSDs on x86_64, wasm32,
+    /// and any other architecture — has no counter interface available here.
+    #[cfg(all(not(target_os = "linux"), not(target_arch = "aarch64")))]
+    fn read_platform_cache_counters(&self) -> Result<CacheStats> {
+        Err(SklearsError::NotImplemented(
+            "hardware cache counters are not available on this target".to_string(),
+        ))
     }
 }
 
 /// Comprehensive cache performance statistics
-#[derive(Debug, Clone)]
+///
+/// The `Default` value is all zeros, which is what platforms without a
+/// hardware counter interface report.
+#[derive(Debug, Clone, Default)]
 pub struct CacheStats {
     pub l1_hits: u64,
     pub l1_misses: u64,

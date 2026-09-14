@@ -20,8 +20,12 @@ pub struct SystemMemory {
 ///
 /// # Platform support
 /// - **Linux**: parses `/proc/meminfo` (MemTotal / MemAvailable lines).
-/// - **Other Unix**: uses `libc::sysconf(_SC_PHYS_PAGES)` and `_SC_AVPHYS_PAGES`.
+/// - **Apple**: `sysctl hw.memsize` plus `host_statistics64`.
 /// - **Windows**: uses `winapi::um::sysinfoapi::GlobalMemoryStatusEx`.
+/// - **FreeBSD family**: `sysconf(_SC_PHYS_PAGES)` plus the `vm.stats.vm`
+///   sysctls, which report free and inactive page counts.
+/// - **Other Unix**: `libc::sysconf(_SC_PHYS_PAGES)` and `_SC_AVPHYS_PAGES`
+///   where that (glibc/Solaris) extension exists.
 ///
 /// Returns `Err` if the platform APIs are unavailable or parsing fails.
 pub fn system_memory() -> Result<SystemMemory> {
@@ -94,19 +98,21 @@ fn process_rss_impl() -> Option<u64> {
     Some(resident_pages * page_size)
 }
 
-// ── Non-Linux Unix implementation ─────────────────────────────────────────────
+// ── Non-Linux, non-Apple Unix implementation ─────────────────────────────────
 
 #[cfg(all(
     target_family = "unix",
     not(target_os = "linux"),
-    not(target_os = "macos")
+    not(target_vendor = "apple")
 ))]
 fn system_memory_impl() -> Result<SystemMemory> {
     let total = unix_sysconf_bytes(libc::_SC_PHYS_PAGES).ok_or_else(|| {
         SklearsError::InvalidOperation("sysconf(_SC_PHYS_PAGES) returned unavailable".to_string())
     })?;
-    let available = unix_sysconf_bytes(libc::_SC_AVPHYS_PAGES).ok_or_else(|| {
-        SklearsError::InvalidOperation("sysconf(_SC_AVPHYS_PAGES) returned unavailable".to_string())
+    let available = available_memory_bytes().ok_or_else(|| {
+        SklearsError::InvalidOperation(
+            "available memory is not reported by this platform".to_string(),
+        )
     })?;
     let used = total.saturating_sub(available);
     Ok(SystemMemory {
@@ -116,10 +122,91 @@ fn system_memory_impl() -> Result<SystemMemory> {
     })
 }
 
+/// Available physical memory in bytes.
+///
+/// `_SC_AVPHYS_PAGES` is a glibc/Solaris extension that the FreeBSD family,
+/// NetBSD and the non-macOS Apple targets do not define, so reading it on
+/// "every Unix that is not Linux or macOS" did not compile there. Each family
+/// gets its own reader instead and the remaining targets report an honest
+/// unknown. Keep the target list here and in the fallback below complementary.
+#[cfg(any(
+    target_os = "android",
+    target_os = "emscripten",
+    target_os = "fuchsia",
+    target_os = "solaris",
+    target_os = "illumos",
+    target_os = "openbsd",
+    target_os = "haiku",
+    target_os = "aix",
+    target_os = "hurd",
+    target_os = "nto",
+    target_os = "cygwin"
+))]
+fn available_memory_bytes() -> Option<u64> {
+    unix_sysconf_bytes(libc::_SC_AVPHYS_PAGES)
+}
+
+/// FreeBSD family: free and inactive page counts from the `vm.stats.vm`
+/// sysctls, mirroring the "free + inactive" definition used on Apple targets.
+#[cfg(any(target_os = "freebsd", target_os = "dragonfly"))]
+fn available_memory_bytes() -> Option<u64> {
+    let page_size = page_size_bytes()?;
+    let free = sysctl_u32(c"vm.stats.vm.v_free_count")?;
+    let inactive = sysctl_u32(c"vm.stats.vm.v_inactive_count")?;
+    Some((u64::from(free) + u64::from(inactive)) * page_size)
+}
+
+#[cfg(any(target_os = "freebsd", target_os = "dragonfly"))]
+fn sysctl_u32(name: &std::ffi::CStr) -> Option<u32> {
+    let mut value: u32 = 0;
+    let mut len = std::mem::size_of::<u32>();
+    // SAFETY: `name` is NUL terminated and the output buffer matches `len`
+    let ret = unsafe {
+        libc::sysctlbyname(
+            name.as_ptr(),
+            &mut value as *mut u32 as *mut libc::c_void,
+            &mut len,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    if ret == 0 {
+        Some(value)
+    } else {
+        None
+    }
+}
+
+/// Unix targets with no known "available memory" interface (NetBSD, ...):
+/// honest unknown rather than an invented number.
 #[cfg(all(
     target_family = "unix",
     not(target_os = "linux"),
-    not(target_os = "macos")
+    not(target_vendor = "apple"),
+    not(any(
+        target_os = "android",
+        target_os = "emscripten",
+        target_os = "fuchsia",
+        target_os = "solaris",
+        target_os = "illumos",
+        target_os = "openbsd",
+        target_os = "haiku",
+        target_os = "aix",
+        target_os = "hurd",
+        target_os = "nto",
+        target_os = "cygwin",
+        target_os = "freebsd",
+        target_os = "dragonfly"
+    ))
+))]
+fn available_memory_bytes() -> Option<u64> {
+    None
+}
+
+#[cfg(all(
+    target_family = "unix",
+    not(target_os = "linux"),
+    not(target_vendor = "apple")
 ))]
 fn unix_sysconf_bytes(name: libc::c_int) -> Option<u64> {
     // SAFETY: sysconf is safe to call with standard constants
@@ -134,10 +221,10 @@ fn unix_sysconf_bytes(name: libc::c_int) -> Option<u64> {
 #[cfg(all(
     target_family = "unix",
     not(target_os = "linux"),
-    not(target_os = "macos")
+    not(target_vendor = "apple")
 ))]
 fn process_rss_impl() -> Option<u64> {
-    // rusage.ru_maxrss — on BSDs (non-macOS, non-Linux) this is kilobytes.
+    // rusage.ru_maxrss — on BSDs (non-Apple, non-Linux) this is kilobytes.
     let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
     // SAFETY: &mut usage is valid, RUSAGE_SELF is a valid constant
     let ret = unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut usage) };
@@ -148,24 +235,22 @@ fn process_rss_impl() -> Option<u64> {
     Some(rss)
 }
 
-// ── macOS implementation ──────────────────────────────────────────────────────
+// ── Apple implementation (macOS, iOS and the other Darwin targets) ───────────
 
 // Declare mach_host_self directly to avoid the libc deprecation warning;
 // the libc crate marks it deprecated in favour of the `mach2` crate, but
 // adding a new dependency for a single trap call is unnecessary.
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 extern "C" {
     fn mach_host_self() -> libc::mach_port_t;
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 fn system_memory_impl() -> Result<SystemMemory> {
-    let total = macos_total_memory().ok_or_else(|| {
-        SklearsError::InvalidOperation("sysctl hw.memsize failed on macOS".to_string())
-    })?;
-    let available = macos_available_memory().ok_or_else(|| {
-        SklearsError::InvalidOperation("host_statistics64 failed on macOS".to_string())
-    })?;
+    let total = apple_total_memory()
+        .ok_or_else(|| SklearsError::InvalidOperation("sysctl hw.memsize failed".to_string()))?;
+    let available = apple_available_memory()
+        .ok_or_else(|| SklearsError::InvalidOperation("host_statistics64 failed".to_string()))?;
     let used = total.saturating_sub(available);
     Ok(SystemMemory {
         total,
@@ -174,8 +259,8 @@ fn system_memory_impl() -> Result<SystemMemory> {
     })
 }
 
-#[cfg(target_os = "macos")]
-fn macos_total_memory() -> Option<u64> {
+#[cfg(target_vendor = "apple")]
+fn apple_total_memory() -> Option<u64> {
     let mut value: u64 = 0;
     let mut len = std::mem::size_of::<u64>();
     // SAFETY: sysctlbyname with a well-known constant name; output pointer is valid
@@ -195,8 +280,8 @@ fn macos_total_memory() -> Option<u64> {
     }
 }
 
-#[cfg(target_os = "macos")]
-fn macos_available_memory() -> Option<u64> {
+#[cfg(target_vendor = "apple")]
+fn apple_available_memory() -> Option<u64> {
     let page_size = page_size_bytes()?;
     let mut vm_stats: libc::vm_statistics64 = unsafe { std::mem::zeroed() };
     let mut count: libc::mach_msg_type_number_t = (std::mem::size_of::<libc::vm_statistics64>()
@@ -218,7 +303,7 @@ fn macos_available_memory() -> Option<u64> {
     Some(free_pages * page_size)
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 fn process_rss_impl() -> Option<u64> {
     let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
     // SAFETY: getrusage is safe with RUSAGE_SELF and a valid pointer
@@ -226,7 +311,7 @@ fn process_rss_impl() -> Option<u64> {
     if ret != 0 {
         return None;
     }
-    // On macOS, ru_maxrss is in bytes (unlike Linux where it's kilobytes)
+    // On Darwin, ru_maxrss is in bytes (unlike Linux where it's kilobytes)
     Some(usage.ru_maxrss as u64)
 }
 
@@ -234,8 +319,6 @@ fn process_rss_impl() -> Option<u64> {
 
 #[cfg(target_os = "windows")]
 fn system_memory_impl() -> Result<SystemMemory> {
-    use winapi::um::processthreadsapi::GetCurrentProcess;
-    use winapi::um::psapi::{GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS};
     use winapi::um::sysinfoapi::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 
     let mut mem_status: MEMORYSTATUSEX = unsafe { std::mem::zeroed() };
@@ -300,5 +383,49 @@ fn page_size_bytes() -> Option<u64> {
         None
     } else {
         Some(ps as u64)
+    }
+}
+
+// ── Tests ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression test for issue #5.
+    ///
+    /// `system_memory()` and `process_rss_bytes()` are compiled on every
+    /// target, so a platform arm that is missing (or that reads an API the
+    /// platform does not provide, as `_SC_AVPHYS_PAGES` on the BSDs) breaks
+    /// the build of that platform. Running the API everywhere keeps the
+    /// `cfg` arms of this module exhaustive and mutually exclusive.
+    #[test]
+    fn test_issue_5_system_memory_gates_resolve() {
+        match system_memory() {
+            Ok(memory) => {
+                assert!(memory.total > 0, "total memory must be positive");
+                assert!(
+                    memory.available <= memory.total,
+                    "available ({}) must not exceed total ({})",
+                    memory.available,
+                    memory.total
+                );
+                assert_eq!(memory.used, memory.total.saturating_sub(memory.available));
+            }
+            Err(err) => {
+                // Platforms without a memory interface report an honest error
+                // instead of inventing numbers.
+                assert!(!err.to_string().is_empty());
+            }
+        }
+    }
+
+    /// Companion to the test above for the RSS reader: `None` is an accepted
+    /// answer, a fabricated zero is not.
+    #[test]
+    fn test_issue_5_process_rss_gates_resolve() {
+        if let Some(rss) = process_rss_bytes() {
+            assert!(rss > 0, "a running process cannot have a zero RSS");
+        }
     }
 }

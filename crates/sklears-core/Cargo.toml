@@ -63,7 +63,9 @@ mach = { workspace = true }
 libc = { workspace = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-winapi = { workspace = true }
+# `system_info` needs GlobalMemoryStatusEx (sysinfoapi), GetProcessMemoryInfo
+# (psapi) and GetCurrentProcess (processthreadsapi) on top of the workspace set.
+winapi = { workspace = true, features = ["processthreadsapi", "psapi", "sysinfoapi"] }
 
 [dev-dependencies]
 criterion = { workspace = true }
