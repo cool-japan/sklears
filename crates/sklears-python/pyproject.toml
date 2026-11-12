@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "Apache-2.0" }
 authors = [
-    { name = "COOLJAPAN OU (Team Kitasan)" },
+    { name = "COOLJAPAN OU (Team KitaSan)" },
 ]
 keywords = [
     "machine-learning",
